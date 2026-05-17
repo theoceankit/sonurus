@@ -29,26 +29,65 @@ Transcribes audio files using WhisperX, automatically matches speakers against a
 
 ## Setup
 
+### 1. Python environment
+
 ```bash
-# 1. Create and activate a virtual environment
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-
-# 2. Install Python dependencies (see Dependencies section below)
-pip install whisperx pyannote-audio torch torchaudio numpy scikit-learn \
-            fastapi uvicorn python-dotenv
-
-# 3. Install Electron dependencies
-npm install
-
-# 4. Create .env
-cp .env.example .env
-# Edit .env and set HF_TOKEN=your_token_here
 ```
 
-The first run downloads model weights (~5 GB total) into `.models/`.
+Activate the environment — **you need to do this every time you open a new terminal**:
 
-> A `requirements.txt` is not yet included. See [Dependencies](docs/docs/environment/dependencies.md) for the full package list with pinned versions.
+```bash
+# macOS / Linux
+source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
+```
+
+Your prompt will show `(.venv)` when the environment is active.
+
+### 2. Install PyTorch
+
+PyTorch must be installed before the other packages because the right version depends on your hardware (CUDA or CPU).
+
+Go to [pytorch.org/get-started/locally](https://pytorch.org/get-started/locally/), select your OS and whether you have a GPU, and copy the install command. Example:
+
+```bash
+# CUDA 12.x (GPU)
+pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# CPU only
+pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+```
+
+### 3. Install remaining dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Install Electron dependencies
+
+```bash
+npm install
+```
+
+### 5. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and set your HuggingFace token:
+
+```
+HF_TOKEN=your_token_here
+```
+
+Get a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens). You also need to accept the terms of use for each PyAnnote model on HuggingFace (links in [Dependencies](docs/docs/environment/dependencies.md#gated-pyannote-models)).
+
+> The first run downloads model weights (~5 GB) into `.models/`.
 
 ---
 
