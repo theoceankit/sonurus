@@ -93,7 +93,27 @@ Currently mixes:
 
 ---
 
-## 6. Cross-Cutting Gaps
+## 6. Entry Point Hygiene
+
+### 6.1 Consolidate warning suppression
+
+**Problem:** `VERBOSE=false` warning suppression is spread across three locations with overlapping filters:
+
+| Location | Suppresses |
+|---|---|
+| `main.py` | pyannote, lightning, whisperx, torch (CLI) |
+| `app/api/main.py` | pyannote import-time warning (API startup) |
+| `app/api/routers/transcription.py` → `_suppress_noise()` | pyannote, lightning, torch (inference thread) |
+
+The `pyannote` filter appears in both `app/api/main.py` and `_suppress_noise()`. The split exists because the import-time warning must be suppressed before the module is loaded, while runtime warnings must be suppressed inside the worker thread — but the current structure makes it easy to miss one location when adding new suppression rules.
+
+**Fix:** Extract a shared `app/warnings.py` module with a single `suppress_ml_noise()` function. Call it from all three entry points. Each call site passes a context flag (`"startup"` / `"thread"`) if the suppression scope differs.
+
+**Files:** `main.py`, `app/api/main.py`, `app/api/routers/transcription.py`
+
+---
+
+## 7. Cross-Cutting Gaps
 
 ### ✅ 6.1 ML model load error handling
 

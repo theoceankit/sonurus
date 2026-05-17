@@ -22,8 +22,15 @@ Transcribes audio files using WhisperX, automatically matches speakers against a
 
 - Python 3.11+
 - Node.js (for Electron)
+- ffmpeg (for audio decoding)
 - A [HuggingFace token](https://huggingface.co/settings/tokens) with access to the gated PyAnnote models
 - CUDA optional (CPU works, slower)
+
+On macOS, install Node.js and ffmpeg via Homebrew:
+
+```bash
+brew install node ffmpeg
+```
 
 ---
 
@@ -49,17 +56,20 @@ Your prompt will show `(.venv)` when the environment is active.
 
 ### 2. Install PyTorch
 
-PyTorch must be installed before the other packages because the right version depends on your hardware (CUDA or CPU).
-
-Go to [pytorch.org/get-started/locally](https://pytorch.org/get-started/locally/), select your OS and whether you have a GPU, and copy the install command. Example:
+PyTorch must be installed before the other packages because the right version depends on your hardware.
 
 ```bash
-# CUDA 12.x (GPU)
+# CUDA 12.x (Linux/Windows GPU)
 pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-# CPU only
+# CPU only (Linux/Windows)
 pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# macOS (Apple Silicon or Intel) — standard PyPI, no special index needed
+pip install torch torchaudio
 ```
+
+For other configurations see [pytorch.org/get-started/locally](https://pytorch.org/get-started/locally/).
 
 ### 3. Install remaining dependencies
 
@@ -85,9 +95,20 @@ Open `.env` and set your HuggingFace token:
 HF_TOKEN=your_token_here
 ```
 
-Get a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens). You also need to accept the terms of use for each PyAnnote model on HuggingFace (links in [Dependencies](docs/docs/environment/dependencies.md#gated-pyannote-models)).
+Get a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens). You also need to accept the terms of use for each gated PyAnnote model — visit each page and click "Accept conditions":
+
+- [pyannote/embedding](https://hf.co/pyannote/embedding)
+- [pyannote/speaker-diarization-community-1](https://hf.co/pyannote/speaker-diarization-community-1)
+- [pyannote/segmentation](https://hf.co/pyannote/segmentation)
 
 > The first run downloads model weights (~5 GB) into `.models/`.
+
+**macOS SSL fix:** if NLTK downloads fail with an SSL error during the alignment step, add the following to `.env` (replace the path with the output of `.venv/bin/python -c "import certifi; print(certifi.where())"`):
+
+```
+SSL_CERT_FILE=/path/to/.venv/lib/python3.11/site-packages/certifi/cacert.pem
+REQUESTS_CA_BUNDLE=/path/to/.venv/lib/python3.11/site-packages/certifi/cacert.pem
+```
 
 ---
 
