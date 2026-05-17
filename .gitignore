@@ -1,0 +1,65 @@
+# Environment
+.env
+*.env
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Models & large files
+.models/
+*.pt
+*.bin
+*.onnx
+*.safetensors
+
+# Audio/video files
+testdata/
+*.wav
+
+# Transcript exports
+.files/
+*.mp3
+*.mp4
+*.mkv
+*.webm
+
+# Speaker memory
+speaker_memory.json
+speaker_memory.db
+speaker_memory.db-shm
+speaker_memory.db-wal
+.xdp-*
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Node
+node_modules/
+package-lock.json
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# User settings
+settings.json
+
+# Pytest
+.pytest_cache/
+htmlcov/
+.coverage

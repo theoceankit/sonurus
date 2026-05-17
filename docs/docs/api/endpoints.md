@@ -1,0 +1,199 @@
+---
+sidebar_position: 1
+---
+
+# API Endpoints
+
+FastAPI server (`app/api/main.py`) — start with:
+
+```bash
+.venv/bin/uvicorn app.api.main:app --port 8000
+```
+
+Interactive docs available at `http://localhost:8000/docs`.
+
+---
+
+## Transcription
+
+### `POST /transcribe`
+
+Starts the ML pipeline in a background thread. Returns a `job_id` immediately.
+
+```json
+// Request
+{ "audio_path": "/absolute/path/to/file.wav" }
+
+// Response
+{ "job_id": "d63f61eb-d5f6-40e2-a866-edb3aa1f96bb" }
+```
+
+### `WS /ws/{job_id}`
+
+WebSocket that streams pipeline progress. Connect immediately after `POST /transcribe`.
+
+```json
+// Progress events
+{ "type": "progress", "step": "Loading models…" }
+{ "type": "progress", "step": "Transcribing audio…" }
+{ "type": "progress", "step": "Identifying speakers…" }
+{ "type": "progress", "step": "Building transcript…" }
+{ "type": "progress", "step": "Saving to database…" }
+
+// Terminal events
+{ "type": "done",  "transcript_id": 42 }
+{ "type": "error", "message": "CUDA out of memory" }
+
+// Keep-alive (sent every 10s when pipeline is silent — ignore on client)
+{ "type": "heartbeat" }
+```
+
+The server sends a heartbeat every 10 seconds so the connection stays alive during long model downloads.
+
+---
+
+## Transcripts
+
+### `GET /transcripts`
+
+Returns all transcripts for the sidebar, newest first.
+
+```json
+[
+  {
+    "id": 1,
+    "title": "team_standup",
+    "created_at": "2026-05-14T10:30:00",
+    "section": "Today",
+    "status": "draft",
+    "speakers": ["385dbc1d-ec85-4486-9b91-f80b7dfdf1ca"],
+    "duration": "14 min"
+  }
+]
+```
+
+`speakers` is a list of speaker UUIDs (may include unrecognized ones without a display name).
+
+### `GET /transcripts/{id}`
+
+Full transcript with segments.
+
+```json
+{
+  "id": 1,
+  "audio_path": "files/team_standup.wav",
+  "language": "en",
+  "status": "draft",
+  "segments": [
+    {
+      "start": 0.0, "end": 4.2, "text": "Good morning everyone.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca",
+      "speaker_final": null
+    }
+  ]
+}
+```
+
+`speaker_resolved` and `speaker_final` are always UUID4 strings. Display names are resolved separately via `GET /speakers`.
+
+### `DELETE /transcripts/{id}`
+
+Deletes transcript and all its segments. Returns `204`.
+
+### `PATCH /transcripts/{id}/segments/{start}/text`
+
+```json
+{ "text": "Good morning everyone." }
+```
+
+Returns `204`.
+
+### `PATCH /transcripts/{id}/segments/{start}/speaker`
+
+```json
+{ "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca" }
+```
+
+`speaker_id` must be a UUID4. Returns `204`.
+
+Reassigns only this one segment (unlike `POST /reassign` which is bulk). After updating the DB, immediately recomputes embeddings for both the new speaker (`commit_speaker`) and the previous speaker (`recompute_or_remove`).
+
+### `DELETE /transcripts/{id}/segments/{start}`
+
+Returns `204`.
+
+### `POST /transcripts/{id}/reassign`
+
+Bulk-reassigns **all** segments of one speaker to another across the transcript, then recomputes embeddings.
+
+Exactly one of `to_speaker_id` or `to_speaker_name` must be provided:
+
+```json
+// Assign to a new person (creates a new UUID):
+{ "from_speaker_id": "7e251ba6-...", "to_speaker_name": "Alice" }
+
+// Merge into an existing recognized speaker:
+{ "from_speaker_id": "7e251ba6-...", "to_speaker_id": "385dbc1d-..." }
+```
+
+- `to_speaker_name` — generates a new UUID4, saves the display name to `speaker_names`, recomputes the embedding from all DB segments.
+- `to_speaker_id` — must be a UUID already in `speaker_embeddings`. Recomputes that speaker's embedding from all their DB segments.
+- Also commits embeddings for any other unrecognized speakers in the transcript not yet in memory.
+- Recomputes `from_speaker_id` embedding from their remaining segments, or removes them from memory if no segments remain and they have no display name.
+
+Returns `204`.
+
+### `POST /transcripts/{id}/commit`
+
+Recomputes embeddings for all speakers in the transcript from all their segments across the entire database. Returns `204`.
+
+---
+
+## Speakers
+
+### `GET /speakers`
+
+Returns only **recognized** speakers — those with a display name in `speaker_names`. Unrecognized speakers (committed to memory but without a name) are excluded.
+
+```json
+[
+  { "id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca", "name": "Alice" }
+]
+```
+
+### `POST /speakers/{id}/rename`
+
+`id` must be a UUID in `speaker_embeddings`.
+
+```json
+{ "name": "Alice Ivanova" }
+```
+
+Returns `204`. Returns `404` if speaker is not in `known_speakers`. Only updates `speaker_names` — does not touch the embedding or count.
+
+---
+
+## Health
+
+### `GET /health`
+
+```json
+{ "status": "ok" }
+```
+
+---
+
+## Dependency injection
+
+All routers use FastAPI `Depends` with `lru_cache` singletons from `app/api/dependencies.py`. Both services are initialized sequentially at startup via FastAPI `lifespan` before any requests are accepted.
+
+```python
+# tests override the singletons
+from app.api.dependencies import get_memory_service, get_storage_service
+
+app.dependency_overrides[get_storage_service] = lambda: TranscriptStorageService(db_path=str(tmp / "test.db"))
+app.dependency_overrides[get_memory_service]  = lambda: SpeakerMemoryService(db_path=str(tmp / "mem.db"))
+```
+
+See `tests/test_api.py` for the full test suite (169 tests total).

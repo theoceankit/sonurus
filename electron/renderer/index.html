@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; connect-src http://localhost:8000 ws://localhost:8000; style-src 'self' 'unsafe-inline'" />
+  <title>Whisper</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+
+      <!-- Workspace header -->
+      <div class="sb-header">
+        <div class="sb-logo">WP</div>
+        <div class="sb-workspace">
+          <div class="sb-workspace-name">
+            Whisper
+            <svg width="9" height="6" viewBox="0 0 9 6" fill="none">
+              <path d="M1 1.5l3.5 3 3.5-3" stroke="currentColor" stroke-width="1.4"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="sb-workspace-sub">Personal</div>
+        </div>
+        <button class="sb-new-btn" id="btn-import" title="Import audio">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <path d="M5.5 1.5v8M1.5 5.5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Search -->
+      <div class="sb-search-wrap">
+        <div class="sb-search">
+          <svg width="12" height="12" viewBox="0 0 13 13" fill="none">
+            <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M8.5 8.5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+          <input id="sb-search-input" placeholder="Search transcripts…" autocomplete="off" />
+        </div>
+      </div>
+
+      <!-- Nav items -->
+      <div class="sb-nav">
+        <button class="nav-item nav-item--active" id="nav-transcripts">
+          <svg width="15" height="15" viewBox="0 0 17 17" fill="none">
+            <rect x="2.5" y="2.5" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
+            <path d="M5.5 6h6M5.5 8.5h6M5.5 11h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+          <span>All recordings</span>
+          <span class="nav-count" id="nav-count-transcripts"></span>
+        </button>
+        <button class="nav-item" id="nav-speakers">
+          <svg width="15" height="15" viewBox="0 0 17 17" fill="none">
+            <circle cx="8.5" cy="6" r="2.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
+            <path d="M3 14c0-2.8 2.5-4.5 5.5-4.5S14 11.2 14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+          </svg>
+          <span>Speakers</span>
+          <span class="nav-count" id="nav-count-speakers"></span>
+        </button>
+        <button class="nav-item" id="nav-bookmarks">
+          <svg width="15" height="15" viewBox="0 0 17 17" fill="none">
+            <path d="M4 2.5h9v12l-4.5-3-4.5 3v-12z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
+          </svg>
+          <span>Bookmarks</span>
+        </button>
+      </div>
+
+      <!-- Recent section header -->
+      <div class="sb-section-header">
+        <span class="sb-section-label">Recent</span>
+      </div>
+
+      <!-- Recordings list -->
+      <div id="recordings-list" class="sb-list quiet-scroll"></div>
+
+      <!-- Footer -->
+      <div class="sb-footer">
+        <div class="sb-footer-dot"></div>
+        <span class="sb-footer-text">WhisperX · GPU</span>
+        <button class="sb-settings-btn" id="btn-settings" title="Settings">
+          <svg width="12" height="12" viewBox="0 0 17 17" fill="none">
+            <circle cx="8.5" cy="8.5" r="2.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
+            <path d="M8.5 1.5v2M8.5 13.5v2M1.5 8.5h2M13.5 8.5h2
+                     M3.5 3.5l1.4 1.4M12.1 12.1l1.4 1.4
+                     M3.5 13.5l1.4-1.4M12.1 4.9l1.4-1.4"
+                  stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+    </aside>
+
+    <main id="main-panel">
+      <!-- views are rendered here -->
+    </main>
+  </div>
+
+  <script src="utils.js"></script>
+  <script src="components.js"></script>
+  <script src="data.js"></script>
+  <script src="views/import-view.js"></script>
+  <script src="views/progress-view.js"></script>
+  <script src="views/editor-view.js"></script>
+  <script src="views/settings-view.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
