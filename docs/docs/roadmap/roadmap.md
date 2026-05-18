@@ -41,6 +41,24 @@ See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-uses-pe
 
 ---
 
+## UI — Settings & Model Management
+
+### ✅ Whisper model selection per transcription
+**Done.** Import view dropdown lets the user pick any of the 5 Whisper models (tiny → large-v3) before starting transcription. Selection is persisted to `settings.json` and sent as `whisper_model` in `POST /transcribe`. Backend threads it through `service_factory` → `TranscriptionService` constructor.
+
+### ✅ Settings persistence
+**Done.** `settings.json` in the project root persists `{ scale, transcribeLang, transcribeModel, exportFormat }` via Electron IPC (`ipcMain` read/write). `loadSettings()` is called on app init; `saveSettings(patch)` is called on any preference change.
+
+### ✅ Model management UI
+**Done.** Settings view fetches `GET /models` on open to show real install status. Download (`POST /models/{id}/download`) streams progress and ETA via WebSocket. Delete (`DELETE /models/{id}`) removes the cache directory. Model selection calls `saveSettings`.
+
+### Diarization model management
+**Current:** the diarization model row is rendered in Settings UI (download/delete buttons exist) but the `/models` API only covers Whisper models.  
+**Target:** extend `ModelService` catalog to support per-model subdirectories (`whisper/` vs `hf/`), add `diarize` entry (`pyannote/speaker-diarization-community-1`, `hf/` subdir), and add `"diarize"` to the router's `Literal` type.  
+**Constraint:** the diarization model is gated on HuggingFace — requires `HF_TOKEN` for download, same as the current Whisper flow.
+
+---
+
 ## UI — Editor
 
 ### Segment action buttons
@@ -80,7 +98,6 @@ See [Domain Invariants → I2](../system/invariants.md#i2--only-commitservicecom
 
 ### Pending
 
-- Persist settings to disk (currently UI-only)
 - Audio playback: Play button on segment seeks player to timestamp
 - Bookmark semantics (see Segment action buttons above)
 - Electron packaging / distribution build
