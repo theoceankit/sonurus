@@ -6,12 +6,13 @@ from pathlib import Path
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 MODELS_DIR = Path(".models")
+WHISPER_MODELS_DIR = MODELS_DIR / "whisper"
 
 # Device
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 
 # TranscriptionService
-WHISPER_MODEL = "large"
+WHISPER_MODEL = "large-v3"
 WHISPER_BATCH_SIZE = 2  # lower batch = less activation memory during transcription
 WHISPER_COMPUTE_TYPE_CUDA = "int8_float16"
 WHISPER_COMPUTE_TYPE_CPU  = "int8"

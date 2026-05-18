@@ -13,6 +13,7 @@ from app.services.service_factory import create_controller
 from app.services.archive_service import ArchiveService
 from app.services.commit_service import CommitService
 from app.api.schemas import TranscribeRequest, JobStarted
+from app.config import WHISPER_MODEL
 
 _VERBOSE = os.getenv("VERBOSE", "false").lower() == "true"
 
@@ -73,9 +74,9 @@ async def start_transcribe(body: TranscribeRequest):
                 loop.call_soon_threadsafe(queue.put_nowait, {"type": "progress", "step": step})
 
             on_progress("Loading models…")
-            controller, storage = create_controller()
+            controller, storage = create_controller(whisper_model=body.whisper_model or WHISPER_MODEL)
 
-            transcript = controller.run_pipeline(body.audio_path, on_progress=on_progress)
+            transcript = controller.run_pipeline(body.audio_path, on_progress=on_progress, language=body.language)
 
             if cancel_event.is_set():
                 raise _JobCancelled()
