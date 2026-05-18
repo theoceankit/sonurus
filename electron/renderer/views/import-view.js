@@ -9,7 +9,7 @@ function renderImportView() {
   const langOptions = LANGUAGES.map(l => ({ ...l, value: l.code }))
 
   const modelOptions = MODELS
-    .filter(m => m.kind === 'whisper' && ['small', 'medium', 'large-v3'].includes(m.id))
+    .filter(m => m.kind === 'whisper')
     .map(m => ({ value: m.id, label: m.name, sub: `${m.size} · ${m.speed}` }))
 
   const TILE_DEFS = [
@@ -63,8 +63,8 @@ function renderImportView() {
 
   let selectedPath = null
   let selectedName = null
-  let langValue = 'auto'
-  let modelValue = 'large-v3'
+  let langValue = appSettings.transcribeLang || 'auto'
+  let modelValue = appSettings.transcribeModel || 'large-v3'
 
   // ── Root ─────────────────────────────────────────────────────────────────────
 
@@ -219,7 +219,7 @@ function renderImportView() {
   const langDropdown = makeDropdown(
     langOptions,
     langValue,
-    v => { langValue = v },
+    v => { langValue = v; saveSettings({ transcribeLang: v }) },
     (opt, isTrigger) => {
       const s = document.createElement('span')
       s.style.cssText = 'display:inline-flex;align-items:center;gap:8px'
@@ -233,7 +233,7 @@ function renderImportView() {
   const modelDropdown = makeDropdown(
     modelOptions,
     modelValue,
-    v => { modelValue = v },
+    v => { modelValue = v; saveSettings({ transcribeModel: v }) },
     (opt, isTrigger) => {
       if (isTrigger) {
         const s = document.createElement('span')
@@ -468,7 +468,11 @@ function renderImportView() {
     fetch(`${API_BASE}/transcribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ audio_path: selectedPath }),
+      body: JSON.stringify({
+        audio_path: selectedPath,
+        whisper_model: modelValue,
+        language: langValue === 'auto' ? null : langValue,
+      }),
     })
       .then(r => {
         if (!r.ok) throw new Error(`Server error ${r.status}`)

@@ -20,10 +20,10 @@ const LANGUAGES = [
 // settings-view uses it for the full model management UI.
 
 const MODELS = [
-  { id: 'tiny',     name: 'Whisper Tiny',     size: '39 MB',   speed: '~10× realtime', acc: 'Low',                installed: true,  recommended: false, kind: 'whisper'      },
-  { id: 'base',     name: 'Whisper Base',     size: '74 MB',   speed: '~7× realtime',  acc: 'Fair',               installed: true,  recommended: false, kind: 'whisper'      },
-  { id: 'small',    name: 'Whisper Small',    size: '244 MB',  speed: '~4× realtime',  acc: 'Good',               installed: true,  recommended: false, kind: 'whisper'      },
+  { id: 'tiny',     name: 'Whisper Tiny',     size: '39 MB',   speed: '~10× realtime', acc: 'Low',                installed: false, recommended: false, kind: 'whisper'      },
+  { id: 'base',     name: 'Whisper Base',     size: '74 MB',   speed: '~7× realtime',  acc: 'Fair',               installed: false, recommended: false, kind: 'whisper'      },
+  { id: 'small',    name: 'Whisper Small',    size: '244 MB',  speed: '~4× realtime',  acc: 'Good',               installed: false, recommended: false, kind: 'whisper'      },
   { id: 'medium',   name: 'Whisper Medium',   size: '769 MB',  speed: '~2× realtime',  acc: 'Very good',          installed: false, recommended: false, kind: 'whisper'      },
   { id: 'large-v3', name: 'Whisper Large v3', size: '1.55 GB', speed: '~1× realtime',  acc: 'Best',               installed: false, recommended: true,  kind: 'whisper'      },
-  { id: 'diarize',  name: 'Diarization · v2', size: '112 MB',  speed: '—',             acc: 'Speaker separation', installed: true,  recommended: false, kind: 'diarization'  },
+  { id: 'diarize',  name: 'Diarization · v2', size: '112 MB',  speed: '—',             acc: 'Speaker separation', installed: false, recommended: false, kind: 'diarization'  },
 ]
