@@ -381,43 +381,83 @@ function buildModelsSection(state, rerender) {
   const modelRows = document.createElement('div')
   modelRows.className = 'st-model-list'
 
+  function rerenderRows() {
+    modelRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
+  }
+
   function onSelect(id) {
     state.transcribeModel = id
-    modelRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
+    saveSettings({ transcribeModel: id })
+    rerenderRows()
   }
 
   function onDownload(id) {
     state.modelStatus[id] = 'downloading'
     if (!state.modelProgress) state.modelProgress = {}
     state.modelProgress[id] = 0
-    modelRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
+    rerenderRows()
 
-    let p = 0
-    const tick = () => {
-      if (state.modelStatus[id] !== 'downloading') return
-      p += Math.random() * 12 + 3
-      if (p >= 100) {
-        state.modelStatus[id] = 'installed'
-        state.modelProgress[id] = 100
-      } else {
-        state.modelProgress[id] = p
-        setTimeout(tick, 350)
-      }
-      modelRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
-    }
-    setTimeout(tick, 200)
+    fetch(`${API_BASE}/models/${id}/download`, { method: 'POST' })
+      .then(r => r.json())
+      .then(({ job_id }) => {
+        const ws = new WebSocket(`${WS_BASE}/ws/models/${job_id}`)
+        ws.onmessage = ({ data }) => {
+          const ev = JSON.parse(data)
+          if (ev.type === 'progress') {
+            state.modelProgress[id] = ev.pct ?? 0
+            rerenderRows()
+          } else if (ev.type === 'done') {
+            state.modelStatus[id] = 'installed'
+            state.modelProgress[id] = 100
+            rerenderRows()
+            ws.close()
+          } else if (ev.type === 'error') {
+            state.modelStatus[id] = 'available'
+            state.modelProgress[id] = 0
+            rerenderRows()
+            ws.close()
+          }
+        }
+        ws.onerror = () => {
+          state.modelStatus[id] = 'available'
+          rerenderRows()
+        }
+      })
+      .catch(() => {
+        state.modelStatus[id] = 'available'
+        rerenderRows()
+      })
   }
 
   function onDelete(id) {
-    state.modelStatus[id] = 'available'
-    if (state.transcribeModel === id) state.transcribeModel = 'small'
-    modelRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
+    fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' })
+      .then(r => {
+        if (r.ok) {
+          state.modelStatus[id] = 'available'
+          if (state.transcribeModel === id) {
+            state.transcribeModel = 'small'
+            saveSettings({ transcribeModel: 'small' })
+          }
+          rerenderRows()
+        }
+      })
   }
 
   if (!state.modelProgress) state.modelProgress = {}
   MODELS.forEach(m => {
     modelRows.appendChild(makeModelRow(m, state, onSelect, onDownload, onDelete))
   })
+
+  // Load real install status from API, then refresh rows.
+  fetch(`${API_BASE}/models`)
+    .then(r => r.json())
+    .then(models => {
+      models.forEach(({ id, installed }) => {
+        state.modelStatus[id] = installed ? 'installed' : 'available'
+      })
+      rerenderRows()
+    })
+    .catch(() => { /* server not running — keep defaults */ })
 
   const footer = document.createElement('div')
   footer.className = 'st-models-footer'
