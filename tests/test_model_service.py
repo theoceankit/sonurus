@@ -161,19 +161,19 @@ def test_is_installed_uses_correct_cache_dir_name(tmp_path):
 # list_models()
 # ---------------------------------------------------------------------------
 
-def test_list_models_returns_five_entries(tmp_path):
-    """list_models() must return one entry per catalog model — always 5."""
+def test_list_models_returns_six_entries(tmp_path):
+    """list_models() must return one entry per catalog model — 5 Whisper + 1 diarization = 6."""
     svc = make_service(tmp_path)
     result = svc.list_models()
-    assert len(result) == 5
+    assert len(result) == 6
 
 
 def test_list_models_contains_all_model_ids(tmp_path):
-    """All five model IDs appear in the list_models() result."""
+    """All six model IDs appear in the list_models() result."""
     svc = make_service(tmp_path)
     result = svc.list_models()
     ids = {entry["id"] for entry in result}
-    assert ids == {"tiny", "base", "small", "medium", "large-v3"}
+    assert ids == {"tiny", "base", "small", "medium", "large-v3", "diarize"}
 
 
 def test_list_models_installed_false_when_nothing_on_disk(tmp_path):

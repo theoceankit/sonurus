@@ -55,11 +55,14 @@ def client(tmp_path):
 
     import app.config as config
     original_models_dir = config.WHISPER_MODELS_DIR
+    original_hf_models_dir = config.HF_MODELS_DIR
     config.WHISPER_MODELS_DIR = tmp_path
+    config.HF_MODELS_DIR = tmp_path / "hf"
 
     yield TestClient(app)
 
     config.WHISPER_MODELS_DIR = original_models_dir
+    config.HF_MODELS_DIR = original_hf_models_dir
     app.dependency_overrides.clear()
 
 
