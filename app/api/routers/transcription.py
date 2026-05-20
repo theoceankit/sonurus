@@ -8,11 +8,14 @@ from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse
 
 from app.services.service_factory import create_controller
 from app.services.archive_service import ArchiveService
 from app.services.commit_service import CommitService
+from app.services.model_service import ModelService
 from app.api.schemas import TranscribeRequest, JobStarted
+import app.config as config
 from app.config import WHISPER_MODEL
 
 _VERBOSE = os.getenv("VERBOSE", "false").lower() == "true"
@@ -55,6 +58,19 @@ class _JobCancelled(Exception):
 
 @router.post("/transcribe", response_model=JobStarted)
 async def start_transcribe(body: TranscribeRequest):
+    whisper_model = body.whisper_model or WHISPER_MODEL
+    ms = ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR)
+    if not ms.is_installed(whisper_model):
+        return JSONResponse(
+            {"detail": f"Whisper model '{whisper_model}' is not installed. Download it in Settings."},
+            status_code=400,
+        )
+    if not ms.is_installed("diarize"):
+        return JSONResponse(
+            {"detail": "Diarization model is not installed. Download it in Settings."},
+            status_code=400,
+        )
+
     job_id = str(uuid.uuid4())
     queue: asyncio.Queue = asyncio.Queue()
     cancel_event = threading.Event()

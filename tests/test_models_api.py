@@ -13,7 +13,7 @@ from app.api.dependencies import get_memory_service, get_storage_service
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.speaker_memory_service import SpeakerMemoryService
 
-CATALOG_IDS = {"tiny", "base", "small", "medium", "large-v3"}
+CATALOG_IDS = {"tiny", "base", "small", "medium", "large-v3", "diarize"}
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -36,11 +36,14 @@ def client(tmp_path):
     # Patch MODELS_DIR so ModelService uses tmp_path — no real model files on disk.
     import app.config as config
     original_models_dir = config.WHISPER_MODELS_DIR
+    original_hf_models_dir = config.HF_MODELS_DIR
     config.WHISPER_MODELS_DIR = tmp_path
+    config.HF_MODELS_DIR = tmp_path / "hf"
 
     yield TestClient(app)
 
     config.WHISPER_MODELS_DIR = original_models_dir
+    config.HF_MODELS_DIR = original_hf_models_dir
     app.dependency_overrides.clear()
 
 
@@ -73,10 +76,10 @@ def test_list_models_returns_array(client):
     assert isinstance(r.json(), list)
 
 
-def test_list_models_has_exactly_five_entries(client):
-    """GET /models returns exactly 5 entries — one per catalog model."""
+def test_list_models_has_exactly_six_entries(client):
+    """GET /models returns exactly 6 entries — 5 Whisper + 1 diarization."""
     r = client.get("/models")
-    assert len(r.json()) == 5
+    assert len(r.json()) == 6
 
 
 def test_list_models_entries_have_id_and_installed_keys(client):
@@ -119,7 +122,9 @@ def test_list_models_installed_true_when_cache_dir_exists(tmp_path):
     """A model reports installed=True when its HF cache dir exists on disk."""
     import app.config as config
     original_models_dir = config.WHISPER_MODELS_DIR
+    original_hf_models_dir = config.HF_MODELS_DIR
     config.WHISPER_MODELS_DIR = tmp_path
+    config.HF_MODELS_DIR = tmp_path / "hf"
 
     transcript_db = str(tmp_path / "transcripts.db")
     memory_db     = str(tmp_path / "memory.db")
@@ -150,6 +155,7 @@ def test_list_models_installed_true_when_cache_dir_exists(tmp_path):
             )
     finally:
         config.WHISPER_MODELS_DIR = original_models_dir
+        config.HF_MODELS_DIR = original_hf_models_dir
         app.dependency_overrides.clear()
 
 
@@ -159,7 +165,9 @@ def test_delete_installed_model_returns_200(tmp_path):
     """DELETE /models/{model_id} returns 200 when the model is installed."""
     import app.config as config
     original_models_dir = config.WHISPER_MODELS_DIR
+    original_hf_models_dir = config.HF_MODELS_DIR
     config.WHISPER_MODELS_DIR = tmp_path
+    config.HF_MODELS_DIR = tmp_path / "hf"
 
     app.dependency_overrides[get_storage_service] = lambda: TranscriptStorageService(
         db_path=str(tmp_path / "transcripts.db")
@@ -175,6 +183,7 @@ def test_delete_installed_model_returns_200(tmp_path):
         assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
     finally:
         config.WHISPER_MODELS_DIR = original_models_dir
+        config.HF_MODELS_DIR = original_hf_models_dir
         app.dependency_overrides.clear()
 
 
@@ -184,7 +193,9 @@ def test_delete_installed_model_removes_directory(tmp_path):
     from app.services.model_service import WHISPER_CATALOG
 
     original_models_dir = config.WHISPER_MODELS_DIR
+    original_hf_models_dir = config.HF_MODELS_DIR
     config.WHISPER_MODELS_DIR = tmp_path
+    config.HF_MODELS_DIR = tmp_path / "hf"
 
     app.dependency_overrides[get_storage_service] = lambda: TranscriptStorageService(
         db_path=str(tmp_path / "transcripts.db")
@@ -206,6 +217,7 @@ def test_delete_installed_model_removes_directory(tmp_path):
         )
     finally:
         config.WHISPER_MODELS_DIR = original_models_dir
+        config.HF_MODELS_DIR = original_hf_models_dir
         app.dependency_overrides.clear()
 
 
@@ -218,7 +230,9 @@ def test_delete_model_not_installed_returns_404(tmp_path):
     """
     import app.config as config
     original_models_dir = config.WHISPER_MODELS_DIR
+    original_hf_models_dir = config.HF_MODELS_DIR
     config.WHISPER_MODELS_DIR = tmp_path
+    config.HF_MODELS_DIR = tmp_path / "hf"
 
     app.dependency_overrides[get_storage_service] = lambda: TranscriptStorageService(
         db_path=str(tmp_path / "transcripts.db")
@@ -242,6 +256,7 @@ def test_delete_model_not_installed_returns_404(tmp_path):
         )
     finally:
         config.WHISPER_MODELS_DIR = original_models_dir
+        config.HF_MODELS_DIR = original_hf_models_dir
         app.dependency_overrides.clear()
 
 
