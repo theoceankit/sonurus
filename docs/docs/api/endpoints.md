@@ -86,19 +86,14 @@ Starts a background download via `huggingface_hub.snapshot_download`. Returns a 
 
 ### `WS /ws/models/{job_id}`
 
-Streams download progress. Connect immediately after `POST /models/{model_id}/download`.
+Notifies when a download completes. Connect immediately after `POST /models/{model_id}/download`. Sends heartbeats every 15 s to keep the connection alive during long downloads.
 
 ```json
-// Progress events (emitted per tqdm chunk, ~every few hundred ms)
-{ "type": "progress", "pct": 42.7, "speed_mb": 12.4, "eta_sec": 87 }
-
-// Terminal events
+{ "type": "heartbeat" }
 { "type": "done" }
+{ "type": "cancelled" }
 { "type": "error", "message": "..." }
 ```
-
-`pct` is 0–99 during download, reaching 100 only after `type: done`.  
-`speed_mb` and `eta_sec` are `null` for the first ~0.5 s until enough data is collected.
 
 ### `DELETE /models/{model_id}`
 

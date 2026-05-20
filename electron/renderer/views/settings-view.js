@@ -25,6 +25,7 @@ function makeSettings() {
     incBookmarks: false,
     incAudio: false,
     modelStatus,
+    activeDownload: {},
   }
 }
 
@@ -252,22 +253,6 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
     meta.className = 'st-model-meta'
     meta.textContent = `${model.size}  ·  ${model.speed}  ·  ${model.acc}`
 
-    if (downloading) {
-      const progress = state.modelProgress[model.id] || 0
-      const pgWrap = document.createElement('div')
-      pgWrap.style.cssText = 'display:flex;align-items:center;gap:10.5px;margin-top:7px'
-      const bar = document.createElement('div')
-      bar.style.cssText = 'flex:1;height:5px;background:rgba(40,30,80,0.08);border-radius:3px;overflow:hidden;max-width:294px'
-      const barFill = document.createElement('div')
-      barFill.style.cssText = `height:100%;background:linear-gradient(135deg,#5A57F2,#8E5BEF);border-radius:3px;width:${progress}%;transition:width 0.3s`
-      bar.appendChild(barFill)
-      const pct = document.createElement('span')
-      pct.style.cssText = 'font-size:11.5px;color:rgba(25,24,42,0.55);font-family:ui-monospace,monospace;min-width:38px'
-      pct.textContent = Math.round(progress) + '%'
-      pgWrap.appendChild(bar)
-      pgWrap.appendChild(pct)
-      meta.appendChild(pgWrap)
-    }
 
     info.appendChild(nameRow)
     info.appendChild(meta)
@@ -303,9 +288,21 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
       cancelBtn.className = 'st-btn st-btn--ghost st-btn--sm'
       cancelBtn.textContent = 'Cancel'
       cancelBtn.addEventListener('click', () => {
-        state.modelStatus[model.id] = 'available'
-        state.modelProgress[model.id] = 0
-        update()
+        const active = state.activeDownload?.[model.id]
+        if (active) {
+          fetch(`${API_BASE}/models/${model.id}/download/${active.job_id}`, { method: 'DELETE' })
+            .finally(() => {
+              active.ws.close()
+              state.modelStatus[model.id] = 'available'
+              state.modelProgress[model.id] = 0
+              delete state.activeDownload[model.id]
+              update()
+            })
+        } else {
+          state.modelStatus[model.id] = 'available'
+          state.modelProgress[model.id] = 0
+          update()
+        }
       })
       actions.appendChild(cancelBtn)
     }
@@ -401,25 +398,26 @@ function buildModelsSection(state, rerender) {
       .then(r => r.json())
       .then(({ job_id }) => {
         const ws = new WebSocket(`${WS_BASE}/ws/models/${job_id}`)
+        if (!state.activeDownload) state.activeDownload = {}
+        state.activeDownload[id] = { job_id, ws }
+
         ws.onmessage = ({ data }) => {
           const ev = JSON.parse(data)
-          if (ev.type === 'progress') {
-            state.modelProgress[id] = ev.pct ?? 0
-            rerenderRows()
-          } else if (ev.type === 'done') {
+          if (ev.type === 'done') {
             state.modelStatus[id] = 'installed'
-            state.modelProgress[id] = 100
+            delete state.activeDownload[id]
             rerenderRows()
             ws.close()
-          } else if (ev.type === 'error') {
+          } else if (ev.type === 'cancelled' || ev.type === 'error') {
             state.modelStatus[id] = 'available'
-            state.modelProgress[id] = 0
+            delete state.activeDownload[id]
             rerenderRows()
             ws.close()
           }
         }
         ws.onerror = () => {
           state.modelStatus[id] = 'available'
+          delete state.activeDownload?.[id]
           rerenderRows()
         }
       })
