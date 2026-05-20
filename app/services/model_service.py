@@ -1,11 +1,9 @@
 import os
 import shutil
-import threading
-import time
+from asyncio import CancelledError
 from pathlib import Path
 
 import huggingface_hub
-from tqdm import tqdm as _BaseTqdm
 
 WHISPER_CATALOG = {
     "tiny":     {"hf_repo": "Systran/faster-whisper-tiny",     "size_bytes": 41_000_000},
@@ -23,29 +21,6 @@ _WHISPER_ALLOW_PATTERNS = [
     "tokenizer.json",
     "vocabulary.*",
 ]
-
-
-def _build_tqdm_class(on_progress, total_bytes: int, state: dict):
-    """Return a tqdm subclass that emits aggregate download progress via on_progress."""
-
-    class _ProgressTqdm(_BaseTqdm):
-        def update(self, n=1):
-            super().update(n)
-            with state["lock"]:
-                state["downloaded"] += n
-                elapsed = time.time() - state["start"]
-                downloaded = state["downloaded"]
-                rate = downloaded / elapsed if elapsed > 0.5 else 0
-                pct = min(99.0, downloaded / total_bytes * 100) if total_bytes else 0
-                eta = round((total_bytes - downloaded) / rate) if rate and total_bytes else None
-                on_progress({
-                    "type": "progress",
-                    "pct": round(pct, 1),
-                    "speed_mb": round(rate / 1_000_000, 2) if rate else None,
-                    "eta_sec": eta,
-                })
-
-    return _ProgressTqdm
 
 
 class ModelService:
@@ -72,21 +47,20 @@ class ModelService:
             raise FileNotFoundError(f"Model cache directory not found: {cache}")
         shutil.rmtree(cache)
 
-    def download_model(self, model_id: str, on_progress=None) -> None:
+    def download_model(self, model_id: str, cancel_event=None) -> None:
         if model_id not in WHISPER_CATALOG:
             raise ValueError(f"Unknown model_id: {model_id!r}")
 
-        entry = WHISPER_CATALOG[model_id]
-        state = {"downloaded": 0, "lock": threading.Lock(), "start": time.time()}
-        tqdm_class = _build_tqdm_class(on_progress, entry["size_bytes"], state) if on_progress else None
+        if cancel_event is not None and cancel_event.is_set():
+            raise CancelledError()
 
+        entry = WHISPER_CATALOG[model_id]
         huggingface_hub.snapshot_download(
             entry["hf_repo"],
             cache_dir=str(self._models_dir),
             token=os.getenv("HF_TOKEN"),
             allow_patterns=_WHISPER_ALLOW_PATTERNS,
-            tqdm_class=tqdm_class,
         )
 
-        if on_progress:
-            on_progress({"type": "done"})
+        if cancel_event is not None and cancel_event.is_set():
+            raise CancelledError()

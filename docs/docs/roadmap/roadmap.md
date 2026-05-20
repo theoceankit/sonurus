@@ -52,10 +52,27 @@ See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-uses-pe
 ### ✅ Model management UI
 **Done.** Settings view fetches `GET /models` on open to show real install status. Download (`POST /models/{id}/download`) streams progress and ETA via WebSocket. Delete (`DELETE /models/{id}`) removes the cache directory. Model selection calls `saveSettings`.
 
-### Diarization model management
-**Current:** the diarization model row is rendered in Settings UI (download/delete buttons exist) but the `/models` API only covers Whisper models.  
-**Target:** extend `ModelService` catalog to support per-model subdirectories (`whisper/` vs `hf/`), add `diarize` entry (`pyannote/speaker-diarization-community-1`, `hf/` subdir), and add `"diarize"` to the router's `Literal` type.  
-**Constraint:** the diarization model is gated on HuggingFace — requires `HF_TOKEN` for download, same as the current Whisper flow.
+### Full model pre-download from Settings
+
+**Current:** Settings only manages Whisper models. On the first transcription the pipeline silently downloads ~3GB of additional models:
+
+| Model | Size | Downloaded by |
+|---|---|---|
+| PyAnnote diarization (`pyannote/speaker-diarization-3.1`) | ~33MB (metadata + segmentation) | `DiarizationPipeline` |
+| PyAnnote embeddings (`pyannote/wespeaker-voxceleb-resnet34-LM`) | ~96MB | `EmbeddingService` |
+| wav2vec2 alignment model (per language, e.g. `jonatasgrosman/wav2vec2-large-xlsr-53-russian`) | ~1.26GB | `load_align_model` |
+
+This creates an unexpected multi-minute wait on first use with no progress indication.
+
+**Target:**
+- Extend `ModelService` catalog to cover all three groups above, each with its own `cache_dir` (`hf/` for PyAnnote, `alignment/` for wav2vec2)
+- Settings UI shows all groups (Whisper / Diarization / Alignment) with download / delete / status per model
+- The alignment group is language-specific — show languages likely to be used (ru, en, de, fr…) or let the user pick
+- `POST /transcribe` checks that required models are present before starting, and returns a clear error if not
+
+**Constraint:** all PyAnnote models are HuggingFace-gated — require `HF_TOKEN`, same as the current Whisper download flow. wav2vec2 alignment models are public.
+
+**Note:** the diarization model row already renders in the Settings UI but is inert — it should become functional as part of this work.
 
 ---
 
