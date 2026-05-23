@@ -9,7 +9,7 @@ log = get_logger("TranscriptionService")
 
 
 class TranscriptionService:
-    def __init__(self, device: str, models_dir: Path = MODELS_DIR):
+    def __init__(self, device: str, models_dir: Path = MODELS_DIR, model_name: str = WHISPER_MODEL):
         self.device = device
         self.models_dir = models_dir
 
@@ -17,7 +17,7 @@ class TranscriptionService:
         compute_type = WHISPER_COMPUTE_TYPE_CUDA if device == "cuda" else WHISPER_COMPUTE_TYPE_CPU
         try:
             self.model = whisperx.load_model(
-                WHISPER_MODEL,
+                model_name,
                 device,
                 compute_type=compute_type,
                 download_root=str(models_dir / "whisper"),
@@ -25,12 +25,12 @@ class TranscriptionService:
         except (OSError, RuntimeError) as exc:
             raise RuntimeError(f"Failed to load Whisper model: {exc}") from exc
 
-    def transcribe(self, audio_path: str):
+    def transcribe(self, audio_path: str, language: str | None = None):
         log.info(f"Loading audio: {audio_path}")
         audio = whisperx.load_audio(audio_path)
 
         log.info("Transcribing...")
-        result = self.model.transcribe(audio, batch_size=WHISPER_BATCH_SIZE)
+        result = self.model.transcribe(audio, batch_size=WHISPER_BATCH_SIZE, language=language or None)
 
         log.info(f"Aligning (language={result['language']})...")
         align_model, metadata = whisperx.load_align_model(
