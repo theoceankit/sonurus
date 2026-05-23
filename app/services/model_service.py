@@ -1,5 +1,7 @@
+import fnmatch
 import os
 import shutil
+import threading
 from asyncio import CancelledError
 from pathlib import Path
 
@@ -33,6 +35,53 @@ _WHISPER_ALLOW_PATTERNS = [
     "vocabulary.*",
 ]
 
+
+# ---------------------------------------------------------------------------
+# Module-level helpers
+# ---------------------------------------------------------------------------
+
+def _matches_allow_patterns(filename: str, patterns: list[str]) -> bool:
+    return any(fnmatch.fnmatch(filename, p) for p in patterns)
+
+
+def _count_cache_bytes(dirs: list[Path]) -> int:
+    """Sum bytes of all real files (blobs + incomplete temp files) in the given dirs.
+
+    Skips symlinks so the snapshots/ directory doesn't double-count blobs.
+    Uses try/except per file to survive race conditions during active downloads.
+    """
+    total = 0
+    for d in dirs:
+        if not d.exists():
+            continue
+        for f in d.rglob("*"):
+            try:
+                if f.is_file() and not f.is_symlink():
+                    total += f.stat().st_size
+            except OSError:
+                pass
+    return total
+
+
+def _poll_and_emit(
+    dirs: list[Path],
+    total_bytes: int,
+    on_progress,
+    stop_event: threading.Event,
+    cancel_event: threading.Event,
+    interval: float = 1.0,
+) -> None:
+    """Background thread: poll filesystem bytes and push progress events."""
+    while not stop_event.is_set() and not cancel_event.is_set():
+        downloaded = _count_cache_bytes(dirs)
+        pct = min(99.0, downloaded / total_bytes * 100) if total_bytes > 0 else 0.0
+        on_progress({"type": "progress", "pct": round(pct, 1)})
+        stop_event.wait(interval)
+
+
+# ---------------------------------------------------------------------------
+# ModelService
+# ---------------------------------------------------------------------------
 
 class ModelService:
     def __init__(self, models_dir: Path, hf_models_dir: Path | None = None):
@@ -77,27 +126,114 @@ class ModelService:
         else:
             raise ValueError(f"Unknown model_id: {model_id!r}")
 
-    def download_model(self, model_id: str, cancel_event=None) -> None:
+    def _get_total_bytes(self, model_id: str) -> int:
+        """Query HF Hub API for the total expected download size.
+
+        Falls back to the catalog's size_bytes estimate if the API call fails.
+        For Whisper models, only counts files matching _WHISPER_ALLOW_PATTERNS.
+        """
+        try:
+            if model_id in WHISPER_CATALOG:
+                entry = WHISPER_CATALOG[model_id]
+                info = huggingface_hub.model_info(
+                    entry["hf_repo"],
+                    files_metadata=True,
+                    token=os.getenv("HF_TOKEN"),
+                )
+                return sum(
+                    s.size for s in info.siblings
+                    if s.size and _matches_allow_patterns(s.rfilename, _WHISPER_ALLOW_PATTERNS)
+                )
+            if model_id in DIARIZATION_CATALOG:
+                total = 0
+                for repo in DIARIZATION_CATALOG[model_id]["hf_repos"]:
+                    info = huggingface_hub.model_info(
+                        repo,
+                        files_metadata=True,
+                        token=os.getenv("HF_TOKEN"),
+                    )
+                    total += sum(s.size for s in info.siblings if s.size)
+                return total
+        except Exception:
+            pass
+        # Fallback to catalog estimate
+        if model_id in WHISPER_CATALOG:
+            return WHISPER_CATALOG[model_id]["size_bytes"]
+        if model_id in DIARIZATION_CATALOG:
+            return DIARIZATION_CATALOG[model_id]["size_bytes"]
+        return 0
+
+    def _start_poller(
+        self,
+        dirs: list[Path],
+        model_id: str,
+        on_progress,
+        cancel_event,
+    ) -> tuple[threading.Event | None, threading.Thread | None]:
+        """Start a background progress-polling thread. Returns (stop_event, thread) or (None, None)."""
+        if on_progress is None:
+            return None, None
+        total_bytes = self._get_total_bytes(model_id)
+        stop = threading.Event()
+        _cancel = cancel_event if cancel_event is not None else threading.Event()
+        t = threading.Thread(
+            target=_poll_and_emit,
+            args=(dirs, total_bytes, on_progress, stop, _cancel),
+            daemon=True,
+        )
+        t.start()
+        return stop, t
+
+    @staticmethod
+    def _stop_poller(stop: threading.Event | None, t: threading.Thread | None) -> None:
+        if stop is not None:
+            stop.set()
+        if t is not None:
+            t.join(timeout=2)
+
+    def download_model(self, model_id: str, cancel_event=None, on_progress=None) -> None:
         if model_id in WHISPER_CATALOG:
             if cancel_event is not None and cancel_event.is_set():
                 raise CancelledError()
-            entry = WHISPER_CATALOG[model_id]
-            huggingface_hub.snapshot_download(
-                entry["hf_repo"],
-                cache_dir=str(self._models_dir),
-                token=os.getenv("HF_TOKEN"),
-                allow_patterns=_WHISPER_ALLOW_PATTERNS,
+
+            stop, poller = self._start_poller(
+                dirs=[self._cache_dir(model_id)],
+                model_id=model_id,
+                on_progress=on_progress,
+                cancel_event=cancel_event,
             )
+            try:
+                huggingface_hub.snapshot_download(
+                    WHISPER_CATALOG[model_id]["hf_repo"],
+                    cache_dir=str(self._models_dir),
+                    token=os.getenv("HF_TOKEN"),
+                    allow_patterns=_WHISPER_ALLOW_PATTERNS,
+                )
+            finally:
+                self._stop_poller(stop, poller)
+
             if cancel_event is not None and cancel_event.is_set():
                 raise CancelledError()
+
         elif model_id in DIARIZATION_CATALOG:
-            for repo in DIARIZATION_CATALOG[model_id]["hf_repos"]:
-                if cancel_event is not None and cancel_event.is_set():
-                    raise CancelledError()
-                huggingface_hub.snapshot_download(
-                    repo,
-                    cache_dir=str(self._hf_models_dir),
-                    token=os.getenv("HF_TOKEN"),
-                )
+            dirs = [self._hf_cache_dir(repo) for repo in DIARIZATION_CATALOG[model_id]["hf_repos"]]
+            stop, poller = self._start_poller(
+                dirs=dirs,
+                model_id=model_id,
+                on_progress=on_progress,
+                cancel_event=cancel_event,
+            )
+            try:
+                for repo in DIARIZATION_CATALOG[model_id]["hf_repos"]:
+                    if cancel_event is not None and cancel_event.is_set():
+                        raise CancelledError()
+                    huggingface_hub.snapshot_download(
+                        repo,
+                        cache_dir=str(self._hf_models_dir),
+                        token=os.getenv("HF_TOKEN"),
+                    )
+            finally:
+                self._stop_poller(stop, poller)
+
         else:
             raise ValueError(f"Unknown model_id: {model_id!r}")

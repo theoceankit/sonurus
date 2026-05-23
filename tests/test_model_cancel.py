@@ -227,17 +227,22 @@ def test_cancel_download_after_job_finishes_returns_404(client):
     The route must be registered for this test to be meaningful — the 404
     must come from the cancel logic, not from FastAPI's route resolver.
     """
-    with patch(
-        "app.services.model_service.huggingface_hub.snapshot_download"
-    ) as mock_dl:
-        mock_dl.return_value = "/tmp/fake_cache"  # instant "completion"
+    # Both snapshot_download AND model_info must be patched and kept active
+    # while the background thread runs.  model_info is called by _get_total_bytes
+    # before snapshot_download starts; without the patch it makes a real network
+    # call that outlasts the 0.3 s sleep and causes a false 200.
+    with patch("app.services.model_service.huggingface_hub.snapshot_download") as mock_dl, \
+         patch("app.services.model_service.huggingface_hub.model_info") as mock_info:
+        mock_dl.return_value = "/tmp/fake_cache"
+        mock_info.return_value = MagicMock(siblings=[])
 
         post_r = client.post("/models/tiny/download")
         assert post_r.status_code == 200
         job_id = post_r.json()["job_id"]
 
-    # Give the background thread time to finish.
-    time.sleep(0.3)
+        # Sleep inside the with-block so both patches stay active while the
+        # background thread (download + poller) finishes.
+        time.sleep(0.5)
 
     r = client.delete(f"/models/tiny/download/{job_id}")
     assert r.status_code == 404, (
