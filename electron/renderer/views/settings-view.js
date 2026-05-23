@@ -26,6 +26,7 @@ function makeSettings() {
     incAudio: false,
     modelStatus,
     activeDownload: {},
+    modelProgress: {},
   }
 }
 
@@ -253,6 +254,22 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
     meta.className = 'st-model-meta'
     meta.textContent = `${model.size}  ·  ${model.speed}  ·  ${model.acc}`
 
+    if (downloading) {
+      const pct = state.modelProgress[model.id] ?? 0
+      const pgWrap = document.createElement('div')
+      pgWrap.style.cssText = 'display:flex;align-items:center;gap:10.5px;margin-top:7px'
+      const bar = document.createElement('div')
+      bar.style.cssText = 'flex:1;height:5px;background:rgba(40,30,80,0.08);border-radius:3px;overflow:hidden;max-width:294px'
+      const barFill = document.createElement('div')
+      barFill.style.cssText = `height:100%;background:linear-gradient(135deg,#5A57F2,#8E5BEF);border-radius:3px;width:${pct}%;transition:width 0.6s ease`
+      bar.appendChild(barFill)
+      const pctLabel = document.createElement('span')
+      pctLabel.style.cssText = 'font-size:11.5px;color:rgba(25,24,42,0.55);font-family:ui-monospace,monospace;min-width:38px'
+      pctLabel.textContent = Math.round(pct) + '%'
+      pgWrap.appendChild(bar)
+      pgWrap.appendChild(pctLabel)
+      meta.appendChild(pgWrap)
+    }
 
     info.appendChild(nameRow)
     info.appendChild(meta)
@@ -403,13 +420,18 @@ function buildModelsSection(state, rerender) {
 
         ws.onmessage = ({ data }) => {
           const ev = JSON.parse(data)
-          if (ev.type === 'done') {
+          if (ev.type === 'progress') {
+            state.modelProgress[id] = ev.pct ?? 0
+            rerenderRows()
+          } else if (ev.type === 'done') {
             state.modelStatus[id] = 'installed'
+            state.modelProgress[id] = 100
             delete state.activeDownload[id]
             rerenderRows()
             ws.close()
           } else if (ev.type === 'cancelled' || ev.type === 'error') {
             state.modelStatus[id] = 'available'
+            state.modelProgress[id] = 0
             delete state.activeDownload[id]
             rerenderRows()
             ws.close()
@@ -441,7 +463,6 @@ function buildModelsSection(state, rerender) {
       })
   }
 
-  if (!state.modelProgress) state.modelProgress = {}
   MODELS.forEach(m => {
     modelRows.appendChild(makeModelRow(m, state, onSelect, onDownload, onDelete))
   })

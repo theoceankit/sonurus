@@ -53,7 +53,7 @@ async def download_model(model_id: ModelId):
     def _run():
         try:
             service = ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR)
-            service.download_model(model_id, cancel_event=cancel_event)
+            service.download_model(model_id, cancel_event=cancel_event, on_progress=q.put)
             q.put({"type": "done"})
         except CancelledError:
             q.put({"type": "cancelled"})
