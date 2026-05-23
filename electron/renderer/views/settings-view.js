@@ -25,6 +25,8 @@ function makeSettings() {
     incBookmarks: false,
     incAudio: false,
     modelStatus,
+    activeDownload: {},
+    modelProgress: {},
   }
 }
 
@@ -253,19 +255,19 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
     meta.textContent = `${model.size}  ·  ${model.speed}  ·  ${model.acc}`
 
     if (downloading) {
-      const progress = state.modelProgress[model.id] || 0
+      const pct = state.modelProgress[model.id] ?? 0
       const pgWrap = document.createElement('div')
       pgWrap.style.cssText = 'display:flex;align-items:center;gap:10.5px;margin-top:7px'
       const bar = document.createElement('div')
       bar.style.cssText = 'flex:1;height:5px;background:rgba(40,30,80,0.08);border-radius:3px;overflow:hidden;max-width:294px'
       const barFill = document.createElement('div')
-      barFill.style.cssText = `height:100%;background:linear-gradient(135deg,#5A57F2,#8E5BEF);border-radius:3px;width:${progress}%;transition:width 0.3s`
+      barFill.style.cssText = `height:100%;background:linear-gradient(135deg,#5A57F2,#8E5BEF);border-radius:3px;width:${pct}%;transition:width 0.6s ease`
       bar.appendChild(barFill)
-      const pct = document.createElement('span')
-      pct.style.cssText = 'font-size:11.5px;color:rgba(25,24,42,0.55);font-family:ui-monospace,monospace;min-width:38px'
-      pct.textContent = Math.round(progress) + '%'
+      const pctLabel = document.createElement('span')
+      pctLabel.style.cssText = 'font-size:11.5px;color:rgba(25,24,42,0.55);font-family:ui-monospace,monospace;min-width:38px'
+      pctLabel.textContent = Math.round(pct) + '%'
       pgWrap.appendChild(bar)
-      pgWrap.appendChild(pct)
+      pgWrap.appendChild(pctLabel)
       meta.appendChild(pgWrap)
     }
 
@@ -303,9 +305,21 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
       cancelBtn.className = 'st-btn st-btn--ghost st-btn--sm'
       cancelBtn.textContent = 'Cancel'
       cancelBtn.addEventListener('click', () => {
-        state.modelStatus[model.id] = 'available'
-        state.modelProgress[model.id] = 0
-        update()
+        const active = state.activeDownload?.[model.id]
+        if (active) {
+          fetch(`${API_BASE}/models/${model.id}/download/${active.job_id}`, { method: 'DELETE' })
+            .finally(() => {
+              active.ws.close()
+              state.modelStatus[model.id] = 'available'
+              state.modelProgress[model.id] = 0
+              delete state.activeDownload[model.id]
+              update()
+            })
+        } else {
+          state.modelStatus[model.id] = 'available'
+          state.modelProgress[model.id] = 0
+          update()
+        }
       })
       actions.appendChild(cancelBtn)
     }
@@ -381,43 +395,88 @@ function buildModelsSection(state, rerender) {
   const modelRows = document.createElement('div')
   modelRows.className = 'st-model-list'
 
+  function rerenderRows() {
+    modelRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
+  }
+
   function onSelect(id) {
     state.transcribeModel = id
-    modelRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
+    saveSettings({ transcribeModel: id })
+    rerenderRows()
   }
 
   function onDownload(id) {
     state.modelStatus[id] = 'downloading'
     if (!state.modelProgress) state.modelProgress = {}
     state.modelProgress[id] = 0
-    modelRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
+    rerenderRows()
 
-    let p = 0
-    const tick = () => {
-      if (state.modelStatus[id] !== 'downloading') return
-      p += Math.random() * 12 + 3
-      if (p >= 100) {
-        state.modelStatus[id] = 'installed'
-        state.modelProgress[id] = 100
-      } else {
-        state.modelProgress[id] = p
-        setTimeout(tick, 350)
-      }
-      modelRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
-    }
-    setTimeout(tick, 200)
+    fetch(`${API_BASE}/models/${id}/download`, { method: 'POST' })
+      .then(r => r.json())
+      .then(({ job_id }) => {
+        const ws = new WebSocket(`${WS_BASE}/ws/models/${job_id}`)
+        if (!state.activeDownload) state.activeDownload = {}
+        state.activeDownload[id] = { job_id, ws }
+
+        ws.onmessage = ({ data }) => {
+          const ev = JSON.parse(data)
+          if (ev.type === 'progress') {
+            state.modelProgress[id] = ev.pct ?? 0
+            rerenderRows()
+          } else if (ev.type === 'done') {
+            state.modelStatus[id] = 'installed'
+            state.modelProgress[id] = 100
+            delete state.activeDownload[id]
+            rerenderRows()
+            ws.close()
+          } else if (ev.type === 'cancelled' || ev.type === 'error') {
+            state.modelStatus[id] = 'available'
+            state.modelProgress[id] = 0
+            delete state.activeDownload[id]
+            rerenderRows()
+            ws.close()
+          }
+        }
+        ws.onerror = () => {
+          state.modelStatus[id] = 'available'
+          delete state.activeDownload?.[id]
+          rerenderRows()
+        }
+      })
+      .catch(() => {
+        state.modelStatus[id] = 'available'
+        rerenderRows()
+      })
   }
 
   function onDelete(id) {
-    state.modelStatus[id] = 'available'
-    if (state.transcribeModel === id) state.transcribeModel = 'small'
-    modelRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
+    fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' })
+      .then(r => {
+        if (r.ok) {
+          state.modelStatus[id] = 'available'
+          if (state.transcribeModel === id) {
+            state.transcribeModel = 'small'
+            saveSettings({ transcribeModel: 'small' })
+          }
+          rerenderRows()
+        }
+      })
   }
 
-  if (!state.modelProgress) state.modelProgress = {}
   MODELS.forEach(m => {
     modelRows.appendChild(makeModelRow(m, state, onSelect, onDownload, onDelete))
   })
+
+  // Load real install status from API, then refresh rows.
+  fetch(`${API_BASE}/models`)
+    .then(r => r.json())
+    .then(models => {
+      models.forEach(({ id, installed }) => {
+        state.modelStatus[id] = installed ? 'installed' : 'available'
+      })
+      rerenderRows()
+    })
+    .catch(() => { /* server not running — keep defaults */ })
 
   const footer = document.createElement('div')
   footer.className = 'st-models-footer'

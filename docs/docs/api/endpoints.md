@@ -22,7 +22,11 @@ Starts the ML pipeline in a background thread. Returns a `job_id` immediately.
 
 ```json
 // Request
-{ "audio_path": "/absolute/path/to/file.wav" }
+{
+  "audio_path": "/absolute/path/to/file.wav",
+  "whisper_model": "large-v3",   // optional — omit to use WHISPER_MODEL from config
+  "language": "ru"               // optional — omit or null for auto-detection
+}
 
 // Response
 { "job_id": "d63f61eb-d5f6-40e2-a866-edb3aa1f96bb" }
@@ -49,6 +53,55 @@ WebSocket that streams pipeline progress. Connect immediately after `POST /trans
 ```
 
 The server sends a heartbeat every 10 seconds so the connection stays alive during long model downloads.
+
+---
+
+## Models
+
+Manages the local Whisper model cache under `.models/whisper/`. Model install status is detected by checking for `refs/main` in the HuggingFace cache directory.
+
+### `GET /models`
+
+Returns the full catalog with install status for each model.
+
+```json
+[
+  { "id": "tiny",     "installed": true  },
+  { "id": "base",     "installed": false },
+  { "id": "small",    "installed": true  },
+  { "id": "medium",   "installed": false },
+  { "id": "large-v3", "installed": true  }
+]
+```
+
+### `POST /models/{model_id}/download`
+
+Starts a background download via `huggingface_hub.snapshot_download`. Returns a `job_id` immediately.
+
+`model_id` must be one of: `tiny`, `base`, `small`, `medium`, `large-v3`. Unknown values return `422`.
+
+```json
+{ "job_id": "a1b2c3d4-..." }
+```
+
+### `WS /ws/models/{job_id}`
+
+Notifies when a download completes. Connect immediately after `POST /models/{model_id}/download`. Sends heartbeats every 15 s to keep the connection alive during long downloads.
+
+```json
+{ "type": "heartbeat" }
+{ "type": "done" }
+{ "type": "cancelled" }
+{ "type": "error", "message": "..." }
+```
+
+### `DELETE /models/{model_id}`
+
+Removes the model's HuggingFace cache directory from disk.
+
+- `200 {"deleted": "large-v3"}` — success
+- `404` — model is not installed
+- `422` — unknown `model_id`
 
 ---
 

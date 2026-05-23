@@ -41,6 +41,41 @@ See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-uses-pe
 
 ---
 
+## UI — Settings & Model Management
+
+### ✅ Whisper model selection per transcription
+**Done.** Import view dropdown lets the user pick any of the 5 Whisper models (tiny → large-v3) before starting transcription. Selection is persisted to `settings.json` and sent as `whisper_model` in `POST /transcribe`. Backend threads it through `service_factory` → `TranscriptionService` constructor.
+
+### ✅ Settings persistence
+**Done.** `settings.json` in the project root persists `{ scale, transcribeLang, transcribeModel, exportFormat }` via Electron IPC (`ipcMain` read/write). `loadSettings()` is called on app init; `saveSettings(patch)` is called on any preference change.
+
+### ✅ Model management UI
+**Done.** Settings view fetches `GET /models` on open to show real install status. Download (`POST /models/{id}/download`) streams progress and ETA via WebSocket. Delete (`DELETE /models/{id}`) removes the cache directory. Model selection calls `saveSettings`.
+
+### Full model pre-download from Settings
+
+**Current:** Settings only manages Whisper models. On the first transcription the pipeline silently downloads ~3GB of additional models:
+
+| Model | Size | Downloaded by |
+|---|---|---|
+| PyAnnote diarization (`pyannote/speaker-diarization-3.1`) | ~33MB (metadata + segmentation) | `DiarizationPipeline` |
+| PyAnnote embeddings (`pyannote/wespeaker-voxceleb-resnet34-LM`) | ~96MB | `EmbeddingService` |
+| wav2vec2 alignment model (per language, e.g. `jonatasgrosman/wav2vec2-large-xlsr-53-russian`) | ~1.26GB | `load_align_model` |
+
+This creates an unexpected multi-minute wait on first use with no progress indication.
+
+**Target:**
+- Extend `ModelService` catalog to cover all three groups above, each with its own `cache_dir` (`hf/` for PyAnnote, `alignment/` for wav2vec2)
+- Settings UI shows all groups (Whisper / Diarization / Alignment) with download / delete / status per model
+- The alignment group is language-specific — show languages likely to be used (ru, en, de, fr…) or let the user pick
+- `POST /transcribe` checks that required models are present before starting, and returns a clear error if not
+
+**Constraint:** all PyAnnote models are HuggingFace-gated — require `HF_TOKEN`, same as the current Whisper download flow. wav2vec2 alignment models are public.
+
+**Note:** the diarization model row already renders in the Settings UI but is inert — it should become functional as part of this work.
+
+---
+
 ## UI — Editor
 
 ### Segment action buttons
@@ -80,7 +115,6 @@ See [Domain Invariants → I2](../system/invariants.md#i2--only-commitservicecom
 
 ### Pending
 
-- Persist settings to disk (currently UI-only)
 - Audio playback: Play button on segment seeks player to timestamp
 - Bookmark semantics (see Segment action buttons above)
 - Electron packaging / distribution build
