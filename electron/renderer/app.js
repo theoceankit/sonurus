@@ -39,9 +39,9 @@ const app = {
     document.getElementById('btn-import').classList.add('sb-new-btn--active')
   },
 
-  showProgress(jobId) {
+  showProgress(jobId, originalRequest = null) {
     document.getElementById('btn-import').classList.remove('sb-new-btn--active')
-    this._setView(renderProgressView(jobId), false)
+    this._setView(renderProgressView(jobId, originalRequest), false)
   },
 
   showSettings() {
