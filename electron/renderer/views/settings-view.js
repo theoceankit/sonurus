@@ -14,6 +14,7 @@ const ST_EXPORT_FORMATS = [
 function makeSettings() {
   const modelStatus = {}
   MODELS.forEach(m => { modelStatus[m.id] = m.installed ? 'installed' : 'available' })
+  ALIGNMENT_MODELS.forEach(m => { modelStatus[m.id] = 'available' })
   return {
     transcribeLang: appSettings.transcribeLang,
     transcribeModel: appSettings.transcribeModel,
@@ -358,6 +359,140 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
   return row
 }
 
+// ── Alignment model row ────────────────────────────────────────────────────────
+
+function makeAlignmentModelRow(model, state, onDownload, onDelete) {
+  const langEntry = LANGUAGES.find(l => l.code === model.lang)
+  const flag = langEntry ? langEntry.flag : '🌐'
+
+  const row = document.createElement('div')
+  row.className = 'st-model-row'
+  row.dataset.id = model.id
+  row.style.cursor = 'default'
+
+  function update() {
+    const status = state.modelStatus[model.id]
+    const installed = status === 'installed'
+    const downloading = status === 'downloading'
+
+    row.innerHTML = ''
+
+    // Flag icon
+    const icon = document.createElement('div')
+    icon.className = 'st-model-icon'
+    icon.style.cssText = 'display:flex;align-items:center;justify-content:center;font-size:19px'
+    icon.textContent = flag
+
+    // Info
+    const info = document.createElement('div')
+    info.className = 'st-model-info'
+
+    const nameRow = document.createElement('div')
+    nameRow.className = 'st-model-name-row'
+    const nameEl = document.createElement('span')
+    nameEl.className = 'st-model-name'
+    nameEl.textContent = model.name
+    nameRow.appendChild(nameEl)
+    if (model.nativeName && model.nativeName !== model.name) {
+      const native = document.createElement('span')
+      native.style.cssText = 'font-size:12px;color:rgba(25,24,42,0.5);margin-left:6px'
+      native.textContent = model.nativeName
+      nameRow.appendChild(native)
+    }
+
+    const meta = document.createElement('div')
+    meta.className = 'st-model-meta'
+    meta.textContent = model.size + '  ·  wav2vec2'
+
+    if (downloading) {
+      const pct = state.modelProgress[model.id] ?? 0
+      const pgWrap = document.createElement('div')
+      pgWrap.style.cssText = 'display:flex;align-items:center;gap:10.5px;margin-top:7px'
+      const bar = document.createElement('div')
+      bar.style.cssText = 'flex:1;height:5px;background:rgba(40,30,80,0.08);border-radius:3px;overflow:hidden;max-width:294px'
+      const barFill = document.createElement('div')
+      barFill.style.cssText = `height:100%;background:linear-gradient(135deg,#5A57F2,#8E5BEF);border-radius:3px;width:${pct}%;transition:width 0.6s ease`
+      bar.appendChild(barFill)
+      const pctLabel = document.createElement('span')
+      pctLabel.style.cssText = 'font-size:11.5px;color:rgba(25,24,42,0.55);font-family:ui-monospace,monospace;min-width:38px'
+      pctLabel.textContent = Math.round(pct) + '%'
+      pgWrap.appendChild(bar)
+      pgWrap.appendChild(pctLabel)
+      meta.appendChild(pgWrap)
+    }
+
+    info.appendChild(nameRow)
+    info.appendChild(meta)
+
+    // Status
+    const statusEl = document.createElement('div')
+    statusEl.className = 'st-model-status'
+    if (installed) {
+      statusEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l2.5 2.5L10 3" stroke="#2EB387" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Installed`
+      statusEl.style.color = '#2EB387'
+    } else if (downloading) {
+      statusEl.innerHTML = `<span class="st-spin"></span> Downloading`
+      statusEl.style.color = '#5A57F2'
+    } else {
+      statusEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v7M3 6l3 3 3-3M2 11h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Not downloaded`
+      statusEl.style.color = 'rgba(25,24,42,0.55)'
+    }
+
+    // Actions
+    const actions = document.createElement('div')
+    actions.className = 'st-model-actions'
+    actions.addEventListener('click', e => e.stopPropagation())
+
+    if (!installed && !downloading) {
+      const dlBtn = document.createElement('button')
+      dlBtn.className = 'st-btn st-btn--primary st-btn--sm'
+      dlBtn.textContent = 'Download'
+      dlBtn.addEventListener('click', () => onDownload(model.id))
+      actions.appendChild(dlBtn)
+    }
+    if (downloading) {
+      const cancelBtn = document.createElement('button')
+      cancelBtn.className = 'st-btn st-btn--ghost st-btn--sm'
+      cancelBtn.textContent = 'Cancel'
+      cancelBtn.addEventListener('click', () => {
+        const active = state.activeDownload?.[model.id]
+        if (active) {
+          fetch(`${API_BASE}/models/${model.id}/download/${active.job_id}`, { method: 'DELETE' })
+            .finally(() => {
+              active.ws.close()
+              state.modelStatus[model.id] = 'available'
+              state.modelProgress[model.id] = 0
+              delete state.activeDownload[model.id]
+              update()
+            })
+        } else {
+          state.modelStatus[model.id] = 'available'
+          state.modelProgress[model.id] = 0
+          update()
+        }
+      })
+      actions.appendChild(cancelBtn)
+    }
+    if (installed) {
+      const delBtn = document.createElement('button')
+      delBtn.className = 'st-btn st-btn--icon'
+      delBtn.title = 'Remove'
+      delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2.5 4h9M5 4V2.5h4V4M3.5 4l.5 7.5h6L10.5 4M6 6.5v3M8 6.5v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+      delBtn.addEventListener('click', () => onDelete(model.id))
+      actions.appendChild(delBtn)
+    }
+
+    row.appendChild(icon)
+    row.appendChild(info)
+    row.appendChild(statusEl)
+    row.appendChild(actions)
+  }
+
+  update()
+  row._update = update
+  return row
+}
+
 // ── Settings sections ──────────────────────────────────────────────────────────
 
 function buildInterfaceSection(state) {
@@ -500,6 +635,106 @@ function buildModelsSection(state, rerender) {
     ),
     makeFieldRow('Transcription language', 'Whisper auto-detects when set to "Detect".', langDrop),
     modelControl,
+  ])
+}
+
+function buildAlignmentSection(state) {
+  const alignRows = document.createElement('div')
+  alignRows.className = 'st-model-list'
+
+  function rerenderRows() {
+    alignRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
+  }
+
+  function onDownload(id) {
+    state.modelStatus[id] = 'downloading'
+    state.modelProgress[id] = 0
+    rerenderRows()
+
+    fetch(`${API_BASE}/models/${id}/download`, { method: 'POST' })
+      .then(r => r.json())
+      .then(({ job_id }) => {
+        const ws = new WebSocket(`${WS_BASE}/ws/models/${job_id}`)
+        if (!state.activeDownload) state.activeDownload = {}
+        state.activeDownload[id] = { job_id, ws }
+
+        ws.onmessage = ({ data }) => {
+          const ev = JSON.parse(data)
+          if (ev.type === 'progress') {
+            state.modelProgress[id] = ev.pct ?? 0
+            rerenderRows()
+          } else if (ev.type === 'done') {
+            state.modelStatus[id] = 'installed'
+            state.modelProgress[id] = 100
+            delete state.activeDownload[id]
+            rerenderRows()
+            ws.close()
+          } else if (ev.type === 'cancelled' || ev.type === 'error') {
+            state.modelStatus[id] = 'available'
+            state.modelProgress[id] = 0
+            delete state.activeDownload[id]
+            rerenderRows()
+            ws.close()
+          }
+        }
+        ws.onerror = () => {
+          state.modelStatus[id] = 'available'
+          delete state.activeDownload?.[id]
+          rerenderRows()
+        }
+      })
+      .catch(() => {
+        state.modelStatus[id] = 'available'
+        rerenderRows()
+      })
+  }
+
+  function onDelete(id) {
+    fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' })
+      .then(r => {
+        if (r.ok) {
+          state.modelStatus[id] = 'available'
+          rerenderRows()
+        }
+      })
+  }
+
+  ALIGNMENT_MODELS.forEach(m => {
+    alignRows.appendChild(makeAlignmentModelRow(m, state, onDownload, onDelete))
+  })
+
+  // Load real install status from API
+  fetch(`${API_BASE}/models`)
+    .then(r => r.json())
+    .then(models => {
+      models.forEach(({ id, installed }) => {
+        if (id in state.modelStatus) {
+          state.modelStatus[id] = installed ? 'installed' : 'available'
+        }
+      })
+      rerenderRows()
+    })
+    .catch(() => { /* server not running — keep defaults */ })
+
+  const footer = document.createElement('div')
+  footer.className = 'st-models-footer'
+  footer.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 4v3.5M7 9.5v.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+    Stored in <code class="st-code">.models/alignment/</code>. Not needed for English, French, German, Spanish, or Italian.`
+
+  const wrapper = document.createElement('div')
+  wrapper.appendChild(alignRows)
+  wrapper.appendChild(footer)
+
+  return makeSectionCard([
+    makeSectionHeader(
+      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M2 5h14M2 9h9M2 13h11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        <circle cx="15.5" cy="13" r="2" stroke="currentColor" stroke-width="1.3"/>
+        <path d="M17 14.5l1.5 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>`,
+      'Alignment Models', 'wav2vec2 word-level timestamps — download for each language you use.'
+    ),
+    wrapper,
   ])
 }
 
@@ -692,6 +927,7 @@ function renderSettingsView() {
   const sections = [
     { id: 'interface', build: () => buildInterfaceSection(state) },
     { id: 'models',    build: () => buildModelsSection(state) },
+    { id: 'alignment', build: () => buildAlignmentSection(state) },
     { id: 'export',    build: () => buildExportSection(state) },
     { id: 'audio',     build: () => buildAudioSection() },
     { id: 'reset',     build: () => buildResetSection() },

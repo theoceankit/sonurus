@@ -465,20 +465,21 @@ function renderImportView() {
     errorBannerEl.style.display = 'none'
     startBtn.disabled = true
 
+    const transcribeBody = {
+      audio_path: selectedPath,
+      whisper_model: modelValue,
+      language: langValue === 'auto' ? null : langValue,
+    }
     fetch(`${API_BASE}/transcribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        audio_path: selectedPath,
-        whisper_model: modelValue,
-        language: langValue === 'auto' ? null : langValue,
-      }),
+      body: JSON.stringify(transcribeBody),
     })
       .then(r => {
         if (!r.ok) throw new Error(`Server error ${r.status}`)
         return r.json()
       })
-      .then(({ job_id }) => app.showProgress(job_id))
+      .then(({ job_id }) => app.showProgress(job_id, transcribeBody))
       .catch(err => {
         errorBannerEl.textContent = `Could not start transcription: ${err.message}`
         errorBannerEl.style.display = 'block'
