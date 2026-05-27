@@ -288,6 +288,93 @@ def test_commit_speaker_weights_transcripts_equally(tmp_path):
     )
 
 
+def test_commit_speaker_skips_incompatible_transcript(tmp_path):
+    """When a speaker already has a stored embedding, transcripts whose centroid
+    is below the recognition threshold are excluded from the recompute.
+
+    Scenario mirrors the real bug: speaker labelled in a second recording whose
+    voice embedding is incompatible with the first recording (sim < threshold).
+    Without the guard, the mixed embedding falls below threshold and the speaker
+    stops being auto-recognised on the original recording.
+    """
+    db_path = str(tmp_path / "app.db")
+    memory  = SpeakerMemoryService(db_path=db_path)
+    storage = TranscriptStorageService(db_path=db_path)
+    commit_svc = CommitService(memory, storage)
+    spk = "spk-shulman"
+
+    # t1: clean, compatible embedding — what the speaker "really" sounds like.
+    emb_clean = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    # t2: incompatible embedding — orthogonal, sim = 0.0 (way below any threshold).
+    emb_incompatible = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+    storage.save(make_transcript(
+        [make_segment(0.0, 2.0, "t1", "SPEAKER_00", spk, emb_clean)],
+        audio_path="files/t1.wav",
+    ))
+    storage.save(make_transcript(
+        [make_segment(0.0, 2.0, "t2", "SPEAKER_00", spk, emb_incompatible)],
+        audio_path="files/t2.wav",
+    ))
+
+    # First commit: no existing embedding, so both transcripts are included.
+    # (Simulates labelling on t1 only — only t1 in DB at first commit.)
+    storage_t1_only = TranscriptStorageService(db_path=db_path)
+    mem_t1_only = SpeakerMemoryService(db_path=db_path)
+    cs_t1 = CommitService(mem_t1_only, storage_t1_only)
+
+    # Manually prime memory with only t1 data (as if user labelled t1 first).
+    t1_emb_norm = emb_clean / np.linalg.norm(emb_clean)
+    memory.update_embedding(spk, t1_emb_norm, 1)
+    memory.save()
+
+    # Now commit_speaker with both transcripts in DB — t2 should be excluded.
+    commit_svc.commit_speaker(spk)
+
+    # The stored embedding must still be close to the original clean embedding.
+    stored = memory.known_speakers[spk]
+    sim_to_clean = float(np.dot(stored, t1_emb_norm))
+    assert sim_to_clean >= memory.threshold, (
+        f"Embedding corrupted: similarity to clean embedding dropped to {sim_to_clean:.2f} "
+        f"(below threshold {memory.threshold}). Incompatible transcript was not excluded."
+    )
+
+
+def test_commit_speaker_includes_compatible_transcript(tmp_path):
+    """A second transcript whose centroid IS above threshold must be included
+    in the recompute, improving the embedding."""
+    db_path = str(tmp_path / "app.db")
+    memory  = SpeakerMemoryService(db_path=db_path)
+    storage = TranscriptStorageService(db_path=db_path)
+    commit_svc = CommitService(memory, storage)
+    spk = "spk-poperechny"
+
+    # Two very similar embeddings (same speaker, different sessions).
+    emb1 = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    emb2 = np.array([1.0, 0.0, 0.0], dtype=np.float32)  # identical → sim = 1.0
+
+    storage.save(make_transcript(
+        [make_segment(0.0, 2.0, "t1", "SPEAKER_00", spk, emb1)],
+        audio_path="files/t1.wav",
+    ))
+    storage.save(make_transcript(
+        [make_segment(0.0, 2.0, "t2", "SPEAKER_00", spk, emb2)],
+        audio_path="files/t2.wav",
+    ))
+
+    # Prime with t1 embedding.
+    emb1_norm = emb1 / np.linalg.norm(emb1)
+    memory.update_embedding(spk, emb1_norm, 1)
+    memory.save()
+
+    commit_svc.commit_speaker(spk)
+
+    # Both transcripts compatible → both included → count updated.
+    assert spk in memory.known_speakers
+    # Embedding direction unchanged (both identical).
+    assert np.allclose(memory.known_speakers[spk], emb1_norm, atol=1e-5)
+
+
 # ===========================================================================
 # Group: commit_new_speakers(transcript) — adds speakers absent from memory
 # ===========================================================================
