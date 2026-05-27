@@ -73,14 +73,31 @@ def test_diarization_catalog_entry_has_hf_repos_and_size():
 def test_diarization_catalog_includes_speaker_diarization_repo():
     repos = DIARIZATION_CATALOG["diarize"]["hf_repos"]
     assert any("speaker-diarization" in r for r in repos), (
-        "Expected pyannote/speaker-diarization-3.1 in hf_repos"
+        "Expected pyannote/speaker-diarization-community-1 in hf_repos"
     )
 
 
-def test_diarization_catalog_includes_segmentation_repo():
+def test_diarization_catalog_includes_community_one_repo():
+    """DIARIZATION_CATALOG must use community-1 (whisperx default)."""
     repos = DIARIZATION_CATALOG["diarize"]["hf_repos"]
-    assert any("segmentation" in r for r in repos), (
-        "Expected pyannote/segmentation-3.0 in hf_repos"
+    assert "pyannote/speaker-diarization-community-1" in repos, (
+        f"Expected 'pyannote/speaker-diarization-community-1' in hf_repos, got: {repos}"
+    )
+
+
+def test_diarization_catalog_has_exactly_two_repos():
+    """DIARIZATION_CATALOG['diarize']['hf_repos'] must have exactly 2 entries."""
+    repos = DIARIZATION_CATALOG["diarize"]["hf_repos"]
+    assert len(repos) == 2, (
+        f"Expected 2 repos in DIARIZATION_CATALOG['diarize']['hf_repos'], got {len(repos)}: {repos}"
+    )
+
+
+def test_diarization_catalog_includes_embedding_repo():
+    """DIARIZATION_CATALOG must include pyannote/embedding for EmbeddingService."""
+    repos = DIARIZATION_CATALOG["diarize"]["hf_repos"]
+    assert "pyannote/embedding" in repos, (
+        f"Expected 'pyannote/embedding' in hf_repos, got: {repos}"
     )
 
 
@@ -94,6 +111,7 @@ def test_is_installed_diarize_false_when_hf_dir_empty(tmp_path):
 
 
 def test_is_installed_diarize_false_when_only_one_repo_present(tmp_path):
+    """Returns False when only 1 of the 2 required repos is installed."""
     hf_dir = tmp_path / "hf"
     first_repo = DIARIZATION_CATALOG["diarize"]["hf_repos"][0]
     refs = hf_dir / ("models--" + first_repo.replace("/", "--")) / "refs"
@@ -104,7 +122,8 @@ def test_is_installed_diarize_false_when_only_one_repo_present(tmp_path):
     assert svc.is_installed("diarize") is False
 
 
-def test_is_installed_diarize_true_when_both_repos_present(tmp_path):
+def test_is_installed_diarize_true_when_all_repos_present(tmp_path):
+    """Returns True when all required repos have refs/main."""
     hf_dir = tmp_path / "hf"
     _install_diarize(hf_dir)
     svc = make_service(tmp_path)

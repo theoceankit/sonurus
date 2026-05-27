@@ -162,18 +162,18 @@ def test_is_installed_uses_correct_cache_dir_name(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_list_models_returns_six_entries(tmp_path):
-    """list_models() must return one entry per catalog model — 5 Whisper + 1 diarization = 6."""
+    """list_models() returns at least 6 entries — 5 Whisper + 1 diarization + alignment models."""
     svc = make_service(tmp_path)
     result = svc.list_models()
-    assert len(result) == 6
+    assert len(result) >= 6
 
 
 def test_list_models_contains_all_model_ids(tmp_path):
-    """All six model IDs appear in the list_models() result."""
+    """Whisper + diarization IDs all appear in list_models() (alignment models may also be present)."""
     svc = make_service(tmp_path)
     result = svc.list_models()
     ids = {entry["id"] for entry in result}
-    assert ids == {"tiny", "base", "small", "medium", "large-v3", "diarize"}
+    assert {"tiny", "base", "small", "medium", "large-v3", "diarize"}.issubset(ids)
 
 
 def test_list_models_installed_false_when_nothing_on_disk(tmp_path):

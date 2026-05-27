@@ -8,6 +8,7 @@ os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 MODELS_DIR = Path(".models")
 WHISPER_MODELS_DIR = MODELS_DIR / "whisper"
 HF_MODELS_DIR = MODELS_DIR / "hf"
+ALIGNMENT_MODELS_DIR = MODELS_DIR / "alignment"
 
 # Device
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
