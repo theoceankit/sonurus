@@ -11,13 +11,24 @@ class CommitService:
         self.storage = storage_service
 
     def _avg_from_db(self, speaker_id: str):
-        """Query all embeddings for speaker from DB, return normalised avg or None."""
-        embeddings = self.storage.get_embeddings_by_speaker(speaker_id)
-        if not embeddings:
+        """Query embeddings grouped by transcript; return normalised centroid-of-centroids.
+
+        Each transcript contributes one centroid regardless of how many segments it
+        contains, so a long recording with many segments does not outweigh a short one.
+        """
+        grouped = self.storage.get_embeddings_grouped_by_transcript(speaker_id)
+        if not grouped:
             return None, 0
-        avg = np.mean(embeddings, axis=0)
+        centroids = []
+        total_segments = 0
+        for embeddings in grouped.values():
+            c = np.mean(embeddings, axis=0)
+            norm = np.linalg.norm(c)
+            centroids.append(c / norm if norm > 0 else c)
+            total_segments += len(embeddings)
+        avg = np.mean(centroids, axis=0)
         norm = np.linalg.norm(avg)
-        return (avg / norm if norm > 0 else avg), len(embeddings)
+        return (avg / norm if norm > 0 else avg), total_segments
 
     def commit(self, transcript):
         """Recompute embeddings for all speakers in transcript from all DB segments."""
