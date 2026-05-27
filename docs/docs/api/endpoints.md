@@ -10,6 +10,8 @@ FastAPI server (`app/api/main.py`) — start with:
 .venv/bin/uvicorn app.api.main:app --port 8000
 ```
 
+> **Note:** do not add `--reload`. watchfiles detects `.py` files inside `.models/` (e.g. `eval.py` from downloaded models) and restarts the server mid-download, killing active transcription or download jobs.
+
 Interactive docs available at `http://localhost:8000/docs`.
 
 ---
@@ -28,9 +30,19 @@ Starts the ML pipeline in a background thread. Returns a `job_id` immediately.
   "language": "ru"               // optional — omit or null for auto-detection
 }
 
-// Response
+// Response 200
 { "job_id": "d63f61eb-d5f6-40e2-a866-edb3aa1f96bb" }
 ```
+
+**Pre-flight guards** — return `400` before starting the job:
+
+| Condition | Detail |
+|---|---|
+| Whisper model not installed | `"Whisper model 'large-v3' is not installed. Download it in Settings."` |
+| Diarization model not installed | `"Diarization model is not installed. Download it in Settings."` |
+| Explicit language in `ALIGNMENT_CATALOG` and alignment model not installed | `"Alignment model for language 'ru' is not installed. Download it in Settings."` |
+
+When `language` is `null` (auto-detect), the guard for alignment models cannot fire before the job starts. If the detected language requires an alignment model that is not installed, the pipeline raises `AlignmentModelMissingError` and the WS emits a structured error event (see below).
 
 ### `WS /ws/{job_id}`
 
@@ -46,7 +58,12 @@ WebSocket that streams pipeline progress. Connect immediately after `POST /trans
 
 // Terminal events
 { "type": "done",  "transcript_id": 42 }
+{ "type": "cancelled" }
 { "type": "error", "message": "CUDA out of memory" }
+
+// Structured error — alignment model missing after auto-detect
+// The frontend should offer a download prompt for the given language.
+{ "type": "error", "error_code": "alignment_model_missing", "language": "ru" }
 
 // Keep-alive (sent every 10s when pipeline is silent — ignore on client)
 { "type": "heartbeat" }
@@ -54,23 +71,39 @@ WebSocket that streams pipeline progress. Connect immediately after `POST /trans
 
 The server sends a heartbeat every 10 seconds so the connection stays alive during long model downloads.
 
+### `DELETE /transcribe/{job_id}`
+
+Cancels a running transcription job. Sets a `threading.Event` that raises `_JobCancelled` in the worker thread at the next progress checkpoint. The WS receives a `cancelled` event.
+
+- `200 {"cancelled": true}` — cancel signal sent
+- `404 {"cancelled": false}` — job not found (already finished or invalid ID)
+
 ---
 
 ## Models
 
-Manages the local Whisper model cache under `.models/whisper/`. Model install status is detected by checking for `refs/main` in the HuggingFace cache directory.
+Manages the local model cache. Install status is detected by checking for `refs/main` in the HuggingFace cache directory structure.
+
+Model directories:
+- Whisper: `.models/whisper/`
+- Diarization + PyAnnote embedding: `.models/hf/`
+- Alignment (wav2vec2 per language): `.models/alignment/`
 
 ### `GET /models`
 
-Returns the full catalog with install status for each model.
+Returns the full catalog with install status for every model: 5 Whisper + 1 Diarization + 35 Alignment = 41 entries.
 
 ```json
 [
-  { "id": "tiny",     "installed": true  },
+  { "id": "tiny",     "installed": false },
   { "id": "base",     "installed": false },
   { "id": "small",    "installed": true  },
   { "id": "medium",   "installed": false },
-  { "id": "large-v3", "installed": true  }
+  { "id": "large-v3", "installed": true  },
+  { "id": "diarize",  "installed": true  },
+  { "id": "ru",       "installed": true  },
+  { "id": "zh",       "installed": false },
+  { "id": "ja",       "installed": false }
 ]
 ```
 
@@ -78,22 +111,37 @@ Returns the full catalog with install status for each model.
 
 Starts a background download via `huggingface_hub.snapshot_download`. Returns a `job_id` immediately.
 
-`model_id` must be one of: `tiny`, `base`, `small`, `medium`, `large-v3`. Unknown values return `422`.
+Valid `model_id` values:
+- Whisper: `tiny`, `base`, `small`, `medium`, `large-v3`
+- Diarization: `diarize` (downloads `pyannote/speaker-diarization-community-1` + `pyannote/embedding`)
+- Alignment: two-letter language code from `ALIGNMENT_CATALOG` — `ru`, `zh`, `ja`, `ko`, `uk`, `pt`, `ar`, `nl`, `pl`, `hi`, `cs`, `tr`, `hu`, `fi`, `fa`, `el`, `da`, `he`, `vi`, `ur`, `te`, `ca`, `ml`, `no`, `nn`, `sk`, `sl`, `hr`, `ro`, `eu`, `gl`, `ka`, `lv`, `tl`, `sv`
+
+Unknown `model_id` returns `422`.
 
 ```json
 { "job_id": "a1b2c3d4-..." }
 ```
 
+### `DELETE /models/{model_id}/download/{job_id}`
+
+Cancels an in-progress download. Sets a `threading.Event` that stops the download loop between repos. The WS receives a `cancelled` event.
+
+- `200` — cancel signal sent
+- `404` — job not found
+
 ### `WS /ws/models/{job_id}`
 
-Notifies when a download completes. Connect immediately after `POST /models/{model_id}/download`. Sends heartbeats every 15 s to keep the connection alive during long downloads.
+Streams download progress. Connect immediately after `POST /models/{model_id}/download`. Sends heartbeats every 15 s to keep the connection alive during large downloads.
 
 ```json
 { "type": "heartbeat" }
+{ "type": "progress", "pct": 47.3 }   // byte-level progress, 0–100
 { "type": "done" }
 { "type": "cancelled" }
 { "type": "error", "message": "..." }
 ```
+
+`pct` is computed from filesystem polling of the HuggingFace blob directory — reflects actual bytes written to disk.
 
 ### `DELETE /models/{model_id}`
 
@@ -249,4 +297,4 @@ app.dependency_overrides[get_storage_service] = lambda: TranscriptStorageService
 app.dependency_overrides[get_memory_service]  = lambda: SpeakerMemoryService(db_path=str(tmp / "mem.db"))
 ```
 
-See `tests/test_api.py` for the full test suite (169 tests total).
+See `tests/` for the full test suite (328 tests total).
