@@ -52,27 +52,22 @@ See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-uses-pe
 ### ✅ Model management UI
 **Done.** Settings view fetches `GET /models` on open to show real install status. Download (`POST /models/{id}/download`) streams progress and ETA via WebSocket. Delete (`DELETE /models/{id}`) removes the cache directory. Model selection calls `saveSettings`.
 
-### Full model pre-download from Settings
+### ✅ Full model pre-download from Settings
+**Done.** All three model groups can now be downloaded from Settings before first transcription:
 
-**Current:** Settings only manages Whisper models. On the first transcription the pipeline silently downloads ~3GB of additional models:
+| Group | Models | Cache dir | Settings section |
+|---|---|---|---|
+| Whisper | tiny / base / small / medium / large-v3 | `.models/whisper/` | ML Models |
+| Diarization | `pyannote/speaker-diarization-community-1` + `pyannote/embedding` | `.models/hf/` | ML Models |
+| Alignment | 35 languages (wav2vec2 per language) | `.models/alignment/` | Alignment Models |
 
-| Model | Size | Downloaded by |
-|---|---|---|
-| PyAnnote diarization (`pyannote/speaker-diarization-3.1`) | ~33MB (metadata + segmentation) | `DiarizationPipeline` |
-| PyAnnote embeddings (`pyannote/wespeaker-voxceleb-resnet34-LM`) | ~96MB | `EmbeddingService` |
-| wav2vec2 alignment model (per language, e.g. `jonatasgrosman/wav2vec2-large-xlsr-53-russian`) | ~1.26GB | `load_align_model` |
+- `ModelService` unified catalog covers all three groups with `is_installed`, `download`, `delete`, `list`
+- `GET /models` returns all 41 entries; `POST/DELETE /models/{id}` handle all types
+- Settings → Alignment Models: 35 language rows with flag emoji, native name, size, Download/Cancel/Delete
+- `POST /transcribe` returns `400` if Whisper, diarization, or alignment model (explicit language) is not installed
+- Auto-detect language: if whisperx detects a language whose alignment model is missing, `AlignmentModelMissingError` is raised and the WS emits `{error_code: "alignment_model_missing", language: "ru"}` — frontend transforms into a download popup with Retry after download completes
 
-This creates an unexpected multi-minute wait on first use with no progress indication.
-
-**Target:**
-- Extend `ModelService` catalog to cover all three groups above, each with its own `cache_dir` (`hf/` for PyAnnote, `alignment/` for wav2vec2)
-- Settings UI shows all groups (Whisper / Diarization / Alignment) with download / delete / status per model
-- The alignment group is language-specific — show languages likely to be used (ru, en, de, fr…) or let the user pick
-- `POST /transcribe` checks that required models are present before starting, and returns a clear error if not
-
-**Constraint:** all PyAnnote models are HuggingFace-gated — require `HF_TOKEN`, same as the current Whisper download flow. wav2vec2 alignment models are public.
-
-**Note:** the diarization model row already renders in the Settings UI but is inert — it should become functional as part of this work.
+**Remaining edge case (low priority):** Transformers `from_pretrained()` downloads both `pytorch_model.bin` and `model.safetensors` formats. Our `snapshot_download` fetches `pytorch_model.bin`, but on first `load_align_model()` call Transformers also fetches `model.safetensors` (~1.26 GB) in the background. Transcription succeeds; the file is only downloaded once.
 
 ---
 
