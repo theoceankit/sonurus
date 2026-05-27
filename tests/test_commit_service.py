@@ -237,9 +237,55 @@ def test_commit_speaker_aggregates_across_transcripts(tmp_path):
                                  audio_path="files/t2.wav"))
     commit_svc.commit_speaker(spk)
 
+    # 1 segment per transcript → per-transcript centroid = the segment itself,
+    # so the result is identical to a flat average in this case.
     raw_mean = np.mean([emb1, emb2], axis=0)
     expected = raw_mean / np.linalg.norm(raw_mean)
     assert np.allclose(memory.known_speakers[spk], expected, atol=1e-5)
+
+
+def test_commit_speaker_weights_transcripts_equally(tmp_path):
+    """Each transcript contributes one centroid to the final average, regardless
+    of how many segments it contains.
+
+    t1 has 1 segment → centroid = emb_t1
+    t2 has 3 identical segments → centroid = emb_t2
+
+    Expected result: avg(centroid_t1, centroid_t2), NOT avg(emb_t1, emb_t2, emb_t2, emb_t2).
+    """
+    memory, storage, commit_svc = make_services(tmp_path)
+    spk = "spk-weighted"
+
+    emb_t1 = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    emb_t2 = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+    storage.save(make_transcript(
+        [make_segment(0.0, 2.0, "only", "SPEAKER_00", spk, emb_t1)],
+        audio_path="files/t1.wav",
+    ))
+    storage.save(make_transcript(
+        [
+            make_segment(0.0, 2.0, "seg1", "SPEAKER_00", spk, emb_t2),
+            make_segment(2.0, 4.0, "seg2", "SPEAKER_00", spk, emb_t2),
+            make_segment(4.0, 6.0, "seg3", "SPEAKER_00", spk, emb_t2),
+        ],
+        audio_path="files/t2.wav",
+    ))
+
+    commit_svc.commit_speaker(spk)
+
+    # centroid_t1 = emb_t1, centroid_t2 = emb_t2 (all three are identical)
+    expected_raw = (emb_t1 + emb_t2) / 2.0
+    expected = expected_raw / np.linalg.norm(expected_raw)
+    assert np.allclose(memory.known_speakers[spk], expected, atol=1e-5)
+
+    # Confirm this differs from a naive flat-segment average.
+    flat_raw = np.mean([emb_t1, emb_t2, emb_t2, emb_t2], axis=0)
+    flat = flat_raw / np.linalg.norm(flat_raw)
+    assert not np.allclose(expected, flat, atol=1e-5), (
+        "per-transcript average must differ from flat-segment average "
+        "when segment counts are unequal"
+    )
 
 
 # ===========================================================================

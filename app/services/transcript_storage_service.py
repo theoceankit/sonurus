@@ -214,6 +214,23 @@ class TranscriptStorageService:
             ).fetchall()
         return [_deserialize_embedding(r[0]) for r in rows]
 
+    def get_embeddings_grouped_by_transcript(self, speaker_id: str) -> dict:
+        """Return {transcription_id: [embeddings]} for all non-null segment embeddings.
+
+        Used by CommitService to give each recording equal weight when averaging,
+        regardless of how many segments it contains.
+        """
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT transcription_id, embedding FROM segments "
+                "WHERE speaker_id = ? AND embedding IS NOT NULL",
+                (speaker_id,)
+            ).fetchall()
+        grouped: dict[int, list] = {}
+        for tid, blob in rows:
+            grouped.setdefault(tid, []).append(_deserialize_embedding(blob))
+        return grouped
+
     # ── Schema ────────────────────────────────────────────────────────────────
 
     def _init_db(self):
