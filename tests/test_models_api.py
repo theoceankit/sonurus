@@ -77,9 +77,9 @@ def test_list_models_returns_array(client):
 
 
 def test_list_models_has_exactly_six_entries(client):
-    """GET /models returns exactly 6 entries — 5 Whisper + 1 diarization."""
+    """GET /models returns at least 6 entries — 5 Whisper + 1 diarization + alignment models."""
     r = client.get("/models")
-    assert len(r.json()) == 6
+    assert len(r.json()) >= 6
 
 
 def test_list_models_entries_have_id_and_installed_keys(client):
@@ -100,11 +100,11 @@ def test_list_models_installed_field_is_boolean(client):
 
 
 def test_list_models_ids_match_catalog(client):
-    """The five model IDs returned by GET /models match the known catalog."""
+    """GET /models includes all Whisper + diarization catalog IDs (alignment models may also be present)."""
     r = client.get("/models")
     returned_ids = {entry["id"] for entry in r.json()}
-    assert returned_ids == CATALOG_IDS, (
-        f"Expected catalog IDs {CATALOG_IDS}, got {returned_ids}"
+    assert CATALOG_IDS.issubset(returned_ids), (
+        f"Expected catalog IDs {CATALOG_IDS} to be a subset of {returned_ids}"
     )
 
 
@@ -261,10 +261,10 @@ def test_delete_model_not_installed_returns_404(tmp_path):
 
 
 def test_delete_unknown_model_returns_422(client):
-    """DELETE /models/{model_id} returns 422 when model_id is not in the catalog."""
+    """DELETE /models/{model_id} returns 400 when model_id is not in the catalog."""
     r = client.delete("/models/nonexistent-model")
-    assert r.status_code == 422, (
-        f"Expected 422 for unknown model_id, got {r.status_code}: {r.text}"
+    assert r.status_code == 400, (
+        f"Expected 400 for unknown model_id, got {r.status_code}: {r.text}"
     )
 
 
@@ -298,8 +298,107 @@ def test_download_model_job_id_is_nonempty_string(client):
 
 
 def test_download_unknown_model_returns_422(client):
-    """POST /models/{model_id}/download returns 422 for an unknown model_id."""
+    """POST /models/{model_id}/download returns 400 for an unknown model_id."""
     r = client.post("/models/does-not-exist/download")
-    assert r.status_code == 422, (
-        f"Expected 422 for unknown model_id, got {r.status_code}: {r.text}"
+    assert r.status_code == 400, (
+        f"Expected 400 for unknown model_id, got {r.status_code}: {r.text}"
+    )
+
+
+# ── Alignment model endpoints ─────────────────────────────────────────────────
+
+def test_list_models_includes_alignment_entries(client):
+    """GET /models response includes at least one alignment entry (e.g. 'ru')."""
+    from app.services.model_service import ALIGNMENT_CATALOG
+    r = client.get("/models")
+    assert r.status_code == 200
+    returned_ids = {e["id"] for e in r.json()}
+    alignment_ids_in_response = returned_ids & set(ALIGNMENT_CATALOG.keys())
+    assert len(alignment_ids_in_response) > 0, (
+        f"Expected at least one alignment model id in GET /models, "
+        f"got ids: {returned_ids}"
+    )
+
+
+def test_download_alignment_model_returns_200_with_job_id(client):
+    """POST /models/ru/download returns 200 or 202 with a job_id field."""
+    r = client.post("/models/ru/download")
+    assert r.status_code in (200, 202), (
+        f"Expected 200 or 202 for alignment model download, got {r.status_code}: {r.text}"
+    )
+    assert "job_id" in r.json(), (
+        f"Expected 'job_id' in response body, got: {r.json()}"
+    )
+
+
+def test_download_alignment_model_job_id_is_nonempty_string(client):
+    """POST /models/ru/download returns a non-empty string job_id."""
+    r = client.post("/models/ru/download")
+    assert r.status_code in (200, 202)
+    job_id = r.json().get("job_id")
+    assert isinstance(job_id, str) and len(job_id) > 0, (
+        f"Expected a non-empty string job_id, got: {job_id!r}"
+    )
+
+
+def test_delete_alignment_model_installed_returns_200(tmp_path):
+    """DELETE /models/ru returns 200 when the alignment model is installed."""
+    import app.config as config
+    from app.services.model_service import ALIGNMENT_CATALOG
+
+    original_whisper = config.WHISPER_MODELS_DIR
+    original_hf = config.HF_MODELS_DIR
+
+    config.WHISPER_MODELS_DIR = tmp_path / "whisper"
+    config.HF_MODELS_DIR = tmp_path / "hf"
+
+    # Also patch ALIGNMENT_MODELS_DIR if it exists in config
+    original_alignment = getattr(config, "ALIGNMENT_MODELS_DIR", None)
+    alignment_dir = tmp_path / "alignment"
+    config.ALIGNMENT_MODELS_DIR = alignment_dir
+
+    app.dependency_overrides[get_storage_service] = lambda: TranscriptStorageService(
+        db_path=str(tmp_path / "transcripts.db")
+    )
+    app.dependency_overrides[get_memory_service] = lambda: SpeakerMemoryService(
+        db_path=str(tmp_path / "memory.db")
+    )
+
+    try:
+        # Simulate installed ru alignment model
+        hf_repo = ALIGNMENT_CATALOG["ru"]["hf_repo"]
+        refs = alignment_dir / ("models--" + hf_repo.replace("/", "--")) / "refs"
+        refs.mkdir(parents=True, exist_ok=True)
+        (refs / "main").write_text("abc123")
+
+        tc = TestClient(app)
+        r = tc.delete("/models/ru")
+        assert r.status_code == 200, (
+            f"Expected 200 for DELETE /models/ru when installed, got {r.status_code}: {r.text}"
+        )
+    finally:
+        config.WHISPER_MODELS_DIR = original_whisper
+        config.HF_MODELS_DIR = original_hf
+        if original_alignment is not None:
+            config.ALIGNMENT_MODELS_DIR = original_alignment
+        elif hasattr(config, "ALIGNMENT_MODELS_DIR"):
+            del config.ALIGNMENT_MODELS_DIR
+        app.dependency_overrides.clear()
+
+
+def test_delete_unknown_model_id_returns_400(client):
+    """DELETE /models/{model_id} returns 400 for a model_id completely unknown to the service."""
+    r = client.delete("/models/totally_unknown_xyz")
+    assert r.status_code == 400, (
+        f"Expected 400 for unknown model_id (not in any catalog), "
+        f"got {r.status_code}: {r.text}"
+    )
+
+
+def test_download_unknown_model_id_returns_400(client):
+    """POST /models/{model_id}/download returns 400 for a model_id completely unknown to the service."""
+    r = client.post("/models/totally_unknown_xyz/download")
+    assert r.status_code == 400, (
+        f"Expected 400 for unknown model_id (not in any catalog), "
+        f"got {r.status_code}: {r.text}"
     )

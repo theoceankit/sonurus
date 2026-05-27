@@ -15,15 +15,55 @@ WHISPER_CATALOG = {
     "large-v3": {"hf_repo": "Systran/faster-whisper-large-v3", "size_bytes": 1_630_000_000},
 }
 
-# pyannote/speaker-diarization-3.1 depends on pyannote/segmentation-3.0 for its weights.
+# whisperx uses pyannote/speaker-diarization-community-1 by default (single repo
+# with segmentation and embedding stored as subfolders — no separate sub-repos).
+# pyannote/embedding is downloaded separately for EmbeddingService.
 DIARIZATION_CATALOG = {
     "diarize": {
         "hf_repos": [
-            "pyannote/speaker-diarization-3.1",
-            "pyannote/segmentation-3.0",
+            "pyannote/speaker-diarization-community-1",
+            "pyannote/embedding",
         ],
-        "size_bytes": 117_000_000,
+        "size_bytes": 300_000_000,
     },
+}
+
+ALIGNMENT_CATALOG = {
+    "ru": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-russian",       "size_bytes": 1_260_000_000},
+    "zh": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn", "size_bytes": 1_260_000_000},
+    "ja": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-japanese",      "size_bytes": 1_260_000_000},
+    "ko": {"hf_repo": "kresnik/wav2vec2-large-xlsr-korean",                  "size_bytes": 1_260_000_000},
+    "uk": {"hf_repo": "Yehor/wav2vec2-xls-r-300m-uk-with-small-lm",         "size_bytes": 1_260_000_000},
+    "pt": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-portuguese",    "size_bytes": 1_260_000_000},
+    "ar": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-arabic",        "size_bytes": 1_260_000_000},
+    "nl": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-dutch",         "size_bytes": 1_260_000_000},
+    "pl": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-polish",        "size_bytes": 1_260_000_000},
+    "hi": {"hf_repo": "theainerd/Wav2Vec2-large-xlsr-hindi",                 "size_bytes": 1_260_000_000},
+    "cs": {"hf_repo": "comodoro/wav2vec2-xls-r-300m-cs-250",                "size_bytes": 300_000_000},
+    "tr": {"hf_repo": "mpoyraz/wav2vec2-xls-r-300m-cv7-turkish",            "size_bytes": 300_000_000},
+    "hu": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-hungarian",     "size_bytes": 1_260_000_000},
+    "fi": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-finnish",       "size_bytes": 1_260_000_000},
+    "fa": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-persian",       "size_bytes": 1_260_000_000},
+    "el": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-greek",         "size_bytes": 1_260_000_000},
+    "da": {"hf_repo": "saattrupdan/wav2vec2-xls-r-300m-ftspeech",           "size_bytes": 300_000_000},
+    "he": {"hf_repo": "imvladikon/wav2vec2-xls-r-300m-hebrew",              "size_bytes": 300_000_000},
+    "vi": {"hf_repo": "nguyenvulebinh/wav2vec2-base-vi-vlsp2020",            "size_bytes": 360_000_000},
+    "ur": {"hf_repo": "kingabzpro/wav2vec2-large-xls-r-300m-Urdu",          "size_bytes": 300_000_000},
+    "te": {"hf_repo": "anuragshas/wav2vec2-large-xlsr-53-telugu",            "size_bytes": 1_260_000_000},
+    "ca": {"hf_repo": "softcatala/wav2vec2-large-xlsr-catala",               "size_bytes": 1_260_000_000},
+    "ml": {"hf_repo": "gvs/wav2vec2-large-xlsr-malayalam",                   "size_bytes": 1_260_000_000},
+    "no": {"hf_repo": "NbAiLab/nb-wav2vec2-1b-bokmaal-v2",                  "size_bytes": 1_260_000_000},
+    "nn": {"hf_repo": "NbAiLab/nb-wav2vec2-1b-nynorsk",                     "size_bytes": 1_260_000_000},
+    "sk": {"hf_repo": "comodoro/wav2vec2-xls-r-300m-sk-cv8",               "size_bytes": 300_000_000},
+    "sl": {"hf_repo": "anton-l/wav2vec2-large-xlsr-53-slovenian",            "size_bytes": 1_260_000_000},
+    "hr": {"hf_repo": "classla/wav2vec2-xls-r-parlaspeech-hr",              "size_bytes": 1_260_000_000},
+    "ro": {"hf_repo": "gigant/romanian-wav2vec2",                            "size_bytes": 1_260_000_000},
+    "eu": {"hf_repo": "stefan-it/wav2vec2-large-xlsr-53-basque",             "size_bytes": 1_260_000_000},
+    "gl": {"hf_repo": "ifrz/wav2vec2-large-xlsr-galician",                  "size_bytes": 1_260_000_000},
+    "ka": {"hf_repo": "xsway/wav2vec2-large-xlsr-georgian",                  "size_bytes": 1_260_000_000},
+    "lv": {"hf_repo": "jimregan/wav2vec2-large-xlsr-latvian-cv",             "size_bytes": 1_260_000_000},
+    "tl": {"hf_repo": "Khalsuu/filipino-wav2vec2-l-xls-r-300m-official",    "size_bytes": 300_000_000},
+    "sv": {"hf_repo": "KBLab/wav2vec2-large-voxrex-swedish",                "size_bytes": 1_260_000_000},
 }
 
 # Files to download per Whisper model (matches faster-whisper's allow_patterns).
@@ -65,13 +105,18 @@ def _count_cache_bytes(dirs: list[Path]) -> int:
 
 def _poll_and_emit(
     dirs: list[Path],
-    total_bytes: int,
+    get_total_bytes,
     on_progress,
     stop_event: threading.Event,
     cancel_event: threading.Event,
     interval: float = 1.0,
 ) -> None:
-    """Background thread: poll filesystem bytes and push progress events."""
+    """Background thread: poll filesystem bytes and push progress events.
+
+    get_total_bytes is called once on first tick (inside this thread) to avoid
+    blocking the caller with network I/O before the download even starts.
+    """
+    total_bytes = get_total_bytes()
     while not stop_event.is_set() and not cancel_event.is_set():
         downloaded = _count_cache_bytes(dirs)
         pct = min(99.0, downloaded / total_bytes * 100) if total_bytes > 0 else 0.0
@@ -84,9 +129,10 @@ def _poll_and_emit(
 # ---------------------------------------------------------------------------
 
 class ModelService:
-    def __init__(self, models_dir: Path, hf_models_dir: Path | None = None):
+    def __init__(self, models_dir: Path, hf_models_dir: Path | None = None, alignment_models_dir: Path | None = None):
         self._models_dir = models_dir
         self._hf_models_dir = hf_models_dir if hf_models_dir is not None else models_dir.parent / "hf"
+        self._alignment_models_dir = alignment_models_dir if alignment_models_dir is not None else models_dir.parent / "alignment"
 
     def _cache_dir(self, model_id: str) -> Path:
         hf_repo = WHISPER_CATALOG[model_id]["hf_repo"]
@@ -94,6 +140,9 @@ class ModelService:
 
     def _hf_cache_dir(self, hf_repo: str) -> Path:
         return self._hf_models_dir / ("models--" + hf_repo.replace("/", "--"))
+
+    def _alignment_dir(self, hf_repo: str) -> Path:
+        return self._alignment_models_dir / ("models--" + hf_repo.replace("/", "--"))
 
     def is_installed(self, model_id: str) -> bool:
         if model_id in WHISPER_CATALOG:
@@ -103,11 +152,15 @@ class ModelService:
                 (self._hf_cache_dir(repo) / "refs" / "main").exists()
                 for repo in DIARIZATION_CATALOG[model_id]["hf_repos"]
             )
+        if model_id in ALIGNMENT_CATALOG:
+            hf_repo = ALIGNMENT_CATALOG[model_id]["hf_repo"]
+            return (self._alignment_dir(hf_repo) / "refs" / "main").exists()
         raise ValueError(f"Unknown model_id: {model_id!r}")
 
     def list_models(self) -> list[dict]:
         result = [{"id": mid, "installed": self.is_installed(mid)} for mid in WHISPER_CATALOG]
         result += [{"id": mid, "installed": self.is_installed(mid)} for mid in DIARIZATION_CATALOG]
+        result += [{"id": mid, "installed": self.is_installed(mid)} for mid in ALIGNMENT_CATALOG]
         return result
 
     def delete_model(self, model_id: str) -> None:
@@ -123,6 +176,12 @@ class ModelService:
                 cache = self._hf_cache_dir(repo)
                 if cache.exists():
                     shutil.rmtree(cache)
+        elif model_id in ALIGNMENT_CATALOG:
+            hf_repo = ALIGNMENT_CATALOG[model_id]["hf_repo"]
+            cache = self._alignment_dir(hf_repo)
+            if not cache.exists():
+                raise FileNotFoundError(f"Alignment model '{model_id}' is not installed")
+            shutil.rmtree(cache)
         else:
             raise ValueError(f"Unknown model_id: {model_id!r}")
 
@@ -144,23 +203,33 @@ class ModelService:
                     s.size for s in info.siblings
                     if s.size and _matches_allow_patterns(s.rfilename, _WHISPER_ALLOW_PATTERNS)
                 )
-            if model_id in DIARIZATION_CATALOG:
-                total = 0
-                for repo in DIARIZATION_CATALOG[model_id]["hf_repos"]:
+            if model_id in ALIGNMENT_CATALOG:
+                hf_repo = ALIGNMENT_CATALOG[model_id]["hf_repo"]
+                info = huggingface_hub.model_info(hf_repo, files_metadata=True, token=os.getenv("HF_TOKEN"))
+                return sum(s.size for s in info.siblings if s.size)
+        except Exception:
+            pass
+        if model_id in DIARIZATION_CATALOG:
+            total = 0
+            for repo in DIARIZATION_CATALOG[model_id]["hf_repos"]:
+                try:
                     info = huggingface_hub.model_info(
                         repo,
                         files_metadata=True,
                         token=os.getenv("HF_TOKEN"),
                     )
                     total += sum(s.size for s in info.siblings if s.size)
+                except Exception:
+                    break
+            if total > 0:
                 return total
-        except Exception:
-            pass
         # Fallback to catalog estimate
         if model_id in WHISPER_CATALOG:
             return WHISPER_CATALOG[model_id]["size_bytes"]
         if model_id in DIARIZATION_CATALOG:
             return DIARIZATION_CATALOG[model_id]["size_bytes"]
+        if model_id in ALIGNMENT_CATALOG:
+            return ALIGNMENT_CATALOG[model_id]["size_bytes"]
         return 0
 
     def _start_poller(
@@ -173,12 +242,11 @@ class ModelService:
         """Start a background progress-polling thread. Returns (stop_event, thread) or (None, None)."""
         if on_progress is None:
             return None, None
-        total_bytes = self._get_total_bytes(model_id)
         stop = threading.Event()
         _cancel = cancel_event if cancel_event is not None else threading.Event()
         t = threading.Thread(
             target=_poll_and_emit,
-            args=(dirs, total_bytes, on_progress, stop, _cancel),
+            args=(dirs, lambda: self._get_total_bytes(model_id), on_progress, stop, _cancel),
             daemon=True,
         )
         t.start()
@@ -232,8 +300,32 @@ class ModelService:
                         cache_dir=str(self._hf_models_dir),
                         token=os.getenv("HF_TOKEN"),
                     )
+            except Exception:
+                pass
             finally:
                 self._stop_poller(stop, poller)
+
+        elif model_id in ALIGNMENT_CATALOG:
+            hf_repo = ALIGNMENT_CATALOG[model_id]["hf_repo"]
+            dirs = [self._alignment_dir(hf_repo)]
+            stop, poller = self._start_poller(
+                dirs=dirs,
+                model_id=model_id,
+                on_progress=on_progress,
+                cancel_event=cancel_event,
+            )
+            try:
+                if cancel_event is not None and cancel_event.is_set():
+                    raise CancelledError()
+                huggingface_hub.snapshot_download(
+                    hf_repo,
+                    cache_dir=str(self._alignment_models_dir),
+                    token=os.getenv("HF_TOKEN"),
+                )
+            finally:
+                self._stop_poller(stop, poller)
+            if cancel_event is not None and cancel_event.is_set():
+                raise CancelledError()
 
         else:
             raise ValueError(f"Unknown model_id: {model_id!r}")
