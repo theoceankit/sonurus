@@ -24,13 +24,13 @@ class TranscriptionController:
         self.commit_service = commit_service
         self.storage_service = storage_service
 
-    def run_pipeline(self, audio_path: str, on_progress=None) -> Transcript:
+    def run_pipeline(self, audio_path: str, on_progress=None, language: str | None = None) -> Transcript:
         def report(msg):
             if on_progress:
                 on_progress(msg)
 
         report("Transcribing audio…")
-        result, audio, diarization = self.transcription_service.transcribe(audio_path)
+        result, audio, diarization = self.transcription_service.transcribe(audio_path, language=language)
 
         report("Identifying speakers…")
         aggregated, segments = self.embedding_service.extract_all(audio, diarization)

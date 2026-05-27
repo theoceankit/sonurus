@@ -41,6 +41,36 @@ See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-uses-pe
 
 ---
 
+## UI — Settings & Model Management
+
+### ✅ Whisper model selection per transcription
+**Done.** Import view dropdown lets the user pick any of the 5 Whisper models (tiny → large-v3) before starting transcription. Selection is persisted to `settings.json` and sent as `whisper_model` in `POST /transcribe`. Backend threads it through `service_factory` → `TranscriptionService` constructor.
+
+### ✅ Settings persistence
+**Done.** `settings.json` in the project root persists `{ scale, transcribeLang, transcribeModel, exportFormat }` via Electron IPC (`ipcMain` read/write). `loadSettings()` is called on app init; `saveSettings(patch)` is called on any preference change.
+
+### ✅ Model management UI
+**Done.** Settings view fetches `GET /models` on open to show real install status. Download (`POST /models/{id}/download`) streams progress and ETA via WebSocket. Delete (`DELETE /models/{id}`) removes the cache directory. Model selection calls `saveSettings`.
+
+### ✅ Full model pre-download from Settings
+**Done.** All three model groups can now be downloaded from Settings before first transcription:
+
+| Group | Models | Cache dir | Settings section |
+|---|---|---|---|
+| Whisper | tiny / base / small / medium / large-v3 | `.models/whisper/` | ML Models |
+| Diarization | `pyannote/speaker-diarization-community-1` + `pyannote/embedding` | `.models/hf/` | ML Models |
+| Alignment | 35 languages (wav2vec2 per language) | `.models/alignment/` | Alignment Models |
+
+- `ModelService` unified catalog covers all three groups with `is_installed`, `download`, `delete`, `list`
+- `GET /models` returns all 41 entries; `POST/DELETE /models/{id}` handle all types
+- Settings → Alignment Models: 35 language rows with flag emoji, native name, size, Download/Cancel/Delete
+- `POST /transcribe` returns `400` if Whisper, diarization, or alignment model (explicit language) is not installed
+- Auto-detect language: if whisperx detects a language whose alignment model is missing, `AlignmentModelMissingError` is raised and the WS emits `{error_code: "alignment_model_missing", language: "ru"}` — frontend transforms into a download popup with Retry after download completes
+
+**Remaining edge case (low priority):** Transformers `from_pretrained()` downloads both `pytorch_model.bin` and `model.safetensors` formats. Our `snapshot_download` fetches `pytorch_model.bin`, but on first `load_align_model()` call Transformers also fetches `model.safetensors` (~1.26 GB) in the background. Transcription succeeds; the file is only downloaded once.
+
+---
+
 ## UI — Editor
 
 ### Segment action buttons
@@ -80,7 +110,6 @@ See [Domain Invariants → I2](../system/invariants.md#i2--only-commitservicecom
 
 ### Pending
 
-- Persist settings to disk (currently UI-only)
 - Audio playback: Play button on segment seeks player to timestamp
 - Bookmark semantics (see Segment action buttons above)
 - Electron packaging / distribution build
