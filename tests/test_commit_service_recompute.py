@@ -368,3 +368,119 @@ def test_commit_recognized_speakers_skips_raw_labels(tmp_path):
     assert "SPEAKER_00" not in memory.known_speakers
     # Recognized speaker must be updated
     assert spk in memory.known_speakers
+
+
+# ===========================================================================
+# Group: commit_new_speakers(transcript) — adds speakers NOT yet in memory
+# ===========================================================================
+
+def test_commit_new_speakers_adds_speakers_absent_from_memory(tmp_path):
+    """commit_new_speakers() must add speakers that are NOT already in memory.
+
+    Two speakers in a transcript: one pre-existing (known), one brand-new.
+    Only the brand-new speaker must be added by commit_new_speakers().
+    """
+    memory, storage, commit_svc = make_services(tmp_path)
+
+    spk_known = "spk-already-known"
+    spk_new = "spk-brand-new"
+    emb_known = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    emb_new = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+    # Pre-seed one speaker in memory
+    memory.update_embedding(spk_known, emb_known)
+    memory.save()
+
+    seg_known = make_segment(0.0, 2.0, "A speaks", "SPEAKER_00", spk_known, emb_known)
+    seg_new = make_segment(2.0, 4.0, "B speaks", "SPEAKER_01", spk_new, emb_new)
+    transcript = make_transcript([seg_known, seg_new])
+    storage.save(transcript)
+
+    commit_svc.commit_new_speakers(transcript)
+
+    assert spk_new in memory.known_speakers, (
+        "Brand-new speaker must be added to memory by commit_new_speakers()"
+    )
+    assert np.allclose(memory.known_speakers[spk_new], emb_new, atol=1e-5)
+
+
+def test_commit_new_speakers_does_not_re_commit_known_speaker(tmp_path):
+    """commit_new_speakers() must NOT overwrite embeddings for speakers already in memory.
+
+    If a known speaker appears in the transcript, their embedding in memory
+    must remain unchanged after commit_new_speakers().
+    """
+    memory, storage, commit_svc = make_services(tmp_path)
+
+    spk_known = "spk-stable"
+    emb_old = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    emb_new_session = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+    # Pre-seed speaker with old embedding
+    memory.update_embedding(spk_known, emb_old)
+    memory.save()
+
+    # New session: same speaker has a different embedding
+    seg = make_segment(0.0, 2.0, "Talk", "SPEAKER_00", spk_known, emb_new_session)
+    transcript = make_transcript([seg])
+    storage.save(transcript)
+
+    commit_svc.commit_new_speakers(transcript)
+
+    # commit_new_speakers must skip this speaker — they are already in memory
+    assert spk_known in memory.known_speakers
+    assert np.allclose(memory.known_speakers[spk_known], emb_old, atol=1e-5), (
+        "Known speaker embedding must not be overwritten by commit_new_speakers()"
+    )
+
+
+def test_commit_new_speakers_skips_raw_speaker_labels(tmp_path):
+    """commit_new_speakers() must never add raw diarization labels (SPEAKER_XX) to memory."""
+    memory, storage, commit_svc = make_services(tmp_path)
+
+    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+    # A segment with only speaker_raw set (speaker_resolved is None)
+    seg = Segment(0.0, 2.0, "Raw", "SPEAKER_00", embedding=emb)
+    transcript = make_transcript([seg])
+    storage.save(transcript)
+
+    commit_svc.commit_new_speakers(transcript)
+
+    assert "SPEAKER_00" not in memory.known_speakers, (
+        "Raw SPEAKER_XX labels must never be added to memory by commit_new_speakers()"
+    )
+
+
+def test_commit_new_speakers_aggregates_from_db_not_only_current_session(tmp_path):
+    """commit_new_speakers() reads ALL DB segments for the new speaker, not just
+    those in the current transcript, when computing the embedding.
+
+    Two transcripts both have segments for spk_new.
+    After commit_new_speakers on the second transcript only, the embedding must
+    be the mean of both sessions.
+    """
+    memory, storage, commit_svc = make_services(tmp_path)
+
+    spk_new = "spk-fresh"
+    emb1 = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    emb2 = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+    t1 = make_transcript([make_segment(0.0, 2.0, "First", "SPEAKER_00", spk_new, emb1)],
+                         audio_path="files/s1.wav")
+    t2 = make_transcript([make_segment(0.0, 2.0, "Second", "SPEAKER_00", spk_new, emb2)],
+                         audio_path="files/s2.wav")
+
+    storage.save(t1)
+    storage.save(t2)
+
+    # Only call commit_new_speakers on t2 — but it should aggregate from both t1+t2
+    commit_svc.commit_new_speakers(t2)
+
+    raw_mean = np.mean([emb1, emb2], axis=0)
+    expected = raw_mean / np.linalg.norm(raw_mean)
+
+    assert spk_new in memory.known_speakers
+    assert np.allclose(memory.known_speakers[spk_new], expected, atol=1e-5), (
+        f"Expected cross-session mean {expected}, got {memory.known_speakers[spk_new]}"
+    )
