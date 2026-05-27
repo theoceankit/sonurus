@@ -3,9 +3,23 @@ import torch
 from pathlib import Path
 
 from app.config import MODELS_DIR, WHISPER_MODEL, WHISPER_BATCH_SIZE, WHISPER_COMPUTE_TYPE_CUDA, WHISPER_COMPUTE_TYPE_CPU
+from app.services.model_service import ALIGNMENT_CATALOG
 from app.logger import get_logger
 
 log = get_logger("TranscriptionService")
+
+
+class AlignmentModelMissingError(Exception):
+    """Raised inside transcribe() when the detected language needs an alignment
+    model that is not installed on disk.  Carries the ISO language code so the
+    caller can surface a targeted download prompt."""
+
+    def __init__(self, language: str) -> None:
+        self.language = language
+        super().__init__(
+            f"Alignment model for language '{language}' is not installed. "
+            "Download it in Settings → Alignment Models."
+        )
 
 
 class TranscriptionService:
@@ -31,6 +45,16 @@ class TranscriptionService:
 
         log.info("Transcribing...")
         result = self.model.transcribe(audio, batch_size=WHISPER_BATCH_SIZE, language=language or None)
+
+        # Guard: when the language was auto-detected (language=None), the HTTP
+        # pre-flight in the router cannot check it in advance.  Check here
+        # before load_align_model silently downloads the model.
+        detected_lang = result.get("language")
+        if detected_lang and detected_lang in ALIGNMENT_CATALOG:
+            hf_repo = ALIGNMENT_CATALOG[detected_lang]["hf_repo"].replace("/", "--")
+            refs_main = self.models_dir / "alignment" / f"models--{hf_repo}" / "refs" / "main"
+            if not refs_main.exists():
+                raise AlignmentModelMissingError(detected_lang)
 
         log.info(f"Aligning (language={result['language']})...")
         align_model, metadata = whisperx.load_align_model(

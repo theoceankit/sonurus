@@ -6,14 +6,14 @@ import uuid
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 from app.services.service_factory import create_controller
 from app.services.archive_service import ArchiveService
 from app.services.commit_service import CommitService
-from app.services.model_service import ModelService
+from app.services.model_service import ModelService, ALIGNMENT_CATALOG
+from app.services.transcription_service import AlignmentModelMissingError
 from app.api.schemas import TranscribeRequest, JobStarted
 import app.config as config
 from app.config import WHISPER_MODEL
@@ -59,7 +59,7 @@ class _JobCancelled(Exception):
 @router.post("/transcribe", response_model=JobStarted)
 async def start_transcribe(body: TranscribeRequest):
     whisper_model = body.whisper_model or WHISPER_MODEL
-    ms = ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR)
+    ms = ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR)
     if not ms.is_installed(whisper_model):
         return JSONResponse(
             {"detail": f"Whisper model '{whisper_model}' is not installed. Download it in Settings."},
@@ -70,6 +70,12 @@ async def start_transcribe(body: TranscribeRequest):
             {"detail": "Diarization model is not installed. Download it in Settings."},
             status_code=400,
         )
+    if body.language and body.language != "auto" and body.language in ALIGNMENT_CATALOG:
+        if not ms.is_installed(body.language):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Alignment model for language '{body.language}' is not installed. Download it in Settings.",
+            )
 
     job_id = str(uuid.uuid4())
     queue: asyncio.Queue = asyncio.Queue()
@@ -79,6 +85,12 @@ async def start_transcribe(body: TranscribeRequest):
 
     loop = asyncio.get_running_loop()
 
+    def _emit(event: dict) -> None:
+        try:
+            loop.call_soon_threadsafe(queue.put_nowait, event)
+        except RuntimeError:
+            pass  # event loop already closed (e.g. test teardown)
+
     def _run():
         try:
             if not _VERBOSE:
@@ -87,7 +99,7 @@ async def start_transcribe(body: TranscribeRequest):
             def on_progress(step: str):
                 if cancel_event.is_set():
                     raise _JobCancelled()
-                loop.call_soon_threadsafe(queue.put_nowait, {"type": "progress", "step": step})
+                _emit({"type": "progress", "step": step})
 
             on_progress("Loading models…")
             controller, storage = create_controller(whisper_model=body.whisper_model or WHISPER_MODEL)
@@ -108,20 +120,15 @@ async def start_transcribe(body: TranscribeRequest):
             import gc; gc.collect()
             import torch; torch.cuda.empty_cache()
 
-            loop.call_soon_threadsafe(
-                queue.put_nowait,
-                {"type": "done", "transcript_id": transcript.db_id},
-            )
+            _emit({"type": "done", "transcript_id": transcript.db_id})
         except _JobCancelled:
-            loop.call_soon_threadsafe(
-                queue.put_nowait,
-                {"type": "cancelled"},
-            )
+            _emit({"type": "cancelled"})
+        except AlignmentModelMissingError as exc:
+            # Emit a structured error so the frontend can offer a targeted
+            # download prompt instead of showing a generic error message.
+            _emit({"type": "error", "error_code": "alignment_model_missing", "language": exc.language})
         except Exception as exc:
-            loop.call_soon_threadsafe(
-                queue.put_nowait,
-                {"type": "error", "message": str(exc)},
-            )
+            _emit({"type": "error", "message": str(exc)})
         finally:
             _cancel_events.pop(job_id, None)
 
