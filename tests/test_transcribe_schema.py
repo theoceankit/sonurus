@@ -1,9 +1,9 @@
 """
-Tests for schema and service-layer changes that thread whisper_model and language
+Tests for schema and service-layer signatures that thread whisper_model and language
 through the transcription pipeline.
 
-All tests here are expected to fail until the implementation is added.
-This file defines the correct contract.
+Covers: TranscribeRequest schema, create_controller() signature,
+TranscriptionService constructor and transcribe() method signatures.
 """
 import inspect
 import pytest
