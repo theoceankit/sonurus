@@ -1,12 +1,9 @@
 """
-Tests for issues #6 and #7:
-  #6 — seg.embedding is never persisted to DB; load() returns None for all
-       embeddings, so CommitService silently skips updating speaker memory.
-  #7 — segments.speaker_id FK references speaker_embeddings(id) but the
-       speaker doesn't exist there at save time; fixed by committing before
-       saving.
+Tests for embedding persistence in TranscriptStorageService (issues #6 and #7).
 
-All tests in this file are expected to FAIL before the fix is implemented.
+  #6 — seg.embedding persisted to DB; load() restores embeddings correctly so
+       CommitService can update speaker memory.
+  #7 — segments.speaker_id FK references speaker_embeddings(id) correctly after commit.
 """
 
 import sqlite3

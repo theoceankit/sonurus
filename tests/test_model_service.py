@@ -161,7 +161,7 @@ def test_is_installed_uses_correct_cache_dir_name(tmp_path):
 # list_models()
 # ---------------------------------------------------------------------------
 
-def test_list_models_returns_six_entries(tmp_path):
+def test_list_models_returns_at_least_six_entries(tmp_path):
     """list_models() returns at least 6 entries — 5 Whisper + 1 diarization + alignment models."""
     svc = make_service(tmp_path)
     result = svc.list_models()

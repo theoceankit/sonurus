@@ -43,13 +43,16 @@ def client(tmp_path):
     import app.config as config
     original_whisper = config.WHISPER_MODELS_DIR
     original_hf = config.HF_MODELS_DIR
+    original_alignment = config.ALIGNMENT_MODELS_DIR
     config.WHISPER_MODELS_DIR = tmp_path / "whisper"
     config.HF_MODELS_DIR = tmp_path / "hf"
+    config.ALIGNMENT_MODELS_DIR = tmp_path / "alignment"
 
     yield TestClient(app)
 
     config.WHISPER_MODELS_DIR = original_whisper
     config.HF_MODELS_DIR = original_hf
+    config.ALIGNMENT_MODELS_DIR = original_alignment
     app.dependency_overrides.clear()
 
 

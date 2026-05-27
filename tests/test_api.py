@@ -65,6 +65,56 @@ def _saved_id(client) -> int:
     return storage.save(t)
 
 
+# ── Cancel transcription ─────────────────────────────────────────────────────
+
+def test_cancel_transcribe_unknown_job_returns_404(client):
+    """DELETE /transcribe/{job_id} returns 404 when the job_id is unknown."""
+    r = client.delete("/transcribe/nonexistent-job-id")
+    assert r.status_code == 404, (
+        f"Expected 404 for unknown job_id, got {r.status_code}: {r.text}"
+    )
+
+
+def test_cancel_transcribe_unknown_job_body(client):
+    """DELETE /transcribe/{job_id} 404 body contains cancelled=False."""
+    r = client.delete("/transcribe/nonexistent-job-id")
+    assert r.status_code == 404
+    body = r.json()
+    assert body.get("cancelled") is False, (
+        f"Expected {{\"cancelled\": false}} for unknown job_id, got {body}"
+    )
+
+
+def test_cancel_transcribe_active_job_returns_200(client):
+    """DELETE /transcribe/{job_id} returns 200 and cancelled=True for an active job.
+
+    We inject a cancel event directly into the router's internal dict
+    to simulate a running job — avoids launching real ML pipeline.
+    """
+    import uuid as _uuid
+    from app.api.routers import transcription as _tr_router
+
+    job_id = str(_uuid.uuid4())
+    import threading
+    cancel_event = threading.Event()
+    _tr_router._cancel_events[job_id] = cancel_event
+
+    try:
+        r = client.delete(f"/transcribe/{job_id}")
+        assert r.status_code == 200, (
+            f"Expected 200 for active job, got {r.status_code}: {r.text}"
+        )
+        body = r.json()
+        assert body.get("cancelled") is True, (
+            f"Expected {{\"cancelled\": true}}, got {body}"
+        )
+        assert cancel_event.is_set(), (
+            "cancel_event must be set after DELETE /transcribe/{job_id}"
+        )
+    finally:
+        _tr_router._cancel_events.pop(job_id, None)
+
+
 # ── Health ────────────────────────────────────────────────────────────────────
 
 def test_health(client):
@@ -180,13 +230,19 @@ def test_delete_segment_not_found(client):
 # ── Commit ────────────────────────────────────────────────────────────────────
 
 def test_commit_transcript(client):
+    """POST /transcripts/{id}/commit persists the speaker embedding to memory.
+
+    Uses a proper UUID4 speaker_resolved to match production flow — after the
+    speaker-UUID refactor, all resolved speaker IDs are UUID4 strings.
+    """
     storage = app.dependency_overrides[get_storage_service]()
     emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    spk_uuid = str(uuid_module.uuid4())
     t = Transcript(
         audio_path="files/test.wav",
         language="en",
         segments=[
-            Segment(0.0, 2.0, "Hello", "SPEAKER_00", speaker_resolved="Alice", embedding=emb),
+            Segment(0.0, 2.0, "Hello", "SPEAKER_00", speaker_resolved=spk_uuid, embedding=emb),
         ],
     )
     db_id = storage.save(t)
@@ -194,7 +250,10 @@ def test_commit_transcript(client):
     assert r.status_code == 204
 
     memory = app.dependency_overrides[get_memory_service]()
-    assert "Alice" in memory.known_speakers
+    assert spk_uuid in memory.known_speakers, (
+        f"Expected UUID speaker {spk_uuid!r} in memory after commit, "
+        f"got keys: {list(memory.known_speakers.keys())}"
+    )
 
 
 def test_commit_transcript_not_found(client):
@@ -227,15 +286,17 @@ def test_list_speakers_after_commit(client):
 
 
 def test_rename_speaker(client):
+    """POST /speakers/{id}/rename sets the display name for a speaker UUID."""
     memory = app.dependency_overrides[get_memory_service]()
-    memory.update_embedding("Alice", np.array([1.0, 0.0, 0.0], dtype=np.float32))
+    spk_uuid = str(uuid_module.uuid4())
+    memory.update_embedding(spk_uuid, np.array([1.0, 0.0, 0.0], dtype=np.float32))
     memory.save()
 
-    r = client.post("/speakers/Alice/rename", json={"name": "Alice Ivanova"})
+    r = client.post(f"/speakers/{spk_uuid}/rename", json={"name": "Alice Ivanova"})
     assert r.status_code == 204
 
     memory2 = app.dependency_overrides[get_memory_service]()
-    assert memory2.get_name("Alice") == "Alice Ivanova"
+    assert memory2.get_name(spk_uuid) == "Alice Ivanova"
 
 
 def test_rename_speaker_not_found(client):

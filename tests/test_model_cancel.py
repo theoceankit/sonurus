@@ -1,14 +1,11 @@
 """
 Tests for the "cancel download" feature in ModelService and the models router.
 
-ALL tests in this file are expected to FAIL before the feature is implemented.
-They define the contract:
-
-  - ModelService.download_model() accepts a cancel_event kwarg (threading.Event)
-  - Raising CancelledError (builtins) when the event is set before or during download
-  - DELETE /models/{model_id}/download/{job_id} cancels a running job (200)
-  - DELETE /models/{model_id}/download/{job_id} returns 404 for unknown job_id
-  - DELETE /models/{model_id}/download/{job_id} returns 422 for invalid model_id
+Covers:
+  - ModelService.download_model() cancel_event kwarg (threading.Event)
+  - CancelledError raised when event is set before or during download
+  - DELETE /models/{model_id}/download/{job_id} → 200 for active job, 404 for finished/unknown
+  - DELETE /models/{model_id}/download/{job_id} → 422 for invalid model_id
   - WebSocket sends {"type": "cancelled"} and closes cleanly after cancellation
 """
 import threading
@@ -54,15 +51,18 @@ def client(tmp_path):
     app.dependency_overrides[get_memory_service] = _memory
 
     import app.config as config
-    original_models_dir = config.WHISPER_MODELS_DIR
-    original_hf_models_dir = config.HF_MODELS_DIR
+    original_whisper = config.WHISPER_MODELS_DIR
+    original_hf = config.HF_MODELS_DIR
+    original_alignment = config.ALIGNMENT_MODELS_DIR
     config.WHISPER_MODELS_DIR = tmp_path
     config.HF_MODELS_DIR = tmp_path / "hf"
+    config.ALIGNMENT_MODELS_DIR = tmp_path / "alignment"
 
     yield TestClient(app)
 
-    config.WHISPER_MODELS_DIR = original_models_dir
-    config.HF_MODELS_DIR = original_hf_models_dir
+    config.WHISPER_MODELS_DIR = original_whisper
+    config.HF_MODELS_DIR = original_hf
+    config.ALIGNMENT_MODELS_DIR = original_alignment
     app.dependency_overrides.clear()
 
 
