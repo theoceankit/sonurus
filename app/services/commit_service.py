@@ -10,11 +10,16 @@ class CommitService:
         self.memory = memory_service
         self.storage = storage_service
 
-    def _avg_from_db(self, speaker_id: str):
+    def _avg_from_db(self, speaker_id: str, guard_emb=None):
         """Query embeddings grouped by transcript; return normalised centroid-of-centroids.
 
         Each transcript contributes one centroid regardless of how many segments it
         contains, so a long recording with many segments does not outweigh a short one.
+
+        guard_emb: if provided, transcripts whose centroid has cosine similarity
+        below self.memory.threshold with guard_emb are excluded from the average.
+        This prevents acoustically incompatible recordings from corrupting a
+        speaker's stored embedding. Pass the current stored embedding to activate.
         """
         grouped = self.storage.get_embeddings_grouped_by_transcript(speaker_id)
         if not grouped:
@@ -24,8 +29,19 @@ class CommitService:
         for embeddings in grouped.values():
             c = np.mean(embeddings, axis=0)
             norm = np.linalg.norm(c)
-            centroids.append(c / norm if norm > 0 else c)
+            c_norm = c / norm if norm > 0 else c
+            if guard_emb is not None:
+                sim = float(np.dot(c_norm, guard_emb))
+                if sim < self.memory.threshold:
+                    log.info(
+                        f"Excluding transcript from {speaker_id} embedding "
+                        f"(centroid sim={sim:.2f} < threshold {self.memory.threshold})"
+                    )
+                    continue
+            centroids.append(c_norm)
             total_segments += len(embeddings)
+        if not centroids:
+            return None, 0
         avg = np.mean(centroids, axis=0)
         norm = np.linalg.norm(avg)
         return (avg / norm if norm > 0 else avg), total_segments
@@ -50,10 +66,17 @@ class CommitService:
         log.info(f"Committed {updated} speakers to memory")
 
     def commit_speaker(self, speaker_id: str):
-        """Recompute embedding for one speaker from all their DB segments."""
+        """Recompute embedding for one speaker from all their DB segments.
+
+        Transcripts whose centroid is incompatible with the existing stored
+        embedding (cosine similarity < threshold) are excluded from the average.
+        This prevents a manually-labelled recording from corrupting the embedding
+        when the system itself would not have recognised the speaker there.
+        """
         if speaker_id.startswith('SPEAKER_'):
             return
-        avg, count = self._avg_from_db(speaker_id)
+        guard_emb = self.memory.known_speakers.get(speaker_id)
+        avg, count = self._avg_from_db(speaker_id, guard_emb=guard_emb)
         if avg is None:
             return
         self.memory.update_embedding(speaker_id, avg, count)
