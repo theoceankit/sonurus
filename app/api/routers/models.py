@@ -22,7 +22,7 @@ _cancel_events: dict[str, threading.Event] = {}
 
 
 def _make_service() -> ModelService:
-    return ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.WHISPER_MODELS_DIR.parent / "alignment")
+    return ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR)
 
 
 @router.get("/models")

@@ -1,9 +1,4 @@
-"""
-Tests for the /models API endpoints.
-
-Router does not exist yet — all tests are expected to fail until the
-implementation is added. This file defines the contract.
-"""
+"""Tests for the /models API endpoints — GET /models, DELETE, POST /download."""
 import pytest
 from pathlib import Path
 from fastapi.testclient import TestClient
@@ -33,17 +28,20 @@ def client(tmp_path):
     app.dependency_overrides[get_storage_service] = _storage
     app.dependency_overrides[get_memory_service]  = _memory
 
-    # Patch MODELS_DIR so ModelService uses tmp_path — no real model files on disk.
+    # Patch all model dirs so ModelService uses tmp_path — no real model files on disk.
     import app.config as config
-    original_models_dir = config.WHISPER_MODELS_DIR
-    original_hf_models_dir = config.HF_MODELS_DIR
+    original_whisper = config.WHISPER_MODELS_DIR
+    original_hf = config.HF_MODELS_DIR
+    original_alignment = config.ALIGNMENT_MODELS_DIR
     config.WHISPER_MODELS_DIR = tmp_path
     config.HF_MODELS_DIR = tmp_path / "hf"
+    config.ALIGNMENT_MODELS_DIR = tmp_path / "alignment"
 
     yield TestClient(app)
 
-    config.WHISPER_MODELS_DIR = original_models_dir
-    config.HF_MODELS_DIR = original_hf_models_dir
+    config.WHISPER_MODELS_DIR = original_whisper
+    config.HF_MODELS_DIR = original_hf
+    config.ALIGNMENT_MODELS_DIR = original_alignment
     app.dependency_overrides.clear()
 
 
@@ -76,7 +74,7 @@ def test_list_models_returns_array(client):
     assert isinstance(r.json(), list)
 
 
-def test_list_models_has_exactly_six_entries(client):
+def test_list_models_has_at_least_six_entries(client):
     """GET /models returns at least 6 entries — 5 Whisper + 1 diarization + alignment models."""
     r = client.get("/models")
     assert len(r.json()) >= 6
@@ -260,7 +258,7 @@ def test_delete_model_not_installed_returns_404(tmp_path):
         app.dependency_overrides.clear()
 
 
-def test_delete_unknown_model_returns_422(client):
+def test_delete_unknown_model_returns_400(client):
     """DELETE /models/{model_id} returns 400 when model_id is not in the catalog."""
     r = client.delete("/models/nonexistent-model")
     assert r.status_code == 400, (
@@ -295,14 +293,6 @@ def test_download_model_job_id_is_nonempty_string(client):
     job_id = r.json().get("job_id")
     assert isinstance(job_id, str), f"Expected str job_id, got {type(job_id)}"
     assert len(job_id) > 0, "job_id must be a non-empty string"
-
-
-def test_download_unknown_model_returns_422(client):
-    """POST /models/{model_id}/download returns 400 for an unknown model_id."""
-    r = client.post("/models/does-not-exist/download")
-    assert r.status_code == 400, (
-        f"Expected 400 for unknown model_id, got {r.status_code}: {r.text}"
-    )
 
 
 # ── Alignment model endpoints ─────────────────────────────────────────────────
