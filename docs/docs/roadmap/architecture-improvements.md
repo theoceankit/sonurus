@@ -374,31 +374,31 @@ Zero callers anywhere in production or test code. The method duplicates `Speaker
 
 | Priority | Task | Effort | Risk | Status |
 |---|---|---|---|---|
-| P0 | `PATCH /segments/.../speaker` — UUID + membership validation (§1.1) | S | Low | Pending |
-| P0 | `TranscriptListItem` add `section` + `duration` (§1.2) | S | Low | Pending |
-| P0 | Silent diarization download failure — remove bare `except` (§1.4) | S | Low | Pending |
-| P0 | Delete `main.py` + `app/cli.py` (§7.1) | XS | Low | Pending |
-| P0 | Dead code: `EmbeddingService.extract()`, `resolve_display_name_to_id()` (§8.1, §8.3) | XS | Low | Pending |
-| P1 | API singleton / pipeline `SpeakerMemoryService` divergence (§2.1) | M | Medium | Pending |
-| P1 | `CommitService` backdoor into `_load_names()` (§2.2) | S | Low | Pending |
-| P1 | Slim down `TranscriptionController` after CLI removal (§7.2) | S | Low | Pending |
-| P1 | Archive `.txt` UUID display fix (§2.10) | S | Low | Pending |
-| P1 | `ThreadPoolExecutor` / job-state bound to app lifecycle (§3.3) | M | Medium | Pending |
-| P2 | Versioned DB migrations (§3.2) | M | Low | Pending |
-| P2 | `_dirty` set lock for thread safety (§2.6) | S | Low | Pending |
-| P2 | HTTP status code consistency 400→422 (§1.5) | XS | Low | Pending |
-| P2 | WS disconnect → cancel running job (§1.3) | M | Medium | Pending |
-| P2 | `create_controller()` db_path from config (§2.4) | S | Low | Pending |
-| P2 | `EmbeddingService.extract_segments()` → `_extract_segments()` (§8.2) | XS | Low | Pending |
-| P3 | Vectorize cosine similarity in `resolve()` (§2.8) | M | Low | Pending |
-| P3 | `find_by_name()` in-memory cache lookup first (§2.7) | XS | Low | Pending |
-| P3 | `update_segments_speaker` validate `from_spk` (§2.5) | S | Low | Pending |
-| P3 | `TranscriptStorageService` → split schema/serialiser/repo (§4.1) | L | Medium | Pending |
-| P3 | CORS lock to Electron origins (§1.6) | XS | Low | Pending |
-| P4 | Consolidate warning suppression (§5.1) | S | Low | Pending |
-| P4 | CUDA compute capability guard at startup (§5.2) | S | Low | Pending |
-| P4 | Electron model catalog from API (§6.1) | M | Low | Pending |
-| P4 | Stable "Unknown N" ordinal (§6.2) | S | Low | Pending |
-| P4 | `SpeakerMemoryService` → split repo/resolver/facade (§4.2) | L | High | Pending |
+| P0 | `PATCH /segments/.../speaker` — UUID + membership validation (§1.1) | S | Low | Done |
+| P0 | `TranscriptListItem` add `section` + `duration` (§1.2) | S | Low | Done |
+| P0 | Silent diarization download failure — remove bare `except` (§1.4) | S | Low | Done |
+| P0 | Delete `main.py` + `app/cli.py` (§7.1) | XS | Low | Done |
+| P0 | Dead code: `EmbeddingService.extract()`, `resolve_display_name_to_id()` (§8.1, §8.3) | XS | Low | Done |
+| P1 | API singleton / pipeline `SpeakerMemoryService` divergence (§2.1) | M | Medium | Done |
+| P1 | `CommitService` backdoor into `_load_names()` (§2.2) | S | Low | Done |
+| P1 | Slim down `TranscriptionController` after CLI removal (§7.2) | S | Low | Done |
+| P1 | Archive `.txt` UUID display fix (§2.10) | S | Low | Done |
+| P1 | `ThreadPoolExecutor` / job-state bound to app lifecycle (§3.3) | M | Medium | Done |
+| P2 | Versioned DB migrations (§3.2) | M | Low | Done |
+| P2 | `_dirty` set lock for thread safety (§2.6) | S | Low | Done |
+| P2 | HTTP status code consistency 400→422 (§1.5) | XS | Low | Done |
+| P2 | WS disconnect → cancel running job (§1.3) | M | Medium | Done |
+| P2 | `create_controller()` db_path from config (§2.4) | S | Low | Done |
+| P2 | `EmbeddingService.extract_segments()` → `_extract_segments()` (§8.2) | XS | Low | Done |
+| P3 | Vectorize cosine similarity in `resolve()` (§2.8) | M | Low | Done |
+| P3 | `find_by_name()` in-memory cache lookup first (§2.7) | XS | Low | Done |
+| P3 | `update_segments_speaker` validate `from_spk` (§2.5) | S | Low | Done |
+| P3 | `TranscriptStorageService` → split schema/serialiser/repo (§4.1) | L | Medium | Done |
+| P3 | CORS lock to Electron origins (§1.6) | XS | Low | Done |
+| P4 | Consolidate warning suppression (§5.1) | S | Low | Done |
+| P4 | CUDA compute capability guard at startup (§5.2) | S | Low | Done |
+| P4 | Electron model catalog from API (§6.1) | M | Low | Done |
+| P4 | Stable "Unknown N" ordinal (§6.2) | S | Low | Done |
+| P4 | `SpeakerMemoryService` → split repo/resolver/facade (§4.2) | L | High | Done |
 
 Effort: XS < S < M < L < XL. Risk refers to regression risk during the refactor.

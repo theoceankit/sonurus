@@ -178,23 +178,47 @@ def test_delete_transcript_not_found(client):
 # ── Segment speaker ───────────────────────────────────────────────────────────
 
 def test_update_segment_speaker(client):
+    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    memory = app.dependency_overrides[get_memory_service]()
+    spk_uuid = str(uuid_module.uuid4())
+    memory.update_embedding(spk_uuid, emb)
+    memory.save()
+
     db_id = _saved_id(client)
     r = client.patch(
         f"/transcripts/{db_id}/segments/0.0/speaker",
-        json={"speaker_id": "Carol"},
+        json={"speaker_id": spk_uuid},
     )
     assert r.status_code == 204
     segs = client.get(f"/transcripts/{db_id}").json()["segments"]
-    assert segs[0]["speaker_resolved"] == "Carol"
+    assert segs[0]["speaker_resolved"] == spk_uuid
 
 
 def test_update_segment_speaker_not_found(client):
     db_id = _saved_id(client)
     r = client.patch(
         f"/transcripts/{db_id}/segments/99.0/speaker",
-        json={"speaker_id": "Carol"},
+        json={"speaker_id": str(uuid_module.uuid4())},
     )
     assert r.status_code == 404
+
+
+def test_update_segment_speaker_invalid_uuid(client):
+    db_id = _saved_id(client)
+    r = client.patch(
+        f"/transcripts/{db_id}/segments/0.0/speaker",
+        json={"speaker_id": "not-a-uuid"},
+    )
+    assert r.status_code == 400
+
+
+def test_update_segment_speaker_unknown_uuid(client):
+    db_id = _saved_id(client)
+    r = client.patch(
+        f"/transcripts/{db_id}/segments/0.0/speaker",
+        json={"speaker_id": str(uuid_module.uuid4())},
+    )
+    assert r.status_code == 400
 
 
 # ── Segment text ──────────────────────────────────────────────────────────────

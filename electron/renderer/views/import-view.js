@@ -26,7 +26,8 @@ function renderImportView() {
         <rect x="9" y="3" width="8" height="14" rx="4" stroke="currentColor" stroke-width="1.8" fill="rgba(255,255,255,0.18)"/>
         <path d="M5 13v.5A8 8 0 0013 21.5v0a8 8 0 008-8V13M13 21.5V25M8 25h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
       </svg>`,
-      comingSoon: true,
+      comingSoon: false,
+      onClick: () => app.showLiveRecording(),
     },
     {
       id: 'dictate',
@@ -107,6 +108,7 @@ function renderImportView() {
       !t.comingSoon ? 'action-tile--active'       : '',
     ].filter(Boolean).join(' ')
     tile.disabled = t.comingSoon
+    if (t.onClick) tile.addEventListener('click', t.onClick)
 
     // Decorative halo
     const halo = document.createElement('div')

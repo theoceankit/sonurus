@@ -1,3 +1,5 @@
+import uuid as _uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.services.transcript_storage_service import TranscriptStorageService
@@ -21,6 +23,8 @@ def list_transcripts(storage: TranscriptStorageService = Depends(get_storage_ser
             created_at=row["created_at"],
             status=row["status"],
             speakers=row.get("speakers", []),
+            section=row.get("section", ""),
+            duration=row.get("duration", ""),
         )
         for row in storage.list_all()
     ]
@@ -81,6 +85,12 @@ def update_segment_speaker(
     seg = next((s for s in t.segments if s.start == start), None)
     if seg is None:
         raise HTTPException(status_code=404, detail="Segment not found")
+    try:
+        _uuid.UUID(body.speaker_id, version=4)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="speaker_id must be a valid UUID4")
+    if body.speaker_id not in memory.known_speakers:
+        raise HTTPException(status_code=400, detail="speaker_id not found in known speakers")
     from_spk_id = seg.speaker_final or seg.speaker_resolved or seg.speaker_raw
     storage.update_segment_speaker(transcript_id, start, seg.end, body.speaker_id)
     commit_svc = CommitService(memory, storage)
@@ -137,6 +147,9 @@ def reassign_speaker(
         t = storage.load(transcript_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
+
+    if not any(seg.speaker_resolved == body.from_speaker_id for seg in t.segments):
+        raise HTTPException(status_code=400, detail="from_speaker_id not found in transcript segments")
 
     if has_id:
         to_uuid = body.to_speaker_id

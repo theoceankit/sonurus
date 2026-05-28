@@ -16,8 +16,8 @@ const LANGUAGES = [
 ]
 
 // ── Models ──────────────────────────────────────────────────────────────────────
-// Full model catalogue. import-view derives a slim dropdown list from this;
-// settings-view uses it for the full model management UI.
+// Used by import-view for the model dropdown. settings-view fetches from
+// GET /models at render time and does not use this array.
 
 const MODELS = [
   { id: 'tiny',     name: 'Whisper Tiny',     size: '39 MB',   speed: '~10× realtime', acc: 'Low',                installed: false, recommended: false, kind: 'whisper'      },

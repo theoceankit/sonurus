@@ -10,6 +10,9 @@ from fastapi.responses import JSONResponse
 
 import app.config as config
 from app.services.model_service import ModelService
+from app.logger import get_logger
+
+log = get_logger("models")
 
 router = APIRouter(tags=["models"])
 
@@ -19,6 +22,10 @@ _executor = ThreadPoolExecutor(max_workers=2)
 _download_jobs: dict[str, _queue.Queue] = {}
 # job_id → threading.Event for cancellation
 _cancel_events: dict[str, threading.Event] = {}
+
+
+def shutdown_executor():
+    _executor.shutdown(wait=False)
 
 
 def _make_service() -> ModelService:
@@ -37,7 +44,7 @@ def delete_model(model_id: str):
     except FileNotFoundError:
         return JSONResponse({"detail": f"Model '{model_id}' is not installed"}, status_code=404)
     except ValueError:
-        return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=400)
+        return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=422)
     return {"deleted": model_id}
 
 
@@ -47,7 +54,7 @@ async def download_model(model_id: str):
     try:
         svc.is_installed(model_id)
     except ValueError:
-        return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=400)
+        return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=422)
 
     job_id = str(uuid.uuid4())
     q: _queue.Queue = _queue.Queue()
@@ -56,15 +63,20 @@ async def download_model(model_id: str):
     _cancel_events[job_id] = cancel_event
 
     def _run():
+        log.info(f"Download started: {model_id} (job {job_id})")
         try:
             service = _make_service()
             service.download_model(model_id, cancel_event=cancel_event, on_progress=q.put)
             q.put({"type": "done"})
+            log.info(f"Download complete: {model_id}")
         except CancelledError:
+            log.info(f"Download cancelled: {model_id}")
             q.put({"type": "cancelled"})
         except ValueError as exc:
+            log.error(f"Download error (ValueError): {model_id}: {exc}")
             q.put({"type": "error", "message": str(exc)})
         except Exception as exc:
+            log.error(f"Download error: {model_id}: {exc}", exc_info=True)
             q.put({"type": "error", "message": str(exc)})
         finally:
             _cancel_events.pop(job_id, None)
