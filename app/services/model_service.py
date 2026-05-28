@@ -8,11 +8,11 @@ from pathlib import Path
 import huggingface_hub
 
 WHISPER_CATALOG = {
-    "tiny":     {"hf_repo": "Systran/faster-whisper-tiny",     "size_bytes": 41_000_000},
-    "base":     {"hf_repo": "Systran/faster-whisper-base",     "size_bytes": 78_000_000},
-    "small":    {"hf_repo": "Systran/faster-whisper-small",    "size_bytes": 256_000_000},
-    "medium":   {"hf_repo": "Systran/faster-whisper-medium",   "size_bytes": 807_000_000},
-    "large-v3": {"hf_repo": "Systran/faster-whisper-large-v3", "size_bytes": 1_630_000_000},
+    "tiny":     {"hf_repo": "Systran/faster-whisper-tiny",     "size_bytes": 41_000_000,    "name": "Whisper Tiny",     "size": "39 MB",   "speed": "~10× realtime", "acc": "Low",               "recommended": False, "kind": "whisper"},
+    "base":     {"hf_repo": "Systran/faster-whisper-base",     "size_bytes": 78_000_000,    "name": "Whisper Base",     "size": "74 MB",   "speed": "~7× realtime",  "acc": "Fair",              "recommended": False, "kind": "whisper"},
+    "small":    {"hf_repo": "Systran/faster-whisper-small",    "size_bytes": 256_000_000,   "name": "Whisper Small",    "size": "244 MB",  "speed": "~4× realtime",  "acc": "Good",              "recommended": False, "kind": "whisper"},
+    "medium":   {"hf_repo": "Systran/faster-whisper-medium",   "size_bytes": 807_000_000,   "name": "Whisper Medium",   "size": "769 MB",  "speed": "~2× realtime",  "acc": "Very good",         "recommended": False, "kind": "whisper"},
+    "large-v3": {"hf_repo": "Systran/faster-whisper-large-v3", "size_bytes": 1_630_000_000, "name": "Whisper Large v3", "size": "1.55 GB", "speed": "~1× realtime",  "acc": "Best",              "recommended": True,  "kind": "whisper"},
 }
 
 # whisperx uses pyannote/speaker-diarization-community-1 by default (single repo
@@ -25,6 +25,7 @@ DIARIZATION_CATALOG = {
             "pyannote/embedding",
         ],
         "size_bytes": 300_000_000,
+        "name": "Diarization · v2", "size": "112 MB", "speed": "—", "acc": "Speaker separation", "recommended": False, "kind": "diarization",
     },
 }
 
@@ -158,9 +159,23 @@ class ModelService:
         raise ValueError(f"Unknown model_id: {model_id!r}")
 
     def list_models(self) -> list[dict]:
-        result = [{"id": mid, "installed": self.is_installed(mid)} for mid in WHISPER_CATALOG]
-        result += [{"id": mid, "installed": self.is_installed(mid)} for mid in DIARIZATION_CATALOG]
-        result += [{"id": mid, "installed": self.is_installed(mid)} for mid in ALIGNMENT_CATALOG]
+        result = []
+        for mid, entry in WHISPER_CATALOG.items():
+            result.append({
+                "id": mid, "installed": self.is_installed(mid),
+                "name": entry["name"], "size": entry["size"],
+                "speed": entry["speed"], "acc": entry["acc"],
+                "recommended": entry["recommended"], "kind": entry["kind"],
+            })
+        for mid, entry in DIARIZATION_CATALOG.items():
+            result.append({
+                "id": mid, "installed": self.is_installed(mid),
+                "name": entry["name"], "size": entry["size"],
+                "speed": entry["speed"], "acc": entry["acc"],
+                "recommended": entry["recommended"], "kind": entry["kind"],
+            })
+        for mid in ALIGNMENT_CATALOG:
+            result.append({"id": mid, "installed": self.is_installed(mid), "kind": "alignment"})
         return result
 
     def delete_model(self, model_id: str) -> None:

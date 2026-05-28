@@ -16,8 +16,17 @@ DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 # TranscriptionService
 WHISPER_MODEL = "large-v3"
 WHISPER_BATCH_SIZE = 2  # lower batch = less activation memory during transcription
+WHISPER_COMPUTE_TYPE_CPU = "int8"
+
+# int8_float16 requires Turing (CC >= 7.5); fall back to float16 on older GPUs
 WHISPER_COMPUTE_TYPE_CUDA = "int8_float16"
-WHISPER_COMPUTE_TYPE_CPU  = "int8"
+if DEVICE == "cuda":
+    try:
+        _cc = torch.cuda.get_device_capability()
+        if _cc < (7, 5):
+            WHISPER_COMPUTE_TYPE_CUDA = "float16"
+    except Exception:
+        pass
 
 # EmbeddingService
 EMBEDDING_SAMPLE_RATE = 16000

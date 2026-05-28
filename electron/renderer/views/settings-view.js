@@ -13,7 +13,6 @@ const ST_EXPORT_FORMATS = [
 
 function makeSettings() {
   const modelStatus = {}
-  MODELS.forEach(m => { modelStatus[m.id] = m.installed ? 'installed' : 'available' })
   ALIGNMENT_MODELS.forEach(m => { modelStatus[m.id] = 'available' })
   return {
     transcribeLang: appSettings.transcribeLang,
@@ -598,20 +597,17 @@ function buildModelsSection(state, rerender) {
       })
   }
 
-  MODELS.forEach(m => {
-    modelRows.appendChild(makeModelRow(m, state, onSelect, onDownload, onDelete))
-  })
-
-  // Load real install status from API, then refresh rows.
+  // Fetch full catalog + install status from API; render rows when ready.
   fetch(`${API_BASE}/models`)
     .then(r => r.json())
     .then(models => {
-      models.forEach(({ id, installed }) => {
-        state.modelStatus[id] = installed ? 'installed' : 'available'
+      const whisperAndDiarize = models.filter(m => m.kind !== 'alignment')
+      whisperAndDiarize.forEach(m => {
+        state.modelStatus[m.id] = m.installed ? 'installed' : 'available'
+        modelRows.appendChild(makeModelRow(m, state, onSelect, onDownload, onDelete))
       })
-      rerenderRows()
     })
-    .catch(() => { /* server not running — keep defaults */ })
+    .catch(() => { /* server not running — rows remain empty */ })
 
   const footer = document.createElement('div')
   footer.className = 'st-models-footer'
