@@ -24,15 +24,13 @@ async def lifespan(app: FastAPI):
     get_storage_service()
     get_memory_service()
     yield
-    transcription.shutdown_executor()
-    models.shutdown_executor()
 
 
 app = FastAPI(title="Whisper API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost", "http://127.0.0.1", "file://"],
+    allow_origins=["*"],  # Electron renderer uses file:// origin (sent as null) — lock down before distribution
     allow_methods=["*"],
     allow_headers=["*"],
 )
