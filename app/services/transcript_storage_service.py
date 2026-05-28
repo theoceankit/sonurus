@@ -32,9 +32,9 @@ class TranscriptStorageService:
         """Insert transcript + segments, set transcript.db_id. Returns new id."""
         with self._connect() as conn:
             cursor = conn.execute(
-                "INSERT INTO transcriptions (audio_file, language, status, created_at) VALUES (?, ?, ?, ?)",
+                "INSERT INTO transcriptions (audio_file, language, status, created_at, title) VALUES (?, ?, ?, ?, ?)",
                 (transcript.audio_path, transcript.language,
-                 transcript.status, datetime.now().isoformat()),
+                 transcript.status, datetime.now().isoformat(), transcript.title),
             )
             db_id = cursor.lastrowid
 
@@ -154,6 +154,7 @@ class TranscriptStorageService:
             rows = conn.execute(
                 """SELECT t.id,
                           t.audio_file,
+                          t.title,
                           t.created_at,
                           t.status,
                           MAX(s.end)                         AS duration_sec,
@@ -170,7 +171,7 @@ class TranscriptStorageService:
 
         records = []
         for r in rows:
-            db_id, audio_file, created_at_str, status, duration_sec, speaker_ids_str = r
+            db_id, audio_file, title_db, created_at_str, status, duration_sec, speaker_ids_str = r
 
             created = date.fromisoformat(created_at_str[:10]) if created_at_str else today
             if created == today:
@@ -184,7 +185,7 @@ class TranscriptStorageService:
 
             speaker_ids = [s for s in (speaker_ids_str or "").split(",") if s]
             duration_str = _fmt_duration(duration_sec or 0)
-            title = os.path.splitext(os.path.basename(audio_file))[0]
+            title = title_db or os.path.splitext(os.path.basename(audio_file))[0]
 
             records.append({
                 "id":         db_id,

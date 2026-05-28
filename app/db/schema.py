@@ -1,6 +1,6 @@
 """Transcript DB schema management: creation and versioned migrations."""
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def init_db(conn) -> None:
@@ -65,3 +65,9 @@ def _run_migrations(conn, current: int) -> None:
         if "embedding" not in seg_cols:
             conn.execute("ALTER TABLE segments ADD COLUMN embedding BLOB")
         conn.execute("UPDATE _ts_schema_version SET version = 2")
+        current = 2
+    if current < 3:
+        txn_cols = {r[1] for r in conn.execute("PRAGMA table_info(transcriptions)").fetchall()}
+        if "title" not in txn_cols:
+            conn.execute("ALTER TABLE transcriptions ADD COLUMN title TEXT")
+        conn.execute("UPDATE _ts_schema_version SET version = 3")

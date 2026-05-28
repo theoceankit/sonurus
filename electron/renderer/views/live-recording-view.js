@@ -406,6 +406,7 @@ function renderLiveRecordingView() {
         audio_path: filePath,
         whisper_model: appSettings.transcribeModel,
         language: appSettings.transcribeLang === 'auto' ? null : appSettings.transcribeLang,
+        title: titleInput.value.trim() || null,
       }
       fetch(`${API_BASE}/transcribe`, {
         method: 'POST',
