@@ -148,6 +148,9 @@ def reassign_speaker(
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
 
+    if not any(seg.speaker_resolved == body.from_speaker_id for seg in t.segments):
+        raise HTTPException(status_code=400, detail="from_speaker_id not found in transcript segments")
+
     if has_id:
         to_uuid = body.to_speaker_id
         if to_uuid not in memory.known_speakers:

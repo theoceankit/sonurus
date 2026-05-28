@@ -32,7 +32,7 @@ app = FastAPI(title="Whisper API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # dev only — tighten for production
+    allow_origins=["http://localhost", "http://127.0.0.1", "file://"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

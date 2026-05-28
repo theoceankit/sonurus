@@ -2,25 +2,13 @@ import os
 import sqlite3
 from datetime import datetime, date, timedelta
 
-import numpy as np
-
 from app.models.transcript import Transcript
 from app.models.segment import Segment
 from app.logger import get_logger
+from app.db.schema import init_db
+from app.db.serializers import serialize_embedding, deserialize_embedding
 
 log = get_logger("DB")
-
-
-def _serialize_embedding(emb):
-    if emb is None:
-        return None
-    return np.asarray(emb, dtype=np.float32).tobytes()
-
-
-def _deserialize_embedding(blob):
-    if blob is None:
-        return None
-    return np.frombuffer(blob, dtype=np.float32).copy()
 
 
 class TranscriptStorageService:
@@ -32,6 +20,11 @@ class TranscriptStorageService:
         conn = sqlite3.connect(self.db_path, timeout=30)
         conn.execute("PRAGMA foreign_keys=ON")
         return conn
+
+    def _init_db(self):
+        with self._connect() as conn:
+            conn.execute("PRAGMA journal_mode=WAL")
+            init_db(conn)
 
     # ── Write ─────────────────────────────────────────────────────────────────
 
@@ -54,7 +47,7 @@ class TranscriptStorageService:
                         db_id,
                         seg.speaker_final or seg.speaker_resolved,
                         seg.start, seg.end, seg.text, seg.speaker_raw,
-                        _serialize_embedding(seg.embedding),
+                        serialize_embedding(seg.embedding),
                     )
                     for seg in transcript.segments
                 ],
@@ -142,19 +135,18 @@ class TranscriptStorageService:
                 start=r[0], end=r[1], text=r[2],
                 speaker_raw=r[3] or "",
                 speaker_resolved=r[4],
-                embedding=_deserialize_embedding(r[5]),
+                embedding=deserialize_embedding(r[5]),
             )
             for r in seg_rows
         ]
 
-        transcript = Transcript(
+        return Transcript(
             segments=segments,
             audio_path=audio_file,
             language=language or "",
             status=status or "draft",
             db_id=db_id,
         )
-        return transcript
 
     def list_all(self) -> list[dict]:
         """Return recording metadata for sidebar, newest first."""
@@ -212,7 +204,7 @@ class TranscriptStorageService:
                 "SELECT embedding FROM segments WHERE speaker_id = ? AND embedding IS NOT NULL",
                 (speaker_id,)
             ).fetchall()
-        return [_deserialize_embedding(r[0]) for r in rows]
+        return [deserialize_embedding(r[0]) for r in rows]
 
     def get_embeddings_grouped_by_transcript(self, speaker_id: str) -> dict:
         """Return {transcription_id: [embeddings]} for all non-null segment embeddings.
@@ -228,76 +220,8 @@ class TranscriptStorageService:
             ).fetchall()
         grouped: dict[int, list] = {}
         for tid, blob in rows:
-            grouped.setdefault(tid, []).append(_deserialize_embedding(blob))
+            grouped.setdefault(tid, []).append(deserialize_embedding(blob))
         return grouped
-
-    # ── Schema ────────────────────────────────────────────────────────────────
-
-    _SCHEMA_VERSION = 2
-
-    def _init_db(self):
-        with self._connect() as conn:
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS _ts_schema_version (version INTEGER NOT NULL DEFAULT 0)"
-            )
-            if conn.execute("SELECT COUNT(*) FROM _ts_schema_version").fetchone()[0] == 0:
-                conn.execute(
-                    "INSERT INTO _ts_schema_version VALUES (?)",
-                    (self._detect_legacy_version(conn),),
-                )
-            current = conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0]
-            self._run_migrations(conn, current)
-
-    @staticmethod
-    def _detect_legacy_version(conn) -> int:
-        """Infer schema version from column presence for DBs that predate version tracking."""
-        tables = {
-            r[0] for r in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
-        }
-        if "segments" not in tables:
-            return 0
-        seg_cols = {r[1] for r in conn.execute("PRAGMA table_info(segments)").fetchall()}
-        if "embedding" in seg_cols:
-            return 2
-        txn_cols = {r[1] for r in conn.execute("PRAGMA table_info(transcriptions)").fetchall()}
-        return 1 if "status" in txn_cols else 0
-
-    @staticmethod
-    def _run_migrations(conn, current: int):
-        if current < 1:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS transcriptions (
-                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    audio_file TEXT NOT NULL,
-                    language   TEXT,
-                    status     TEXT DEFAULT 'draft',
-                    created_at TEXT
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS segments (
-                    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                    transcription_id INTEGER NOT NULL REFERENCES transcriptions(id),
-                    speaker_id       TEXT,
-                    start            REAL NOT NULL,
-                    end              REAL NOT NULL,
-                    text             TEXT NOT NULL,
-                    speaker_raw      TEXT
-                )
-            """)
-            txn_cols = {r[1] for r in conn.execute("PRAGMA table_info(transcriptions)").fetchall()}
-            if "status" not in txn_cols:
-                conn.execute("ALTER TABLE transcriptions ADD COLUMN status TEXT DEFAULT 'draft'")
-            conn.execute("UPDATE _ts_schema_version SET version = 1")
-            current = 1
-        if current < 2:
-            seg_cols = {r[1] for r in conn.execute("PRAGMA table_info(segments)").fetchall()}
-            if "embedding" not in seg_cols:
-                conn.execute("ALTER TABLE segments ADD COLUMN embedding BLOB")
-            conn.execute("UPDATE _ts_schema_version SET version = 2")
 
 
 def _fmt_duration(seconds: float) -> str:

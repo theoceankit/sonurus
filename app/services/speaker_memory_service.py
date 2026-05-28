@@ -42,36 +42,39 @@ class SpeakerMemoryService:
         Each known speaker can be claimed by at most one new speaker per session.
         Candidates are ranked by cosine similarity; the best score wins.
 
+        Known embeddings are stacked into a matrix and scored in one vectorised
+        call per session speaker instead of one call per pair.
+
         Returns: {SPEAKER_XX: uuid4}
         Does NOT mutate known_speakers.
         """
         log.info(f"Resolving {len(new_embeddings)} speakers against {len(self.known_speakers)} known profiles")
         resolved = {}
 
-        candidates = []
-        for speaker_id, emb in new_embeddings.items():
-            for known_name, known_emb in self.known_speakers.items():
-                score = cosine_similarity(
-                    emb.reshape(1, -1),
-                    known_emb.reshape(1, -1)
-                )[0][0]
-                candidates.append((score, speaker_id, known_name))
+        if self.known_speakers and new_embeddings:
+            known_ids = list(self.known_speakers.keys())
+            known_matrix = np.stack([self.known_speakers[k] for k in known_ids])  # (M, D)
 
-        candidates.sort(reverse=True)
+            candidates = []
+            for speaker_id, emb in new_embeddings.items():
+                scores = cosine_similarity(emb.reshape(1, -1), known_matrix)[0]  # (M,)
+                for j, score in enumerate(scores):
+                    candidates.append((float(score), speaker_id, known_ids[j]))
 
-        assigned_new = set()
-        assigned_known = set()
+            candidates.sort(reverse=True)
 
-        for score, speaker_id, known_name in candidates:
-            if score < self.threshold:
-                log.info(f"{speaker_id} ✗ {known_name} (similarity {score:.2f}, below threshold {self.threshold})")
-                break
-            if speaker_id in assigned_new or known_name in assigned_known:
-                continue
-            resolved[speaker_id] = known_name
-            assigned_new.add(speaker_id)
-            assigned_known.add(known_name)
-            log.info(f"{speaker_id} → {known_name} (similarity {score:.2f})")
+            assigned_new: set[str] = set()
+            assigned_known: set[str] = set()
+
+            for score, speaker_id, known_name in candidates:
+                if score < self.threshold:
+                    break
+                if speaker_id in assigned_new or known_name in assigned_known:
+                    continue
+                resolved[speaker_id] = known_name
+                assigned_new.add(speaker_id)
+                assigned_known.add(known_name)
+                log.info(f"{speaker_id} → {known_name} (similarity {score:.2f})")
 
         for speaker_id in new_embeddings:
             if speaker_id not in resolved:
@@ -298,6 +301,10 @@ class SpeakerMemoryService:
 
     def find_by_name(self, name: str, label: str = "display") -> str | None:
         """Returns the speaker UUID for the given display name, or None if not found."""
+        for spk_id, labels in self.known_names.items():
+            if labels.get(label) == name:
+                return spk_id
+        # Fall back to DB for names flushed before this instance was loaded
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT speaker_id FROM speaker_names WHERE name = ? AND label = ?",
