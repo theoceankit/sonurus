@@ -31,12 +31,12 @@ class EmbeddingService:
 
     def extract_all(self, audio, diarize_segments):
         """Returns (aggregated_dict, segments_list) in a single pyannote pass."""
-        segments = self.extract_segments(audio, diarize_segments)
+        segments = self._extract_segments(audio, diarize_segments)
         aggregated = self._aggregate_from_segments(segments)
         log.info(f"Extracted embeddings — {len(aggregated)} speakers, {len(segments)} segments")
         return aggregated, segments
 
-    def extract_segments(self, audio, diarize_segments):
+    def _extract_segments(self, audio, diarize_segments):
         """Returns per-segment embeddings: [{"start", "end", "speaker", "embedding"}]."""
         result = []
 

@@ -1,4 +1,4 @@
-from app.config import DEVICE, MODELS_DIR, WHISPER_MODEL
+from app.config import DEVICE, DB_PATH, MODELS_DIR, WHISPER_MODEL
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.embedding_service import EmbeddingService
 from app.services.transcription_service import TranscriptionService
@@ -7,7 +7,7 @@ from app.controllers.transcription_controller import TranscriptionController
 
 
 def create_controller(
-    db_path: str = "speaker_memory.db",
+    db_path: str = DB_PATH,
     device: str = DEVICE,
     whisper_model: str = WHISPER_MODEL,
 ) -> tuple[TranscriptionController, TranscriptStorageService]:

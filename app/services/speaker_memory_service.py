@@ -1,5 +1,6 @@
 import re
 import sqlite3
+import threading
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import uuid
@@ -31,6 +32,7 @@ class SpeakerMemoryService:
         self.known_speakers, self.known_counts = self._load()
         self.known_names = self._load_names()
         self._dirty: set[str] = set()
+        self._dirty_lock = threading.Lock()
         log.info(f"Loaded {len(self.known_speakers)} known speakers")
 
     def resolve(self, new_embeddings: dict) -> dict:
@@ -83,7 +85,8 @@ class SpeakerMemoryService:
         norm = np.linalg.norm(embedding)
         self.known_speakers[spk_id] = embedding / norm if norm > 0 else embedding
         self.known_counts[spk_id] = count
-        self._dirty.add(spk_id)
+        with self._dirty_lock:
+            self._dirty.add(spk_id)
 
     def get_name(self, spk_id: str, label: str = "display") -> str | None:
         return self.known_names.get(spk_id, {}).get(label)
@@ -107,7 +110,9 @@ class SpeakerMemoryService:
         Names: all speakers present in both known_names and known_speakers, so
         that set_name() + save() works without requiring a prior update_embedding().
         """
-        dirty = self._dirty
+        with self._dirty_lock:
+            dirty = self._dirty
+            self._dirty = set()
         speakers_with_names = [s for s in self.known_names if s in self.known_speakers]
         if not dirty and not speakers_with_names:
             return
@@ -132,45 +137,33 @@ class SpeakerMemoryService:
                     for label, name in self.known_names[spk_id].items()
                 ]
             )
-        self._dirty = set()
         log.info(f"Saved {len(self.known_speakers)} speakers → {self.db_path}")
+
+    _SCHEMA_VERSION = 1
 
     def _init_db(self):
         with self._connect() as conn:
             conn.execute("PRAGMA journal_mode=WAL")
-            # migrate legacy table name
-            tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
-            if "speakers" in tables and "speaker_embeddings" not in tables:
-                conn.execute("ALTER TABLE speakers RENAME TO speaker_embeddings")
-
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS speaker_embeddings (
-                    id        TEXT PRIMARY KEY,
-                    embedding BLOB NOT NULL,
-                    count     INTEGER NOT NULL DEFAULT 1
-                )
-            """)
-            # migrate: add count column to existing databases
-            try:
-                conn.execute("ALTER TABLE speaker_embeddings ADD COLUMN count INTEGER NOT NULL DEFAULT 1")
-            except sqlite3.OperationalError:
-                pass  # column already exists
-
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS speaker_names (
-                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    speaker_id TEXT NOT NULL REFERENCES speaker_embeddings(id),
-                    label      TEXT NOT NULL,
-                    name       TEXT NOT NULL
-                )
-            """)
-
+            # Bootstrap _meta early so _detect_legacy_version can use it
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS _meta (
                     key   TEXT PRIMARY KEY,
                     value TEXT
                 )
             """)
+            version_row = conn.execute(
+                "SELECT value FROM _meta WHERE key='schema_version'"
+            ).fetchone()
+            if version_row is None:
+                detected = self._detect_legacy_version(conn)
+                conn.execute(
+                    "INSERT INTO _meta (key, value) VALUES ('schema_version', ?)",
+                    (str(detected),),
+                )
+                current = detected
+            else:
+                current = int(version_row[0])
+            self._run_migrations(conn, current)
 
             already_done = conn.execute(
                 "SELECT value FROM _meta WHERE key='m001_uuid_speakers'"
@@ -203,6 +196,55 @@ class SpeakerMemoryService:
                 conn.execute(
                     "INSERT INTO _meta (key, value) VALUES ('m001_uuid_speakers', 'done')"
                 )
+
+    @staticmethod
+    def _detect_legacy_version(conn) -> int:
+        """Infer schema version from column presence for DBs that predate version tracking."""
+        tables = {
+            r[0] for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        if "speaker_embeddings" not in tables and "speakers" not in tables:
+            return 0
+        # If speakers table exists (pre-rename), treat as v0 so migration runs
+        if "speakers" in tables and "speaker_embeddings" not in tables:
+            return 0
+        emb_cols = {r[1] for r in conn.execute("PRAGMA table_info(speaker_embeddings)").fetchall()}
+        return 1 if "count" in emb_cols else 0
+
+    @staticmethod
+    def _run_migrations(conn, current: int):
+        if current < 1:
+            # Rename legacy table if needed
+            tables = {
+                r[0] for r in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
+            if "speakers" in tables and "speaker_embeddings" not in tables:
+                conn.execute("ALTER TABLE speakers RENAME TO speaker_embeddings")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS speaker_embeddings (
+                    id        TEXT PRIMARY KEY,
+                    embedding BLOB NOT NULL,
+                    count     INTEGER NOT NULL DEFAULT 1
+                )
+            """)
+            emb_cols = {r[1] for r in conn.execute("PRAGMA table_info(speaker_embeddings)").fetchall()}
+            if "count" not in emb_cols:
+                conn.execute(
+                    "ALTER TABLE speaker_embeddings ADD COLUMN count INTEGER NOT NULL DEFAULT 1"
+                )
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS speaker_names (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    speaker_id TEXT NOT NULL REFERENCES speaker_embeddings(id),
+                    label      TEXT NOT NULL,
+                    name       TEXT NOT NULL
+                )
+            """)
+            conn.execute("UPDATE _meta SET value = '1' WHERE key = 'schema_version'")
 
     def _load(self) -> tuple[dict, dict]:
         with self._connect() as conn:

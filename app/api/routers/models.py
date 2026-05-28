@@ -41,7 +41,7 @@ def delete_model(model_id: str):
     except FileNotFoundError:
         return JSONResponse({"detail": f"Model '{model_id}' is not installed"}, status_code=404)
     except ValueError:
-        return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=400)
+        return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=422)
     return {"deleted": model_id}
 
 
@@ -51,7 +51,7 @@ async def download_model(model_id: str):
     try:
         svc.is_installed(model_id)
     except ValueError:
-        return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=400)
+        return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=422)
 
     job_id = str(uuid.uuid4())
     q: _queue.Queue = _queue.Queue()

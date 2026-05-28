@@ -178,6 +178,8 @@ async def ws_progress(websocket: WebSocket, job_id: str):
             if event["type"] in ("done", "error", "cancelled"):
                 break
     except WebSocketDisconnect:
-        pass
+        cancel_event = _cancel_events.get(job_id)
+        if cancel_event:
+            cancel_event.set()
     finally:
         _jobs.pop(job_id, None)

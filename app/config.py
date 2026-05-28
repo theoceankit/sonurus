@@ -25,3 +25,6 @@ EMBEDDING_MIN_DURATION = 1.0
 
 # SpeakerMemoryService
 SPEAKER_SIMILARITY_THRESHOLD = 0.75
+
+# Database
+DB_PATH = os.getenv("DB_PATH", "speaker_memory.db")
