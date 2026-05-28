@@ -37,6 +37,6 @@ UserWarning: torchcodec is not installed correctly so built-in audio decoding wi
 
 **Impact:** none. The pipeline loads audio via WhisperX (which calls the `ffmpeg` binary directly) and passes pre-loaded waveform tensors to PyAnnote. `torchcodec`'s own audio decoder is never invoked.
 
-**Suppression:** the warning is hidden when `VERBOSE=false` (default) via `warnings.filterwarnings("ignore", module="pyannote")` in `app/api/main.py`.
+**Suppression:** the warning is hidden when `VERBOSE=false` (default) via `suppress_ml_noise("startup")` in `app/warnings.py`, called from `app/api/main.py` at import time.
 
 **Permanent fix (optional):** set `DYLD_LIBRARY_PATH=/opt/homebrew/lib` before starting the server. This lets `torchcodec` find the FFmpeg dylibs and eliminates the warning at the source.
