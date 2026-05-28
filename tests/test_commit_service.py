@@ -616,3 +616,78 @@ def test_recompute_or_remove_skips_raw_speaker_label(tmp_path):
 
     assert "SPEAKER_00" not in memory.known_speakers
     assert "SPEAKER_01" not in memory.known_speakers
+
+
+def test_recompute_or_remove_keeps_embedding_when_all_transcripts_filtered(tmp_path):
+    """When all transcripts for a speaker are filtered out by the guard (centroid
+    similarity below threshold), the existing embedding must be preserved unchanged.
+
+    This is the real-world scenario: Шульман has a clean embedding from t1.
+    After a single-segment reassignment, recompute_or_remove is called. t2's
+    centroid is incompatible (sim < threshold). With no usable transcripts left,
+    the embedding must not be updated at all.
+    """
+    db_path = str(tmp_path / "app.db")
+    memory  = SpeakerMemoryService(db_path=db_path)
+    storage = TranscriptStorageService(db_path=db_path)
+    commit_svc = CommitService(memory, storage)
+    spk = "spk-shulman"
+
+    # Clean embedding from t1 — the "true" voice of the speaker.
+    emb_clean        = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    emb_incompatible = np.array([0.0, 1.0, 0.0], dtype=np.float32)  # sim=0.0
+
+    # Prime memory with clean embedding.
+    clean_norm = emb_clean / np.linalg.norm(emb_clean)
+    memory.update_embedding(spk, clean_norm, 1)
+    memory.save()
+
+    # Save ONLY the incompatible transcript to the DB (t1 segments are gone —
+    # simulate the speaker having only the noisy recording left after reassignment).
+    storage.save(make_transcript(
+        [make_segment(0.0, 2.0, "noisy", "SPEAKER_00", spk, emb_incompatible)],
+        audio_path="files/t2.wav",
+    ))
+
+    commit_svc.recompute_or_remove(spk)
+
+    # Guard must have filtered t2 → embedding stays clean.
+    stored = memory.known_speakers[spk]
+    sim_to_clean = float(np.dot(stored, clean_norm))
+    assert sim_to_clean >= memory.threshold, (
+        f"recompute_or_remove corrupted the embedding: sim={sim_to_clean:.3f} < "
+        f"threshold {memory.threshold}. Guard was not applied."
+    )
+
+
+def test_recompute_or_remove_uses_guard_but_includes_compatible_transcripts(tmp_path):
+    """When at least one transcript passes the guard, recompute_or_remove must
+    use it to update the embedding (not silently skip everything)."""
+    db_path = str(tmp_path / "app.db")
+    memory  = SpeakerMemoryService(db_path=db_path)
+    storage = TranscriptStorageService(db_path=db_path)
+    commit_svc = CommitService(memory, storage)
+    spk = "spk-poperechny"
+
+    emb_t1 = np.array([1.0, 0.0, 0.0], dtype=np.float32)   # compatible
+    emb_t2 = np.array([1.0, 0.0, 0.0], dtype=np.float32)   # same direction → sim=1.0
+
+    # Prime with t1.
+    norm_t1 = emb_t1 / np.linalg.norm(emb_t1)
+    memory.update_embedding(spk, norm_t1, 1)
+    memory.save()
+
+    storage.save(make_transcript(
+        [make_segment(0.0, 2.0, "t1", "SPEAKER_00", spk, emb_t1)],
+        audio_path="files/t1.wav",
+    ))
+    storage.save(make_transcript(
+        [make_segment(0.0, 2.0, "t2", "SPEAKER_00", spk, emb_t2)],
+        audio_path="files/t2.wav",
+    ))
+
+    commit_svc.recompute_or_remove(spk)
+
+    # Both transcripts are compatible → embedding is updated (count now 2).
+    assert spk in memory.known_speakers
+    assert np.allclose(memory.known_speakers[spk], norm_t1, atol=1e-5)

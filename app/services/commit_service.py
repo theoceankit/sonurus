@@ -86,14 +86,26 @@ class CommitService:
         """After reassignment: recompute FROM speaker, or remove if no segments left and unnamed."""
         if speaker_id.startswith('SPEAKER_'):
             return
-        avg, count = self._avg_from_db(speaker_id)
-        if avg is not None:
-            self.memory.update_embedding(speaker_id, avg, count)
-            self.memory.save()
-        else:
+        # Un-guarded check: are there any segments with embeddings at all?
+        any_avg, _ = self._avg_from_db(speaker_id)
+        if any_avg is None:
+            # No segments remain → remove if unnamed
             self.memory.known_names = self.memory._load_names()
             if self.memory.get_name(speaker_id) is None:
                 self.memory.remove_speaker(speaker_id)
+            return
+        # Segments exist → recompute with guard to preserve embedding quality
+        guard_emb = self.memory.known_speakers.get(speaker_id)
+        avg, count = self._avg_from_db(speaker_id, guard_emb=guard_emb)
+        if avg is None:
+            # All transcripts filtered by guard → keep existing embedding unchanged
+            log.info(
+                f"recompute_or_remove: all transcripts for {speaker_id} filtered by guard "
+                f"— keeping existing embedding"
+            )
+            return
+        self.memory.update_embedding(speaker_id, avg, count)
+        self.memory.save()
 
     def commit_recognized_speakers(self, transcript):
         """Update embeddings for speakers already in memory (auto-recognized in new session)."""
