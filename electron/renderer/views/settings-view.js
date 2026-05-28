@@ -19,6 +19,9 @@ function makeSettings() {
     transcribeModel: appSettings.transcribeModel,
     scale: appSettings.scale,
     exportFormat: appSettings.exportFormat,
+    recordingMicDevice: appSettings.recordingMicDevice ?? null,
+    recordingSystemDevice: appSettings.recordingSystemDevice ?? null,
+    recordingUseMic: appSettings.recordingUseMic ?? true,
     duplicate: true,
     incTimestamps: true,
     incSpeakers: true,
@@ -799,38 +802,82 @@ function buildExportSection(state) {
   ])
 }
 
-function buildAudioSection() {
-  const inputDrop = makeDropdown(
-    [
-      { value: 'sys', label: 'System default', sub: 'Currently: Built-in Microphone' },
-      { value: 'mic', label: 'Built-in Microphone', sub: '2-channel · 48 kHz' },
-    ],
-    'sys',
-    () => {},
-    (opt) => {
-      const span = document.createElement('span')
-      span.style.cssText = 'display:inline-flex;flex-direction:column;flex:1;min-width:0'
-      span.innerHTML = `<span style="font-size:13.5px">${opt.label}</span>`
-      if (opt.sub) span.innerHTML += `<span style="font-size:11.5px;color:rgba(25,24,42,0.4)">${opt.sub}</span>`
-      return span
-    }
-  )
+function buildAudioSection(state) {
+  const controlsWrap = document.createElement('div')
 
-  const outputDrop = makeDropdown(
-    [
-      { value: 'sys', label: 'System default', sub: 'Currently: Speakers' },
-      { value: 'spk', label: 'Built-in Speakers', sub: '2-channel' },
-    ],
-    'sys',
-    () => {},
-    (opt) => {
-      const span = document.createElement('span')
-      span.style.cssText = 'display:inline-flex;flex-direction:column;flex:1;min-width:0'
-      span.innerHTML = `<span style="font-size:13.5px">${opt.label}</span>`
-      if (opt.sub) span.innerHTML += `<span style="font-size:11.5px;color:rgba(25,24,42,0.4)">${opt.sub}</span>`
-      return span
+  const spinner = document.createElement('div')
+  spinner.style.cssText = 'padding:14px 0 6px;font-size:13px;color:rgba(25,24,42,0.4)'
+  spinner.textContent = 'Detecting audio devices…'
+  controlsWrap.appendChild(spinner)
+
+  ;(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(t => t.stop())
+    } catch (_) {}
+
+    let inputs = []
+    try {
+      const all = await navigator.mediaDevices.enumerateDevices()
+      inputs = all.filter(d => d.kind === 'audioinput')
+    } catch (_) {}
+
+    const monitors = inputs.filter(d => d.label.toLowerCase().includes('monitor'))
+    const mics     = inputs.filter(d => !d.label.toLowerCase().includes('monitor'))
+
+    function renderDevOpt(opt) {
+      const s = document.createElement('span')
+      s.style.cssText = 'display:inline-flex;flex-direction:column;flex:1;min-width:0;overflow:hidden'
+      const label = document.createElement('span')
+      label.style.cssText = 'font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'
+      label.textContent = opt.label
+      s.appendChild(label)
+      return s
     }
-  )
+
+    const micOpts = [
+      { value: null, label: 'System default' },
+      ...mics.map(d => ({ value: d.deviceId, label: d.label || `Microphone (${d.deviceId.slice(0, 8)})` })),
+    ]
+    const micVal = micOpts.some(o => o.value === state.recordingMicDevice) ? state.recordingMicDevice : null
+    const micDrop = makeDropdown(micOpts, micVal, v => {
+      state.recordingMicDevice = v
+      saveSettings({ recordingMicDevice: v })
+    }, renderDevOpt)
+    micDrop.style.width = '260px'
+
+    const micToggle = makeToggle(state.recordingUseMic, v => {
+      state.recordingUseMic = v
+      saveSettings({ recordingUseMic: v })
+    })
+
+    const sysOpts = [
+      { value: null, label: monitors.length ? 'Auto-detect' : 'None available' },
+      ...monitors.map(d => ({ value: d.deviceId, label: d.label })),
+    ]
+    const sysVal = sysOpts.some(o => o.value === state.recordingSystemDevice) ? state.recordingSystemDevice : null
+    const sysDrop = makeDropdown(sysOpts, sysVal, v => {
+      state.recordingSystemDevice = v
+      saveSettings({ recordingSystemDevice: v })
+    }, renderDevOpt)
+    sysDrop.style.width = '260px'
+
+    controlsWrap.innerHTML = ''
+    controlsWrap.appendChild(makeFieldRow('Microphone', 'Captured during live recording.', micDrop))
+    controlsWrap.appendChild(makeFieldRow('Include microphone', 'Record mic alongside system audio.', micToggle))
+    controlsWrap.appendChild(makeFieldRow('System audio source', 'Monitor source (PulseAudio/PipeWire) captures app and call audio.', sysDrop, true))
+
+    if (monitors.length === 0) {
+      const hint = document.createElement('div')
+      hint.style.cssText = [
+        'margin-top:10px;padding:10px 13px;border-radius:8px',
+        'font-size:12.5px;line-height:1.6;color:rgba(25,24,42,0.55)',
+        'background:rgba(239,79,110,0.06);border:0.5px solid rgba(239,79,110,0.20)',
+      ].join(';')
+      hint.textContent = 'No monitor source detected. Enable a "Monitor of …" loopback in PulseAudio/PipeWire to capture system audio.'
+      controlsWrap.appendChild(hint)
+    }
+  })()
 
   return makeSectionCard([
     makeSectionHeader(
@@ -838,10 +885,9 @@ function buildAudioSection() {
         <path d="M9 2a3 3 0 013 3v4a3 3 0 01-6 0V5a3 3 0 013-3z" stroke="currentColor" stroke-width="1.4" fill="none"/>
         <path d="M4 9a5 5 0 0010 0M9 14v2M6 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
       </svg>`,
-      'Audio devices', 'Where Whisper records from and plays back through.'
+      'Audio devices', 'Input devices for live recording.'
     ),
-    makeFieldRow('Input device', 'Microphone used for live recording.', inputDrop),
-    makeFieldRow('Output device', 'Speakers or headphones for playback.', outputDrop, true),
+    controlsWrap,
   ])
 }
 
@@ -925,7 +971,7 @@ function renderSettingsView() {
     { id: 'models',    build: () => buildModelsSection(state) },
     { id: 'alignment', build: () => buildAlignmentSection(state) },
     { id: 'export',    build: () => buildExportSection(state) },
-    { id: 'audio',     build: () => buildAudioSection() },
+    { id: 'audio',     build: () => buildAudioSection(state) },
     { id: 'reset',     build: () => buildResetSection() },
   ]
 
