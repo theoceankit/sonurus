@@ -224,6 +224,15 @@ class SpeakerMemoryService:
             result[spk_id][label] = name
         return result
 
+    def reload_names(self):
+        """Reload known_names from DB, replacing any uncommitted set_name() changes."""
+        self.known_names = self._load_names()
+
+    def reload(self):
+        """Reload all in-memory state from DB."""
+        self.known_speakers, self.known_counts = self._load()
+        self.known_names = self._load_names()
+
     def save_names_only(self):
         """Persists known_names to speaker_names without touching speaker_embeddings."""
         with self._connect() as conn:

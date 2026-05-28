@@ -21,6 +21,10 @@ _download_jobs: dict[str, _queue.Queue] = {}
 _cancel_events: dict[str, threading.Event] = {}
 
 
+def shutdown_executor():
+    _executor.shutdown(wait=False)
+
+
 def _make_service() -> ModelService:
     return ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR)
 
