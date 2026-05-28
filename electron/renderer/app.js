@@ -54,6 +54,13 @@ const app = {
     this._setView(renderSettingsView(), false)
   },
 
+  showLiveRecording() {
+    this._activeTranscriptId = null
+    document.getElementById('btn-import').classList.remove('sb-new-btn--active')
+    this._rerenderList()
+    this._setView(renderLiveRecordingView(), false)
+  },
+
   showEditor(transcriptId) {
     this._activeTranscriptId = transcriptId
     document.getElementById('btn-import').classList.remove('sb-new-btn--active')
