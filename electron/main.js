@@ -23,6 +23,11 @@ function createWindow() {
   })
 
   mainWin.loadFile(path.join(__dirname, 'renderer', 'index.html'))
+
+  // F12 opens DevTools
+  mainWin.webContents.on('before-input-event', (_e, input) => {
+    if (input.type === 'keyDown' && input.key === 'F12') mainWin.webContents.openDevTools()
+  })
 }
 
 const SETTINGS_PATH = path.join(__dirname, '..', 'settings.json')

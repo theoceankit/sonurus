@@ -822,9 +822,6 @@ function buildAudioSection(state) {
       inputs = all.filter(d => d.kind === 'audioinput')
     } catch (_) {}
 
-    const monitors = inputs.filter(d => d.label.toLowerCase().includes('monitor'))
-    const mics     = inputs.filter(d => !d.label.toLowerCase().includes('monitor'))
-
     function renderDevOpt(opt) {
       const s = document.createElement('span')
       s.style.cssText = 'display:inline-flex;flex-direction:column;flex:1;min-width:0;overflow:hidden'
@@ -837,7 +834,7 @@ function buildAudioSection(state) {
 
     const micOpts = [
       { value: null, label: 'System default' },
-      ...mics.map(d => ({ value: d.deviceId, label: d.label || `Microphone (${d.deviceId.slice(0, 8)})` })),
+      ...inputs.map(d => ({ value: d.deviceId, label: d.label || `Microphone (${d.deviceId.slice(0, 8)})` })),
     ]
     const micVal = micOpts.some(o => o.value === state.recordingMicDevice) ? state.recordingMicDevice : null
     const micDrop = makeDropdown(micOpts, micVal, v => {
@@ -851,9 +848,12 @@ function buildAudioSection(state) {
       saveSettings({ recordingUseMic: v })
     })
 
+    // System audio: show all inputs — user selects a virtual loopback device if available.
+    // Chromium hides PulseAudio/PipeWire monitor sources; a virtual sink is required for
+    // true system audio capture (see Settings hint below).
     const sysOpts = [
-      { value: null, label: monitors.length ? 'Auto-detect' : 'None available' },
-      ...monitors.map(d => ({ value: d.deviceId, label: d.label })),
+      { value: null, label: 'Disabled' },
+      ...inputs.map(d => ({ value: d.deviceId, label: d.label || `Device (${d.deviceId.slice(0, 8)})` })),
     ]
     const sysVal = sysOpts.some(o => o.value === state.recordingSystemDevice) ? state.recordingSystemDevice : null
     const sysDrop = makeDropdown(sysOpts, sysVal, v => {
@@ -865,18 +865,18 @@ function buildAudioSection(state) {
     controlsWrap.innerHTML = ''
     controlsWrap.appendChild(makeFieldRow('Microphone', 'Captured during live recording.', micDrop))
     controlsWrap.appendChild(makeFieldRow('Include microphone', 'Record mic alongside system audio.', micToggle))
-    controlsWrap.appendChild(makeFieldRow('System audio source', 'Monitor source (PulseAudio/PipeWire) captures app and call audio.', sysDrop, true))
+    controlsWrap.appendChild(makeFieldRow('System audio source', 'Select a virtual loopback device to capture app and call audio.', sysDrop, true))
 
-    if (monitors.length === 0) {
-      const hint = document.createElement('div')
-      hint.style.cssText = [
-        'margin-top:10px;padding:10px 13px;border-radius:8px',
-        'font-size:12.5px;line-height:1.6;color:rgba(25,24,42,0.55)',
-        'background:rgba(239,79,110,0.06);border:0.5px solid rgba(239,79,110,0.20)',
-      ].join(';')
-      hint.textContent = 'No monitor source detected. Enable a "Monitor of …" loopback in PulseAudio/PipeWire to capture system audio.'
-      controlsWrap.appendChild(hint)
-    }
+    const hint = document.createElement('div')
+    hint.style.cssText = [
+      'margin-top:10px;padding:10px 13px;border-radius:8px',
+      'font-size:12px;line-height:1.7;color:rgba(25,24,42,0.50)',
+      'background:rgba(40,30,80,0.04);border:0.5px solid var(--border)',
+    ].join(';')
+    hint.innerHTML = `On Linux, Chromium does not expose PulseAudio/PipeWire monitor sources directly. To capture system audio, create a virtual sink:<br>
+      <code style="font-size:11px;font-family:ui-monospace,monospace;background:rgba(40,30,80,0.06);padding:1px 5px;border-radius:4px">pactl load-module module-null-sink sink_name=VirtualSpeaker</code><br>
+      Then route your apps to <em>VirtualSpeaker</em> and select its monitor here.`
+    controlsWrap.appendChild(hint)
   })()
 
   return makeSectionCard([

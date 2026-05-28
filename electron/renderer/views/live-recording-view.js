@@ -75,7 +75,7 @@ function renderLiveRecordingView() {
     devWrap.className = 'live-rec-devices'
 
     const micLabel = appSettings.recordingMicDevice ? 'Configured microphone' : 'Default microphone'
-    const sysLabel = appSettings.recordingSystemDevice ? 'Configured system source' : 'Auto-detect system audio'
+    const sysLabel = appSettings.recordingSystemDevice ? 'Configured system source' : 'System audio disabled'
 
     const micRow = document.createElement('div')
     micRow.className = 'live-rec-device-row'
@@ -152,12 +152,7 @@ function renderLiveRecordingView() {
         micStream = await navigator.mediaDevices.getUserMedia({ audio: constraint })
       }
 
-      let sysDeviceId = appSettings.recordingSystemDevice
-      if (!sysDeviceId) {
-        const all = await navigator.mediaDevices.enumerateDevices()
-        const mon = all.find(d => d.kind === 'audioinput' && d.label.toLowerCase().includes('monitor'))
-        sysDeviceId = mon?.deviceId ?? null
-      }
+      const sysDeviceId = appSettings.recordingSystemDevice
       if (sysDeviceId) {
         sysStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: sysDeviceId } } })
       }
