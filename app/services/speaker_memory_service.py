@@ -62,6 +62,7 @@ class SpeakerMemoryService:
 
         for score, speaker_id, known_name in candidates:
             if score < self.threshold:
+                log.info(f"{speaker_id} ✗ {known_name} (similarity {score:.2f}, below threshold {self.threshold})")
                 break
             if speaker_id in assigned_new or known_name in assigned_known:
                 continue

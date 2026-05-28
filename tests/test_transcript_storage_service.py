@@ -503,6 +503,50 @@ def test_get_embeddings_aggregates_across_transcripts(tmp_path):
     assert emb2.tolist() in vectors
 
 
+def test_get_embeddings_grouped_by_transcript_groups_correctly(tmp_path):
+    """get_embeddings_grouped_by_transcript returns a dict keyed by transcription id.
+
+    Two transcripts — one with 1 segment, one with 2 segments — must produce
+    two separate groups, each containing only its own segments' embeddings.
+    """
+    svc = make_service(tmp_path)
+
+    emb1 = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    emb2 = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+    emb3 = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+
+    seg1 = Segment(0.0, 2.0, "T1", "SPEAKER_00", speaker_resolved="spk-A", embedding=emb1)
+    seg1.speaker_final = "spk-A"
+    seg2 = Segment(0.0, 2.0, "T2a", "SPEAKER_00", speaker_resolved="spk-A", embedding=emb2)
+    seg3 = Segment(2.0, 4.0, "T2b", "SPEAKER_00", speaker_resolved="spk-A", embedding=emb3)
+    seg2.speaker_final = "spk-A"
+    seg3.speaker_final = "spk-A"
+
+    t1_id = svc.save(make_transcript([seg1], audio_path="files/t1.wav"))
+    t2_id = svc.save(make_transcript([seg2, seg3], audio_path="files/t2.wav"))
+
+    grouped = svc.get_embeddings_grouped_by_transcript("spk-A")
+
+    assert set(grouped.keys()) == {t1_id, t2_id}
+    assert len(grouped[t1_id]) == 1
+    assert np.allclose(grouped[t1_id][0], emb1)
+    assert len(grouped[t2_id]) == 2
+    t2_vecs = [e.tolist() for e in grouped[t2_id]]
+    assert emb2.tolist() in t2_vecs
+    assert emb3.tolist() in t2_vecs
+
+
+def test_get_embeddings_grouped_returns_empty_for_unknown_speaker(tmp_path):
+    """Querying a speaker with no segments returns an empty dict."""
+    svc = make_service(tmp_path)
+    seg = Segment(0.0, 2.0, "Hi", "SPEAKER_00", speaker_resolved="spk-A",
+                  embedding=np.array([1.0, 0.0, 0.0], dtype=np.float32))
+    seg.speaker_final = "spk-A"
+    svc.save(make_transcript([seg]))
+
+    assert svc.get_embeddings_grouped_by_transcript("spk-NOBODY") == {}
+
+
 def test_get_embeddings_does_not_return_other_speakers(tmp_path):
     """Transcript contains segments for both speaker A and speaker B. Querying
     by A's ID must not include any of B's embeddings."""

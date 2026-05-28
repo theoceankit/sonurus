@@ -56,11 +56,15 @@ The invariant rule itself is followed (the code always checks `speaker_final` fi
 
 ## I4 — `CommitService` recomputes embeddings from all DB segments
 
-Whenever a speaker's embedding is updated, `CommitService` queries **all** segments for that speaker across all transcripts from the database and recomputes the average from scratch:
+Whenever a speaker's embedding is updated, `CommitService` queries **all** segments for that speaker across all transcripts from the database and recomputes the average from scratch using a **centroid-of-centroids** approach:
 
 ```
-speaker_embedding = normalise(mean(seg.embedding for all segments where speaker_id = uuid))
+for each transcript:
+    centroid = normalise(mean(seg.embedding for segments in that transcript))
+speaker_embedding = normalise(mean(centroids))
 ```
+
+Each recording contributes exactly one centroid regardless of how many segments it contains, so a long recording does not outweigh a short one. An optional similarity guard excludes transcripts whose centroid falls below `SPEAKER_SIMILARITY_THRESHOLD` against the speaker's current stored embedding — this prevents acoustically incompatible recordings from corrupting an otherwise clean profile.
 
 It must never use the aggregated embeddings produced by `EmbeddingService.extract()` (computed per `SPEAKER_XX` before the user has corrected anything), and must never use incremental averaging over previous embedding values.
 
@@ -68,8 +72,10 @@ It must never use the aggregated embeddings produced by `EmbeddingService.extrac
 - Retroactive corrections are reflected immediately: reassigning a segment from A to B removes A's contribution on the next commit for A.
 - Auto-recognized speakers are updated after each new session automatically.
 - Multiple commit calls are idempotent — the result does not drift.
+- Per-transcript equal weighting prevents a many-segment recording from dominating the embedding.
+- The similarity guard prevents a misattributed or acoustically incompatible recording from pulling the embedding below the recognition threshold.
 
-**In code:** `app/services/commit_service.py` — all commit methods call `self.storage.get_embeddings_by_speaker(spk_id)` and average the result. `EmbeddingService.extract()` output is never passed into `CommitService`.
+**In code:** `app/services/commit_service.py` — `_avg_from_db(speaker_id, guard_emb=None)` is the single averaging kernel; all commit methods call it. `TranscriptStorageService.get_embeddings_grouped_by_transcript(spk_id)` returns `{transcription_id: [embeddings]}`. `commit_speaker()` and `recompute_or_remove()` pass the current stored embedding as `guard_emb`. `EmbeddingService.extract()` output is never passed into `CommitService`.
 
 **Dirty tracking:** `SpeakerMemoryService.save()` only writes to `speaker_embeddings` for speakers marked dirty by `update_embedding()`. This prevents a long-lived API server instance with stale in-memory state from overwriting embeddings computed by a concurrent pipeline instance.
 
