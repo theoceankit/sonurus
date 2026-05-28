@@ -233,9 +233,41 @@ class TranscriptStorageService:
 
     # ── Schema ────────────────────────────────────────────────────────────────
 
+    _SCHEMA_VERSION = 2
+
     def _init_db(self):
         with self._connect() as conn:
             conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS _ts_schema_version (version INTEGER NOT NULL DEFAULT 0)"
+            )
+            if conn.execute("SELECT COUNT(*) FROM _ts_schema_version").fetchone()[0] == 0:
+                conn.execute(
+                    "INSERT INTO _ts_schema_version VALUES (?)",
+                    (self._detect_legacy_version(conn),),
+                )
+            current = conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0]
+            self._run_migrations(conn, current)
+
+    @staticmethod
+    def _detect_legacy_version(conn) -> int:
+        """Infer schema version from column presence for DBs that predate version tracking."""
+        tables = {
+            r[0] for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        if "segments" not in tables:
+            return 0
+        seg_cols = {r[1] for r in conn.execute("PRAGMA table_info(segments)").fetchall()}
+        if "embedding" in seg_cols:
+            return 2
+        txn_cols = {r[1] for r in conn.execute("PRAGMA table_info(transcriptions)").fetchall()}
+        return 1 if "status" in txn_cols else 0
+
+    @staticmethod
+    def _run_migrations(conn, current: int):
+        if current < 1:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS transcriptions (
                     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -253,20 +285,19 @@ class TranscriptStorageService:
                     start            REAL NOT NULL,
                     end              REAL NOT NULL,
                     text             TEXT NOT NULL,
-                    speaker_raw      TEXT,
-                    embedding        BLOB
+                    speaker_raw      TEXT
                 )
             """)
-            # migrate: add status column if it doesn't exist yet
-            try:
+            txn_cols = {r[1] for r in conn.execute("PRAGMA table_info(transcriptions)").fetchall()}
+            if "status" not in txn_cols:
                 conn.execute("ALTER TABLE transcriptions ADD COLUMN status TEXT DEFAULT 'draft'")
-            except sqlite3.OperationalError:
-                pass
-            # migrate: add embedding column to legacy schemas
-            try:
+            conn.execute("UPDATE _ts_schema_version SET version = 1")
+            current = 1
+        if current < 2:
+            seg_cols = {r[1] for r in conn.execute("PRAGMA table_info(segments)").fetchall()}
+            if "embedding" not in seg_cols:
                 conn.execute("ALTER TABLE segments ADD COLUMN embedding BLOB")
-            except sqlite3.OperationalError:
-                pass
+            conn.execute("UPDATE _ts_schema_version SET version = 2")
 
 
 def _fmt_duration(seconds: float) -> str:

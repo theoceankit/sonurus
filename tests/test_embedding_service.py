@@ -79,7 +79,7 @@ def test_extract_all_aggregated_is_mean_of_segments():
 
 
 def test_extract_all_segments_match_extract_segments():
-    """Per-segment list from extract_all() must match extract_segments()."""
+    """Per-segment list from extract_all() must match _extract_segments()."""
     svc = make_service()
     svc._get_embedding = lambda audio, start, end: fake_embedding(start, end)
 
@@ -90,7 +90,7 @@ def test_extract_all_segments_match_extract_segments():
     )
 
     _, segments_all = svc.extract_all(audio, diarization)
-    segments_direct = svc.extract_segments(audio, diarization)
+    segments_direct = svc._extract_segments(audio, diarization)
 
     assert len(segments_all) == len(segments_direct)
     for a, b in zip(segments_all, segments_direct):
