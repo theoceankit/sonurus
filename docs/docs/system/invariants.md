@@ -66,7 +66,7 @@ speaker_embedding = normalise(mean(centroids))
 
 Each recording contributes exactly one centroid regardless of how many segments it contains, so a long recording does not outweigh a short one. An optional similarity guard excludes transcripts whose centroid falls below `SPEAKER_SIMILARITY_THRESHOLD` against the speaker's current stored embedding — this prevents acoustically incompatible recordings from corrupting an otherwise clean profile.
 
-It must never use the aggregated embeddings produced by `EmbeddingService.extract()` (computed per `SPEAKER_XX` before the user has corrected anything), and must never use incremental averaging over previous embedding values.
+It must never use the aggregated embeddings produced by `EmbeddingService.extract_all()` (the per-`SPEAKER_XX` aggregate, computed before the user has corrected anything), and must never use incremental averaging over previous embedding values.
 
 **Why:** Recomputing from current DB state means:
 - Retroactive corrections are reflected immediately: reassigning a segment from A to B removes A's contribution on the next commit for A.
@@ -75,7 +75,7 @@ It must never use the aggregated embeddings produced by `EmbeddingService.extrac
 - Per-transcript equal weighting prevents a many-segment recording from dominating the embedding.
 - The similarity guard prevents a misattributed or acoustically incompatible recording from pulling the embedding below the recognition threshold.
 
-**In code:** `app/services/commit_service.py` — `_avg_from_db(speaker_id, guard_emb=None)` is the single averaging kernel; all commit methods call it. `TranscriptStorageService.get_embeddings_grouped_by_transcript(spk_id)` returns `{transcription_id: [embeddings]}`. `commit_speaker()` and `recompute_or_remove()` pass the current stored embedding as `guard_emb`. `EmbeddingService.extract()` output is never passed into `CommitService`.
+**In code:** `app/services/commit_service.py` — `_avg_from_db(speaker_id, guard_emb=None)` is the single averaging kernel; all commit methods call it. `TranscriptStorageService.get_embeddings_grouped_by_transcript(spk_id)` returns `{transcription_id: [embeddings]}`. `commit_speaker()` and `recompute_or_remove()` pass the current stored embedding as `guard_emb`. The aggregated dict from `EmbeddingService.extract_all()` is never passed into `CommitService`; only the per-segment list is used (attached to the transcript via `TranscriptBuilder.attach_embeddings()`).
 
 **Dirty tracking:** `SpeakerMemoryService.save()` only writes to `speaker_embeddings` for speakers marked dirty by `update_embedding()`. This prevents a long-lived API server instance with stale in-memory state from overwriting embeddings computed by a concurrent pipeline instance.
 
