@@ -60,12 +60,6 @@ class TranscriptionController:
     def rename_speaker(self, spk_id: str, name: str, label: str = "display"):
         self.memory_service.set_name(spk_id, name, label)
 
-    def resolve_display_name_to_id(self, name: str) -> str | None:
-        for spk_id, labels in self.memory_service.known_names.items():
-            if labels.get("display") == name:
-                return spk_id
-        return None
-
     def get_all_known_speakers(self) -> list[tuple[str, str]]:
         """Returns [(spk_id, display_name), ...] for all speakers in the database."""
         return [

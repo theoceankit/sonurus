@@ -300,8 +300,6 @@ class ModelService:
                         cache_dir=str(self._hf_models_dir),
                         token=os.getenv("HF_TOKEN"),
                     )
-            except Exception:
-                pass
             finally:
                 self._stop_poller(stop, poller)
 
