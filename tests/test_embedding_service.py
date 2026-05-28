@@ -53,8 +53,9 @@ def test_extract_all_calls_inference_once_per_segment():
     )
 
 
-def test_extract_all_aggregated_matches_extract():
-    """Aggregated dict from extract_all() must match the result of extract()."""
+def test_extract_all_aggregated_is_mean_of_segments():
+    """Aggregated dict from extract_all() must be the mean of per-segment embeddings."""
+    from collections import defaultdict
     svc = make_service()
     svc._get_embedding = lambda audio, start, end: fake_embedding(start, end)
 
@@ -65,16 +66,20 @@ def test_extract_all_aggregated_matches_extract():
         (4.0, 6.0, "SPEAKER_00"),
     )
 
-    aggregated_all, _ = svc.extract_all(audio, diarization)
-    aggregated_direct = svc.extract(audio, diarization)
+    aggregated, segments = svc.extract_all(audio, diarization)
 
-    assert set(aggregated_all.keys()) == set(aggregated_direct.keys())
-    for spk in aggregated_direct:
-        assert np.allclose(aggregated_all[spk], aggregated_direct[spk])
+    speaker_embs = defaultdict(list)
+    for s in segments:
+        speaker_embs[s["speaker"]].append(s["embedding"])
+    expected = {spk: np.mean(embs, axis=0) for spk, embs in speaker_embs.items()}
+
+    assert set(aggregated.keys()) == set(expected.keys())
+    for spk in expected:
+        assert np.allclose(aggregated[spk], expected[spk])
 
 
 def test_extract_all_segments_match_extract_segments():
-    """Per-segment list from extract_all() must match extract_segments()."""
+    """Per-segment list from extract_all() must match _extract_segments()."""
     svc = make_service()
     svc._get_embedding = lambda audio, start, end: fake_embedding(start, end)
 
@@ -85,7 +90,7 @@ def test_extract_all_segments_match_extract_segments():
     )
 
     _, segments_all = svc.extract_all(audio, diarization)
-    segments_direct = svc.extract_segments(audio, diarization)
+    segments_direct = svc._extract_segments(audio, diarization)
 
     assert len(segments_all) == len(segments_direct)
     for a, b in zip(segments_all, segments_direct):

@@ -2,25 +2,13 @@ import os
 import sqlite3
 from datetime import datetime, date, timedelta
 
-import numpy as np
-
 from app.models.transcript import Transcript
 from app.models.segment import Segment
 from app.logger import get_logger
+from app.db.schema import init_db
+from app.db.serializers import serialize_embedding, deserialize_embedding
 
 log = get_logger("DB")
-
-
-def _serialize_embedding(emb):
-    if emb is None:
-        return None
-    return np.asarray(emb, dtype=np.float32).tobytes()
-
-
-def _deserialize_embedding(blob):
-    if blob is None:
-        return None
-    return np.frombuffer(blob, dtype=np.float32).copy()
 
 
 class TranscriptStorageService:
@@ -33,15 +21,20 @@ class TranscriptStorageService:
         conn.execute("PRAGMA foreign_keys=ON")
         return conn
 
+    def _init_db(self):
+        with self._connect() as conn:
+            conn.execute("PRAGMA journal_mode=WAL")
+            init_db(conn)
+
     # ── Write ─────────────────────────────────────────────────────────────────
 
     def save(self, transcript: Transcript) -> int:
         """Insert transcript + segments, set transcript.db_id. Returns new id."""
         with self._connect() as conn:
             cursor = conn.execute(
-                "INSERT INTO transcriptions (audio_file, language, status, created_at) VALUES (?, ?, ?, ?)",
+                "INSERT INTO transcriptions (audio_file, language, status, created_at, title) VALUES (?, ?, ?, ?, ?)",
                 (transcript.audio_path, transcript.language,
-                 transcript.status, datetime.now().isoformat()),
+                 transcript.status, datetime.now().isoformat(), transcript.title),
             )
             db_id = cursor.lastrowid
 
@@ -54,7 +47,7 @@ class TranscriptStorageService:
                         db_id,
                         seg.speaker_final or seg.speaker_resolved,
                         seg.start, seg.end, seg.text, seg.speaker_raw,
-                        _serialize_embedding(seg.embedding),
+                        serialize_embedding(seg.embedding),
                     )
                     for seg in transcript.segments
                 ],
@@ -142,19 +135,18 @@ class TranscriptStorageService:
                 start=r[0], end=r[1], text=r[2],
                 speaker_raw=r[3] or "",
                 speaker_resolved=r[4],
-                embedding=_deserialize_embedding(r[5]),
+                embedding=deserialize_embedding(r[5]),
             )
             for r in seg_rows
         ]
 
-        transcript = Transcript(
+        return Transcript(
             segments=segments,
             audio_path=audio_file,
             language=language or "",
             status=status or "draft",
             db_id=db_id,
         )
-        return transcript
 
     def list_all(self) -> list[dict]:
         """Return recording metadata for sidebar, newest first."""
@@ -162,6 +154,7 @@ class TranscriptStorageService:
             rows = conn.execute(
                 """SELECT t.id,
                           t.audio_file,
+                          t.title,
                           t.created_at,
                           t.status,
                           MAX(s.end)                         AS duration_sec,
@@ -178,7 +171,7 @@ class TranscriptStorageService:
 
         records = []
         for r in rows:
-            db_id, audio_file, created_at_str, status, duration_sec, speaker_ids_str = r
+            db_id, audio_file, title_db, created_at_str, status, duration_sec, speaker_ids_str = r
 
             created = date.fromisoformat(created_at_str[:10]) if created_at_str else today
             if created == today:
@@ -192,7 +185,7 @@ class TranscriptStorageService:
 
             speaker_ids = [s for s in (speaker_ids_str or "").split(",") if s]
             duration_str = _fmt_duration(duration_sec or 0)
-            title = os.path.splitext(os.path.basename(audio_file))[0]
+            title = title_db or os.path.splitext(os.path.basename(audio_file))[0]
 
             records.append({
                 "id":         db_id,
@@ -212,7 +205,7 @@ class TranscriptStorageService:
                 "SELECT embedding FROM segments WHERE speaker_id = ? AND embedding IS NOT NULL",
                 (speaker_id,)
             ).fetchall()
-        return [_deserialize_embedding(r[0]) for r in rows]
+        return [deserialize_embedding(r[0]) for r in rows]
 
     def get_embeddings_grouped_by_transcript(self, speaker_id: str) -> dict:
         """Return {transcription_id: [embeddings]} for all non-null segment embeddings.
@@ -228,45 +221,8 @@ class TranscriptStorageService:
             ).fetchall()
         grouped: dict[int, list] = {}
         for tid, blob in rows:
-            grouped.setdefault(tid, []).append(_deserialize_embedding(blob))
+            grouped.setdefault(tid, []).append(deserialize_embedding(blob))
         return grouped
-
-    # ── Schema ────────────────────────────────────────────────────────────────
-
-    def _init_db(self):
-        with self._connect() as conn:
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS transcriptions (
-                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    audio_file TEXT NOT NULL,
-                    language   TEXT,
-                    status     TEXT DEFAULT 'draft',
-                    created_at TEXT
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS segments (
-                    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                    transcription_id INTEGER NOT NULL REFERENCES transcriptions(id),
-                    speaker_id       TEXT,
-                    start            REAL NOT NULL,
-                    end              REAL NOT NULL,
-                    text             TEXT NOT NULL,
-                    speaker_raw      TEXT,
-                    embedding        BLOB
-                )
-            """)
-            # migrate: add status column if it doesn't exist yet
-            try:
-                conn.execute("ALTER TABLE transcriptions ADD COLUMN status TEXT DEFAULT 'draft'")
-            except sqlite3.OperationalError:
-                pass
-            # migrate: add embedding column to legacy schemas
-            try:
-                conn.execute("ALTER TABLE segments ADD COLUMN embedding BLOB")
-            except sqlite3.OperationalError:
-                pass
 
 
 def _fmt_duration(seconds: float) -> str:

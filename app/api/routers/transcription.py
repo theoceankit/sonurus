@@ -1,44 +1,26 @@
 import asyncio
-import logging
 import os
 import threading
 import uuid
-import warnings
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 from app.services.service_factory import create_controller
 from app.services.archive_service import ArchiveService
 from app.services.commit_service import CommitService
 from app.services.model_service import ModelService, ALIGNMENT_CATALOG
+from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.transcription_service import AlignmentModelMissingError
 from app.api.schemas import TranscribeRequest, JobStarted
+from app.api.dependencies import get_memory_service
 import app.config as config
 from app.config import WHISPER_MODEL
 
+from app.warnings import suppress_ml_noise
+
 _VERBOSE = os.getenv("VERBOSE", "false").lower() == "true"
-
-_NOISY_LOGGERS = [
-    "whisperx", "whisperx.asr", "whisperx.vads.pyannote", "whisperx.diarize",
-    "lightning", "lightning.pytorch", "lightning.fabric",
-    "lightning.fabric.utilities.rank_zero",
-    "lightning.pytorch.utilities.upgrade_checkpoint",
-    "pytorch_lightning",
-]
-
-
-def _suppress_noise():
-    warnings.filterwarnings("ignore", module="lightning")
-    warnings.filterwarnings("ignore", module="pyannote")
-    warnings.filterwarnings("ignore", module="torch")
-    for name in _NOISY_LOGGERS:
-        logging.getLogger(name).setLevel(logging.ERROR)
-    for name, logger in logging.root.manager.loggerDict.items():
-        if isinstance(logger, logging.Logger):
-            if any(name.startswith(p) for p in ("lightning", "pytorch_lightning", "pyannote", "whisperx")):
-                logger.setLevel(logging.ERROR)
 
 router = APIRouter(tags=["transcription"])
 
@@ -52,12 +34,19 @@ _cancel_events: dict[str, threading.Event] = {}
 _HEARTBEAT_INTERVAL = 10  # seconds between heartbeats when pipeline is silent
 
 
+def shutdown_executor():
+    _executor.shutdown(wait=False)
+
+
 class _JobCancelled(Exception):
     pass
 
 
 @router.post("/transcribe", response_model=JobStarted)
-async def start_transcribe(body: TranscribeRequest):
+async def start_transcribe(
+    body: TranscribeRequest,
+    api_memory: SpeakerMemoryService = Depends(get_memory_service),
+):
     whisper_model = body.whisper_model or WHISPER_MODEL
     ms = ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR)
     if not ms.is_installed(whisper_model):
@@ -94,7 +83,7 @@ async def start_transcribe(body: TranscribeRequest):
     def _run():
         try:
             if not _VERBOSE:
-                _suppress_noise()
+                suppress_ml_noise("thread")
 
             def on_progress(step: str):
                 if cancel_event.is_set():
@@ -109,10 +98,14 @@ async def start_transcribe(body: TranscribeRequest):
             if cancel_event.is_set():
                 raise _JobCancelled()
 
+            if body.title:
+                transcript.title = body.title
+
             on_progress("Saving to database…")
             storage.save(transcript)
             CommitService(controller.memory_service, storage).commit_recognized_speakers(transcript)
-            ArchiveService().archive(transcript)
+            api_memory.reload()
+            ArchiveService().archive(transcript, display_fn=controller.get_display_name)
 
             controller.transcription_service.model = None
             controller.embedding_service.inference = None
@@ -168,6 +161,8 @@ async def ws_progress(websocket: WebSocket, job_id: str):
             if event["type"] in ("done", "error", "cancelled"):
                 break
     except WebSocketDisconnect:
-        pass
+        cancel_event = _cancel_events.get(job_id)
+        if cancel_event:
+            cancel_event.set()
     finally:
         _jobs.pop(job_id, None)

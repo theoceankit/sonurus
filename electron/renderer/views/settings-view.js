@@ -13,13 +13,15 @@ const ST_EXPORT_FORMATS = [
 
 function makeSettings() {
   const modelStatus = {}
-  MODELS.forEach(m => { modelStatus[m.id] = m.installed ? 'installed' : 'available' })
   ALIGNMENT_MODELS.forEach(m => { modelStatus[m.id] = 'available' })
   return {
     transcribeLang: appSettings.transcribeLang,
     transcribeModel: appSettings.transcribeModel,
     scale: appSettings.scale,
     exportFormat: appSettings.exportFormat,
+    recordingMicDevice: appSettings.recordingMicDevice ?? null,
+    recordingSystemDevice: appSettings.recordingSystemDevice ?? null,
+    recordingUseMic: appSettings.recordingUseMic ?? true,
     duplicate: true,
     incTimestamps: true,
     incSpeakers: true,
@@ -598,20 +600,17 @@ function buildModelsSection(state, rerender) {
       })
   }
 
-  MODELS.forEach(m => {
-    modelRows.appendChild(makeModelRow(m, state, onSelect, onDownload, onDelete))
-  })
-
-  // Load real install status from API, then refresh rows.
+  // Fetch full catalog + install status from API; render rows when ready.
   fetch(`${API_BASE}/models`)
     .then(r => r.json())
     .then(models => {
-      models.forEach(({ id, installed }) => {
-        state.modelStatus[id] = installed ? 'installed' : 'available'
+      const whisperAndDiarize = models.filter(m => m.kind !== 'alignment')
+      whisperAndDiarize.forEach(m => {
+        state.modelStatus[m.id] = m.installed ? 'installed' : 'available'
+        modelRows.appendChild(makeModelRow(m, state, onSelect, onDownload, onDelete))
       })
-      rerenderRows()
     })
-    .catch(() => { /* server not running — keep defaults */ })
+    .catch(() => { /* server not running — rows remain empty */ })
 
   const footer = document.createElement('div')
   footer.className = 'st-models-footer'
@@ -803,38 +802,82 @@ function buildExportSection(state) {
   ])
 }
 
-function buildAudioSection() {
-  const inputDrop = makeDropdown(
-    [
-      { value: 'sys', label: 'System default', sub: 'Currently: Built-in Microphone' },
-      { value: 'mic', label: 'Built-in Microphone', sub: '2-channel · 48 kHz' },
-    ],
-    'sys',
-    () => {},
-    (opt) => {
-      const span = document.createElement('span')
-      span.style.cssText = 'display:inline-flex;flex-direction:column;flex:1;min-width:0'
-      span.innerHTML = `<span style="font-size:13.5px">${opt.label}</span>`
-      if (opt.sub) span.innerHTML += `<span style="font-size:11.5px;color:rgba(25,24,42,0.4)">${opt.sub}</span>`
-      return span
-    }
-  )
+function buildAudioSection(state) {
+  const controlsWrap = document.createElement('div')
 
-  const outputDrop = makeDropdown(
-    [
-      { value: 'sys', label: 'System default', sub: 'Currently: Speakers' },
-      { value: 'spk', label: 'Built-in Speakers', sub: '2-channel' },
-    ],
-    'sys',
-    () => {},
-    (opt) => {
-      const span = document.createElement('span')
-      span.style.cssText = 'display:inline-flex;flex-direction:column;flex:1;min-width:0'
-      span.innerHTML = `<span style="font-size:13.5px">${opt.label}</span>`
-      if (opt.sub) span.innerHTML += `<span style="font-size:11.5px;color:rgba(25,24,42,0.4)">${opt.sub}</span>`
-      return span
+  const spinner = document.createElement('div')
+  spinner.style.cssText = 'padding:14px 0 6px;font-size:13px;color:rgba(25,24,42,0.4)'
+  spinner.textContent = 'Detecting audio devices…'
+  controlsWrap.appendChild(spinner)
+
+  ;(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(t => t.stop())
+    } catch (_) {}
+
+    let inputs = []
+    try {
+      const all = await navigator.mediaDevices.enumerateDevices()
+      inputs = all.filter(d => d.kind === 'audioinput')
+    } catch (_) {}
+
+    function renderDevOpt(opt) {
+      const s = document.createElement('span')
+      s.style.cssText = 'display:inline-flex;flex-direction:column;flex:1;min-width:0;overflow:hidden'
+      const label = document.createElement('span')
+      label.style.cssText = 'font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'
+      label.textContent = opt.label
+      s.appendChild(label)
+      return s
     }
-  )
+
+    const micOpts = [
+      { value: null, label: 'System default' },
+      ...inputs.map(d => ({ value: d.deviceId, label: d.label || `Microphone (${d.deviceId.slice(0, 8)})` })),
+    ]
+    const micVal = micOpts.some(o => o.value === state.recordingMicDevice) ? state.recordingMicDevice : null
+    const micDrop = makeDropdown(micOpts, micVal, v => {
+      state.recordingMicDevice = v
+      saveSettings({ recordingMicDevice: v })
+    }, renderDevOpt)
+    micDrop.style.width = '260px'
+
+    const micToggle = makeToggle(state.recordingUseMic, v => {
+      state.recordingUseMic = v
+      saveSettings({ recordingUseMic: v })
+    })
+
+    // System audio: show all inputs — user selects a virtual loopback device if available.
+    // Chromium hides PulseAudio/PipeWire monitor sources; a virtual sink is required for
+    // true system audio capture (see Settings hint below).
+    const sysOpts = [
+      { value: null, label: 'Disabled' },
+      ...inputs.map(d => ({ value: d.deviceId, label: d.label || `Device (${d.deviceId.slice(0, 8)})` })),
+    ]
+    const sysVal = sysOpts.some(o => o.value === state.recordingSystemDevice) ? state.recordingSystemDevice : null
+    const sysDrop = makeDropdown(sysOpts, sysVal, v => {
+      state.recordingSystemDevice = v
+      saveSettings({ recordingSystemDevice: v })
+    }, renderDevOpt)
+    sysDrop.style.width = '260px'
+
+    controlsWrap.innerHTML = ''
+    controlsWrap.appendChild(makeFieldRow('Microphone', 'Captured during live recording.', micDrop))
+    controlsWrap.appendChild(makeFieldRow('Include microphone', 'Record mic alongside system audio.', micToggle))
+    controlsWrap.appendChild(makeFieldRow('System audio source', 'Select a virtual loopback device to capture app and call audio.', sysDrop, true))
+
+    const hint = document.createElement('div')
+    hint.style.cssText = [
+      'margin-top:10px;padding:10px 13px;border-radius:8px',
+      'font-size:12px;line-height:1.7;color:rgba(25,24,42,0.50)',
+      'background:rgba(40,30,80,0.04);border:0.5px solid var(--border)',
+    ].join(';')
+    hint.innerHTML = `On Linux, Chromium does not expose PulseAudio/PipeWire monitor sources directly. To capture system audio, create a virtual sink:<br>
+      <code style="font-size:11px;font-family:ui-monospace,monospace;background:rgba(40,30,80,0.06);padding:1px 5px;border-radius:4px">pactl load-module module-null-sink sink_name=VirtualSpeaker</code><br>
+      Then route your apps to <em>VirtualSpeaker</em> and select its monitor here.`
+    controlsWrap.appendChild(hint)
+  })()
 
   return makeSectionCard([
     makeSectionHeader(
@@ -842,10 +885,9 @@ function buildAudioSection() {
         <path d="M9 2a3 3 0 013 3v4a3 3 0 01-6 0V5a3 3 0 013-3z" stroke="currentColor" stroke-width="1.4" fill="none"/>
         <path d="M4 9a5 5 0 0010 0M9 14v2M6 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
       </svg>`,
-      'Audio devices', 'Where Whisper records from and plays back through.'
+      'Audio devices', 'Input devices for live recording.'
     ),
-    makeFieldRow('Input device', 'Microphone used for live recording.', inputDrop),
-    makeFieldRow('Output device', 'Speakers or headphones for playback.', outputDrop, true),
+    controlsWrap,
   ])
 }
 
@@ -929,7 +971,7 @@ function renderSettingsView() {
     { id: 'models',    build: () => buildModelsSection(state) },
     { id: 'alignment', build: () => buildAlignmentSection(state) },
     { id: 'export',    build: () => buildExportSection(state) },
-    { id: 'audio',     build: () => buildAudioSection() },
+    { id: 'audio',     build: () => buildAudioSection(state) },
     { id: 'reset',     build: () => buildResetSection() },
   ]
 

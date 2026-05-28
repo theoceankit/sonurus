@@ -8,6 +8,18 @@ All open issues in one place.
 
 ---
 
+### Editor view title shows audio filename for live recordings
+
+**Severity:** minor — cosmetic only; sidebar shows the correct title.
+
+**Symptom:** after transcribing a live recording, the editor view header shows the temp audio filename (`whisper-rec-<uuid>`) instead of the title entered by the user on the review screen.
+
+**Cause:** `editor-view.js` reads `audio_path` from `GET /transcripts/{id}`. The `title` column was added to the DB (`transcriptions.title`, schema v3) and is used in `list_all()` (sidebar query), but `TranscriptResponse` and `editor-view.js` do not yet consume it.
+
+**Pending fix:** add `title` to `TranscriptResponse`, return it from `GET /transcripts/{id}`, and render it in `editor-view.js`.
+
+---
+
 ### model.safetensors downloads during first transcription
 
 **Severity:** minor — does not affect correctness; adds ~1.26 GB download on first use of a language.
@@ -37,6 +49,6 @@ UserWarning: torchcodec is not installed correctly so built-in audio decoding wi
 
 **Impact:** none. The pipeline loads audio via WhisperX (which calls the `ffmpeg` binary directly) and passes pre-loaded waveform tensors to PyAnnote. `torchcodec`'s own audio decoder is never invoked.
 
-**Suppression:** the warning is hidden when `VERBOSE=false` (default) via `warnings.filterwarnings("ignore", module="pyannote")` in `app/api/main.py`.
+**Suppression:** the warning is hidden when `VERBOSE=false` (default) via `suppress_ml_noise("startup")` in `app/warnings.py`, called from `app/api/main.py` at import time.
 
 **Permanent fix (optional):** set `DYLD_LIBRARY_PATH=/opt/homebrew/lib` before starting the server. This lets `torchcodec` find the FFmpeg dylibs and eliminates the warning at the source.

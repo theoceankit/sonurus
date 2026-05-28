@@ -258,11 +258,11 @@ def test_delete_model_not_installed_returns_404(tmp_path):
         app.dependency_overrides.clear()
 
 
-def test_delete_unknown_model_returns_400(client):
-    """DELETE /models/{model_id} returns 400 when model_id is not in the catalog."""
+def test_delete_unknown_model_returns_422(client):
+    """DELETE /models/{model_id} returns 422 when model_id is not in the catalog."""
     r = client.delete("/models/nonexistent-model")
-    assert r.status_code == 400, (
-        f"Expected 400 for unknown model_id, got {r.status_code}: {r.text}"
+    assert r.status_code == 422, (
+        f"Expected 422 for unknown model_id, got {r.status_code}: {r.text}"
     )
 
 
@@ -376,19 +376,19 @@ def test_delete_alignment_model_installed_returns_200(tmp_path):
         app.dependency_overrides.clear()
 
 
-def test_delete_unknown_model_id_returns_400(client):
-    """DELETE /models/{model_id} returns 400 for a model_id completely unknown to the service."""
+def test_delete_unknown_model_id_returns_422(client):
+    """DELETE /models/{model_id} returns 422 for a model_id completely unknown to the service."""
     r = client.delete("/models/totally_unknown_xyz")
-    assert r.status_code == 400, (
-        f"Expected 400 for unknown model_id (not in any catalog), "
+    assert r.status_code == 422, (
+        f"Expected 422 for unknown model_id (not in any catalog), "
         f"got {r.status_code}: {r.text}"
     )
 
 
-def test_download_unknown_model_id_returns_400(client):
-    """POST /models/{model_id}/download returns 400 for a model_id completely unknown to the service."""
+def test_download_unknown_model_id_returns_422(client):
+    """POST /models/{model_id}/download returns 422 for a model_id completely unknown to the service."""
     r = client.post("/models/totally_unknown_xyz/download")
-    assert r.status_code == 400, (
-        f"Expected 400 for unknown model_id (not in any catalog), "
+    assert r.status_code == 422, (
+        f"Expected 422 for unknown model_id (not in any catalog), "
         f"got {r.status_code}: {r.text}"
     )

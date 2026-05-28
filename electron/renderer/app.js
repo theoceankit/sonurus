@@ -5,6 +5,9 @@ const appSettings = {
   transcribeLang: 'auto',
   transcribeModel: 'small',
   exportFormat: 'txt',
+  recordingMicDevice: null,
+  recordingSystemDevice: null,
+  recordingUseMic: true,
 }
 
 async function loadSettings() {
@@ -49,6 +52,13 @@ const app = {
     document.getElementById('btn-import').classList.remove('sb-new-btn--active')
     this._rerenderList()
     this._setView(renderSettingsView(), false)
+  },
+
+  showLiveRecording() {
+    this._activeTranscriptId = null
+    document.getElementById('btn-import').classList.remove('sb-new-btn--active')
+    this._rerenderList()
+    this._setView(renderLiveRecordingView(), false)
   },
 
   showEditor(transcriptId) {

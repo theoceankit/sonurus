@@ -16,6 +16,8 @@ class TranscriptListItem(BaseModel):
     created_at: str
     status: str
     speakers: list[str]
+    section: str
+    duration: str
 
 
 class TranscriptResponse(BaseModel):
@@ -39,6 +41,7 @@ class TranscribeRequest(BaseModel):
     audio_path: str
     whisper_model: str | None = None
     language: str | None = None
+    title: str | None = None
 
 
 class RenameRequest(BaseModel):
