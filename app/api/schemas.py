@@ -41,6 +41,7 @@ class TranscribeRequest(BaseModel):
     audio_path: str
     whisper_model: str | None = None
     language: str | None = None
+    title: str | None = None
 
 
 class RenameRequest(BaseModel):

@@ -98,6 +98,9 @@ async def start_transcribe(
             if cancel_event.is_set():
                 raise _JobCancelled()
 
+            if body.title:
+                transcript.title = body.title
+
             on_progress("Saving to database…")
             storage.save(transcript)
             CommitService(controller.memory_service, storage).commit_recognized_speakers(transcript)

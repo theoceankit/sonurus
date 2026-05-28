@@ -12,5 +12,7 @@ class Transcript:
 
     status: str = "draft"
 
+    title: str | None = None
+
     # set by TranscriptStorageService.save()
     db_id: int | None = None
