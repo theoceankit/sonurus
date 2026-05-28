@@ -1,6 +1,8 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, Menu, session } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const os = require('os')
+const crypto = require('crypto')
 
 Menu.setApplicationMenu(null)
 
@@ -30,6 +32,9 @@ const DEFAULT_SETTINGS = {
   transcribeLang: 'auto',
   transcribeModel: 'small',
   exportFormat: 'txt',
+  recordingMicDevice: null,
+  recordingSystemDevice: null,
+  recordingUseMic: true,
 }
 
 ipcMain.handle('set-zoom', (_e, factor) => {
@@ -58,5 +63,17 @@ ipcMain.handle('open-file', async () => {
   return canceled ? null : filePaths[0]
 })
 
-app.whenReady().then(createWindow)
+ipcMain.handle('save-recording', (_e, { buffer, ext }) => {
+  const name = `whisper-rec-${crypto.randomUUID()}.${ext}`
+  const dest = path.join(os.tmpdir(), name)
+  fs.writeFileSync(dest, Buffer.from(buffer))
+  return dest
+})
+
+app.whenReady().then(() => {
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === 'media')
+  })
+  createWindow()
+})
 app.on('window-all-closed', () => app.quit())
