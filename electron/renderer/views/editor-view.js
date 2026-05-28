@@ -786,12 +786,13 @@ function renderEditorView(transcriptId) {
 
     function displayName(spkId) {
       if (knownMap[spkId]) return knownMap[spkId]
-      // Assign stable "Unknown N" label for unrecognized speakers
-      const unrecognizedIds = [...new Set(
-        transcript.segments
-          .map(s => effectiveSpeaker(s))
-          .filter(id => isUnrecognized(id, knownMap))
-      )]
+      // Stable "Unknown N": rank by first appearance time, ascending
+      const firstSeen = {}
+      transcript.segments.forEach(s => {
+        const id = effectiveSpeaker(s)
+        if (isUnrecognized(id, knownMap) && !(id in firstSeen)) firstSeen[id] = s.start
+      })
+      const unrecognizedIds = Object.keys(firstSeen).sort((a, b) => firstSeen[a] - firstSeen[b])
       const n = unrecognizedIds.indexOf(spkId) + 1
       return n > 0 ? `Unknown ${n}` : spkId
     }

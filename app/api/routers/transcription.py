@@ -1,9 +1,7 @@
 import asyncio
-import logging
 import os
 import threading
 import uuid
-import warnings
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
@@ -20,27 +18,9 @@ from app.api.dependencies import get_memory_service
 import app.config as config
 from app.config import WHISPER_MODEL
 
+from app.warnings import suppress_ml_noise
+
 _VERBOSE = os.getenv("VERBOSE", "false").lower() == "true"
-
-_NOISY_LOGGERS = [
-    "whisperx", "whisperx.asr", "whisperx.vads.pyannote", "whisperx.diarize",
-    "lightning", "lightning.pytorch", "lightning.fabric",
-    "lightning.fabric.utilities.rank_zero",
-    "lightning.pytorch.utilities.upgrade_checkpoint",
-    "pytorch_lightning",
-]
-
-
-def _suppress_noise():
-    warnings.filterwarnings("ignore", module="lightning")
-    warnings.filterwarnings("ignore", module="pyannote")
-    warnings.filterwarnings("ignore", module="torch")
-    for name in _NOISY_LOGGERS:
-        logging.getLogger(name).setLevel(logging.ERROR)
-    for name, logger in logging.root.manager.loggerDict.items():
-        if isinstance(logger, logging.Logger):
-            if any(name.startswith(p) for p in ("lightning", "pytorch_lightning", "pyannote", "whisperx")):
-                logger.setLevel(logging.ERROR)
 
 router = APIRouter(tags=["transcription"])
 
@@ -103,7 +83,7 @@ async def start_transcribe(
     def _run():
         try:
             if not _VERBOSE:
-                _suppress_noise()
+                suppress_ml_noise("thread")
 
             def on_progress(step: str):
                 if cancel_event.is_set():

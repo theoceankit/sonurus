@@ -1,5 +1,4 @@
 import os
-import warnings
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -10,7 +9,8 @@ load_dotenv()
 
 _verbose = os.getenv("VERBOSE", "false").lower() == "true"
 if not _verbose:
-    warnings.filterwarnings("ignore", module="pyannote")
+    from app.warnings import suppress_ml_noise
+    suppress_ml_noise("startup")
 
 from app.logger import setup_logging
 from app.api.routers import transcripts, speakers, transcription, models
