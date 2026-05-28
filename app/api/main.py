@@ -24,6 +24,8 @@ async def lifespan(app: FastAPI):
     get_storage_service()
     get_memory_service()
     yield
+    transcription.shutdown_executor()
+    models.shutdown_executor()
 
 
 app = FastAPI(title="Whisper API", version="1.0.0", lifespan=lifespan)

@@ -2,7 +2,6 @@ from app.config import DEVICE, MODELS_DIR, WHISPER_MODEL
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.embedding_service import EmbeddingService
 from app.services.transcription_service import TranscriptionService
-from app.services.commit_service import CommitService
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.controllers.transcription_controller import TranscriptionController
 
@@ -22,13 +21,10 @@ def create_controller(
     transcription_service = TranscriptionService(device, MODELS_DIR, model_name=whisper_model)
     embedding_service     = EmbeddingService(device, models_dir=MODELS_DIR)
     storage_service       = TranscriptStorageService(db_path=db_path)
-    commit_service        = CommitService(memory_service, storage_service)
 
     controller = TranscriptionController(
         transcription_service=transcription_service,
         embedding_service=embedding_service,
         memory_service=memory_service,
-        commit_service=commit_service,
-        storage_service=storage_service,
     )
     return controller, storage_service

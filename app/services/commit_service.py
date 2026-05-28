@@ -90,7 +90,7 @@ class CommitService:
         any_avg, _ = self._avg_from_db(speaker_id)
         if any_avg is None:
             # No segments remain → remove if unnamed
-            self.memory.known_names = self.memory._load_names()
+            self.memory.reload_names()
             if self.memory.get_name(speaker_id) is None:
                 self.memory.remove_speaker(speaker_id)
             return
