@@ -36,11 +36,6 @@ class EmbeddingService:
         log.info(f"Extracted embeddings — {len(aggregated)} speakers, {len(segments)} segments")
         return aggregated, segments
 
-    def extract(self, audio, diarize_segments):
-        """Returns mean embeddings per speaker: {"SPEAKER_00": np.array, ...}."""
-        segments = self.extract_segments(audio, diarize_segments)
-        return self._aggregate_from_segments(segments)
-
     def extract_segments(self, audio, diarize_segments):
         """Returns per-segment embeddings: [{"start", "end", "speaker", "embedding"}]."""
         result = []

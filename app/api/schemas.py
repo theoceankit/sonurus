@@ -16,6 +16,8 @@ class TranscriptListItem(BaseModel):
     created_at: str
     status: str
     speakers: list[str]
+    section: str
+    duration: str
 
 
 class TranscriptResponse(BaseModel):
