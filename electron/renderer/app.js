@@ -5,6 +5,9 @@ const appSettings = {
   transcribeLang: 'auto',
   transcribeModel: 'small',
   exportFormat: 'txt',
+  recordingMicDevice: null,
+  recordingSystemDevice: null,
+  recordingUseMic: true,
 }
 
 async function loadSettings() {
