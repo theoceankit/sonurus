@@ -37,6 +37,28 @@ Two independent `getUserMedia` streams (mic + monitor source) are fed into a sha
 
 ---
 
+## Implementation status
+
+| Phase | Status |
+|---|---|
+| Phase 1 — Electron plumbing | ✅ Done |
+| Phase 2 — Real audio device enumeration | ✅ Done |
+| Phase 3 — Live recording view | ✅ Done |
+| Phase 4 — Wire into existing UI | ✅ Done |
+| Phase 5 — Verification | ✅ Done (343 tests passing) |
+
+## Known issues
+
+### Editor view title shows audio filename
+
+**Symptom:** the editor view header (centre panel, top of transcript) shows the audio filename (`whisper-rec-<uuid>`) instead of the title entered by the user in the review screen. The sidebar shows the correct title.
+
+**Cause:** `editor-view.js` reads `audio_path` from `GET /transcripts/{id}`, not the `title` field. The `title` column was added to the DB and is used in `list_all()` (sidebar), but `TranscriptResponse` and `editor-view.js` do not yet expose it.
+
+**Fix:** add `title` to `TranscriptResponse`, return it from `GET /transcripts/{id}`, and render it in `editor-view.js`.
+
+---
+
 ## Implementation plan
 
 ### Phase 1 — Electron plumbing
