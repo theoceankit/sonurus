@@ -33,7 +33,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 #titlebar {
   height: 38px;
   flex-shrink: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 300px auto 1fr auto;
   align-items: stretch;
   background: var(--panel-bg);
   border-bottom: 0.5px solid var(--border);
@@ -42,8 +43,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .tb-left {
-  width: 300px;
-  flex-shrink: 0;
   background: var(--sidebar-bg);
   border-right: 0.5px solid var(--border);
   display: flex;
@@ -52,8 +51,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   gap: 12px;
 }
 
+.tb-nav {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  gap: 0;
+}
+
 .tb-right {
-  flex: 1;
   display: flex;
   align-items: center;
   padding: 0 12px;
@@ -80,11 +85,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .tb-tool--active { background: rgba(0,0,0,0.08); color: var(--ink); }
 
 .tb-search {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 340px;
+  justify-self: center;
+  align-self: center;
+  width: clamp(180px, 80%, 480px);
   height: 24px;
   display: flex;
   align-items: center;
@@ -1392,13 +1395,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 600;
   color: var(--ink-dim);
   padding: 2px 4px 8px;
 }
-.right-section-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 .right-section-count {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   color: rgba(0,0,0,0.22);
@@ -1435,7 +1435,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .spk-avatar--unknown {
   background: rgba(0,0,0,0.05);
   color: var(--ink-dim);
-  border: 1.5px solid rgba(0,0,0,0.15);
+  border: 1px solid rgba(0,0,0,0.12);
+  user-select: none;
 }
 
 .spk-card-top {
@@ -1450,21 +1451,18 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   flex-direction: row;
   gap: 0;
   flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s;
-  background: #fff;
-  border: 0.5px solid var(--border-md);
-  border-radius: 8px;
-  padding: 2px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  opacity: 1;
+  background: transparent;
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  padding: 1px;
 }
-.spk-card:hover .spk-card-actions { opacity: 1; }
 
 .spk-card-btn {
   position: relative;
   width: 25px;
   height: 25px;
-  border-radius: 5px;
+  border-radius: 6px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -1472,9 +1470,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   align-items: center;
   justify-content: center;
   color: var(--ink-dim);
-  transition: color 0.1s, background 0.1s;
+  transition: background 0.1s, color 0.1s;
 }
-.spk-card-btn:hover { color: var(--ink); background: rgba(0,0,0,0.06); }
+.spk-card-btn:hover { background: rgba(0,0,0,0.06); color: var(--ink); }
 
 .spk-card-info { flex: 1; min-width: 0; }
 
@@ -1519,9 +1517,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .spk-card-play-btn {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  border-radius: 6px;
   border: 0.5px solid var(--border);
   background: transparent;
   cursor: pointer;
@@ -1529,9 +1527,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   align-items: center;
   justify-content: center;
   color: var(--ink-dim);
-  transition: background 0.08s, color 0.08s;
+  transition: background 0.1s, color 0.1s;
 }
-.spk-card-play-btn:hover { background: rgba(0,0,0,0.05); color: var(--ink); }
+.spk-card-play-btn:hover { background: rgba(0,0,0,0.06); color: var(--ink); }
 
 .spk-suggestion {
   display: flex;
@@ -1587,7 +1585,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .spk-suggestion-btn:hover { opacity: 0.8; }
 .spk-suggestion-btn--confirm { background: var(--accent); color: #fff; }
-.spk-suggestion-btn--reject  { background: rgba(0,0,0,0.08); color: var(--ink-dim); }
+.spk-suggestion-btn--reject  { background: #fff; border: 0.5px solid rgba(0,0,0,0.1); color: var(--ink-dim); }
 
 .spk-assign-btn {
   display: flex;
@@ -1623,14 +1621,29 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .spk-quote {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
   margin-top: 8px;
-  padding: 6px 10.5px;
-  border-radius: 7px;
-  background: rgba(0,0,0,0.03);
-  border-left: 2px solid rgba(181,138,58,0.5);
+  padding: 2px 2px 0;
+}
+.spk-quote-icon {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 34px;
+  line-height: 0.85;
+  color: var(--ink-dim);
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-style: italic;
+  user-select: none;
+}
+.spk-quote-text {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   color: var(--ink-dim);
-  line-height: 1.45;
+  line-height: 1.5;
+  letter-spacing: -0.003em;
   font-style: italic;
 }
 
@@ -2256,6 +2269,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   animation: spin 0.9s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
 
 /* ── Live recording view ──────────────────────────────────────────────────── */
 .live-rec-dot {

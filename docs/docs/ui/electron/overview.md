@@ -94,6 +94,21 @@ Shown on startup and when clicking the **+** button in the sidebar header.
 - Heartbeat events (`type: "heartbeat"`) are silently ignored
 - On `type: "done"` → auto-navigates to Editor view after 600ms
 
+### Titlebar
+
+CSS grid layout: `300px (sidebar header) | auto (nav) | 1fr (search) | auto (utility buttons)`.
+
+| Zone | Contents |
+|---|---|
+| Sidebar header | Aligns with left sidebar width (300px), background matches sidebar |
+| Nav (`tb-nav`) | Back · Forward |
+| Search (`tb-search`) | Centered in the `1fr` column via `justify-self: center`; `clamp(180px, 45%, 480px)` wide |
+| Utility (`tb-right`) | Copy · Share · Record · Inspector toggle · Settings |
+
+The search cannot overlap nav or utility buttons because each zone occupies a separate grid column.
+
+Record button has a pulsing red dot (`@keyframes pulse-dot`: opacity + scale, 1.4s).
+
 ### Editor view
 
 Three-panel layout (all panels are separate elevated cards):
@@ -150,14 +165,20 @@ Fixed 76px bar at the bottom of the focus panel.
 
 **Right panel (Speakers tab):**
 
-Two sections: Recognized and Unrecognized.
+Two sections: **Recognized** and **Unrecognized** — normal-case labels with a count, no colored dots.
 
 All speaker cards show:
-- Avatar · name · segment count + duration
+- Avatar (28px) · name · segment count + duration (no dot separator)
 - Duration bar (amber fill for unrecognized, speaker color for recognized)
-- On hover: **Play** button (all) + **Assign** button (recognized only)
+- **Play** button + **Assign** button (recognized) always visible — not hover-only
+- Action container: transparent background, `0.5px` border, `6px` radius
 
-The **Assign** button (and **Name…** for unrecognized) opens a speaker picker popup:
+Unrecognized cards additionally show:
+- Quote sample: large decorative `"` (Georgia, italic) + italic caption text
+- AI suggestion strip: speaker color tint, confirm (✓) + reject (×) buttons; reject is white with thin border
+- "Assign speaker" full-width outlined button
+
+The **Assign** button opens a speaker picker popup:
 
 - `position: fixed`, 220px wide — not clipped by any parent
 - Search field filters the recognized speaker list in real time

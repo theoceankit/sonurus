@@ -16,18 +16,8 @@
     <!-- Left section — aligns with sidebar width -->
     <div class="tb-left"></div>
 
-    <!-- Center — absolute, always centered in the full window -->
-    <button class="tb-search" id="tb-search-btn" title="Search (⌘F)">
-      <svg width="11" height="11" viewBox="0 0 13 13" fill="none">
-        <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/>
-        <path d="M8.5 8.5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
-      <span class="tb-search-label">Search transcripts…</span>
-      <span class="tb-search-kbd">⌘F</span>
-    </button>
-
-    <!-- Right section — fills remaining space -->
-    <div class="tb-right">
+    <!-- Nav — back/forward, left of search -->
+    <div class="tb-nav">
       <button class="tb-tool" id="tb-back" title="Back">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
           <path d="M9 3l-4 4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -38,19 +28,30 @@
           <path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
+    </div>
 
-      <div style="flex:1"></div>
+    <!-- Center — centered in the middle grid column -->
+    <button class="tb-search" id="tb-search-btn" title="Search (⌘F)">
+      <svg width="11" height="11" viewBox="0 0 13 13" fill="none">
+        <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M8.5 8.5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <span class="tb-search-label">Search transcripts…</span>
+      <span class="tb-search-kbd">⌘F</span>
+    </button>
 
+    <!-- Right section — utility buttons -->
+    <div class="tb-right">
+      <button class="tb-tool" id="tb-export" title="Copy to clipboard">
+        <svg width="13" height="14" viewBox="0 0 13 14" fill="none">
+          <rect x="4.5" y="3.5" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M3 10H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5a1 1 0 0 1 1 1v1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      </button>
       <button class="tb-tool" id="tb-share" title="Share">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
           <path d="M7 1.5v8M4 4l3-3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M2.5 9v3.5h9V9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-      <button class="tb-tool" id="tb-export" title="Export">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M3 5l4 4 4-4M7 9V1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M2.5 12h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
         </svg>
       </button>
 
