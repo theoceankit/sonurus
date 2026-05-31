@@ -8,7 +8,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeSettings:   (data) => ipcRenderer.invoke('write-settings', data),
   setZoom:         (factor) => ipcRenderer.invoke('set-zoom', factor),
   saveRecording:   (buffer, ext) => ipcRenderer.invoke('save-recording', { buffer, ext }),
-  minimizeWindow:  () => ipcRenderer.send('window-minimize'),
-  maximizeWindow:  () => ipcRenderer.send('window-maximize'),
-  closeWindow:     () => ipcRenderer.send('window-close'),
 })

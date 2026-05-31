@@ -587,13 +587,62 @@ function makeTagsRow(transcript) {
 | `electron/renderer/views/editor-view.js` | 4, 5, 6, 7 |
 | `electron/main.js` | 2 (titlebar frame) |
 
-## Current branch state (after Phases 1–7)
+## Current branch state (after Phases 1–7 + post-release fixes)
 
-Branch: `redesign/ui` — all phases complete.
+Branch: `redesign/ui`.
 
-Key implementation details:
+### Post-release fixes (2026-05-31)
+
+**Window frame**
+- Native OS frame — `titleBarStyle: 'hidden'` removed; traffic light buttons, IPC window controls, and preload APIs removed.
+
+**Titlebar**
+- "Toggle sidebar" button removed; `toggleSidebar()` method removed.
+- Settings gear moved from sidebar footer into titlebar (after inspector toggle, separated by `.tb-sep`).
+
+**Sidebar**
+- Footer (`WP` avatar, Workspace name, WhisperX status) removed entirely.
+- Search bar removed (HTML, CSS, JS filter).
+- Card spacing: `margin-bottom: 1px → 4px`.
+- Hover only on inactive items: `.rec-item:not(.rec-item--active):hover`.
+- Card title row: time (`en-GB` 24h) right-aligned on same line as title via `.rec-item-time`; dot separator removed; duration remains on meta row below.
+
+**Layout — full-width player bar**
+- `#app` is now `flex-direction: column`.
+- `#sidebar` + `#main-panel` are wrapped in `#app-row` (flex row, `flex: 1`).
+- `#player-slot` is a sibling of `#app-row` inside `#app` — player bar renders here and spans the full window width.
+- `_setView()` in `app.js` clears `#player-slot` when leaving editor mode.
+
+**Waveform**
+- Tooltip: two-line (`timecode` + speaker name); "Unknown speaker" for unrecognized.
+- Hover segment highlight: bars belonging to hovered segment → `opacity: 1`; others → `0.32`. Tracked via `hoveredSeg` variable inside `buildWaveform`.
+
+**Player controls**
+- Speed button: `width: 46px; text-align: center` (no size jump). Speeds: `[1, 1.2, 1.5, 2]`.
+- Volume: icon button opens `div.vol-popup` with vertical `input[type=range]` (closes on outside click).
+
+**Unrecognized speaker card**
+- `.spk-avatar` CSS added (was entirely missing) — circle, centered initials.
+- `.spk-avatar--unknown` — solid border, gray background.
+- Layout: `[avatar 32px] [.spk-card-info: name + meta] [.spk-card-play-btn: ► always visible]` — all vertically centered (`align-items: center` on `.spk-card-top`).
+- Progress bar removed. "Name…" button removed.
+- Quote text included inside card via `sample` parameter to `makeSpeakerCard`.
+- Suggestion row (mocked): colored dot + "Likely [name] 87%" + ✓ (speaker color bg) + × buttons; row bg/border tinted with `speakerPalette(id).bg`.
+- "Assign speaker" — full-width outlined button (`spk-assign-btn`), opens speaker picker.
+
+### Key implementation details
+
 - `buildEditor(transcript, knownSpeakers)` in `editor-view.js` is the main editor builder
 - `playerAbortCtrl.signal` is the AbortSignal for all audio + DOM event listeners in `buildEditor`
 - `focusPanel` has `position: relative` via CSS — safe to `position: absolute` children inside it
 - `window.showToast(text, opts)` is a global function initialized in `app.init()`
 - `fmtTime(seconds)`, `effectiveSpeaker(seg)`, `isUnrecognized(id, map)`, `speakerPalette(id)` are global utilities from `utils.js`
+- `makeSpeakerCard(..., sample = null)` — last param passes quote text for unrecognized cards
+
+### Remaining Speakers panel items (not yet implemented)
+
+| # | Item |
+|---|---|
+| 1 | Tab bar: flat text style (currently segmented control pill) |
+| 2 | Section headers: lowercase "Recognized · N" (currently uppercase) |
+| 3 | Recognized speakers: flat rows with thin progress bar (currently cards) |

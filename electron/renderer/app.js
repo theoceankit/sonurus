@@ -27,7 +27,6 @@ const app = {
   _knownSpeakers: {},
   _currentView: 'import',
   _inspectorVisible: true,
-  _sidebarVisible: true,
   _filter: 'all',
 
   // ── Navigation ──────────────────────────────────────────────────────────────
@@ -37,6 +36,7 @@ const app = {
     panel.innerHTML = ''
     panel.classList.toggle('main-panel--editor', editorMode)
     panel.appendChild(el)
+    if (!editorMode) document.getElementById('player-slot').replaceChildren()
     this._updateTitlebarState()
   },
 
@@ -45,8 +45,7 @@ const app = {
     if (backBtn) backBtn.disabled = (this._currentView === 'import')
     const inspBtn = document.getElementById('tb-inspector-toggle')
     if (inspBtn) inspBtn.classList.toggle('tb-tool--active', this._inspectorVisible)
-    const sbBtn = document.getElementById('tb-sidebar-toggle')
-    if (sbBtn) sbBtn.classList.toggle('tb-tool--active', !this._sidebarVisible)
+
   },
 
   showImport() {
@@ -93,15 +92,6 @@ const app = {
 
   // ── Titlebar actions ────────────────────────────────────────────────────────
 
-  toggleSidebar() {
-    this._sidebarVisible = !this._sidebarVisible
-    const sidebar = document.getElementById('sidebar')
-    const tbLeft  = document.querySelector('.tb-left')
-    if (sidebar) sidebar.style.display = this._sidebarVisible ? '' : 'none'
-    if (tbLeft)  tbLeft.style.visibility = this._sidebarVisible ? '' : 'hidden'
-    this._updateTitlebarState()
-  },
-
   toggleInspector() {
     this._inspectorVisible = !this._inspectorVisible
     const rightPanel = document.querySelector('.right-panel')
@@ -134,13 +124,10 @@ const app = {
   },
 
   _applyFilter(items) {
-    const q = (document.getElementById('sb-search-input')?.value || '').toLowerCase()
-    let filtered = items
-    if (q) filtered = filtered.filter(r => r.title.toLowerCase().includes(q))
-    if (this._filter === 'recordings') filtered = filtered.filter(r => r.source !== 'note')
-    if (this._filter === 'notes')      filtered = filtered.filter(r => r.source === 'note')
-    if (this._filter === 'marked')     filtered = filtered.filter(r => r.bookmarked)
-    return filtered
+    if (this._filter === 'recordings') return items.filter(r => r.source !== 'note')
+    if (this._filter === 'notes')      return items.filter(r => r.source === 'note')
+    if (this._filter === 'marked')     return items.filter(r => r.bookmarked)
+    return items
   },
 
   _rerenderList(query = '') {
@@ -187,27 +174,28 @@ const app = {
     const btn = document.createElement('button')
     btn.className = 'rec-item' + (isActive ? ' rec-item--active' : '')
 
-    // Title
+    // Title row: name (left) + time (right)
     const titleEl = document.createElement('div')
     titleEl.className = 'rec-item-title'
-    titleEl.textContent = item.title
-    btn.appendChild(titleEl)
 
-    // Meta row: time · duration + avatars
-    const metaEl = document.createElement('div')
-    metaEl.className = 'rec-item-meta'
+    const titleText = document.createElement('span')
+    titleText.className = 'rec-item-title-text'
+    titleText.textContent = item.title
+    titleEl.appendChild(titleText)
 
     if (item.created_at) {
       const d = new Date(item.created_at)
-      const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       const timeEl = document.createElement('span')
-      timeEl.textContent = timeStr
-      metaEl.appendChild(timeEl)
-
-      const dot = document.createElement('span')
-      dot.className = 'rec-item-dot'
-      metaEl.appendChild(dot)
+      timeEl.className = 'rec-item-time'
+      timeEl.textContent = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      titleEl.appendChild(timeEl)
     }
+
+    btn.appendChild(titleEl)
+
+    // Meta row: duration + avatars
+    const metaEl = document.createElement('div')
+    metaEl.className = 'rec-item-meta'
 
     if (item.duration) {
       const durEl = document.createElement('span')
@@ -317,9 +305,6 @@ const app = {
     document.getElementById('btn-settings')
       .addEventListener('click', () => this.showSettings())
 
-    document.getElementById('sb-search-input')
-      .addEventListener('input', e => this._rerenderList(e.target.value))
-
     // ── Filter chips ──────────────────────────────────────────────────────────
     document.getElementById('sb-filter')
       .addEventListener('click', e => {
@@ -327,17 +312,11 @@ const app = {
         if (btn) this._setFilter(btn.dataset.filter)
       })
 
-    // ── Titlebar — window controls ─────────────────────────────────────────────
-    document.getElementById('tb-close')
-      .addEventListener('click', () => window.electronAPI.closeWindow())
-    document.getElementById('tb-min')
-      .addEventListener('click', () => window.electronAPI.minimizeWindow())
-    document.getElementById('tb-max')
-      .addEventListener('click', () => window.electronAPI.maximizeWindow())
-
     // ── Titlebar — navigation ──────────────────────────────────────────────────
     document.getElementById('tb-back')
       .addEventListener('click', () => { if (this._currentView !== 'import') this.showImport() })
+
+
 
     // ── Titlebar — search ──────────────────────────────────────────────────────
     document.getElementById('tb-search-btn')
@@ -348,8 +327,6 @@ const app = {
       .addEventListener('click', () => this.showLiveRecording())
 
     // ── Titlebar — panels ──────────────────────────────────────────────────────
-    document.getElementById('tb-sidebar-toggle')
-      .addEventListener('click', () => this.toggleSidebar())
     document.getElementById('tb-inspector-toggle')
       .addEventListener('click', () => this.toggleInspector())
   },
