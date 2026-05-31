@@ -63,3 +63,6 @@ settings.json
 .pytest_cache/
 htmlcov/
 .coverage
+
+# Design mockups
+redesign/

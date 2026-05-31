@@ -155,7 +155,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
 }
 
 // ── Segment row ────────────────────────────────────────────────────────────────
-function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {}, knownSpeakers = []) {
+function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {}, knownSpeakers = [], audio = null) {
   const spkId = effectiveSpeaker(seg)
   const p = isUnrecognized(spkId, knownMap) ? null : speakerPalette(spkId)
   let editing = false
@@ -163,21 +163,35 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
   const row = document.createElement('div')
   row.className = 'seg-row'
   row.dataset.start = seg.start
+  row.dataset.end = seg.end
 
-  // Left: timestamp
+  // ── Time column ──────────────────────────────────────────────────────────────
   const time = document.createElement('button')
   time.className = 'seg-time'
-  time.textContent = fmtTime(seg.start)
   time.title = `${fmtTime(seg.start)} – ${fmtTime(seg.end)}`
 
-  // Middle: speaker header + text
+  const timeLabel = document.createElement('span')
+  timeLabel.textContent = fmtTime(seg.start)
+
+  const timeProg = document.createElement('div')
+  timeProg.className = 'seg-time-prog'
+
+  time.appendChild(timeLabel)
+  time.appendChild(timeProg)
+
+  time.addEventListener('click', () => { if (audio) audio.currentTime = seg.start })
+
+  // ── Middle column ────────────────────────────────────────────────────────────
   const mid = document.createElement('div')
   mid.className = 'seg-mid'
 
   const header = document.createElement('div')
   header.className = 'seg-header'
 
-  const avatar = makeAvatar(spkId, displayName, 20)
+  const dot = document.createElement('span')
+  dot.className = 'seg-spk-dot'
+  dot.style.background = p ? p.color : 'var(--ink-4)'
+
   const nameBtn = document.createElement('button')
   nameBtn.className = 'seg-speaker-name'
   nameBtn.textContent = displayName
@@ -187,58 +201,17 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
     showSpeakerPicker(nameBtn, spkId, knownSpeakers, transcriptId, onReload, seg.start)
   })
 
-  // ── Action buttons (appear on hover) ────────────────────────────────────
-  const actions = document.createElement('div')
-  actions.className = 'seg-actions'
-
-  function makeActionBtn(tooltip, svgHtml, extraClass) {
-    const btn = document.createElement('button')
-    btn.className = 'seg-action-btn' + (extraClass ? ' ' + extraClass : '')
-    btn.setAttribute('data-tooltip', tooltip)
-    btn.innerHTML = svgHtml
-    attachSegTooltip(btn)
-    return btn
-  }
-
-  const SVG_PLAY = `<svg width="9" height="11" viewBox="0 0 9 11" fill="none">
-    <path d="M1.5 1.2L7.5 5.5 1.5 9.8V1.2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-  </svg>`
-  const SVG_EDIT = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-    <path d="M2 8.5L8 2.5 9.5 4 3.5 10H2V8.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
-    <path d="M7 3.5L8.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-  </svg>`
-  const SVG_BOOKMARK = `<svg width="10" height="12" viewBox="0 0 11 13" fill="none">
-    <path d="M1.5 1.5h8v10l-4-2.5-4 2.5v-10z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-  </svg>`
-  const SVG_COPY = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-    <rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
-    <path d="M7.5 4V2A1.5 1.5 0 006 .5H2A1.5 1.5 0 00.5 2v4A1.5 1.5 0 002 7.5h2" stroke="currentColor" stroke-width="1.2"/>
-  </svg>`
-  const SVG_DELETE = `<svg width="11" height="12" viewBox="0 0 11 12" fill="none">
-    <rect x="1" y="3" width="9" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
-    <path d="M3.5 3V2a1 1 0 011-1h2a1 1 0 011 1v1" stroke="currentColor" stroke-width="1.2"/>
-    <line x1="0.5" y1="3" x2="10.5" y2="3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-    <line x1="4" y1="5.5" x2="4" y2="9.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-    <line x1="7" y1="5.5" x2="7" y2="9.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+  const chevron = document.createElement('span')
+  chevron.className = 'seg-spk-chevron'
+  chevron.innerHTML = `<svg width="8" height="5" viewBox="0 0 9 6" fill="none">
+    <path d="M1 1.5l3.5 3 3.5-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`
 
-  const playBtn     = makeActionBtn('Play segment',   SVG_PLAY,     '')
-  const editBtn     = makeActionBtn('Edit segment',   SVG_EDIT,     '')
-  const bookmarkBtn = makeActionBtn('Save for later', SVG_BOOKMARK, '')
-  const copyBtn     = makeActionBtn('Copy segment',   SVG_COPY,     '')
-  const deleteBtn   = makeActionBtn('Delete segment', SVG_DELETE,   'seg-action-btn--danger')
-
-  actions.appendChild(playBtn)
-  actions.appendChild(editBtn)
-  actions.appendChild(bookmarkBtn)
-  actions.appendChild(copyBtn)
-  actions.appendChild(deleteBtn)
-
-  header.appendChild(avatar)
+  header.appendChild(dot)
   header.appendChild(nameBtn)
-  header.appendChild(actions)
+  header.appendChild(chevron)
 
-  // Text area
+  // Text
   const textEl = document.createElement('div')
   textEl.className = 'seg-text'
   textEl.textContent = seg.text
@@ -253,36 +226,93 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
   editArea.contentEditable = 'true'
   editArea.textContent = seg.text
 
-  const editActions = document.createElement('div')
-  editActions.className = 'seg-edit-actions'
-
-  const editHint = document.createElement('span')
+  const editHint = document.createElement('div')
   editHint.className = 'seg-edit-hint'
-  editHint.innerHTML = '<kbd class="seg-key">Shift</kbd> + <kbd class="seg-key">↵</kbd> new line'
-
-  const cancelEditBtn = document.createElement('button')
-  cancelEditBtn.className = 'seg-edit-btn seg-edit-btn--cancel'
-  cancelEditBtn.textContent = 'Cancel'
-
-  const saveEditBtn = document.createElement('button')
-  saveEditBtn.className = 'seg-edit-btn seg-edit-btn--save'
-  saveEditBtn.textContent = 'Save'
-
-  editActions.appendChild(editHint)
-  editActions.appendChild(cancelEditBtn)
-  editActions.appendChild(saveEditBtn)
+  editHint.textContent = '⌘↵ to save · esc to cancel'
 
   editWrap.appendChild(editArea)
-  editWrap.appendChild(editActions)
+  editWrap.appendChild(editHint)
 
   mid.appendChild(header)
   mid.appendChild(textEl)
   mid.appendChild(editWrap)
 
+  // ── Actions column (3rd grid column) ─────────────────────────────────────────
+  const actions = document.createElement('div')
+  actions.className = 'seg-actions'
+
+  function makeActionBtn(tooltip, svgHtml) {
+    const btn = document.createElement('button')
+    btn.className = 'seg-action-btn'
+    btn.setAttribute('data-tooltip', tooltip)
+    btn.innerHTML = svgHtml
+    attachSegTooltip(btn)
+    return btn
+  }
+
+  const bookmarkBtn = makeActionBtn('Bookmark segment', `<svg width="10" height="12" viewBox="0 0 11 13" fill="none">
+    <path d="M1.5 1.5h8v10l-4-2.5-4 2.5v-10z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+  </svg>`)
+
+  const moreBtn = makeActionBtn('More actions', `<svg width="12" height="3" viewBox="0 0 13 3" fill="none">
+    <circle cx="1.5" cy="1.5" r="1.1" fill="currentColor"/>
+    <circle cx="6.5" cy="1.5" r="1.1" fill="currentColor"/>
+    <circle cx="11.5" cy="1.5" r="1.1" fill="currentColor"/>
+  </svg>`)
+
+  // More actions: inline copy + delete
+  moreBtn.addEventListener('click', e => {
+    e.stopPropagation()
+    const existing = document.getElementById('_seg-more-menu')
+    if (existing) { existing.remove(); return }
+
+    const menu = document.createElement('div')
+    menu.id = '_seg-more-menu'
+    menu.style.cssText = [
+      'position:fixed;z-index:9999;background:#fff;border:0.5px solid var(--border)',
+      'border-radius:8px;padding:4px;box-shadow:0 8px 20px rgba(0,0,0,0.12)',
+      'min-width:160px',
+    ].join(';')
+
+    const items = [
+      { label: 'Copy text', action: () => navigator.clipboard.writeText(seg.text).then(() => window.showToast?.('Copied to clipboard')).catch(() => window.showToast?.('Copy failed')) },
+      { label: 'Edit text', action: enterEditMode },
+      { label: 'Delete segment', danger: true, action: () => {
+        fetch(`${API_BASE}/transcripts/${transcriptId}/segments/${seg.start}`, { method: 'DELETE' })
+          .then(r => { if (!r.ok) throw new Error(r.status) })
+          .then(() => { row.style.opacity = '0'; row.style.transition = 'opacity 0.15s'; setTimeout(() => { row.remove(); onReload() }, 150) })
+      }},
+    ]
+
+    items.forEach(it => {
+      const btn = document.createElement('button')
+      btn.style.cssText = `display:flex;align-items:center;width:100%;padding:6px 9px;border:none;background:transparent;cursor:pointer;border-radius:5px;font-size:13px;font-family:inherit;text-align:left;color:${it.danger ? '#FF453A' : 'var(--ink)'}`
+      btn.textContent = it.label
+      btn.onmouseenter = () => { btn.style.background = 'rgba(0,0,0,0.04)' }
+      btn.onmouseleave = () => { btn.style.background = 'transparent' }
+      btn.addEventListener('click', () => { menu.remove(); it.action() })
+      menu.appendChild(btn)
+    })
+
+    document.body.appendChild(menu)
+    const r = moreBtn.getBoundingClientRect()
+    menu.style.left = Math.max(8, r.right - menu.offsetWidth) + 'px'
+    menu.style.top = (r.bottom + 4) + 'px'
+
+    setTimeout(() => {
+      function close(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('mousedown', close) } }
+      document.addEventListener('mousedown', close)
+    }, 0)
+  })
+
+  actions.appendChild(bookmarkBtn)
+  actions.appendChild(moreBtn)
+
   row.appendChild(time)
   row.appendChild(mid)
+  row.appendChild(actions)
 
-  // ── Interactions ──────────────────────────────────────────────────────────
+  // ── Interactions ─────────────────────────────────────────────────────────────
 
   function enterEditMode() {
     if (editing) return
@@ -302,19 +332,13 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
 
   function commitEdit() {
     const newText = editArea.innerText.trim()
-    if (!newText || newText === seg.text) {
-      cancelEdit()
-      return
-    }
+    if (!newText || newText === seg.text) { cancelEdit(); return }
     fetch(`${API_BASE}/transcripts/${transcriptId}/segments/${seg.start}/text`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: newText }),
-    }).then(() => {
-      seg.text = newText
-      textEl.textContent = newText
-      cancelEdit()
-    }).catch(() => cancelEdit())
+    }).then(() => { seg.text = newText; textEl.textContent = newText; cancelEdit() })
+      .catch(() => cancelEdit())
   }
 
   function cancelEdit() {
@@ -324,41 +348,11 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
     textEl.style.display = ''
   }
 
-  // Enter edit on text click or edit button
   textEl.addEventListener('click', enterEditMode)
-  editBtn.addEventListener('click', enterEditMode)
 
   editArea.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit() }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commitEdit() }
     if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }
-  })
-
-  cancelEditBtn.addEventListener('click', cancelEdit)
-  saveEditBtn.addEventListener('click', commitEdit)
-
-  // Copy to clipboard
-  copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(seg.text).then(() => {
-      copyBtn.setAttribute('data-tooltip', 'Copied!')
-      setTimeout(() => copyBtn.setAttribute('data-tooltip', 'Copy segment'), 1500)
-    })
-  })
-
-  // Delete segment
-  deleteBtn.addEventListener('click', () => {
-    fetch(`${API_BASE}/transcripts/${transcriptId}/segments/${seg.start}`, {
-      method: 'DELETE',
-    }).then(r => {
-      if (!r.ok) throw new Error(r.status)
-      row.style.transition = 'opacity 0.15s'
-      row.style.opacity = '0'
-      setTimeout(() => { row.remove(); onReload() }, 150)
-    })
-  })
-
-  // Play (no-op until audio is implemented)
-  playBtn.addEventListener('click', () => {
-    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   })
 
   return row
@@ -468,105 +462,205 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
   return card
 }
 
+// ── Waveform ───────────────────────────────────────────────────────────────────
+function buildWaveform(segs, audio, signal, knownMap = {}) {
+  const BARS = 120
+
+  const heights = (() => {
+    const arr = []; let seed = 11
+    for (let i = 0; i < BARS; i++) {
+      seed = (seed * 9301 + 49297) % 233280
+      const r = seed / 233280
+      const env = 0.45 + 0.55 * Math.abs(Math.sin(i * 0.13)) * (0.7 + 0.3 * Math.cos(i * 0.05))
+      arr.push(Math.max(0.10, Math.min(1, env * (0.55 + 0.55 * r))))
+    }
+    return arr
+  })()
+
+  const DEFAULT_BAR_COLOR = 'rgba(0,0,0,0.22)'
+
+  const wrap = document.createElement('div')
+  wrap.className = 'waveform'
+
+  const barEls = heights.map((h, i) => {
+    const bar = document.createElement('div')
+    bar.className = 'waveform-bar'
+    bar.style.height = Math.round(h * 78) + '%'
+    bar.style.background = DEFAULT_BAR_COLOR
+    wrap.appendChild(bar)
+    return bar
+  })
+
+  // Hover scrubber
+  const scrubLine = document.createElement('div')
+  scrubLine.className = 'waveform-scrub'
+  wrap.appendChild(scrubLine)
+
+  const scrubTip = document.createElement('div')
+  scrubTip.className = 'waveform-tip'
+  wrap.appendChild(scrubTip)
+
+  function colorAt(i) {
+    if (!audio.duration) return null
+    const t = (i + 0.5) / BARS * audio.duration
+    const seg = segs.find(s => t >= s.start && t < s.end)
+    if (!seg) return null
+    const spkId = effectiveSpeaker(seg)
+    return isUnrecognized(spkId, knownMap) ? null : speakerPalette(spkId).color
+  }
+
+  function updateColors() {
+    barEls.forEach((bar, i) => {
+      const c = colorAt(i)
+      bar.style.background = c || DEFAULT_BAR_COLOR
+    })
+  }
+
+  function updateFill() {
+    if (!audio.duration) return
+    const filled = (audio.currentTime / audio.duration) * BARS
+    barEls.forEach((bar, i) => { bar.style.opacity = i <= filled ? '1' : '0.32' })
+  }
+
+  audio.addEventListener('loadedmetadata', () => { updateColors(); updateFill() }, { signal })
+  audio.addEventListener('timeupdate', updateFill, { signal })
+
+  // Seek interaction
+  let dragging = false
+  function seekAt(e) {
+    const rect = wrap.getBoundingClientRect()
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+    if (audio.duration) audio.currentTime = pct * audio.duration
+  }
+  function moveScrubber(e) {
+    const rect = wrap.getBoundingClientRect()
+    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left))
+    const t = audio.duration ? (x / rect.width) * audio.duration : 0
+    scrubLine.style.left = x + 'px'
+    scrubLine.style.display = 'block'
+    scrubTip.textContent = fmtTime(t)
+    scrubTip.style.left = x + 'px'
+    scrubTip.style.display = 'block'
+  }
+  wrap.addEventListener('mousedown', e => { dragging = true; seekAt(e) })
+  wrap.addEventListener('mousemove', e => { moveScrubber(e); if (dragging) seekAt(e) })
+  document.addEventListener('mouseup', () => { dragging = false }, { signal })
+  wrap.addEventListener('mouseleave', () => {
+    if (!dragging) {
+      scrubLine.style.display = 'none'
+      scrubTip.style.display = 'none'
+    }
+  })
+
+  return wrap
+}
+
 // ── Player bar ─────────────────────────────────────────────────────────────────
-function makePlayerBar(transcript, audio, signal) {
+function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
   const segs = transcript.segments
 
   const bar = document.createElement('div')
   bar.className = 'player-bar'
 
-  const sideL = document.createElement('div')
-  sideL.className = 'player-side'
-
-  const center = document.createElement('div')
-  center.className = 'player-center'
-
-  const sideR = document.createElement('div')
-  sideR.className = 'player-side player-side--right'
-
   // ── Icons ──────────────────────────────────────────────────────────────────
-  const I_PREV_SPK = `<svg width="20" height="20" viewBox="0 0 24 24"><g transform="scale(-1,1) translate(-24,0)"><path fill="currentColor" fill-rule="evenodd" d="M13.97 6.47a.75.75 0 0 1 1.06 0l5 5a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 1 1-1.06-1.06l3.72-3.72H9.5c-.713 0-1.8.22-2.687.859-.848.61-1.563 1.635-1.563 3.391a.75.75 0 0 1-1.5 0c0-2.244.952-3.72 2.187-4.609 1.196-.861 2.61-1.141 3.563-1.141h8.19l-3.72-3.72a.75.75 0 0 1 0-1.06" clip-rule="evenodd"/></g></svg>`
-  const I_PREV_SEG = `<svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="m19.95 16.975-6.2-4.15q-.225-.15-.337-.362T13.3 12t.113-.462.337-.363l6.2-4.15q.125-.1.275-.125t.275-.025q.4 0 .7.275t.3.725v8.25q0 .45-.3.725t-.7.275q-.125 0-.275-.025t-.275-.125m-10 0-6.2-4.15q-.225-.15-.337-.362T3.3 12t.113-.462.337-.363l6.2-4.15q.125-.1.275-.125t.275-.025q.4 0 .7.275t.3.725v8.25q0 .45-.3.725t-.7.275q-.125 0-.275-.025t-.275-.125"/></svg>`
-  const I_PLAY    = `<svg width="26" height="26" viewBox="0 0 24 24"><path fill="currentColor" d="M9 15.714V8.287q0-.368.244-.588.243-.22.568-.22.102 0 .213.028.11.027.211.083l5.843 3.733q.186.13.28.298.093.167.093.379t-.093.379-.28.298l-5.843 3.733q-.101.055-.213.083t-.213.028q-.326 0-.568-.22T9 15.714"/></svg>`
-  const I_PAUSE   = `<svg width="26" height="26" viewBox="0 0 24 24"><path fill="currentColor" d="M16 19q-.825 0-1.412-.587T14 17V7q0-.825.588-1.412T16 5t1.413.588T18 7v10q0 .825-.587 1.413T16 19m-8 0q-.825 0-1.412-.587T6 17V7q0-.825.588-1.412T8 5t1.413.588T10 7v10q0 .825-.587 1.413T8 19"/></svg>`
-  const I_NEXT_SEG = `<svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M2.5 16.125v-8.25q0-.45.3-.725t.7-.275q.125 0 .275.025t.275.125l6.2 4.15q.225.15.338.363T10.7 12t-.112.463-.338.362l-6.2 4.15q-.125.1-.275.125t-.275.025q-.4 0-.7-.275t-.3-.725m10 0v-8.25q0-.45.3-.725t.7-.275q.125 0 .275.025t.275.125l6.2 4.15q.225.15.338.363T20.7 12t-.112.463-.338.362l-6.2 4.15q-.125.1-.275.125t-.275.025q-.4 0-.7-.275t-.3-.725"/></svg>`
-  const I_NEXT_SPK = `<svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M13.97 6.47a.75.75 0 0 1 1.06 0l5 5a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 1 1-1.06-1.06l3.72-3.72H9.5c-.713 0-1.8.22-2.687.859-.848.61-1.563 1.635-1.563 3.391a.75.75 0 0 1-1.5 0c0-2.244.952-3.72 2.187-4.609 1.196-.861 2.61-1.141 3.563-1.141h8.19l-3.72-3.72a.75.75 0 0 1 0-1.06" clip-rule="evenodd"/></svg>`
-  const I_VOLUME  = `<svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M14 20.725v-2.05q2.25-.65 3.625-2.5t1.375-4.2-1.375-4.2T14 5.275v-2.05q3.1.7 5.05 3.138T21 11.975t-1.95 5.613T14 20.725M3 15V9h4l5-5v16l-5-5zm11 1V7.95q1.175.55 1.838 1.65T16.5 12q0 1.275-.663 2.363T14 16"/></svg>`
+  const I_PREV_SPK = `<svg width="15" height="13" viewBox="0 0 15 13" fill="none">
+    <rect x="2" y="3" width="1.4" height="7" rx="0.4" fill="currentColor"/>
+    <path d="M11.5 3L5 6.5L11.5 10V3z" fill="currentColor"/>
+  </svg>`
+  const I_PREV_15  = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <path d="M8 3.5L4.5 7l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M5 7h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`
+  const I_PLAY    = `<svg width="10" height="11" viewBox="0 0 10 12" fill="none" style="margin-left:1px">
+    <path d="M1 1l8 5-8 5V1z" fill="currentColor"/>
+  </svg>`
+  const I_PAUSE   = `<svg width="10" height="11" viewBox="0 0 11 12" fill="none">
+    <rect x="1" y="1" width="3" height="10" rx="0.7" fill="currentColor"/>
+    <rect x="7" y="1" width="3" height="10" rx="0.7" fill="currentColor"/>
+  </svg>`
+  const I_NEXT_15  = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <path d="M6 3.5L9.5 7 6 10.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M3 7h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`
+  const I_NEXT_SPK = `<svg width="15" height="13" viewBox="0 0 15 13" fill="none">
+    <path d="M3.5 3L10 6.5L3.5 10V3z" fill="currentColor"/>
+    <rect x="11.6" y="3" width="1.4" height="7" rx="0.4" fill="currentColor"/>
+  </svg>`
+  const I_VOLUME  = `<svg width="14" height="13" viewBox="0 0 16 14" fill="none">
+    <path d="M2 5v4h2.5L8 11.5v-9L4.5 5H2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>
+    <path d="M10.5 4.5c1 .8 1 4.2 0 5M12.5 3c2 1.5 2 7 0 8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+  </svg>`
 
-  function makeBtn(tooltip, html, cls = '') {
+  function makeBtn(html, cls = '') {
     const btn = document.createElement('button')
     btn.className = 'player-btn' + (cls ? ' ' + cls : '')
-    btn.setAttribute('data-tooltip', tooltip)
     btn.innerHTML = html
-    attachSegTooltip(btn)
     return btn
   }
 
-  const prevSpkBtn = makeBtn('Previous speaker', I_PREV_SPK)
-  const prevSegBtn = makeBtn('Previous segment', I_PREV_SEG)
-  const playBtn    = makeBtn('Play / Pause',     I_PLAY, 'player-btn--play')
-  const nextSegBtn = makeBtn('Next segment',     I_NEXT_SEG)
-  const nextSpkBtn = makeBtn('Next speaker',     I_NEXT_SPK)
+  const prevSpkBtn = makeBtn(I_PREV_SPK)
+  const prev15Btn  = makeBtn(I_PREV_15)
+  const playBtn    = makeBtn(I_PLAY, 'player-btn--play')
+  const next15Btn  = makeBtn(I_NEXT_15)
+  const nextSpkBtn = makeBtn(I_NEXT_SPK)
 
   const controls = document.createElement('div')
   controls.className = 'player-controls'
-  ;[prevSpkBtn, prevSegBtn, playBtn, nextSegBtn, nextSpkBtn].forEach(b => controls.appendChild(b))
+  ;[prevSpkBtn, prev15Btn, playBtn, next15Btn, nextSpkBtn].forEach(b => controls.appendChild(b))
 
-  // ── Progress ────────────────────────────────────────────────────────────────
+  // ── Elapsed ────────────────────────────────────────────────────────────────
   const elapsed = document.createElement('span')
   elapsed.className = 'player-time'
   elapsed.textContent = '00:00'
 
-  const track = document.createElement('input')
-  track.type = 'range'
-  track.className = 'player-track'
-  track.min = 0; track.max = 1000; track.value = 0
+  // ── Waveform ───────────────────────────────────────────────────────────────
+  const _km = {}; knownSpeakers.forEach(s => { _km[s.id] = s.name })
+  const waveform = buildWaveform(segs, audio, signal, _km)
 
+  // ── Total ─────────────────────────────────────────────────────────────────
   const total = document.createElement('span')
   total.className = 'player-time'
+  total.style.textAlign = 'right'
   total.textContent = '00:00'
 
-  const progress = document.createElement('div')
-  progress.className = 'player-progress'
-  ;[elapsed, track, total].forEach(el => progress.appendChild(el))
+  // ── Speed ─────────────────────────────────────────────────────────────────
+  const SPEEDS = [1, 1.25, 1.5, 2]
+  let speedIdx = 0
+  const speedBtn = document.createElement('button')
+  speedBtn.className = 'player-speed'
+  speedBtn.textContent = '1×'
+  speedBtn.addEventListener('click', () => {
+    speedIdx = (speedIdx + 1) % SPEEDS.length
+    audio.playbackRate = SPEEDS[speedIdx]
+    speedBtn.textContent = SPEEDS[speedIdx] + '×'
+  })
 
-  center.appendChild(controls)
-  center.appendChild(progress)
-
-  // ── Volume ──────────────────────────────────────────────────────────────────
-  const volBtn = document.createElement('button')
-  volBtn.className = 'player-btn'
-  volBtn.innerHTML = I_VOLUME
-
-  const volSlider = document.createElement('input')
-  volSlider.type = 'range'
-  volSlider.className = 'player-vol'
-  volSlider.min = 0; volSlider.max = 100; volSlider.value = 80
+  // ── Volume ────────────────────────────────────────────────────────────────
+  const volBtn = makeBtn(I_VOLUME)
   audio.volume = 0.8
+  let muted = false
+  volBtn.addEventListener('click', () => {
+    muted = !muted
+    audio.muted = muted
+    volBtn.style.opacity = muted ? '0.4' : '1'
+  })
 
-  sideR.appendChild(volBtn)
-  sideR.appendChild(volSlider)
-
-  bar.appendChild(sideL)
-  bar.appendChild(center)
-  bar.appendChild(sideR)
+  bar.appendChild(controls)
+  bar.appendChild(elapsed)
+  bar.appendChild(waveform)
+  bar.appendChild(total)
+  bar.appendChild(speedBtn)
+  bar.appendChild(volBtn)
 
   // ── Audio event wiring ─────────────────────────────────────────────────────
-  let seeking = false
+  audio.addEventListener('timeupdate', () => {
+    elapsed.textContent = fmtTime(audio.currentTime)
+  }, { signal })
 
-  function updateTrack() {
-    if (!seeking && audio.duration) {
-      const pct = audio.currentTime / audio.duration
-      track.value = pct * 1000
-      track.style.setProperty('--pct', (pct * 100).toFixed(2) + '%')
-      elapsed.textContent = fmtTime(audio.currentTime)
-    }
-  }
-
-  audio.addEventListener('timeupdate',     updateTrack, { signal })
   audio.addEventListener('durationchange', () => {
     if (isFinite(audio.duration)) total.textContent = fmtTime(audio.duration)
   }, { signal })
+
   audio.addEventListener('play',  () => { playBtn.innerHTML = I_PAUSE }, { signal })
   audio.addEventListener('pause', () => { playBtn.innerHTML = I_PLAY  }, { signal })
   audio.addEventListener('ended', () => { playBtn.innerHTML = I_PLAY  }, { signal })
@@ -575,39 +669,10 @@ function makePlayerBar(transcript, audio, signal) {
     audio.paused ? audio.play().catch(() => {}) : audio.pause()
   })
 
-  track.addEventListener('mousedown', () => { seeking = true })
-  track.addEventListener('input', () => {
-    if (audio.duration) {
-      const t = (track.value / 1000) * audio.duration
-      elapsed.textContent = fmtTime(t)
-      track.style.setProperty('--pct', (track.value / 10).toFixed(2) + '%')
-    }
-  })
-  track.addEventListener('change', () => {
-    if (audio.duration) audio.currentTime = (track.value / 1000) * audio.duration
-    seeking = false
-  })
+  prev15Btn.addEventListener('click', () => { audio.currentTime = Math.max(0, audio.currentTime - 15) })
+  next15Btn.addEventListener('click', () => { audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 15) })
 
-  volSlider.addEventListener('input', () => { audio.volume = volSlider.value / 100 })
-
-  // ── Segment / speaker navigation ────────────────────────────────────────────
-  function curSegIdx() {
-    const t = audio.currentTime
-    for (let i = segs.length - 1; i >= 0; i--) {
-      if (segs[i].start <= t) return i
-    }
-    return 0
-  }
-
-  prevSegBtn.addEventListener('click', () => {
-    const i = curSegIdx()
-    audio.currentTime = i > 0 ? segs[i - 1].start : 0
-  })
-  nextSegBtn.addEventListener('click', () => {
-    const i = curSegIdx()
-    if (i + 1 < segs.length) audio.currentTime = segs[i + 1].start
-  })
-
+  // ── Speaker navigation ─────────────────────────────────────────────────────
   function spkChanges() {
     const ch = [0]
     for (let i = 1; i < segs.length; i++) {
@@ -639,34 +704,79 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
   const panel = document.createElement('div')
   panel.className = 'right-panel'
 
-  // Tabs
+  const knownMap = {}
+  knownSpeakers.forEach(s => { knownMap[s.id] = s.name })
+
+  // Stable "Unknown N" display name for unrecognized speakers
+  const firstSeen = {}
+  transcript.segments.forEach(s => {
+    const id = effectiveSpeaker(s)
+    if (isUnrecognized(id, knownMap) && !(id in firstSeen)) firstSeen[id] = s.start
+  })
+  const unrecIds = Object.keys(firstSeen).sort((a, b) => firstSeen[a] - firstSeen[b])
+  function getDisplayName(spkId) {
+    if (knownMap[spkId]) return knownMap[spkId]
+    const n = unrecIds.indexOf(spkId) + 1
+    return n > 0 ? `Unknown ${n}` : spkId
+  }
+
+  // ── Tab bar (segmented control) ─────────────────────────────────────────────
   const tabBar = document.createElement('div')
   tabBar.className = 'right-tabs'
 
-  const tabs = ['Speakers', 'Notes', 'Marks']
+  const seg = document.createElement('div')
+  seg.className = 'right-tabs-seg'
+  tabBar.appendChild(seg)
+
+  const TABS = ['Speakers', 'Chapters', 'Notes', 'Activity']
   let activeTab = 'Speakers'
 
   const content = document.createElement('div')
   content.className = 'right-content quiet-scroll'
 
-  function renderContent() {
-    content.innerHTML = ''
-    if (activeTab === 'Speakers') renderSpeakers()
-    else {
-      const empty = document.createElement('div')
-      empty.className = 'right-empty'
-      empty.innerHTML = `<div class="right-empty-title">No ${activeTab.toLowerCase()} yet</div>`
-      content.appendChild(empty)
-    }
+  function setTab(label) {
+    activeTab = label
+    seg.querySelectorAll('.right-tab-btn').forEach(b => {
+      b.classList.toggle('right-tab-btn--active', b.textContent === label)
+    })
+    renderContent()
   }
 
-  function renderSpeakers() {
-    // Aggregate speaker durations from segments
-    const durBySpeaker = {}
-    const countBySpeaker = {}
-    const sampleBySpeaker = {}
-    let totalDur = 0
+  TABS.forEach(label => {
+    const btn = document.createElement('button')
+    btn.className = 'right-tab-btn' + (label === activeTab ? ' right-tab-btn--active' : '')
+    btn.textContent = label
+    btn.addEventListener('click', () => setTab(label))
+    seg.appendChild(btn)
+  })
 
+  // ── Render dispatcher ───────────────────────────────────────────────────────
+  function renderContent() {
+    content.innerHTML = ''
+    if (activeTab === 'Speakers')  renderSpeakers()
+    else if (activeTab === 'Chapters') renderChapters()
+    else if (activeTab === 'Notes')    renderNotes()
+    else renderActivity()
+  }
+
+  // ── Empty state helper ──────────────────────────────────────────────────────
+  function emptyState(title, hint = '') {
+    const el = document.createElement('div')
+    el.className = 'right-empty'
+    el.innerHTML = `<div class="right-empty-title">${title}</div>`
+    if (hint) {
+      const h = document.createElement('div')
+      h.style.cssText = 'font-size:11.5px;color:var(--ink-dim);margin-top:4px;line-height:1.45'
+      h.textContent = hint
+      el.appendChild(h)
+    }
+    return el
+  }
+
+  // ── Speakers tab ────────────────────────────────────────────────────────────
+  function renderSpeakers() {
+    const durBySpeaker = {}, countBySpeaker = {}, sampleBySpeaker = {}
+    let totalDur = 0
     transcript.segments.forEach(seg => {
       const spkId = effectiveSpeaker(seg)
       const d = seg.end - seg.start
@@ -675,9 +785,6 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
       totalDur += d
       if (!sampleBySpeaker[spkId]) sampleBySpeaker[spkId] = seg.text
     })
-
-    const knownMap = {}
-    knownSpeakers.forEach(s => { knownMap[s.id] = s.name })
 
     const recognized   = Object.keys(durBySpeaker).filter(id => !isUnrecognized(id, knownMap))
     const unrecognized = Object.keys(durBySpeaker).filter(id => isUnrecognized(id, knownMap))
@@ -691,30 +798,24 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
     }
 
     if (recognized.length > 0) {
-      content.appendChild(sectionLabel('Recognized', recognized.length, '#2EB387'))
+      content.appendChild(sectionLabel('Recognized', recognized.length, '#30D158'))
       recognized.forEach(spkId => {
-        const displayName = knownMap[spkId] || spkId
-        const card = makeSpeakerCard(
-          spkId, displayName,
+        content.appendChild(makeSpeakerCard(
+          spkId, knownMap[spkId] || spkId,
           countBySpeaker[spkId], durBySpeaker[spkId],
           totalDur, transcriptId, onReload, knownSpeakers
-        )
-        content.appendChild(card)
+        ))
       })
     }
 
     if (unrecognized.length > 0) {
-      let n = 0
-      content.appendChild(sectionLabel('Unrecognized', unrecognized.length, '#B58A3A'))
-      unrecognized.forEach(spkId => {
-        n++
-        const displayName = `Unknown speaker ${n}`
+      content.appendChild(sectionLabel('Unrecognized', unrecognized.length, '#FF9F0A'))
+      unrecognized.forEach((spkId, i) => {
         const card = makeSpeakerCard(
-          spkId, displayName,
+          spkId, `Unknown speaker ${i + 1}`,
           countBySpeaker[spkId], durBySpeaker[spkId],
           totalDur, transcriptId, onReload, knownSpeakers
         )
-        // Add sample quote
         const sample = sampleBySpeaker[spkId]
         if (sample) {
           const quote = document.createElement('div')
@@ -725,21 +826,130 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
         content.appendChild(card)
       })
     }
+
+    if (recognized.length === 0 && unrecognized.length === 0) {
+      content.appendChild(emptyState('No speakers', 'Transcript has no segments.'))
+    }
   }
 
-  tabs.forEach(label => {
-    const btn = document.createElement('button')
-    btn.className = 'right-tab-btn' + (label === activeTab ? ' right-tab-btn--active' : '')
-    btn.textContent = label
-    btn.addEventListener('click', () => {
-      activeTab = label
-      tabBar.querySelectorAll('.right-tab-btn').forEach(b => {
-        b.classList.toggle('right-tab-btn--active', b.textContent === label)
-      })
-      renderContent()
+  // ── Chapters tab ────────────────────────────────────────────────────────────
+  function renderChapters() {
+    // Group consecutive segments by speaker
+    const groups = []
+    transcript.segments.forEach(seg => {
+      const spkId = effectiveSpeaker(seg)
+      const last = groups[groups.length - 1]
+      if (last && last.spkId === spkId) {
+        last.end = seg.end
+        last.count++
+      } else {
+        groups.push({ spkId, start: seg.start, end: seg.end, count: 1, firstText: seg.text })
+      }
     })
-    tabBar.appendChild(btn)
-  })
+
+    if (groups.length === 0) {
+      content.appendChild(emptyState('No chapters', 'Transcript has no segments.'))
+      return
+    }
+
+    const label = document.createElement('div')
+    label.className = 'right-section-label'
+    label.style.marginBottom = '8px'
+    label.innerHTML = `<span>${groups.length} speaker turn${groups.length !== 1 ? 's' : ''}</span>`
+    content.appendChild(label)
+
+    groups.forEach((g, i) => {
+      const name = getDisplayName(g.spkId)
+      const p = isUnrecognized(g.spkId, knownMap) ? null : speakerPalette(g.spkId)
+      const color = p ? p.color : 'var(--ink-dim)'
+
+      const item = document.createElement('button')
+      item.style.cssText = [
+        'display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:flex-start',
+        'width:100%;padding:8px;border-radius:6px;border:none;background:transparent',
+        'cursor:pointer;text-align:left;margin-bottom:1px',
+      ].join(';')
+
+      const numEl = document.createElement('div')
+      numEl.style.cssText = [
+        `font-family:var(--mono);font-size:10px;font-weight:600;color:var(--ink-dim)`,
+        'font-variant-numeric:tabular-nums;padding-top:2px;text-align:right',
+      ].join(';')
+      numEl.textContent = String(i + 1).padStart(2, '0')
+
+      const infoEl = document.createElement('div')
+      infoEl.style.minWidth = '0'
+
+      const spkRow = document.createElement('div')
+      spkRow.style.cssText = 'display:flex;align-items:center;gap:5px;margin-bottom:3px'
+      spkRow.innerHTML = `
+        <span style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></span>
+        <span style="font-size:12.5px;font-weight:600;color:${color};letter-spacing:-0.005em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+      `
+
+      const metaEl = document.createElement('div')
+      metaEl.style.cssText = 'display:flex;gap:5px;font-size:10.5px;color:var(--ink-dim);margin-bottom:4px;font-variant-numeric:tabular-nums'
+      metaEl.innerHTML = `<span style="font-family:var(--mono)">${fmtTime(g.start)}</span><span>·</span><span>${fmtTime(g.end - g.start)}</span><span>·</span><span>${g.count} seg</span>`
+
+      const previewEl = document.createElement('div')
+      previewEl.style.cssText = 'font-size:11.5px;color:var(--ink-2);line-height:1.45;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical'
+      previewEl.textContent = g.firstText.slice(0, 90) + (g.firstText.length > 90 ? '…' : '')
+
+      infoEl.appendChild(spkRow)
+      infoEl.appendChild(metaEl)
+      infoEl.appendChild(previewEl)
+
+      item.appendChild(numEl)
+      item.appendChild(infoEl)
+
+      item.onmouseenter = () => { item.style.background = 'rgba(0,0,0,0.03)' }
+      item.onmouseleave = () => { item.style.background = 'transparent' }
+
+      content.appendChild(item)
+    })
+  }
+
+  // ── Notes tab ───────────────────────────────────────────────────────────────
+  function renderNotes() {
+    content.appendChild(emptyState(
+      'No notes yet',
+      'Notes and highlights will appear here in a future update.'
+    ))
+  }
+
+  // ── Activity tab ────────────────────────────────────────────────────────────
+  function renderActivity() {
+    const wrap = document.createElement('div')
+    wrap.style.cssText = 'padding:4px 0'
+
+    const infoLabel = document.createElement('div')
+    infoLabel.className = 'right-section-label'
+    infoLabel.style.marginBottom = '10px'
+    infoLabel.textContent = 'Recent changes'
+    wrap.appendChild(infoLabel)
+
+    // Static entries based on transcript metadata
+    const items = [
+      { icon: '📝', text: 'Transcript created', when: transcript.created_at ? new Date(transcript.created_at).toLocaleDateString() : 'recently' },
+      { icon: '🎙', text: `${transcript.segments.length} segments transcribed`, when: '' },
+      { icon: '👥', text: `${new Set(transcript.segments.map(s => effectiveSpeaker(s))).size} speakers identified`, when: '' },
+    ]
+
+    items.forEach(it => {
+      const row = document.createElement('div')
+      row.style.cssText = 'display:flex;gap:9px;padding:7px 4px;border-radius:5px'
+      row.innerHTML = `
+        <span style="font-size:14px;flex-shrink:0">${it.icon}</span>
+        <div style="min-width:0">
+          <div style="font-size:12.5px;color:var(--ink);line-height:1.4">${it.text}</div>
+          ${it.when ? `<div style="font-size:10.5px;color:var(--ink-dim);margin-top:1px">${it.when}</div>` : ''}
+        </div>
+      `
+      wrap.appendChild(row)
+    })
+
+    content.appendChild(wrap)
+  }
 
   panel.appendChild(tabBar)
   panel.appendChild(content)
@@ -768,6 +978,29 @@ function renderEditorView(transcriptId) {
   audio.preload = 'metadata'
   let playerAbortCtrl = null
   let rightPanelEl = null
+
+  function makeTagsRow(transcript) {
+    const row = document.createElement('div')
+    row.className = 'focus-tags'
+
+    const audioPath = transcript.audio_path || ''
+    const isLiveRec = audioPath.includes('whisper-rec-')
+    const sourceLabel = isLiveRec ? 'live recording' : 'file'
+
+    const srcChip = document.createElement('span')
+    srcChip.className = 'focus-tag'
+    srcChip.style.cssText = 'background:rgba(10,132,255,0.08);color:var(--accent);border:0.5px solid rgba(10,132,255,0.20)'
+    srcChip.textContent = sourceLabel
+    row.appendChild(srcChip)
+
+    const addBtn = document.createElement('button')
+    addBtn.className = 'focus-tag focus-tag--add'
+    addBtn.textContent = '+ tag'
+    addBtn.addEventListener('click', () => window.showToast?.('Tags coming in a future update'))
+    row.appendChild(addBtn)
+
+    return row
+  }
 
   function buildEditor(transcript, knownSpeakers) {
     focusPanel.innerHTML = ''
@@ -833,25 +1066,126 @@ function renderEditorView(transcriptId) {
     topBar.appendChild(breadcrumb)
     topBar.appendChild(titleRow)
     topBar.appendChild(metaRow)
+    topBar.appendChild(makeTagsRow(transcript))
 
     // ── Segment list ──────────────────────────────────────────────────────────
     const segList = document.createElement('div')
     segList.className = 'seg-list quiet-scroll'
 
-    transcript.segments.forEach(seg => {
+    let prevSpkId = null
+    transcript.segments.forEach((seg, i) => {
       const spkId = effectiveSpeaker(seg)
-      const row = makeSegmentRow(seg, transcriptId, displayName(spkId), reload, knownMap, knownSpeakers)
-      // Color the speaker name in row
-      const nameBtn = row.querySelector('.seg-speaker-name')
-      if (nameBtn && !isUnrecognized(spkId, knownMap)) {
-        nameBtn.style.color = speakerPalette(spkId).color
-      }
+      const row = makeSegmentRow(seg, transcriptId, displayName(spkId), reload, knownMap, knownSpeakers, audio)
+      if (i > 0 && spkId !== prevSpkId) row.classList.add('seg-row--speaker-break')
+      prevSpkId = spkId
       segList.appendChild(row)
     })
 
+    // Wire playing indicator
+    audio.addEventListener('timeupdate', () => {
+      const t = audio.currentTime
+      segList.querySelectorAll('.seg-row').forEach(r => {
+        const start = parseFloat(r.dataset.start)
+        const end   = parseFloat(r.dataset.end || '9999')
+        r.classList.toggle('seg-row--playing', t >= start && t < end)
+      })
+    }, { signal: playerAbortCtrl.signal })
+
+    // ── Selection toolbar ─────────────────────────────────────────────────────
+    segList.dataset.stream = 'true'
+
+    const selToolbar = document.createElement('div')
+    selToolbar.className = 'sel-toolbar'
+    selToolbar.style.display = 'none'
+
+    function hideSelToolbar() { selToolbar.style.display = 'none' }
+
+    const SEL_ACTIONS = [
+      {
+        label: 'Copy',
+        icon: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="4.5" y="4.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M3 8.5H2A1.5 1.5 0 0 1 .5 7V2A1.5 1.5 0 0 1 2 .5h5A1.5 1.5 0 0 1 8.5 2v1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+        action() {
+          const text = window.getSelection()?.toString()
+          if (text) navigator.clipboard.writeText(text)
+            .then(() => window.showToast?.('Copied'))
+            .catch(() => window.showToast?.('Copy failed'))
+          hideSelToolbar()
+          window.getSelection()?.removeAllRanges()
+        }
+      },
+      {
+        label: 'Quote',
+        icon: `<svg width="13" height="11" viewBox="0 0 13 11" fill="none"><path d="M1 1h4v4H1V1zM8 1h4v4H8V1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M1 5c0 2 1.5 4 4 5M8 5c0 2 1.5 4 4 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+        action() {
+          const text = window.getSelection()?.toString()
+          if (text) navigator.clipboard.writeText(`"${text}"`)
+            .then(() => window.showToast?.('Quote copied'))
+            .catch(() => window.showToast?.('Copy failed'))
+          hideSelToolbar()
+          window.getSelection()?.removeAllRanges()
+        }
+      },
+      {
+        label: 'Edit',
+        icon: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M9.5 1.5l2 2-7 7-2.5.5.5-2.5 7-7z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
+        action() {
+          const sel = window.getSelection()
+          const el = sel?.anchorNode?.parentElement?.closest('.seg-row')
+          if (el) el.querySelector('.seg-text')?.click()
+          hideSelToolbar()
+        }
+      },
+    ]
+
+    SEL_ACTIONS.forEach((item, i) => {
+      if (i > 0) {
+        const sep = document.createElement('div')
+        sep.className = 'sel-toolbar-sep'
+        selToolbar.appendChild(sep)
+      }
+      const btn = document.createElement('button')
+      btn.className = 'sel-action-btn'
+      btn.innerHTML = item.icon + `<span>${item.label}</span>`
+      btn.addEventListener('mousedown', e => e.preventDefault())
+      btn.addEventListener('click', item.action)
+      selToolbar.appendChild(btn)
+    })
+
+    function onMouseUp() {
+      const sel = window.getSelection()
+      if (!sel || sel.isCollapsed) { hideSelToolbar(); return }
+      const anchor = sel.anchorNode
+      if (!anchor) { hideSelToolbar(); return }
+      const el = anchor.nodeType === 1 ? anchor : anchor.parentElement
+      if (!el?.closest('[data-stream]')) { hideSelToolbar(); return }
+
+      const range = sel.getRangeAt(0)
+      const rRect = range.getBoundingClientRect()
+      const pRect = focusPanel.getBoundingClientRect()
+      if (rRect.width < 4) { hideSelToolbar(); return }
+
+      selToolbar.style.display = 'inline-flex'
+      const tbW = selToolbar.offsetWidth || 200
+      const tbH = selToolbar.offsetHeight || 34
+      const x = rRect.left + rRect.width / 2 - pRect.left - tbW / 2
+      const y = rRect.top - pRect.top - tbH - 10
+
+      selToolbar.style.left = Math.max(8, Math.min(x, pRect.width - tbW - 8)) + 'px'
+      selToolbar.style.top  = Math.max(8, y) + 'px'
+    }
+
+    function onSelectionChange() {
+      const sel = window.getSelection()
+      if (!sel || sel.isCollapsed) hideSelToolbar()
+    }
+
+    document.addEventListener('mouseup', onMouseUp, { signal: playerAbortCtrl.signal })
+    document.addEventListener('selectionchange', onSelectionChange, { signal: playerAbortCtrl.signal })
+
     focusPanel.appendChild(topBar)
     focusPanel.appendChild(segList)
-    focusPanel.appendChild(makePlayerBar(transcript, audio, playerAbortCtrl.signal))
+    focusPanel.appendChild(selToolbar)
+    focusPanel.appendChild(makePlayerBar(transcript, audio, playerAbortCtrl.signal, knownSpeakers))
 
     // ── Right panel ───────────────────────────────────────────────────────────
     if (rightPanelEl) rightPanelEl.remove()
