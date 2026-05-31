@@ -359,7 +359,7 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
 }
 
 // ── Speaker card (right panel) ─────────────────────────────────────────────────
-function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSec, transcriptId, onReload, knownSpeakers = []) {
+function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSec, transcriptId, onReload, knownSpeakers = [], sample = null) {
   const _knownMap = {}
   knownSpeakers.forEach(s => { _knownMap[s.id] = s.name })
   const unrecognized = isUnrecognized(spkId, _knownMap)
@@ -368,7 +368,107 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
   const card = document.createElement('div')
   card.className = unrecognized ? 'spk-card spk-card--unknown' : 'spk-card'
 
-  // Header row
+  if (unrecognized) {
+    // ── Unrecognized layout ─────────────────────────────────────────────────
+    // Header: [avatar] [name + meta] [play btn]  — all vertically centered
+    const top = document.createElement('div')
+    top.className = 'spk-card-top'
+
+    const avatar = makeAvatar(spkId, displayName, 32)
+
+    const info = document.createElement('div')
+    info.className = 'spk-card-info'
+
+    const nameEl = document.createElement('div')
+    nameEl.className = 'spk-card-name'
+    nameEl.textContent = displayName
+
+    const metaEl = document.createElement('div')
+    metaEl.className = 'spk-card-meta'
+    metaEl.textContent = `${segCount} segments · ${fmtTime(totalSec)}`
+
+    info.appendChild(nameEl)
+    info.appendChild(metaEl)
+
+    const playBtn = document.createElement('button')
+    playBtn.className = 'spk-card-play-btn'
+    playBtn.innerHTML = `<svg width="8" height="10" viewBox="0 0 9 11" fill="none">
+      <path d="M1.5 1.2L7.5 5.5 1.5 9.8V1.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+    </svg>`
+
+    top.appendChild(avatar)
+    top.appendChild(info)
+    top.appendChild(playBtn)
+    card.appendChild(top)
+
+    // Quote
+    if (sample) {
+      const quote = document.createElement('div')
+      quote.className = 'spk-quote'
+      quote.textContent = `"${sample.slice(0, 80)}${sample.length > 80 ? '…' : ''}"`
+      card.appendChild(quote)
+    }
+
+    // Suggestion (mocked)
+    const mockSuggestion = knownSpeakers[0] || null
+    if (mockSuggestion) {
+      const p = speakerPalette(mockSuggestion.id)
+      const sugg = document.createElement('div')
+      sugg.className = 'spk-suggestion'
+      sugg.style.background = p.bg
+      sugg.style.border = `0.5px solid ${p.color}40`
+
+      const dot = document.createElement('span')
+      dot.className = 'spk-suggestion-dot'
+      dot.style.background = p.color
+
+      const txt = document.createElement('span')
+      txt.className = 'spk-suggestion-text'
+      txt.innerHTML = `Likely <span class="spk-suggestion-name" style="color:${p.color}">${mockSuggestion.name}</span><span class="spk-suggestion-pct">87%</span>`
+
+      const btns = document.createElement('div')
+      btns.className = 'spk-suggestion-btns'
+
+      const confirmBtn = document.createElement('button')
+      confirmBtn.className = 'spk-suggestion-btn spk-suggestion-btn--confirm'
+      confirmBtn.style.background = p.color
+      confirmBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+        <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`
+
+      const rejectBtn = document.createElement('button')
+      rejectBtn.className = 'spk-suggestion-btn spk-suggestion-btn--reject'
+      rejectBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+        <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>`
+
+      btns.appendChild(confirmBtn)
+      btns.appendChild(rejectBtn)
+      sugg.appendChild(dot)
+      sugg.appendChild(txt)
+      sugg.appendChild(btns)
+      card.appendChild(sugg)
+    }
+
+    // Assign speaker button
+    const assignBtn = document.createElement('button')
+    assignBtn.className = 'spk-assign-btn'
+    assignBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <line x1="19" y1="8" x2="19" y2="14"/>
+      <line x1="22" y1="11" x2="16" y2="11"/>
+    </svg>Assign speaker`
+    assignBtn.addEventListener('click', e => {
+      e.stopPropagation()
+      showSpeakerPicker(assignBtn, spkId, knownSpeakers, transcriptId, onReload)
+    })
+    card.appendChild(assignBtn)
+
+    return card
+  }
+
+  // ── Recognized layout ───────────────────────────────────────────────────
   const top = document.createElement('div')
   top.className = 'spk-card-top'
 
@@ -387,7 +487,6 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
   info.appendChild(nameEl)
   info.appendChild(metaEl)
 
-  // ── Hover action buttons ────────────────────────────────────────────────
   const cardActions = document.createElement('div')
   cardActions.className = 'spk-card-actions'
 
@@ -412,19 +511,17 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
   })
 
   cardActions.appendChild(playCardBtn)
-  if (!unrecognized) cardActions.appendChild(reassignCardBtn)
+  cardActions.appendChild(reassignCardBtn)
 
   top.appendChild(avatar)
   top.appendChild(info)
   top.appendChild(cardActions)
   card.appendChild(top)
 
-  // Duration bar (all speakers)
   if (transcriptDurSec > 0) {
     const pct = Math.round(totalSec / transcriptDurSec * 100)
     const barWrap = document.createElement('div')
     barWrap.className = 'spk-dur-wrap'
-
     const track = document.createElement('div')
     track.className = 'spk-dur-track'
     const fill = document.createElement('div')
@@ -432,31 +529,12 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
     fill.style.width = pct + '%'
     fill.style.background = p ? p.color : '#B58A3A'
     track.appendChild(fill)
-
     const pctLbl = document.createElement('span')
     pctLbl.className = 'spk-dur-pct'
     pctLbl.textContent = pct + '%'
-
     barWrap.appendChild(track)
     barWrap.appendChild(pctLbl)
     card.appendChild(barWrap)
-  }
-
-  // Name button (unrecognized only) → opens picker popup
-  if (unrecognized) {
-    const btnRow = document.createElement('div')
-    btnRow.className = 'spk-btn-row'
-
-    const nameBtn = document.createElement('button')
-    nameBtn.className = 'spk-btn spk-btn--outline'
-    nameBtn.textContent = 'Name…'
-    nameBtn.addEventListener('click', e => {
-      e.stopPropagation()
-      showSpeakerPicker(nameBtn, spkId, knownSpeakers, transcriptId, onReload)
-    })
-
-    btnRow.appendChild(nameBtn)
-    card.appendChild(btnRow)
   }
 
   return card
@@ -498,6 +576,12 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
 
   const scrubTip = document.createElement('div')
   scrubTip.className = 'waveform-tip'
+  const tipTime = document.createElement('span')
+  tipTime.className = 'waveform-tip-time'
+  const tipName = document.createElement('span')
+  tipName.className = 'waveform-tip-name'
+  scrubTip.appendChild(tipTime)
+  scrubTip.appendChild(tipName)
   wrap.appendChild(scrubTip)
 
   function colorAt(i) {
@@ -516,10 +600,16 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
     })
   }
 
+  let hoveredSeg = null
+
   function updateFill() {
     if (!audio.duration) return
     const filled = (audio.currentTime / audio.duration) * BARS
-    barEls.forEach((bar, i) => { bar.style.opacity = i <= filled ? '1' : '0.32' })
+    barEls.forEach((bar, i) => {
+      const t = (i + 0.5) / BARS * audio.duration
+      const inHovered = hoveredSeg && t >= hoveredSeg.start && t < hoveredSeg.end
+      bar.style.opacity = (i <= filled || inHovered) ? '1' : '0.32'
+    })
   }
 
   audio.addEventListener('loadedmetadata', () => { updateColors(); updateFill() }, { signal })
@@ -536,9 +626,26 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
     const rect = wrap.getBoundingClientRect()
     const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left))
     const t = audio.duration ? (x / rect.width) * audio.duration : 0
+
     scrubLine.style.left = x + 'px'
     scrubLine.style.display = 'block'
-    scrubTip.textContent = fmtTime(t)
+
+    const seg = segs.find(s => t >= s.start && t < s.end) || null
+    tipTime.textContent = fmtTime(t)
+
+    if (seg !== hoveredSeg) {
+      hoveredSeg = seg
+      updateFill()
+    }
+
+    if (seg) {
+      const spkId = effectiveSpeaker(seg)
+      tipName.textContent = knownMap[spkId] || 'Unknown speaker'
+      tipName.style.display = 'block'
+    } else {
+      tipName.style.display = 'none'
+    }
+
     scrubTip.style.left = x + 'px'
     scrubTip.style.display = 'block'
   }
@@ -549,6 +656,8 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
     if (!dragging) {
       scrubLine.style.display = 'none'
       scrubTip.style.display = 'none'
+      hoveredSeg = null
+      updateFill()
     }
   })
 
@@ -624,7 +733,7 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
   total.textContent = '00:00'
 
   // ── Speed ─────────────────────────────────────────────────────────────────
-  const SPEEDS = [1, 1.25, 1.5, 2]
+  const SPEEDS = [1, 1.2, 1.5, 2]
   let speedIdx = 0
   const speedBtn = document.createElement('button')
   speedBtn.className = 'player-speed'
@@ -636,21 +745,44 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
   })
 
   // ── Volume ────────────────────────────────────────────────────────────────
+  const volWrap = document.createElement('div')
+  volWrap.className = 'vol-wrap'
+
   const volBtn = makeBtn(I_VOLUME)
   audio.volume = 0.8
-  let muted = false
-  volBtn.addEventListener('click', () => {
-    muted = !muted
-    audio.muted = muted
-    volBtn.style.opacity = muted ? '0.4' : '1'
+
+  const volPopup = document.createElement('div')
+  volPopup.className = 'vol-popup'
+
+  const volSlider = document.createElement('input')
+  volSlider.type = 'range'
+  volSlider.min = '0'
+  volSlider.max = '1'
+  volSlider.step = '0.02'
+  volSlider.value = String(audio.volume)
+  volSlider.addEventListener('input', () => {
+    audio.volume = parseFloat(volSlider.value)
+    audio.muted = audio.volume === 0
+    volBtn.style.opacity = audio.volume === 0 ? '0.4' : '1'
   })
+
+  volPopup.appendChild(volSlider)
+  volWrap.appendChild(volBtn)
+  volWrap.appendChild(volPopup)
+
+  volBtn.addEventListener('click', () => {
+    volPopup.classList.toggle('vol-popup--open')
+  })
+  document.addEventListener('click', e => {
+    if (!volWrap.contains(e.target)) volPopup.classList.remove('vol-popup--open')
+  }, { signal })
 
   bar.appendChild(controls)
   bar.appendChild(elapsed)
   bar.appendChild(waveform)
   bar.appendChild(total)
   bar.appendChild(speedBtn)
-  bar.appendChild(volBtn)
+  bar.appendChild(volWrap)
 
   // ── Audio event wiring ─────────────────────────────────────────────────────
   audio.addEventListener('timeupdate', () => {
@@ -814,15 +946,9 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
         const card = makeSpeakerCard(
           spkId, `Unknown speaker ${i + 1}`,
           countBySpeaker[spkId], durBySpeaker[spkId],
-          totalDur, transcriptId, onReload, knownSpeakers
+          totalDur, transcriptId, onReload, knownSpeakers,
+          sampleBySpeaker[spkId] || null
         )
-        const sample = sampleBySpeaker[spkId]
-        if (sample) {
-          const quote = document.createElement('div')
-          quote.className = 'spk-quote'
-          quote.textContent = `"${sample.slice(0, 80)}${sample.length > 80 ? '…' : ''}"`
-          card.appendChild(quote)
-        }
         content.appendChild(card)
       })
     }
@@ -1185,7 +1311,9 @@ function renderEditorView(transcriptId) {
     focusPanel.appendChild(topBar)
     focusPanel.appendChild(segList)
     focusPanel.appendChild(selToolbar)
-    focusPanel.appendChild(makePlayerBar(transcript, audio, playerAbortCtrl.signal, knownSpeakers))
+
+    const playerSlot = document.getElementById('player-slot')
+    playerSlot.replaceChildren(makePlayerBar(transcript, audio, playerAbortCtrl.signal, knownSpeakers))
 
     // ── Right panel ───────────────────────────────────────────────────────────
     if (rightPanelEl) rightPanelEl.remove()

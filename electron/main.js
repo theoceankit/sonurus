@@ -15,7 +15,6 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#FFFFFF',
-    titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -42,13 +41,6 @@ const DEFAULT_SETTINGS = {
   recordingSystemDevice: null,
   recordingUseMic: true,
 }
-
-ipcMain.on('window-minimize', () => mainWin?.minimize())
-ipcMain.on('window-maximize', () => {
-  if (mainWin?.isMaximized()) mainWin.unmaximize()
-  else mainWin?.maximize()
-})
-ipcMain.on('window-close', () => mainWin?.close())
 
 ipcMain.handle('set-zoom', (_e, factor) => {
   if (mainWin) mainWin.webContents.setZoomFactor(factor)
