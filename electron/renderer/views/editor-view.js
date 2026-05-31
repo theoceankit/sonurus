@@ -374,7 +374,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
     const top = document.createElement('div')
     top.className = 'spk-card-top'
 
-    const avatar = makeAvatar(spkId, displayName, 32)
+    const avatar = makeAvatar(spkId, displayName, 28)
 
     const info = document.createElement('div')
     info.className = 'spk-card-info'
@@ -385,7 +385,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
 
     const metaEl = document.createElement('div')
     metaEl.className = 'spk-card-meta'
-    metaEl.textContent = `${segCount} segments · ${fmtTime(totalSec)}`
+    metaEl.textContent = `${segCount} segments  ${fmtTime(totalSec)}`
 
     info.appendChild(nameEl)
     info.appendChild(metaEl)
@@ -405,7 +405,15 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
     if (sample) {
       const quote = document.createElement('div')
       quote.className = 'spk-quote'
-      quote.textContent = `"${sample.slice(0, 80)}${sample.length > 80 ? '…' : ''}"`
+      const quoteIcon = document.createElement('span')
+      quoteIcon.className = 'spk-quote-icon'
+      quoteIcon.setAttribute('aria-hidden', 'true')
+      quoteIcon.textContent = '“'
+      const quoteText = document.createElement('span')
+      quoteText.className = 'spk-quote-text'
+      quoteText.textContent = `${sample.slice(0, 80)}${sample.length > 80 ? '…' : ''}`
+      quote.appendChild(quoteIcon)
+      quote.appendChild(quoteText)
       card.appendChild(quote)
     }
 
@@ -482,7 +490,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
 
   const metaEl = document.createElement('div')
   metaEl.className = 'spk-card-meta'
-  metaEl.textContent = `${segCount} segments · ${fmtTime(totalSec)}`
+  metaEl.textContent = `${segCount} segments  ${fmtTime(totalSec)}`
 
   info.appendChild(nameEl)
   info.appendChild(metaEl)
@@ -921,16 +929,15 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
     const recognized   = Object.keys(durBySpeaker).filter(id => !isUnrecognized(id, knownMap))
     const unrecognized = Object.keys(durBySpeaker).filter(id => isUnrecognized(id, knownMap))
 
-    function sectionLabel(text, count, dot) {
+    function sectionLabel(text, count) {
       const lbl = document.createElement('div')
       lbl.className = 'right-section-label'
-      lbl.innerHTML = `<span class="right-section-dot" style="background:${dot}"></span>${text}
-        <span class="right-section-count">${count}</span>`
+      lbl.innerHTML = `${text}<span class="right-section-count">${count}</span>`
       return lbl
     }
 
     if (recognized.length > 0) {
-      content.appendChild(sectionLabel('Recognized', recognized.length, '#30D158'))
+      content.appendChild(sectionLabel('Recognized', recognized.length))
       recognized.forEach(spkId => {
         content.appendChild(makeSpeakerCard(
           spkId, knownMap[spkId] || spkId,
@@ -941,7 +948,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
     }
 
     if (unrecognized.length > 0) {
-      content.appendChild(sectionLabel('Unrecognized', unrecognized.length, '#FF9F0A'))
+      content.appendChild(sectionLabel('Unrecognized', unrecognized.length))
       unrecognized.forEach((spkId, i) => {
         const card = makeSpeakerCard(
           spkId, `Unknown speaker ${i + 1}`,
