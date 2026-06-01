@@ -77,7 +77,7 @@ grid: 58px | 1fr | 56px
 
 - 64px height (was 76px)
 - Controls: Prev speaker · −15s · Play/Pause (32px dark circle) · +15s · Next speaker
-- Center: waveform (220 bars, colored per speaker, bookmark triangles, hover scrubber)
+- Center: waveform (120 bars on canvas, pill-shaped, colored per speaker, bookmark triangles, hover scrubber)
 - Right: duration + speed toggle (1× / 1.25× / 1.5× / 2×) + volume
 
 ### Sidebar (target)
@@ -176,9 +176,10 @@ Four tabs replacing the single Speakers tab:
 **Changes:**
 1. Height `76px → 64px`
 2. Replace `.player-track` (CSS seek bar) with Waveform component:
-   - 220 `<div>` bars generated from seeded pseudo-random heights
+   - 120 bars rendered on `<canvas>` (seeded pseudo-random heights, `ResizeObserver` for DPR-aware resize)
+   - Pill-shaped bars (`border-radius = barWidth / 2`), 1 CSS-px gap — no flex rounding artifacts
    - Bar colors: look up which segment owns each bar's timestamp → use `speakerPalette(spk).color`
-   - Filled bars at full opacity; unfilled bars at 0.32 opacity
+   - Filled bars at full opacity; unfilled bars at 0.28 opacity
    - Click/drag → seek
    - Hover: show scrubber line + floating timestamp tooltip
    - Bookmark markers: amber triangle above bar at bookmarked segment timestamps (Phase 6 data)
@@ -614,8 +615,14 @@ Branch: `redesign/ui`.
 - `_setView()` in `app.js` clears `#player-slot` when leaving editor mode.
 
 **Waveform**
+- Rendered on `<canvas>` — pill-shaped bars (radius = barWidth/2), 1 CSS-px gap via `devicePixelRatio`, `ResizeObserver` keeps canvas sized to DPR.
 - Tooltip: two-line (`timecode` + speaker name); "Unknown speaker" for unrecognized.
-- Hover segment highlight: bars belonging to hovered segment → `opacity: 1`; others → `0.32`. Tracked via `hoveredSeg` variable inside `buildWaveform`.
+- Hover segment highlight: bars belonging to hovered segment → `opacity: 1`; others → `0.28`. Tracked via `hoveredSeg` variable inside `buildWaveform`.
+
+**Edit mode (segment)**
+- Footer row below `contenteditable`: hint left · ✓ confirm (accent) + ✕ cancel (grey) buttons right.
+- Esc key and blur (focus leaving `editArea`) both call `cancelEdit()`.
+- Buttons use `mousedown + preventDefault` so blur doesn't fire before click handler.
 
 **Player controls**
 - Speed button: `width: 46px; text-align: center` (no size jump). Speeds: `[1, 1.2, 1.5, 2]`.
