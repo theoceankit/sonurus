@@ -9,29 +9,30 @@ function _getTooltip() {
   return _segTooltipEl
 }
 
-function attachSegTooltip(btn) {
+function attachSegTooltip(btn, placement = 'above') {
   btn.addEventListener('mouseenter', () => {
     const text = btn.getAttribute('data-tooltip')
     if (!text) return
     const tt = _getTooltip()
     tt.textContent = text
-    tt.classList.remove('seg-tooltip--visible')
+    tt.classList.remove('seg-tooltip--visible', 'seg-tooltip--below')
     tt.style.left = '-10499px'
     tt.style.top = '-10499px'
 
-    // Measure after text is set
     requestAnimationFrame(() => {
       const bRect = btn.getBoundingClientRect()
       const tRect = tt.getBoundingClientRect()
       const idealLeft = bRect.left + bRect.width / 2 - tRect.width / 2
       const left = Math.max(8, Math.min(idealLeft, window.innerWidth - tRect.width - 8))
-      const top = bRect.top - tRect.height - 8
+      const top = placement === 'below'
+        ? bRect.bottom + 8
+        : bRect.top - tRect.height - 8
 
-      // Arrow points at center of button regardless of clamping
       const arrowLeft = bRect.left + bRect.width / 2 - left
       tt.style.setProperty('--arrow-left', arrowLeft + 'px')
       tt.style.left = left + 'px'
       tt.style.top = top + 'px'
+      if (placement === 'below') tt.classList.add('seg-tooltip--below')
       tt.classList.add('seg-tooltip--visible')
     })
   })
@@ -1105,7 +1106,13 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
     const btn = document.createElement('button')
     btn.className = 'right-tab-btn' + (label === activeTab ? ' right-tab-btn--active' : '')
     btn.textContent = label
-    btn.addEventListener('click', () => setTab(label))
+    btn.addEventListener('click', () => {
+      if (label !== 'Speakers') {
+        window.showToast?.(`${label} is not available yet`)
+        return
+      }
+      setTab(label)
+    })
     seg.appendChild(btn)
   })
 
@@ -1189,124 +1196,9 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
     }
   }
 
-  // ── Chapters tab ────────────────────────────────────────────────────────────
-  function renderChapters() {
-    // Group consecutive segments by speaker
-    const groups = []
-    transcript.segments.forEach(seg => {
-      const spkId = effectiveSpeaker(seg)
-      const last = groups[groups.length - 1]
-      if (last && last.spkId === spkId) {
-        last.end = seg.end
-        last.count++
-      } else {
-        groups.push({ spkId, start: seg.start, end: seg.end, count: 1, firstText: seg.text })
-      }
-    })
-
-    if (groups.length === 0) {
-      content.appendChild(emptyState('No chapters', 'Transcript has no segments.'))
-      return
-    }
-
-    const label = document.createElement('div')
-    label.className = 'right-section-label'
-    label.style.marginBottom = '8px'
-    label.innerHTML = `<span>${groups.length} speaker turn${groups.length !== 1 ? 's' : ''}</span>`
-    content.appendChild(label)
-
-    groups.forEach((g, i) => {
-      const name = getDisplayName(g.spkId)
-      const p = isUnrecognized(g.spkId, knownMap) ? null : speakerPalette(g.spkId)
-      const color = p ? p.color : 'var(--ink-dim)'
-
-      const item = document.createElement('button')
-      item.style.cssText = [
-        'display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:flex-start',
-        'width:100%;padding:8px;border-radius:6px;border:none;background:transparent',
-        'cursor:pointer;text-align:left;margin-bottom:1px',
-      ].join(';')
-
-      const numEl = document.createElement('div')
-      numEl.style.cssText = [
-        `font-family:var(--mono);font-size:10px;font-weight:600;color:var(--ink-dim)`,
-        'font-variant-numeric:tabular-nums;padding-top:2px;text-align:right',
-      ].join(';')
-      numEl.textContent = String(i + 1).padStart(2, '0')
-
-      const infoEl = document.createElement('div')
-      infoEl.style.minWidth = '0'
-
-      const spkRow = document.createElement('div')
-      spkRow.style.cssText = 'display:flex;align-items:center;gap:5px;margin-bottom:3px'
-      spkRow.innerHTML = `
-        <span style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></span>
-        <span style="font-size:12.5px;font-weight:600;color:${color};letter-spacing:-0.005em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
-      `
-
-      const metaEl = document.createElement('div')
-      metaEl.style.cssText = 'display:flex;gap:5px;font-size:10.5px;color:var(--ink-dim);margin-bottom:4px;font-variant-numeric:tabular-nums'
-      metaEl.innerHTML = `<span style="font-family:var(--mono)">${fmtTime(g.start)}</span><span>·</span><span>${fmtTime(g.end - g.start)}</span><span>·</span><span>${g.count} seg</span>`
-
-      const previewEl = document.createElement('div')
-      previewEl.style.cssText = 'font-size:11.5px;color:var(--ink-2);line-height:1.45;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical'
-      previewEl.textContent = g.firstText.slice(0, 90) + (g.firstText.length > 90 ? '…' : '')
-
-      infoEl.appendChild(spkRow)
-      infoEl.appendChild(metaEl)
-      infoEl.appendChild(previewEl)
-
-      item.appendChild(numEl)
-      item.appendChild(infoEl)
-
-      item.onmouseenter = () => { item.style.background = 'rgba(0,0,0,0.03)' }
-      item.onmouseleave = () => { item.style.background = 'transparent' }
-
-      content.appendChild(item)
-    })
-  }
-
-  // ── Notes tab ───────────────────────────────────────────────────────────────
-  function renderNotes() {
-    content.appendChild(emptyState(
-      'No notes yet',
-      'Notes and highlights will appear here in a future update.'
-    ))
-  }
-
-  // ── Activity tab ────────────────────────────────────────────────────────────
-  function renderActivity() {
-    const wrap = document.createElement('div')
-    wrap.style.cssText = 'padding:4px 0'
-
-    const infoLabel = document.createElement('div')
-    infoLabel.className = 'right-section-label'
-    infoLabel.style.marginBottom = '10px'
-    infoLabel.textContent = 'Recent changes'
-    wrap.appendChild(infoLabel)
-
-    // Static entries based on transcript metadata
-    const items = [
-      { icon: '📝', text: 'Transcript created', when: transcript.created_at ? new Date(transcript.created_at).toLocaleDateString() : 'recently' },
-      { icon: '🎙', text: `${transcript.segments.length} segments transcribed`, when: '' },
-      { icon: '👥', text: `${new Set(transcript.segments.map(s => effectiveSpeaker(s))).size} speakers identified`, when: '' },
-    ]
-
-    items.forEach(it => {
-      const row = document.createElement('div')
-      row.style.cssText = 'display:flex;gap:9px;padding:7px 4px;border-radius:5px'
-      row.innerHTML = `
-        <span style="font-size:14px;flex-shrink:0">${it.icon}</span>
-        <div style="min-width:0">
-          <div style="font-size:12.5px;color:var(--ink);line-height:1.4">${it.text}</div>
-          ${it.when ? `<div style="font-size:10.5px;color:var(--ink-dim);margin-top:1px">${it.when}</div>` : ''}
-        </div>
-      `
-      wrap.appendChild(row)
-    })
-
-    content.appendChild(wrap)
-  }
+  function renderChapters() {}
+  function renderNotes() {}
+  function renderActivity() {}
 
   panel.appendChild(tabBar)
   panel.appendChild(content)

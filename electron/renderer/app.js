@@ -319,6 +319,28 @@ const app = {
     document.getElementById('tb-back')
       .addEventListener('click', () => { if (this._currentView !== 'import') this.showImport() })
 
+    // ── Titlebar — export / share ──────────────────────────────────────────────
+    const exportBtn = document.getElementById('tb-export')
+    attachSegTooltip(exportBtn, 'below')
+    exportBtn.addEventListener('click', () => {
+      const rows = document.querySelectorAll('.seg-row')
+      if (!rows.length) return
+      const lines = []
+      rows.forEach(row => {
+        const time = row.querySelector('.seg-time span')?.textContent || ''
+        const spk  = row.querySelector('.seg-speaker-name')?.textContent || ''
+        const text = row.querySelector('.seg-text')?.textContent || ''
+        lines.push(`[${time}] ${spk}: ${text}`)
+      })
+      window.electronAPI.writeClipboard(lines.join('\n'))
+        .then(() => window.showToast?.('Copied to clipboard'))
+        .catch(() => window.showToast?.('Copy failed'))
+    })
+
+    const shareBtn = document.getElementById('tb-share')
+    attachSegTooltip(shareBtn, 'below')
+    shareBtn.addEventListener('click', () => window.showToast?.('Share is not available yet'))
+
 
 
     // ── Titlebar — search ──────────────────────────────────────────────────────
