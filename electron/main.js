@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, session } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -67,6 +67,8 @@ ipcMain.handle('open-file', async () => {
   })
   return canceled ? null : filePaths[0]
 })
+
+ipcMain.handle('write-clipboard', (_e, text) => { clipboard.writeText(text) })
 
 ipcMain.handle('save-recording', (_e, { buffer, ext }) => {
   const name = `whisper-rec-${crypto.randomUUID()}.${ext}`
