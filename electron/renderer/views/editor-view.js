@@ -488,7 +488,20 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
 }
 
 // ── Speaker card (right panel) ─────────────────────────────────────────────────
-function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSec, transcriptId, onReload, knownSpeakers = [], sample = null) {
+function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSec, transcriptId, onReload, knownSpeakers = [], sample = null, onPreviewPlay = null, onPreviewPause = null, suggestion = null) {
+  const SVG_PLAY_SM  = `<svg width="8" height="10" viewBox="0 0 11 12" fill="none"><path d="M1 1l9 5-9 5V1z" fill="currentColor"/></svg>`
+  const SVG_PAUSE_SM = `<svg width="8" height="10" viewBox="0 0 11 12" fill="none"><rect x="1" y="1" width="3" height="10" rx="0.7" fill="currentColor"/><rect x="7" y="1" width="3" height="10" rx="0.7" fill="currentColor"/></svg>`
+  const SVG_PLAY_MD  = `<svg width="9" height="11" viewBox="0 0 11 12" fill="none"><path d="M1 1l9 5-9 5V1z" fill="currentColor"/></svg>`
+  const SVG_PAUSE_MD = `<svg width="9" height="11" viewBox="0 0 11 12" fill="none"><rect x="1" y="1" width="3" height="10" rx="0.7" fill="currentColor"/><rect x="7" y="1" width="3" height="10" rx="0.7" fill="currentColor"/></svg>`
+
+  function makeToggle(btn, playSvg, pauseSvg) {
+    let active = false
+    function setActive(val) { active = val; btn.innerHTML = val ? pauseSvg : playSvg }
+    btn.addEventListener('click', () => {
+      if (active) { onPreviewPause?.(); setActive(false) }
+      else { onPreviewPlay?.(setActive) }
+    })
+  }
   const _knownMap = {}
   knownSpeakers.forEach(s => { _knownMap[s.id] = s.name })
   const unrecognized = isUnrecognized(spkId, _knownMap)
@@ -521,9 +534,8 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
 
     const playBtn = document.createElement('button')
     playBtn.className = 'spk-card-play-btn'
-    playBtn.innerHTML = `<svg width="8" height="10" viewBox="0 0 9 11" fill="none">
-      <path d="M1.5 1.2L7.5 5.5 1.5 9.8V1.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-    </svg>`
+    playBtn.innerHTML = SVG_PLAY_SM
+    makeToggle(playBtn, SVG_PLAY_SM, SVG_PAUSE_SM)
 
     top.appendChild(avatar)
     top.appendChild(info)
@@ -546,10 +558,10 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
       card.appendChild(quote)
     }
 
-    // Suggestion (mocked)
-    const mockSuggestion = knownSpeakers[0] || null
-    if (mockSuggestion) {
-      const p = speakerPalette(mockSuggestion.id)
+    if (suggestion) {
+      const p = speakerPalette(suggestion.speaker_id)
+      const pct = Math.round(suggestion.score * 100)
+
       const sugg = document.createElement('div')
       sugg.className = 'spk-suggestion'
       sugg.style.background = p.bg
@@ -561,7 +573,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
 
       const txt = document.createElement('span')
       txt.className = 'spk-suggestion-text'
-      txt.innerHTML = `Likely <span class="spk-suggestion-name" style="color:${p.color}">${mockSuggestion.name}</span><span class="spk-suggestion-pct">87%</span>`
+      txt.innerHTML = `Likely <span class="spk-suggestion-name" style="color:${p.color}">${suggestion.name}</span><span class="spk-suggestion-pct">${pct}%</span>`
 
       const btns = document.createElement('div')
       btns.className = 'spk-suggestion-btns'
@@ -572,12 +584,22 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
       confirmBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 12 12" fill="none">
         <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`
+      confirmBtn.addEventListener('click', e => {
+        e.stopPropagation()
+        confirmBtn.disabled = true
+        fetch(`${API_BASE}/transcripts/${transcriptId}/reassign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from_speaker_id: spkId, to_speaker_id: suggestion.speaker_id }),
+        }).then(r => { if (r.ok) onReload() })
+      })
 
       const rejectBtn = document.createElement('button')
       rejectBtn.className = 'spk-suggestion-btn spk-suggestion-btn--reject'
       rejectBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 12 12" fill="none">
         <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
       </svg>`
+      rejectBtn.addEventListener('click', e => { e.stopPropagation(); sugg.remove() })
 
       btns.appendChild(confirmBtn)
       btns.appendChild(rejectBtn)
@@ -609,7 +631,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
   const top = document.createElement('div')
   top.className = 'spk-card-top'
 
-  const avatar = makeAvatar(spkId, displayName, 28)
+  const avatar = makeAvatar(spkId, displayName, 28, _knownMap)
   const info = document.createElement('div')
   info.className = 'spk-card-info'
 
@@ -630,10 +652,9 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
   const playCardBtn = document.createElement('button')
   playCardBtn.className = 'spk-card-btn'
   playCardBtn.setAttribute('data-tooltip', 'Play speaker')
-  playCardBtn.innerHTML = `<svg width="9" height="11" viewBox="0 0 9 11" fill="none">
-    <path d="M1.5 1.2L7.5 5.5 1.5 9.8V1.2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-  </svg>`
+  playCardBtn.innerHTML = SVG_PLAY_MD
   attachSegTooltip(playCardBtn)
+  makeToggle(playCardBtn, SVG_PLAY_MD, SVG_PAUSE_MD)
 
   const reassignCardBtn = document.createElement('button')
   reassignCardBtn.className = 'spk-card-btn'
@@ -993,7 +1014,7 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
 }
 
 // ── Right panel ────────────────────────────────────────────────────────────────
-function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
+function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio = null, suggestions = {}) {
   const panel = document.createElement('div')
   panel.className = 'right-panel'
 
@@ -1012,6 +1033,51 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
     const n = unrecIds.indexOf(spkId) + 1
     return n > 0 ? `Unknown ${n}` : spkId
   }
+
+  // ── Speaker preview (separate Audio element, player bar unaffected) ──────────
+  const previewAudio = new Audio()
+  let previewStopFn = null
+  let currentSetActive = null
+
+  function stopPreview() {
+    if (previewStopFn) {
+      previewAudio.removeEventListener('timeupdate', previewStopFn)
+      previewStopFn = null
+    }
+    previewAudio.pause()
+    if (currentSetActive) { currentSetActive(false); currentSetActive = null }
+  }
+
+  function playPreview(seg, setActive) {
+    if (!audio || !seg) return
+    stopPreview()
+    if (!audio.paused) audio.pause()
+    currentSetActive = setActive
+    setActive(true)
+    if (previewAudio.src !== audio.src) previewAudio.src = audio.src
+    previewAudio.currentTime = seg.start
+    previewAudio.play()
+    previewStopFn = () => {
+      if (previewAudio.currentTime >= seg.end) {
+        previewAudio.removeEventListener('timeupdate', previewStopFn)
+        previewStopFn = null
+        previewAudio.pause()
+        if (currentSetActive) { currentSetActive(false); currentSetActive = null }
+      }
+    }
+    previewAudio.addEventListener('timeupdate', previewStopFn)
+  }
+
+  function pausePreview() {
+    if (previewStopFn) {
+      previewAudio.removeEventListener('timeupdate', previewStopFn)
+      previewStopFn = null
+    }
+    previewAudio.pause()
+  }
+
+  // Stop preview when user resumes main player (panel.isConnected guards against stale listeners after rebuild)
+  if (audio) audio.addEventListener('play', () => { if (panel.isConnected) stopPreview() })
 
   // ── Tab bar (segmented control) ─────────────────────────────────────────────
   const tabBar = document.createElement('div')
@@ -1068,7 +1134,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
 
   // ── Speakers tab ────────────────────────────────────────────────────────────
   function renderSpeakers() {
-    const durBySpeaker = {}, countBySpeaker = {}, sampleBySpeaker = {}
+    const durBySpeaker = {}, countBySpeaker = {}, sampleBySpeaker = {}, firstSegBySpeaker = {}
     let totalDur = 0
     transcript.segments.forEach(seg => {
       const spkId = effectiveSpeaker(seg)
@@ -1076,7 +1142,10 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
       durBySpeaker[spkId] = (durBySpeaker[spkId] || 0) + d
       countBySpeaker[spkId] = (countBySpeaker[spkId] || 0) + 1
       totalDur += d
-      if (!sampleBySpeaker[spkId]) sampleBySpeaker[spkId] = seg.text
+      if (!sampleBySpeaker[spkId]) {
+        sampleBySpeaker[spkId] = seg.text
+        firstSegBySpeaker[spkId] = { start: seg.start, end: seg.end }
+      }
     })
 
     const recognized   = Object.keys(durBySpeaker).filter(id => !isUnrecognized(id, knownMap))
@@ -1095,7 +1164,8 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
         content.appendChild(makeSpeakerCard(
           spkId, knownMap[spkId] || spkId,
           countBySpeaker[spkId], durBySpeaker[spkId],
-          totalDur, transcriptId, onReload, knownSpeakers
+          totalDur, transcriptId, onReload, knownSpeakers,
+          null, (setActive) => playPreview(firstSegBySpeaker[spkId], setActive), () => pausePreview()
         ))
       })
     }
@@ -1107,7 +1177,8 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
           spkId, `Unknown speaker ${i + 1}`,
           countBySpeaker[spkId], durBySpeaker[spkId],
           totalDur, transcriptId, onReload, knownSpeakers,
-          sampleBySpeaker[spkId] || null
+          sampleBySpeaker[spkId] || null, (setActive) => playPreview(firstSegBySpeaker[spkId], setActive), () => pausePreview(),
+          suggestions[spkId] || null
         )
         content.appendChild(card)
       })
@@ -1299,7 +1370,7 @@ function renderEditorView(transcriptId, meta = null) {
     return row
   }
 
-  function buildEditor(transcript, knownSpeakers, meta = null) {
+  function buildEditor(transcript, knownSpeakers, meta = null, suggestions = {}) {
     focusPanel.innerHTML = ''
 
     // Load audio (set src only if changed)
@@ -1331,7 +1402,8 @@ function renderEditorView(transcriptId, meta = null) {
       Promise.all([
         fetch(`${API_BASE}/transcripts/${transcriptId}`).then(r => r.json()),
         fetch(`${API_BASE}/speakers`).then(r => r.json()),
-      ]).then(([t, spks]) => buildEditor(t, spks, meta))
+        fetch(`${API_BASE}/transcripts/${transcriptId}/speaker-suggestions`).then(r => r.json()).catch(() => ({})),
+      ]).then(([t, spks, suggs]) => buildEditor(t, spks, meta, suggs))
     }
 
     // ── Top bar ──────────────────────────────────────────────────────────────
@@ -1507,7 +1579,7 @@ function renderEditorView(transcriptId, meta = null) {
 
     // ── Right panel ───────────────────────────────────────────────────────────
     if (rightPanelEl) rightPanelEl.remove()
-    rightPanelEl = makeRightPanel(transcript, knownSpeakers, transcriptId, reload)
+    rightPanelEl = makeRightPanel(transcript, knownSpeakers, transcriptId, reload, audio, suggestions)
     root.appendChild(rightPanelEl)
   }
 
@@ -1518,8 +1590,9 @@ function renderEditorView(transcriptId, meta = null) {
       return r.json()
     }),
     fetch(`${API_BASE}/speakers`).then(r => r.json()),
+    fetch(`${API_BASE}/transcripts/${transcriptId}/speaker-suggestions`).then(r => r.json()).catch(() => ({})),
   ])
-    .then(([transcript, speakers]) => buildEditor(transcript, speakers, meta))
+    .then(([transcript, speakers, suggestions]) => buildEditor(transcript, speakers, meta, suggestions))
     .catch(err => {
       focusPanel.innerHTML = ''
       const errEl = document.createElement('div')
