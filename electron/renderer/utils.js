@@ -47,13 +47,13 @@ function fmtTime(sec) {
 }
 
 // ── Avatar ──────────────────────────────────────────────────────────────────────
-function makeAvatar(spkId, displayName, size = 24) {
+function makeAvatar(spkId, displayName, size = 24, knownMap = null) {
   const el = document.createElement('div')
   el.className = 'spk-avatar'
   el.style.width = el.style.height = size + 'px'
   el.style.fontSize = Math.round(size * 0.38) + 'px'
 
-  if (isUnrecognized(spkId)) {
+  if (isUnrecognized(spkId, knownMap)) {
     el.classList.add('spk-avatar--unknown')
     el.textContent = '?'
   } else {
