@@ -77,9 +77,13 @@ On startup, `loadSettings()` in `app.js` reads the file and applies `setZoom(sca
 
 ## Views
 
+### Startup behavior
+
+On startup, `_loadSidebar({ autoOpen: true })` fetches transcripts and speakers. If at least one transcript exists, the app navigates directly to the **Editor view** for the most recent transcript (`created_at DESC`). If no transcripts exist, the **Import view** is shown instead.
+
 ### Import view
 
-Shown on startup and when clicking the **+** button in the sidebar header.
+Shown when no transcripts exist on startup, or when clicking the **+** button in the sidebar header.
 
 - Native file picker via `window.electronAPI.openFile()` (Electron dialog)
 - Drag-and-drop onto the drop zone
@@ -117,35 +121,57 @@ Three-panel layout (all panels are separate elevated cards):
 [Left sidebar] [Focus panel] [Right panel]
 ```
 
+**Focus panel header:**
+
+Rendered from two sources: `GET /transcripts/{id}` (segments, language) and `meta` from the sidebar `_allRecordings` list (title, created_at, speakers).
+
+| Element | Content |
+|---|---|
+| Date line | `created_at` formatted as `DD Mon  HH:MM` (24h), e.g. `31 May  16:30`; hidden if unavailable |
+| Title | `meta.title` if present, else filename stem with `_`/`-` → spaces |
+| Meta row | Speaker avatar circles (20px, up to 5) + "N speakers" + language (hidden if `"unknown"`) |
+| Tags row | Source chip (file / live recording) + `+ tag` placeholder button |
+
+Speaker avatars use `speakerPalette(spkId)` for recognized speakers; unrecognized speakers show `?` on a grey circle.
+
 **Focus panel:**
-- Breadcrumb + title + meta (language · segment count)
-- Scrollable segment list
+- Header (date + title + meta + tags)
+- Scrollable segment list (`.seg-list`)
 - Audio player bar fixed at the bottom
 
 **Segment rows:**
 
-Each segment shows: timestamp · avatar · speaker name · text.
+Each segment shows: timestamp · speaker dot + name · text.
 
-On hover, a pill-shaped toolbar appears on the right of the speaker header with five action buttons:
+On hover, a card-style toolbar (`background: #fff`, border, shadow) appears absolutely positioned at the top-right corner of the row, overlaying the text. It does not reserve horizontal space when hidden.
 
 | Button | Action |
 |---|---|
-| Play | Seeks audio to segment start |
+| Play | Seeks audio to segment start and plays |
 | Edit | Enters inline edit mode |
 | Bookmark | Visual placeholder (not yet wired) |
-| Copy | Copies text to clipboard; shows "Copied!" tooltip for 1.5s |
+| Copy | Copies segment text to clipboard |
 | Delete | `DELETE /segments/{start}` → fade-out animation + reload |
 
-**Edit mode** (click text or Edit button):
+**Edit mode** (Edit button only — clicking text does not trigger edit):
 - `contenteditable` field replaces the text label
-- **Enter** saves → `PATCH …/text`
-- **Shift+Enter** inserts a new line
+- **⌘↵** saves → `PATCH …/text`
 - **Esc** cancels
-- Save / Cancel buttons with a `Shift ↵` keyboard hint
 
 The segment row gets an amber background `rgba(181,138,58,0.07)` while editing.
 
 **Tooltips** are rendered as a singleton `div` appended to `document.body` with `position: fixed`, so they are never clipped by parent overflow.
+
+**Selection toolbar:**
+
+Appears above selected text (`position: fixed`, viewport-relative coordinates) when the user selects text inside a segment in normal (non-edit) mode.
+
+| Button | Action |
+|---|---|
+| Copy | Copies selected text to clipboard |
+| Highlight | Placeholder — "Highlights coming in a future update" |
+
+The toolbar is hidden when the selection is inside a `.seg-row--editing` element.
 
 **Audio player bar:**
 
