@@ -342,12 +342,29 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
   editArea.contentEditable = 'true'
   editArea.textContent = seg.text
 
+  const editFooter = document.createElement('div')
+  editFooter.className = 'seg-edit-footer'
+
   const editHint = document.createElement('div')
   editHint.className = 'seg-edit-hint'
   editHint.textContent = '⌘↵ to save · esc to cancel'
 
+  const btnConfirm = document.createElement('button')
+  btnConfirm.className = 'seg-edit-btn seg-edit-btn--confirm'
+  btnConfirm.title = 'Save (⌘↵)'
+  btnConfirm.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+
+  const btnCancel = document.createElement('button')
+  btnCancel.className = 'seg-edit-btn seg-edit-btn--cancel'
+  btnCancel.title = 'Cancel (Esc)'
+  btnCancel.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
+
+  editFooter.appendChild(editHint)
+  editFooter.appendChild(btnCancel)
+  editFooter.appendChild(btnConfirm)
+
   editWrap.appendChild(editArea)
-  editWrap.appendChild(editHint)
+  editWrap.appendChild(editFooter)
 
   mid.appendChild(header)
   mid.appendChild(textEl)
@@ -458,6 +475,14 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commitEdit() }
     if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }
   })
+
+  // mousedown+preventDefault keeps focus on editArea so blur doesn't fire before click
+  btnConfirm.addEventListener('mousedown', e => e.preventDefault())
+  btnConfirm.addEventListener('click', () => commitEdit())
+  btnCancel.addEventListener('mousedown', e => e.preventDefault())
+  btnCancel.addEventListener('click', () => cancelEdit())
+
+  editArea.addEventListener('blur', () => cancelEdit())
 
   return row
 }
@@ -667,19 +692,74 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
     return arr
   })()
 
-  const DEFAULT_BAR_COLOR = 'rgba(0,0,0,0.22)'
+  const DEFAULT_BAR_COLOR = 'rgba(0,0,0,0.20)'
 
   const wrap = document.createElement('div')
   wrap.className = 'waveform'
 
-  const barEls = heights.map((h, i) => {
-    const bar = document.createElement('div')
-    bar.className = 'waveform-bar'
-    bar.style.height = Math.round(h * 78) + '%'
-    bar.style.background = DEFAULT_BAR_COLOR
-    wrap.appendChild(bar)
-    return bar
+  // Canvas for crisp, gap-free rendering with pill-shaped bars
+  const canvas = document.createElement('canvas')
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;'
+  wrap.appendChild(canvas)
+  const ctx = canvas.getContext('2d')
+
+  const colors = new Array(BARS).fill(null)
+  let hoveredSeg = null
+
+  function render() {
+    const W = canvas.width, H = canvas.height
+    if (!W || !H) return
+    ctx.clearRect(0, 0, W, H)
+
+    const dpr = window.devicePixelRatio || 1
+    const filled = audio.duration ? (audio.currentTime / audio.duration) * BARS : -1
+    const slotW = W / BARS
+    const gap = dpr                        // 1 CSS px gap between bars
+    const bw = Math.max(1, slotW - gap)
+    const r = bw / 2                       // pill: radius = half width
+
+    for (let i = 0; i < BARS; i++) {
+      const h = Math.max(bw, heights[i] * H * 0.84)
+      const x = i * slotW + gap / 2
+      const y = (H - h) / 2
+      const t = (i + 0.5) / BARS * (audio.duration || 1)
+      const inHovered = hoveredSeg && t >= hoveredSeg.start && t < hoveredSeg.end
+      const isActive = i <= filled || inHovered
+
+      ctx.globalAlpha = isActive ? 1.0 : 0.28
+      ctx.fillStyle = colors[i] || DEFAULT_BAR_COLOR
+      ctx.beginPath()
+      ctx.roundRect(x, y, bw, h, r)
+      ctx.fill()
+    }
+    ctx.globalAlpha = 1.0
+  }
+
+  const ro = new ResizeObserver(() => {
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = Math.round(wrap.clientWidth * dpr)
+    canvas.height = Math.round(wrap.clientHeight * dpr)
+    render()
   })
+  ro.observe(wrap)
+  signal.addEventListener('abort', () => ro.disconnect())
+
+  function colorAt(i) {
+    if (!audio.duration) return null
+    const t = (i + 0.5) / BARS * audio.duration
+    const seg = segs.find(s => t >= s.start && t < s.end)
+    if (!seg) return null
+    const spkId = effectiveSpeaker(seg)
+    return isUnrecognized(spkId, knownMap) ? null : speakerPalette(spkId).color
+  }
+
+  function updateColors() {
+    for (let i = 0; i < BARS; i++) colors[i] = colorAt(i)
+    render()
+  }
+
+  audio.addEventListener('loadedmetadata', () => { updateColors(); render() }, { signal })
+  audio.addEventListener('timeupdate', render, { signal })
 
   // Hover scrubber
   const scrubLine = document.createElement('div')
@@ -695,37 +775,6 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
   scrubTip.appendChild(tipTime)
   scrubTip.appendChild(tipName)
   wrap.appendChild(scrubTip)
-
-  function colorAt(i) {
-    if (!audio.duration) return null
-    const t = (i + 0.5) / BARS * audio.duration
-    const seg = segs.find(s => t >= s.start && t < s.end)
-    if (!seg) return null
-    const spkId = effectiveSpeaker(seg)
-    return isUnrecognized(spkId, knownMap) ? null : speakerPalette(spkId).color
-  }
-
-  function updateColors() {
-    barEls.forEach((bar, i) => {
-      const c = colorAt(i)
-      bar.style.background = c || DEFAULT_BAR_COLOR
-    })
-  }
-
-  let hoveredSeg = null
-
-  function updateFill() {
-    if (!audio.duration) return
-    const filled = (audio.currentTime / audio.duration) * BARS
-    barEls.forEach((bar, i) => {
-      const t = (i + 0.5) / BARS * audio.duration
-      const inHovered = hoveredSeg && t >= hoveredSeg.start && t < hoveredSeg.end
-      bar.style.opacity = (i <= filled || inHovered) ? '1' : '0.32'
-    })
-  }
-
-  audio.addEventListener('loadedmetadata', () => { updateColors(); updateFill() }, { signal })
-  audio.addEventListener('timeupdate', updateFill, { signal })
 
   // Seek interaction
   let dragging = false
@@ -747,7 +796,7 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
 
     if (seg !== hoveredSeg) {
       hoveredSeg = seg
-      updateFill()
+      render()
     }
 
     if (seg) {
@@ -769,7 +818,7 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
       scrubLine.style.display = 'none'
       scrubTip.style.display = 'none'
       hoveredSeg = null
-      updateFill()
+      render()
     }
   })
 

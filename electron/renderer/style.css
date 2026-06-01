@@ -1118,20 +1118,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   flex: 1;
   height: 32px;
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 1.5px;
   cursor: pointer;
   user-select: none;
   min-width: 0;
-  overflow: visible;
-}
-
-.waveform-bar {
-  flex: 1;
-  background: var(--ink-4);
-  opacity: 0.32;
-  border-radius: 1px;
 }
 
 .waveform-scrub {
@@ -1322,11 +1311,43 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   min-height: 1.6em;
 }
 
-.seg-edit-hint {
-  font-size: 11px;
-  color: var(--ink-dim);
+.seg-edit-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-top: 6px;
 }
+
+.seg-edit-hint {
+  flex: 1;
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+.seg-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+
+.seg-edit-btn--confirm {
+  background: rgba(10,132,255,0.10);
+  color: var(--accent);
+}
+.seg-edit-btn--confirm:hover { background: var(--accent); color: #fff; }
+
+.seg-edit-btn--cancel {
+  background: rgba(0,0,0,0.05);
+  color: var(--ink-dim);
+}
+.seg-edit-btn--cancel:hover { background: rgba(0,0,0,0.10); color: var(--ink); }
 
 .seg-actions {
   position: absolute;

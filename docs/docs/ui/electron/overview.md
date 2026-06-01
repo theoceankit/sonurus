@@ -157,8 +157,10 @@ On hover, a card-style toolbar (`background: #fff`, border, shadow) appears abso
 
 **Edit mode** (Edit button only — clicking text does not trigger edit):
 - `contenteditable` field replaces the text label
+- Footer row: hint text left · **✓ confirm** button (accent, saves) · **✕ cancel** button (grey) right
 - **⌘↵** saves → `PATCH …/text`
-- **Esc** cancels
+- **Esc** or losing focus (blur) cancels — clicking outside the edit area exits edit mode
+- Confirm/cancel buttons use `mousedown + preventDefault` to avoid triggering blur before click
 
 **Tooltips** are rendered as a singleton `div.seg-tooltip` appended to `document.body` with `position: fixed`, so they are never clipped by parent overflow. Style: `var(--ink)` background, `border-radius: 7px`, box-shadow, rotated-square arrow — matches the selection toolbar.
 
