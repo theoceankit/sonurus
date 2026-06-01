@@ -83,7 +83,8 @@ const app = {
     this._activeTranscriptId = transcriptId
     document.getElementById('btn-import').classList.remove('sb-new-btn--active')
     this._rerenderList()
-    this._setView(renderEditorView(transcriptId), true)
+    const meta = (this._allRecordings || []).find(r => r.id === transcriptId) || null
+    this._setView(renderEditorView(transcriptId, meta), true)
     this._loadSidebar()
     // Restore inspector visibility after editor rebuilds
     const rightPanel = document.querySelector('.right-panel')
@@ -111,7 +112,7 @@ const app = {
     }
   },
 
-  _loadSidebar() {
+  _loadSidebar({ autoOpen = false } = {}) {
     Promise.all([
       fetch(`${API_BASE}/transcripts`).then(r => r.json()),
       fetch(`${API_BASE}/speakers`).then(r => r.json()),
@@ -120,7 +121,11 @@ const app = {
       this._knownSpeakers = {}
       speakers.forEach(s => { this._knownSpeakers[s.id] = s.name })
       this._rerenderList()
-    }).catch(() => {})
+      if (autoOpen) {
+        if (items.length > 0) this.showEditor(items[0].id)
+        else this.showImport()
+      }
+    }).catch(() => { if (autoOpen) this.showImport() })
   },
 
   _applyFilter(items) {
@@ -250,7 +255,7 @@ const app = {
   // ── Init ────────────────────────────────────────────────────────────────────
 
   init() {
-    loadSettings().then(() => this._loadSidebar())
+    loadSettings().then(() => this._loadSidebar({ autoOpen: true }))
 
     // ── Toast system ───────────────────────────────────────────────────────────
     const _toastStack = document.createElement('div')
@@ -295,8 +300,6 @@ const app = {
 
       return { dismiss }
     }
-
-    this.showImport()
 
     // ── Sidebar buttons ────────────────────────────────────────────────────────
     document.getElementById('btn-import')

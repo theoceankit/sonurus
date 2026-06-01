@@ -241,72 +241,60 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
   const actions = document.createElement('div')
   actions.className = 'seg-actions'
 
-  function makeActionBtn(tooltip, svgHtml) {
+  function makeActionBtn(tooltip, svgHtml, extraClass) {
     const btn = document.createElement('button')
-    btn.className = 'seg-action-btn'
+    btn.className = 'seg-action-btn' + (extraClass ? ' ' + extraClass : '')
     btn.setAttribute('data-tooltip', tooltip)
     btn.innerHTML = svgHtml
     attachSegTooltip(btn)
     return btn
   }
 
-  const bookmarkBtn = makeActionBtn('Bookmark segment', `<svg width="10" height="12" viewBox="0 0 11 13" fill="none">
+  const playBtn = makeActionBtn('Play segment', `<svg width="9" height="11" viewBox="0 0 9 11" fill="none">
+    <path d="M1.5 1.2L7.5 5.5 1.5 9.8V1.2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+  </svg>`)
+
+  const editBtn = makeActionBtn('Edit segment', `<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+    <path d="M2 8.5L8 2.5 9.5 4 3.5 10H2V8.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+    <path d="M7 3.5L8.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`)
+
+  const bookmarkBtn = makeActionBtn('Save for later', `<svg width="10" height="12" viewBox="0 0 11 13" fill="none">
     <path d="M1.5 1.5h8v10l-4-2.5-4 2.5v-10z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
   </svg>`)
 
-  const moreBtn = makeActionBtn('More actions', `<svg width="12" height="3" viewBox="0 0 13 3" fill="none">
-    <circle cx="1.5" cy="1.5" r="1.1" fill="currentColor"/>
-    <circle cx="6.5" cy="1.5" r="1.1" fill="currentColor"/>
-    <circle cx="11.5" cy="1.5" r="1.1" fill="currentColor"/>
+  const copyBtn = makeActionBtn('Copy segment', `<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+    <rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+    <path d="M7.5 4V2A1.5 1.5 0 006 .5H2A1.5 1.5 0 00.5 2v4A1.5 1.5 0 002 7.5h2" stroke="currentColor" stroke-width="1.2"/>
   </svg>`)
 
-  // More actions: inline copy + delete
-  moreBtn.addEventListener('click', e => {
-    e.stopPropagation()
-    const existing = document.getElementById('_seg-more-menu')
-    if (existing) { existing.remove(); return }
+  const deleteBtn = makeActionBtn('Delete segment', `<svg width="11" height="12" viewBox="0 0 11 12" fill="none">
+    <rect x="1" y="3" width="9" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+    <path d="M3.5 3V2a1 1 0 011-1h2a1 1 0 011 1v1" stroke="currentColor" stroke-width="1.2"/>
+    <line x1="0.5" y1="3" x2="10.5" y2="3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="4" y1="5.5" x2="4" y2="9.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="7" y1="5.5" x2="7" y2="9.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+  </svg>`, 'seg-action-btn--danger')
 
-    const menu = document.createElement('div')
-    menu.id = '_seg-more-menu'
-    menu.style.cssText = [
-      'position:fixed;z-index:9999;background:#fff;border:0.5px solid var(--border)',
-      'border-radius:8px;padding:4px;box-shadow:0 8px 20px rgba(0,0,0,0.12)',
-      'min-width:160px',
-    ].join(';')
-
-    const items = [
-      { label: 'Copy text', action: () => navigator.clipboard.writeText(seg.text).then(() => window.showToast?.('Copied to clipboard')).catch(() => window.showToast?.('Copy failed')) },
-      { label: 'Edit text', action: enterEditMode },
-      { label: 'Delete segment', danger: true, action: () => {
-        fetch(`${API_BASE}/transcripts/${transcriptId}/segments/${seg.start}`, { method: 'DELETE' })
-          .then(r => { if (!r.ok) throw new Error(r.status) })
-          .then(() => { row.style.opacity = '0'; row.style.transition = 'opacity 0.15s'; setTimeout(() => { row.remove(); onReload() }, 150) })
-      }},
-    ]
-
-    items.forEach(it => {
-      const btn = document.createElement('button')
-      btn.style.cssText = `display:flex;align-items:center;width:100%;padding:6px 9px;border:none;background:transparent;cursor:pointer;border-radius:5px;font-size:13px;font-family:inherit;text-align:left;color:${it.danger ? '#FF453A' : 'var(--ink)'}`
-      btn.textContent = it.label
-      btn.onmouseenter = () => { btn.style.background = 'rgba(0,0,0,0.04)' }
-      btn.onmouseleave = () => { btn.style.background = 'transparent' }
-      btn.addEventListener('click', () => { menu.remove(); it.action() })
-      menu.appendChild(btn)
-    })
-
-    document.body.appendChild(menu)
-    const r = moreBtn.getBoundingClientRect()
-    menu.style.left = Math.max(8, r.right - menu.offsetWidth) + 'px'
-    menu.style.top = (r.bottom + 4) + 'px'
-
-    setTimeout(() => {
-      function close(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('mousedown', close) } }
-      document.addEventListener('mousedown', close)
-    }, 0)
+  playBtn.addEventListener('click', () => { if (audio) { audio.currentTime = seg.start; audio.play() } })
+  editBtn.addEventListener('click', () => enterEditMode())
+  bookmarkBtn.addEventListener('click', () => window.showToast?.('Bookmarks coming in a future update'))
+  copyBtn.addEventListener('click', () =>
+    navigator.clipboard.writeText(seg.text)
+      .then(() => window.showToast?.('Copied to clipboard'))
+      .catch(() => window.showToast?.('Copy failed'))
+  )
+  deleteBtn.addEventListener('click', () => {
+    fetch(`${API_BASE}/transcripts/${transcriptId}/segments/${seg.start}`, { method: 'DELETE' })
+      .then(r => { if (!r.ok) throw new Error(r.status) })
+      .then(() => { row.style.opacity = '0'; row.style.transition = 'opacity 0.15s'; setTimeout(() => { row.remove(); onReload() }, 150) })
   })
 
+  actions.appendChild(playBtn)
+  actions.appendChild(editBtn)
   actions.appendChild(bookmarkBtn)
-  actions.appendChild(moreBtn)
+  actions.appendChild(copyBtn)
+  actions.appendChild(deleteBtn)
 
   row.appendChild(time)
   row.appendChild(mid)
@@ -348,7 +336,7 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
     textEl.style.display = ''
   }
 
-  textEl.addEventListener('click', enterEditMode)
+  row.dataset.edit = ''  // marker for selection toolbar
 
   editArea.addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commitEdit() }
@@ -1091,7 +1079,18 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload) {
 }
 
 // ── Editor view (main) ─────────────────────────────────────────────────────────
-function renderEditorView(transcriptId) {
+function fmtCreatedAt(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d)) return ''
+  const day = d.getDate()
+  const month = d.toLocaleDateString('en-US', { month: 'short' })
+  const h = String(d.getHours()).padStart(2, '0')
+  const m = String(d.getMinutes()).padStart(2, '0')
+  return `${day} ${month}  ${h}:${m}`
+}
+
+function renderEditorView(transcriptId, meta = null) {
   const root = document.createElement('div')
   root.className = 'editor-layout'
 
@@ -1122,7 +1121,7 @@ function renderEditorView(transcriptId) {
 
     const srcChip = document.createElement('span')
     srcChip.className = 'focus-tag'
-    srcChip.style.cssText = 'background:rgba(10,132,255,0.08);color:var(--accent);border:0.5px solid rgba(10,132,255,0.20)'
+    srcChip.style.cssText = ''
     srcChip.textContent = sourceLabel
     row.appendChild(srcChip)
 
@@ -1135,7 +1134,7 @@ function renderEditorView(transcriptId) {
     return row
   }
 
-  function buildEditor(transcript, knownSpeakers) {
+  function buildEditor(transcript, knownSpeakers, meta = null) {
     focusPanel.innerHTML = ''
 
     // Load audio (set src only if changed)
@@ -1167,37 +1166,69 @@ function renderEditorView(transcriptId) {
       Promise.all([
         fetch(`${API_BASE}/transcripts/${transcriptId}`).then(r => r.json()),
         fetch(`${API_BASE}/speakers`).then(r => r.json()),
-      ]).then(([t, spks]) => buildEditor(t, spks))
+      ]).then(([t, spks]) => buildEditor(t, spks, meta))
     }
 
     // ── Top bar ──────────────────────────────────────────────────────────────
     const topBar = document.createElement('div')
     topBar.className = 'focus-topbar'
 
-    const breadcrumb = document.createElement('div')
-    breadcrumb.className = 'focus-breadcrumb'
-    breadcrumb.innerHTML = `<span>Transcripts</span>
-      <svg width="6" height="9" viewBox="0 0 6 9" fill="none">
-        <path d="M1 1l3 3.5L1 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span>${new Date().toLocaleDateString('en', { month:'short', day:'numeric' })}</span>`
+    // Date line
+    const dateStr = fmtCreatedAt(meta?.created_at)
+    if (dateStr) {
+      const dateEl = document.createElement('div')
+      dateEl.className = 'focus-date'
+      dateEl.textContent = dateStr
+      topBar.appendChild(dateEl)
+    }
 
+    // Title
     const titleRow = document.createElement('div')
     titleRow.className = 'focus-title-row'
 
-    const stem = transcript.audio_path.split(/[\\/]/).pop().replace(/\.[^.]+$/, '')
+    const titleText = meta?.title
+      || transcript.audio_path.split(/[\\/]/).pop().replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ')
     const title = document.createElement('h1')
     title.className = 'focus-title'
-    title.textContent = stem.replace(/[_-]/g, ' ')
+    title.textContent = titleText
 
     titleRow.appendChild(title)
+    topBar.appendChild(titleRow)
 
+    // Meta row: speaker avatars + count + language
     const metaRow = document.createElement('div')
     metaRow.className = 'focus-meta'
-    metaRow.textContent = `${transcript.language.toUpperCase()}  ·  ${transcript.segments.length} segments`
 
-    topBar.appendChild(breadcrumb)
-    topBar.appendChild(titleRow)
+    const uniqueSpkIds = [...new Set(transcript.segments.map(s => effectiveSpeaker(s)))]
+    if (uniqueSpkIds.length > 0) {
+      const avatarGroup = document.createElement('div')
+      avatarGroup.className = 'focus-avatar-group'
+      uniqueSpkIds.slice(0, 5).forEach(spkId => {
+        const name = displayName(spkId)
+        const known = !isUnrecognized(spkId, knownMap)
+        const av = document.createElement('div')
+        av.className = 'focus-header-av' + (known ? '' : ' focus-header-av--unknown')
+        if (known) {
+          const p = speakerPalette(spkId)
+          av.style.background = p.color
+        }
+        av.textContent = known ? speakerInitials(name) : '?'
+        av.title = name
+        avatarGroup.appendChild(av)
+      })
+      metaRow.appendChild(avatarGroup)
+    }
+
+    const metaText = document.createElement('span')
+    metaText.className = 'focus-meta-text'
+    const spkCount = uniqueSpkIds.length
+    const lang = transcript.language
+    const langLabel = (lang && lang !== 'unknown' && lang !== 'Unknown')
+      ? lang.charAt(0).toUpperCase() + lang.slice(1)
+      : ''
+    metaText.textContent = `${spkCount} speaker${spkCount !== 1 ? 's' : ''}` + (langLabel ? `  ·  ${langLabel}` : '')
+    metaRow.appendChild(metaText)
+
     topBar.appendChild(metaRow)
     topBar.appendChild(makeTagsRow(transcript))
 
@@ -1247,25 +1278,12 @@ function renderEditorView(transcriptId) {
         }
       },
       {
-        label: 'Quote',
-        icon: `<svg width="13" height="11" viewBox="0 0 13 11" fill="none"><path d="M1 1h4v4H1V1zM8 1h4v4H8V1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M1 5c0 2 1.5 4 4 5M8 5c0 2 1.5 4 4 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+        label: 'Highlight',
+        icon: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 10.5h9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8.5 2L11 4.5l-5 5-3 .5.5-3 5-5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
         action() {
-          const text = window.getSelection()?.toString()
-          if (text) navigator.clipboard.writeText(`"${text}"`)
-            .then(() => window.showToast?.('Quote copied'))
-            .catch(() => window.showToast?.('Copy failed'))
           hideSelToolbar()
+          window.showToast?.('Highlights coming in a future update')
           window.getSelection()?.removeAllRanges()
-        }
-      },
-      {
-        label: 'Edit',
-        icon: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M9.5 1.5l2 2-7 7-2.5.5.5-2.5 7-7z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
-        action() {
-          const sel = window.getSelection()
-          const el = sel?.anchorNode?.parentElement?.closest('.seg-row')
-          if (el) el.querySelector('.seg-text')?.click()
-          hideSelToolbar()
         }
       },
     ]
@@ -1291,19 +1309,19 @@ function renderEditorView(transcriptId) {
       if (!anchor) { hideSelToolbar(); return }
       const el = anchor.nodeType === 1 ? anchor : anchor.parentElement
       if (!el?.closest('[data-stream]')) { hideSelToolbar(); return }
+      if (el?.closest('.seg-row--editing')) { hideSelToolbar(); return }
 
       const range = sel.getRangeAt(0)
       const rRect = range.getBoundingClientRect()
-      const pRect = focusPanel.getBoundingClientRect()
       if (rRect.width < 4) { hideSelToolbar(); return }
 
       selToolbar.style.display = 'inline-flex'
       const tbW = selToolbar.offsetWidth || 200
       const tbH = selToolbar.offsetHeight || 34
-      const x = rRect.left + rRect.width / 2 - pRect.left - tbW / 2
-      const y = rRect.top - pRect.top - tbH - 10
+      const x = rRect.left + rRect.width / 2 - tbW / 2
+      const y = rRect.top - tbH - 10
 
-      selToolbar.style.left = Math.max(8, Math.min(x, pRect.width - tbW - 8)) + 'px'
+      selToolbar.style.left = Math.max(8, Math.min(x, window.innerWidth - tbW - 8)) + 'px'
       selToolbar.style.top  = Math.max(8, y) + 'px'
     }
 
@@ -1336,7 +1354,7 @@ function renderEditorView(transcriptId) {
     }),
     fetch(`${API_BASE}/speakers`).then(r => r.json()),
   ])
-    .then(([transcript, speakers]) => buildEditor(transcript, speakers))
+    .then(([transcript, speakers]) => buildEditor(transcript, speakers, meta))
     .catch(err => {
       focusPanel.innerHTML = ''
       const errEl = document.createElement('div')

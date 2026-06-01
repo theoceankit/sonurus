@@ -906,21 +906,18 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   flex-shrink: 0;
 }
 
-.focus-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
+.focus-date {
+  font-size: 11.5px;
   color: var(--ink-dim);
-  margin-bottom: 10.5px;
+  letter-spacing: 0.01em;
+  margin-bottom: 7px;
 }
-.focus-breadcrumb svg { color: rgba(0,0,0,0.25); }
 
 .focus-title-row {
   display: flex;
   align-items: center;
   gap: 14.5px;
-  margin-bottom: 4px;
+  margin-bottom: 7px;
 }
 
 .focus-title {
@@ -954,9 +951,43 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .btn-commit:disabled { opacity: 0.45; cursor: default; }
 
 .focus-meta {
-  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.focus-avatar-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.focus-header-av {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  letter-spacing: -0.01em;
+  padding-top: 1px;
+}
+
+.focus-header-av--unknown {
+  background: rgba(0,0,0,0.06) !important;
   color: var(--ink-dim);
-  letter-spacing: 0.01em;
+  border: 0.5px solid rgba(0,0,0,0.14);
+}
+
+.focus-meta-text {
+  font-size: 12px;
+  color: var(--ink-dim);
+  letter-spacing: 0.005em;
 }
 
 
@@ -1146,11 +1177,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .seg-row {
   display: grid;
-  grid-template-columns: 58px 1fr 56px;
+  grid-template-columns: 58px 1fr;
   column-gap: 18px;
-  padding: 10px 0;
+  padding: 10px 16px;
   border-left: 2px solid transparent;
-  padding-left: 16px;
   transition: border-color 0.15s;
   position: relative;
 }
@@ -1268,21 +1298,28 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .seg-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  gap: 0;
   align-items: center;
-  justify-content: flex-start;
-  padding-top: 2px;
+  flex-shrink: 0;
   opacity: 0;
-  transition: opacity 0.12s;
+  transition: opacity 0.15s;
+  background: #fff;
+  border: 0.5px solid var(--border-md);
+  border-radius: 8px;
+  padding: 2px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
 .seg-row:hover .seg-actions { opacity: 1; }
 
 .seg-action-btn {
   position: relative;
-  width: 24px;
-  height: 22px;
+  width: 23px;
+  height: 23px;
   border-radius: 5px;
   border: none;
   background: transparent;
@@ -1295,8 +1332,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .seg-action-btn:hover {
   color: var(--ink);
-  background: rgba(0,0,0,0.06);
+  background: rgba(40,30,80,0.06);
 }
+.seg-action-btn--danger:hover { color: #c0392b; }
 
 /* ── Segment action tooltips (JS-positioned, appended to body) ───────────── */
 .seg-tooltip {
@@ -2399,7 +2437,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 /* ── Selection toolbar ────────────────────────────────────────────────────── */
 
 .sel-toolbar {
-  position: absolute;
+  position: fixed;
   z-index: 40;
   display: inline-flex;
   align-items: center;
