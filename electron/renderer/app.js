@@ -8,6 +8,9 @@ const appSettings = {
   recordingMicDevice: null,
   recordingSystemDevice: null,
   recordingUseMic: true,
+  recordingAudioSource: 'both',
+  recordingDiarize: true,
+  recordingSaveAudio: true,
 }
 
 async function loadSettings() {
@@ -70,12 +73,35 @@ const app = {
     this._setView(renderSettingsView(), false)
   },
 
-  showLiveRecording() {
+  showLiveRecording(settings = {}) {
     this._currentView = 'live'
     this._activeTranscriptId = null
     document.getElementById('btn-import').classList.remove('sb-new-btn--active')
     this._rerenderList()
-    this._setView(renderLiveRecordingView(), false)
+    this._setView(renderLiveRecordingView(settings), false)
+  },
+
+  openNewRecordingModal() {
+    const overlay = renderNewRecordingModal({
+      onStart: settings => this.showLiveRecording(settings),
+      onImport: ({ filePath, title, model, language }) => {
+        const body = {
+          audio_path: filePath,
+          whisper_model: model,
+          language: language === 'auto' ? null : language,
+          title: title || null,
+        }
+        fetch(`${API_BASE}/transcribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+          .then(r => { if (!r.ok) throw new Error(`Server error ${r.status}`); return r.json() })
+          .then(({ job_id }) => this.showProgress(job_id, body))
+          .catch(err => window.showToast?.(`Could not start: ${err.message}`))
+      },
+    })
+    document.body.appendChild(overlay)
   },
 
   showEditor(transcriptId) {
@@ -303,7 +329,7 @@ const app = {
 
     // ── Sidebar buttons ────────────────────────────────────────────────────────
     document.getElementById('btn-import')
-      .addEventListener('click', () => this.showImport())
+      .addEventListener('click', () => this.openNewRecordingModal())
 
     document.getElementById('btn-settings')
       .addEventListener('click', () => this.showSettings())
@@ -349,7 +375,7 @@ const app = {
 
     // ── Titlebar — record ──────────────────────────────────────────────────────
     document.getElementById('tb-record')
-      .addEventListener('click', () => this.showLiveRecording())
+      .addEventListener('click', () => this.openNewRecordingModal())
 
     // ── Titlebar — panels ──────────────────────────────────────────────────────
     document.getElementById('tb-inspector-toggle')

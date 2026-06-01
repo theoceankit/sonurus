@@ -32,7 +32,9 @@ electron/
     data.js        — LANGUAGES, MODELS (single source of truth)
     app.js         — appSettings, loadSettings/saveSettings, view router, sidebar
     views/
-      import-view.js    — File picker → POST /transcribe
+      new-recording-modal.js — Modal overlay for recording setup (opened by Record/+ buttons)
+      import-view.js    — Legacy file-upload preflight (still loaded, used for back-navigation target)
+      live-recording-view.js — Active recording: starting → recording → review → transcribe
       progress-view.js  — WebSocket progress display
       editor-view.js    — Transcript editor + speaker panel + player
       settings-view.js  — Settings screen
