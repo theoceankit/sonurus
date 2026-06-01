@@ -141,7 +141,9 @@ Speaker avatars use `speakerPalette(spkId)` for recognized speakers; unrecognize
 
 **Segment rows:**
 
-Each segment shows: timestamp · speaker dot + name · text.
+Each segment shows: timestamp · speaker avatar (16px circle with initials or `?`) + name · text.
+
+On hover the segment card gets a subtle grey background (inset `3px 6px`, `border-radius: 8px` via `::before`). In edit mode the background becomes a light blue tint; the edit wrap itself has an opaque `--panel-bg` fill so it appears above the tint.
 
 On hover, a card-style toolbar (`background: #fff`, border, shadow) appears absolutely positioned at the top-right corner of the row, overlaying the text. It does not reserve horizontal space when hidden.
 
@@ -158,9 +160,7 @@ On hover, a card-style toolbar (`background: #fff`, border, shadow) appears abso
 - **⌘↵** saves → `PATCH …/text`
 - **Esc** cancels
 
-The segment row gets an amber background `rgba(181,138,58,0.07)` while editing.
-
-**Tooltips** are rendered as a singleton `div` appended to `document.body` with `position: fixed`, so they are never clipped by parent overflow.
+**Tooltips** are rendered as a singleton `div.seg-tooltip` appended to `document.body` with `position: fixed`, so they are never clipped by parent overflow. Style: `var(--ink)` background, `border-radius: 7px`, box-shadow, rotated-square arrow — matches the selection toolbar.
 
 **Selection toolbar:**
 
@@ -206,10 +206,12 @@ Unrecognized cards additionally show:
 
 The **Assign** button opens a speaker picker popup:
 
-- `position: fixed`, 220px wide — not clipped by any parent
-- Search field filters the recognized speaker list in real time
-- Click a speaker → `POST /reassign` (bulk-reassigns all segments) + reload
-- "New speaker" → inline input → Enter → `POST /reassign` with typed name
+- `position: fixed`, 260px wide — not clipped by any parent
+- Search field in a grey pill with magnifier icon + clear button
+- List includes current speaker (shown with blue checkmark, always sorted first when not filtering)
+- Keyboard navigation: `↑`/`↓` move focus, `Enter` selects, `Esc` closes
+- "Add new speaker" button at the bottom shows the typed query in its label; clicking creates the speaker and reassigns via `POST /reassign` with `to_speaker_name`
+- Selecting an existing speaker → `PATCH …/speaker` (single segment) or `POST /reassign` (bulk)
 
 ### Settings view
 
