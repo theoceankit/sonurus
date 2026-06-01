@@ -188,9 +188,16 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
   const header = document.createElement('div')
   header.className = 'seg-header'
 
-  const dot = document.createElement('span')
-  dot.className = 'seg-spk-dot'
-  dot.style.background = p ? p.color : 'var(--ink-4)'
+  const dot = document.createElement('div')
+  dot.className = 'seg-spk-av'
+  if (p) {
+    dot.style.background = p.color
+    dot.textContent = speakerInitials(displayName)
+  } else {
+    dot.style.background = 'color-mix(in srgb, black 8%, var(--panel-bg))'
+    dot.style.color = 'var(--ink-dim)'
+    dot.textContent = '?'
+  }
 
   const nameBtn = document.createElement('button')
   nameBtn.className = 'seg-speaker-name'

@@ -226,7 +226,7 @@ const app = {
         av.style.boxShadow = `0 0 0 1.5px ${ringColor}`
 
         if (isUnrecognized(spkId, this._knownSpeakers)) {
-          av.style.background = 'rgba(0,0,0,0.10)'
+          av.style.background = 'color-mix(in srgb, black 10%, var(--sidebar-bg))'
           av.style.color = 'rgba(0,0,0,0.45)'
           av.textContent = '?'
         } else {
