@@ -32,7 +32,9 @@ electron/
     data.js        — LANGUAGES, MODELS (single source of truth)
     app.js         — appSettings, loadSettings/saveSettings, view router, sidebar
     views/
-      import-view.js    — File picker → POST /transcribe
+      new-recording-modal.js — Modal overlay for recording setup (opened by Record/+ buttons, or auto-opened on startup when no transcripts exist)
+      import-view.js    — Legacy file-upload preflight (no longer rendered; pending removal)
+      live-recording-view.js — Active recording: starting → recording → review → transcribe
       progress-view.js  — WebSocket progress display
       editor-view.js    — Transcript editor + speaker panel + player
       settings-view.js  — Settings screen
@@ -77,14 +79,24 @@ On startup, `loadSettings()` in `app.js` reads the file and applies `setZoom(sca
 
 ## Views
 
-### Import view
+### Startup behavior
 
-Shown on startup and when clicking the **+** button in the sidebar header.
+On startup, `_loadSidebar({ autoOpen: true })` fetches transcripts and speakers. If at least one transcript exists, the app navigates directly to the **Editor view** for the most recent transcript (`created_at DESC`). If no transcripts exist, an empty panel is shown and the **New Recording modal** opens automatically.
 
-- Native file picker via `window.electronAPI.openFile()` (Electron dialog)
-- Drag-and-drop onto the drop zone
-- Accepts: WAV, MP3, M4A, FLAC, OGG, MP4, MKV, WEBM
-- On confirm: `POST /transcribe` → receives `job_id` → switches to Progress view
+### New Recording modal
+
+Opened by the **Record** button (titlebar), the **+** button (sidebar header), or automatically on startup when no transcripts exist. Also accepts files via drag-and-drop onto the modal.
+
+- **Title** — pre-filled with current date/time (e.g. `2 Jun 01:11 Meeting`), shown in gray; turns dark on first edit. On drag-and-drop the filename is used as default title if the user hasn't typed anything.
+- **Audio source** — Microphone / System audio / Both (default). Inactive device selector is disabled in place.
+- **Device dropdowns** — populated async via `navigator.mediaDevices.enumerateDevices()`
+- **Model + Language** — dropdowns reusing `makeDropdown` + `MODELS`/`LANGUAGES` from `data.js`; saved to `appSettings`
+- **Toggles** — Diarize speakers, Save audio file (both on by default)
+- **Footer** — "Import audio file" (native dialog → `POST /transcribe`) + "Start recording" (passes settings to `showLiveRecording`)
+- **Drag & drop** — dropping an audio/video file onto the modal triggers immediate import; file path resolved via `window.electronAPI.getFilePath(file)`
+- Closes only via the × button (not on backdrop click)
+
+`appSettings` keys: `recordingAudioSource`, `recordingMicDevice`, `recordingSystemDevice`, `recordingDiarize`, `recordingSaveAudio`.
 
 ### Progress view
 
@@ -94,6 +106,21 @@ Shown on startup and when clicking the **+** button in the sidebar header.
 - Heartbeat events (`type: "heartbeat"`) are silently ignored
 - On `type: "done"` → auto-navigates to Editor view after 600ms
 
+### Titlebar
+
+CSS grid layout: `300px (sidebar header) | auto (nav) | 1fr (search) | auto (utility buttons)`.
+
+| Zone | Contents |
+|---|---|
+| Sidebar header | Aligns with left sidebar width (300px), background matches sidebar |
+| Nav (`tb-nav`) | Back · Forward |
+| Search (`tb-search`) | Centered in the `1fr` column via `justify-self: center`; `clamp(180px, 45%, 480px)` wide |
+| Utility (`tb-right`) | Copy · Share · Record · Inspector toggle · Settings |
+
+The search cannot overlap nav or utility buttons because each zone occupies a separate grid column.
+
+Record button has a pulsing red dot (`@keyframes pulse-dot`: opacity + scale, 1.4s).
+
 ### Editor view
 
 Three-panel layout (all panels are separate elevated cards):
@@ -102,35 +129,59 @@ Three-panel layout (all panels are separate elevated cards):
 [Left sidebar] [Focus panel] [Right panel]
 ```
 
+**Focus panel header:**
+
+Rendered from two sources: `GET /transcripts/{id}` (segments, language) and `meta` from the sidebar `_allRecordings` list (title, created_at, speakers).
+
+| Element | Content |
+|---|---|
+| Date line | `created_at` formatted as `DD Mon  HH:MM` (24h), e.g. `31 May  16:30`; hidden if unavailable |
+| Title | `meta.title` if present, else filename stem with `_`/`-` → spaces |
+| Meta row | Speaker avatar circles (20px, up to 5) + "N speakers" + language (hidden if `"unknown"`) |
+| Tags row | Source chip (file / live recording) + `+ tag` placeholder button |
+
+Speaker avatars use `speakerPalette(spkId)` for recognized speakers; unrecognized speakers show `?` on a grey circle.
+
 **Focus panel:**
-- Breadcrumb + title + meta (language · segment count)
-- Scrollable segment list
+- Header (date + title + meta + tags)
+- Scrollable segment list (`.seg-list`)
 - Audio player bar fixed at the bottom
 
 **Segment rows:**
 
-Each segment shows: timestamp · avatar · speaker name · text.
+Each segment shows: timestamp · speaker avatar (16px circle with initials or `?`) + name · text.
 
-On hover, a pill-shaped toolbar appears on the right of the speaker header with five action buttons:
+On hover the segment card gets a subtle grey background (inset `3px 6px`, `border-radius: 8px` via `::before`). In edit mode the background becomes a light blue tint; the edit wrap itself has an opaque `--panel-bg` fill so it appears above the tint.
+
+On hover, a card-style toolbar (`background: #fff`, border, shadow) appears absolutely positioned at the top-right corner of the row, overlaying the text. It does not reserve horizontal space when hidden.
 
 | Button | Action |
 |---|---|
-| Play | Seeks audio to segment start |
+| Play | Seeks audio to segment start and plays |
 | Edit | Enters inline edit mode |
 | Bookmark | Visual placeholder (not yet wired) |
-| Copy | Copies text to clipboard; shows "Copied!" tooltip for 1.5s |
+| Copy | Copies segment text to clipboard |
 | Delete | `DELETE /segments/{start}` → fade-out animation + reload |
 
-**Edit mode** (click text or Edit button):
+**Edit mode** (Edit button only — clicking text does not trigger edit):
 - `contenteditable` field replaces the text label
-- **Enter** saves → `PATCH …/text`
-- **Shift+Enter** inserts a new line
-- **Esc** cancels
-- Save / Cancel buttons with a `Shift ↵` keyboard hint
+- Footer row: hint text left · **✓ confirm** button (accent, saves) · **✕ cancel** button (grey) right
+- **⌘↵** saves → `PATCH …/text`
+- **Esc** or losing focus (blur) cancels — clicking outside the edit area exits edit mode
+- Confirm/cancel buttons use `mousedown + preventDefault` to avoid triggering blur before click
 
-The segment row gets an amber background `rgba(181,138,58,0.07)` while editing.
+**Tooltips** are rendered as a singleton `div.seg-tooltip` appended to `document.body` with `position: fixed`, so they are never clipped by parent overflow. Style: `var(--ink)` background, `border-radius: 7px`, box-shadow, rotated-square arrow — matches the selection toolbar.
 
-**Tooltips** are rendered as a singleton `div` appended to `document.body` with `position: fixed`, so they are never clipped by parent overflow.
+**Selection toolbar:**
+
+Appears above selected text (`position: fixed`, viewport-relative coordinates) when the user selects text inside a segment in normal (non-edit) mode.
+
+| Button | Action |
+|---|---|
+| Copy | Copies selected text to clipboard |
+| Highlight | Placeholder — "Highlights coming in a future update" |
+
+The toolbar is hidden when the selection is inside a `.seg-row--editing` element.
 
 **Audio player bar:**
 
@@ -150,19 +201,27 @@ Fixed 76px bar at the bottom of the focus panel.
 
 **Right panel (Speakers tab):**
 
-Two sections: Recognized and Unrecognized.
+Two sections: **Recognized** and **Unrecognized** — normal-case labels with a count, no colored dots.
 
 All speaker cards show:
-- Avatar · name · segment count + duration
+- Avatar (28px) · name · segment count + duration (no dot separator)
 - Duration bar (amber fill for unrecognized, speaker color for recognized)
-- On hover: **Play** button (all) + **Assign** button (recognized only)
+- **Play** button + **Assign** button (recognized) always visible — not hover-only
+- Action container: transparent background, `0.5px` border, `6px` radius
 
-The **Assign** button (and **Name…** for unrecognized) opens a speaker picker popup:
+Unrecognized cards additionally show:
+- Quote sample: large decorative `"` (Georgia, italic) + italic caption text
+- AI suggestion strip: speaker color tint, confirm (✓) + reject (×) buttons; reject is white with thin border
+- "Assign speaker" full-width outlined button
 
-- `position: fixed`, 220px wide — not clipped by any parent
-- Search field filters the recognized speaker list in real time
-- Click a speaker → `POST /reassign` (bulk-reassigns all segments) + reload
-- "New speaker" → inline input → Enter → `POST /reassign` with typed name
+The **Assign** button opens a speaker picker popup:
+
+- `position: fixed`, 260px wide — not clipped by any parent
+- Search field in a grey pill with magnifier icon + clear button
+- List includes current speaker (shown with blue checkmark, always sorted first when not filtering)
+- Keyboard navigation: `↑`/`↓` move focus, `Enter` selects, `Esc` closes
+- "Add new speaker" button at the bottom shows the typed query in its label; clicking creates the speaker and reassigns via `POST /reassign` with `to_speaker_name`
+- Selecting an existing speaker → `PATCH …/speaker` (single segment) or `POST /reassign` (bulk)
 
 ### Settings view
 

@@ -1,5 +1,7 @@
 import uuid as _uuid
 
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity as _cos_sim
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.services.transcript_storage_service import TranscriptStorageService
@@ -56,6 +58,57 @@ def get_transcript(
             for s in t.segments
         ],
     )
+
+
+@router.get("/{transcript_id}/speaker-suggestions")
+def get_speaker_suggestions(
+    transcript_id: int,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+    memory: SpeakerMemoryService = Depends(get_memory_service),
+) -> dict:
+    """For each unrecognized speaker in the transcript, return the best matching known speaker."""
+    try:
+        t = storage.load(transcript_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Transcript not found")
+
+    recognized = {
+        spk_id: memory.get_name(spk_id)
+        for spk_id in memory.known_speakers
+        if memory.get_name(spk_id) is not None
+    }
+    if not recognized:
+        return {}
+
+    embeddings_by_speaker: dict[str, list] = {}
+    for seg in t.segments:
+        spk_id = seg.speaker_resolved or seg.speaker_raw
+        if not spk_id or spk_id in recognized:
+            continue
+        if seg.embedding is not None:
+            embeddings_by_speaker.setdefault(spk_id, []).append(seg.embedding)
+
+    if not embeddings_by_speaker:
+        return {}
+
+    rec_ids = list(recognized.keys())
+    rec_matrix = np.stack([memory.known_speakers[k] for k in rec_ids])
+
+    result = {}
+    for spk_id, embs in embeddings_by_speaker.items():
+        centroid = np.mean(embs, axis=0)
+        norm = float(np.linalg.norm(centroid))
+        if norm > 0:
+            centroid = centroid / norm
+        scores = _cos_sim(centroid.reshape(1, -1), rec_matrix)[0]
+        best_idx = int(np.argmax(scores))
+        result[spk_id] = {
+            "speaker_id": rec_ids[best_idx],
+            "name": recognized[rec_ids[best_idx]],
+            "score": round(float(scores[best_idx]), 2),
+        }
+
+    return result
 
 
 @router.delete("/{transcript_id}", status_code=204)

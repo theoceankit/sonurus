@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, session } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -14,7 +14,7 @@ function createWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#EDE9F4',
+    backgroundColor: '#FFFFFF',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -67,6 +67,8 @@ ipcMain.handle('open-file', async () => {
   })
   return canceled ? null : filePaths[0]
 })
+
+ipcMain.handle('write-clipboard', (_e, text) => { clipboard.writeText(text) })
 
 ipcMain.handle('save-recording', (_e, { buffer, ext }) => {
   const name = `whisper-rec-${crypto.randomUUID()}.${ext}`
