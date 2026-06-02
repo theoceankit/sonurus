@@ -30,7 +30,7 @@ app = FastAPI(title="Whisper API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Electron renderer uses file:// origin (sent as null) — lock down before distribution
+    allow_origins=["null", "http://127.0.0.1", "http://localhost"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

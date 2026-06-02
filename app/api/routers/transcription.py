@@ -66,6 +66,11 @@ async def start_transcribe(
                 detail=f"Alignment model for language '{body.language}' is not installed. Download it in Settings.",
             )
 
+    if not os.path.isfile(body.audio_path):
+        raise HTTPException(status_code=400, detail=f"audio_path not found: {body.audio_path}")
+    if not os.access(body.audio_path, os.R_OK):
+        raise HTTPException(status_code=400, detail=f"audio_path not readable: {body.audio_path}")
+
     job_id = str(uuid.uuid4())
     queue: asyncio.Queue = asyncio.Queue()
     cancel_event = threading.Event()
