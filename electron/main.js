@@ -98,7 +98,10 @@ app.whenReady().then(async () => {
   } catch { /* settings not yet created */ }
 
   const setupMode = needsSetup()
-  createWindow(setupMode)
+
+  // Setup mode: open window first (to show progress screen), then start backend.
+  // Normal mode: start backend first so index.html loads with a ready API.
+  if (setupMode) createWindow(true)
 
   const onProgress = data => {
     if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('setup-progress', data)
@@ -115,6 +118,8 @@ app.whenReady().then(async () => {
 
   if (setupMode) {
     mainWin.loadFile(path.join(__dirname, 'renderer', 'index.html'))
+  } else {
+    createWindow(false)
   }
 })
 
