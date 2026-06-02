@@ -1,0 +1,116 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ── macOS (arm64 + x64) ──────────────────────────────────────────────────────
+  build-mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest  # arm64 — Apple Silicon
+            arch: arm64
+          - runner: macos-13      # x64  — Intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Bundle Python backend
+        run: node scripts/bundle-backend.js
+
+      - name: Build Electron app
+        run: npx electron-builder --mac --${{ matrix.arch }} --publish never
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-mac-${{ matrix.arch }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
+
+  # ── Windows x64 ──────────────────────────────────────────────────────────────
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Bundle Python backend
+        run: node scripts/bundle-backend.js
+
+      - name: Build Electron app
+        run: npx electron-builder --win --x64 --publish never
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-win
+          path: dist/*.exe
+          if-no-files-found: error
+
+  # ── Linux x64 ────────────────────────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Bundle Python backend
+        run: node scripts/bundle-backend.js
+
+      - name: Build Electron app
+        run: npx electron-builder --linux --x64 --publish never
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux
+          path: dist/*.AppImage
+          if-no-files-found: error
+
+  # ── Draft release ─────────────────────────────────────────────────────────────
+  release:
+    needs: [build-mac, build-win, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create draft release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "artifacts/*"
+          draft: true
+          generateReleaseNotes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
