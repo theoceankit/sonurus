@@ -19,15 +19,18 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   })
 
   mainWin.loadFile(path.join(__dirname, 'renderer', 'index.html'))
 
-  // F12 opens DevTools
-  mainWin.webContents.on('before-input-event', (_e, input) => {
-    if (input.type === 'keyDown' && input.key === 'F12') mainWin.webContents.openDevTools()
-  })
+  // F12 opens DevTools in development only
+  if (!app.isPackaged) {
+    mainWin.webContents.on('before-input-event', (_e, input) => {
+      if (input.type === 'keyDown' && input.key === 'F12') mainWin.webContents.openDevTools()
+    })
+  }
 }
 
 const SETTINGS_PATH = path.join(__dirname, '..', 'settings.json')

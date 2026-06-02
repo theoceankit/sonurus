@@ -1044,7 +1044,16 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
 }
 
 // ── Right panel ────────────────────────────────────────────────────────────────
+let _rightPanelPreviewAudio = null  // track to stop/clean up on rebuild
+
 function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio = null, suggestions = {}) {
+  // Stop any preview playing from a previous right-panel build
+  if (_rightPanelPreviewAudio) {
+    _rightPanelPreviewAudio.pause()
+    _rightPanelPreviewAudio.src = ''
+    _rightPanelPreviewAudio = null
+  }
+
   const panel = document.createElement('div')
   panel.className = 'right-panel'
 
@@ -1061,6 +1070,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
 
   // ── Speaker preview (separate Audio element, player bar unaffected) ──────────
   const previewAudio = new Audio()
+  _rightPanelPreviewAudio = previewAudio
   let previewStopFn = null
   let currentSetActive = null
 
