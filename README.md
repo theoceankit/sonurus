@@ -1,4 +1,4 @@
-# Whisper Project
+# Sonorus
 
 A local desktop application for transcribing audio with persistent speaker identification across sessions.
 
