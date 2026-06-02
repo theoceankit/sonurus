@@ -131,7 +131,9 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ from_speaker_id: currentSpkId, to_speaker_name: name }),
-    }).then(r => { if (!r.ok) throw new Error(r.status); popup.remove(); onReload() })
+    })
+      .then(r => { if (!r.ok) throw new Error(r.status); popup.remove(); onReload() })
+      .catch(err => window.showToast?.(`Failed to reassign speaker: ${err.message}`, 'error'))
   })
 
   let focusIdx = 0
@@ -207,6 +209,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
       : JSON.stringify({ from_speaker_id: currentSpkId, to_speaker_id: spkId })
     fetch(url, { method: isSingle ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body })
       .then(r => { if (!r.ok) throw new Error(r.status); popup.remove(); onReload() })
+      .catch(err => window.showToast?.(`Failed to assign speaker: ${err.message}`, 'error'))
   }
 
   buildList('')
@@ -419,9 +422,11 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
       .catch(() => window.showToast?.('Copy failed'))
   )
   deleteBtn.addEventListener('click', () => {
+    deleteBtn.disabled = true
     fetch(`${API_BASE}/transcripts/${transcriptId}/segments/${seg.start}`, { method: 'DELETE' })
       .then(r => { if (!r.ok) throw new Error(r.status) })
       .then(() => { row.style.opacity = '0'; row.style.transition = 'opacity 0.15s'; setTimeout(() => { row.remove(); onReload() }, 150) })
+      .catch(err => { deleteBtn.disabled = false; window.showToast?.(`Failed to delete segment: ${err.message}`, 'error') })
   })
 
   actions.appendChild(playBtn)
@@ -460,7 +465,7 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: newText }),
     }).then(() => { seg.text = newText; textEl.textContent = newText; cancelEdit() })
-      .catch(() => cancelEdit())
+      .catch(err => { window.showToast?.(`Failed to save edit: ${err.message}`, 'error'); cancelEdit() })
   }
 
   function cancelEdit() {
@@ -574,7 +579,16 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
 
       const txt = document.createElement('span')
       txt.className = 'spk-suggestion-text'
-      txt.innerHTML = `Likely <span class="spk-suggestion-name" style="color:${p.color}">${suggestion.name}</span><span class="spk-suggestion-pct">${pct}%</span>`
+      txt.appendChild(document.createTextNode('Likely '))
+      const nameSpan = document.createElement('span')
+      nameSpan.className = 'spk-suggestion-name'
+      nameSpan.style.color = p.color
+      nameSpan.textContent = suggestion.name
+      txt.appendChild(nameSpan)
+      const pctSpan = document.createElement('span')
+      pctSpan.className = 'spk-suggestion-pct'
+      pctSpan.textContent = `${pct}%`
+      txt.appendChild(pctSpan)
 
       const btns = document.createElement('div')
       btns.className = 'spk-suggestion-btns'
@@ -592,7 +606,9 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ from_speaker_id: spkId, to_speaker_id: suggestion.speaker_id }),
-        }).then(r => { if (r.ok) onReload() })
+        })
+          .then(r => { if (!r.ok) throw new Error(r.status); onReload() })
+          .catch(err => { confirmBtn.disabled = false; window.showToast?.(`Failed to confirm suggestion: ${err.message}`, 'error') })
       })
 
       const rejectBtn = document.createElement('button')
@@ -1292,10 +1308,12 @@ function renderEditorView(transcriptId, meta = null) {
 
     function reload() {
       Promise.all([
-        fetch(`${API_BASE}/transcripts/${transcriptId}`).then(r => r.json()),
-        fetch(`${API_BASE}/speakers`).then(r => r.json()),
+        fetch(`${API_BASE}/transcripts/${transcriptId}`).then(r => { if (!r.ok) throw new Error(r.status); return r.json() }),
+        fetch(`${API_BASE}/speakers`).then(r => { if (!r.ok) throw new Error(r.status); return r.json() }),
         fetch(`${API_BASE}/transcripts/${transcriptId}/speaker-suggestions`).then(r => r.json()).catch(() => ({})),
-      ]).then(([t, spks, suggs]) => buildEditor(t, spks, meta, suggs))
+      ])
+        .then(([t, spks, suggs]) => buildEditor(t, spks, meta, suggs))
+        .catch(err => window.showToast?.(`Failed to reload editor: ${err.message}`, 'error'))
     }
 
     // ── Top bar ──────────────────────────────────────────────────────────────

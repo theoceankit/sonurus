@@ -23,10 +23,12 @@ function renderNewRecordingModal({ onStart, onImport }) {
   modal.className = 'nr-modal'
   overlay.appendChild(modal)
 
-  function close() { overlay.remove() }
-  document.addEventListener('keydown', function onEsc(e) {
-    if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onEsc) }
-  })
+  function onEsc(e) { if (e.key === 'Escape') close() }
+  function close() {
+    document.removeEventListener('keydown', onEsc)
+    overlay.remove()
+  }
+  document.addEventListener('keydown', onEsc)
 
   // ── Header ─────────────────────────────────────────────────────────────────
 

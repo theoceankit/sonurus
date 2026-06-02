@@ -29,7 +29,7 @@ def _new_speaker_id() -> str:
 class SpeakerRepository:
     """SQLite persistence for speaker embeddings and names."""
 
-    _SCHEMA_VERSION = 1
+    _SCHEMA_VERSION = 2
 
     def __init__(self, db_path: str):
         self.db_path = db_path
@@ -133,6 +133,23 @@ class SpeakerRepository:
                 )
             """)
             conn.execute("UPDATE _meta SET value = '1' WHERE key = 'schema_version'")
+        if current < 2:
+            # Drop the FK from speaker_names.speaker_id so names can be written
+            # for speakers that do not yet have an embedding row (e.g., a new
+            # speaker assigned by name before any segment embedding is available).
+            # SQLite cannot ALTER a constraint, so we recreate the table.
+            conn.execute("ALTER TABLE speaker_names RENAME TO speaker_names_v1")
+            conn.execute("""
+                CREATE TABLE speaker_names (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    speaker_id TEXT NOT NULL,
+                    label      TEXT NOT NULL,
+                    name       TEXT NOT NULL
+                )
+            """)
+            conn.execute("INSERT INTO speaker_names SELECT * FROM speaker_names_v1")
+            conn.execute("DROP TABLE speaker_names_v1")
+            conn.execute("UPDATE _meta SET value = '2' WHERE key = 'schema_version'")
 
     def load(self) -> tuple[dict, dict]:
         with self._connect() as conn:
@@ -178,15 +195,13 @@ class SpeakerRepository:
 
     def save_names_only(self, known_names: dict, known_speakers: dict):
         with self._connect() as conn:
-            existing_ids = {r[0] for r in conn.execute("SELECT id FROM speaker_embeddings").fetchall()}
-            to_write = [s for s in known_names if s in existing_ids]
-            for spk_id in to_write:
+            for spk_id in known_names:
                 conn.execute("DELETE FROM speaker_names WHERE speaker_id = ?", (spk_id,))
             conn.executemany(
                 "INSERT INTO speaker_names (speaker_id, label, name) VALUES (?, ?, ?)",
                 [
                     (spk_id, label, name)
-                    for spk_id in to_write
+                    for spk_id in known_names
                     for label, name in known_names[spk_id].items()
                 ],
             )
