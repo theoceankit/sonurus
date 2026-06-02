@@ -128,6 +128,7 @@ async def start_transcribe(
         except Exception as exc:
             _emit({"type": "error", "message": str(exc)})
         finally:
+            _jobs.pop(job_id, None)
             _cancel_events.pop(job_id, None)
 
     loop.run_in_executor(_executor, _run)
