@@ -2,91 +2,88 @@
 sidebar_position: 2
 ---
 
-# .env Configuration
+# Configuration
 
-The app is configured via a `.env` file in the project root. Copy `.env.example` and fill in the values.
+Sonorus is configured through two layers:
 
-```env
-HF_TOKEN=your_huggingface_token
-VERBOSE=false
-
-# macOS only — see SSL section below
-# SSL_CERT_FILE=...
-# REQUESTS_CA_BUNDLE=...
-```
+- **Settings UI** — user-facing settings stored in `settings.json` (HF token, model choice, language, export format, etc.)
+- **Environment variables** — low-level server configuration, primarily relevant in dev mode
 
 ---
 
-## HF_TOKEN
+## Settings UI
 
-HuggingFace token used to download gated PyAnnote models. Required on first run.
+Accessible via the gear icon in the Electron app. Settings are read and written via IPC (`readSettings` / `writeSettings`) and stored in:
 
-The token is loaded via `load_dotenv()` in `app/api/main.py` (API path) and `main.py` (CLI path) and written into `os.environ`, where HuggingFace Hub picks it up automatically.
+| Platform | Path |
+|---|---|
+| macOS | `~/Library/Application Support/Sonorus/settings.json` |
+| Windows | `%APPDATA%\Sonorus\settings.json` |
+| Linux | `~/.config/Sonorus/settings.json` |
+
+| Setting | Key | Description |
+|---|---|---|
+| HuggingFace token | `hfToken` | Required for PyAnnote diarization |
+| Transcription language | `transcribeLang` | Whisper language code, or `"auto"` |
+| Whisper model | `transcribeModel` | Model ID (e.g. `"small"`, `"large-v3"`) |
+| Interface scale | `scale` | Zoom factor in percent |
+| Export format | `exportFormat` | `"txt"`, `"md"`, `"srt"`, `"vtt"`, `"json"` |
+
+---
+
+## Environment variables
+
+Used when the backend is started manually (`uvicorn ...`) or set by `electron/backend.js` when launching the packaged app.
+
+| Variable | Default | Description |
+|---|---|---|
+| `HF_TOKEN` | — | HuggingFace token. In packaged/`npm start` mode, taken from `settings.hfToken`. In manual mode, load from `.env`. |
+| `SONORUS_DATA_DIR` | `.` (CWD) | Root directory for user data: models, database, archive, log. Set automatically to `app.getPath('userData')` when launched via Electron. |
+| `VERBOSE` | `false` | If `true`, ML library warnings are printed. Useful for debugging. |
+| `LOG_LEVEL` | `info` | Server log level: `debug`, `info`, `warning`, `error`, `off`. |
+| `LOG_FILE` | — | If set, logs are also written to this file. Set to `$SONORUS_DATA_DIR/sonorus.log` in packaged mode. |
+| `DB_PATH` | `$SONORUS_DATA_DIR/speaker_memory.db` | Override the SQLite database path. |
+
+### SONORUS_DATA_DIR
+
+The most important variable for production deployments. All user data resolves relative to it:
+
+```
+$SONORUS_DATA_DIR/
+  .models/
+    whisper/          ← Whisper model weights
+    hf/               ← PyAnnote model weights
+    alignment/        ← wav2vec2 alignment models
+  speaker_memory.db   ← Speaker memory + transcripts
+  .files/             ← Audio archive + .txt exports
+  sonorus.log         ← Backend log (packaged mode)
+  settings.json       ← App settings (written by Electron)
+  python-packages/    ← pip-installed ML deps (packaged mode)
+```
+
+In dev mode (`npm start` without `SONORUS_TEST_SETUP`), `SONORUS_DATA_DIR` is still set by Electron to `app.getPath('userData')`, so models and the database also go to the user data directory — not the project root.
+
+### .env file (dev only)
+
+When the backend is started manually (`uvicorn ...`), variables are loaded from `.env` via `python-dotenv`:
+
+```env
+HF_TOKEN=hf_your_token_here
+VERBOSE=false
+# DB_PATH=./speaker_memory.db   # override if needed
+```
+
+The `.env` file is **not used** when the backend is started by Electron — in that case all variables are set programmatically by `electron/backend.js`.
 
 ---
 
 ## VERBOSE flag
 
-Controls suppression of noisy diagnostic output from ML libraries. Defaults to `false`.
+Controls ML library noise suppression. When `false` (default), suppression runs in two layers:
 
-When `VERBOSE=false`, suppression happens in two layers:
+1. **Import-time** (`app/api/main.py`): suppresses pyannote/torchcodec warnings on module load.
+2. **Inference thread** (`app/api/routers/transcription.py`): suppresses warnings emitted during the ML pipeline.
 
-### 1. Import-time warnings (API entry point)
+Loggers suppressed at runtime: `whisperx.*`, `lightning.*`, `pytorch_lightning`.
 
-`app/api/main.py` sets `warnings.filterwarnings("ignore", module="pyannote")` before importing local modules, which triggers the pyannote import chain. This suppresses warnings emitted when the module is first loaded (e.g. the torchcodec warning on macOS).
-
-### 2. Runtime warnings (inference thread)
-
-`app/api/routers/transcription.py` → `_suppress_noise()` is called at the start of `_run()` inside the `ThreadPoolExecutor` thread. This suppresses warnings emitted during the ML pipeline.
-
-Loggers suppressed at runtime:
-```
-whisperx, whisperx.asr, whisperx.vads.pyannote, whisperx.diarize
-lightning, lightning.pytorch, lightning.fabric
-lightning.fabric.utilities.rank_zero
-lightning.pytorch.utilities.upgrade_checkpoint
-pytorch_lightning
-```
-
-> **Note:** Warning suppression is currently spread across three locations (`main.py`, `app/api/main.py`, `app/api/routers/transcription.py`). Consolidating it into a single utility is tracked in [Architecture Improvements](../roadmap/architecture-improvements.md).
-
----
-
-## When to set VERBOSE=true
-
-- Debugging transcription or diarisation issues
-- Understanding which models are loaded and with what parameters
-- Diagnosing PyAnnote / WhisperX / Lightning errors
-
----
-
-## macOS SSL fix
-
-On macOS, Python installed outside of Homebrew may not trust system CA certificates, which causes NLTK downloads to fail with `SSL: CERTIFICATE_VERIFY_FAILED` during the alignment step.
-
-**Fix:** point Python's SSL stack at the `certifi` CA bundle shipped in the venv.
-
-1. Get the path to the bundle:
-   ```bash
-   .venv/bin/python -c "import certifi; print(certifi.where())"
-   ```
-
-2. Add to `.env`:
-   ```env
-   SSL_CERT_FILE=/path/to/.venv/lib/python3.11/site-packages/certifi/cacert.pem
-   REQUESTS_CA_BUNDLE=/path/to/.venv/lib/python3.11/site-packages/certifi/cacert.pem
-   ```
-
-These variables are picked up by `load_dotenv()` at server startup — no manual export needed.
-
----
-
-## File map
-
-```
-.env                              ← runtime configuration
-.env.example                      ← template with all supported variables
-main.py                           ← load_dotenv() + warning suppression (CLI)
-app/api/main.py                   ← load_dotenv() + import-time warning suppression (API)
-app/api/routers/transcription.py  ← _suppress_noise() inside ThreadPoolExecutor thread (API)
-```
+Set `VERBOSE=true` when debugging transcription or diarization issues.
