@@ -83,7 +83,7 @@ stateDiagram-v2
 **Stale** — loaded from the sidebar (DB). Per-segment `embedding` values are restored from the `segments.embedding` BLOB column, so they are present on all segments just like in Fresh. Speaker reassignment in this state triggers `CommitService` and updates long-term speaker memory — `commit()` is reachable on loaded transcripts.
 
 :::note
-`Transcript.status` is always `'draft'`. The `update_status()` method exists in `TranscriptStorageService` but is never called. The Committed state is implicit — it exists only as an effect on `speaker_memory.db` and is not recorded anywhere.
+`Transcript.status` is always `'draft'`. The Committed state is implicit — it exists only as an effect on `speaker_memory.db` and is not recorded anywhere.
 :::
 
 :::note[Non-speaker edits bypass the commit pipeline]

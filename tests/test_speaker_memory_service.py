@@ -312,17 +312,27 @@ def test_save_names_only_persists_name_without_touching_embedding(tmp_path):
     assert count_after == count_before, "save_names_only() must not alter the embedding count"
 
 
-def test_save_names_only_does_not_create_embedding_rows(tmp_path):
-    """save_names_only() with no embedding present must not insert rows into speaker_embeddings."""
+def test_save_names_only_persists_name_without_embedding(tmp_path):
+    """save_names_only() must persist names even when no embedding exists for the speaker yet.
+
+    This is the name-only path used by reassign_speaker when a brand-new speaker is
+    created by display name before any segment embedding is available.  The name must
+    survive a server restart (i.e. be readable from a fresh SpeakerMemoryService).
+    """
     db_path = str(tmp_path / "memory.db")
     svc = SpeakerMemoryService(db_path=db_path)
 
     svc.set_name("spk_zzz", "Ghost")
     svc.save_names_only()
 
+    # No embedding row should be created — the FK was removed in schema v2.
     with sqlite3.connect(db_path) as con:
-        count = con.execute("SELECT COUNT(*) FROM speaker_embeddings").fetchone()[0]
-    assert count == 0, "save_names_only() must not write to speaker_embeddings"
+        emb_count = con.execute("SELECT COUNT(*) FROM speaker_embeddings").fetchone()[0]
+    assert emb_count == 0, "save_names_only() must not write to speaker_embeddings"
+
+    # The name must be readable after a fresh load (survives restart).
+    svc2 = SpeakerMemoryService(db_path=db_path)
+    assert svc2.find_by_name("Ghost") == "spk_zzz"
 
 
 def test_save_names_only_overwrites_existing_name(tmp_path):

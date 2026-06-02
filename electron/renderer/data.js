@@ -1,5 +1,4 @@
 // ── Languages ───────────────────────────────────────────────────────────────────
-// Single source of truth used by import-view and settings-view.
 // Each entry has `code` as the language key; consumers add `value: l.code` when
 // passing to makeDropdown.
 
@@ -16,7 +15,7 @@ const LANGUAGES = [
 ]
 
 // ── Models ──────────────────────────────────────────────────────────────────────
-// Used by import-view for the model dropdown. settings-view fetches from
+// Used by new-recording-modal for the model dropdown. settings-view fetches from
 // GET /models at render time and does not use this array.
 
 const MODELS = [
