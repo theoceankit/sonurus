@@ -34,7 +34,7 @@ function createWindow() {
   }
 }
 
-const SETTINGS_PATH = path.join(__dirname, '..', 'settings.json')
+const getSettingsPath = () => path.join(app.getPath('userData'), 'settings.json')
 
 const DEFAULT_SETTINGS = {
   scale: 100,
@@ -44,6 +44,7 @@ const DEFAULT_SETTINGS = {
   recordingMicDevice: null,
   recordingSystemDevice: null,
   recordingUseMic: true,
+  hfToken: '',
 }
 
 ipcMain.handle('set-zoom', (_e, factor) => {
@@ -52,14 +53,16 @@ ipcMain.handle('set-zoom', (_e, factor) => {
 
 ipcMain.handle('read-settings', () => {
   try {
-    return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8'))
+    return JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8'))
   } catch {
     return DEFAULT_SETTINGS
   }
 })
 
 ipcMain.handle('write-settings', (_e, data) => {
-  fs.writeFileSync(SETTINGS_PATH, JSON.stringify(data, null, 2), 'utf8')
+  const p = getSettingsPath()
+  fs.mkdirSync(path.dirname(p), { recursive: true })
+  fs.writeFileSync(p, JSON.stringify(data, null, 2), 'utf8')
 })
 
 ipcMain.handle('open-file', async () => {

@@ -22,6 +22,7 @@ function makeSettings() {
     recordingMicDevice: appSettings.recordingMicDevice ?? null,
     recordingSystemDevice: appSettings.recordingSystemDevice ?? null,
     recordingUseMic: appSettings.recordingUseMic ?? true,
+    hfToken: appSettings.hfToken ?? '',
     duplicate: true,
     incTimestamps: true,
     incSpeakers: true,
@@ -698,6 +699,57 @@ function buildAlignmentSection(state) {
   ])
 }
 
+function buildApiKeysSection(state) {
+  const wrap = document.createElement('div')
+  wrap.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%'
+
+  const input = document.createElement('input')
+  input.type = 'password'
+  input.className = 'st-text-input'
+  input.placeholder = 'hf_...'
+  input.value = state.hfToken || ''
+  input.autocomplete = 'off'
+  input.spellcheck = false
+
+  let visible = false
+  const eyeBtn = document.createElement('button')
+  eyeBtn.className = 'st-btn st-btn--icon'
+  eyeBtn.title = 'Show / hide token'
+  eyeBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <path d="M1 7s2-4 6-4 6 4 6 4-2 4-6 4-6-4-6-4z" stroke="currentColor" stroke-width="1.3"/>
+    <circle cx="7" cy="7" r="1.8" stroke="currentColor" stroke-width="1.3"/>
+  </svg>`
+  eyeBtn.addEventListener('click', () => {
+    visible = !visible
+    input.type = visible ? 'text' : 'password'
+  })
+
+  input.addEventListener('change', () => {
+    state.hfToken = input.value.trim()
+    saveSettings({ hfToken: state.hfToken })
+  })
+
+  wrap.appendChild(input)
+  wrap.appendChild(eyeBtn)
+
+  return makeSectionCard([
+    makeSectionHeader(
+      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <circle cx="8" cy="7.5" r="3.5" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M10.5 10.5L15 15" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        <path d="M8 5.5v2M7 6.5h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>`,
+      'API Keys', 'Credentials for accessing ML model providers.'
+    ),
+    makeFieldRow(
+      'HuggingFace token',
+      'Required for speaker diarization (PyAnnote). Create a read token at huggingface.co/settings/tokens.',
+      wrap,
+      true
+    ),
+  ])
+}
+
 function buildExportSection(state) {
   // Format tiles
   const tilesWrap = document.createElement('div')
@@ -931,6 +983,7 @@ function renderSettingsView() {
     { id: 'interface', build: () => buildInterfaceSection(state) },
     { id: 'models',    build: () => buildModelsSection(state) },
     { id: 'alignment', build: () => buildAlignmentSection(state) },
+    { id: 'apikeys',   build: () => buildApiKeysSection(state) },
     { id: 'export',    build: () => buildExportSection(state) },
     { id: 'audio',     build: () => buildAudioSection(state) },
     { id: 'reset',     build: () => buildResetSection() },

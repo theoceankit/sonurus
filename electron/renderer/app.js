@@ -11,6 +11,7 @@ const appSettings = {
   recordingAudioSource: 'both',
   recordingDiarize: true,
   recordingSaveAudio: true,
+  hfToken: '',
 }
 
 async function loadSettings() {

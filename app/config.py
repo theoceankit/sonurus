@@ -5,7 +5,8 @@ from pathlib import Path
 # Reduces CUDA memory fragmentation — must be set before any CUDA allocation.
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
-MODELS_DIR = Path(".models")
+_data_dir = Path(os.getenv("SONORUS_DATA_DIR", "."))
+MODELS_DIR = _data_dir / ".models"
 WHISPER_MODELS_DIR = MODELS_DIR / "whisper"
 HF_MODELS_DIR = MODELS_DIR / "hf"
 ALIGNMENT_MODELS_DIR = MODELS_DIR / "alignment"
@@ -36,4 +37,4 @@ EMBEDDING_MIN_DURATION = 1.0
 SPEAKER_SIMILARITY_THRESHOLD = 0.75
 
 # Database
-DB_PATH = os.getenv("DB_PATH", "speaker_memory.db")
+DB_PATH = os.getenv("DB_PATH", str(_data_dir / "speaker_memory.db"))
