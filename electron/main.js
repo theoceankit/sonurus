@@ -3,6 +3,7 @@ const path = require('path')
 const fs = require('fs')
 const os = require('os')
 const crypto = require('crypto')
+const { startBackend, stopBackend } = require('./backend')
 
 Menu.setApplicationMenu(null)
 
@@ -84,10 +85,28 @@ ipcMain.handle('save-recording', (_e, { buffer, ext }) => {
   return dest
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'media')
   })
+
+  let hfToken = ''
+  try {
+    const saved = JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8'))
+    hfToken = saved.hfToken || ''
+  } catch { /* settings not yet created */ }
+
+  try {
+    await startBackend(hfToken)
+  } catch (err) {
+    dialog.showErrorBox('Sonorus — backend error',
+      `Failed to start the backend:\n${err.message}\n\nCheck ${app.getPath('userData')}/sonorus.log for details.`)
+    app.quit()
+    return
+  }
+
   createWindow()
 })
+
+app.on('will-quit', () => stopBackend())
 app.on('window-all-closed', () => app.quit())
