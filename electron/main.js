@@ -3,13 +3,13 @@ const path = require('path')
 const fs = require('fs')
 const os = require('os')
 const crypto = require('crypto')
-const { startBackend, stopBackend } = require('./backend')
+const { startBackend, stopBackend, needsSetup } = require('./backend')
 
 Menu.setApplicationMenu(null)
 
 let mainWin = null
 
-function createWindow() {
+function createWindow(setupMode = false) {
   mainWin = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -25,7 +25,8 @@ function createWindow() {
     },
   })
 
-  mainWin.loadFile(path.join(__dirname, 'renderer', 'index.html'))
+  const page = setupMode ? 'setup.html' : 'index.html'
+  mainWin.loadFile(path.join(__dirname, 'renderer', page))
 
   // F12 opens DevTools in development only
   if (!app.isPackaged) {
@@ -96,8 +97,15 @@ app.whenReady().then(async () => {
     hfToken = saved.hfToken || ''
   } catch { /* settings not yet created */ }
 
+  const setupMode = needsSetup()
+  createWindow(setupMode)
+
+  const onProgress = data => {
+    if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('setup-progress', data)
+  }
+
   try {
-    await startBackend(hfToken)
+    await startBackend(hfToken, setupMode ? onProgress : null)
   } catch (err) {
     dialog.showErrorBox('Sonorus — backend error',
       `Failed to start the backend:\n${err.message}\n\nCheck ${app.getPath('userData')}/sonorus.log for details.`)
@@ -105,7 +113,9 @@ app.whenReady().then(async () => {
     return
   }
 
-  createWindow()
+  if (setupMode) {
+    mainWin.loadFile(path.join(__dirname, 'renderer', 'index.html'))
+  }
 })
 
 app.on('will-quit', () => stopBackend())
