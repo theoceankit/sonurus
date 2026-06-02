@@ -32,8 +32,8 @@ electron/
     data.js        — LANGUAGES, MODELS (single source of truth)
     app.js         — appSettings, loadSettings/saveSettings, view router, sidebar
     views/
-      new-recording-modal.js — Modal overlay for recording setup (opened by Record/+ buttons)
-      import-view.js    — Legacy file-upload preflight (still loaded, used for back-navigation target)
+      new-recording-modal.js — Modal overlay for recording setup (opened by Record/+ buttons, or auto-opened on startup when no transcripts exist)
+      import-view.js    — Legacy file-upload preflight (no longer rendered; pending removal)
       live-recording-view.js — Active recording: starting → recording → review → transcribe
       progress-view.js  — WebSocket progress display
       editor-view.js    — Transcript editor + speaker panel + player
@@ -81,16 +81,22 @@ On startup, `loadSettings()` in `app.js` reads the file and applies `setZoom(sca
 
 ### Startup behavior
 
-On startup, `_loadSidebar({ autoOpen: true })` fetches transcripts and speakers. If at least one transcript exists, the app navigates directly to the **Editor view** for the most recent transcript (`created_at DESC`). If no transcripts exist, the **Import view** is shown instead.
+On startup, `_loadSidebar({ autoOpen: true })` fetches transcripts and speakers. If at least one transcript exists, the app navigates directly to the **Editor view** for the most recent transcript (`created_at DESC`). If no transcripts exist, an empty panel is shown and the **New Recording modal** opens automatically.
 
-### Import view
+### New Recording modal
 
-Shown when no transcripts exist on startup, or when clicking the **+** button in the sidebar header.
+Opened by the **Record** button (titlebar), the **+** button (sidebar header), or automatically on startup when no transcripts exist. Also accepts files via drag-and-drop onto the modal.
 
-- Native file picker via `window.electronAPI.openFile()` (Electron dialog)
-- Drag-and-drop onto the drop zone
-- Accepts: WAV, MP3, M4A, FLAC, OGG, MP4, MKV, WEBM
-- On confirm: `POST /transcribe` → receives `job_id` → switches to Progress view
+- **Title** — pre-filled with current date/time (e.g. `2 Jun 01:11 Meeting`), shown in gray; turns dark on first edit. On drag-and-drop the filename is used as default title if the user hasn't typed anything.
+- **Audio source** — Microphone / System audio / Both (default). Inactive device selector is disabled in place.
+- **Device dropdowns** — populated async via `navigator.mediaDevices.enumerateDevices()`
+- **Model + Language** — dropdowns reusing `makeDropdown` + `MODELS`/`LANGUAGES` from `data.js`; saved to `appSettings`
+- **Toggles** — Diarize speakers, Save audio file (both on by default)
+- **Footer** — "Import audio file" (native dialog → `POST /transcribe`) + "Start recording" (passes settings to `showLiveRecording`)
+- **Drag & drop** — dropping an audio/video file onto the modal triggers immediate import; file path resolved via `window.electronAPI.getFilePath(file)`
+- Closes only via the × button (not on backdrop click)
+
+`appSettings` keys: `recordingAudioSource`, `recordingMicDevice`, `recordingSystemDevice`, `recordingDiarize`, `recordingSaveAudio`.
 
 ### Progress view
 
