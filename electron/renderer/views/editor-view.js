@@ -493,6 +493,19 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
   return row
 }
 
+// ── Speaker index helper ────────────────────────────────────────────────────────
+// Builds the "Unknown N" display-name index once per buildEditor call so
+// displayName() does not have to iterate all segments on every row (O(N²)).
+function buildSpeakerIndex(segments, knownMap) {
+  const firstSeen = {}
+  segments.forEach(s => {
+    const id = effectiveSpeaker(s)
+    if (isUnrecognized(id, knownMap) && !(id in firstSeen)) firstSeen[id] = s.start
+  })
+  const unrecIds = Object.keys(firstSeen).sort((a, b) => firstSeen[a] - firstSeen[b])
+  return { firstSeen, unrecIds }
+}
+
 // ── Speaker card (right panel) ─────────────────────────────────────────────────
 function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSec, transcriptId, onReload, knownSpeakers = [], sample = null, onPreviewPlay = null, onPreviewPause = null, suggestion = null) {
   const SVG_PLAY_SM  = `<svg width="8" height="10" viewBox="0 0 11 12" fill="none"><path d="M1 1l9 5-9 5V1z" fill="currentColor"/></svg>`
@@ -1039,12 +1052,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
   knownSpeakers.forEach(s => { knownMap[s.id] = s.name })
 
   // Stable "Unknown N" display name for unrecognized speakers
-  const firstSeen = {}
-  transcript.segments.forEach(s => {
-    const id = effectiveSpeaker(s)
-    if (isUnrecognized(id, knownMap) && !(id in firstSeen)) firstSeen[id] = s.start
-  })
-  const unrecIds = Object.keys(firstSeen).sort((a, b) => firstSeen[a] - firstSeen[b])
+  const { unrecIds } = buildSpeakerIndex(transcript.segments, knownMap)
   function getDisplayName(spkId) {
     if (knownMap[spkId]) return knownMap[spkId]
     const n = unrecIds.indexOf(spkId) + 1
@@ -1293,16 +1301,10 @@ function renderEditorView(transcriptId, meta = null) {
     const knownMap = {}
     knownSpeakers.forEach(s => { knownMap[s.id] = s.name })
 
+    const { unrecIds: _unrecIds } = buildSpeakerIndex(transcript.segments, knownMap)
     function displayName(spkId) {
       if (knownMap[spkId]) return knownMap[spkId]
-      // Stable "Unknown N": rank by first appearance time, ascending
-      const firstSeen = {}
-      transcript.segments.forEach(s => {
-        const id = effectiveSpeaker(s)
-        if (isUnrecognized(id, knownMap) && !(id in firstSeen)) firstSeen[id] = s.start
-      })
-      const unrecognizedIds = Object.keys(firstSeen).sort((a, b) => firstSeen[a] - firstSeen[b])
-      const n = unrecognizedIds.indexOf(spkId) + 1
+      const n = _unrecIds.indexOf(spkId) + 1
       return n > 0 ? `Unknown ${n}` : spkId
     }
 
@@ -1393,13 +1395,30 @@ function renderEditorView(transcriptId, meta = null) {
     })
 
     // Wire playing indicator
+    // Build a sorted index of [start, end, rowEl] once so timeupdate can binary-search
+    // instead of walking all rows on every frame.
+    const segRowIndex = Array.from(segList.querySelectorAll('.seg-row')).map(r => ({
+      start: parseFloat(r.dataset.start),
+      end:   parseFloat(r.dataset.end || '9999'),
+      el:    r,
+    }))
+    let _activeIdx = -1
     audio.addEventListener('timeupdate', () => {
       const t = audio.currentTime
-      segList.querySelectorAll('.seg-row').forEach(r => {
-        const start = parseFloat(r.dataset.start)
-        const end   = parseFloat(r.dataset.end || '9999')
-        r.classList.toggle('seg-row--playing', t >= start && t < end)
-      })
+      // Binary search for the segment containing t
+      let lo = 0, hi = segRowIndex.length - 1, found = -1
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1
+        const s = segRowIndex[mid]
+        if (s.end <= t)       lo = mid + 1
+        else if (s.start > t) hi = mid - 1
+        else                  { found = mid; break }
+      }
+      if (found !== _activeIdx) {
+        if (_activeIdx >= 0) segRowIndex[_activeIdx].el.classList.remove('seg-row--playing')
+        if (found >= 0)      segRowIndex[found].el.classList.add('seg-row--playing')
+        _activeIdx = found
+      }
     }, { signal: playerAbortCtrl.signal })
 
     // ── Selection toolbar ─────────────────────────────────────────────────────

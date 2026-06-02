@@ -471,14 +471,20 @@ def test_commit_new_speakers_aggregates_from_db_not_only_current_session(tmp_pat
 
 def test_commit_recognized_speakers_updates_existing_speaker(tmp_path):
     """commit_recognized_speakers updates a speaker already in memory,
-    aggregating their embedding across all DB sessions."""
+    aggregating their embedding across all DB sessions.
+
+    The guard filters out sessions whose centroid is below the threshold.
+    Use similar embeddings (cos_sim > 0.75) so both sessions pass the guard
+    and their centroids are averaged.
+    """
     db_path = str(tmp_path / "app.db")
     memory  = SpeakerMemoryService(db_path=db_path)
     storage = TranscriptStorageService(db_path=db_path)
 
     spk     = "spk-recognized"
-    emb_old = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    emb_new = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+    # Similar embeddings: cos_sim ≈ 0.97 (both pass the guard).
+    emb_old = np.array([1.0, 0.2, 0.0], dtype=np.float32)
+    emb_new = np.array([0.9, 0.4, 0.0], dtype=np.float32)
 
     memory.update_embedding(spk, emb_old)
     memory.save()
@@ -492,8 +498,13 @@ def test_commit_recognized_speakers_updates_existing_speaker(tmp_path):
 
     CommitService(memory, storage).commit_recognized_speakers(new_transcript)
 
-    raw_mean = np.mean([emb_old, emb_new], axis=0)
-    expected = raw_mean / np.linalg.norm(raw_mean)
+    # Replicate centroid-of-centroids to get the expected value.
+    def norm(v):
+        n = np.linalg.norm(v)
+        return v / n if n > 0 else v
+    c0 = norm(emb_old)
+    c1 = norm(emb_new)
+    expected = norm(np.mean([c0, c1], axis=0))
     assert np.allclose(memory.known_speakers[spk], expected, atol=1e-5)
 
 
