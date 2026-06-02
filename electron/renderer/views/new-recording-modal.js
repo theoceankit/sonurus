@@ -183,10 +183,6 @@ function renderNewRecordingModal({ onStart, onImport }) {
   const settingsRow = document.createElement('div')
   settingsRow.className = 'nr-fields-row'
 
-  const modelOptions = MODELS
-    .filter(m => m.kind === 'whisper')
-    .map(m => ({ value: m.id, label: m.name, sub: `${m.size} · ${m.speed}` }))
-
   const langOptions = LANGUAGES.map(l => ({ ...l, value: l.code }))
 
   const modelField = document.createElement('div')
@@ -194,13 +190,35 @@ function renderNewRecordingModal({ onStart, onImport }) {
   const modelFieldLabel = document.createElement('div')
   modelFieldLabel.className = 'nr-field-label'
   modelFieldLabel.textContent = 'Model'
-  const modelDropdown = makeDropdown(
-    modelOptions, modelValue,
-    v => { modelValue = v; saveSettings({ transcribeModel: v }) },
-    (opt) => { const s = document.createElement('span'); s.textContent = opt.label; return s }
-  )
+
+  // Build dropdown from static list first; replace with live data once fetched.
+  function buildModelDropdown(models) {
+    const opts = models
+      .filter(m => m.kind === 'whisper')
+      .map(m => ({
+        value: m.id, label: m.name,
+        sub: m.installed ? `${m.size} · Installed` : `${m.size} · ${m.speed}`,
+      }))
+    return makeDropdown(
+      opts, modelValue,
+      v => { modelValue = v; saveSettings({ transcribeModel: v }) },
+      (opt) => { const s = document.createElement('span'); s.textContent = opt.label; return s }
+    )
+  }
+
+  let modelDropdown = buildModelDropdown(MODELS)
   modelField.appendChild(modelFieldLabel)
   modelField.appendChild(modelDropdown)
+
+  // Async: update dropdown with live install status from the server.
+  fetch(`${API_BASE}/models`)
+    .then(r => r.json())
+    .then(liveModels => {
+      const updated = buildModelDropdown(liveModels)
+      modelDropdown.replaceWith(updated)
+      modelDropdown = updated
+    })
+    .catch(() => { /* keep static dropdown on network error */ })
 
   const langField = document.createElement('div')
   langField.className = 'nr-field'

@@ -215,6 +215,67 @@ function makeSlider(value, min, max, step, marks, onChange, onCommit) {
   return wrap
 }
 
+// ── Shared download/delete handlers ───────────────────────────────────────────
+
+function _makeDownloadHandler(state, rerenderRows) {
+  return function onDownload(id) {
+    state.modelStatus[id] = 'downloading'
+    if (!state.modelProgress) state.modelProgress = {}
+    state.modelProgress[id] = 0
+    rerenderRows()
+
+    fetch(`${API_BASE}/models/${id}/download`, { method: 'POST' })
+      .then(r => r.json())
+      .then(({ job_id }) => {
+        const ws = new WebSocket(`${WS_BASE}/ws/models/${job_id}`)
+        if (!state.activeDownload) state.activeDownload = {}
+        state.activeDownload[id] = { job_id, ws }
+
+        ws.onmessage = ({ data }) => {
+          const ev = JSON.parse(data)
+          if (ev.type === 'progress') {
+            state.modelProgress[id] = ev.pct ?? 0
+            rerenderRows()
+          } else if (ev.type === 'done') {
+            state.modelStatus[id] = 'installed'
+            state.modelProgress[id] = 100
+            delete state.activeDownload[id]
+            rerenderRows()
+            ws.close()
+          } else if (ev.type === 'cancelled' || ev.type === 'error') {
+            state.modelStatus[id] = 'available'
+            state.modelProgress[id] = 0
+            delete state.activeDownload[id]
+            rerenderRows()
+            ws.close()
+          }
+        }
+        ws.onerror = () => {
+          state.modelStatus[id] = 'available'
+          delete state.activeDownload?.[id]
+          rerenderRows()
+        }
+      })
+      .catch(() => {
+        state.modelStatus[id] = 'available'
+        rerenderRows()
+      })
+  }
+}
+
+function _makeDeleteHandler(state, rerenderRows, onSuccess = null) {
+  return function onDelete(id) {
+    fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' })
+      .then(r => {
+        if (r.ok) {
+          state.modelStatus[id] = 'available'
+          if (onSuccess) onSuccess(id)
+          rerenderRows()
+        }
+      })
+  }
+}
+
 // ── Model row ──────────────────────────────────────────────────────────────────
 
 function makeModelRow(model, state, onSelect, onDownload, onDelete) {
@@ -542,63 +603,13 @@ function buildModelsSection(state, rerender) {
     rerenderRows()
   }
 
-  function onDownload(id) {
-    state.modelStatus[id] = 'downloading'
-    if (!state.modelProgress) state.modelProgress = {}
-    state.modelProgress[id] = 0
-    rerenderRows()
-
-    fetch(`${API_BASE}/models/${id}/download`, { method: 'POST' })
-      .then(r => r.json())
-      .then(({ job_id }) => {
-        const ws = new WebSocket(`${WS_BASE}/ws/models/${job_id}`)
-        if (!state.activeDownload) state.activeDownload = {}
-        state.activeDownload[id] = { job_id, ws }
-
-        ws.onmessage = ({ data }) => {
-          const ev = JSON.parse(data)
-          if (ev.type === 'progress') {
-            state.modelProgress[id] = ev.pct ?? 0
-            rerenderRows()
-          } else if (ev.type === 'done') {
-            state.modelStatus[id] = 'installed'
-            state.modelProgress[id] = 100
-            delete state.activeDownload[id]
-            rerenderRows()
-            ws.close()
-          } else if (ev.type === 'cancelled' || ev.type === 'error') {
-            state.modelStatus[id] = 'available'
-            state.modelProgress[id] = 0
-            delete state.activeDownload[id]
-            rerenderRows()
-            ws.close()
-          }
-        }
-        ws.onerror = () => {
-          state.modelStatus[id] = 'available'
-          delete state.activeDownload?.[id]
-          rerenderRows()
-        }
-      })
-      .catch(() => {
-        state.modelStatus[id] = 'available'
-        rerenderRows()
-      })
-  }
-
-  function onDelete(id) {
-    fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' })
-      .then(r => {
-        if (r.ok) {
-          state.modelStatus[id] = 'available'
-          if (state.transcribeModel === id) {
-            state.transcribeModel = 'small'
-            saveSettings({ transcribeModel: 'small' })
-          }
-          rerenderRows()
-        }
-      })
-  }
+  const onDownload = _makeDownloadHandler(state, rerenderRows)
+  const onDelete   = _makeDeleteHandler(state, rerenderRows, id => {
+    if (state.transcribeModel === id) {
+      state.transcribeModel = 'small'
+      saveSettings({ transcribeModel: 'small' })
+    }
+  })
 
   // Fetch full catalog + install status from API; render rows when ready.
   fetch(`${API_BASE}/models`)
@@ -645,58 +656,8 @@ function buildAlignmentSection(state) {
     alignRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
   }
 
-  function onDownload(id) {
-    state.modelStatus[id] = 'downloading'
-    state.modelProgress[id] = 0
-    rerenderRows()
-
-    fetch(`${API_BASE}/models/${id}/download`, { method: 'POST' })
-      .then(r => r.json())
-      .then(({ job_id }) => {
-        const ws = new WebSocket(`${WS_BASE}/ws/models/${job_id}`)
-        if (!state.activeDownload) state.activeDownload = {}
-        state.activeDownload[id] = { job_id, ws }
-
-        ws.onmessage = ({ data }) => {
-          const ev = JSON.parse(data)
-          if (ev.type === 'progress') {
-            state.modelProgress[id] = ev.pct ?? 0
-            rerenderRows()
-          } else if (ev.type === 'done') {
-            state.modelStatus[id] = 'installed'
-            state.modelProgress[id] = 100
-            delete state.activeDownload[id]
-            rerenderRows()
-            ws.close()
-          } else if (ev.type === 'cancelled' || ev.type === 'error') {
-            state.modelStatus[id] = 'available'
-            state.modelProgress[id] = 0
-            delete state.activeDownload[id]
-            rerenderRows()
-            ws.close()
-          }
-        }
-        ws.onerror = () => {
-          state.modelStatus[id] = 'available'
-          delete state.activeDownload?.[id]
-          rerenderRows()
-        }
-      })
-      .catch(() => {
-        state.modelStatus[id] = 'available'
-        rerenderRows()
-      })
-  }
-
-  function onDelete(id) {
-    fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' })
-      .then(r => {
-        if (r.ok) {
-          state.modelStatus[id] = 'available'
-          rerenderRows()
-        }
-      })
-  }
+  const onDownload = _makeDownloadHandler(state, rerenderRows)
+  const onDelete   = _makeDeleteHandler(state, rerenderRows)
 
   ALIGNMENT_MODELS.forEach(m => {
     alignRows.appendChild(makeAlignmentModelRow(m, state, onDownload, onDelete))
