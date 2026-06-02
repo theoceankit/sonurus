@@ -20,6 +20,13 @@
   gap: 12px;
 }
 
+.tb-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
 .tb-nav {
   display: flex;
   align-items: center;

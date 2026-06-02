@@ -15,6 +15,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#FFFFFF',
+    icon: path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -74,7 +75,7 @@ ipcMain.handle('open-file', async () => {
 ipcMain.handle('write-clipboard', (_e, text) => { clipboard.writeText(text) })
 
 ipcMain.handle('save-recording', (_e, { buffer, ext }) => {
-  const name = `whisper-rec-${crypto.randomUUID()}.${ext}`
+  const name = `sonorus-rec-${crypto.randomUUID()}.${ext}`
   const dest = path.join(os.tmpdir(), name)
   fs.writeFileSync(dest, Buffer.from(buffer))
   return dest

@@ -55,7 +55,7 @@ function renderEditorView(transcriptId, meta = null) {
     row.className = 'focus-tags'
 
     const audioPath = transcript.audio_path || ''
-    const isLiveRec = audioPath.includes('whisper-rec-')
+    const isLiveRec = audioPath.includes('sonorus-rec-')
     const sourceLabel = isLiveRec ? 'live recording' : 'file'
 
     const srcChip = document.createElement('span')
