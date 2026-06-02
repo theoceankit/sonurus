@@ -18,6 +18,8 @@ const FILENAME = {
   'darwin-arm64': `cpython-${PYTHON_VERSION}+${RELEASE_DATE}-aarch64-apple-darwin-install_only.tar.gz`,
   'darwin-x64':   `cpython-${PYTHON_VERSION}+${RELEASE_DATE}-x86_64-apple-darwin-install_only.tar.gz`,
   'win32-x64':    `cpython-${PYTHON_VERSION}+${RELEASE_DATE}-x86_64-pc-windows-msvc-install_only.tar.gz`,
+  'linux-x64':    `cpython-${PYTHON_VERSION}+${RELEASE_DATE}-x86_64-unknown-linux-gnu-install_only.tar.gz`,
+  'linux-arm64':  `cpython-${PYTHON_VERSION}+${RELEASE_DATE}-aarch64-unknown-linux-gnu-install_only.tar.gz`,
 }
 
 const BASE_URL = `https://github.com/indygreg/python-build-standalone/releases/download/${RELEASE_DATE}/`
