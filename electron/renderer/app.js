@@ -8,6 +8,9 @@ const appSettings = {
   recordingMicDevice: null,
   recordingSystemDevice: null,
   recordingUseMic: true,
+  recordingAudioSource: 'both',
+  recordingDiarize: true,
+  recordingSaveAudio: true,
 }
 
 async function loadSettings() {
@@ -25,6 +28,9 @@ const app = {
   _activeTranscriptId: null,
   _allRecordings: [],
   _knownSpeakers: {},
+  _currentView: 'import',
+  _inspectorVisible: true,
+  _filter: 'all',
 
   // ── Navigation ──────────────────────────────────────────────────────────────
 
@@ -33,40 +39,90 @@ const app = {
     panel.innerHTML = ''
     panel.classList.toggle('main-panel--editor', editorMode)
     panel.appendChild(el)
+    if (!editorMode) document.getElementById('player-slot').replaceChildren()
+    this._updateTitlebarState()
+  },
+
+  _updateTitlebarState() {
+    const backBtn = document.getElementById('tb-back')
+    if (backBtn) backBtn.disabled = (this._currentView === 'import')
+    const inspBtn = document.getElementById('tb-inspector-toggle')
+    if (inspBtn) inspBtn.classList.toggle('tb-tool--active', this._inspectorVisible)
+
   },
 
   showImport() {
+    this._currentView = 'import'
     this._activeTranscriptId = null
     this._rerenderList()
-    this._setView(renderImportView(), false)
-    document.getElementById('btn-import').classList.add('sb-new-btn--active')
+    this._setView(document.createElement('div'), false)
   },
 
   showProgress(jobId, originalRequest = null) {
+    this._currentView = 'progress'
     document.getElementById('btn-import').classList.remove('sb-new-btn--active')
     this._setView(renderProgressView(jobId, originalRequest), false)
   },
 
   showSettings() {
+    this._currentView = 'settings'
     this._activeTranscriptId = null
     document.getElementById('btn-import').classList.remove('sb-new-btn--active')
     this._rerenderList()
     this._setView(renderSettingsView(), false)
   },
 
-  showLiveRecording() {
+  showLiveRecording(settings = {}) {
+    this._currentView = 'live'
     this._activeTranscriptId = null
     document.getElementById('btn-import').classList.remove('sb-new-btn--active')
     this._rerenderList()
-    this._setView(renderLiveRecordingView(), false)
+    this._setView(renderLiveRecordingView(settings), false)
+  },
+
+  openNewRecordingModal() {
+    const overlay = renderNewRecordingModal({
+      onStart: settings => this.showLiveRecording(settings),
+      onImport: ({ filePath, title, model, language }) => {
+        const body = {
+          audio_path: filePath,
+          whisper_model: model,
+          language: language === 'auto' ? null : language,
+          title: title || null,
+        }
+        fetch(`${API_BASE}/transcribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+          .then(r => { if (!r.ok) throw new Error(`Server error ${r.status}`); return r.json() })
+          .then(({ job_id }) => this.showProgress(job_id, body))
+          .catch(err => window.showToast?.(`Could not start: ${err.message}`))
+      },
+    })
+    document.body.appendChild(overlay)
   },
 
   showEditor(transcriptId) {
+    this._currentView = 'editor'
     this._activeTranscriptId = transcriptId
     document.getElementById('btn-import').classList.remove('sb-new-btn--active')
     this._rerenderList()
-    this._setView(renderEditorView(transcriptId), true)
+    const meta = (this._allRecordings || []).find(r => r.id === transcriptId) || null
+    this._setView(renderEditorView(transcriptId, meta), true)
     this._loadSidebar()
+    // Restore inspector visibility after editor rebuilds
+    const rightPanel = document.querySelector('.right-panel')
+    if (rightPanel) rightPanel.style.display = this._inspectorVisible ? '' : 'none'
+  },
+
+  // ── Titlebar actions ────────────────────────────────────────────────────────
+
+  toggleInspector() {
+    this._inspectorVisible = !this._inspectorVisible
+    const rightPanel = document.querySelector('.right-panel')
+    if (rightPanel) rightPanel.style.display = this._inspectorVisible ? '' : 'none'
+    this._updateTitlebarState()
   },
 
   // ── Sidebar ─────────────────────────────────────────────────────────────────
@@ -81,7 +137,7 @@ const app = {
     }
   },
 
-  _loadSidebar() {
+  _loadSidebar({ autoOpen = false } = {}) {
     Promise.all([
       fetch(`${API_BASE}/transcripts`).then(r => r.json()),
       fetch(`${API_BASE}/speakers`).then(r => r.json()),
@@ -90,27 +146,42 @@ const app = {
       this._knownSpeakers = {}
       speakers.forEach(s => { this._knownSpeakers[s.id] = s.name })
       this._rerenderList()
-      const countTranscripts = document.getElementById('nav-count-transcripts')
-      if (countTranscripts) countTranscripts.textContent = items.length || ''
-      const countSpeakers = document.getElementById('nav-count-speakers')
-      if (countSpeakers) countSpeakers.textContent = speakers.length || ''
-    }).catch(() => {})
+      if (autoOpen) {
+        if (items.length > 0) this.showEditor(items[0].id)
+        else { this.showImport(); this.openNewRecordingModal() }
+      }
+    }).catch(() => { if (autoOpen) { this.showImport(); this.openNewRecordingModal() } })
+  },
+
+  _applyFilter(items) {
+    if (this._filter === 'recordings') return items.filter(r => r.source !== 'note')
+    if (this._filter === 'notes')      return items.filter(r => r.source === 'note')
+    if (this._filter === 'marked')     return items.filter(r => r.bookmarked)
+    return items
   },
 
   _rerenderList(query = '') {
     const list = document.getElementById('recordings-list')
     if (!list) return
 
-    const items = query
-      ? this._allRecordings.filter(r => r.title.toLowerCase().includes(query.toLowerCase()))
-      : this._allRecordings
+    // update header count
+    const hdrCount = document.getElementById('sb-header-count')
+    if (hdrCount) hdrCount.textContent = this._allRecordings.length || ''
+
+    // update All chip count
+    const allCount = document.getElementById('filter-count-all')
+    if (allCount) allCount.textContent = this._allRecordings.length || ''
+
+    const items = this._applyFilter(this._allRecordings)
 
     list.innerHTML = ''
 
     if (items.length === 0) {
       const empty = document.createElement('div')
       empty.className = 'sb-empty'
-      empty.textContent = query ? 'No results' : 'No recordings yet'
+      empty.textContent = query
+        ? 'No results'
+        : this._filter !== 'all' ? 'Nothing here yet' : 'No recordings yet'
       list.appendChild(empty)
       return
     }
@@ -129,80 +200,185 @@ const app = {
   },
 
   _makeRecordingItem(item) {
+    const isActive = item.id === this._activeTranscriptId
     const btn = document.createElement('button')
-    btn.className = 'rec-item'
-    if (item.id === this._activeTranscriptId) btn.classList.add('rec-item--active')
+    btn.className = 'rec-item' + (isActive ? ' rec-item--active' : '')
 
-    // Title row
-    const titleRow = document.createElement('div')
-    titleRow.className = 'rec-item-title'
-    titleRow.textContent = item.title
+    // Title row: name (left) + time (right)
+    const titleEl = document.createElement('div')
+    titleEl.className = 'rec-item-title'
 
-    // Bottom row: avatars + time + duration
-    const bottomRow = document.createElement('div')
-    bottomRow.className = 'rec-item-bottom'
+    const titleText = document.createElement('span')
+    titleText.className = 'rec-item-title-text'
+    titleText.textContent = item.title
+    titleEl.appendChild(titleText)
 
-    // Stacked speaker avatars
-    const avatarStack = document.createElement('div')
-    avatarStack.className = 'rec-avatars'
-    const speakers = (item.speakers || []).filter(Boolean).slice(0, 4)
-    speakers.forEach((spkId, i) => {
-      const av = document.createElement('div')
-      av.className = 'rec-avatar'
-      av.style.marginLeft = i === 0 ? '0' : '-5px'
+    if (item.created_at) {
+      const d = new Date(item.created_at)
+      const timeEl = document.createElement('span')
+      timeEl.className = 'rec-item-time'
+      timeEl.textContent = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      titleEl.appendChild(timeEl)
+    }
 
-      if (isUnrecognized(spkId, this._knownSpeakers)) {
-        av.style.background = 'repeating-linear-gradient(135deg,#FBF1DF 0 3px,#F6E6C8 3px 6px)'
-        av.style.border = '1px dashed #B58A3A'
-        av.style.color = '#8A6320'
-        av.textContent = '?'
-      } else {
-        const p = speakerPalette(spkId)
-        av.style.background = p.color
-        const name = this._knownSpeakers[spkId] || spkId
-        av.textContent = speakerInitials(name)
-      }
-      avatarStack.appendChild(av)
-    })
+    btn.appendChild(titleEl)
 
-    const spacer = document.createElement('span')
-    spacer.style.flex = '1'
+    // Meta row: duration + avatars
+    const metaEl = document.createElement('div')
+    metaEl.className = 'rec-item-meta'
 
-    const dur = document.createElement('span')
-    dur.className = 'rec-item-dur'
-    dur.textContent = item.duration || ''
+    if (item.duration) {
+      const durEl = document.createElement('span')
+      durEl.className = 'rec-item-dur'
+      durEl.textContent = item.duration
+      metaEl.appendChild(durEl)
+    }
 
-    bottomRow.appendChild(avatarStack)
-    bottomRow.appendChild(spacer)
-    bottomRow.appendChild(dur)
+    // Stacked speaker avatars (right-aligned)
+    const speakers = (item.speakers || []).filter(Boolean).slice(0, 3)
+    if (speakers.length > 0) {
+      const spacer = document.createElement('div')
+      spacer.style.flex = '1'
+      metaEl.appendChild(spacer)
 
-    btn.appendChild(titleRow)
-    btn.appendChild(bottomRow)
+      const stack = document.createElement('div')
+      stack.className = 'rec-avatars'
+      const ringColor = isActive ? '#0A84FF' : 'var(--sidebar-bg)'
+
+      speakers.forEach(spkId => {
+        const av = document.createElement('div')
+        av.className = 'rec-avatar'
+        av.style.boxShadow = `0 0 0 1.5px ${ringColor}`
+
+        if (isUnrecognized(spkId, this._knownSpeakers)) {
+          av.style.background = 'color-mix(in srgb, black 10%, var(--sidebar-bg))'
+          av.style.color = 'rgba(0,0,0,0.45)'
+          av.textContent = '?'
+        } else {
+          const p = speakerPalette(spkId)
+          av.style.background = p.color
+          av.textContent = speakerInitials(this._knownSpeakers[spkId] || spkId)
+        }
+        stack.appendChild(av)
+      })
+      metaEl.appendChild(stack)
+    }
+
+    btn.appendChild(metaEl)
     btn.addEventListener('click', () => this.showEditor(item.id))
     return btn
+  },
+
+  _setFilter(filter) {
+    this._filter = filter
+    document.querySelectorAll('.sb-filter-btn').forEach(btn => {
+      btn.classList.toggle('sb-filter-btn--active', btn.dataset.filter === filter)
+    })
+    this._rerenderList()
   },
 
   // ── Init ────────────────────────────────────────────────────────────────────
 
   init() {
-    loadSettings().then(() => this._loadSidebar())
-    this.showImport()
+    loadSettings().then(() => this._loadSidebar({ autoOpen: true }))
 
+    // ── Toast system ───────────────────────────────────────────────────────────
+    const _toastStack = document.createElement('div')
+    _toastStack.id = 'toast-stack'
+    document.body.appendChild(_toastStack)
+
+    window.showToast = function(text, opts = {}) {
+      const { actionLabel, action, duration = 3200 } = opts
+      const toast = document.createElement('div')
+      toast.className = 'toast'
+
+      const msg = document.createElement('span')
+      msg.className = 'toast-text'
+      msg.textContent = text
+      toast.appendChild(msg)
+
+      if (actionLabel) {
+        const btn = document.createElement('button')
+        btn.className = 'toast-action'
+        btn.textContent = actionLabel
+        btn.addEventListener('click', () => { action?.(); dismiss() })
+        toast.appendChild(btn)
+      }
+
+      const closeBtn = document.createElement('button')
+      closeBtn.className = 'toast-close'
+      closeBtn.textContent = '✕'
+      closeBtn.addEventListener('click', dismiss)
+      toast.appendChild(closeBtn)
+
+      _toastStack.appendChild(toast)
+      requestAnimationFrame(() => toast.classList.add('toast--visible'))
+
+      let timer = setTimeout(dismiss, duration)
+
+      function dismiss() {
+        clearTimeout(timer)
+        toast.classList.remove('toast--visible')
+        toast.classList.add('toast--out')
+        setTimeout(() => toast.remove(), 220)
+      }
+
+      return { dismiss }
+    }
+
+    // ── Sidebar buttons ────────────────────────────────────────────────────────
     document.getElementById('btn-import')
-      .addEventListener('click', () => this.showImport())
+      .addEventListener('click', () => this.openNewRecordingModal())
 
     document.getElementById('btn-settings')
       .addEventListener('click', () => this.showSettings())
 
-    document.getElementById('nav-transcripts')
-      .addEventListener('click', () => this.navTo('transcripts'))
-    document.getElementById('nav-speakers')
-      .addEventListener('click', () => this.navTo('speakers'))
-    document.getElementById('nav-bookmarks')
-      .addEventListener('click', () => this.navTo('bookmarks'))
+    // ── Filter chips ──────────────────────────────────────────────────────────
+    document.getElementById('sb-filter')
+      .addEventListener('click', e => {
+        const btn = e.target.closest('.sb-filter-btn')
+        if (btn) this._setFilter(btn.dataset.filter)
+      })
 
-    document.getElementById('sb-search-input')
-      .addEventListener('input', e => this._rerenderList(e.target.value))
+    // ── Titlebar — navigation ──────────────────────────────────────────────────
+    document.getElementById('tb-back')
+      .addEventListener('click', () => { if (this._currentView !== 'import') this.showImport() })
+
+    // ── Titlebar — export / share ──────────────────────────────────────────────
+    const exportBtn = document.getElementById('tb-export')
+    attachSegTooltip(exportBtn, 'below')
+    exportBtn.addEventListener('click', () => {
+      const rows = document.querySelectorAll('.seg-row')
+      if (!rows.length) return
+      const lines = []
+      rows.forEach(row => {
+        const time = row.querySelector('.seg-time span')?.textContent || ''
+        const spk  = row.querySelector('.seg-speaker-name')?.textContent || ''
+        const text = row.querySelector('.seg-text')?.textContent || ''
+        lines.push(`[${time}] ${spk}: ${text}`)
+      })
+      window.electronAPI.writeClipboard(lines.join('\n'))
+        .then(() => window.showToast?.('Copied to clipboard'))
+        .catch(() => window.showToast?.('Copy failed'))
+    })
+
+    const shareBtn = document.getElementById('tb-share')
+    attachSegTooltip(shareBtn, 'below')
+    shareBtn.addEventListener('click', () => window.showToast?.('Share is not available yet'))
+
+
+
+    // ── Titlebar — search ──────────────────────────────────────────────────────
+    document.getElementById('tb-search-btn')
+      .addEventListener('click', () => document.getElementById('sb-search-input')?.focus())
+
+    // ── Titlebar — record ──────────────────────────────────────────────────────
+    document.getElementById('tb-record')
+      .addEventListener('click', () => this.openNewRecordingModal())
+
+    // ── Titlebar — panels ──────────────────────────────────────────────────────
+    document.getElementById('tb-inspector-toggle')
+      .addEventListener('click', () => this.toggleInspector())
   },
 }
 

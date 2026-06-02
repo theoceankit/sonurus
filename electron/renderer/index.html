@@ -9,94 +9,127 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
+  <!-- Custom titlebar (replaces native OS titlebar) -->
+  <div id="titlebar">
+
+    <!-- Left section — aligns with sidebar width -->
+    <div class="tb-left"></div>
+
+    <!-- Nav — back/forward, left of search -->
+    <div class="tb-nav">
+      <button class="tb-tool" id="tb-back" title="Back">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M9 3l-4 4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button class="tb-tool" id="tb-forward" title="Forward" disabled>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Center — centered in the middle grid column -->
+    <button class="tb-search" id="tb-search-btn" title="Search (⌘F)">
+      <svg width="11" height="11" viewBox="0 0 13 13" fill="none">
+        <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M8.5 8.5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <span class="tb-search-label">Search transcripts…</span>
+      <span class="tb-search-kbd">⌘F</span>
+    </button>
+
+    <!-- Right section — utility buttons -->
+    <div class="tb-right">
+      <button class="tb-tool" id="tb-export" data-tooltip="Copy to clipboard">
+        <svg width="13" height="14" viewBox="0 0 13 14" fill="none">
+          <rect x="4.5" y="3.5" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M3 10H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5a1 1 0 0 1 1 1v1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button class="tb-tool" id="tb-share" data-tooltip="Share">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M7 1.5v8M4 4l3-3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2.5 9v3.5h9V9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+
+      <div class="tb-sep"></div>
+
+      <button class="tb-record" id="tb-record">
+        <span class="tb-rec-dot"></span>
+        Record
+      </button>
+
+      <div class="tb-sep"></div>
+
+      <button class="tb-tool" id="tb-inspector-toggle" title="Toggle inspector">
+        <svg width="14" height="13" viewBox="0 0 16 14" fill="none">
+          <rect x="1.5" y="2" width="13" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/>
+          <line x1="10" y1="2" x2="10" y2="12" stroke="currentColor" stroke-width="1.3"/>
+        </svg>
+      </button>
+
+      <div class="tb-sep"></div>
+
+      <button class="tb-tool" id="btn-settings" title="Settings">
+        <svg width="13" height="13" viewBox="0 0 17 17" fill="none">
+          <circle cx="8.5" cy="8.5" r="2.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
+          <path d="M8.5 1.5v2M8.5 13.5v2M1.5 8.5h2M13.5 8.5h2
+                   M3.5 3.5l1.4 1.4M12.1 12.1l1.4 1.4
+                   M3.5 13.5l1.4-1.4M12.1 4.9l1.4-1.4"
+                stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+  </div>
+
   <div id="app">
+  <div id="app-row">
     <aside id="sidebar">
 
-      <!-- Workspace header -->
+      <!-- Header: title + count + Sort + New -->
       <div class="sb-header">
-        <div class="sb-logo">WP</div>
-        <div class="sb-workspace">
-          <div class="sb-workspace-name">
-            Whisper
-            <svg width="9" height="6" viewBox="0 0 9 6" fill="none">
-              <path d="M1 1.5l3.5 3 3.5-3" stroke="currentColor" stroke-width="1.4"
-                    stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="sb-workspace-sub">Personal</div>
+        <span class="sb-header-title">Transcripts</span>
+        <span class="sb-header-count" id="sb-header-count"></span>
+        <div style="flex:1"></div>
+        <button class="sb-hdr-btn" id="btn-sort" title="Sort by date">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <path d="M2.5 4h9M4 7h6M5.5 10h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="sb-hdr-btn" id="btn-import" title="New recording">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+<!-- Filter chips (segmented control) -->
+      <div class="sb-filter-wrap">
+        <div class="sb-filter-seg" id="sb-filter">
+          <button class="sb-filter-btn sb-filter-btn--active" data-filter="all">
+            All <span class="sb-filter-count" id="filter-count-all"></span>
+          </button>
+          <button class="sb-filter-btn" data-filter="recordings">Rec.</button>
+          <button class="sb-filter-btn" data-filter="notes">Notes</button>
+          <button class="sb-filter-btn" data-filter="marked">Marked</button>
         </div>
-        <button class="sb-new-btn" id="btn-import" title="Import audio">
-          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-            <path d="M5.5 1.5v8M1.5 5.5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </div>
-
-      <!-- Search -->
-      <div class="sb-search-wrap">
-        <div class="sb-search">
-          <svg width="12" height="12" viewBox="0 0 13 13" fill="none">
-            <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/>
-            <path d="M8.5 8.5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          </svg>
-          <input id="sb-search-input" placeholder="Search transcripts…" autocomplete="off" />
-        </div>
-      </div>
-
-      <!-- Nav items -->
-      <div class="sb-nav">
-        <button class="nav-item nav-item--active" id="nav-transcripts">
-          <svg width="15" height="15" viewBox="0 0 17 17" fill="none">
-            <rect x="2.5" y="2.5" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
-            <path d="M5.5 6h6M5.5 8.5h6M5.5 11h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          </svg>
-          <span>All recordings</span>
-          <span class="nav-count" id="nav-count-transcripts"></span>
-        </button>
-        <button class="nav-item" id="nav-speakers">
-          <svg width="15" height="15" viewBox="0 0 17 17" fill="none">
-            <circle cx="8.5" cy="6" r="2.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
-            <path d="M3 14c0-2.8 2.5-4.5 5.5-4.5S14 11.2 14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/>
-          </svg>
-          <span>Speakers</span>
-          <span class="nav-count" id="nav-count-speakers"></span>
-        </button>
-        <button class="nav-item" id="nav-bookmarks">
-          <svg width="15" height="15" viewBox="0 0 17 17" fill="none">
-            <path d="M4 2.5h9v12l-4.5-3-4.5 3v-12z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>
-          </svg>
-          <span>Bookmarks</span>
-        </button>
-      </div>
-
-      <!-- Recent section header -->
-      <div class="sb-section-header">
-        <span class="sb-section-label">Recent</span>
       </div>
 
       <!-- Recordings list -->
       <div id="recordings-list" class="sb-list quiet-scroll"></div>
 
-      <!-- Footer -->
-      <div class="sb-footer">
-        <div class="sb-footer-dot"></div>
-        <span class="sb-footer-text">WhisperX · GPU</span>
-        <button class="sb-settings-btn" id="btn-settings" title="Settings">
-          <svg width="12" height="12" viewBox="0 0 17 17" fill="none">
-            <circle cx="8.5" cy="8.5" r="2.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
-            <path d="M8.5 1.5v2M8.5 13.5v2M1.5 8.5h2M13.5 8.5h2
-                     M3.5 3.5l1.4 1.4M12.1 12.1l1.4 1.4
-                     M3.5 13.5l1.4-1.4M12.1 4.9l1.4-1.4"
-                  stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </div>
 
     </aside>
 
     <main id="main-panel">
       <!-- views are rendered here -->
     </main>
+  </div>
+  <div id="player-slot"></div>
   </div>
 
   <script src="utils.js"></script>
@@ -107,6 +140,7 @@
   <script src="views/editor-view.js"></script>
   <script src="views/settings-view.js"></script>
   <script src="views/live-recording-view.js"></script>
+  <script src="views/new-recording-modal.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,4 +1,13 @@
-function renderLiveRecordingView() {
+function renderLiveRecordingView(settings = {}) {
+  const {
+    audioSource    = appSettings.recordingAudioSource  || 'both',
+    micDeviceId    = appSettings.recordingMicDevice    || null,
+    systemDeviceId = appSettings.recordingSystemDevice || null,
+    title: sessionTitle = '',
+    model          = appSettings.transcribeModel       || 'large-v3',
+    language       = appSettings.transcribeLang        || 'auto',
+  } = settings
+
   let recorder    = null
   let audioCtx    = null
   let micStream   = null
@@ -37,128 +46,40 @@ function renderLiveRecordingView() {
     recorder = micStream = sysStream = audioCtx = micAnalyser = sysAnalyser = null
   }
 
-  // ── READY ──────────────────────────────────────────────────────────────────
+  // ── Starting (brief permission-request state) ──────────────────────────────
 
-  function showReady() {
+  function showStarting() {
     root.innerHTML = ''
-
-    const hdr = document.createElement('div')
-    hdr.className = 'import-page-header'
-    hdr.innerHTML = `
-      <div class="import-page-hdr-text">
-        <div class="import-page-title">Live recording</div>
-        <div class="import-page-sub">Captures microphone and system audio simultaneously.</div>
-      </div>`
-    root.appendChild(hdr)
-
-    const scroll = document.createElement('div')
-    scroll.className = 'import-scroll quiet-scroll'
-    root.appendChild(scroll)
-
-    const card = document.createElement('div')
-    card.className = 'preflight-card'
-    scroll.appendChild(card)
-
-    // Card header
-    const cardHdr = document.createElement('div')
-    cardHdr.className = 'preflight-header'
-    cardHdr.innerHTML = `
-      <span class="preflight-pill preflight-pill--rec">
-        <span class="preflight-pill-dot" style="background:#C73655"></span>LIVE
-      </span>
-      <span class="preflight-mode-label">Configure and start capturing</span>
-      <div style="flex:1"></div>`
-    card.appendChild(cardHdr)
-
-    // Device summary
-    const devWrap = document.createElement('div')
-    devWrap.className = 'live-rec-devices'
-
-    const micLabel = appSettings.recordingMicDevice ? 'Configured microphone' : 'Default microphone'
-    const sysLabel = appSettings.recordingSystemDevice ? 'Configured system source' : 'System audio disabled'
-
-    const micRow = document.createElement('div')
-    micRow.className = 'live-rec-device-row'
-    micRow.innerHTML = `
-      <svg width="13" height="13" viewBox="0 0 18 18" fill="none">
-        <path d="M9 2a3 3 0 013 3v4a3 3 0 01-6 0V5a3 3 0 013-3z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-        <path d="M4 9a5 5 0 0010 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-      <span>${micLabel}</span>
-      ${appSettings.recordingUseMic ? '' : '<span class="live-rec-device-badge">off</span>'}`
-
-    const sysRow = document.createElement('div')
-    sysRow.className = 'live-rec-device-row'
-    sysRow.innerHTML = `
-      <svg width="13" height="13" viewBox="0 0 18 18" fill="none">
-        <rect x="2" y="6" width="14" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5" fill="none"/>
-        <path d="M6 6V5a3 3 0 016 0v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-      </svg>
-      <span>${sysLabel}</span>`
-
-    devWrap.appendChild(micRow)
-    devWrap.appendChild(sysRow)
-    card.appendChild(devWrap)
-
-    const errorEl = document.createElement('div')
-    errorEl.className = 'error-banner'
-    errorEl.style.display = 'none'
-    card.appendChild(errorEl)
-
-    // Footer
-    const footer = document.createElement('div')
-    footer.className = 'preflight-footer'
-
-    const footInfo = document.createElement('div')
-    footInfo.className = 'preflight-footer-info'
-    footInfo.innerHTML = `
-      <span class="sb-footer-dot"></span>
-      <span>On-device · private</span>
-      <span style="margin:0 4px;opacity:0.4">·</span>
-      <span>Transcribed after stopping</span>`
-
-    const cfgBtn = document.createElement('button')
-    cfgBtn.className = 'st-btn st-btn--ghost'
-    cfgBtn.style.cssText = 'height:36px;font-size:14px'
-    cfgBtn.textContent = 'Configure devices'
-    cfgBtn.addEventListener('click', () => { stopStreams(); app.showSettings() })
-
-    const startBtn = document.createElement('button')
-    startBtn.className = 'st-btn st-btn--primary'
-    startBtn.style.cssText = 'height:36px;padding:0 19px;font-size:14px;gap:8px;background:linear-gradient(135deg,#EF4F6E,#F08055)'
-    startBtn.innerHTML = `
-      <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-        <circle cx="4.5" cy="4.5" r="4.5" fill="currentColor"/>
-      </svg>Start recording`
-    startBtn.addEventListener('click', () => startRecording(errorEl, startBtn))
-
-    footer.appendChild(footInfo)
-    footer.appendChild(cfgBtn)
-    footer.appendChild(startBtn)
-    card.appendChild(footer)
+    const wrap = document.createElement('div')
+    wrap.className = 'progress-view'
+    wrap.innerHTML = `
+      <div class="progress-view__title">Starting recording…</div>
+      <div class="progress-view__step">Requesting audio permissions</div>`
+    root.appendChild(wrap)
   }
 
   // ── Start recording ────────────────────────────────────────────────────────
 
-  async function startRecording(errorEl, startBtn) {
-    startBtn.disabled = true
-    errorEl.style.display = 'none'
+  async function startRecording() {
+    showStarting()
 
     try {
-      if (appSettings.recordingUseMic) {
-        const constraint = appSettings.recordingMicDevice
-          ? { deviceId: { exact: appSettings.recordingMicDevice } }
+      if (audioSource !== 'system') {
+        const constraint = micDeviceId
+          ? { deviceId: { exact: micDeviceId } }
           : true
         micStream = await navigator.mediaDevices.getUserMedia({ audio: constraint })
       }
 
-      const sysDeviceId = appSettings.recordingSystemDevice
-      if (sysDeviceId) {
-        sysStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: sysDeviceId } } })
+      if (audioSource !== 'mic') {
+        const devId = systemDeviceId && systemDeviceId !== '__default__' ? systemDeviceId : null
+        if (devId) {
+          sysStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: devId } } })
+        }
       }
 
       if (!micStream && !sysStream) {
-        throw new Error('No audio source available. Check Settings → Audio devices.')
+        throw new Error('No audio source available. Check device permissions.')
       }
 
       audioCtx = new AudioContext()
@@ -182,11 +103,28 @@ function renderLiveRecordingView() {
 
       showRecording()
     } catch (err) {
-      startBtn.disabled = false
-      errorEl.textContent = err.message
-      errorEl.style.display = 'block'
       stopStreams()
+      showError(err.message)
     }
+  }
+
+  // ── Error state ────────────────────────────────────────────────────────────
+
+  function showError(message) {
+    root.innerHTML = ''
+    const wrap = document.createElement('div')
+    wrap.className = 'progress-view'
+    const banner = document.createElement('div')
+    banner.className = 'error-banner'
+    banner.style.display = 'block'
+    banner.textContent = message
+    const backBtn = document.createElement('button')
+    backBtn.className = 'progress-view__cancel'
+    backBtn.textContent = '← Back'
+    backBtn.addEventListener('click', () => app.showImport())
+    wrap.appendChild(banner)
+    wrap.appendChild(backBtn)
+    root.appendChild(wrap)
   }
 
   // ── RECORDING ──────────────────────────────────────────────────────────────
@@ -360,7 +298,8 @@ function renderLiveRecordingView() {
 
     const now = new Date()
     const pad = n => String(n).padStart(2, '0')
-    const defaultTitle = `Meeting ${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+    const defaultTitle = sessionTitle ||
+      `Meeting ${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
     const titleInput = document.createElement('input')
     titleInput.type = 'text'
     titleInput.className = 'preflight-title-input'
@@ -404,8 +343,8 @@ function renderLiveRecordingView() {
       errorEl.style.display = 'none'
       const body = {
         audio_path: filePath,
-        whisper_model: appSettings.transcribeModel,
-        language: appSettings.transcribeLang === 'auto' ? null : appSettings.transcribeLang,
+        whisper_model: model,
+        language: language === 'auto' ? null : language,
         title: titleInput.value.trim() || null,
       }
       fetch(`${API_BASE}/transcribe`, {
@@ -429,6 +368,6 @@ function renderLiveRecordingView() {
     card.appendChild(footer)
   }
 
-  showReady()
+  startRecording()
   return root
 }
