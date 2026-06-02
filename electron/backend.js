@@ -8,6 +8,12 @@ let proc = null
 
 // ── paths ─────────────────────────────────────────────────────────────────────
 
+// SONORUS_TEST_SETUP=1 forces setup mode in dev so the first-run flow
+// can be tested without building a packaged app.
+function isPackagedMode() {
+  return app.isPackaged || process.env.SONORUS_TEST_SETUP === '1'
+}
+
 function getPythonExe() {
   const isWin = process.platform === 'win32'
   const bin   = isWin ? 'python.exe' : 'python3'
@@ -56,7 +62,7 @@ async function waitForReady(timeoutMs = 60000) {
 // ── setup (first-run pip install) ─────────────────────────────────────────────
 
 function needsSetup() {
-  if (!app.isPackaged) return false
+  if (!isPackagedMode()) return false
   return !fs.existsSync(path.join(getPkgDir(), '.installed'))
 }
 
@@ -114,7 +120,7 @@ async function startBackend(hfToken = '', onProgress = null) {
     VERBOSE: 'false',
   }
 
-  if (app.isPackaged) {
+  if (isPackagedMode()) {
     const existing = env.PYTHONPATH ? `${getPkgDir()}${path.delimiter}${env.PYTHONPATH}` : getPkgDir()
     env.PYTHONPATH = existing
   }
