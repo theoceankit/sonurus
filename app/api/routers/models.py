@@ -79,6 +79,7 @@ async def download_model(model_id: str):
             log.error(f"Download error: {model_id}: {exc}", exc_info=True)
             q.put({"type": "error", "message": str(exc)})
         finally:
+            _download_jobs.pop(job_id, None)
             _cancel_events.pop(job_id, None)
 
     loop = asyncio.get_running_loop()

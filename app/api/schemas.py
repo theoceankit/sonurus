@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 
 class SegmentResponse(BaseModel):
@@ -45,7 +45,12 @@ class TranscribeRequest(BaseModel):
 
 
 class RenameRequest(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=128)
+
+    @field_validator('name', mode='before')
+    @classmethod
+    def strip_name(cls, v: str) -> str:
+        return v.strip() if isinstance(v, str) else v
 
 
 class SegmentSpeakerRequest(BaseModel):

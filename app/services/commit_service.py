@@ -118,7 +118,8 @@ class CommitService:
         }
         updated = 0
         for spk_id in recognized:
-            avg, count = self._avg_from_db(spk_id)
+            guard_emb = self.memory.known_speakers.get(spk_id)
+            avg, count = self._avg_from_db(spk_id, guard_emb=guard_emb)
             if avg is None:
                 continue
             self.memory.update_embedding(spk_id, avg, count)

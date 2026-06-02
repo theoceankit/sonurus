@@ -151,7 +151,7 @@ def test_transcribe_guard_passes_when_both_models_installed(client):
     mock_storage = MagicMock()
 
     with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, mock_storage)):
-        r = tc.post("/transcribe", json={"audio_path": "/fake/audio.wav", "whisper_model": "small"})
+        r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
 
     assert r.status_code == 200, (
         f"Expected 200 when both models are installed, got {r.status_code}: {r.text}"
@@ -162,6 +162,13 @@ def test_transcribe_guard_passes_when_both_models_installed(client):
 # ---------------------------------------------------------------------------
 # Guard: Alignment model not installed
 # ---------------------------------------------------------------------------
+
+def _make_audio(tmp_path: Path, name: str = "audio.wav") -> str:
+    """Create a minimal readable file so the audio_path existence check passes."""
+    p = tmp_path / name
+    p.write_bytes(b"RIFF\x00\x00\x00\x00WAVEfmt ")
+    return str(p)
+
 
 def _install_whisper_and_diarize(tmp_path: Path, whisper_model: str = "small") -> None:
     """Install both whisper and diarize so only the alignment guard can fire."""
@@ -242,7 +249,7 @@ def test_transcribe_not_blocked_when_language_is_none(client):
     with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
             "/transcribe",
-            json={"audio_path": "/fake/audio.wav", "whisper_model": "small"},
+            json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"},
             # language key deliberately omitted → None
         )
 
@@ -268,7 +275,7 @@ def test_transcribe_not_blocked_when_language_is_auto(client):
     with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
             "/transcribe",
-            json={"audio_path": "/fake/audio.wav", "whisper_model": "small", "language": "auto"},
+            json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": "auto"},
         )
 
     assert r.status_code == 200, (
@@ -299,7 +306,7 @@ def test_transcribe_not_blocked_for_language_not_in_alignment_catalog(client):
     with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
             "/transcribe",
-            json={"audio_path": "/fake/audio.wav", "whisper_model": "small", "language": "en"},
+            json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": "en"},
         )
 
     assert r.status_code == 200, (
@@ -328,7 +335,7 @@ def test_transcribe_not_blocked_for_fr_not_in_alignment_catalog(client):
     with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
             "/transcribe",
-            json={"audio_path": "/fake/audio.wav", "whisper_model": "small", "language": "fr"},
+            json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": "fr"},
         )
 
     assert r.status_code == 200, (
@@ -460,7 +467,7 @@ def test_transcribe_guard_passes_when_alignment_model_installed(client):
     with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
             "/transcribe",
-            json={"audio_path": "/fake/audio.wav", "whisper_model": "small", "language": "ru"},
+            json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": "ru"},
         )
 
     assert r.status_code == 200, (

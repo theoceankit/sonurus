@@ -227,7 +227,7 @@ function renderProgressView(jobId, originalRequest = null) {
       fill.classList.remove('progress-bar-fill--indeterminate')
       fill.style.width = '100%'
       step.textContent = 'Done!'
-      setTimeout(() => app.showEditor(event.transcript_id), 600)
+      setTimeout(() => { app.invalidateSidebar(); app.showEditor(event.transcript_id) }, 600)
     } else if (event.type === 'cancelled') {
       stopAndReturn()
     } else if (event.type === 'error') {

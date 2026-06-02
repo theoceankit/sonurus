@@ -82,7 +82,7 @@ def get_speaker_suggestions(
 
     embeddings_by_speaker: dict[str, list] = {}
     for seg in t.segments:
-        spk_id = seg.speaker_resolved or seg.speaker_raw
+        spk_id = seg.speaker_final or seg.speaker_resolved or seg.speaker_raw
         if not spk_id or spk_id in recognized:
             continue
         if seg.embedding is not None:
@@ -201,7 +201,7 @@ def reassign_speaker(
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
 
-    if not any(seg.speaker_resolved == body.from_speaker_id for seg in t.segments):
+    if not any((seg.speaker_final or seg.speaker_resolved or seg.speaker_raw) == body.from_speaker_id for seg in t.segments):
         raise HTTPException(status_code=400, detail="from_speaker_id not found in transcript segments")
 
     if has_id:
@@ -211,6 +211,7 @@ def reassign_speaker(
     else:
         to_uuid = memory._generate_new_speaker_id()
         memory.set_name(to_uuid, body.to_speaker_name)
+        memory.save_names_only()
 
     storage.update_segments_speaker(transcript_id, body.from_speaker_id, to_uuid)
     for seg in t.segments:

@@ -110,11 +110,15 @@ const app = {
     this._rerenderList()
     const meta = (this._allRecordings || []).find(r => r.id === transcriptId) || null
     this._setView(renderEditorView(transcriptId, meta), true)
-    this._loadSidebar()
+    // Only reload sidebar when data may have changed (commit, delete, rename).
+    // Navigating between existing transcripts does not need a full refresh.
+    if (this._sidebarDirty !== false) this._loadSidebar()
     // Restore inspector visibility after editor rebuilds
     const rightPanel = document.querySelector('.right-panel')
     if (rightPanel) rightPanel.style.display = this._inspectorVisible ? '' : 'none'
   },
+
+  invalidateSidebar() { this._sidebarDirty = true },
 
   // ── Titlebar actions ────────────────────────────────────────────────────────
 
@@ -127,17 +131,8 @@ const app = {
 
   // ── Sidebar ─────────────────────────────────────────────────────────────────
 
-  navTo(id) {
-    document.querySelectorAll('.nav-item').forEach(el => {
-      el.classList.toggle('nav-item--active', el.id === 'nav-' + id)
-    })
-    // Speakers and Bookmarks are stubs for now — just deselect transcript
-    if (id === 'transcripts') {
-      // nothing extra — recordings list is always visible
-    }
-  },
-
   _loadSidebar({ autoOpen = false } = {}) {
+    this._sidebarDirty = false
     Promise.all([
       fetch(`${API_BASE}/transcripts`).then(r => r.json()),
       fetch(`${API_BASE}/speakers`).then(r => r.json()),

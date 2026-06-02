@@ -98,13 +98,6 @@ class TranscriptStorageService:
             conn.execute("DELETE FROM transcriptions WHERE id = ?", (db_id,))
         log.info(f"DELETE transcription id={db_id} and its segments")
 
-    def update_status(self, db_id: int, status: str) -> None:
-        with self._connect() as conn:
-            conn.execute(
-                "UPDATE transcriptions SET status = ? WHERE id = ?",
-                (status, db_id),
-            )
-
     # ── Read ──────────────────────────────────────────────────────────────────
 
     def load(self, db_id: int) -> Transcript:
