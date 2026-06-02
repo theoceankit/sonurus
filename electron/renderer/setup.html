@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'"/>
+  <title>Sonorus — Setup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #fff;
+      color: #19182a;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-app-region: drag;
+      user-select: none;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      width: 440px;
+      -webkit-app-region: no-drag;
+    }
+
+    .wordmark {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #19182a;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(90, 87, 242, 0.15);
+      border-top-color: #5A57F2;
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status {
+      font-size: 14px;
+      font-weight: 500;
+      color: #19182a;
+      text-align: center;
+    }
+
+    .note {
+      font-size: 12px;
+      color: rgba(25, 24, 42, 0.45);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .log-box {
+      width: 100%;
+      background: rgba(40, 30, 80, 0.04);
+      border: 0.5px solid rgba(40, 30, 80, 0.1);
+      border-radius: 8px;
+      padding: 10px 13px;
+      height: 110px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .log-line {
+      font-family: ui-monospace, 'Cascadia Code', 'Fira Mono', monospace;
+      font-size: 11px;
+      color: rgba(25, 24, 42, 0.55);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="wordmark">Sonorus</div>
+    <div class="spinner" id="spinner"></div>
+    <div class="status" id="status">Setting up for first use…</div>
+    <div class="log-box" id="log"></div>
+    <div class="note">
+      Installing ML dependencies (~500 MB).<br>
+      This only happens once and takes a few minutes.
+    </div>
+  </div>
+
+  <script>
+    const MAX_LINES = 7
+    const logEl    = document.getElementById('log')
+    const statusEl = document.getElementById('status')
+    const lines    = []
+
+    function addLine(text) {
+      if (!text.trim()) return
+      lines.push(text)
+      if (lines.length > MAX_LINES) lines.shift()
+      logEl.innerHTML = lines
+        .map(l => `<div class="log-line">${escHtml(l)}</div>`)
+        .join('')
+    }
+
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    }
+
+    window.electronAPI.onSetupProgress(({ type, message, line }) => {
+      if (type === 'status' && message) statusEl.textContent = message
+      if (type === 'log'    && line)    addLine(line)
+    })
+  </script>
+</body>
+</html>

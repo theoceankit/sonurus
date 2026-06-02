@@ -2,18 +2,19 @@ const { app } = require('electron')
 const { spawn } = require('child_process')
 const path = require('path')
 const http = require('http')
+const fs   = require('fs')
 
 let proc = null
 
+// ── paths ─────────────────────────────────────────────────────────────────────
+
 function getPythonExe() {
   const isWin = process.platform === 'win32'
+  const bin   = isWin ? 'python.exe' : 'python3'
+  const sub   = isWin ? 'Scripts'    : 'bin'
   if (app.isPackaged) {
-    const bin = isWin ? 'python.exe' : 'python3'
-    const sub = isWin ? 'Scripts' : 'bin'
     return path.join(process.resourcesPath, 'backend', 'python-dist', sub, bin)
   }
-  const bin = isWin ? 'python.exe' : 'python3'
-  const sub = isWin ? 'Scripts' : 'bin'
   return path.join(__dirname, '..', '.venv', sub, bin)
 }
 
@@ -22,6 +23,18 @@ function getWorkDir() {
     ? path.join(process.resourcesPath, 'backend')
     : path.join(__dirname, '..')
 }
+
+function getPkgDir() {
+  return path.join(app.getPath('userData'), 'python-packages')
+}
+
+function getReqFile() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'backend', 'requirements.txt')
+    : path.join(__dirname, '..', 'requirements.packaged.txt')
+}
+
+// ── health check ──────────────────────────────────────────────────────────────
 
 function checkHealth() {
   return new Promise(resolve => {
@@ -40,9 +53,56 @@ async function waitForReady(timeoutMs = 60000) {
   throw new Error('Backend did not respond within 60 seconds')
 }
 
-async function startBackend(hfToken = '') {
-  // Skip if a server is already running (e.g. manual dev server)
+// ── setup (first-run pip install) ─────────────────────────────────────────────
+
+function needsSetup() {
+  if (!app.isPackaged) return false
+  return !fs.existsSync(path.join(getPkgDir(), '.installed'))
+}
+
+function runSetup(onProgress) {
+  const pkgDir = getPkgDir()
+  fs.mkdirSync(pkgDir, { recursive: true })
+
+  return new Promise((resolve, reject) => {
+    const pip = spawn(
+      getPythonExe(),
+      ['-m', 'pip', 'install', '-r', getReqFile(),
+       '--target', pkgDir, '--no-warn-script-location'],
+      { stdio: ['ignore', 'pipe', 'pipe'] }
+    )
+
+    function relay(chunk) {
+      chunk.toString().split('\n').forEach(line => {
+        if (line.trim()) onProgress({ type: 'log', line })
+      })
+    }
+
+    pip.stdout.on('data', relay)
+    pip.stderr.on('data', relay)
+
+    pip.on('exit', code => {
+      if (code === 0) {
+        fs.writeFileSync(path.join(pkgDir, '.installed'), new Date().toISOString())
+        resolve()
+      } else {
+        reject(new Error(`pip exited with code ${code}`))
+      }
+    })
+  })
+}
+
+// ── public API ────────────────────────────────────────────────────────────────
+
+async function startBackend(hfToken = '', onProgress = null) {
   if (await checkHealth()) return
+
+  if (needsSetup()) {
+    const cb = onProgress || (() => {})
+    cb({ type: 'status', message: 'Installing dependencies…' })
+    await runSetup(cb)
+    cb({ type: 'status', message: 'Starting backend…' })
+  }
 
   const userData = app.getPath('userData')
   const env = {
@@ -52,6 +112,11 @@ async function startBackend(hfToken = '') {
     LOG_FILE: path.join(userData, 'sonorus.log'),
     PYTHONUNBUFFERED: '1',
     VERBOSE: 'false',
+  }
+
+  if (app.isPackaged) {
+    const existing = env.PYTHONPATH ? `${getPkgDir()}${path.delimiter}${env.PYTHONPATH}` : getPkgDir()
+    env.PYTHONPATH = existing
   }
 
   proc = spawn(
@@ -68,10 +133,7 @@ async function startBackend(hfToken = '') {
 }
 
 function stopBackend() {
-  if (proc) {
-    proc.kill()
-    proc = null
-  }
+  if (proc) { proc.kill(); proc = null }
 }
 
-module.exports = { startBackend, stopBackend }
+module.exports = { startBackend, stopBackend, needsSetup }
