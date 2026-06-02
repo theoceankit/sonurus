@@ -55,8 +55,7 @@ const app = {
     this._currentView = 'import'
     this._activeTranscriptId = null
     this._rerenderList()
-    this._setView(renderImportView(), false)
-    document.getElementById('btn-import').classList.add('sb-new-btn--active')
+    this._setView(document.createElement('div'), false)
   },
 
   showProgress(jobId, originalRequest = null) {
@@ -149,9 +148,9 @@ const app = {
       this._rerenderList()
       if (autoOpen) {
         if (items.length > 0) this.showEditor(items[0].id)
-        else this.showImport()
+        else { this.showImport(); this.openNewRecordingModal() }
       }
-    }).catch(() => { if (autoOpen) this.showImport() })
+    }).catch(() => { if (autoOpen) { this.showImport(); this.openNewRecordingModal() } })
   },
 
   _applyFilter(items) {

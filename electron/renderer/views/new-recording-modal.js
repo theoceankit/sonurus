@@ -24,7 +24,6 @@ function renderNewRecordingModal({ onStart, onImport }) {
   overlay.appendChild(modal)
 
   function close() { overlay.remove() }
-  overlay.addEventListener('mousedown', e => { if (e.target === overlay) close() })
   document.addEventListener('keydown', function onEsc(e) {
     if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onEsc) }
   })
@@ -46,7 +45,7 @@ function renderNewRecordingModal({ onStart, onImport }) {
     </div>
     <div class="nr-modal-titles">
       <span class="nr-modal-title">New recording</span>
-      <span class="nr-modal-subtitle">${dateStr}</span>
+      <span class="nr-modal-subtitle">Make sure all participants have agreed to be recorded.</span>
     </div>
   `
 
@@ -66,12 +65,22 @@ function renderNewRecordingModal({ onStart, onImport }) {
   body.className = 'nr-modal-body'
   modal.appendChild(body)
 
-  // Title input
+  // Title input — shows default value in gray; turns dark on first edit
   const titleInput = document.createElement('input')
   titleInput.type = 'text'
   titleInput.className = 'nr-title-input'
   titleInput.placeholder = 'Untitled meeting'
   titleInput.value = `${now.getDate()} ${MONTHS[now.getMonth()]} ${timeStr} Meeting`
+  titleInput.setAttribute('data-default', '')
+  titleInput.addEventListener('beforeinput', () => {
+    if (titleInput.hasAttribute('data-default')) {
+      titleInput.value = ''
+      titleInput.removeAttribute('data-default')
+    }
+  })
+  titleInput.addEventListener('focus', () => {
+    if (titleInput.hasAttribute('data-default')) setTimeout(() => titleInput.setSelectionRange(0, 0), 0)
+  })
   body.appendChild(titleInput)
 
   // ── Audio source ────────────────────────────────────────────────────────────
@@ -199,10 +208,9 @@ function renderNewRecordingModal({ onStart, onImport }) {
   const langDropdown = makeDropdown(
     langOptions, langValue,
     v => { langValue = v; saveSettings({ transcribeLang: v }) },
-    (opt, isTrigger) => {
+    (opt) => {
       const s = document.createElement('span')
-      s.style.cssText = 'display:inline-flex;align-items:center;gap:8px'
-      s.innerHTML = `<span>${opt.flag}</span><span>${opt.label}</span>`
+      s.textContent = opt.label
       return s
     }
   )
@@ -270,10 +278,7 @@ function renderNewRecordingModal({ onStart, onImport }) {
 
   const startBtn = document.createElement('button')
   startBtn.className = 'nr-start-btn'
-  startBtn.innerHTML = `
-    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-      <circle cx="4" cy="4" r="4" fill="#FF453A"/>
-    </svg>Start recording`
+  startBtn.textContent = 'Start recording'
   startBtn.addEventListener('click', () => {
     const settings = {
       audioSource,
@@ -347,20 +352,55 @@ function renderNewRecordingModal({ onStart, onImport }) {
   }
 
   function updateDeviceVisibility() {
-    devRow.style.display = ''
-    micField.el.style.display  = (audioSource === 'system') ? 'none' : ''
-    sysField.el.style.display  = (audioSource === 'mic')    ? 'none' : ''
-    // Hide entire row when only one source and the other is hidden
-    if (audioSource === 'mic' || audioSource === 'system') {
-      micField.el.style.gridColumn = ''
-      sysField.el.style.gridColumn = ''
-      if (audioSource === 'mic')    micField.el.style.gridColumn = '1 / -1'
-      if (audioSource === 'system') sysField.el.style.gridColumn = '1 / -1'
-    } else {
-      micField.el.style.gridColumn = ''
-      sysField.el.style.gridColumn = ''
-    }
+    const micDisabled = audioSource === 'system'
+    const sysDisabled = audioSource === 'mic'
+    micField.el.classList.toggle('nr-field--disabled', micDisabled)
+    sysField.el.classList.toggle('nr-field--disabled', sysDisabled)
+    micField.el.querySelectorAll('select, button, input').forEach(el => el.disabled = micDisabled)
+    sysField.el.querySelectorAll('select, button, input').forEach(el => el.disabled = sysDisabled)
   }
+
+  // ── Drag & drop ────────────────────────────────────────────────────────────
+
+  const dropOverlay = document.createElement('div')
+  dropOverlay.className = 'nr-drop-overlay'
+  dropOverlay.innerHTML = `
+    <svg class="nr-drop-border" aria-hidden="true">
+      <rect width="100%" height="100%" rx="14" ry="14" fill="none"
+        stroke="#0A84FF" stroke-width="3" stroke-dasharray="18,10" stroke-linecap="round"/>
+    </svg>
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <path d="M14 4v14M7 11l7 8 7-8M5 23h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Drop audio file to transcribe</span>`
+  modal.appendChild(dropOverlay)
+
+  let dragCounter = 0
+
+  modal.addEventListener('dragenter', e => {
+    e.preventDefault()
+    dragCounter++
+    if (dragCounter === 1) dropOverlay.classList.add('nr-drop-overlay--active')
+  })
+  modal.addEventListener('dragleave', () => {
+    dragCounter--
+    if (dragCounter === 0) dropOverlay.classList.remove('nr-drop-overlay--active')
+  })
+  modal.addEventListener('dragover', e => e.preventDefault())
+  modal.addEventListener('drop', e => {
+    e.preventDefault()
+    dragCounter = 0
+    dropOverlay.classList.remove('nr-drop-overlay--active')
+    const file = e.dataTransfer.files[0]
+    if (!file) return
+    const filePath = window.electronAPI.getFilePath(file)
+    if (!filePath) return
+    const title = titleInput.hasAttribute('data-default')
+      ? file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ')
+      : titleInput.value.trim() || null
+    close()
+    onImport({ filePath, title, model: modelValue, language: langValue })
+  })
 
   // ── Init ───────────────────────────────────────────────────────────────────
 
