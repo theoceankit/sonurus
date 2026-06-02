@@ -47,6 +47,10 @@ CLAUDE.md
 node_modules/
 package-lock.json
 
+# Build output
+dist/
+backend-dist/
+
 # IDE
 .idea/
 .vscode/
