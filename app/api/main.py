@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     models.shutdown_executor()
 
 
-app = FastAPI(title="Whisper API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Sonorus API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
