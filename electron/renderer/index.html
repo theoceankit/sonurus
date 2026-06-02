@@ -6,7 +6,13 @@
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; connect-src http://localhost:8000 ws://localhost:8000; style-src 'self' 'unsafe-inline'" />
   <title>Whisper</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/layout.css" />
+  <link rel="stylesheet" href="styles/import.css" />
+  <link rel="stylesheet" href="styles/editor.css" />
+  <link rel="stylesheet" href="styles/settings.css" />
+  <link rel="stylesheet" href="styles/views.css" />
+  <link rel="stylesheet" href="styles/modal.css" />
 </head>
 <body>
 
@@ -136,6 +142,13 @@
   <script src="components.js"></script>
   <script src="data.js"></script>
   <script src="views/progress-view.js"></script>
+  <script src="views/editor/tooltip.js"></script>
+  <script src="views/editor/speaker-picker.js"></script>
+  <script src="views/editor/segment-row.js"></script>
+  <script src="views/editor/speaker-card.js"></script>
+  <script src="views/editor/waveform.js"></script>
+  <script src="views/editor/player-bar.js"></script>
+  <script src="views/editor/right-panel.js"></script>
   <script src="views/editor-view.js"></script>
   <script src="views/settings-view.js"></script>
   <script src="views/live-recording-view.js"></script>
