@@ -1,5 +1,5 @@
 {
-  "name": "whisper-app",
+  "name": "sonorus",
   "version": "1.0.0",
   "main": "electron/main.js",
   "scripts": {
