@@ -89,10 +89,18 @@ async function main() {
   // ── App source (always refreshed) ────────────────────────────────────────
   console.log('Copying app source…')
   copyDir(path.join(ROOT, 'app'), path.join(DEST, 'app'), ['__pycache__'])
-  fs.copyFileSync(
-    path.join(ROOT, 'requirements.packaged.txt'),
-    path.join(DEST, 'requirements.txt')
-  )
+
+  // macOS PyPI wheels are already CPU-only (no CUDA). The +cpu suffix and
+  // the PyTorch whl extra-index-url only exist for Linux/Windows builds.
+  let reqContent = fs.readFileSync(path.join(ROOT, 'requirements.packaged.txt'), 'utf8')
+  if (process.platform === 'darwin') {
+    reqContent = reqContent
+      .split('\n')
+      .filter(line => !line.startsWith('--extra-index-url'))
+      .map(line => line.replace(/\+cpu\b/g, ''))
+      .join('\n')
+  }
+  fs.writeFileSync(path.join(DEST, 'requirements.txt'), reqContent)
 
   console.log('backend-dist ready.')
 }
