@@ -442,6 +442,30 @@
   padding: 0;
 }
 
+/* ── Text input ──────────────────────────────────────────────────────────────── */
+.st-text-input {
+  flex: 1;
+  min-width: 0;
+  height: 29px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 0.5px solid rgba(0,0,0,0.16);
+  background: #fff;
+  font-size: 13px;
+  color: var(--ink);
+  outline: none;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.st-text-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2.5px var(--accent-bd-3);
+}
+.st-text-input::placeholder {
+  color: rgba(25,24,42,0.3);
+  font-family: ui-monospace, monospace;
+}
+
 /* ── Export format tiles ─────────────────────────────────────────────────────── */
 .st-format-tiles {
   display: grid;
