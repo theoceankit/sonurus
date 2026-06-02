@@ -127,16 +127,6 @@ const app = {
 
   // ── Sidebar ─────────────────────────────────────────────────────────────────
 
-  navTo(id) {
-    document.querySelectorAll('.nav-item').forEach(el => {
-      el.classList.toggle('nav-item--active', el.id === 'nav-' + id)
-    })
-    // Speakers and Bookmarks are stubs for now — just deselect transcript
-    if (id === 'transcripts') {
-      // nothing extra — recordings list is always visible
-    }
-  },
-
   _loadSidebar({ autoOpen = false } = {}) {
     Promise.all([
       fetch(`${API_BASE}/transcripts`).then(r => r.json()),

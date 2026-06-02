@@ -1,20 +1,45 @@
 /* ── Design tokens ─────────────────────────────────────────────────────────── */
 :root {
-  --ink:       #1D1D1F;
-  --ink-2:     #3A3A3C;
-  --ink-3:     #86868B;
-  --ink-4:     #AEAEB2;
-  --ink-dim:   #86868B;
-  --accent:    #0A84FF;
-  --accent-bg: rgba(10,132,255,0.10);
-  --bg:        #FFFFFF;
-  --sidebar-bg:#F5F5F7;
-  --panel-bg:  #FFFFFF;
-  --border:    rgba(0,0,0,0.08);
-  --border-md: rgba(0,0,0,0.14);
-  --radius:    10px;
-  --font:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --mono:      ui-monospace, 'SF Mono', Menlo, monospace;
+  --ink:         #1D1D1F;
+  --ink-2:       #3A3A3C;
+  --ink-3:       #86868B;
+  --ink-4:       #AEAEB2;
+  --ink-dim:     #86868B;
+
+  /* Accent (blue) */
+  --accent:      #0A84FF;
+  --accent-bg:   rgba(10,132,255,0.10);
+  --accent-bg-2: rgba(10,132,255,0.12);
+  --accent-bg-3: rgba(10,132,255,0.05);
+  --accent-bd:   rgba(10,132,255,0.22);
+  --accent-bd-2: rgba(10,132,255,0.25);
+  --accent-bd-3: rgba(10,132,255,0.30);
+
+  /* Green (status OK / success) */
+  --green:       #1F8A66;
+  --green-raw:   46,179,135;
+  --green-bg:    rgba(46,179,135,0.10);
+  --green-bg-2:  rgba(46,179,135,0.04);
+  --green-bg-3:  rgba(46,179,135,0.16);
+  --green-bd:    rgba(46,179,135,0.30);
+  --green-bd-2:  rgba(46,179,135,0.35);
+  --green-bd-3:  rgba(46,179,135,0.65);
+
+  /* Red (recording / error) */
+  --red:         #EF4F6E;
+  --red-dark:    #C73655;
+  --red-live:    #FF453A;
+  --red-bg:      rgba(239,79,110,0.10);
+  --red-bd:      rgba(239,79,110,0.30);
+
+  --bg:          #FFFFFF;
+  --sidebar-bg:  #F5F5F7;
+  --panel-bg:    #FFFFFF;
+  --border:      rgba(0,0,0,0.08);
+  --border-md:   rgba(0,0,0,0.14);
+  --radius:      10px;
+  --font:        -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono:        ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
@@ -151,7 +176,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #FF453A;
+  background: var(--red-live);
   flex-shrink: 0;
   animation: pulse-dot 1.4s ease-in-out infinite;
 }
@@ -244,9 +269,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .sb-hdr-btn:hover { background: rgba(0,0,0,0.05); color: var(--ink); }
 
-/* backward compat — import button still referenced in app.js */
-.sb-new-btn--active { outline: 2px solid var(--accent); outline-offset: 1px; }
-
 /* ── Sidebar search ────────────────────────────────────────────────────────── */
 
 /* ── Filter chips (segmented control) ─────────────────────────────────────── */
@@ -332,7 +354,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .rec-item:not(.rec-item--active):hover { background: rgba(0,0,0,0.04); }
 .rec-item--active {
-  background: #0A84FF;
+  background: var(--accent);
   color: #fff;
 }
 
@@ -494,16 +516,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .action-tile:not(:disabled):hover {
   box-shadow: 0 1px 0 rgba(255,255,255,0.95) inset,
-              0 2px 4px rgba(10,132,255,0.10),
+              0 2px 4px var(--accent-bg),
               0 19px 42px rgba(0,0,0,0.10);
   transform: translateY(-1px);
-  border-color: rgba(10,132,255,0.22);
+  border-color: var(--accent-bd);
 }
 
 .action-tile--active {
-  border-color: rgba(10,132,255,0.30) !important;
+  border-color: var(--accent-bd-3) !important;
   box-shadow: 0 1px 0 rgba(255,255,255,0.95) inset,
-              0 2px 4px rgba(10,132,255,0.10),
+              0 2px 4px var(--accent-bg),
               0 19px 42px rgba(0,0,0,0.10) !important;
   transform: translateY(-1px);
 }
@@ -564,9 +586,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .action-tile-badge--selected {
-  background: rgba(10,132,255,0.10);
+  background: var(--accent-bg);
   color: var(--accent);
-  border: 0.5px solid rgba(10,132,255,0.25);
+  border: 0.5px solid var(--accent-bd-2);
 }
 
 .action-tile-badge-dot {
@@ -601,7 +623,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .action-tile-foot-text {
   font-size: 11.5px;
   color: var(--ink-dim);
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--mono);
   flex: 1;
 }
 
@@ -652,9 +674,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   flex-shrink: 0;
 }
 
-.preflight-pill--ok     { background: rgba(46,179,135,0.10); color: #1F8A66;       border: 0.5px solid rgba(46,179,135,0.30); }
-.preflight-pill--rec    { background: rgba(239,79,110,0.10);  color: #C73655;       border: 0.5px solid rgba(239,79,110,0.30); }
-.preflight-pill--accent { background: rgba(10,132,255,0.10);   color: var(--accent); border: 0.5px solid rgba(10,132,255,0.25); }
+.preflight-pill--ok { background: var(--green-bg); color: var(--green); border: 0.5px solid var(--green-bd); }
 
 .preflight-pill-dot {
   width: 5px;
@@ -712,7 +732,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .preflight-title-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(10,132,255,0.10);
+  box-shadow: 0 0 0 3px var(--accent-bg);
 }
 
 .preflight-option-row {
@@ -775,8 +795,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .drop-zone {
   padding: 19px 21px;
   border-radius: 12.5px;
-  background: rgba(46,179,135,0.04);
-  border: 2px dashed rgba(46,179,135,0.35);
+  background: var(--green-bg-2);
+  border: 2px dashed var(--green-bd-2);
   display: flex;
   align-items: center;
   gap: 17px;
@@ -784,16 +804,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .drop-zone--over {
-  background: rgba(46,179,135,0.10);
-  border-color: rgba(46,179,135,0.65);
+  background: var(--green-bg);
+  border-color: var(--green-bd-3);
 }
 
 .drop-zone-icon {
   width: 48px;
   height: 48px;
   border-radius: 11.5px;
-  background: linear-gradient(135deg, rgba(46,179,135,0.16), rgba(76,201,194,0.20));
-  color: #1F8A66;
+  background: linear-gradient(135deg, var(--green-bg-3), rgba(76,201,194,0.20));
+  color: var(--green);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -935,23 +955,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.focus-title-actions { display: flex; gap: 8px; flex-shrink: 0; }
-
-.btn-commit {
-  height: 29px;
-  padding: 0 14.5px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.btn-commit:hover:not(:disabled) { opacity: 0.85; }
-.btn-commit:disabled { opacity: 0.45; cursor: default; }
 
 .focus-meta {
   display: flex;
@@ -1196,7 +1199,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .seg-row:hover::before { background: rgba(0,0,0,0.03); }
 .seg-row--playing { border-left-color: var(--accent); }
 .seg-row--editing::before,
-.seg-row--editing:hover::before { background: rgba(10,132,255,0.05); }
+.seg-row--editing:hover::before { background: var(--accent-bg-3); }
 .seg-row--speaker-break { margin-top: 6px; }
 
 .seg-time {
@@ -1338,7 +1341,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .seg-edit-btn--confirm {
-  background: rgba(10,132,255,0.10);
+  background: var(--accent-bg);
   color: var(--accent);
 }
 .seg-edit-btn--confirm:hover { background: var(--accent); color: #fff; }
@@ -1497,7 +1500,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   padding: 2px 4px 8px;
 }
 .right-section-count {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--mono);
   color: rgba(0,0,0,0.22);
   font-weight: 600;
   margin-left: auto;
@@ -1584,7 +1587,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .spk-card-meta {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--mono);
   font-size: 11px;
   color: var(--ink-dim);
   margin-top: 1px;
@@ -1605,7 +1608,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .spk-dur-fill { height: 100%; border-radius: 2px; }
 .spk-dur-pct {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--mono);
   font-size: 11px;
   color: var(--ink-dim);
   min-width: 32px;
@@ -1703,19 +1706,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   transition: background 0.08s, color 0.08s;
 }
 .spk-assign-btn:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
-
-.spk-name-input {
-  flex: 1;
-  height: 27px;
-  border-radius: 7px;
-  border: 1px solid var(--accent);
-  padding: 0 8px;
-  font-size: 12.5px;
-  font-family: inherit;
-  color: var(--ink);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(10,132,255,0.12);
-}
 
 .spk-quote {
   display: flex;
@@ -1834,7 +1824,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   font-family: inherit;
 }
 .spk-picker-item--focused { background: rgba(0,0,0,0.05); }
-.spk-picker-item--current { background: rgba(10,132,255,0.10); }
+.spk-picker-item--current { background: var(--accent-bg); }
 .spk-picker-item--current.spk-picker-item--focused { background: rgba(10,132,255,0.15); }
 
 .spk-picker-av {
@@ -1969,13 +1959,13 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   width: 36px;
   height: 36px;
   border-radius: 10.5px;
-  background: #0A84FF;
+  background: var(--accent);
   color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(10,132,255,0.25), inset 0 1px 0 rgba(255,255,255,0.22);
+  box-shadow: 0 2px 6px var(--accent-bd-2), inset 0 1px 0 rgba(255,255,255,0.22);
 }
 
 .st-section-title {
@@ -2032,8 +2022,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   padding: 0;
 }
 .st-toggle--on {
-  background: #0A84FF;
-  box-shadow: 0 1px 2px rgba(10,132,255,0.30);
+  background: var(--accent);
+  box-shadow: 0 1px 2px var(--accent-bd-3);
 }
 .st-toggle-knob {
   position: absolute;
@@ -2142,7 +2132,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   left: 0;
   height: 6px;
   border-radius: 3px;
-  background: #0A84FF;
+  background: var(--accent);
 }
 
 .st-slider-thumb {
@@ -2153,7 +2143,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background: #fff;
   border: 2px solid var(--accent);
   transform: translateX(-50%);
-  box-shadow: 0 2px 6px rgba(10,132,255,0.30);
+  box-shadow: 0 2px 6px var(--accent-bd-3);
   pointer-events: none;
 }
 
@@ -2167,7 +2157,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   position: absolute;
   transform: translateX(-50%);
   font-size: 11px;
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--mono);
   color: rgba(0,0,0,0.40);
   font-weight: 500;
   white-space: nowrap;
@@ -2180,10 +2170,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   align-items: center;
   padding: 3px 10.5px;
   border-radius: 7px;
-  background: rgba(10,132,255,0.10);
+  background: var(--accent-bg);
   color: var(--accent);
   font-weight: 700;
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--mono);
   font-size: 12.5px;
 }
 
@@ -2199,8 +2189,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   text-transform: uppercase;
   white-space: nowrap;
 }
-.st-pill--accent { background: rgba(10,132,255,0.10); color: var(--accent); border: 0.5px solid rgba(10,132,255,0.25); }
-.st-pill--ok     { background: rgba(46,179,135,0.10); color: #1F8A66;      border: 0.5px solid rgba(46,179,135,0.30); }
+.st-pill--accent { background: var(--accent-bg);  color: var(--accent); border: 0.5px solid var(--accent-bd-2); }
+.st-pill--ok     { background: var(--green-bg);   color: var(--green);  border: 0.5px solid var(--green-bd); }
 .st-pill--amber  { background: rgba(197,138,46,0.10); color: #A07227;      border: 0.5px solid rgba(197,138,46,0.30); }
 
 /* ── Model list ──────────────────────────────────────────────────────────────── */
@@ -2219,7 +2209,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .st-model-row--selected {
   background: rgba(10,132,255,0.06);
-  border-color: rgba(10,132,255,0.30);
+  border-color: var(--accent-bd-3);
 }
 
 .st-model-icon {
@@ -2235,9 +2225,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   flex-shrink: 0;
 }
 .st-model-icon--selected {
-  background: #0A84FF;
+  background: var(--accent);
   color: #fff;
-  box-shadow: 0 2px 5px rgba(10,132,255,0.25), inset 0 1px 0 rgba(255,255,255,0.22);
+  box-shadow: 0 2px 5px var(--accent-bd-2), inset 0 1px 0 rgba(255,255,255,0.22);
 }
 
 .st-model-info { min-width: 0; }
@@ -2260,7 +2250,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .st-model-meta {
   font-size: 12px;
   color: var(--ink-dim);
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--mono);
 }
 
 .st-model-status {
@@ -2293,7 +2283,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .st-code {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--mono);
   font-size: 11.5px;
   padding: 1px 5px;
   border-radius: 4px;
@@ -2317,11 +2307,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .st-btn:hover { opacity: 0.85; }
 
 .st-btn--primary {
-  background: #0A84FF;
+  background: var(--accent);
   color: #fff;
   height: 29px;
   padding: 0 12.5px;
-  box-shadow: 0 2px 6px rgba(10,132,255,0.30), inset 0 1px 0 rgba(255,255,255,0.20);
+  box-shadow: 0 2px 6px var(--accent-bd-3), inset 0 1px 0 rgba(255,255,255,0.20);
 }
 
 .st-btn--ghost {
@@ -2334,11 +2324,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .st-btn--danger {
-  background: linear-gradient(135deg, #EF4F6E, #F08055);
+  background: linear-gradient(135deg, var(--red), #F08055);
   color: #fff;
   height: 29px;
   padding: 0 14.5px;
-  box-shadow: 0 2px 6px rgba(239,79,110,0.30), inset 0 1px 0 rgba(255,255,255,0.20);
+  box-shadow: 0 2px 6px var(--red-bd), inset 0 1px 0 rgba(255,255,255,0.20);
 }
 
 .st-btn--sm { height: 27px; padding: 0 10.5px; font-size: 12.5px; }
@@ -2387,7 +2377,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .st-format-tile-name { font-size: 13px; font-weight: 600; color: var(--ink); }
 .st-format-tile-ext {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--mono);
   font-size: 11px;
   padding: 1px 5px;
   border-radius: 4px;
@@ -2421,7 +2411,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   border-radius: 9px;
   background: rgba(239,79,110,0.12);
   border: 1px solid rgba(239,79,110,0.25);
-  color: #EF4F6E;
+  color: var(--red);
   font-weight: 800;
   font-size: 17px;
   display: inline-flex;
@@ -2459,7 +2449,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  background: #EF4F6E;
+  background: var(--red);
   display: inline-block;
   flex-shrink: 0;
   animation: pulse-dot 1.2s ease-in-out infinite;
@@ -2471,38 +2461,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.025em;
   color: var(--ink);
-  font-family: ui-monospace, 'SF Mono', monospace;
+  font-family: var(--mono);
   padding: 14px 0 6px;
   line-height: 1;
-}
-
-.live-rec-devices {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  padding: 14px 0 6px;
-}
-
-.live-rec-device-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--ink-dim);
-}
-
-.live-rec-device-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 7px;
-  border-radius: 5px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  background: rgba(0,0,0,0.06);
-  color: var(--ink-dim);
-  border: 0.5px solid var(--border);
 }
 
 .live-rec-meters {
@@ -2721,7 +2682,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #FF453A;
+  background: var(--red-live);
   display: block;
   animation: pulse-dot 2.2s ease-in-out infinite;
 }
@@ -2830,7 +2791,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .nr-audio-opt--active {
   border-color: var(--accent);
-  background: rgba(10,132,255,0.05);
+  background: var(--accent-bg-3);
 }
 
 .nr-audio-opt-icon {
@@ -2846,7 +2807,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   flex-shrink: 0;
 }
 .nr-audio-opt--active .nr-audio-opt-icon {
-  background: rgba(10,132,255,0.12);
+  background: var(--accent-bg-2);
   color: var(--accent);
 }
 
@@ -2872,7 +2833,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   letter-spacing: 0.01em;
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(10,132,255,0.10);
+  background: var(--accent-bg);
   color: var(--accent);
   border: 0.5px solid rgba(10,132,255,0.18);
   white-space: nowrap;
@@ -2935,9 +2896,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .nr-toggle:hover:not(.nr-toggle--on) { border-color: var(--border-md); color: var(--ink); }
 .nr-toggle--on {
-  border-color: rgba(46,179,135,0.35);
+  border-color: var(--green-bd-2);
   background: rgba(46,179,135,0.07);
-  color: #1F8A66;
+  color: var(--green);
 }
 
 .nr-drop-overlay {
