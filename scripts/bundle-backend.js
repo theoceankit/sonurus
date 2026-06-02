@@ -6,6 +6,10 @@
 //
 // Run before building:  node scripts/bundle-backend.js
 // Or via npm:           npm run bundle-backend
+//
+// Python and its tarball are cached in backend-dist/ and reused on
+// subsequent runs. Pass --force to re-extract Python (e.g. after a
+// version bump).
 
 const fs   = require('fs')
 const path = require('path')
@@ -27,8 +31,9 @@ const BASE_URL = `https://github.com/indygreg/python-build-standalone/releases/d
 const ROOT    = path.resolve(__dirname, '..')
 const DEST    = path.join(ROOT, 'backend-dist')
 const PY_DIST = path.join(DEST, 'python-dist')
+const FORCE   = process.argv.includes('--force')
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 async function download(url, dest) {
   const res = await fetch(url)
@@ -48,7 +53,7 @@ function copyDir(src, dst, exclude = []) {
   }
 }
 
-// ── main ─────────────────────────────────────────────────────────────────────
+// ── main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
   const key      = `${process.platform}-${process.arch}`
@@ -61,7 +66,9 @@ async function main() {
 
   fs.mkdirSync(DEST, { recursive: true })
 
+  // ── Python interpreter (cached) ───────────────────────────────────────────
   const tarball = path.join(DEST, filename)
+
   if (!fs.existsSync(tarball)) {
     console.log(`Downloading ${filename}…`)
     await download(BASE_URL + filename, tarball)
@@ -70,26 +77,22 @@ async function main() {
     console.log('Tarball cached, skipping download.')
   }
 
-  console.log('Extracting Python…')
-  if (fs.existsSync(PY_DIST)) fs.rmSync(PY_DIST, { recursive: true })
-  fs.mkdirSync(PY_DIST, { recursive: true })
-  await tar.x({ file: tarball, cwd: PY_DIST, strip: 1 })
+  if (FORCE || !fs.existsSync(PY_DIST)) {
+    console.log('Extracting Python…')
+    if (fs.existsSync(PY_DIST)) fs.rmSync(PY_DIST, { recursive: true })
+    fs.mkdirSync(PY_DIST, { recursive: true })
+    await tar.x({ file: tarball, cwd: PY_DIST, strip: 1 })
+  } else {
+    console.log('python-dist cached, skipping extraction.')
+  }
 
+  // ── App source (always refreshed) ────────────────────────────────────────
   console.log('Copying app source…')
-  copyDir(
-    path.join(ROOT, 'app'),
-    path.join(DEST, 'app'),
-    ['__pycache__']
-  )
+  copyDir(path.join(ROOT, 'app'), path.join(DEST, 'app'), ['__pycache__'])
   fs.copyFileSync(
     path.join(ROOT, 'requirements.packaged.txt'),
     path.join(DEST, 'requirements.txt')
   )
-
-  // Remove leftover tarballs to keep the output lean
-  for (const f of fs.readdirSync(DEST)) {
-    if (f.endsWith('.tar.gz')) fs.rmSync(path.join(DEST, f))
-  }
 
   console.log('backend-dist ready.')
 }

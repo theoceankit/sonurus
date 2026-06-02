@@ -9,7 +9,7 @@ from app.models.transcript import Transcript
 class ArchiveService:
     """Saves audio + transcript .txt to .files/YYYY-MM-DD/<stem>/."""
 
-    BASE_DIR = ".files"
+    BASE_DIR = os.path.join(os.getenv("SONORUS_DATA_DIR", "."), ".files")
 
     def archive(
         self,
