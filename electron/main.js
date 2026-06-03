@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard, desktopCapturer } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -89,6 +89,8 @@ ipcMain.handle('open-file', async () => {
   return canceled ? null : filePaths[0]
 })
 
+ipcMain.handle('get-platform', () => process.platform)
+
 ipcMain.handle('write-clipboard', (_e, text) => { clipboard.writeText(text) })
 
 ipcMain.handle('save-recording', (_e, { buffer, ext }) => {
@@ -100,8 +102,21 @@ ipcMain.handle('save-recording', (_e, { buffer, ext }) => {
 
 app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    callback(permission === 'media')
+    callback(permission === 'media' || permission === 'display-capture')
   })
+
+  // getDisplayMedia requires an explicit handler in Electron 33+; without it the call
+  // throws "Not supported". Platform strategies:
+  //   Windows — WASAPI loopback via handler (no picker, automatic)
+  //   macOS   — ScreenCaptureKit system picker (handler not needed, OS handles it)
+  //   Linux   — xdg-desktop-portal picker via useSystemPicker: true (Wayland/PipeWire)
+  if (process.platform === 'win32') {
+    session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+      desktopCapturer.getSources({ types: ['screen'] }).then(sources => {
+        callback({ video: sources[0], audio: 'loopback' })
+      }).catch(() => callback({}))
+    }, { useSystemPicker: false })
+  }
 
   let hfToken = ''
   try {

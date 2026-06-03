@@ -329,6 +329,8 @@ function renderNewRecordingModal({ onStart, onImport }) {
 
   async function populateDevices() {
     try {
+      const platform = await window.electronAPI.getPlatform()
+
       // Request permission so labels are populated
       await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {})
       const devices = await navigator.mediaDevices.enumerateDevices()
@@ -342,14 +344,27 @@ function renderNewRecordingModal({ onStart, onImport }) {
         })),
       ]
 
-      // System audio candidates: virtual/loopback/output/system audio devices
+      // System audio candidates: virtual/loopback/output devices + PipeWire/PulseAudio monitors
       const sysMatches = inputs.filter(d =>
-        /virtual|loopback|system|output|mix/i.test(d.label)
+        /virtual|loopback|system|output|mix|monitor/i.test(d.label)
       )
-      const sysOptions = [
-        { value: '__default__', label: sysMatches.length ? 'Auto-detect' : 'Not available' },
-        ...sysMatches.map(d => ({ value: d.deviceId, label: d.label })),
-      ]
+
+      // macOS and Windows support getDisplayMedia system audio capture.
+      // Linux xdg-desktop-portal does not pass audio to Electron's custom handler,
+      // so system audio capture is not available there without a virtual device.
+      const desktopLabel = platform === 'win32'
+        ? 'System audio (desktop)'
+        : 'System audio (screen share)'
+      const hasDesktopCapture = platform === 'darwin' || platform === 'win32'
+
+      const sysOptions = []
+      if (hasDesktopCapture) {
+        sysOptions.push({ value: '__desktop__', label: desktopLabel })
+      }
+      sysMatches.forEach(d => sysOptions.push({ value: d.deviceId, label: d.label }))
+      if (!sysOptions.length) {
+        sysOptions.push({ value: '__default__', label: 'Not available' })
+      }
 
       const micDd = makeDropdown(
         micOptions,
@@ -360,9 +375,15 @@ function renderNewRecordingModal({ onStart, onImport }) {
       micField.wrap.innerHTML = ''
       micField.wrap.appendChild(micDd)
 
+      // Restore saved system device, but fall back to first available option
+      const savedSysId = sysDeviceId && sysOptions.some(o => o.value === sysDeviceId)
+        ? sysDeviceId
+        : sysOptions[0].value
+      sysDeviceId = savedSysId
+
       const sysDd = makeDropdown(
         sysOptions,
-        sysDeviceId || '__default__',
+        savedSysId,
         v => { sysDeviceId = v },
         opt => { const s = document.createElement('span'); s.textContent = opt.label; return s }
       )

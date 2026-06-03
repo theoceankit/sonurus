@@ -72,9 +72,26 @@ function renderLiveRecordingView(settings = {}) {
       }
 
       if (audioSource !== 'mic') {
-        const devId = systemDeviceId && systemDeviceId !== '__default__' ? systemDeviceId : null
-        if (devId) {
-          sysStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: devId } } })
+        if (systemDeviceId === '__desktop__') {
+          // macOS: shows ScreenCaptureKit system picker (user picks screen + enables "Share computer sound")
+          // Windows: intercepted by setDisplayMediaRequestHandler in main.js → WASAPI loopback, no picker
+          // Linux: xdg-desktop-portal picker; audio depends on portal/PipeWire support
+          const displayStream = await navigator.mediaDevices.getDisplayMedia({
+            audio: true,
+            video: { width: 1, height: 1 },
+          })
+          displayStream.getVideoTracks().forEach(t => { t.stop(); displayStream.removeTrack(t) })
+          if (displayStream.getAudioTracks().length === 0) {
+            throw new Error('System audio not available: the screen capture session returned no audio. On Linux, try installing xdg-desktop-portal-gnome or xdg-desktop-portal-kde and ensure PipeWire is running.')
+          }
+          sysStream = displayStream
+        } else {
+          const devId = systemDeviceId && systemDeviceId !== '__default__'
+            ? systemDeviceId
+            : null
+          if (devId) {
+            sysStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: devId } } })
+          }
         }
       }
 
