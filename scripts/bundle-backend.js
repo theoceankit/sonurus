@@ -11,9 +11,10 @@
 // subsequent runs. Pass --force to re-extract Python (e.g. after a
 // version bump).
 
-const fs   = require('fs')
-const path = require('path')
-const tar  = require('tar')
+const fs          = require('fs')
+const path        = require('path')
+const tar         = require('tar')
+const ffmpegSrc   = require('ffmpeg-static')
 
 const PYTHON_VERSION = '3.12.10'
 const RELEASE_DATE   = '20250517'
@@ -101,6 +102,14 @@ async function main() {
       .join('\n')
   }
   fs.writeFileSync(path.join(DEST, 'requirements.txt'), reqContent)
+
+  // ── ffmpeg binary ─────────────────────────────────────────────────────────
+  console.log('Copying ffmpeg…')
+  const binDir   = path.join(DEST, 'bin')
+  const ffmpegDst = path.join(binDir, process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg')
+  fs.mkdirSync(binDir, { recursive: true })
+  fs.copyFileSync(ffmpegSrc, ffmpegDst)
+  fs.chmodSync(ffmpegDst, 0o755)
 
   console.log('backend-dist ready.')
 }
