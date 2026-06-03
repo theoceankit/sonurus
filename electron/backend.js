@@ -103,7 +103,8 @@ function runSetup(onProgress) {
 async function startBackend(hfToken = '', onProgress = null) {
   if (await checkHealth()) return
 
-  if (needsSetup()) {
+  const firstRun = needsSetup()
+  if (firstRun) {
     const cb = onProgress || (() => {})
     cb({ type: 'status', message: 'Installing dependencies…' })
     await runSetup(cb)
@@ -121,8 +122,12 @@ async function startBackend(hfToken = '', onProgress = null) {
   }
 
   if (isPackagedMode()) {
-    const existing = env.PYTHONPATH ? `${getPkgDir()}${path.delimiter}${env.PYTHONPATH}` : getPkgDir()
-    env.PYTHONPATH = existing
+    const pkgDir = getPkgDir()
+    env.PYTHONPATH = env.PYTHONPATH ? `${pkgDir}${path.delimiter}${env.PYTHONPATH}` : pkgDir
+
+    // Prepend bundled ffmpeg to PATH so whisperx can find it
+    const binDir = path.join(process.resourcesPath, 'backend', 'bin')
+    env.PATH = `${binDir}${path.delimiter}${env.PATH || process.env.PATH || ''}`
   }
 
   proc = spawn(
@@ -135,7 +140,8 @@ async function startBackend(hfToken = '', onProgress = null) {
   proc.stderr.on('data', d => process.stderr.write(`[backend] ${d}`))
   proc.on('exit', () => { proc = null })
 
-  await waitForReady()
+  // First run: ML imports from a cold package cache take much longer to load
+  await waitForReady(firstRun ? 300_000 : 60_000)
 }
 
 function stopBackend() {
