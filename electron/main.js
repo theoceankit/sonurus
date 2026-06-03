@@ -106,16 +106,22 @@ app.whenReady().then(async () => {
   })
 
   // getDisplayMedia requires an explicit handler in Electron 33+; without it the call
-  // throws "Not supported". Platform strategies:
-  //   Windows — WASAPI loopback via handler (no picker, automatic)
-  //   macOS   — ScreenCaptureKit system picker (handler not needed, OS handles it)
-  //   Linux   — xdg-desktop-portal picker via useSystemPicker: true (Wayland/PipeWire)
+  // throws "Not supported" on all platforms. Platform strategies:
+  //   Windows — WASAPI loopback via handler (no picker, fully automatic)
+  //   macOS   — ScreenCaptureKit system picker; audio comes from SCK automatically
+  //   Linux   — no handler (system audio not supported via this path)
   if (process.platform === 'win32') {
-    session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
       desktopCapturer.getSources({ types: ['screen'] }).then(sources => {
         callback({ video: sources[0], audio: 'loopback' })
       }).catch(() => callback({}))
     }, { useSystemPicker: false })
+  } else if (process.platform === 'darwin') {
+    session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+      desktopCapturer.getSources({ types: ['screen'] }).then(sources => {
+        callback({ video: sources[0] })
+      }).catch(() => callback({}))
+    }, { useSystemPicker: true })
   }
 
   let hfToken = ''
