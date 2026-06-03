@@ -225,7 +225,11 @@ function _makeDownloadHandler(state, rerenderRows) {
     state.modelProgress[id] = 0
     rerenderRows()
 
-    fetch(`${API_BASE}/models/${id}/download`, { method: 'POST' })
+    fetch(`${API_BASE}/models/${id}/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hf_token: state.hfToken || null }),
+    })
       .then(r => r.json())
       .then(({ job_id }) => {
         const ws = new WebSocket(`${WS_BASE}/ws/models/${job_id}`)
