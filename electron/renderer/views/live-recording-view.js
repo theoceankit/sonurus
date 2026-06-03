@@ -82,7 +82,7 @@ function renderLiveRecordingView(settings = {}) {
           })
           displayStream.getVideoTracks().forEach(t => { t.stop(); displayStream.removeTrack(t) })
           if (displayStream.getAudioTracks().length === 0) {
-            throw new Error('System audio not available: the screen capture session returned no audio. On Linux, try installing xdg-desktop-portal-gnome or xdg-desktop-portal-kde and ensure PipeWire is running.')
+            throw new Error('System audio not captured: the screen share returned no audio. Make sure "Share computer sound" is enabled when selecting a screen.')
           }
           sysStream = displayStream
         } else {
