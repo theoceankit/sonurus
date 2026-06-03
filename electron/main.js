@@ -5,7 +5,19 @@ const os = require('os')
 const crypto = require('crypto')
 const { startBackend, stopBackend, needsSetup } = require('./backend')
 
-Menu.setApplicationMenu(null)
+// macOS routes Cmd+C/V/X/A through the app's Edit menu — without it,
+// paste doesn't work in any text field. Windows/Linux handle it at OS level.
+if (process.platform === 'darwin') {
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { label: 'Edit', submenu: [
+      { role: 'cut' }, { role: 'copy' }, { role: 'paste' },
+      { role: 'selectAll' }, { type: 'separator' },
+      { role: 'undo' }, { role: 'redo' },
+    ]},
+  ]))
+} else {
+  Menu.setApplicationMenu(null)
+}
 
 let mainWin = null
 
