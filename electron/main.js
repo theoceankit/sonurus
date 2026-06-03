@@ -117,11 +117,15 @@ app.whenReady().then(async () => {
       }).catch(() => callback({}))
     }, { useSystemPicker: false })
   } else if (process.platform === 'darwin') {
-    // useSystemPicker: true shows the ScreenCaptureKit picker.
-    // callback({}) defers entirely to SCK — it provides both video and audio
-    // from the user's selection without us overriding with a desktopCapturer source.
-    session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
-      callback({})
+    session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+      console.log('[displayMedia] handler called, audioRequested:', request.audioRequested, 'videoRequested:', request.videoRequested)
+      desktopCapturer.getSources({ types: ['screen'] }).then(sources => {
+        console.log('[displayMedia] sources:', sources.map(s => s.id + ' ' + s.name))
+        callback({ video: sources[0] })
+      }).catch(err => {
+        console.error('[displayMedia] getSources error:', err)
+        callback({})
+      })
     }, { useSystemPicker: true })
   }
 
