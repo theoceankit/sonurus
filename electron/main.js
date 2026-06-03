@@ -105,28 +105,15 @@ app.whenReady().then(async () => {
     callback(permission === 'media' || permission === 'display-capture')
   })
 
-  // getDisplayMedia requires an explicit handler in Electron 33+; without it the call
-  // throws "Not supported" on all platforms. Platform strategies:
-  //   Windows — WASAPI loopback via handler (no picker, fully automatic)
-  //   macOS   — ScreenCaptureKit system picker; audio comes from SCK automatically
-  //   Linux   — no handler (system audio not supported via this path)
+  // Windows: intercept getDisplayMedia and provide system audio via WASAPI loopback
+  // (no picker — fully automatic). macOS and Linux do not support system audio
+  // via getDisplayMedia in Electron — Chromium returns video-only (0 audio tracks).
   if (process.platform === 'win32') {
     session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
       desktopCapturer.getSources({ types: ['screen'] }).then(sources => {
         callback({ video: sources[0], audio: 'loopback' })
       }).catch(() => callback({}))
     }, { useSystemPicker: false })
-  } else if (process.platform === 'darwin') {
-    session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
-      console.log('[displayMedia] handler called, audioRequested:', request.audioRequested, 'videoRequested:', request.videoRequested)
-      desktopCapturer.getSources({ types: ['screen'] }).then(sources => {
-        console.log('[displayMedia] sources:', sources.map(s => s.id + ' ' + s.name))
-        callback({ video: sources[0] })
-      }).catch(err => {
-        console.error('[displayMedia] getSources error:', err)
-        callback({})
-      })
-    }, { useSystemPicker: true })
   }
 
   let hfToken = ''
