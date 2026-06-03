@@ -10,6 +10,9 @@
   <!-- Required for microphone recording -->
   <key>com.apple.security.device.audio-input</key>
   <true/>
+  <!-- Required for ScreenCaptureKit system audio capture -->
+  <key>com.apple.security.screen-capture</key>
+  <true/>
   <!-- Allow loading dylibs not signed by Apple (PyTorch, ctranslate2, etc.) -->
   <key>com.apple.security.cs.disable-library-validation</key>
   <true/>
