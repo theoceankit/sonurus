@@ -85,9 +85,11 @@ After integration, the Sonorus icon appears correctly in the taskbar, app switch
 
 **Cause:** macOS blocks system audio capture via the standard `getUserMedia` API for privacy reasons. The dropdown only populates when a virtual loopback device (BlackHole, Loopback) is installed and appears as an audio input with a matching label.
 
-**Workaround:** install [BlackHole 2ch](https://existential.audio/blackhole/) (free). After installation, "Auto-detect" appears in the System Audio dropdown.
+`getDisplayMedia({ audio: true })` was evaluated as an alternative but Electron/Chromium on macOS returns a video-only stream (0 audio tracks). ScreenCaptureKit audio requires native integration deeper than the current WebRTC layer provides.
 
-**Pending fix:** implement via `getDisplayMedia({ audio: true })` using the macOS ScreenCaptureKit API (requires macOS 12.3+). See [Roadmap → macOS system audio via ScreenCaptureKit](../roadmap/roadmap.md).
+**Workaround:** install [BlackHole 2ch](https://existential.audio/blackhole/) (free). After installation, the BlackHole device appears in the System Audio dropdown.
+
+**Pending fix:** native ScreenCaptureKit integration via a Node.js native addon or waiting for Electron to expose SCK audio through the standard `getDisplayMedia` path.
 
 ---
 

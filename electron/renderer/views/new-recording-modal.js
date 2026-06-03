@@ -349,13 +349,12 @@ function renderNewRecordingModal({ onStart, onImport }) {
         /virtual|loopback|system|output|mix|monitor/i.test(d.label)
       )
 
-      // macOS and Windows support getDisplayMedia system audio capture.
-      // Linux xdg-desktop-portal does not pass audio to Electron's custom handler,
-      // so system audio capture is not available there without a virtual device.
-      const desktopLabel = platform === 'win32'
-        ? 'System audio (desktop)'
-        : 'System audio (screen share)'
-      const hasDesktopCapture = platform === 'darwin' || platform === 'win32'
+      // Windows supports getDisplayMedia system audio capture via WASAPI loopback.
+      // macOS: getDisplayMedia via Electron/Chromium returns video-only (audio: 0 tracks)
+      //   — ScreenCaptureKit audio requires deeper native integration not yet in Electron.
+      //   BlackHole virtual device remains the only working option on macOS.
+      // Linux: xdg-portal audio capture also not supported in Electron.
+      const hasDesktopCapture = platform === 'win32'
 
       const sysOptions = []
       if (hasDesktopCapture) {
