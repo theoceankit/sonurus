@@ -116,6 +116,23 @@ See [Domain Invariants → I2](../system/invariants.md#i2--only-commitservicecom
 
 ---
 
+## UI — Live Recording
+
+### macOS system audio via ScreenCaptureKit
+
+**Current:** system audio capture relies on virtual loopback devices (BlackHole, Loopback). On a fresh macOS install with no third-party audio tools, the System Audio dropdown shows "Not available".
+
+**Target:** use `getDisplayMedia({ audio: true, video: false })` in Electron, which on macOS 12.3+ routes through ScreenCaptureKit. The user gets a native macOS source picker (same dialog as screen sharing), and the audio track is extracted. No virtual device required.
+
+**Requirements:**
+- Add `com.apple.security.screen-capture` to `build/entitlements.mac.plist`
+- Request Screen Recording permission at first use (Electron `systemPreferences.askForMediaAccess`)
+- Graceful fallback to virtual device selection on macOS < 12.3
+
+**Scope:** macOS only. Linux and Windows system audio flows are unaffected.
+
+---
+
 ## Open Source
 
 ### Setup documentation

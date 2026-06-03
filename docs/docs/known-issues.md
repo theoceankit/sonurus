@@ -77,6 +77,20 @@ After integration, the Sonorus icon appears correctly in the taskbar, app switch
 
 ---
 
+### macOS system audio shows "Not available"
+
+**Severity:** feature gap — live recording works but cannot capture system/app audio without a third-party tool.
+
+**Symptom:** in the New Recording modal the System Audio dropdown shows "Not available" on a standard macOS install.
+
+**Cause:** macOS blocks system audio capture via the standard `getUserMedia` API for privacy reasons. The dropdown only populates when a virtual loopback device (BlackHole, Loopback) is installed and appears as an audio input with a matching label.
+
+**Workaround:** install [BlackHole 2ch](https://existential.audio/blackhole/) (free). After installation, "Auto-detect" appears in the System Audio dropdown.
+
+**Pending fix:** implement via `getDisplayMedia({ audio: true })` using the macOS ScreenCaptureKit API (requires macOS 12.3+). See [Roadmap → macOS system audio via ScreenCaptureKit](../roadmap/roadmap.md).
+
+---
+
 ### Gatekeeper / SmartScreen warnings on unsigned builds
 
 **Severity:** minor UX friction — does not affect functionality.
