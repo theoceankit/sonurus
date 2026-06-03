@@ -9,6 +9,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 import app.config as config
+from app.api.schemas import DownloadRequest
 from app.services.model_service import ModelService
 from app.logger import get_logger
 
@@ -49,7 +50,7 @@ def delete_model(model_id: str):
 
 
 @router.post("/models/{model_id}/download")
-async def download_model(model_id: str):
+async def download_model(model_id: str, body: DownloadRequest = DownloadRequest()):
     svc = _make_service()
     try:
         svc.is_installed(model_id)
@@ -61,12 +62,13 @@ async def download_model(model_id: str):
     cancel_event = threading.Event()
     _download_jobs[job_id] = q
     _cancel_events[job_id] = cancel_event
+    hf_token = body.hf_token or None
 
     def _run():
         log.info(f"Download started: {model_id} (job {job_id})")
         try:
             service = _make_service()
-            service.download_model(model_id, cancel_event=cancel_event, on_progress=q.put)
+            service.download_model(model_id, cancel_event=cancel_event, on_progress=q.put, hf_token=hf_token)
             q.put({"type": "done"})
             log.info(f"Download complete: {model_id}")
         except CancelledError:

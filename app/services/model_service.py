@@ -274,7 +274,9 @@ class ModelService:
         if t is not None:
             t.join(timeout=2)
 
-    def download_model(self, model_id: str, cancel_event=None, on_progress=None) -> None:
+    def download_model(self, model_id: str, cancel_event=None, on_progress=None, hf_token: str | None = None) -> None:
+        token = hf_token or os.getenv("HF_TOKEN")
+
         if model_id in WHISPER_CATALOG:
             if cancel_event is not None and cancel_event.is_set():
                 raise CancelledError()
@@ -289,7 +291,7 @@ class ModelService:
                 huggingface_hub.snapshot_download(
                     WHISPER_CATALOG[model_id]["hf_repo"],
                     cache_dir=str(self._models_dir),
-                    token=os.getenv("HF_TOKEN"),
+                    token=token,
                     allow_patterns=_WHISPER_ALLOW_PATTERNS,
                 )
             finally:
@@ -313,7 +315,7 @@ class ModelService:
                     huggingface_hub.snapshot_download(
                         repo,
                         cache_dir=str(self._hf_models_dir),
-                        token=os.getenv("HF_TOKEN"),
+                        token=token,
                     )
             finally:
                 self._stop_poller(stop, poller)
@@ -333,7 +335,7 @@ class ModelService:
                 huggingface_hub.snapshot_download(
                     hf_repo,
                     cache_dir=str(self._alignment_models_dir),
-                    token=os.getenv("HF_TOKEN"),
+                    token=token,
                 )
             finally:
                 self._stop_poller(stop, poller)

@@ -61,6 +61,10 @@ class SegmentTextRequest(BaseModel):
     text: str
 
 
+class DownloadRequest(BaseModel):
+    hf_token: str | None = None
+
+
 class ReassignRequest(BaseModel):
     from_speaker_id: str
     to_speaker_id: str | None = None
