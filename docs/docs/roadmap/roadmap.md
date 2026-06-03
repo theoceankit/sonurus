@@ -118,18 +118,29 @@ See [Domain Invariants → I2](../system/invariants.md#i2--only-commitservicecom
 
 ## UI — Live Recording
 
-### macOS system audio via ScreenCaptureKit
+### System audio capture without virtual devices
 
-**Current:** system audio capture relies on virtual loopback devices (BlackHole, Loopback). On a fresh macOS install with no third-party audio tools, the System Audio dropdown shows "Not available".
+**Current state by platform:**
 
-**Target:** use `getDisplayMedia({ audio: true, video: false })` in Electron, which on macOS 12.3+ routes through ScreenCaptureKit. The user gets a native macOS source picker (same dialog as screen sharing), and the audio track is extracted. No virtual device required.
+| Platform | Status | Notes |
+|---|---|---|
+| Windows | ✅ Done (branch `feature/system-audio-capture`) | WASAPI loopback via `setDisplayMediaRequestHandler(audio: 'loopback')` — automatic, no picker |
+| macOS | ❌ Not available without BlackHole | See investigation below |
+| Linux | ❌ Not available without virtual device | PipeWire Monitor sources don't appear in Electron's `enumerateDevices()` |
 
-**Requirements:**
-- Add `com.apple.security.screen-capture` to `build/entitlements.mac.plist`
-- Request Screen Recording permission at first use (Electron `systemPreferences.askForMediaAccess`)
-- Graceful fallback to virtual device selection on macOS < 12.3
+**macOS investigation (2026-06-03):** `getDisplayMedia` via Electron/Chromium on macOS returns a video-only stream (0 audio tracks). The `useSystemPicker: true` flag shows Chromium's own screen picker (not the native ScreenCaptureKit picker), which cannot capture system audio. The "Share computer sound" toggle does not appear.
 
-**Scope:** macOS only. Linux and Windows system audio flows are unaffected.
+**Why:** Electron's WebRTC layer doesn't expose ScreenCaptureKit audio. The SCK integration for audio is marked experimental in Electron docs and is not functional in Electron 33.
+
+**Options for full cross-platform system audio (requires new work):**
+
+1. **Native Node.js addon (macOS + Linux)** — wrap ScreenCaptureKit (macOS) and PipeWire (Linux) via `node-addon-api`. High effort, correct architecture. Requires native compilation per Electron version.
+
+2. **Python subprocess** — spawn a sidecar process that captures audio using platform APIs (PyObjC + SCK on macOS, `sounddevice` on Linux via PulseAudio Monitor). Medium effort. Backend already running Python; audio is written to a temp file, then transcribed normally. Main risk: PyObjC + SCK on macOS still requires entitlement/signed binary for distribution.
+
+3. **Bundled CLI binary** — ship a small pre-compiled binary (Swift for macOS, Go/Rust for all platforms) that captures system audio and writes to stdout. The Electron main process spawns it. Moderate effort, cleanest user-facing UX.
+
+4. **Wait for Electron** — upstream ScreenCaptureKit audio support is in progress in Chromium/Electron. No timeline.
 
 ---
 
