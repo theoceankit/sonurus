@@ -13,3 +13,11 @@ def get_memory_service() -> SpeakerMemoryService:
 @lru_cache(maxsize=1)
 def get_storage_service() -> TranscriptStorageService:
     return TranscriptStorageService(db_path=DB_PATH)
+
+
+from app.services.audio_capture_service import AudioCaptureService
+
+
+@lru_cache(maxsize=1)
+def get_audio_capture_service() -> AudioCaptureService:
+    return AudioCaptureService()

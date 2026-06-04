@@ -344,23 +344,27 @@ function renderNewRecordingModal({ onStart, onImport }) {
         })),
       ]
 
-      // System audio candidates: virtual/loopback/output devices + PipeWire/PulseAudio monitors
-      const sysMatches = inputs.filter(d =>
-        /virtual|loopback|system|output|mix|monitor/i.test(d.label)
-      )
-
-      // Windows supports getDisplayMedia system audio capture via WASAPI loopback.
-      // macOS: getDisplayMedia via Electron/Chromium returns video-only (audio: 0 tracks)
-      //   — ScreenCaptureKit audio requires deeper native integration not yet in Electron.
-      //   BlackHole virtual device remains the only working option on macOS.
-      // Linux: xdg-portal audio capture also not supported in Electron.
-      const hasDesktopCapture = platform === 'win32'
-
       const sysOptions = []
-      if (hasDesktopCapture) {
+
+      if (platform === 'win32') {
+        // Windows: WASAPI loopback via Electron's setDisplayMediaRequestHandler
         sysOptions.push({ value: '__desktop__', label: desktopLabel })
+        // Surface any browser-visible loopback devices as well
+        inputs
+          .filter(d => /virtual|loopback|system|output|mix|monitor/i.test(d.label))
+          .forEach(d => sysOptions.push({ value: d.deviceId, label: d.label }))
+      } else {
+        // macOS: ScreenCaptureKit via backend AudioCaptureService
+        // Linux: PipeWire/PulseAudio monitor sources via backend AudioCaptureService
+        try {
+          const r = await fetch(`${API_BASE}/audio/capture/sources`)
+          if (r.ok) {
+            const { sources } = await r.json()
+            sources.forEach(s => sysOptions.push({ value: s.id, label: s.label }))
+          }
+        } catch (_) {}
       }
-      sysMatches.forEach(d => sysOptions.push({ value: d.deviceId, label: d.label }))
+
       if (!sysOptions.length) {
         sysOptions.push({ value: '__default__', label: 'Not available' })
       }

@@ -13,7 +13,7 @@ if not _verbose:
     suppress_ml_noise("startup")
 
 from app.logger import setup_logging
-from app.api.routers import transcripts, speakers, transcription, models
+from app.api.routers import transcripts, speakers, transcription, models, audio_capture
 from app.api.dependencies import get_memory_service, get_storage_service
 
 setup_logging(default_level="info")
@@ -41,6 +41,7 @@ app.include_router(transcription.router)
 app.include_router(transcripts.router)
 app.include_router(speakers.router)
 app.include_router(models.router)
+app.include_router(audio_capture.router)
 
 
 @app.get("/health")

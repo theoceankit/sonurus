@@ -130,6 +130,16 @@ async function startBackend(hfToken = '', onProgress = null) {
     env.PATH = `${binDir}${path.delimiter}${env.PATH || process.env.PATH || ''}`
   }
 
+  // macOS: pass path to sonorus-capture binary (ScreenCaptureKit system audio)
+  if (process.platform === 'darwin') {
+    const captureBin = app.isPackaged
+      ? path.join(process.resourcesPath, 'mac', 'sonorus-capture')
+      : path.join(__dirname, 'resources', 'mac', 'sonorus-capture')
+    if (fs.existsSync(captureBin)) {
+      env.SONORUS_CAPTURE_BIN = captureBin
+    }
+  }
+
   proc = spawn(
     getPythonExe(),
     ['-m', 'uvicorn', 'app.api.main:app', '--host', '127.0.0.1', '--port', '8000'],
