@@ -7,12 +7,8 @@ import ScreenCaptureKit
 final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
     private var file: AVAudioFile?
     private let url: URL
-    private var framesWritten: Int = 0
 
-    init(url: URL) {
-        self.url = url
-        fputs("INFO: output path = \(url.path)\n", stderr)
-    }
+    init(url: URL) { self.url = url }
 
     func stream(
         _ stream: SCStream,
@@ -25,8 +21,6 @@ final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
            let fmt = buffer.formatDescription
         {
             let sckFmt = AVAudioFormat(cmAudioFormatDescription: fmt)
-            fputs("INFO: SCK format = \(sckFmt)\n", stderr)
-
             guard let int16Fmt = AVAudioFormat(
                 commonFormat: .pcmFormatInt16,
                 sampleRate: sckFmt.sampleRate,
@@ -36,10 +30,7 @@ final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
                 fputs("ERROR: could not construct int16 output format\n", stderr)
                 return
             }
-            fputs("INFO: int16Fmt.settings = \(int16Fmt.settings)\n", stderr)
-
             if let f = try? AVAudioFile(forWriting: url, settings: int16Fmt.settings) {
-                fputs("INFO: AVAudioFile opened, processingFormat = \(f.processingFormat)\n", stderr)
                 file = f
             } else {
                 fputs("ERROR: AVAudioFile(forWriting:) failed for \(url.path)\n", stderr)
@@ -50,12 +41,9 @@ final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
         if let pcm = buffer.toPCMBuffer(format: file.processingFormat) {
             do {
                 try file.write(from: pcm)
-                framesWritten += Int(pcm.frameLength)
             } catch {
                 fputs("ERROR: write failed: \(error)\n", stderr)
             }
-        } else {
-            fputs("WARN: toPCMBuffer returned nil\n", stderr)
         }
     }
 
@@ -63,10 +51,7 @@ final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
         fputs("ERROR: stream stopped: \(error)\n", stderr)
     }
 
-    func close() {
-        fputs("INFO: closing — total frames written = \(framesWritten)\n", stderr)
-        file = nil
-    }
+    func close() { file = nil }
 }
 
 // ─── CMSampleBuffer → AVAudioPCMBuffer ────────────────────────────────────────
@@ -79,10 +64,7 @@ extension CMSampleBuffer {
         let numFrames = Int32(numSamples)
         guard numFrames > 0 else { return nil }
         guard let pcm = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(numFrames))
-        else {
-            fputs("ERROR: AVAudioPCMBuffer alloc failed for format \(format)\n", stderr)
-            return nil
-        }
+        else { return nil }
         pcm.frameLength = AVAudioFrameCount(numFrames)
 
         let status = CMSampleBufferCopyPCMDataIntoAudioBufferList(
@@ -125,13 +107,11 @@ let sema   = DispatchSemaphore(value: 0)
 
 Task {
     do {
-        fputs("INFO: requesting SCShareableContent...\n", stderr)
         let content = try await SCShareableContent.current
         guard let display = content.displays.first else {
             fputs("ERROR: no display available\n", stderr)
             exit(1)
         }
-        fputs("INFO: display found: \(display)\n", stderr)
 
         let filter = SCContentFilter(display: display, excludingWindows: [])
         let cfg    = SCStreamConfiguration()
@@ -143,15 +123,12 @@ Task {
 
         let stream = SCStream(filter: filter, configuration: cfg, delegate: writer)
         try stream.addStreamOutput(writer, type: .audio, sampleHandlerQueue: .global())
-        fputs("INFO: starting capture...\n", stderr)
         try await stream.startCapture()
-        fputs("INFO: capture running — send SIGINT to stop\n", stderr)
 
         while keepRunning {
             try await Task.sleep(nanoseconds: 100_000_000)
         }
 
-        fputs("INFO: stopping capture...\n", stderr)
         try await stream.stopCapture()
     } catch {
         fputs("ERROR: \(error)\n", stderr)
