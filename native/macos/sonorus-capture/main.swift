@@ -72,48 +72,25 @@ final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
 // ─── CMSampleBuffer → AVAudioPCMBuffer ────────────────────────────────────────
 
 extension CMSampleBuffer {
+    // SCK buffers lack per-sample size info, so CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer
+    // returns kCMSampleBufferError_BufferHasNoSampleSizes (-12737).
+    // CMSampleBufferCopyPCMDataIntoAudioBufferList is the correct API for SCK audio.
     func toPCMBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
-        let frames = AVAudioFrameCount(numSamples)
-        guard let pcm = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames)
+        let numFrames = Int32(numSamples)
+        guard numFrames > 0 else { return nil }
+        guard let pcm = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(numFrames))
         else {
             fputs("ERROR: AVAudioPCMBuffer alloc failed for format \(format)\n", stderr)
             return nil
         }
-        pcm.frameLength = frames
+        pcm.frameLength = AVAudioFrameCount(numFrames)
 
-        var blockBuffer: CMBlockBuffer?
-        let ablSize = MemoryLayout<AudioBufferList>.size + MemoryLayout<AudioBuffer>.size * 8
-        let ablPtr  = UnsafeMutableRawPointer.allocate(byteCount: ablSize, alignment: 8)
-        defer { ablPtr.deallocate() }
-        let abl = ablPtr.bindMemory(to: AudioBufferList.self, capacity: 1)
-
-        let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
-            self,
-            bufferListSizeNeededOut: nil,
-            bufferListOut: abl,
-            bufferListSize: ablSize,
-            blockBufferAllocator: nil,
-            blockBufferMemoryAllocator: nil,
-            flags: kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment,
-            blockBufferOut: &blockBuffer
+        let status = CMSampleBufferCopyPCMDataIntoAudioBufferList(
+            self, 0, numFrames, pcm.mutableAudioBufferList
         )
         guard status == noErr else {
-            fputs("ERROR: CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer status=\(status)\n", stderr)
+            fputs("ERROR: CMSampleBufferCopyPCMDataIntoAudioBufferList status=\(status)\n", stderr)
             return nil
-        }
-
-        // SCK delivers non-interleaved float32: one AudioBuffer per channel.
-        // processingFormat of AVAudioFile opened for writing is always float32 non-interleaved.
-        guard let dest = pcm.floatChannelData else {
-            fputs("ERROR: floatChannelData is nil — processingFormat not float32? format=\(format)\n", stderr)
-            return nil
-        }
-        let mutableABL = UnsafeMutableAudioBufferListPointer(abl)
-        for ch in 0..<Int(format.channelCount) where ch < mutableABL.count {
-            let src = mutableABL[ch]
-            if let srcData = src.mData {
-                memcpy(dest[ch], srcData, Int(src.mDataByteSize))
-            }
         }
         return pcm
     }
