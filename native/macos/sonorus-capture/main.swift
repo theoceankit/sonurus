@@ -86,7 +86,7 @@ extension CMSampleBuffer {
         pcm.frameLength = AVAudioFrameCount(numFrames)
 
         let status = CMSampleBufferCopyPCMDataIntoAudioBufferList(
-            self, 0, numFrames, pcm.mutableAudioBufferList
+            self, at: 0, frameCount: numFrames, into: pcm.mutableAudioBufferList
         )
         guard status == noErr else {
             fputs("ERROR: CMSampleBufferCopyPCMDataIntoAudioBufferList status=\(status)\n", stderr)
