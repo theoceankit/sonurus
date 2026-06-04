@@ -77,19 +77,24 @@ After integration, the Sonorus icon appears correctly in the taskbar, app switch
 
 ---
 
-### macOS system audio shows "Not available"
+### macOS system audio capture produces empty WAV file
 
-**Severity:** feature gap — live recording works but cannot capture system/app audio without a third-party tool.
+**Severity:** critical — system audio capture on macOS is non-functional.
 
-**Symptom:** in the New Recording modal the System Audio dropdown shows "Not available" on a standard macOS install.
+**Symptom:** Recording with system audio selected completes without error but transcription fails: `'waveform' must be provided as a (channel, time) torch Tensor`. The output WAV file is unplayable.
 
-**Cause:** macOS blocks system audio capture via the standard `getUserMedia` API for privacy reasons. The dropdown only populates when a virtual loopback device (BlackHole, Loopback) is installed and appears as an audio input with a matching label.
+**Cause:** The `sonorus-capture` Swift binary (branch `feature/system-audio-capture`) uses ScreenCaptureKit to capture system audio and writes to WAV via `AVAudioFile`. The `AVAudioFile(forWriting:settings:)` initializer appears to return `nil` silently (the binary uses `try?`), leaving the output file empty. Three fix attempts have been made targeting the `settings` dictionary type mismatch (`UInt32` channel count vs expected `Int`) — none have resolved it on the user's machine yet.
 
-`getDisplayMedia({ audio: true })` was evaluated as an alternative but Electron/Chromium on macOS returns a video-only stream (0 audio tracks). ScreenCaptureKit audio requires native integration deeper than the current WebRTC layer provides.
+**Architecture context:** The `AudioCaptureService` Python backend spawns `sonorus-capture` with `stderr=subprocess.DEVNULL`, so binary errors are invisible. The mic + system merge via `ffmpeg amix` then produces a 0-duration file → PyAnnote rejects it with the waveform shape error.
 
-**Workaround:** install [BlackHole 2ch](https://existential.audio/blackhole/) (free). After installation, the BlackHole device appears in the System Audio dropdown.
+**Debugging steps:**
+1. Test binary directly: `./electron/resources/mac/sonorus-capture --output /tmp/test.wav`, record 5s, Ctrl+C, check `ls -la /tmp/test.wav` and `afplay /tmp/test.wav`
+2. Enable stderr capture in `AudioCaptureService.start_capture()` (change `stderr=DEVNULL` to `PIPE`) and log output in `stop_capture()`
+3. Log `Path(job.output_path).stat().st_size` before merge to confirm empty file
 
-**Pending fix:** native ScreenCaptureKit integration via a Node.js native addon or waiting for Electron to expose SCK audio through the standard `getDisplayMedia` path.
+**Pending fix:** Resolve `AVAudioFile` initialization in `native/macos/sonorus-capture/main.swift`. If AVAudioFile proves unreliable, fall back to piping raw float32 PCM from SCK to stdout and converting with ffmpeg in Python.
+
+**Branch:** `feature/system-audio-capture`, last relevant commit: `e14eeea`
 
 ---
 
