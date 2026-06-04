@@ -118,29 +118,19 @@ See [Domain Invariants → I2](../system/invariants.md#i2--only-commitservicecom
 
 ## UI — Live Recording
 
-### System audio capture without virtual devices
+### ✅ System audio capture without virtual devices
 
-**Current state by platform:**
+**Done** (`feature/system-audio-capture`). All platform audio goes through `AudioCaptureService` (Python backend) — zero platform detection in renderer JS.
 
-| Platform | Status | Notes |
+| Platform | Status | Implementation |
 |---|---|---|
-| Windows | ✅ Done (branch `feature/system-audio-capture`) | WASAPI loopback via `setDisplayMediaRequestHandler(audio: 'loopback')` — automatic, no picker |
-| macOS | ❌ Not available without BlackHole | See investigation below |
-| Linux | ❌ Not available without virtual device | PipeWire Monitor sources don't appear in Electron's `enumerateDevices()` |
+| macOS | ✅ Done | `sonorus-capture` Swift binary via ScreenCaptureKit — `npm run build:capture` produces `electron/resources/mac/sonorus-capture` |
+| Linux | ✅ Done | `ffmpeg -f pulse -i <monitor_source>` — monitor sources enumerated via `pactl list short sources` |
+| Windows | ✅ Done | WASAPI loopback via `setDisplayMediaRequestHandler(audio: 'loopback')` — automatic, no picker |
 
-**macOS investigation (2026-06-03):** `getDisplayMedia` via Electron/Chromium on macOS returns a video-only stream (0 audio tracks). The `useSystemPicker: true` flag shows Chromium's own screen picker (not the native ScreenCaptureKit picker), which cannot capture system audio. The "Share computer sound" toggle does not appear.
+**macOS note:** Screen Recording permission must be granted once in System Settings → Privacy & Security → Screen Recording. The entitlement `com.apple.security.screen-capture` is already declared in `build/entitlements.mac.plist`.
 
-**Why:** Electron's WebRTC layer doesn't expose ScreenCaptureKit audio. The SCK integration for audio is marked experimental in Electron docs and is not functional in Electron 33.
-
-**Options for full cross-platform system audio (requires new work):**
-
-1. **Native Node.js addon (macOS + Linux)** — wrap ScreenCaptureKit (macOS) and PipeWire (Linux) via `node-addon-api`. High effort, correct architecture. Requires native compilation per Electron version.
-
-2. **Python subprocess** — spawn a sidecar process that captures audio using platform APIs (PyObjC + SCK on macOS, `sounddevice` on Linux via PulseAudio Monitor). Medium effort. Backend already running Python; audio is written to a temp file, then transcribed normally. Main risk: PyObjC + SCK on macOS still requires entitlement/signed binary for distribution.
-
-3. **Bundled CLI binary** — ship a small pre-compiled binary (Swift for macOS, Go/Rust for all platforms) that captures system audio and writes to stdout. The Electron main process spawns it. Moderate effort, cleanest user-facing UX.
-
-4. **Wait for Electron** — upstream ScreenCaptureKit audio support is in progress in Chromium/Electron. No timeline.
+**Key fix:** SCK audio buffers lack per-sample size metadata — `CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer` fails with `kCMSampleBufferError_BufferHasNoSampleSizes`. The correct API is `CMSampleBufferCopyPCMDataIntoAudioBufferList`.
 
 ---
 
