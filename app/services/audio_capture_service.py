@@ -50,13 +50,16 @@ class AudioCaptureService:
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
         )
         with self._lock:
             self._jobs[job_id] = _CaptureJob(process=process, output_path=output_path)
         return job_id
 
     def stop_capture(self, job_id: str, mic_path: str | None = None) -> str:
+        import logging
+        log = logging.getLogger(__name__)
+
         with self._lock:
             job = self._jobs.pop(job_id, None)
         if job is None:
@@ -66,6 +69,15 @@ class AudioCaptureService:
         except (ProcessLookupError, OSError):
             pass
         job.process.wait()
+
+        stderr_out = job.process.stderr.read().decode(errors="replace").strip()
+        if stderr_out:
+            log.warning("sonorus-capture stderr:\n%s", stderr_out)
+
+        out = Path(job.output_path)
+        size = out.stat().st_size if out.exists() else -1
+        log.info("sonorus-capture output: %s  size=%d bytes", job.output_path, size)
+
         if mic_path is None:
             return job.output_path
         return self._merge(job.output_path, mic_path, job_id)

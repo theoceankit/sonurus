@@ -7,8 +7,12 @@ import ScreenCaptureKit
 final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
     private var file: AVAudioFile?
     private let url: URL
+    private var framesWritten: Int = 0
 
-    init(url: URL) { self.url = url }
+    init(url: URL) {
+        self.url = url
+        fputs("INFO: output path = \(url.path)\n", stderr)
+    }
 
     func stream(
         _ stream: SCStream,
@@ -17,16 +21,12 @@ final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
     ) {
         guard type == .audio else { return }
 
-        // Lazily create the output file on first buffer.
-        // Use AVAudioFormat to generate the settings dict — hand-crafted dicts with
-        // UInt32/wrong-typed values cause AVAudioFile init to fail silently via try?.
-        // Target: int16 interleaved WAV (universally readable by ffmpeg/WhisperX).
-        // AVAudioFile's processingFormat stays canonical float32 non-interleaved,
-        // so it auto-converts when writing the SCK float32 buffers to disk.
         if file == nil,
            let fmt = buffer.formatDescription
         {
             let sckFmt = AVAudioFormat(cmAudioFormatDescription: fmt)
+            fputs("INFO: SCK format = \(sckFmt)\n", stderr)
+
             guard let int16Fmt = AVAudioFormat(
                 commonFormat: .pcmFormatInt16,
                 sampleRate: sckFmt.sampleRate,
@@ -36,24 +36,37 @@ final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
                 fputs("ERROR: could not construct int16 output format\n", stderr)
                 return
             }
+            fputs("INFO: int16Fmt.settings = \(int16Fmt.settings)\n", stderr)
+
             if let f = try? AVAudioFile(forWriting: url, settings: int16Fmt.settings) {
+                fputs("INFO: AVAudioFile opened, processingFormat = \(f.processingFormat)\n", stderr)
                 file = f
             } else {
-                fputs("ERROR: could not open output file at \(url.path)\n", stderr)
+                fputs("ERROR: AVAudioFile(forWriting:) failed for \(url.path)\n", stderr)
             }
         }
         guard let file else { return }
 
         if let pcm = buffer.toPCMBuffer(format: file.processingFormat) {
-            try? file.write(from: pcm)
+            do {
+                try file.write(from: pcm)
+                framesWritten += Int(pcm.frameLength)
+            } catch {
+                fputs("ERROR: write failed: \(error)\n", stderr)
+            }
+        } else {
+            fputs("WARN: toPCMBuffer returned nil\n", stderr)
         }
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
-        fputs("Stream error: \(error)\n", stderr)
+        fputs("ERROR: stream stopped: \(error)\n", stderr)
     }
 
-    func close() { file = nil }
+    func close() {
+        fputs("INFO: closing — total frames written = \(framesWritten)\n", stderr)
+        file = nil
+    }
 }
 
 // ─── CMSampleBuffer → AVAudioPCMBuffer ────────────────────────────────────────
@@ -62,17 +75,19 @@ extension CMSampleBuffer {
     func toPCMBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
         let frames = AVAudioFrameCount(numSamples)
         guard let pcm = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames)
-        else { return nil }
+        else {
+            fputs("ERROR: AVAudioPCMBuffer alloc failed for format \(format)\n", stderr)
+            return nil
+        }
         pcm.frameLength = frames
 
         var blockBuffer: CMBlockBuffer?
-        // Allocate space for up to 8 channels in the AudioBufferList.
         let ablSize = MemoryLayout<AudioBufferList>.size + MemoryLayout<AudioBuffer>.size * 8
         let ablPtr  = UnsafeMutableRawPointer.allocate(byteCount: ablSize, alignment: 8)
         defer { ablPtr.deallocate() }
         let abl = ablPtr.bindMemory(to: AudioBufferList.self, capacity: 1)
 
-        guard CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+        let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
             self,
             bufferListSizeNeededOut: nil,
             bufferListOut: abl,
@@ -81,16 +96,23 @@ extension CMSampleBuffer {
             blockBufferMemoryAllocator: nil,
             flags: kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment,
             blockBufferOut: &blockBuffer
-        ) == noErr else { return nil }
+        )
+        guard status == noErr else {
+            fputs("ERROR: CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer status=\(status)\n", stderr)
+            return nil
+        }
 
         // SCK delivers non-interleaved float32: one AudioBuffer per channel.
+        // processingFormat of AVAudioFile opened for writing is always float32 non-interleaved.
+        guard let dest = pcm.floatChannelData else {
+            fputs("ERROR: floatChannelData is nil — processingFormat not float32? format=\(format)\n", stderr)
+            return nil
+        }
         let mutableABL = UnsafeMutableAudioBufferListPointer(abl)
-        if let dest = pcm.floatChannelData {
-            for ch in 0..<Int(format.channelCount) where ch < mutableABL.count {
-                let src = mutableABL[ch]
-                if let srcData = src.mData {
-                    memcpy(dest[ch], srcData, Int(src.mDataByteSize))
-                }
+        for ch in 0..<Int(format.channelCount) where ch < mutableABL.count {
+            let src = mutableABL[ch]
+            if let srcData = src.mData {
+                memcpy(dest[ch], srcData, Int(src.mDataByteSize))
             }
         }
         return pcm
@@ -126,11 +148,13 @@ let sema   = DispatchSemaphore(value: 0)
 
 Task {
     do {
+        fputs("INFO: requesting SCShareableContent...\n", stderr)
         let content = try await SCShareableContent.current
         guard let display = content.displays.first else {
-            fputs("No display available\n", stderr)
+            fputs("ERROR: no display available\n", stderr)
             exit(1)
         }
+        fputs("INFO: display found: \(display)\n", stderr)
 
         let filter = SCContentFilter(display: display, excludingWindows: [])
         let cfg    = SCStreamConfiguration()
@@ -142,15 +166,18 @@ Task {
 
         let stream = SCStream(filter: filter, configuration: cfg, delegate: writer)
         try stream.addStreamOutput(writer, type: .audio, sampleHandlerQueue: .global())
+        fputs("INFO: starting capture...\n", stderr)
         try await stream.startCapture()
+        fputs("INFO: capture running — send SIGINT to stop\n", stderr)
 
         while keepRunning {
             try await Task.sleep(nanoseconds: 100_000_000)
         }
 
+        fputs("INFO: stopping capture...\n", stderr)
         try await stream.stopCapture()
     } catch {
-        fputs("Capture error: \(error)\n", stderr)
+        fputs("ERROR: \(error)\n", stderr)
     }
     writer.close()
     sema.signal()
