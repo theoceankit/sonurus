@@ -56,9 +56,22 @@ POST /audio/capture/start   → starts backend process, returns job_id
 POST /audio/capture/stop/{job_id}  { mic_path: "..." }
   → sends SIGINT to capture process
   → merges with mic via ffmpeg amix=inputs=2:duration=shortest
-  → returns merged .wav path
+  → returns { file_path: merged.wav }
 POST /transcribe  { audio_path: merged_path }
 ```
+
+**Flow (Windows):**
+
+```
+navigator.mediaDevices.getDisplayMedia({ audio: true, video: { width:1, height:1 } })
+  → intercepted by Electron setDisplayMediaRequestHandler
+  → callback({ video: sources[0], audio: 'loopback' })   ← WASAPI loopback, no picker
+  → video tracks discarded; audio track mixed into AudioContext
+MediaRecorder (WebM) → blob → IPC save-recording → temp .webm
+POST /transcribe  { audio_path: temp.webm }
+```
+
+No backend capture process is started on Windows; `POST /audio/capture/*` is not called.
 
 ### Source enumeration
 
@@ -72,7 +85,7 @@ POST /transcribe  { audio_path: merged_path }
 |---|---|
 | `app/services/audio_capture_service.py` | Platform dispatch, ffmpeg merge |
 | `app/api/routers/audio_capture.py` | `/audio/capture/*` endpoints |
-| `native/macos/sonorus-capture/main.swift` | Swift SCK binary |
+| `native/macos/sonorus-capture/main.swift` | Swift SCK binary — build with `npm run build:capture` (requires Xcode Command Line Tools: `xcode-select --install`) |
 | `electron/renderer/views/live-recording-view.js` | Renderer: ready/recording/review states, VU meters |
 | `electron/renderer/views/new-recording-modal.js` | Source picker modal, fetches backend sources |
 | `electron/renderer/views/settings-view.js` | Audio device settings section |

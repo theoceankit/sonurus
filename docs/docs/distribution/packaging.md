@@ -59,14 +59,25 @@ Supported platforms:
 | `linux-x64` | Linux 64-bit |
 | `linux-arm64` | Linux ARM64 |
 
-### 2. electron-builder
+### 2. Native binary: `sonorus-capture` (macOS only)
+
+macOS system audio capture uses a Swift binary built from `native/macos/sonorus-capture/main.swift` via ScreenCaptureKit. It is compiled with `swiftc` (part of Xcode Command Line Tools):
+
+```bash
+xcode-select --install   # one-time, if not already installed
+npm run build:capture    # compiles → electron/resources/mac/sonorus-capture
+```
+
+`npm run build:mac` calls this step automatically. `build:win` and `build:linux` skip it — system audio on those platforms goes through ffmpeg (Linux) or the Electron renderer (Windows) without a native binary.
+
+### 3. electron-builder
 
 Packages the Electron app + `backend-dist/` into the final installer:
 
 ```bash
-npm run build:mac    # .dmg + .zip (arm64 + x64)
-npm run build:win    # .exe NSIS installer (x64)
-npm run build:linux  # .AppImage (x64)
+npm run build:mac    # build:capture → bundle-backend.js → electron-builder (arm64 + x64)
+npm run build:win    # bundle-backend.js → electron-builder (x64)
+npm run build:linux  # bundle-backend.js → electron-builder (x64)
 ```
 
 Output goes to `dist/`.

@@ -115,6 +115,15 @@ npm install
 npm start
 ```
 
+**macOS only:** live recording requires the `sonorus-capture` binary. Build it once before running:
+
+```bash
+# Requires Xcode Command Line Tools: xcode-select --install
+npm run build:capture
+```
+
+The binary is placed at `electron/resources/mac/sonorus-capture` and picked up automatically at runtime.
+
 Set the HuggingFace token via **Settings → API Keys** in the UI. It is stored in `settings.json` and passed to the backend as `HF_TOKEN` at startup.
 
 Alternatively, create a `.env` file for the backend (loaded by `python-dotenv`):

@@ -58,9 +58,9 @@ Stops the capture process and returns the path to the recorded WAV file. Optiona
 { "mic_path": "/tmp/sonorus-mic-abc123.wav" }
 
 // Response 200
-{ "path": "/tmp/sonorus-sys-d63f61eb.wav" }
+{ "file_path": "/tmp/sonorus-sys-d63f61eb.wav" }
 // or, if mic_path was provided:
-{ "path": "/tmp/sonorus-merged-d63f61eb.wav" }
+{ "file_path": "/tmp/sonorus-merged-d63f61eb.wav" }
 ```
 
 - `404` — job not found (already stopped or invalid ID)
