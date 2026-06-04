@@ -19,9 +19,9 @@ final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
 
         // Lazily create the output file using the actual format from the first buffer.
         if file == nil,
-           let fmt = buffer.formatDescription,
-           let avFmt = AVAudioFormat(cmAudioFormatDescription: fmt)
+           let fmt = buffer.formatDescription
         {
+            let avFmt = AVAudioFormat(cmAudioFormatDescription: fmt)
             file = try? AVAudioFile(
                 forWriting: url,
                 settings: avFmt.settings,
