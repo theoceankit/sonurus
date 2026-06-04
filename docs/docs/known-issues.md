@@ -77,27 +77,6 @@ After integration, the Sonorus icon appears correctly in the taskbar, app switch
 
 ---
 
-### macOS system audio capture produces empty WAV file
-
-**Severity:** critical — system audio capture on macOS is non-functional.
-
-**Symptom:** Recording with system audio selected completes without error but transcription fails: `'waveform' must be provided as a (channel, time) torch Tensor`. The output WAV file is unplayable.
-
-**Cause:** The `sonorus-capture` Swift binary (branch `feature/system-audio-capture`) uses ScreenCaptureKit to capture system audio and writes to WAV via `AVAudioFile`. The `AVAudioFile(forWriting:settings:)` initializer appears to return `nil` silently (the binary uses `try?`), leaving the output file empty. Three fix attempts have been made targeting the `settings` dictionary type mismatch (`UInt32` channel count vs expected `Int`) — none have resolved it on the user's machine yet.
-
-**Architecture context:** The `AudioCaptureService` Python backend spawns `sonorus-capture` with `stderr=subprocess.DEVNULL`, so binary errors are invisible. The mic + system merge via `ffmpeg amix` then produces a 0-duration file → PyAnnote rejects it with the waveform shape error.
-
-**Debugging steps:**
-1. Test binary directly: `./electron/resources/mac/sonorus-capture --output /tmp/test.wav`, record 5s, Ctrl+C, check `ls -la /tmp/test.wav` and `afplay /tmp/test.wav`
-2. Enable stderr capture in `AudioCaptureService.start_capture()` (change `stderr=DEVNULL` to `PIPE`) and log output in `stop_capture()`
-3. Log `Path(job.output_path).stat().st_size` before merge to confirm empty file
-
-**Pending fix:** Resolve `AVAudioFile` initialization in `native/macos/sonorus-capture/main.swift`. If AVAudioFile proves unreliable, fall back to piping raw float32 PCM from SCK to stdout and converting with ffmpeg in Python.
-
-**Branch:** `feature/system-audio-capture`, last relevant commit: `e14eeea`
-
----
-
 ### Gatekeeper / SmartScreen warnings on unsigned builds
 
 **Severity:** minor UX friction — does not affect functionality.
