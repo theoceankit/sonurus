@@ -16,6 +16,57 @@ Interactive docs available at `http://localhost:8000/docs`.
 
 ---
 
+## Audio Capture
+
+Manages live system audio recording sessions. The backend dispatches to the correct platform tool (`sonorus-capture` on macOS, `ffmpeg -f pulse` on Linux, WASAPI on Windows). Mic + system tracks are merged with `ffmpeg amix` when both are present.
+
+### `GET /audio/capture/sources`
+
+Returns available system audio sources for the current platform.
+
+```json
+// macOS
+[{ "id": "sckit", "label": "System audio (ScreenCaptureKit)" }]
+
+// Linux (PulseAudio monitor sources)
+[{ "id": "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor", "label": "pci-0000_00_1f.3.analog-stereo (Monitor)" }]
+
+// Windows
+[{ "id": "wasapi", "label": "System audio" }]
+```
+
+### `POST /audio/capture/start`
+
+Starts a background capture process. Returns a `job_id` immediately.
+
+```json
+// Request (optional)
+{ "source_id": "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor" }
+
+// Response 200
+{ "job_id": "d63f61eb-d5f6-40e2-a866-edb3aa1f96bb" }
+```
+
+`source_id` is optional — omit to use the platform default. Ignored on macOS (always ScreenCaptureKit).
+
+### `POST /audio/capture/stop/{job_id}`
+
+Stops the capture process and returns the path to the recorded WAV file. Optionally merges with a microphone recording.
+
+```json
+// Request (optional)
+{ "mic_path": "/tmp/sonorus-mic-abc123.wav" }
+
+// Response 200
+{ "path": "/tmp/sonorus-sys-d63f61eb.wav" }
+// or, if mic_path was provided:
+{ "path": "/tmp/sonorus-merged-d63f61eb.wav" }
+```
+
+- `404` — job not found (already stopped or invalid ID)
+
+---
+
 ## Transcription
 
 ### `POST /transcribe`
@@ -297,4 +348,4 @@ app.dependency_overrides[get_storage_service] = lambda: TranscriptStorageService
 app.dependency_overrides[get_memory_service]  = lambda: SpeakerMemoryService(db_path=str(tmp / "mem.db"))
 ```
 
-See `tests/` for the full test suite (328 tests total).
+See `tests/` for the full test suite (354 tests total).
