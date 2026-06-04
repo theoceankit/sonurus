@@ -4,36 +4,13 @@ sidebar_position: 4
 
 # Live Recording
 
-Implementation plan for the live meeting recording feature.
+Implementation notes for the live meeting recording feature.
 
 ## Overview
 
-The user selects **Live recording** on the main screen and records system audio and microphone simultaneously. After stopping, the recording is saved to a temporary file and passed through the existing transcription pipeline.
+The user selects **Live recording** on the main screen, optionally chooses audio sources, records, reviews, and submits to the existing transcription pipeline.
 
-**No backend changes required.** The recording produces a `.webm` file that is sent to the existing `POST /transcribe` endpoint via its `audio_path` field.
-
-## Current state
-
-- The "Live recording" tile exists in `import-view.js` but is disabled (`comingSoon: true`).
-- The "Audio devices" section in `settings-view.js` (`buildAudioSection`) exists but contains hardcoded placeholder dropdowns with no real device enumeration.
-
-## Technical notes
-
-### System audio on Linux
-
-On Linux with PulseAudio/PipeWire, the monitor source (e.g. "Monitor of Built-in Audio Analog Stereo") appears as a regular `audioinput` device in `navigator.mediaDevices.enumerateDevices()`. No `desktopCapturer` or special kernel modules are needed — `getUserMedia` with the monitor device ID captures system audio directly.
-
-### Electron media permissions
-
-Electron blocks `getUserMedia` by default. A `session.defaultSession.setPermissionRequestHandler` in `app.whenReady()` is required to allow the `media` permission.
-
-### Recording format
-
-`MediaRecorder` with `audio/webm;codecs=opus` produces a file WhisperX already handles (`.webm` is in the accepted formats list). The blob is transferred via IPC as an `ArrayBuffer` and written to `os.tmpdir()` by the main process.
-
-### Audio mixing
-
-Two independent `getUserMedia` streams (mic + monitor source) are fed into a shared `AudioContext`. Each stream gets a `GainNode` and a tap on an `AnalyserNode` for the VU meter. The mixed `MediaStreamDestination` stream is passed to `MediaRecorder`.
+**Architecture:** mic capture stays in the renderer (WebM via `MediaRecorder`); system audio capture goes through the Python `AudioCaptureService` backend. The two tracks are merged server-side with `ffmpeg amix`.
 
 ---
 
@@ -41,133 +18,79 @@ Two independent `getUserMedia` streams (mic + monitor source) are fed into a sha
 
 | Phase | Status |
 |---|---|
-| Phase 1 — Electron plumbing | ✅ Done |
-| Phase 2 — Real audio device enumeration | ✅ Done |
-| Phase 3 — Live recording view | ✅ Done |
+| Phase 1 — Electron plumbing (permissions, IPC `save-recording`) | ✅ Done |
+| Phase 2 — Real audio device enumeration in Settings | ✅ Done |
+| Phase 3 — Live recording view (ready / recording / review states) | ✅ Done |
 | Phase 4 — Wire into existing UI | ✅ Done |
-| Phase 5 — Verification | ✅ Done (343 tests passing) |
+| Phase 5 — System audio via backend (`AudioCaptureService`) | ✅ Done |
 
-## Known issues
-
-### Editor view title shows audio filename
-
-**Symptom:** the editor view header (centre panel, top of transcript) shows the audio filename (`whisper-rec-<uuid>`) instead of the title entered by the user in the review screen. The sidebar shows the correct title.
-
-**Cause:** `editor-view.js` reads `audio_path` from `GET /transcripts/{id}`, not the `title` field. The `title` column was added to the DB and is used in `list_all()` (sidebar), but `TranscriptResponse` and `editor-view.js` do not yet expose it.
-
-**Fix:** add `title` to `TranscriptResponse`, return it from `GET /transcripts/{id}`, and render it in `editor-view.js`.
+354 tests passing (11 audio capture tests + 343 existing).
 
 ---
 
-## Implementation plan
+## Architecture
 
-### Phase 1 — Electron plumbing
+### Mic recording (all platforms)
 
-**Files:** `electron/main.js`, `electron/preload.js`
+Handled entirely in the renderer:
 
-**`electron/main.js`**
-- Add `session.defaultSession.setPermissionRequestHandler` in `app.whenReady()` to allow the `media` permission.
-- Add IPC handler `save-recording({ buffer, ext })`: writes `ArrayBuffer` to `os.tmpdir()/whisper-rec-<uuid>.<ext>`, returns the absolute path.
-- Extend `DEFAULT_SETTINGS`:
-  ```js
-  recordingMicDevice: null,    // null = first available mic
-  recordingSystemDevice: null, // null = first monitor source
-  recordingUseMic: true,
-  ```
+1. `getUserMedia({ audio: true, deviceId: micDeviceId })` → `MediaRecorder` → WebM chunks
+2. On stop: blob → `blob.arrayBuffer()` → IPC `save-recording(buffer, 'webm')` → temp path
+3. The temp path is sent to `POST /transcribe` as `audio_path`
 
-**`electron/preload.js`**
-- Expose `saveRecording: (buffer, ext) => ipcRenderer.invoke('save-recording', { buffer, ext })`.
+### System audio (macOS + Linux)
 
----
+Handled by the Python `AudioCaptureService` backend. The renderer calls HTTP — zero platform detection in JS.
 
-### Phase 2 — Real audio device enumeration in Settings
+| Platform | Backend tool | Notes |
+|---|---|---|
+| macOS | `sonorus-capture` Swift binary (ScreenCaptureKit) | Built with `npm run build:capture`; requires Screen Recording permission |
+| Linux | `ffmpeg -f pulse -i <monitor_source>` | Monitor sources enumerated via `pactl list short sources` |
+| Windows | `setDisplayMediaRequestHandler(audio: 'loopback')` | WASAPI loopback in renderer; no backend needed |
 
-**Files:** `electron/renderer/views/settings-view.js`, `electron/renderer/app.js`
+**Flow (macOS / Linux):**
 
-**`app.js`** — extend `appSettings`:
-```js
-recordingMicDevice: null,
-recordingSystemDevice: null,
-recordingUseMic: true,
+```
+POST /audio/capture/start   → starts backend process, returns job_id
+[user records...]
+POST /audio/capture/stop/{job_id}  { mic_path: "..." }
+  → sends SIGINT to capture process
+  → merges with mic via ffmpeg amix=inputs=2:duration=shortest
+  → returns merged .wav path
+POST /transcribe  { audio_path: merged_path }
 ```
 
-**`settings-view.js`**, rewrite `buildAudioSection(state)`:
-- On render: call `getUserMedia({ audio: true })` once to trigger the permission dialog and unlock device labels, then call `enumerateDevices()`.
-- Split `audioinput` devices into two groups:
-  - Microphones — devices whose label does **not** contain `"monitor"` (case-insensitive).
-  - System audio sources — devices whose label **does** contain `"monitor"`.
-- Mic dropdown: microphone devices only.
-- System audio dropdown: monitor sources + **"None (disabled)"** option.
-- Toggle **"Include microphone"** maps to `recordingUseMic`.
-- Every change calls `saveSettings({...})`.
+### Source enumeration
+
+`GET /audio/capture/sources` returns platform sources. The New Recording modal fetches this on macOS and Linux; Settings Audio section shows the same list. On Windows the renderer uses `enumerateDevices()` directly.
 
 ---
 
-### Phase 3 — Live recording view
+## Key files
 
-**File:** `electron/renderer/views/live-recording-view.js` (new, ~280 lines)
-
-The view has three internal states:
-
-#### `ready`
-- Summary of configured devices (mic name + system source name).
-- Attempts `getUserMedia` with the configured devices; shows an inline error if permission is denied or the device is unavailable.
-- "Start recording" button.
-- "Configure devices in Settings" link shown when no monitor sources are found.
-
-#### `recording`
-- Calls `getUserMedia` for mic (if `recordingUseMic`) and for system audio (by `recordingSystemDevice`).
-- `AudioContext` mixes both streams: each stream → `GainNode` → `MediaStreamDestination`.
-- `AnalyserNode` on each source feeds two VU meter bars updated with `requestAnimationFrame`.
-- `MediaRecorder` on the mixed stream, `mimeType: 'audio/webm;codecs=opus'`, `timeslice: 1000`.
-- Elapsed time counter (`setInterval`, 1 s), red dot animation.
-- **Stop** button.
-
-#### `review`
-- `MediaRecorder.stop()` → `ondataavailable` accumulates chunks → `new Blob(chunks)` → `blob.arrayBuffer()` → IPC `saveRecording(buffer, 'webm')` → temp file path.
-- Displays "Recording complete · Xm Ys".
-- Title `<input>` pre-filled with `Meeting YYYY-MM-DD HH:MM`.
-- **Transcribe** → `POST /transcribe` with the temp path → `app.showProgress(jobId, request)`.
-- **Discard** → `app.showImport()`.
+| File | Role |
+|---|---|
+| `app/services/audio_capture_service.py` | Platform dispatch, ffmpeg merge |
+| `app/api/routers/audio_capture.py` | `/audio/capture/*` endpoints |
+| `native/macos/sonorus-capture/main.swift` | Swift SCK binary |
+| `electron/renderer/views/live-recording-view.js` | Renderer: ready/recording/review states, VU meters |
+| `electron/renderer/views/new-recording-modal.js` | Source picker modal, fetches backend sources |
+| `electron/renderer/views/settings-view.js` | Audio device settings section |
+| `electron/main.js` | `save-recording` IPC, media permission handler, `SONORUS_CAPTURE_BIN` env |
+| `electron/preload.js` | Exposes `saveRecording`, `getPlatform` via `contextBridge` |
 
 ---
 
-### Phase 4 — Wire into existing UI
+## Notes
 
-**Files:** `electron/renderer/views/import-view.js`, `electron/renderer/app.js`, `electron/renderer/index.html`
+### macOS SCK fix
 
-**`import-view.js`**
-- Remove `comingSoon: true` from the `live` tile definition.
-- Add `onclick: () => app.showLiveRecording()` to the tile.
+`CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer` fails on SCK buffers with `kCMSampleBufferError_BufferHasNoSampleSizes` (-12737) because SCK buffers lack per-sample size metadata. The correct API is `CMSampleBufferCopyPCMDataIntoAudioBufferList`.
 
-**`app.js`**
-- Add `showLiveRecording()` method (mirrors `showImport()`).
+### Electron media permissions
 
-**`electron/renderer/index.html`**
-- Add `<script src="views/live-recording-view.js"></script>` before `app.js`.
+`session.defaultSession.setPermissionRequestHandler` in `app.whenReady()` allows the `media` permission — without it `getUserMedia` is blocked by default.
 
----
+### Screen Recording permission (macOS)
 
-### Phase 5 — Verification
-
-- Run all 343 Python tests — no backend changes, no regressions expected.
-- Manual end-to-end: record → review → transcribe → editor.
-- Edge cases:
-  - No monitor source available on the system.
-  - `getUserMedia` permission denied.
-  - Recording shorter than 1 second.
-  - Stopping immediately after starting (empty MediaRecorder chunks).
-
----
-
-## Files changed
-
-| File | Type | Scope |
-|---|---|---|
-| `electron/renderer/views/live-recording-view.js` | New | ~280 lines |
-| `electron/main.js` | Edit | +20 lines |
-| `electron/preload.js` | Edit | +2 lines |
-| `electron/renderer/app.js` | Edit | +8 lines |
-| `electron/renderer/views/import-view.js` | Edit | +3 lines |
-| `electron/renderer/views/settings-view.js` | Edit | ~50 lines (rewrite `buildAudioSection`) |
-| `electron/renderer/index.html` | Edit | +1 line |
+Must be granted once in System Settings → Privacy & Security → Screen Recording for the terminal or app that launches the server. The entitlement `com.apple.security.screen-capture` is declared in `build/entitlements.mac.plist` for signed distribution builds.
