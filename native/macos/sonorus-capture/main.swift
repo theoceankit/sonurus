@@ -18,23 +18,29 @@ final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
         guard type == .audio else { return }
 
         // Lazily create the output file on first buffer.
-        // Force int16 interleaved WAV — SCK's native float32 non-interleaved format
-        // produces a non-standard WAV that ffmpeg/WhisperX cannot reliably read.
-        // AVAudioFile auto-converts from its float32 processing format to int16 on write.
+        // Use AVAudioFormat to generate the settings dict — hand-crafted dicts with
+        // UInt32/wrong-typed values cause AVAudioFile init to fail silently via try?.
+        // Target: int16 interleaved WAV (universally readable by ffmpeg/WhisperX).
+        // AVAudioFile's processingFormat stays canonical float32 non-interleaved,
+        // so it auto-converts when writing the SCK float32 buffers to disk.
         if file == nil,
            let fmt = buffer.formatDescription
         {
-            let avFmt = AVAudioFormat(cmAudioFormatDescription: fmt)
-            let outputSettings: [String: Any] = [
-                AVFormatIDKey: kAudioFormatLinearPCM,
-                AVSampleRateKey: avFmt.sampleRate,
-                AVNumberOfChannelsKey: avFmt.channelCount,
-                AVLinearPCMBitDepthKey: 16,
-                AVLinearPCMIsFloatKey: false,
-                AVLinearPCMIsBigEndianKey: false,
-                AVLinearPCMIsNonInterleaved: false,
-            ]
-            file = try? AVAudioFile(forWriting: url, settings: outputSettings)
+            let sckFmt = AVAudioFormat(cmAudioFormatDescription: fmt)
+            guard let int16Fmt = AVAudioFormat(
+                commonFormat: .pcmFormatInt16,
+                sampleRate: sckFmt.sampleRate,
+                channels: sckFmt.channelCount,
+                interleaved: true
+            ) else {
+                fputs("ERROR: could not construct int16 output format\n", stderr)
+                return
+            }
+            if let f = try? AVAudioFile(forWriting: url, settings: int16Fmt.settings) {
+                file = f
+            } else {
+                fputs("ERROR: could not open output file at \(url.path)\n", stderr)
+            }
         }
         guard let file else { return }
 
