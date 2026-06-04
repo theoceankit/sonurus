@@ -8,12 +8,13 @@ function renderLiveRecordingView(settings = {}) {
     language       = appSettings.transcribeLang        || 'auto',
   } = settings
 
-  let recorder    = null
-  let audioCtx    = null
-  let micStream   = null
-  let sysStream   = null
-  let chunks      = []
-  let elapsed     = 0
+  let recorder      = null
+  let audioCtx      = null
+  let micStream     = null
+  let sysStream     = null
+  let captureJobId  = null   // backend-managed system audio job (macOS/Linux)
+  let chunks        = []
+  let elapsed       = 0
   let timerInterval = null
   let animFrameId   = null
   let micAnalyser   = null
@@ -64,6 +65,9 @@ function renderLiveRecordingView(settings = {}) {
     showStarting()
 
     try {
+      const platform = await window.electronAPI.getPlatform()
+
+      // Mic stream
       if (audioSource !== 'system') {
         const constraint = micDeviceId
           ? { deviceId: { exact: micDeviceId } }
@@ -71,11 +75,24 @@ function renderLiveRecordingView(settings = {}) {
         micStream = await navigator.mediaDevices.getUserMedia({ audio: constraint })
       }
 
+      // System audio stream
       if (audioSource !== 'mic') {
-        if (systemDeviceId === '__desktop__') {
-          // macOS: shows ScreenCaptureKit system picker (user picks screen + enables "Share computer sound")
-          // Windows: intercepted by setDisplayMediaRequestHandler in main.js → WASAPI loopback, no picker
-          // Linux: xdg-desktop-portal picker; audio depends on portal/PipeWire support
+        const isBackendCapture = platform !== 'win32'
+          && systemDeviceId
+          && systemDeviceId !== '__default__'
+          && systemDeviceId !== '__desktop__'
+
+        if (isBackendCapture) {
+          // macOS (ScreenCaptureKit) or Linux (ffmpeg + PulseAudio monitor)
+          const resp = await fetch(`${API_BASE}/audio/capture/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source_id: systemDeviceId }),
+          })
+          if (!resp.ok) throw new Error('Failed to start system audio capture.')
+          captureJobId = (await resp.json()).job_id
+        } else if (systemDeviceId === '__desktop__') {
+          // Windows: intercepted by setDisplayMediaRequestHandler → WASAPI loopback
           const displayStream = await navigator.mediaDevices.getDisplayMedia({
             audio: true,
             video: { width: 1, height: 1 },
@@ -85,17 +102,10 @@ function renderLiveRecordingView(settings = {}) {
             throw new Error('System audio not captured: the screen share returned no audio. Make sure "Share computer sound" is enabled when selecting a screen.')
           }
           sysStream = displayStream
-        } else {
-          const devId = systemDeviceId && systemDeviceId !== '__default__'
-            ? systemDeviceId
-            : null
-          if (devId) {
-            sysStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: devId } } })
-          }
         }
       }
 
-      if (!micStream && !sysStream) {
+      if (!micStream && !sysStream && !captureJobId) {
         throw new Error('No audio source available. Check device permissions.')
       }
 
@@ -113,14 +123,22 @@ function renderLiveRecordingView(settings = {}) {
       if (micStream) micAnalyser = tap(micStream)
       if (sysStream) sysAnalyser = tap(sysStream)
 
-      chunks = []
-      recorder = new MediaRecorder(dest.stream, { mimeType: 'audio/webm;codecs=opus' })
-      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-      recorder.start(1000)
+      // Only start a recorder when there are browser-managed streams.
+      // captureJobId-only (system audio, no mic): no recorder needed.
+      if (micStream || sysStream) {
+        chunks = []
+        recorder = new MediaRecorder(dest.stream, { mimeType: 'audio/webm;codecs=opus' })
+        recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
+        recorder.start(1000)
+      }
 
       showRecording()
     } catch (err) {
       stopStreams()
+      if (captureJobId) {
+        fetch(`${API_BASE}/audio/capture/stop/${captureJobId}`, { method: 'POST' }).catch(() => {})
+        captureJobId = null
+      }
       showError(err.message)
     }
   }
@@ -214,8 +232,53 @@ function renderLiveRecordingView(settings = {}) {
       clearInterval(timerInterval)
       cancelAnimationFrame(animFrameId)
       timerInterval = animFrameId = null
-      recorder.onstop = () => finishRecording(elapsed)
-      recorder.stop()
+      const elapsed_ = elapsed
+
+      if (captureJobId && recorder) {
+        // Backend system audio + browser mic: save mic first, then merge server-side
+        recorder.onstop = async () => {
+          try {
+            const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' })
+            const micPath = await window.electronAPI.saveRecording(await blob.arrayBuffer(), 'webm')
+            micStream?.getTracks().forEach(t => t.stop())
+            audioCtx?.close()
+            micStream = audioCtx = micAnalyser = null
+            const r = await fetch(`${API_BASE}/audio/capture/stop/${captureJobId}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ mic_path: micPath }),
+            })
+            captureJobId = null
+            if (!r.ok) throw new Error('Failed to stop audio capture.')
+            showReview((await r.json()).file_path, elapsed_)
+          } catch (err) {
+            captureJobId = null
+            showError(err.message)
+          }
+        }
+        recorder.stop()
+      } else if (captureJobId) {
+        // Backend system audio only — no browser recorder
+        ;(async () => {
+          try {
+            const r = await fetch(`${API_BASE}/audio/capture/stop/${captureJobId}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({}),
+            })
+            captureJobId = null
+            if (!r.ok) throw new Error('Failed to stop audio capture.')
+            showReview((await r.json()).file_path, elapsed_)
+          } catch (err) {
+            captureJobId = null
+            showError(err.message)
+          }
+        })()
+      } else {
+        // Browser-only: mic alone, or Windows system audio mixed in browser
+        recorder.onstop = () => finishRecording(elapsed_)
+        recorder.stop()
+      }
     })
     card.appendChild(stopBtn)
 

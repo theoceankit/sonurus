@@ -865,13 +865,28 @@ function buildAudioSection(state) {
       saveSettings({ recordingUseMic: v })
     })
 
-    // System audio: show all inputs — user selects a virtual loopback device if available.
-    // Chromium hides PulseAudio/PipeWire monitor sources; a virtual sink is required for
-    // true system audio capture (see Settings hint below).
-    const sysOpts = [
-      { value: null, label: 'Disabled' },
-      ...inputs.map(d => ({ value: d.deviceId, label: d.label || `Device (${d.deviceId.slice(0, 8)})` })),
-    ]
+    // System audio: on macOS/Linux fetch sources from backend (bypasses Chromium restrictions).
+    // On Windows use browser devices (WASAPI loopback is handled by Electron's setDisplayMediaRequestHandler).
+    const platform = await window.electronAPI.getPlatform()
+    const sysOpts = [{ value: null, label: 'Disabled' }]
+
+    if (platform === 'win32') {
+      inputs
+        .filter(d => /virtual|loopback|system|output|mix|monitor/i.test(d.label))
+        .forEach(d => sysOpts.push({ value: d.deviceId, label: d.label || `Device (${d.deviceId.slice(0, 8)})` }))
+      if (sysOpts.length === 1) {
+        sysOpts.push({ value: '__desktop__', label: 'System audio (WASAPI)' })
+      }
+    } else {
+      try {
+        const r = await fetch(`${API_BASE}/audio/capture/sources`)
+        if (r.ok) {
+          const { sources } = await r.json()
+          sources.forEach(s => sysOpts.push({ value: s.id, label: s.label }))
+        }
+      } catch (_) {}
+    }
+
     const sysVal = sysOpts.some(o => o.value === state.recordingSystemDevice) ? state.recordingSystemDevice : null
     const sysDrop = makeDropdown(sysOpts, sysVal, v => {
       state.recordingSystemDevice = v
@@ -882,18 +897,7 @@ function buildAudioSection(state) {
     controlsWrap.innerHTML = ''
     controlsWrap.appendChild(makeFieldRow('Microphone', 'Captured during live recording.', micDrop))
     controlsWrap.appendChild(makeFieldRow('Include microphone', 'Record mic alongside system audio.', micToggle))
-    controlsWrap.appendChild(makeFieldRow('System audio source', 'Select a virtual loopback device to capture app and call audio.', sysDrop, true))
-
-    const hint = document.createElement('div')
-    hint.style.cssText = [
-      'margin-top:10px;padding:10px 13px;border-radius:8px',
-      'font-size:12px;line-height:1.7;color:rgba(25,24,42,0.50)',
-      'background:rgba(40,30,80,0.04);border:0.5px solid var(--border)',
-    ].join(';')
-    hint.innerHTML = `On Linux, Chromium does not expose PulseAudio/PipeWire monitor sources directly. To capture system audio, create a virtual sink:<br>
-      <code style="font-size:11px;font-family:ui-monospace,monospace;background:rgba(40,30,80,0.06);padding:1px 5px;border-radius:4px">pactl load-module module-null-sink sink_name=VirtualSpeaker</code><br>
-      Then route your apps to <em>VirtualSpeaker</em> and select its monitor here.`
-    controlsWrap.appendChild(hint)
+    controlsWrap.appendChild(makeFieldRow('System audio source', 'Select the system audio source to capture.', sysDrop, true))
   })()
 
   return makeSectionCard([

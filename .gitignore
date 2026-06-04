@@ -51,6 +51,9 @@ package-lock.json
 dist/
 backend-dist/
 
+# Compiled macOS system audio capture binary (built via npm run build:capture)
+electron/resources/mac/sonorus-capture
+
 # IDE
 .idea/
 .vscode/
