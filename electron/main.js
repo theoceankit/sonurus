@@ -124,12 +124,17 @@ app.whenReady().then(async () => {
 
   const setupMode = needsSetup()
 
-  // Setup mode: open window first (to show progress screen), then start backend.
-  // Normal mode: start backend first so index.html loads with a ready API.
+  // Setup mode: open window first, wait for user to click "Start Installation",
+  // then run pip install + backend. Normal mode: start backend first so
+  // index.html loads with a ready API.
   if (setupMode) createWindow(true)
 
   const onProgress = data => {
     if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('setup-progress', data)
+  }
+
+  if (setupMode) {
+    await new Promise(resolve => ipcMain.once('start-setup', resolve))
   }
 
   try {
