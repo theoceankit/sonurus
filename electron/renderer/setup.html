@@ -29,10 +29,7 @@
       -webkit-app-region: no-drag;
     }
 
-    .logo {
-      width: 72px;
-      height: 72px;
-    }
+    .logo  { width: 72px; height: 72px; }
 
     .wordmark {
       font-size: 26px;
@@ -56,12 +53,17 @@
       font-size: 13px;
       color: rgba(25, 24, 42, 0.45);
       text-align: center;
-      line-height: 1.6;
+      line-height: 1.75;
       border: 0.5px solid rgba(40, 30, 80, 0.1);
       border-radius: 10px;
       padding: 14px 18px;
       background: rgba(40, 30, 80, 0.03);
       width: 100%;
+    }
+
+    .welcome-note strong {
+      color: rgba(25, 24, 42, 0.7);
+      font-weight: 600;
     }
 
     .btn-start {
@@ -80,17 +82,120 @@
     .btn-start:hover  { opacity: 0.88; }
     .btn-start:active { opacity: 0.75; }
 
-    /* ── installing screen ────────────────────────────────────────── */
+    /* ── stage indicator ──────────────────────────────────────────── */
 
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(90, 87, 242, 0.15);
-      border-top-color: #5A57F2;
-      border-radius: 50%;
-      animation: spin 0.85s linear infinite;
+    .stages {
+      display: flex;
+      align-items: flex-start;
+      width: 100%;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+
+    .step-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid rgba(25, 24, 42, 0.2);
+      background: transparent;
+      transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+    }
+
+    .step.done .step-dot {
+      background: #5A57F2;
+      border-color: #5A57F2;
+    }
+
+    .step.active .step-dot {
+      background: #5A57F2;
+      border-color: #5A57F2;
+      box-shadow: 0 0 0 3px rgba(90, 87, 242, 0.22);
+    }
+
+    .step-label {
+      font-size: 11px;
+      color: rgba(25, 24, 42, 0.35);
+      font-weight: 500;
+      white-space: nowrap;
+      transition: color 0.25s;
+    }
+
+    .step.done  .step-label,
+    .step.active .step-label { color: #5A57F2; }
+
+    .step-line {
+      flex: 1;
+      height: 1.5px;
+      background: rgba(25, 24, 42, 0.12);
+      margin-top: 4px;   /* centers the line with the 10px dot */
+      border-radius: 1px;
+      transition: background 0.3s;
+    }
+
+    .step-line.done { background: #5A57F2; }
+
+    /* ── progress bar ─────────────────────────────────────────────── */
+
+    .progress-wrap {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .progress-track {
+      flex: 1;
+      height: 6px;
+      background: rgba(25, 24, 42, 0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #5A57F2, #a855f7);
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* shimmer sweep shown while a download is in progress */
+    .progress-fill.pulsing::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%);
+      animation: shimmer 1.6s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+
+    .progress-pct {
+      font-size: 13px;
+      font-weight: 600;
+      color: #5A57F2;
+      min-width: 34px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* ── status + download detail ─────────────────────────────────── */
 
     .status {
       font-size: 14px;
@@ -99,12 +204,14 @@
       text-align: center;
     }
 
-    .note {
+    .dl-detail {
       font-size: 12px;
       color: rgba(25, 24, 42, 0.45);
       text-align: center;
-      line-height: 1.6;
+      line-height: 1.5;
     }
+
+    /* ── log box ──────────────────────────────────────────────────── */
 
     .log-box {
       width: 100%;
@@ -112,7 +219,7 @@
       border: 0.5px solid rgba(40, 30, 80, 0.1);
       border-radius: 8px;
       padding: 10px 13px;
-      height: 110px;
+      height: 100px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -140,52 +247,221 @@
     <!-- welcome -->
     <div id="screen-welcome" style="display:contents">
       <div class="welcome-note">
-        First-time setup will install ML dependencies (~500 MB).<br>
+        First-time setup will install ML dependencies.<br>
+        <strong>~600 MB</strong> to download &middot; <strong>~1.7 GB</strong> disk space required.<br>
         This only happens once and takes a few minutes.
       </div>
       <button class="btn-start" id="btn-start">Install &amp; Launch</button>
     </div>
 
     <!-- installing -->
-    <div id="screen-installing" style="display:none; flex-direction:column; align-items:center; gap:28px; width:100%">
-      <div class="spinner"></div>
-      <div class="status" id="status">Installing dependencies…</div>
+    <div id="screen-installing" style="display:none; flex-direction:column; align-items:center; gap:20px; width:100%">
+
+      <!-- stage indicator -->
+      <div class="stages">
+        <div class="step active" id="step-resolving">
+          <div class="step-dot"></div>
+          <div class="step-label">Resolving</div>
+        </div>
+        <div class="step-line" id="line-0"></div>
+        <div class="step" id="step-downloading">
+          <div class="step-dot"></div>
+          <div class="step-label">Downloading</div>
+        </div>
+        <div class="step-line" id="line-1"></div>
+        <div class="step" id="step-installing">
+          <div class="step-dot"></div>
+          <div class="step-label">Installing</div>
+        </div>
+        <div class="step-line" id="line-2"></div>
+        <div class="step" id="step-starting">
+          <div class="step-dot"></div>
+          <div class="step-label">Starting</div>
+        </div>
+      </div>
+
+      <!-- progress bar -->
+      <div class="progress-wrap">
+        <div class="progress-row">
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <div class="progress-pct" id="progress-pct">0%</div>
+        </div>
+      </div>
+
+      <!-- current activity -->
+      <div class="status" id="status">Resolving dependencies…</div>
+
+      <!-- download detail: MB · speed · ETA — only during downloading -->
+      <div class="dl-detail hidden" id="dl-detail"></div>
+
+      <!-- raw pip log -->
       <div class="log-box" id="log"></div>
-      <div class="note">Installing ML dependencies (~500 MB).<br>This only happens once.</div>
+
     </div>
   </div>
 
   <script>
-    const MAX_LINES    = 7
-    const logEl        = document.getElementById('log')
-    const statusEl     = document.getElementById('status')
-    const btnStart     = document.getElementById('btn-start')
+    const STAGE_ORDER  = ['resolving', 'downloading', 'installing', 'starting']
+    const STAGE_STATUS = {
+      resolving:   'Resolving dependencies…',
+      downloading: 'Downloading packages…',
+      installing:  'Installing packages…',
+      starting:    'Starting backend…',
+    }
+    // Baseline % when a phase begins (real progress fills the gaps)
+    const STAGE_BASE_PCT = { resolving: 0, downloading: 5, installing: 80, starting: 96 }
+
+    const MAX_LINES        = 7
+    const logEl            = document.getElementById('log')
+    const statusEl         = document.getElementById('status')
+    const dlDetailEl       = document.getElementById('dl-detail')
+    const fillEl           = document.getElementById('progress-fill')
+    const pctEl            = document.getElementById('progress-pct')
+    const btnStart         = document.getElementById('btn-start')
     const screenWelcome    = document.getElementById('screen-welcome')
     const screenInstalling = document.getElementById('screen-installing')
-    const lines        = []
+
+    let logLines = []
+
+    // ── progress animation ─────────────────────────────────────────────────────
+    // displayTarget: where we logically want to be (only moves forward)
+    // displayedPct:  what the bar actually shows (eases toward target via rAF)
+    let displayTarget  = 0
+    let displayedPct   = 0
+    let animRafId      = null
+
+    function animateFrame() {
+      const diff = displayTarget - displayedPct
+      if (Math.abs(diff) < 0.05) {
+        displayedPct = displayTarget
+        renderBar(displayedPct)
+        animRafId = null
+        return
+      }
+      displayedPct += diff * 0.08   // ease factor — ~500 ms to cover 90 % of gap
+      renderBar(displayedPct)
+      animRafId = requestAnimationFrame(animateFrame)
+    }
+
+    function renderBar(pct) {
+      fillEl.style.width = pct + '%'
+      pctEl.textContent  = Math.round(pct) + '%'
+    }
+
+    // Advance the target; never go backwards, never exceed 99
+    function setProgressTarget(pct) {
+      pct = Math.min(99, Math.max(displayTarget, pct))
+      if (pct === displayTarget) return
+      displayTarget = pct
+      if (!animRafId) animRafId = requestAnimationFrame(animateFrame)
+    }
+
+    // ── resolving fake creep ───────────────────────────────────────────────────
+    // During "resolving", pip downloads .whl.metadata files — no useful byte
+    // signal. We fake a slow exponential approach to 4 % so the bar isn't stuck.
+    let resolvingTimer = null
+    let resolvingStart = null
+    const RESOLVING_TAU_MS = 12000  // time constant: ~50 % progress after 8 s
+
+    function startResolvingCreep() {
+      resolvingStart = Date.now()
+      resolvingTimer = setInterval(() => {
+        const t   = Date.now() - resolvingStart
+        const pct = 4 * (1 - Math.exp(-t / RESOLVING_TAU_MS))
+        setProgressTarget(pct)
+      }, 250)
+    }
+
+    function stopResolvingCreep() {
+      if (resolvingTimer) { clearInterval(resolvingTimer); resolvingTimer = null }
+    }
+
+    // ── stage indicator ────────────────────────────────────────────────────────
+
+    function setPhase(phase) {
+      stopResolvingCreep()
+      if (phase === 'resolving') startResolvingCreep()
+
+      const idx = STAGE_ORDER.indexOf(phase)
+      if (idx === -1) return
+
+      STAGE_ORDER.forEach((s, i) => {
+        const el = document.getElementById('step-' + s)
+        el.classList.remove('active', 'done')
+        if (i < idx)        el.classList.add('done')
+        else if (i === idx) el.classList.add('active')
+      })
+
+      for (let i = 0; i < 3; i++) {
+        document.getElementById('line-' + i).classList.toggle('done', i < idx)
+      }
+
+      statusEl.textContent = STAGE_STATUS[phase] || 'Working…'
+      setProgressTarget(STAGE_BASE_PCT[phase] ?? 0)
+      fillEl.classList.toggle('pulsing', phase === 'downloading')
+      if (phase !== 'downloading') dlDetailEl.classList.add('hidden')
+    }
+
+    // ── helpers ────────────────────────────────────────────────────────────────
 
     function addLine(text) {
       if (!text.trim()) return
-      lines.push(text)
-      if (lines.length > MAX_LINES) lines.shift()
-      logEl.innerHTML = lines
+      logLines.push(text)
+      if (logLines.length > MAX_LINES) logLines.shift()
+      logEl.innerHTML = logLines
         .map(l => `<div class="log-line">${escHtml(l)}</div>`)
         .join('')
     }
 
     function escHtml(s) {
-      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     }
+
+    function fmtEta(secs) {
+      if (secs < 60) return secs + 's'
+      const m = Math.floor(secs / 60)
+      const s = secs % 60
+      return s > 0 ? `${m}m ${s}s` : `${m}m`
+    }
+
+    // ── event handler ──────────────────────────────────────────────────────────
+
+    window.electronAPI.onSetupProgress(ev => {
+      if (ev.type === 'phase') {
+        setPhase(ev.phase)
+        return
+      }
+
+      if (ev.type === 'progress' && ev.phase === 'downloading') {
+        stopResolvingCreep()
+        const frac = ev.totalMB > 0 ? ev.downloadedMB / ev.totalMB : 0
+        setProgressTarget(5 + frac * 74)
+
+        if (ev.currentPackage) {
+          statusEl.textContent =
+            `Downloading ${ev.currentPackage} (${ev.currentPackageMB} MB)…`
+        }
+
+        let detail = `${ev.downloadedMB} / ${ev.totalMB} MB`
+        if (ev.speedMBps != null)  detail += ` · ${ev.speedMBps} MB/s`
+        if (ev.etaSeconds != null) detail += ` · ~${fmtEta(ev.etaSeconds)} remaining`
+        dlDetailEl.textContent = detail
+        dlDetailEl.classList.remove('hidden')
+        return
+      }
+
+      if (ev.type === 'log') {
+        addLine(ev.line)
+        return
+      }
+    })
 
     btnStart.addEventListener('click', () => {
       screenWelcome.classList.add('hidden')
       screenInstalling.style.display = 'flex'
       window.electronAPI.startSetup()
-    })
-
-    window.electronAPI.onSetupProgress(({ type, message, line }) => {
-      if (type === 'status' && message) statusEl.textContent = message
-      if (type === 'log'    && line)    addLine(line)
     })
   </script>
 </body>
