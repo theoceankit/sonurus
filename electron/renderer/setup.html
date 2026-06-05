@@ -29,12 +29,58 @@
       -webkit-app-region: no-drag;
     }
 
+    .logo {
+      width: 72px;
+      height: 72px;
+    }
+
     .wordmark {
       font-size: 26px;
       font-weight: 700;
       letter-spacing: -0.03em;
       color: #19182a;
+      margin-top: -12px;
     }
+
+    .tagline {
+      font-size: 14px;
+      color: rgba(25, 24, 42, 0.5);
+      text-align: center;
+      line-height: 1.6;
+      margin-top: -8px;
+    }
+
+    /* ── welcome screen ───────────────────────────────────────────── */
+
+    .welcome-note {
+      font-size: 13px;
+      color: rgba(25, 24, 42, 0.45);
+      text-align: center;
+      line-height: 1.6;
+      border: 0.5px solid rgba(40, 30, 80, 0.1);
+      border-radius: 10px;
+      padding: 14px 18px;
+      background: rgba(40, 30, 80, 0.03);
+      width: 100%;
+    }
+
+    .btn-start {
+      width: 100%;
+      padding: 12px 0;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #f97316 0%, #ef4444 50%, #a855f7 100%);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: -0.01em;
+      transition: opacity 0.15s;
+    }
+    .btn-start:hover  { opacity: 0.88; }
+    .btn-start:active { opacity: 0.75; }
+
+    /* ── installing screen ────────────────────────────────────────── */
 
     .spinner {
       width: 40px;
@@ -81,25 +127,42 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
   <div class="card">
+    <img src="../assets/logo.png" class="logo" alt="Sonorus" />
     <div class="wordmark">Sonorus</div>
-    <div class="spinner" id="spinner"></div>
-    <div class="status" id="status">Setting up for first use…</div>
-    <div class="log-box" id="log"></div>
-    <div class="note">
-      Installing ML dependencies (~500 MB).<br>
-      This only happens once and takes a few minutes.
+    <div class="tagline">AI transcription with speaker identification</div>
+
+    <!-- welcome -->
+    <div id="screen-welcome" style="display:contents">
+      <div class="welcome-note">
+        First-time setup will install ML dependencies (~500 MB).<br>
+        This only happens once and takes a few minutes.
+      </div>
+      <button class="btn-start" id="btn-start">Install &amp; Launch</button>
+    </div>
+
+    <!-- installing -->
+    <div id="screen-installing" style="display:none; flex-direction:column; align-items:center; gap:28px; width:100%">
+      <div class="spinner"></div>
+      <div class="status" id="status">Installing dependencies…</div>
+      <div class="log-box" id="log"></div>
+      <div class="note">Installing ML dependencies (~500 MB).<br>This only happens once.</div>
     </div>
   </div>
 
   <script>
-    const MAX_LINES = 7
-    const logEl    = document.getElementById('log')
-    const statusEl = document.getElementById('status')
-    const lines    = []
+    const MAX_LINES    = 7
+    const logEl        = document.getElementById('log')
+    const statusEl     = document.getElementById('status')
+    const btnStart     = document.getElementById('btn-start')
+    const screenWelcome    = document.getElementById('screen-welcome')
+    const screenInstalling = document.getElementById('screen-installing')
+    const lines        = []
 
     function addLine(text) {
       if (!text.trim()) return
@@ -113,6 +176,12 @@
     function escHtml(s) {
       return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     }
+
+    btnStart.addEventListener('click', () => {
+      screenWelcome.classList.add('hidden')
+      screenInstalling.style.display = 'flex'
+      window.electronAPI.startSetup()
+    })
 
     window.electronAPI.onSetupProgress(({ type, message, line }) => {
       if (type === 'status' && message) statusEl.textContent = message
