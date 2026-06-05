@@ -91,9 +91,20 @@ electron/
 
 ### Setup progress events
 
-During first-run setup, `main.js` forwards events from `backend.js` to the renderer via `ipcRenderer.on('setup-progress', ...)`. The `setup.html` page uses `onSetupProgress` to update the progress UI.
+During first-run setup, `main.js` forwards events from `backend.js` to the renderer via `ipcRenderer.on('setup-progress', ...)`. The `setup.html` page uses `onSetupProgress` to update the stage indicator, progress bar, and log.
 
-Event shape: `{ type: 'status' | 'log', message?: string, line?: string }`
+`backend.js` parses pip stdout/stderr via `makeProgressTracker()` and emits three event types:
+
+| `type` | Additional fields | Meaning |
+|---|---|---|
+| `phase` | `phase: 'resolving' \| 'downloading' \| 'installing' \| 'starting'` | Install stage changed |
+| `progress` | `phase`, `downloadedMB`, `totalMB`, `speedMBps?`, `etaSeconds?`, `currentPackage?`, `currentPackageMB?` | Download progress update |
+| `log` | `line: string` | Raw pip output line |
+
+Phase transitions are detected by parsing pip output patterns:
+- `Downloading *.whl (X MB)` or `Using cached *.whl (X MB)` → `downloading`
+- `Installing collected packages:` → `installing`
+- After pip exits successfully → `starting` (emitted by `startBackend`)
 
 ---
 
