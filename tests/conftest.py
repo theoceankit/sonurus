@@ -13,7 +13,13 @@ def _is_importable(name: str) -> bool:
 
 
 if not _is_importable("torch"):
+    # torch.Tensor must be a real class — scipy's array-API compat layer calls
+    # issubclass(x, torch.Tensor) during import, which fails on a MagicMock.
+    class _FakeTensor:
+        pass
+
     _torch = MagicMock()
+    _torch.Tensor = _FakeTensor
     _torch.cuda.is_available.return_value = False
     sys.modules["torch"] = _torch
     sys.modules["torch.cuda"] = _torch.cuda
