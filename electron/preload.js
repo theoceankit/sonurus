@@ -11,4 +11,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveRecording:     (buffer, ext) => ipcRenderer.invoke('save-recording', { buffer, ext }),
   writeClipboard:    (text) => ipcRenderer.invoke('write-clipboard', text),
   onSetupProgress:   (cb) => ipcRenderer.on('setup-progress', (_e, data) => cb(data)),
+  startSetup:        () => ipcRenderer.send('start-setup'),
+  completeSetup:     () => ipcRenderer.send('setup-complete'),
 })
