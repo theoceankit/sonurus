@@ -61,31 +61,145 @@ async function waitForReady(timeoutMs = 60000) {
 
 // ── setup (first-run pip install) ─────────────────────────────────────────────
 
+// Approximate total download size for requirements.packaged.txt (MB).
+// Used as the denominator for download-phase progress.
+const TOTAL_DOWNLOAD_MB = 565
+
+// Fallback sizes for when pip omits the size from "Using cached X.whl"
+const KNOWN_PKG_SIZES_MB = {
+  'torch': 301, 'torchaudio': 34, 'ctranslate2': 95,
+  'transformers': 50, 'pytorch-lightning': 30, 'pyannote-audio': 20,
+  'faster-whisper': 5, 'whisperx': 3, 'numpy': 30, 'scipy': 30,
+  'scikit-learn': 30, 'pandas': 15,
+}
+
 function needsSetup() {
   if (!isPackagedMode()) return false
   return !fs.existsSync(path.join(getPkgDir(), '.installed'))
+}
+
+// Parses pip stdout/stderr and emits structured progress events:
+//   { type: 'phase',    phase: 'resolving'|'downloading'|'installing' }
+//   { type: 'progress', phase, downloadedMB, totalMB, speedMBps, etaSeconds,
+//                       currentPackage?, currentPackageMB? }
+//   { type: 'log',      line }  — raw pip output line
+function makeProgressTracker(onProgress) {
+  let phase = 'resolving'
+  let completedMB = 0     // bytes whose download is confirmed finished
+  let currentPkg = null   // { name, sizeMB, startTime } — package being downloaded now
+  const speedSamples = [] // recent MB/s measurements (up to 5)
+
+  function avgSpeed() {
+    if (!speedSamples.length) return null
+    const s = speedSamples.slice(-5)
+    return s.reduce((a, b) => a + b, 0) / s.length
+  }
+
+  function emitProgress(extra = {}) {
+    const speed = avgSpeed()
+    // Include current in-flight package in displayed progress for smoother UX
+    const displayedMB = completedMB + (currentPkg ? currentPkg.sizeMB : 0)
+    const remaining = Math.max(0, TOTAL_DOWNLOAD_MB - displayedMB)
+    onProgress({
+      type: 'progress',
+      phase,
+      downloadedMB: Math.round(displayedMB),
+      totalMB: TOTAL_DOWNLOAD_MB,
+      speedMBps: speed !== null ? Math.round(speed * 10) / 10 : null,
+      etaSeconds: (speed && phase === 'downloading' && remaining > 0)
+        ? Math.round(remaining / speed)
+        : null,
+      ...extra,
+    })
+  }
+
+  function completeCurrentPkg() {
+    if (!currentPkg) return
+    const elapsed = (Date.now() - currentPkg.startTime) / 1000
+    completedMB += currentPkg.sizeMB
+    // Only record speed if timing is credible (sequential downloads)
+    if (elapsed > 0.5 && currentPkg.sizeMB > 0.5) {
+      speedSamples.push(currentPkg.sizeMB / elapsed)
+    }
+    currentPkg = null
+  }
+
+  function startPkg(pkgName, sizeMB) {
+    currentPkg = { name: pkgName, sizeMB, startTime: Date.now() }
+    if (phase !== 'downloading') {
+      phase = 'downloading'
+      onProgress({ type: 'phase', phase: 'downloading' })
+    }
+    emitProgress({ currentPackage: pkgName, currentPackageMB: Math.round(sizeMB) })
+  }
+
+  function parseLine(line) {
+    // "Downloading X.whl (Y MB)" or "Using cached X.whl (Y MB)"
+    const withSize = line.match(
+      /(?:Downloading|Using cached)\s+(\S+\.whl)\s+\(([0-9.]+)\s*(GB|MB|kB|B)\)/i
+    )
+    if (withSize) {
+      completeCurrentPkg()
+      let sizeMB = parseFloat(withSize[2])
+      const unit = withSize[3].toLowerCase()
+      if (unit === 'gb')  sizeMB *= 1024
+      else if (unit === 'kb') sizeMB /= 1024
+      else if (unit === 'b')  sizeMB /= (1024 * 1024)
+      const pkgName = withSize[1].replace(/-\d.*$/, '').replace(/_/g, '-')
+      startPkg(pkgName, sizeMB)
+      return
+    }
+
+    // "Using cached X.whl" without size (older pip versions)
+    const noSize = line.match(/Using cached\s+(\S+\.whl)\s*$/i)
+    if (noSize) {
+      completeCurrentPkg()
+      const pkgName = noSize[1].replace(/-\d.*$/, '').replace(/_/g, '-')
+      startPkg(pkgName, KNOWN_PKG_SIZES_MB[pkgName] ?? 10)
+      return
+    }
+
+    // "Installing collected packages: torch, torchaudio, ..."
+    if (/^Installing collected packages:/i.test(line)) {
+      completeCurrentPkg()
+      phase = 'installing'
+      onProgress({ type: 'phase', phase: 'installing' })
+      emitProgress()
+    }
+  }
+
+  return { parseLine }
 }
 
 function runSetup(onProgress) {
   const pkgDir = getPkgDir()
   fs.mkdirSync(pkgDir, { recursive: true })
 
+  onProgress({ type: 'phase', phase: 'resolving' })
+
   return new Promise((resolve, reject) => {
+    const tracker = makeProgressTracker(onProgress)
+
     const pip = spawn(
       getPythonExe(),
-      ['-m', 'pip', 'install', '-r', getReqFile(),
+      ['-u', '-m', 'pip', 'install', '-r', getReqFile(),
        '--target', pkgDir, '--no-warn-script-location'],
       { stdio: ['ignore', 'pipe', 'pipe'] }
     )
 
     function relay(chunk) {
       chunk.toString().split('\n').forEach(line => {
-        if (line.trim()) onProgress({ type: 'log', line })
+        line = line.trim()
+        if (!line) return
+        onProgress({ type: 'log', line })
+        tracker.parseLine(line)
       })
     }
 
     pip.stdout.on('data', relay)
     pip.stderr.on('data', relay)
+
+    pip.on('error', reject)
 
     pip.on('exit', code => {
       if (code === 0) {
@@ -106,9 +220,8 @@ async function startBackend(hfToken = '', onProgress = null) {
   const firstRun = needsSetup()
   if (firstRun) {
     const cb = onProgress || (() => {})
-    cb({ type: 'status', message: 'Installing dependencies…' })
     await runSetup(cb)
-    cb({ type: 'status', message: 'Starting backend…' })
+    cb({ type: 'phase', phase: 'starting' })
   }
 
   const userData = app.getPath('userData')

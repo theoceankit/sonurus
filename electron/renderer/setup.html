@@ -8,116 +8,1263 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --ink:        #1D1B19;
+      --ink2:       #43403C;
+      --ink3:       #8C877F;
+      --ink4:       #BAB4AA;
+      --bg:         #FFFFFF;
+      --panel:      #F7F5F1;
+      --surface:    #FCFBF9;
+      --brand-wash: #FBF9F6;
+      --hair:       rgba(0,0,0,0.09);
+      --hair-soft:  rgba(0,0,0,0.055);
+      --grad:       linear-gradient(125deg,#FFC65C 0%,#FF8E3C 22%,#FB5A45 46%,#F0476E 66%,#C24E9E 83%,#8E5BC9 100%);
+      --grad-soft:  linear-gradient(125deg,#FF8E3C,#F0476E);
+      --coral:      #FB5A45;
+      --accent:     #5A57F2;
+      --green:      #23A65A;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #fff;
-      color: #19182a;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
       height: 100vh;
+      display: flex;
+      overflow: hidden;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Brand panel (left, 272 px) ──────────────────────────── */
+
+    .brand-panel {
+      width: 272px;
+      flex-shrink: 0;
+      background: var(--brand-wash);
+      border-right: 0.5px solid var(--hair);
+      display: flex;
+      flex-direction: column;
+      padding: 28px 24px 24px;
+      -webkit-app-region: drag;
+    }
+
+    .brand-panel > * { -webkit-app-region: no-drag; }
+
+    .brand-logo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: block;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.12));
+      flex-shrink: 0;
+    }
+
+    .brand-name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    .brand-sub {
+      font-size: 11.5px;
+      color: var(--ink3);
+      margin-top: 1px;
+    }
+
+    .brand-desc {
+      margin-top: 18px;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--ink2);
+    }
+
+    /* ── Stepper ─────────────────────────────────────────────── */
+
+    .stepper {
+      margin-top: 28px;
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+
+    .stepper-line {
+      position: absolute;
+      left: 11px;
+      top: 24px;
+      bottom: 24px;
+      width: 2px;
+      background: var(--hair);
+      border-radius: 2px;
+    }
+
+    .stage-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding-bottom: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stage-item:last-child { padding-bottom: 0; }
+
+    .stage-dot-col {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      -webkit-app-region: drag;
-      user-select: none;
     }
 
-    .card {
+    /* All dot variants hidden by default */
+    .dot-pending, .dot-active, .dot-done { display: none; }
+
+    /* Pending */
+    .dot-pending {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--brand-wash);
+      border: 1.5px solid var(--ink4);
+      align-items: center; justify-content: center;
+    }
+
+    .dot-inner {
+      display: block; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--ink4);
+    }
+
+    /* Active: gradient ring → white inner → gradient core */
+    .dot-active {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--grad);
+      align-items: center; justify-content: center;
+      box-shadow: 0 2px 6px rgba(240,71,110,0.30);
+    }
+
+    .dot-active-inner {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .dot-active-core {
+      display: block; width: 8px; height: 8px;
+      border-radius: 50%; background: var(--grad-soft);
+    }
+
+    /* Done: gradient fill + checkmark */
+    .dot-done {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--grad-soft);
+      align-items: center; justify-content: center;
+      box-shadow: 0 2px 6px rgba(240,71,110,0.35);
+    }
+
+    /* State-based dot visibility */
+    .stage-item:not(.active):not(.done) .dot-pending { display: flex; }
+    .stage-item.active .dot-active { display: flex; }
+    .stage-item.done   .dot-done   { display: flex; }
+
+    /* Body */
+    .stage-body { min-width: 0; }
+
+    .stage-item:not(.active):not(.done) .stage-body { opacity: 0.55; }
+
+    .stage-label {
+      font-size: 13px; font-weight: 600;
+      color: var(--ink3); letter-spacing: -0.01em;
+      transition: color 0.25s;
+    }
+    .stage-item.active .stage-label { color: var(--ink); }
+    .stage-item.done   .stage-label { color: var(--ink2); }
+
+    .stage-hint { font-size: 11.5px; color: var(--ink3); margin-top: 2px; }
+
+    .stage-badge {
+      display: none; align-items: center; gap: 6px;
+      margin-top: 7px; font-size: 10.5px; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      color: var(--coral);
+    }
+    .stage-item.active .stage-badge { display: inline-flex; }
+
+    .stage-badge-dot {
+      display: block; width: 5px; height: 5px;
+      border-radius: 50%; background: var(--grad-soft);
+    }
+
+    .brand-privacy {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 28px;
-      width: 440px;
-      -webkit-app-region: no-drag;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--ink3);
+      flex-shrink: 0;
     }
 
-    .wordmark {
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      color: #19182a;
-    }
+    /* ── Work panel (right, flex) ────────────────────────────── */
 
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(90, 87, 242, 0.15);
-      border-top-color: #5A57F2;
-      border-radius: 50%;
-      animation: spin 0.85s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .status {
-      font-size: 14px;
-      font-weight: 500;
-      color: #19182a;
-      text-align: center;
-    }
-
-    .note {
-      font-size: 12px;
-      color: rgba(25, 24, 42, 0.45);
-      text-align: center;
-      line-height: 1.6;
-    }
-
-    .log-box {
-      width: 100%;
-      background: rgba(40, 30, 80, 0.04);
-      border: 0.5px solid rgba(40, 30, 80, 0.1);
-      border-radius: 8px;
-      padding: 10px 13px;
-      height: 110px;
-      overflow: hidden;
+    .work-panel {
+      flex: 1;
+      min-width: 0;
+      overflow: auto;
+      background: var(--bg);
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      padding: 32px 36px 28px;
     }
 
-    .log-line {
+    /* ── Welcome screen ──────────────────────────────────────── */
+
+    .welcome-stats {
+      display: flex;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    .welcome-stat {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 9px;
+      background: var(--surface);
+      border: 0.5px solid var(--hair);
+    }
+
+    .welcome-stat-value {
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .welcome-stat-label {
+      font-size: 10.5px;
+      color: var(--ink3);
+      margin-top: 2px;
+    }
+
+    .welcome-note {
+      font-size: 13px;
+      color: var(--ink3);
+      line-height: 1.75;
+      border: 0.5px solid var(--hair);
+      border-radius: 10px;
+      padding: 14px 18px;
+      background: var(--surface);
+      margin-top: 16px;
+    }
+
+    .welcome-footer {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-top: 16px;
+      border-top: 0.5px solid var(--hair-soft);
+    }
+
+    .welcome-footer-hint {
+      flex: 1;
+      font-size: 12px;
+      color: var(--ink3);
+    }
+
+    .btn-start {
+      height: 38px;
+      padding: 0 22px;
+      border: none;
+      border-radius: 10px;
+      background: var(--grad);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: -0.01em;
+      transition: opacity 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: inherit;
+      flex-shrink: 0;
+    }
+    .btn-start:hover  { opacity: 0.88; }
+    .btn-start:active { opacity: 0.75; }
+
+    /* ── Install screen ──────────────────────────────────────── */
+
+    /* Heading row */
+    .install-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .install-head-left { flex: 1; min-width: 0; }
+
+    .install-step-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--coral);
+      margin-bottom: 6px;
+    }
+
+    .install-title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+      margin: 0;
+    }
+
+    .install-subtitle {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--ink3);
+      margin-top: 7px;
+    }
+
+    .install-pct-col { flex-shrink: 0; text-align: right; }
+
+    .install-pct-big {
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pct-unit { font-size: 16px; color: var(--ink3); }
+
+    .install-eta {
+      font-size: 11px;
+      color: var(--ink3);
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    /* Progress bar */
+    .install-bar-track {
+      height: 9px;
+      background: var(--hair);
+      border-radius: 6px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .install-bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 6px;
+      background: var(--grad);
+      position: relative;
+      overflow: hidden;
+      transition: width 0.18s linear;
+    }
+
+    .install-bar-fill.pulsing::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%);
+      animation: barShine 1.7s linear infinite;
+    }
+
+    @keyframes barShine {
+      0%   { transform: translateX(-130%); }
+      100% { transform: translateX(360%); }
+    }
+
+    /* Phases card */
+    .phases-card {
+      border: 0.5px solid var(--hair);
+      border-radius: 10px;
+      background: var(--surface);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .phase-row {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 9px 16px;
+      border-top: 0.5px solid var(--hair-soft);
+      opacity: 0.45;
+      transition: opacity 0.3s;
+    }
+
+    .phase-row:first-child { border-top: none; }
+    .phase-row.phase-active,
+    .phase-row.phase-done   { opacity: 1; }
+
+    /* Phase dot column */
+    .phase-dot-col {
+      width: 20px; height: 20px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .pdot-pending, .pdot-active, .pdot-done { display: none; }
+
+    .pdot-pending {
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      border: 1.5px solid var(--ink4);
+    }
+
+    .pdot-active {
+      position: relative;
+      width: 20px; height: 20px;
+      align-items: center; justify-content: center;
+    }
+
+    .pdot-ring {
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      border: 2px solid var(--coral);
+      animation: pulseRing 1.6s ease-out infinite;
+    }
+
+    .pdot-core {
+      display: block;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--grad-soft);
+      box-shadow: 0 0 0 3px rgba(251,90,69,0.14);
+    }
+
+    @keyframes pulseRing {
+      0%   { transform: scale(0.7); opacity: 0.55; }
+      70%  { transform: scale(1.9); opacity: 0; }
+      100% { opacity: 0; }
+    }
+
+    .pdot-done {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--green);
+      align-items: center; justify-content: center;
+    }
+
+    .phase-row:not(.phase-active):not(.phase-done) .pdot-pending { display: block; }
+    .phase-row.phase-active .pdot-active { display: flex; }
+    .phase-row.phase-done   .pdot-done   { display: flex; }
+
+    /* Phase body */
+    .phase-body { flex: 1; min-width: 0; }
+
+    .phase-label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink3);
+      letter-spacing: -0.01em;
+      transition: color 0.25s;
+    }
+    .phase-row.phase-active .phase-label { color: var(--ink); }
+    .phase-row.phase-done   .phase-label { color: var(--ink2); }
+
+    .phase-hint { font-size: 11px; color: var(--ink3); margin-top: 1px; }
+
+    .phase-status {
+      flex-shrink: 0;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--ink4);
+      font-variant-numeric: tabular-nums;
+    }
+    .phase-row.phase-active .phase-status { color: var(--coral); }
+    .phase-row.phase-done   .phase-status { color: var(--green); }
+
+    /* Log section */
+    .log-section { flex-shrink: 0; }
+
+    .log-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 28px;
+      padding: 0 12px 0 9px;
+      border-radius: 7px;
+      cursor: pointer;
+      border: 0.5px solid var(--hair);
+      background: transparent;
+      color: var(--ink2);
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .log-toggle-btn:hover      { background: var(--surface); }
+    .log-toggle-btn.open       { background: var(--surface); }
+
+    .log-toggle-chevron {
+      color: var(--ink3);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .log-toggle-btn.open .log-toggle-chevron { transform: rotate(90deg); }
+
+    .log-live-dot {
+      display: block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+    }
+
+    .log-console {
+      margin-top: 10px;
+      border-radius: 9px;
+      background: var(--panel);
+      border: 0.5px solid var(--hair);
+      overflow: hidden;
+    }
+
+    .log-console-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 13px;
+      border-bottom: 0.5px solid var(--hair-soft);
+      background: var(--surface);
+    }
+
+    .log-status-dot {
+      display: block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      flex-shrink: 0;
+    }
+
+    .log-console-title {
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 10.5px;
+      color: var(--ink2);
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    .log-console-tag {
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 10px;
+      color: var(--ink3);
+      margin-left: auto;
+    }
+
+    .log-console-body {
+      height: 130px;
+      overflow-y: auto;
+      padding: 10px 14px;
       font-family: ui-monospace, 'Cascadia Code', 'Fira Mono', monospace;
       font-size: 11px;
-      color: rgba(25, 24, 42, 0.55);
+      line-height: 17px;
+      scrollbar-width: none;
+    }
+    .log-console-body::-webkit-scrollbar { display: none; }
+
+    .log-line {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      color: var(--ink3);
     }
+
+    /* Footer */
+    .install-footer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-top: 16px;
+      border-top: 0.5px solid var(--hair-soft);
+      flex-shrink: 0;
+      min-height: 54px;
+    }
+
+    .footer-working {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--ink3);
+    }
+
+    .footer-spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 2px solid var(--hair);
+      border-top-color: var(--coral);
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .footer-btn-secondary {
+      height: 31px;
+      padding: 0 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 0.5px solid var(--hair);
+      background: var(--surface);
+      color: var(--ink2);
+      font-size: 12.5px;
+      font-weight: 600;
+      font-family: inherit;
+    }
+
+    .footer-btn-continue {
+      height: 36px;
+      padding: 0 20px;
+      border-radius: 9px;
+      cursor: pointer;
+      border: none;
+      background: var(--grad-soft);
+      color: #fff;
+      font-size: 13.5px;
+      font-weight: 700;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      box-shadow: 0 4px 14px rgba(240,71,110,0.35);
+    }
+
+    .hidden { display: none !important; }
+
+    /* ── Permissions screen ──────────────────────────────────── */
+
+    .perm-cards { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
+
+    .perm-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 18px;
+      border-radius: 12px;
+      border: 0.5px solid var(--hair);
+      background: var(--surface);
+    }
+
+    .perm-icon-wrap {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: var(--grad);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(240,71,110,0.22);
+    }
+
+    .perm-body { flex: 1; min-width: 0; }
+    .perm-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .perm-desc { font-size: 12px; color: var(--ink3); margin-top: 3px; line-height: 1.4; }
+
+    .perm-btn {
+      height: 32px;
+      padding: 0 16px;
+      border-radius: 8px;
+      border: 0.5px solid var(--hair);
+      background: var(--bg);
+      color: var(--ink2);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .perm-btn:hover { background: var(--surface); }
+    .perm-btn.granted {
+      background: rgba(35,166,90,0.09);
+      border-color: rgba(35,166,90,0.3);
+      color: var(--green);
+      cursor: default;
+    }
+
+    .perm-note {
+      font-size: 12px;
+      color: var(--ink3);
+      margin-top: 14px;
+      text-align: center;
+    }
+
+    .perm-footer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-top: 16px;
+      border-top: 0.5px solid var(--hair-soft);
+    }
+
+    .perm-skip-btn {
+      height: 31px;
+      padding: 0 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 0.5px solid var(--hair);
+      background: transparent;
+      color: var(--ink3);
+      font-size: 12.5px;
+      font-weight: 500;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .perm-skip-btn:hover { background: var(--surface); }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="wordmark">Sonorus</div>
-    <div class="spinner" id="spinner"></div>
-    <div class="status" id="status">Setting up for first use…</div>
-    <div class="log-box" id="log"></div>
-    <div class="note">
-      Installing ML dependencies (~500 MB).<br>
-      This only happens once and takes a few minutes.
+
+  <!-- ── Left: brand panel ──────────────────────────────────── -->
+  <div class="brand-panel">
+    <div class="brand-logo-row">
+      <img src="../assets/logo.png" class="brand-logo" alt="Sonorus"/>
+      <div>
+        <div class="brand-name">Sonorus</div>
+        <div class="brand-sub">Meeting transcription</div>
+      </div>
+    </div>
+    <p class="brand-desc">
+      A few quick steps and you're ready to capture every meeting — fully on-device.
+    </p>
+    <div class="stepper" id="stepper">
+      <div class="stepper-line"></div>
+
+      <div class="stage-item active" id="stage-0">
+        <div class="stage-dot-col">
+          <div class="dot-pending"><span class="dot-inner"></span></div>
+          <div class="dot-active"><div class="dot-active-inner"><span class="dot-active-core"></span></div></div>
+          <div class="dot-done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        </div>
+        <div class="stage-body">
+          <div class="stage-label">Welcome</div>
+          <div class="stage-hint">First-time setup</div>
+          <div class="stage-badge"><span class="stage-badge-dot"></span>In progress</div>
+        </div>
+      </div>
+
+      <div class="stage-item" id="stage-1">
+        <div class="stage-dot-col">
+          <div class="dot-pending"><span class="dot-inner"></span></div>
+          <div class="dot-active"><div class="dot-active-inner"><span class="dot-active-core"></span></div></div>
+          <div class="dot-done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        </div>
+        <div class="stage-body">
+          <div class="stage-label">Install</div>
+          <div class="stage-hint">ML libraries &amp; speech engine</div>
+          <div class="stage-badge"><span class="stage-badge-dot"></span>In progress</div>
+        </div>
+      </div>
+
+      <div class="stage-item" id="stage-2">
+        <div class="stage-dot-col">
+          <div class="dot-pending"><span class="dot-inner"></span></div>
+          <div class="dot-active"><div class="dot-active-inner"><span class="dot-active-core"></span></div></div>
+          <div class="dot-done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        </div>
+        <div class="stage-body">
+          <div class="stage-label">Permissions</div>
+          <div class="stage-hint">Microphone &amp; screen</div>
+          <div class="stage-badge"><span class="stage-badge-dot"></span>In progress</div>
+        </div>
+      </div>
+    </div>
+    <div class="brand-privacy">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+        <path d="M8 1.5l5 2v4c0 3.2-2.1 5.6-5 6.9C5.1 13.1 3 10.7 3 7.5v-4l5-2z"
+              stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+        <path d="M6 8l1.4 1.4L10.5 6" stroke="currentColor" stroke-width="1.2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Private by design · nothing leaves your device
     </div>
   </div>
 
-  <script>
-    const MAX_LINES = 7
-    const logEl    = document.getElementById('log')
-    const statusEl = document.getElementById('status')
-    const lines    = []
+  <!-- ── Right: work panel ─────────────────────────────────── -->
+  <div class="work-panel">
 
+    <!-- Welcome -->
+    <div id="screen-welcome" style="display:flex; flex:1; flex-direction:column; min-height:0; width:100%">
+
+      <div class="install-step-label">Step 1 of 3 · Welcome</div>
+      <h1 class="install-title" style="margin-top:6px">Welcome to Sonorus</h1>
+      <p class="install-subtitle" style="margin-top:7px">
+        AI transcription with speaker identification,<br>running entirely on your device — nothing leaves your machine.
+      </p>
+
+      <div class="welcome-stats">
+        <div class="welcome-stat">
+          <div class="welcome-stat-value">~600 MB</div>
+          <div class="welcome-stat-label">Download size</div>
+        </div>
+        <div class="welcome-stat">
+          <div class="welcome-stat-value">~1.7 GB</div>
+          <div class="welcome-stat-label">Disk space</div>
+        </div>
+        <div class="welcome-stat">
+          <div class="welcome-stat-value">Once</div>
+          <div class="welcome-stat-label">One-time only</div>
+        </div>
+      </div>
+
+      <div class="welcome-note">
+        The first launch downloads ML models and installs the speech engine.
+        Subsequent launches start instantly. Internet is required only for this step.
+      </div>
+
+      <div style="flex:1; min-height:16px"></div>
+
+      <div class="welcome-footer">
+        <span class="welcome-footer-hint">Takes ~5 minutes on first run</span>
+        <button class="btn-start" id="btn-start">
+          Install &amp; Launch
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+            <path d="M2.5 6h7M6 2.5L9.5 6 6 9.5" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Installing -->
+    <div id="screen-installing" style="display:none; flex-direction:column; gap:16px; width:100%">
+
+      <!-- Heading row -->
+      <div class="install-head">
+        <div class="install-head-left">
+          <div class="install-step-label">Step 2 of 3 · Install</div>
+          <h1 class="install-title">Setting up Sonorus</h1>
+          <p class="install-subtitle">
+            Installing ML libraries and speech engine.<br>
+            This happens only once — you can keep working.
+          </p>
+        </div>
+        <div class="install-pct-col">
+          <div class="install-pct-big"><span id="pct-big">0</span><span class="pct-unit">%</span></div>
+          <div class="install-eta" id="pct-eta"></div>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="install-bar-track">
+        <div class="install-bar-fill" id="progress-fill"></div>
+      </div>
+
+      <!-- Phases -->
+      <div class="phases-card">
+
+        <div class="phase-row phase-active" id="phase-row-0">
+          <div class="phase-dot-col">
+            <div class="pdot-pending"></div>
+            <div class="pdot-active"><span class="pdot-ring"></span><span class="pdot-core"></span></div>
+            <div class="pdot-done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          </div>
+          <div class="phase-body">
+            <div class="phase-label">Prepare environment</div>
+            <div class="phase-hint">Isolated Python runtime</div>
+          </div>
+          <div class="phase-status" id="phase-status-0">0%</div>
+        </div>
+
+        <div class="phase-row" id="phase-row-1">
+          <div class="phase-dot-col">
+            <div class="pdot-pending"></div>
+            <div class="pdot-active"><span class="pdot-ring"></span><span class="pdot-core"></span></div>
+            <div class="pdot-done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          </div>
+          <div class="phase-body">
+            <div class="phase-label">Download dependencies</div>
+            <div class="phase-hint">≈ 565 MB of ML libraries</div>
+          </div>
+          <div class="phase-status" id="phase-status-1">queued</div>
+        </div>
+
+        <div class="phase-row" id="phase-row-2">
+          <div class="phase-dot-col">
+            <div class="pdot-pending"></div>
+            <div class="pdot-active"><span class="pdot-ring"></span><span class="pdot-core"></span></div>
+            <div class="pdot-done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          </div>
+          <div class="phase-body">
+            <div class="phase-label">Install packages</div>
+            <div class="phase-hint">torch · faster-whisper · transformers</div>
+          </div>
+          <div class="phase-status" id="phase-status-2">queued</div>
+        </div>
+
+        <div class="phase-row" id="phase-row-3">
+          <div class="phase-dot-col">
+            <div class="pdot-pending"></div>
+            <div class="pdot-active"><span class="pdot-ring"></span><span class="pdot-core"></span></div>
+            <div class="pdot-done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          </div>
+          <div class="phase-body">
+            <div class="phase-label">Start backend</div>
+            <div class="phase-hint">Loading ML models into memory</div>
+          </div>
+          <div class="phase-status" id="phase-status-3">queued</div>
+        </div>
+
+      </div>
+
+      <!-- Log toggle + console -->
+      <div class="log-section">
+        <button class="log-toggle-btn" id="log-toggle-btn">
+          <svg class="log-toggle-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M4 2.5L8 6l-4 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span id="log-toggle-text">Show installation logs</span>
+          <span class="log-live-dot" id="log-live-dot"></span>
+        </button>
+        <div class="log-console hidden" id="log-console">
+          <div class="log-console-head">
+            <span class="log-status-dot"></span>
+            <span class="log-console-title">installation log</span>
+            <span class="log-console-tag">pip · verbose</span>
+          </div>
+          <div class="log-console-body" id="log"></div>
+        </div>
+      </div>
+
+      <div style="flex:1; min-height:0"></div>
+
+      <!-- Footer -->
+      <div class="install-footer">
+        <div id="footer-working" class="footer-working">
+          <span class="footer-spinner"></span>
+          Working… you can keep using your computer
+        </div>
+        <div id="footer-done" class="hidden" style="font-size:12px;color:var(--green);display:flex;align-items:center;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Installation complete
+        </div>
+        <div style="flex:1"></div>
+        <button class="footer-btn-secondary" id="btn-background">Run in background</button>
+        <button class="footer-btn-continue hidden" id="btn-continue">
+          Continue to permissions
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h7M6 2.5L9.5 6 6 9.5" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Permissions -->
+    <div id="screen-permissions" style="display:none; flex-direction:column; min-height:0; width:100%">
+
+      <div class="install-step-label">Step 3 of 3 · Permissions</div>
+      <h1 class="install-title" style="margin-top:6px">Allow access to your mic &amp; screen</h1>
+      <p class="install-subtitle" style="margin-top:7px">
+        Sonorus captures audio locally — nothing is ever uploaded or shared.
+      </p>
+
+      <div class="perm-cards">
+
+        <div class="perm-card">
+          <div class="perm-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect x="9" y="2" width="6" height="12" rx="3" stroke="#fff" stroke-width="1.7"/>
+              <path d="M5 10a7 7 0 0014 0" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>
+              <line x1="12" y1="17" x2="12" y2="22" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>
+              <line x1="9" y1="22" x2="15" y2="22" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="perm-body">
+            <div class="perm-title">Microphone</div>
+            <div class="perm-desc">Record from your mic for calls &amp; in-person meetings</div>
+          </div>
+          <button class="perm-btn" id="perm-mic-btn">Grant Access</button>
+        </div>
+
+        <div class="perm-card">
+          <div class="perm-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="4" width="20" height="14" rx="2" stroke="#fff" stroke-width="1.7"/>
+              <path d="M8 20h8M12 18v2" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="perm-body">
+            <div class="perm-title">Screen &amp; System Audio</div>
+            <div class="perm-desc">Capture meeting audio from video calls and media playback</div>
+          </div>
+          <button class="perm-btn" id="perm-screen-btn">Grant Access</button>
+        </div>
+
+      </div>
+
+      <p class="perm-note">Permissions can be changed later in System Settings</p>
+
+      <div style="flex:1; min-height:16px"></div>
+
+      <div class="perm-footer">
+        <button class="perm-skip-btn" id="btn-perm-skip">Skip for now</button>
+        <div style="flex:1"></div>
+        <button class="footer-btn-continue" id="btn-perm-continue">
+          Continue to Sonorus
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h7M6 2.5L9.5 6 6 9.5" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    const PHASE_IDS  = ['resolving', 'downloading', 'installing', 'starting']
+    const PHASE_BASE = { resolving: 0, downloading: 5, installing: 80, starting: 96 }
+    const MAX_LINES  = 8
+
+    // ── Elements ───────────────────────────────────────────────────────────────
+    const fillEl           = document.getElementById('progress-fill')
+    const pctEl            = document.getElementById('pct-big')
+    const etaEl            = document.getElementById('pct-eta')
+    const logEl            = document.getElementById('log')
+    const btnStart         = document.getElementById('btn-start')
+    const btnBackground    = document.getElementById('btn-background')
+    const btnContinue      = document.getElementById('btn-continue')
+    const footerWorking    = document.getElementById('footer-working')
+    const footerDone       = document.getElementById('footer-done')
+    const screenWelcome     = document.getElementById('screen-welcome')
+    const screenInstalling  = document.getElementById('screen-installing')
+    const screenPermissions = document.getElementById('screen-permissions')
+    const btnPermContinue   = document.getElementById('btn-perm-continue')
+    const btnPermSkip       = document.getElementById('btn-perm-skip')
+    const permMicBtn        = document.getElementById('perm-mic-btn')
+    const permScreenBtn     = document.getElementById('perm-screen-btn')
+    const logToggleBtn     = document.getElementById('log-toggle-btn')
+    const logToggleText    = document.getElementById('log-toggle-text')
+    const logConsole       = document.getElementById('log-console')
+    const logLiveDot       = document.getElementById('log-live-dot')
+
+    const phaseRows     = PHASE_IDS.map((_, i) => document.getElementById('phase-row-' + i))
+    const phaseStatuses = PHASE_IDS.map((_, i) => document.getElementById('phase-status-' + i))
+
+    let logLines = []
+    let logsOpen = false
+
+    // ── Progress animation ─────────────────────────────────────────────────────
+    let displayTarget = 0
+    let displayedPct  = 0
+    let animRafId     = null
+
+    function animateFrame() {
+      const diff = displayTarget - displayedPct
+      if (Math.abs(diff) < 0.05) {
+        displayedPct = displayTarget
+        renderBar(displayedPct)
+        animRafId = null
+        return
+      }
+      displayedPct += diff * 0.08
+      renderBar(displayedPct)
+      animRafId = requestAnimationFrame(animateFrame)
+    }
+
+    function renderBar(pct) {
+      fillEl.style.width = pct + '%'
+      pctEl.textContent  = Math.round(pct)
+    }
+
+    function setProgressTarget(pct) {
+      pct = Math.min(99, Math.max(displayTarget, pct))
+      if (pct === displayTarget) return
+      displayTarget = pct
+      if (!animRafId) animRafId = requestAnimationFrame(animateFrame)
+    }
+
+    // ── Resolving fake creep ───────────────────────────────────────────────────
+    let resolvingTimer = null
+    let resolvingStart = null
+    const RESOLVING_TAU_MS = 12000
+
+    function startResolvingCreep() {
+      resolvingStart = Date.now()
+      resolvingTimer = setInterval(() => {
+        const t   = Date.now() - resolvingStart
+        const pct = 4 * (1 - Math.exp(-t / RESOLVING_TAU_MS))
+        setProgressTarget(pct)
+        phaseStatuses[0].textContent = Math.round(pct / 4 * 100) + '%'
+      }, 250)
+    }
+
+    function stopResolvingCreep() {
+      if (resolvingTimer) { clearInterval(resolvingTimer); resolvingTimer = null }
+    }
+
+    // ── Stepper (left panel) ───────────────────────────────────────────────────
+    function setStep(index) {
+      for (let i = 0; i < 3; i++) {
+        const el = document.getElementById('stage-' + i)
+        el.classList.remove('active', 'done')
+        if (i < index)       el.classList.add('done')
+        else if (i === index) el.classList.add('active')
+      }
+    }
+
+    // ── Phase rows (right panel) ───────────────────────────────────────────────
+    function setPhase(phase) {
+      stopResolvingCreep()
+      if (phase === 'resolving') startResolvingCreep()
+
+      const idx = PHASE_IDS.indexOf(phase)
+      if (idx === -1) return
+
+      for (let i = 0; i < 4; i++) {
+        phaseRows[i].classList.remove('phase-active', 'phase-done')
+        if (i < idx) {
+          phaseRows[i].classList.add('phase-done')
+          phaseStatuses[i].textContent = 'done'
+        } else if (i === idx) {
+          phaseRows[i].classList.add('phase-active')
+          if (i !== 0) phaseStatuses[i].textContent = '0%'
+        } else {
+          phaseStatuses[i].textContent = 'queued'
+        }
+      }
+
+      setProgressTarget(PHASE_BASE[phase] ?? 0)
+      fillEl.classList.toggle('pulsing', phase === 'downloading')
+    }
+
+    function markDone() {
+      // All phases done
+      phaseRows.forEach((r, i) => {
+        r.classList.remove('phase-active')
+        r.classList.add('phase-done')
+        phaseStatuses[i].textContent = 'done'
+      })
+      fillEl.classList.remove('pulsing')
+      fillEl.style.width = '100%'
+      pctEl.textContent  = '100'
+      etaEl.textContent  = ''
+      footerWorking.classList.add('hidden')
+      footerDone.classList.remove('hidden')
+      btnBackground.classList.add('hidden')
+      btnContinue.classList.remove('hidden')
+      logLiveDot.classList.add('hidden')
+      setStep(2)   // advance stepper to Permissions
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
     function addLine(text) {
       if (!text.trim()) return
-      lines.push(text)
-      if (lines.length > MAX_LINES) lines.shift()
-      logEl.innerHTML = lines
+      logLines.push(text)
+      if (logLines.length > MAX_LINES) logLines.shift()
+      logEl.innerHTML = logLines
         .map(l => `<div class="log-line">${escHtml(l)}</div>`)
         .join('')
+      logEl.scrollTop = logEl.scrollHeight
     }
 
     function escHtml(s) {
-      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     }
 
-    window.electronAPI.onSetupProgress(({ type, message, line }) => {
-      if (type === 'status' && message) statusEl.textContent = message
-      if (type === 'log'    && line)    addLine(line)
+    function fmtEta(secs) {
+      secs = Math.max(0, Math.round(secs))
+      if (secs >= 60) {
+        const m = Math.floor(secs / 60), s = secs % 60
+        return `≈ ${m}m${s >= 30 ? ' 30s' : ''} left`
+      }
+      if (secs > 5) return `≈ ${Math.ceil(secs / 5) * 5}s left`
+      return 'almost done…'
+    }
+
+    // ── Log toggle ─────────────────────────────────────────────────────────────
+    logToggleBtn.addEventListener('click', () => {
+      logsOpen = !logsOpen
+      logToggleBtn.classList.toggle('open', logsOpen)
+      logConsole.classList.toggle('hidden', !logsOpen)
+      logToggleText.textContent = logsOpen ? 'Hide installation logs' : 'Show installation logs'
+      logLiveDot.classList.toggle('hidden', logsOpen)
+      if (logsOpen) logEl.scrollTop = logEl.scrollHeight
     })
+
+    // ── Backend events ─────────────────────────────────────────────────────────
+    window.electronAPI.onSetupProgress(ev => {
+      if (ev.type === 'phase' && ev.phase === 'done') {
+        markDone()
+        return
+      }
+
+      if (ev.type === 'phase') {
+        setPhase(ev.phase)
+        return
+      }
+
+      if (ev.type === 'progress' && ev.phase === 'downloading') {
+        stopResolvingCreep()
+        const frac = ev.totalMB > 0 ? ev.downloadedMB / ev.totalMB : 0
+        setProgressTarget(5 + frac * 74)
+        phaseStatuses[1].textContent = Math.round(frac * 100) + '%'
+        if (ev.etaSeconds != null) etaEl.textContent = fmtEta(ev.etaSeconds)
+        return
+      }
+
+      if (ev.type === 'log') {
+        addLine(ev.line)
+        return
+      }
+    })
+
+    // ── Button handlers ────────────────────────────────────────────────────────
+    btnStart.addEventListener('click', () => {
+      screenWelcome.classList.add('hidden')
+      screenInstalling.style.cssText =
+        'display:flex; flex:1; flex-direction:column; gap:16px; min-height:0; width:100%'
+      setStep(1)
+      setPhase('resolving')
+      window.electronAPI.startSetup()
+    })
+
+    btnBackground.addEventListener('click', () => {
+      // mock: no-op for now
+    })
+
+    btnContinue.addEventListener('click', () => {
+      screenInstalling.classList.add('hidden')
+      screenPermissions.style.cssText =
+        'display:flex; flex:1; flex-direction:column; min-height:0; width:100%'
+    })
+
+    // ── Permissions handlers ────────────────────────────────────────────────────
+    function grantPerm(btn) {
+      btn.classList.add('granted')
+      btn.innerHTML =
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none">' +
+        '<path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="2.5"' +
+        ' stroke-linecap="round" stroke-linejoin="round"/></svg>Granted'
+      btn.disabled = true
+    }
+
+    permMicBtn.addEventListener('click', () => grantPerm(permMicBtn))
+    permScreenBtn.addEventListener('click', () => grantPerm(permScreenBtn))
+
+    btnPermContinue.addEventListener('click', () => window.electronAPI.completeSetup())
+    btnPermSkip.addEventListener('click', () => window.electronAPI.completeSetup())
   </script>
 </body>
 </html>

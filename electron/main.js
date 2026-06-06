@@ -23,10 +23,11 @@ let mainWin = null
 
 function createWindow(setupMode = false) {
   mainWin = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 900,
-    minHeight: 600,
+    width:     setupMode ? 1000 : 1200,
+    height:    setupMode ?  680 :  800,
+    minWidth:  setupMode ? 1000 :  900,
+    minHeight: setupMode ?  680 :  600,
+    resizable: !setupMode,
     backgroundColor: '#FFFFFF',
     icon: path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: {
@@ -124,12 +125,17 @@ app.whenReady().then(async () => {
 
   const setupMode = needsSetup()
 
-  // Setup mode: open window first (to show progress screen), then start backend.
-  // Normal mode: start backend first so index.html loads with a ready API.
+  // Setup mode: open window first, wait for user to click "Start Installation",
+  // then run pip install + backend. Normal mode: start backend first so
+  // index.html loads with a ready API.
   if (setupMode) createWindow(true)
 
   const onProgress = data => {
     if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('setup-progress', data)
+  }
+
+  if (setupMode) {
+    await new Promise(resolve => ipcMain.once('start-setup', resolve))
   }
 
   try {
@@ -142,6 +148,10 @@ app.whenReady().then(async () => {
   }
 
   if (setupMode) {
+    // Signal renderer that installation is complete → show permissions screen
+    onProgress({ type: 'phase', phase: 'done' })
+    // Wait for user to finish the permissions step before switching to app
+    await new Promise(resolve => ipcMain.once('setup-complete', resolve))
     mainWin.loadFile(path.join(__dirname, 'renderer', 'index.html'))
   } else {
     createWindow(false)

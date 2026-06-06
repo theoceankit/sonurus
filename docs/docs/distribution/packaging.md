@@ -89,12 +89,19 @@ Output goes to `dist/`.
 When the packaged app launches and `$userData/python-packages/.installed` does not exist:
 
 1. `backend.js` calls `needsSetup()` → `true`
-2. `main.js` loads `setup.html` in the window
-3. `backend.js` runs: `python-dist/bin/python3 -m pip install -r requirements.txt --target python-packages/`
-4. pip output is streamed to the setup screen via IPC
-5. On success, writes `python-packages/.installed` marker
-6. `backend.js` spawns uvicorn with `PYTHONPATH=python-packages/`
-7. `main.js` loads `index.html`
+2. `main.js` loads `setup.html` in the window (welcome screen with **Install & Launch** button)
+3. User clicks **Install & Launch** → renderer sends `start-setup` IPC to main
+4. `main.js` unblocks and calls `startBackend()` → `backend.js` runs pip install
+5. pip output is streamed to the setup screen via `setup-progress` IPC events
+6. On success, writes `python-packages/.installed` marker
+7. `backend.js` spawns uvicorn with `PYTHONPATH=python-packages/`
+8. `main.js` loads `index.html`
+
+To test the setup flow without building a packaged app:
+```bash
+rm ~/.config/Sonorus/python-packages/.installed
+SONORUS_TEST_SETUP=1 npm start
+```
 
 The setup screen is self-contained (`setup.html`) and does not depend on the main renderer stack.
 
@@ -113,11 +120,12 @@ CUDA support requires manual reinstall after setup. See [Setup → GPU accelerat
 
 ## Icons
 
-| File | Platform |
+| File | Purpose |
 |---|---|
-| `build/icons/icon.icns` | macOS |
-| `build/icons/icon.ico` | Windows |
-| `electron/assets/icon.png` | Source (512×512 RGBA) + Linux |
+| `electron/assets/icon.png` | App icon with background (1024×1024) — dock, taskbar, `.icns`, `.ico`, Linux AppImage |
+| `electron/assets/logo.png` | Transparent S logo (1024×1024) — titlebar and favicon inside the app |
+| `build/icons/icon.icns` | macOS (generated from `icon.png`) |
+| `build/icons/icon.ico` | Windows (generated from `icon.png`) |
 
 Icons are generated from `icon.png` using the `png2icons` npm package. Regenerate:
 ```bash
