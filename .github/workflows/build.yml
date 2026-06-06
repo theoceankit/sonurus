@@ -9,18 +9,10 @@ permissions:
   contents: write
 
 jobs:
-  # ── macOS (arm64 + x64) ──────────────────────────────────────────────────────
+  # ── macOS arm64 (Apple Silicon) ──────────────────────────────────────────────
   build-mac:
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-latest  # arm64 — Apple Silicon
-            arch: arm64
-          - runner: macos-13      # x64  — Intel
-            arch: x64
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -38,12 +30,12 @@ jobs:
         run: node scripts/bundle-backend.js
 
       - name: Build Electron app
-        run: npx electron-builder --mac --${{ matrix.arch }} --publish never
+        run: npx electron-builder --mac --arm64 --publish never
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist-mac-${{ matrix.arch }}
+          name: dist-mac-arm64
           path: |
             dist/*.dmg
             dist/*.zip
