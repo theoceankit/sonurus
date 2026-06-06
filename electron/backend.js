@@ -182,7 +182,7 @@ function runSetup(onProgress) {
 
     const pip = spawn(
       getPythonExe(),
-      ['-m', 'pip', 'install', '-r', getReqFile(),
+      ['-u', '-m', 'pip', 'install', '-r', getReqFile(),
        '--target', pkgDir, '--no-warn-script-location'],
       { stdio: ['ignore', 'pipe', 'pipe'] }
     )
@@ -198,6 +198,8 @@ function runSetup(onProgress) {
 
     pip.stdout.on('data', relay)
     pip.stderr.on('data', relay)
+
+    pip.on('error', reject)
 
     pip.on('exit', code => {
       if (code === 0) {
