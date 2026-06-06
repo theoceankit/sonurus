@@ -31,6 +31,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Build sonorus-capture binary
+        run: npm run build:capture
+
       - name: Bundle Python backend
         run: node scripts/bundle-backend.js
 

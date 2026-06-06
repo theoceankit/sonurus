@@ -89,7 +89,14 @@ function renderLiveRecordingView(settings = {}) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ source_id: systemDeviceId }),
           })
-          if (!resp.ok) throw new Error('Failed to start system audio capture.')
+          if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}))
+            const msg = data.detail || 'Failed to start system audio capture.'
+            const isPermission = /permission|denied|SCStream|TCC|Screen Recording/i.test(msg)
+            throw new Error(isPermission
+              ? 'Screen Recording access is required. Open System Settings → Privacy & Security → Screen Recording and enable Sonorus, then try again.'
+              : msg)
+          }
           captureJobId = (await resp.json()).job_id
         } else if (systemDeviceId === '__desktop__') {
           // Windows: intercepted by setDisplayMediaRequestHandler → WASAPI loopback
@@ -249,7 +256,10 @@ function renderLiveRecordingView(settings = {}) {
               body: JSON.stringify({ mic_path: micPath }),
             })
             captureJobId = null
-            if (!r.ok) throw new Error('Failed to stop audio capture.')
+            if (!r.ok) {
+              const data = await r.json().catch(() => ({}))
+              throw new Error(data.detail || 'Failed to stop audio capture.')
+            }
             showReview((await r.json()).file_path, elapsed_)
           } catch (err) {
             captureJobId = null
@@ -267,7 +277,10 @@ function renderLiveRecordingView(settings = {}) {
               body: JSON.stringify({}),
             })
             captureJobId = null
-            if (!r.ok) throw new Error('Failed to stop audio capture.')
+            if (!r.ok) {
+              const data = await r.json().catch(() => ({}))
+              throw new Error(data.detail || 'Failed to stop audio capture.')
+            }
             showReview((await r.json()).file_path, elapsed_)
           } catch (err) {
             captureJobId = null

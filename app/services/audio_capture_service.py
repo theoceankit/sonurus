@@ -38,6 +38,8 @@ class AudioCaptureService:
     def get_sources(self) -> list[dict]:
         p = sys.platform
         if p == "darwin":
+            if not self._capture_bin:
+                return []
             return [{"id": "sckit", "label": "System audio (ScreenCaptureKit)"}]
         if p == "win32":
             return [{"id": "wasapi", "label": "System audio"}]
@@ -49,9 +51,27 @@ class AudioCaptureService:
         cmd = self._build_command(source_id, output_path)
         process = subprocess.Popen(
             cmd,
-            stdout=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+
+        if sys.platform == "darwin":
+            import select as _select
+            ready, _, _ = _select.select([process.stdout], [], [], 5.0)
+            if not ready:
+                process.kill()
+                stderr = process.stderr.read(4096).decode(errors="replace").strip()
+                raise RuntimeError(
+                    f"sonorus-capture timed out starting.{(' ' + stderr) if stderr else ''}"
+                )
+            line = process.stdout.readline().decode().strip()
+            process.stdout.close()
+            if line != "READY":
+                stderr = process.stderr.read(4096).decode(errors="replace").strip()
+                raise RuntimeError(
+                    f"sonorus-capture failed to start: {stderr or line}"
+                )
+
         with self._lock:
             self._jobs[job_id] = _CaptureJob(process=process, output_path=output_path)
         return job_id
@@ -77,6 +97,12 @@ class AudioCaptureService:
         out = Path(job.output_path)
         size = out.stat().st_size if out.exists() else -1
         log.info("sonorus-capture output: %s  size=%d bytes", job.output_path, size)
+
+        if size < 44:
+            raise RuntimeError(
+                "No audio was captured. If using system audio, grant Screen Recording "
+                "permission in System Settings → Privacy & Security → Screen Recording."
+            )
 
         if mic_path is None:
             return job.output_path
