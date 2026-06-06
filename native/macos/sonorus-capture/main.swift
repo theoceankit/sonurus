@@ -124,6 +124,8 @@ Task {
         let stream = SCStream(filter: filter, configuration: cfg, delegate: writer)
         try stream.addStreamOutput(writer, type: .audio, sampleHandlerQueue: .global())
         try await stream.startCapture()
+        print("READY")
+        fflush(stdout)
 
         while keepRunning {
             try await Task.sleep(nanoseconds: 100_000_000)

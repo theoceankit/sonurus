@@ -38,7 +38,10 @@ def get_sources(service=Depends(get_audio_capture_service)):
 
 @router.post("/audio/capture/start", response_model=AudioCaptureStartResponse)
 def start_capture(body: AudioCaptureStartRequest = AudioCaptureStartRequest(), service=Depends(get_audio_capture_service)):
-    job_id = service.start_capture(source_id=body.source_id)
+    try:
+        job_id = service.start_capture(source_id=body.source_id)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return AudioCaptureStartResponse(job_id=job_id)
 
 
@@ -48,4 +51,6 @@ def stop_capture(job_id: str, body: AudioCaptureStopRequest = AudioCaptureStopRe
         file_path = service.stop_capture(job_id, mic_path=body.mic_path)
     except ValueError:
         raise HTTPException(status_code=404, detail="Job not found")
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return AudioCaptureStopResponse(file_path=file_path)
