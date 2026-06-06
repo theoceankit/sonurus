@@ -219,7 +219,7 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
   btnCancel.addEventListener('mousedown', e => e.preventDefault())
   btnCancel.addEventListener('click', () => cancelEdit())
 
-  editArea.addEventListener('blur', () => cancelEdit())
+  editArea.addEventListener('blur', () => commitEdit())
 
   return row
 }

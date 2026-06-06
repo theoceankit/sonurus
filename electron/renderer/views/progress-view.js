@@ -27,6 +27,7 @@ function renderProgressView(jobId, originalRequest = null) {
 
   // ── WebSocket ──────────────────────────────────────────────────────────────
   const ws = new WebSocket(`${WS_BASE}/ws/${jobId}`)
+  el._cleanup = () => ws.close()
 
   function stopAndReturn() {
     ws.close()
