@@ -289,6 +289,7 @@ function renderLiveRecordingView(settings = {}) {
         })()
       } else {
         // Browser-only: mic alone, or Windows system audio mixed in browser
+        if (!recorder) { showError('Recording state is inconsistent'); return }
         recorder.onstop = () => finishRecording(elapsed_)
         recorder.stop()
       }

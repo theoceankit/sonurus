@@ -292,9 +292,12 @@ function renderEditorView(transcriptId, meta = null) {
 
     // ── Right panel ───────────────────────────────────────────────────────────
     if (rightPanelEl) rightPanelEl.remove()
-    rightPanelEl = makeRightPanel(transcript, knownSpeakers, transcriptId, reload, audio, suggestions)
+    rightPanelEl = makeRightPanel(transcript, knownSpeakers, transcriptId, reload, audio, suggestions, playerAbortCtrl.signal)
     root.appendChild(rightPanelEl)
   }
+
+  // Pause audio when navigating away
+  root._cleanup = () => { audio.pause(); if (playerAbortCtrl) playerAbortCtrl.abort() }
 
   // Initial load
   Promise.all([

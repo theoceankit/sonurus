@@ -348,7 +348,7 @@ function renderNewRecordingModal({ onStart, onImport }) {
 
       if (platform === 'win32') {
         // Windows: WASAPI loopback via Electron's setDisplayMediaRequestHandler
-        sysOptions.push({ value: '__desktop__', label: desktopLabel })
+        sysOptions.push({ value: '__desktop__', label: 'System audio (WASAPI)' })
         // Surface any browser-visible loopback devices as well
         inputs
           .filter(d => /virtual|loopback|system|output|mix|monitor/i.test(d.label))

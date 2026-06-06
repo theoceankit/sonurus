@@ -37,6 +37,7 @@ const app = {
 
   _setView(el, editorMode = false) {
     const panel = document.getElementById('main-panel')
+    panel.firstElementChild?._cleanup?.()
     panel.innerHTML = ''
     panel.classList.toggle('main-panel--editor', editorMode)
     panel.appendChild(el)
