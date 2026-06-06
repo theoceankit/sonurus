@@ -136,8 +136,13 @@ def test_stop_capture_without_mic_returns_system_file():
     """
     AudioCaptureService = _get_service_class()
 
+    mock_stat = MagicMock()
+    mock_stat.st_size = 1000
+
     mock_proc = _make_mock_popen()
-    with patch("app.services.audio_capture_service.subprocess.Popen", return_value=mock_proc):
+    with patch("app.services.audio_capture_service.subprocess.Popen", return_value=mock_proc), \
+         patch("app.services.audio_capture_service.Path.exists", return_value=True), \
+         patch("app.services.audio_capture_service.Path.stat", return_value=mock_stat):
         svc = AudioCaptureService()
         job_id = svc.start_capture()
         file_path = svc.stop_capture(job_id)
@@ -160,10 +165,14 @@ def test_stop_capture_with_mic_path_returns_merged_file():
     mock_proc_sys = _make_mock_popen()
     mock_proc_mic = _make_mock_popen()
 
+    mock_stat = MagicMock()
+    mock_stat.st_size = 1000
+
     with patch(
         "app.services.audio_capture_service.subprocess.Popen",
         side_effect=[mock_proc_sys, mock_proc_mic],
-    ):
+    ), patch("app.services.audio_capture_service.Path.exists", return_value=True), \
+       patch("app.services.audio_capture_service.Path.stat", return_value=mock_stat):
         svc = AudioCaptureService()
         jid_sys = svc.start_capture()
         jid_mic = svc.start_capture()
