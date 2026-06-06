@@ -1,0 +1,7 @@
+fastapi==0.136.1
+httpx==0.28.1
+numpy==2.4.4
+scikit-learn==1.8.0
+python-dotenv==1.2.2
+pytest==9.0.3
+pytest-subtests==0.15.0
