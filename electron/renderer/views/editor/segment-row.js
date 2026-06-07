@@ -1,7 +1,7 @@
 // ── Segment row ────────────────────────────────────────────────────────────────
 function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {}, knownSpeakers = [], audio = null) {
   const spkId = effectiveSpeaker(seg)
-  const p = isUnrecognized(spkId, knownMap) ? null : speakerPalette(spkId)
+  const p = isUnrecognized(spkId, knownMap) ? null : speakerPalette(spkId, knownMap)
   let editing = false
 
   const row = document.createElement('div')

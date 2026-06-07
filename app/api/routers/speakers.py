@@ -10,7 +10,7 @@ router = APIRouter(prefix="/speakers", tags=["speakers"])
 @router.get("", response_model=list[SpeakerResponse])
 def list_speakers(memory: SpeakerMemoryService = Depends(get_memory_service)):
     return [
-        SpeakerResponse(id=spk_id, name=name)
+        SpeakerResponse(id=spk_id, name=name, color_index=memory.get_color_index(spk_id) or 0)
         for spk_id in memory.known_speakers
         if (name := memory.get_name(spk_id)) is not None
     ]
