@@ -95,8 +95,11 @@ See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-uses-pe
 **Current:** "Start transcription" is always enabled; clicking without a file falls back to `testdata/output.wav`.  
 **Target:** disable the button until a valid file is selected; remove the hardcoded fallback.
 
+### ✅ Background transcription queue
+**Done.** Transcription no longer takes over the main panel. Jobs run in the background and are shown as cards in a queue section at the top of the sidebar. Multiple files can be queued while the user continues browsing or editing other transcripts. The backend already serialised jobs via `ThreadPoolExecutor(max_workers=1)`; the frontend now tracks them in `app._activeJobs`. On completion: toast + sidebar refresh. `alignment_model_missing` errors surface as a modal with inline download + retry (`alignment-modal.js`).
+
 ### ✅ Pipeline cancellation
-**Done.** Cancel button in `ProgressView` sends `DELETE /transcribe/{job_id}`; the API sets a `threading.Event` that raises `_JobCancelled` in the worker thread at the next `on_progress` checkpoint. WebSocket receives a `cancelled` event and the UI returns to `ImportView`.
+**Done.** Cancel button (`×`) on each sidebar job card sends `DELETE /transcribe/{job_id}`; the API sets a `threading.Event` that raises `_JobCancelled` in the worker thread at the next `on_progress` checkpoint. WebSocket receives a `cancelled` event and the card is removed.
 
 ---
 
