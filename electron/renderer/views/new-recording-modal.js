@@ -440,7 +440,7 @@ function renderNewRecordingModal({ onStart, onImport }) {
     const filePath = window.electronAPI.getFilePath(file)
     if (!filePath) return
     const title = titleInput.hasAttribute('data-default')
-      ? file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ')
+      ? file.name.replace(/\.[^.]+$/, '')
       : titleInput.value.trim() || null
     close()
     onImport({ filePath, title, model: modelValue, language: langValue })
