@@ -163,7 +163,7 @@ function renderLiveRecordingView(settings = {}) {
     const backBtn = document.createElement('button')
     backBtn.className = 'progress-view__cancel'
     backBtn.textContent = '← Back'
-    backBtn.addEventListener('click', () => app.showImport())
+    backBtn.addEventListener('click', () => app.showHome())
     wrap.appendChild(banner)
     wrap.appendChild(backBtn)
     root.appendChild(wrap)
@@ -342,7 +342,7 @@ function renderLiveRecordingView(settings = {}) {
       const backBtn = document.createElement('button')
       backBtn.className = 'progress-view__cancel'
       backBtn.textContent = '← Back'
-      backBtn.addEventListener('click', () => app.showImport())
+      backBtn.addEventListener('click', () => app.showHome())
       errView.appendChild(errBanner)
       errView.appendChild(backBtn)
       root.appendChild(errView)
@@ -422,7 +422,7 @@ function renderLiveRecordingView(settings = {}) {
     discardBtn.className = 'st-btn st-btn--ghost'
     discardBtn.style.cssText = 'height:36px;font-size:14px'
     discardBtn.textContent = 'Discard'
-    discardBtn.addEventListener('click', () => app.showImport())
+    discardBtn.addEventListener('click', () => app.showHome())
 
     const transcribeBtn = document.createElement('button')
     transcribeBtn.className = 'st-btn st-btn--primary'
