@@ -476,7 +476,7 @@ const app = {
     ]).then(([items, speakers]) => {
       this._allRecordings = items
       this._knownSpeakers = {}
-      speakers.forEach(s => { this._knownSpeakers[s.id] = s.name })
+      speakers.forEach(s => { this._knownSpeakers[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
       this._rerenderList()
       if (autoOpen) {
         if (items.length > 0) this.showEditor(items[0].id)
@@ -576,9 +576,9 @@ const app = {
           av.style.color = 'rgba(0,0,0,0.45)'
           av.textContent = '?'
         } else {
-          const p = speakerPalette(spkId)
+          const p = speakerPalette(spkId, this._knownSpeakers)
           av.style.background = p.color
-          av.textContent = speakerInitials(this._knownSpeakers[spkId] || spkId)
+          av.textContent = speakerInitials(this._knownSpeakers[spkId]?.name || spkId)
         }
         stack.appendChild(av)
       })
