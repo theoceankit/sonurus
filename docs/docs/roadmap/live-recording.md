@@ -8,7 +8,7 @@ Implementation notes for the live meeting recording feature.
 
 ## Overview
 
-The user selects **Live recording** on the main screen, optionally chooses audio sources, records, reviews, and submits to the existing transcription pipeline.
+The user clicks **+** in the sidebar, chooses audio sources in the New Recording modal, and starts recording. Recording runs **in the background** — the app remains fully navigable. A **Record button** with a live timer appears in the titlebar. Clicking it stops the recording and immediately starts transcription.
 
 **Architecture:** mic capture stays in the renderer (WebM via `MediaRecorder`); system audio capture goes through the Python `AudioCaptureService` backend. The two tracks are merged server-side with `ffmpeg amix`.
 
@@ -23,6 +23,7 @@ The user selects **Live recording** on the main screen, optionally chooses audio
 | Phase 3 — Live recording view (ready / recording / review states) | ✅ Done |
 | Phase 4 — Wire into existing UI | ✅ Done |
 | Phase 5 — System audio via backend (`AudioCaptureService`) | ✅ Done |
+| Phase 6 — Background recording UX (titlebar timer, no dedicated view) | ✅ Done |
 
 354 tests passing (11 audio capture tests + 343 existing).
 
@@ -86,7 +87,7 @@ No backend capture process is started on Windows; `POST /audio/capture/*` is not
 | `app/services/audio_capture_service.py` | Platform dispatch, ffmpeg merge |
 | `app/api/routers/audio_capture.py` | `/audio/capture/*` endpoints |
 | `native/macos/sonorus-capture/main.swift` | Swift SCK binary — build with `npm run build:capture` (requires Xcode Command Line Tools: `xcode-select --install`) |
-| `electron/renderer/views/live-recording-view.js` | Renderer: ready/recording/review states, VU meters |
+| `electron/renderer/app.js` | `_startLiveRecording()`, `_stopLiveRecording()`, `_liveSession` — background recording state |
 | `electron/renderer/views/new-recording-modal.js` | Source picker modal, fetches backend sources |
 | `electron/renderer/views/settings-view.js` | Audio device settings section |
 | `electron/main.js` | `save-recording` IPC, media permission handler, `SONORUS_CAPTURE_BIN` env |
