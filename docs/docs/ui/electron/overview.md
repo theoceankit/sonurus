@@ -65,7 +65,7 @@ electron/
       modal.css        — Modal overlay styles
     views/
       new-recording-modal.js  — Recording setup modal (source picker, model/language, toggles)
-      progress-view.js        — WebSocket transcription progress
+      alignment-modal.js      — Alignment model download + retry (shown on alignment_model_missing error)
       editor-view.js          — Transcript editor entry point
       settings-view.js        — Settings screen
       editor/                 — Editor sub-components
@@ -166,9 +166,41 @@ Recording runs entirely in the background — no dedicated recording view. The f
 | `captureJobId` only | `POST capture/stop {}` → returns `file_path` |
 | `recorder` only | Stop recorder → save blob → use temp path |
 
-On success: `POST /transcribe` → `app.showProgress()`. On error: toast; `_setRecordingActive(false)`.
+On success: `POST /transcribe` → `app._addJob()` — transcription runs in the background queue. On error: toast; `_setRecordingActive(false)`.
 
 Clicking **+** while a session is active shows a toast ("Recording is already in progress") instead of opening the modal.
+
+---
+
+## Background transcription queue
+
+Transcription runs entirely in the background — the main panel is never replaced by a progress view. The user can navigate freely (open other transcripts, change settings) while jobs run.
+
+**Flow:**
+
+1. File imported or recording stopped → `POST /transcribe` → `app._addJob(job_id, body)`
+2. A job card appears in the **sidebar queue section** (above the recordings list) showing title, spinner, and current step text
+3. Multiple jobs can be queued; the backend processes them serially (`ThreadPoolExecutor(max_workers=1)`)
+4. On completion: toast notification (`✓ filename`) + sidebar refreshes; no auto-navigation
+5. On `alignment_model_missing` error: `renderAlignmentModal()` opens as an overlay — user downloads the model and clicks Retry
+
+**Job states in the sidebar card:**
+
+| State | Icon | Status text |
+|---|---|---|
+| Queued (waiting for executor) | Empty circle | `Queued` |
+| Running | Spinning circle | Step text (`Loading models…`, `Diarizing…`, …) |
+| Error | Red `!` | Error message; `×` dismisses the card |
+
+**State in `app._activeJobs`** (`Map<jobId, job>`):
+
+```js
+{ jobId, title, status, ws, originalRequest, error }
+```
+
+`status` is the latest step string from the WebSocket. `error` is `null` while running; set to the error message string on failure.
+
+**Cancel:** clicking `×` on a running/queued card sends `DELETE /transcribe/{jobId}`. The backend sets the `threading.Event`; the WS receives `cancelled` and the card is removed.
 
 ---
 

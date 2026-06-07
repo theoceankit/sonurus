@@ -100,6 +100,10 @@ When `language` is `null` (auto-detect), the guard for alignment models cannot f
 WebSocket that streams pipeline progress. Connect immediately after `POST /transcribe`.
 
 ```json
+// Lifecycle events — sent before any progress
+{ "type": "queued" }    // job registered; executor has not started it yet
+{ "type": "started" }   // executor picked up the job; pipeline is now running
+
 // Progress events
 { "type": "progress", "step": "Loading models…" }
 { "type": "progress", "step": "Transcribing audio…" }
@@ -120,7 +124,7 @@ WebSocket that streams pipeline progress. Connect immediately after `POST /trans
 { "type": "heartbeat" }
 ```
 
-The server sends a heartbeat every 10 seconds so the connection stays alive during long model downloads.
+`queued` is emitted synchronously when the job is registered — before the executor starts it. When multiple jobs are submitted simultaneously, all receive `queued` immediately and each gets `started` in turn as the single-threaded executor picks them up. The server sends heartbeats every 10 seconds so the connection stays alive during long model loads.
 
 ### `DELETE /transcribe/{job_id}`
 
