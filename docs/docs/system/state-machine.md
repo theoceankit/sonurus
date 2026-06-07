@@ -10,25 +10,22 @@ Key state machines in the system — places where explicit states exist, transit
 
 ## 1. App Session
 
-The Electron app routes between views via the view router in `app.js`.
+The Electron app routes between views via the view router in `app.js`. Transcription jobs run in the background and never block navigation — there is no dedicated "Transcribing" view state.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
 
-    Idle --> Transcribing : file selected
     Idle --> Reviewing : sidebar recording clicked
-    Transcribing --> Reviewing : pipeline finished
-    Transcribing --> Idle : pipeline error
-    Reviewing --> Idle : Import audio file clicked
+    Reviewing --> Idle : back button
     Reviewing --> Reviewing : sidebar recording clicked
 ```
 
-**Idle** — `ImportView` is shown. No active transcript. Accepts file picker.
+**Idle** — Home screen is shown. No active transcript. Accepts file picker or new recording modal.
 
-**Transcribing** — `ProgressView` is shown. Pipeline runs via `POST /transcribe` API in a `ThreadPoolExecutor` thread. Progress is streamed over WebSocket. No user interaction with transcript is possible.
+**Reviewing** — `EditorView` is shown with a real `Transcript`. User can edit speakers and reassign speaker identity. Clicking any recording in the left sidebar loads it from the database and replaces the current editor. Available from both Idle and Reviewing.
 
-**Reviewing** — `EditorView` is shown with a real `Transcript`. User can edit speakers and reassign speaker identity. Clicking any recording in the left sidebar loads it from the database and replaces the current editor. This transition is available from both Idle and Reviewing.
+**Background queue (orthogonal to navigation state)** — Any number of transcription jobs can run concurrently with navigation. Jobs are tracked in `app._activeJobs` (`Map<jobId, job>`) and displayed as cards in the sidebar queue section above the recordings list. On completion a toast is shown and the sidebar refreshes. See [Electron UI → Background transcription queue](../ui/electron/overview.md#background-transcription-queue).
 
 ---
 
@@ -53,7 +50,7 @@ stateDiagram-v2
     Saving --> [*] : exception → error event
 ```
 
-Each step sends a progress message over WebSocket, displayed in `ProgressView`.
+Each step sends a progress message over WebSocket, displayed in the sidebar job card.
 
 | Step | Key calls |
 |---|---|
@@ -127,5 +124,5 @@ stateDiagram-v2
 ## Cross-Layer Notes
 
 - **Segment speaker transitions (Resolved → Overridden) only have a lasting effect while the Transcript is Fresh.** Once Stale, speaker reassignments update the DB record but do not update long-term memory.
-- **The App Session's Reviewing state is the only context in which Transcript and Segment state transitions can occur.** Transcribing is read-only from the user's perspective.
+- **The App Session's Reviewing state is the only context in which Transcript and Segment state transitions can occur.** Background transcription jobs do not affect the current editor state.
 - **resolve()** (the Raw → Resolved transition for all segments) runs exactly once — inside the pipeline, before the user ever sees the transcript.

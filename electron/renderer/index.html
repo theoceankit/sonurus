@@ -59,11 +59,11 @@
         </svg>
       </button>
 
-      <div class="tb-sep"></div>
+      <div class="tb-sep" id="tb-sep-record" style="display:none"></div>
 
-      <button class="tb-record" id="tb-record">
+      <button class="tb-record" id="tb-record" style="display:none">
         <span class="tb-rec-dot"></span>
-        Record
+        <span id="tb-record-label">Record</span>
       </button>
 
       <div class="tb-sep"></div>
@@ -118,6 +118,9 @@
         </div>
       </div>
 
+      <!-- Active transcription jobs -->
+      <div id="job-queue" style="display:none"></div>
+
       <!-- Recordings list -->
       <div id="recordings-list" class="sb-list quiet-scroll"></div>
 
@@ -134,7 +137,7 @@
   <script src="utils.js"></script>
   <script src="components.js"></script>
   <script src="data.js"></script>
-  <script src="views/progress-view.js"></script>
+  <script src="views/alignment-modal.js"></script>
   <script src="views/editor/tooltip.js"></script>
   <script src="views/editor/speaker-picker.js"></script>
   <script src="views/editor/segment-row.js"></script>
@@ -144,7 +147,6 @@
   <script src="views/editor/right-panel.js"></script>
   <script src="views/editor-view.js"></script>
   <script src="views/settings-view.js"></script>
-  <script src="views/live-recording-view.js"></script>
   <script src="views/new-recording-modal.js"></script>
   <script src="toast.js"></script>
   <script src="app.js"></script>

@@ -64,9 +64,8 @@ electron/
       views.css        — Toasts, misc shared view styles
       modal.css        — Modal overlay styles
     views/
-      new-recording-modal.js  — Recording setup modal
-      live-recording-view.js  — Active recording view
-      progress-view.js        — WebSocket transcription progress
+      new-recording-modal.js  — Recording setup modal (source picker, model/language, toggles)
+      alignment-modal.js      — Alignment model download + retry (shown on alignment_model_missing error)
       editor-view.js          — Transcript editor entry point
       settings-view.js        — Settings screen
       editor/                 — Editor sub-components
@@ -133,7 +132,13 @@ The audio element survives editor rebuilds (triggered by speaker rename, segment
 
 ## Live recording lifecycle
 
-`live-recording-view.js` manages four source modes and five internal phases:
+Recording runs entirely in the background — no dedicated recording view. The flow is:
+
+1. User clicks **+** → `new-recording-modal.js` opens (source picker, model/language)
+2. "Start recording" → modal closes; `app._startLiveRecording(settings)` runs
+3. The **Record button** appears in the titlebar with a live elapsed timer (`0:00`, `1:23`, …)
+4. User navigates freely while recording continues in the background
+5. Clicking the **Record button** → `app._stopLiveRecording()` → saves file → `POST /transcribe` → progress view
 
 **Source modes** (selected in `new-recording-modal.js`):
 
@@ -142,22 +147,60 @@ The audio element survives editor rebuilds (triggered by speaker rename, segment
 | `mic` | Browser `getUserMedia` mic stream only |
 | `system` | Backend `AudioCaptureService` (macOS/Linux) or WASAPI loopback (Windows) |
 | `both` | Mic + system audio merged in browser via `AudioContext` |
-| `backend` | Backend capture only — no browser `MediaRecorder` |
 
-**Phase transitions:**
+**State in `app._liveSession`** (null when idle):
 
+```js
+{ recorder, audioCtx, micStream, sysStream,
+  captureJobId, chunks, elapsed, timerInterval,
+  settings: { title, model, language } }
 ```
-starting → recording → saving → review → [transcribe → progress view]
-                              ↘ error
+
+`captureJobId` holds the backend job id from `POST /audio/capture/start`. Stop dispatches to `POST /audio/capture/stop/{captureJobId}`.
+
+**Stop cases handled by `_stopLiveRecording()`:**
+
+| Condition | Stop logic |
+|---|---|
+| `captureJobId && recorder` | Stop recorder → save mic blob → `POST capture/stop` with `mic_path` → merged `file_path` |
+| `captureJobId` only | `POST capture/stop {}` → returns `file_path` |
+| `recorder` only | Stop recorder → save blob → use temp path |
+
+On success: `POST /transcribe` → `app._addJob()` — transcription runs in the background queue. On error: toast; `_setRecordingActive(false)`.
+
+Clicking **+** while a session is active shows a toast ("Recording is already in progress") instead of opening the modal.
+
+---
+
+## Background transcription queue
+
+Transcription runs entirely in the background — the main panel is never replaced by a progress view. The user can navigate freely (open other transcripts, change settings) while jobs run.
+
+**Flow:**
+
+1. File imported or recording stopped → `POST /transcribe` → `app._addJob(job_id, body)`
+2. A job card appears in the **sidebar queue section** (above the recordings list) showing title, spinner, and current step text
+3. Multiple jobs can be queued; the backend processes them serially (`ThreadPoolExecutor(max_workers=1)`)
+4. On completion: toast notification (`✓ filename`) + sidebar refreshes; no auto-navigation
+5. On `alignment_model_missing` error: `renderAlignmentModal()` opens as an overlay — user downloads the model and clicks Retry
+
+**Job states in the sidebar card:**
+
+| State | Icon | Status text |
+|---|---|---|
+| Queued (waiting for executor) | Empty circle | `Queued` |
+| Running | Spinning circle | Step text (`Loading models…`, `Diarizing…`, …) |
+| Error | Red `!` | Error message; `×` dismisses the card |
+
+**State in `app._activeJobs`** (`Map<jobId, job>`):
+
+```js
+{ jobId, title, status, ws, originalRequest, error }
 ```
 
-- **starting** — brief phase while `getUserMedia` / `getDisplayMedia` permission is requested
-- **recording** — VU meters + elapsed timer active; `MediaRecorder` (if used) collecting chunks; `captureJobId` (if backend capture) is active
-- **saving** — blob uploaded or backend stop called; spinner shown
-- **review** — waveform + title input; user can start transcription or discard
-- **error** — shown on permission denial, upload failure, or null-recorder guard
+`status` is the latest step string from the WebSocket. `error` is `null` while running; set to the error message string on failure.
 
-`captureJobId` holds the backend job id from `POST /audio/capture/start`. If non-null, stop is dispatched to `POST /audio/capture/stop/{captureJobId}`.
+**Cancel:** clicking `×` on a running/queued card sends `DELETE /transcribe/{jobId}`. The backend sets the `threading.Event`; the WS receives `cancelled` and the card is removed.
 
 ---
 

@@ -32,6 +32,8 @@ const app = {
   _currentView: 'import',
   _inspectorVisible: true,
   _filter: 'all',
+  _liveSession: null,    // non-null while a background recording is active
+  _activeJobs: new Map(), // jobId → { jobId, title, status, ws, originalRequest, error }
 
   // ── Navigation ──────────────────────────────────────────────────────────────
 
@@ -60,12 +62,6 @@ const app = {
     this._setView(document.createElement('div'), false)
   },
 
-  showProgress(jobId, originalRequest = null) {
-    this._currentView = 'progress'
-    document.getElementById('btn-import').classList.remove('sb-new-btn--active')
-    this._setView(renderProgressView(jobId, originalRequest), false)
-  },
-
   showSettings() {
     this._currentView = 'settings'
     this._activeTranscriptId = null
@@ -74,17 +70,13 @@ const app = {
     this._setView(renderSettingsView(), false)
   },
 
-  showLiveRecording(settings = {}) {
-    this._currentView = 'live'
-    this._activeTranscriptId = null
-    document.getElementById('btn-import').classList.remove('sb-new-btn--active')
-    this._rerenderList()
-    this._setView(renderLiveRecordingView(settings), false)
-  },
-
   openNewRecordingModal() {
+    if (this._liveSession) {
+      window.showToast?.('Recording is already in progress')
+      return
+    }
     const overlay = renderNewRecordingModal({
-      onStart: settings => this.showLiveRecording(settings),
+      onStart: settings => this._startLiveRecording(settings),
       onImport: ({ filePath, title, model, language }) => {
         const body = {
           audio_path: filePath,
@@ -98,7 +90,7 @@ const app = {
           body: JSON.stringify(body),
         })
           .then(r => { if (!r.ok) throw new Error(`Server error ${r.status}`); return r.json() })
-          .then(({ job_id }) => this.showProgress(job_id, body))
+          .then(({ job_id }) => this._addJob(job_id, body))
           .catch(err => window.showToast?.(`Could not start: ${err.message}`))
       },
     })
@@ -121,6 +113,349 @@ const app = {
   },
 
   invalidateSidebar() { this._sidebarDirty = true },
+
+  // ── Background recording ────────────────────────────────────────────────────
+
+  _setRecordingActive(active) {
+    const btn = document.getElementById('tb-record')
+    const sep = document.getElementById('tb-sep-record')
+    if (!btn || !sep) return
+    btn.style.display  = active ? '' : 'none'
+    sep.style.display  = active ? '' : 'none'
+    if (!active) document.getElementById('tb-record-label').textContent = 'Record'
+  },
+
+  async _startLiveRecording(settings) {
+    const {
+      audioSource    = 'both',
+      micDeviceId    = null,
+      systemDeviceId = null,
+      title          = '',
+      model          = appSettings.transcribeModel || 'large-v3',
+      language       = appSettings.transcribeLang  || 'auto',
+    } = settings
+
+    this._setRecordingActive(true)
+    const labelEl = document.getElementById('tb-record-label')
+    if (labelEl) labelEl.textContent = 'Starting…'
+    const btn = document.getElementById('tb-record')
+    if (btn) btn.disabled = true
+
+    let recorder = null, audioCtx = null
+    let micStream = null, sysStream = null
+    let captureJobId = null, chunks = []
+
+    try {
+      const platform = await window.electronAPI.getPlatform()
+
+      if (audioSource !== 'system') {
+        const constraint = micDeviceId ? { deviceId: { exact: micDeviceId } } : true
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: constraint })
+      }
+
+      if (audioSource !== 'mic') {
+        const isBackendCapture = platform !== 'win32'
+          && systemDeviceId
+          && systemDeviceId !== '__default__'
+          && systemDeviceId !== '__desktop__'
+
+        if (isBackendCapture) {
+          const resp = await fetch(`${API_BASE}/audio/capture/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source_id: systemDeviceId }),
+          })
+          if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}))
+            const msg = data.detail || 'Failed to start system audio capture.'
+            const isPerm = /permission|denied|SCStream|TCC|Screen Recording/i.test(msg)
+            throw new Error(isPerm
+              ? 'Screen Recording access is required. Open System Settings → Privacy & Security → Screen Recording and enable Sonorus, then try again.'
+              : msg)
+          }
+          captureJobId = (await resp.json()).job_id
+        } else if (systemDeviceId === '__desktop__') {
+          const displayStream = await navigator.mediaDevices.getDisplayMedia({
+            audio: true, video: { width: 1, height: 1 },
+          })
+          displayStream.getVideoTracks().forEach(t => { t.stop(); displayStream.removeTrack(t) })
+          if (displayStream.getAudioTracks().length === 0)
+            throw new Error('System audio not captured: the screen share returned no audio.')
+          sysStream = displayStream
+        }
+      }
+
+      if (!micStream && !sysStream && !captureJobId)
+        throw new Error('No audio source available. Check device permissions.')
+
+      audioCtx = new AudioContext()
+      const dest = audioCtx.createMediaStreamDestination()
+      if (micStream) { const s = audioCtx.createMediaStreamSource(micStream); s.connect(dest) }
+      if (sysStream) { const s = audioCtx.createMediaStreamSource(sysStream); s.connect(dest) }
+
+      if (micStream || sysStream) {
+        chunks = []
+        recorder = new MediaRecorder(dest.stream, { mimeType: 'audio/webm;codecs=opus' })
+        recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
+        recorder.start(1000)
+      }
+    } catch (err) {
+      micStream?.getTracks().forEach(t => t.stop())
+      sysStream?.getTracks().forEach(t => t.stop())
+      audioCtx?.close()
+      if (captureJobId) {
+        fetch(`${API_BASE}/audio/capture/stop/${captureJobId}`, { method: 'POST' }).catch(() => {})
+      }
+      this._setRecordingActive(false)
+      window.showToast?.(`Could not start recording: ${err.message}`)
+      return
+    }
+
+    if (btn) btn.disabled = false
+
+    let elapsed = 0
+    const timerInterval = setInterval(() => {
+      elapsed++
+      const m = Math.floor(elapsed / 60)
+      const s = String(elapsed % 60).padStart(2, '0')
+      const el = document.getElementById('tb-record-label')
+      if (el) el.textContent = `${m}:${s}`
+    }, 1000)
+    if (labelEl) labelEl.textContent = '0:00'
+
+    this._liveSession = {
+      recorder, audioCtx, micStream, sysStream,
+      captureJobId, chunks, elapsed, timerInterval,
+      settings: { title, model, language },
+    }
+  },
+
+  async _stopLiveRecording() {
+    const session = this._liveSession
+    if (!session) return
+    this._liveSession = null
+
+    clearInterval(session.timerInterval)
+    const btn = document.getElementById('tb-record')
+    const labelEl = document.getElementById('tb-record-label')
+    if (btn) btn.disabled = true
+    if (labelEl) labelEl.textContent = 'Stopping…'
+
+    const { recorder, audioCtx, micStream, sysStream, captureJobId, chunks, settings } = session
+    const elapsed = session.elapsed
+
+    const doTranscribe = async filePath => {
+      const body = {
+        audio_path: filePath,
+        whisper_model: settings.model,
+        language: settings.language === 'auto' ? null : settings.language,
+        title: settings.title || null,
+      }
+      try {
+        const r = await fetch(`${API_BASE}/transcribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        if (!r.ok) throw new Error(`Server error ${r.status}`)
+        const { job_id } = await r.json()
+        this._setRecordingActive(false)
+        this._addJob(job_id, body)
+      } catch (err) {
+        this._setRecordingActive(false)
+        window.showToast?.(`Could not start transcription: ${err.message}`)
+      }
+    }
+
+    const saveBrowserChunks = async () => {
+      const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' })
+      return window.electronAPI.saveRecording(await blob.arrayBuffer(), 'webm')
+    }
+
+    try {
+      if (captureJobId && recorder) {
+        await new Promise((resolve, reject) => {
+          recorder.onstop = async () => {
+            try {
+              const micPath = await saveBrowserChunks()
+              micStream?.getTracks().forEach(t => t.stop())
+              audioCtx?.close()
+              const r = await fetch(`${API_BASE}/audio/capture/stop/${captureJobId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mic_path: micPath }),
+              })
+              if (!r.ok) {
+                const data = await r.json().catch(() => ({}))
+                throw new Error(data.detail || 'Failed to stop audio capture.')
+              }
+              resolve((await r.json()).file_path)
+            } catch (err) { reject(err) }
+          }
+          recorder.stop()
+        }).then(filePath => doTranscribe(filePath))
+
+      } else if (captureJobId) {
+        sysStream?.getTracks().forEach(t => t.stop())
+        audioCtx?.close()
+        const r = await fetch(`${API_BASE}/audio/capture/stop/${captureJobId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        })
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}))
+          throw new Error(data.detail || 'Failed to stop audio capture.')
+        }
+        await doTranscribe((await r.json()).file_path)
+
+      } else {
+        await new Promise((resolve, reject) => {
+          recorder.onstop = async () => {
+            try {
+              micStream?.getTracks().forEach(t => t.stop())
+              sysStream?.getTracks().forEach(t => t.stop())
+              audioCtx?.close()
+              resolve(await saveBrowserChunks())
+            } catch (err) { reject(err) }
+          }
+          recorder.stop()
+        }).then(filePath => doTranscribe(filePath))
+      }
+    } catch (err) {
+      this._setRecordingActive(false)
+      window.showToast?.(`Recording error: ${err.message}`)
+    }
+  },
+
+  // ── Background transcription queue ─────────────────────────────────────────
+
+  _addJob(jobId, body) {
+    const fileName = (body.audio_path || '').split('/').pop() || 'Recording'
+    const title = body.title || fileName
+    const job = { jobId, title, status: 'queued', ws: null, originalRequest: body, error: null }
+    this._activeJobs.set(jobId, job)
+    this._renderJobQueue()
+
+    const ws = new WebSocket(`${WS_BASE}/ws/${jobId}`)
+    job.ws = ws
+
+    ws.onmessage = ({ data }) => {
+      const event = JSON.parse(data)
+      if (event.type === 'heartbeat') return
+
+      if (event.type === 'queued') {
+        job.status = 'queued'
+      } else if (event.type === 'started') {
+        job.status = 'Loading models…'
+      } else if (event.type === 'progress') {
+        job.status = event.step
+      } else if (event.type === 'done') {
+        ws.close()
+        this._activeJobs.delete(jobId)
+        this._renderJobQueue()
+        this.invalidateSidebar()
+        this._loadSidebar()
+        window.showToast?.(`✓ ${job.title}`)
+        return
+      } else if (event.type === 'cancelled') {
+        ws.close()
+        this._activeJobs.delete(jobId)
+        this._renderJobQueue()
+        return
+      } else if (event.type === 'error') {
+        ws.close()
+        if (event.error_code === 'alignment_model_missing') {
+          this._activeJobs.delete(jobId)
+          this._renderJobQueue()
+          document.body.appendChild(renderAlignmentModal(event.language, body))
+          return
+        }
+        job.error = event.message || 'Transcription failed'
+      }
+
+      this._renderJobQueue()
+    }
+
+    ws.onerror = () => {
+      job.error = 'Connection lost'
+      this._renderJobQueue()
+    }
+  },
+
+  _renderJobQueue() {
+    const container = document.getElementById('job-queue')
+    if (!container) return
+    container.innerHTML = ''
+
+    if (this._activeJobs.size === 0) {
+      container.style.display = 'none'
+      return
+    }
+
+    container.style.display = ''
+    for (const job of this._activeJobs.values()) {
+      container.appendChild(this._makeJobItem(job))
+    }
+  },
+
+  _makeJobItem(job) {
+    const isError  = job.error !== null
+    const isQueued = !isError && job.status === 'queued'
+
+    const el = document.createElement('div')
+    el.className = 'job-item' + (isError ? ' job-item--error' : '')
+
+    const header = document.createElement('div')
+    header.className = 'job-item__header'
+
+    const icon = document.createElement('div')
+    icon.className = 'job-item__icon'
+    if (isError) {
+      icon.classList.add('job-item__icon--error')
+      icon.textContent = '!'
+    } else if (isQueued) {
+      icon.classList.add('job-item__icon--queued')
+    } else {
+      icon.classList.add('job-item__icon--spinner')
+    }
+
+    const titleEl = document.createElement('span')
+    titleEl.className = 'job-item__title'
+    titleEl.textContent = job.title
+
+    const btn = document.createElement('button')
+    btn.className = 'job-item__cancel'
+    btn.setAttribute('aria-label', isError ? 'Dismiss' : 'Cancel')
+    btn.textContent = '×'
+
+    header.appendChild(icon)
+    header.appendChild(titleEl)
+    header.appendChild(btn)
+
+    const statusEl = document.createElement('div')
+    statusEl.className = 'job-item__status'
+    statusEl.textContent = isError
+      ? job.error
+      : isQueued ? 'Queued' : (job.status || '…')
+
+    el.appendChild(header)
+    el.appendChild(statusEl)
+
+    if (isError) {
+      btn.addEventListener('click', () => {
+        this._activeJobs.delete(job.jobId)
+        this._renderJobQueue()
+      })
+    } else {
+      btn.addEventListener('click', () => {
+        btn.disabled = true
+        fetch(`${API_BASE}/transcribe/${job.jobId}`, { method: 'DELETE' }).catch(() => {})
+      })
+    }
+
+    return el
+  },
 
   // ── Titlebar actions ────────────────────────────────────────────────────────
 
@@ -312,7 +647,7 @@ const app = {
 
     // ── Titlebar — record ──────────────────────────────────────────────────────
     document.getElementById('tb-record')
-      .addEventListener('click', () => this.openNewRecordingModal())
+      .addEventListener('click', () => this._stopLiveRecording())
 
     // ── Titlebar — panels ──────────────────────────────────────────────────────
     document.getElementById('tb-inspector-toggle')
