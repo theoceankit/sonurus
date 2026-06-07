@@ -53,7 +53,7 @@ const app = {
 
   },
 
-  showImport() {
+  showHome() {
     this._currentView = 'import'
     this._activeTranscriptId = null
     this._rerenderList()
@@ -145,9 +145,9 @@ const app = {
       this._rerenderList()
       if (autoOpen) {
         if (items.length > 0) this.showEditor(items[0].id)
-        else { this.showImport(); this.openNewRecordingModal() }
+        else { this.showHome(); this.openNewRecordingModal() }
       }
-    }).catch(() => { if (autoOpen) { this.showImport(); this.openNewRecordingModal() } })
+    }).catch(() => { if (autoOpen) { this.showHome(); this.openNewRecordingModal() } })
   },
 
   _applyFilter(items) {
@@ -329,7 +329,7 @@ const app = {
 
     // ── Titlebar — navigation ──────────────────────────────────────────────────
     document.getElementById('tb-back')
-      .addEventListener('click', () => { if (this._currentView !== 'import') this.showImport() })
+      .addEventListener('click', () => { if (this._currentView !== 'import') this.showHome() })
 
     // ── Titlebar — export / share ──────────────────────────────────────────────
     const exportBtn = document.getElementById('tb-export')
@@ -354,10 +354,6 @@ const app = {
     shareBtn.addEventListener('click', () => window.showToast?.('Share is not available yet'))
 
 
-
-    // ── Titlebar — search ──────────────────────────────────────────────────────
-    document.getElementById('tb-search-btn')
-      .addEventListener('click', () => document.getElementById('sb-search-input')?.focus())
 
     // ── Titlebar — record ──────────────────────────────────────────────────────
     document.getElementById('tb-record')
