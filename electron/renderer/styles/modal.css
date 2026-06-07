@@ -304,6 +304,50 @@
   pointer-events: none;
 }
 
+/* ── Alignment Modal ────────────────────────────────────────────────────────── */
+.am-modal {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.22), 0 0 0 0.5px rgba(0,0,0,0.08);
+  width: 380px;
+  max-width: calc(100vw - 48px);
+  padding: 22px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: nr-slide-in 0.15s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.am-modal__title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.am-modal__desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+}
+.am-modal__desc strong { color: var(--ink); font-weight: 600; }
+.am-modal__size { opacity: 0.55; font-size: 12px; }
+
+.am-modal__pct {
+  font-size: 12px;
+  color: var(--ink-dim);
+  text-align: center;
+  font-family: var(--mono);
+}
+
+.am-modal__buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+/* ── nr-modal-footer ─────────────────────────────────────────────────────────── */
 .nr-modal-footer {
   display: flex;
   align-items: center;
