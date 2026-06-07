@@ -1,27 +1,4 @@
-/* ── Progress view ─────────────────────────────────────────────────────────── */
-.progress-view {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 21px;
-  padding: 42px;
-}
-
-.progress-view__title { font-size: 18px; font-weight: 600; }
-.progress-view__step  { font-size: 13.5px; color: var(--ink-dim); min-height: 19px; }
-.progress-view__cancel {
-  font-size: 13px;
-  color: var(--ink-dim);
-  padding: 6px 16px;
-  border-radius: 8px;
-  transition: background 0.15s, color 0.15s;
-  margin-top: 4px;
-}
-.progress-view__cancel:hover:not(:disabled) { background: var(--border); color: var(--ink); }
-.progress-view__cancel:disabled { opacity: 0.45; cursor: default; }
-
+/* ── Progress bar (used in alignment modal download) ────────────────────────── */
 .progress-bar-track {
   width: 100%;
   max-width: 378px;

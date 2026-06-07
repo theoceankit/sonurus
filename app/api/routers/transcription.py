@@ -76,6 +76,7 @@ async def start_transcribe(
     cancel_event = threading.Event()
     _jobs[job_id] = queue
     _cancel_events[job_id] = cancel_event
+    queue.put_nowait({"type": "queued"})
 
     loop = asyncio.get_running_loop()
 
@@ -89,6 +90,8 @@ async def start_transcribe(
         try:
             if not _VERBOSE:
                 suppress_ml_noise("thread")
+
+            _emit({"type": "started"})
 
             def on_progress(step: str):
                 if cancel_event.is_set():

@@ -32,7 +32,8 @@ const app = {
   _currentView: 'import',
   _inspectorVisible: true,
   _filter: 'all',
-  _liveSession: null,   // non-null while a background recording is active
+  _liveSession: null,    // non-null while a background recording is active
+  _activeJobs: new Map(), // jobId → { jobId, title, status, ws, originalRequest, error }
 
   // ── Navigation ──────────────────────────────────────────────────────────────
 
@@ -59,12 +60,6 @@ const app = {
     this._activeTranscriptId = null
     this._rerenderList()
     this._setView(document.createElement('div'), false)
-  },
-
-  showProgress(jobId, originalRequest = null) {
-    this._currentView = 'progress'
-    document.getElementById('btn-import').classList.remove('sb-new-btn--active')
-    this._setView(renderProgressView(jobId, originalRequest), false)
   },
 
   showSettings() {
@@ -95,7 +90,7 @@ const app = {
           body: JSON.stringify(body),
         })
           .then(r => { if (!r.ok) throw new Error(`Server error ${r.status}`); return r.json() })
-          .then(({ job_id }) => this.showProgress(job_id, body))
+          .then(({ job_id }) => this._addJob(job_id, body))
           .catch(err => window.showToast?.(`Could not start: ${err.message}`))
       },
     })
@@ -265,7 +260,7 @@ const app = {
         if (!r.ok) throw new Error(`Server error ${r.status}`)
         const { job_id } = await r.json()
         this._setRecordingActive(false)
-        this.showProgress(job_id, body)
+        this._addJob(job_id, body)
       } catch (err) {
         this._setRecordingActive(false)
         window.showToast?.(`Could not start transcription: ${err.message}`)
@@ -331,6 +326,135 @@ const app = {
       this._setRecordingActive(false)
       window.showToast?.(`Recording error: ${err.message}`)
     }
+  },
+
+  // ── Background transcription queue ─────────────────────────────────────────
+
+  _addJob(jobId, body) {
+    const fileName = (body.audio_path || '').split('/').pop() || 'Recording'
+    const title = body.title || fileName
+    const job = { jobId, title, status: 'queued', ws: null, originalRequest: body, error: null }
+    this._activeJobs.set(jobId, job)
+    this._renderJobQueue()
+
+    const ws = new WebSocket(`${WS_BASE}/ws/${jobId}`)
+    job.ws = ws
+
+    ws.onmessage = ({ data }) => {
+      const event = JSON.parse(data)
+      if (event.type === 'heartbeat') return
+
+      if (event.type === 'queued') {
+        job.status = 'queued'
+      } else if (event.type === 'started') {
+        job.status = 'Loading models…'
+      } else if (event.type === 'progress') {
+        job.status = event.step
+      } else if (event.type === 'done') {
+        ws.close()
+        this._activeJobs.delete(jobId)
+        this._renderJobQueue()
+        this.invalidateSidebar()
+        this._loadSidebar()
+        window.showToast?.(`✓ ${job.title}`)
+        return
+      } else if (event.type === 'cancelled') {
+        ws.close()
+        this._activeJobs.delete(jobId)
+        this._renderJobQueue()
+        return
+      } else if (event.type === 'error') {
+        ws.close()
+        if (event.error_code === 'alignment_model_missing') {
+          this._activeJobs.delete(jobId)
+          this._renderJobQueue()
+          document.body.appendChild(renderAlignmentModal(event.language, body))
+          return
+        }
+        job.error = event.message || 'Transcription failed'
+      }
+
+      this._renderJobQueue()
+    }
+
+    ws.onerror = () => {
+      job.error = 'Connection lost'
+      this._renderJobQueue()
+    }
+  },
+
+  _renderJobQueue() {
+    const container = document.getElementById('job-queue')
+    if (!container) return
+    container.innerHTML = ''
+
+    if (this._activeJobs.size === 0) {
+      container.style.display = 'none'
+      return
+    }
+
+    container.style.display = ''
+    for (const job of this._activeJobs.values()) {
+      container.appendChild(this._makeJobItem(job))
+    }
+  },
+
+  _makeJobItem(job) {
+    const isError  = job.error !== null
+    const isQueued = !isError && job.status === 'queued'
+
+    const el = document.createElement('div')
+    el.className = 'job-item' + (isError ? ' job-item--error' : '')
+
+    const header = document.createElement('div')
+    header.className = 'job-item__header'
+
+    const icon = document.createElement('div')
+    icon.className = 'job-item__icon'
+    if (isError) {
+      icon.classList.add('job-item__icon--error')
+      icon.textContent = '!'
+    } else if (isQueued) {
+      icon.classList.add('job-item__icon--queued')
+    } else {
+      icon.classList.add('job-item__icon--spinner')
+    }
+
+    const titleEl = document.createElement('span')
+    titleEl.className = 'job-item__title'
+    titleEl.textContent = job.title
+
+    const btn = document.createElement('button')
+    btn.className = 'job-item__cancel'
+    btn.setAttribute('aria-label', isError ? 'Dismiss' : 'Cancel')
+    btn.textContent = '×'
+
+    header.appendChild(icon)
+    header.appendChild(titleEl)
+    header.appendChild(btn)
+
+    const statusEl = document.createElement('div')
+    statusEl.className = 'job-item__status'
+    statusEl.textContent = isError
+      ? job.error
+      : isQueued ? 'Queued' : (job.status || '…')
+
+    el.appendChild(header)
+    el.appendChild(statusEl)
+
+    if (isError) {
+      btn.addEventListener('click', () => {
+        this._activeJobs.delete(job.jobId)
+        this._renderJobQueue()
+      })
+    } else {
+      btn.addEventListener('click', () => {
+        btn.disabled = true
+        fetch(`${API_BASE}/transcribe/${job.jobId}`, { method: 'DELETE' }).catch(() => {})
+      })
+    }
+
+    return el
   },
 
   // ── Titlebar actions ────────────────────────────────────────────────────────

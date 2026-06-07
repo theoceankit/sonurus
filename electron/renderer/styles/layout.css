@@ -380,3 +380,106 @@
 /* ── Sidebar footer ────────────────────────────────────────────────────────── */
 
 
+/* ── Job queue (active transcriptions) ─────────────────────────────────────── */
+#job-queue {
+  flex-shrink: 0;
+  padding: 6px 8px 2px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.job-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 8px 9px 10px;
+  border-radius: 8px;
+  border: 0.5px solid var(--border);
+  background: var(--bg);
+  margin-bottom: 5px;
+}
+
+.job-item__header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.job-item__icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.job-item__icon--spinner {
+  border: 1.5px solid rgba(10,132,255,0.25);
+  border-top-color: var(--accent);
+  animation: job-spin 0.7s linear infinite;
+}
+
+.job-item__icon--queued {
+  border: 1.5px solid var(--border-md);
+}
+
+.job-item__icon--error {
+  background: var(--red-bg);
+  color: var(--red-dark);
+  border: 0.5px solid var(--red-bd);
+}
+
+@keyframes job-spin {
+  to { transform: rotate(360deg); }
+}
+
+.job-item__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.job-item__cancel {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.08s, color 0.08s;
+}
+.job-item__cancel:hover:not(:disabled) { background: rgba(0,0,0,0.07); color: var(--ink); }
+.job-item__cancel:disabled { opacity: 0.35; cursor: default; }
+
+.job-item__status {
+  font-size: 11px;
+  color: var(--ink-dim);
+  padding-left: 21px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.job-item--error {
+  border-color: var(--red-bd);
+  background: var(--red-bg);
+}
+.job-item--error .job-item__title  { color: var(--red-dark); }
+.job-item--error .job-item__status { color: var(--red-dark); opacity: 0.7; }
+
