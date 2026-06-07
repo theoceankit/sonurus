@@ -104,14 +104,14 @@ class TranscriptStorageService:
         """Load a full Transcript from DB by id."""
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT audio_file, language, status FROM transcriptions WHERE id = ?",
+                "SELECT audio_file, language, status, title FROM transcriptions WHERE id = ?",
                 (db_id,),
             ).fetchone()
 
             if not row:
                 raise ValueError(f"Transcription {db_id} not found")
 
-            audio_file, language, status = row
+            audio_file, language, status, title_db = row
             log.info(f"SELECT transcriptions id={db_id}")
 
             seg_rows = conn.execute(
@@ -138,6 +138,7 @@ class TranscriptStorageService:
             audio_path=audio_file,
             language=language or "",
             status=status or "draft",
+            title=title_db,
             db_id=db_id,
         )
 
