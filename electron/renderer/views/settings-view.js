@@ -1005,5 +1005,6 @@ function renderSettingsView() {
   })
 
   root.appendChild(content)
+  root._cleanup = () => Object.values(state.activeDownload || {}).forEach(d => d.ws?.close())
   return root
 }

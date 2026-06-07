@@ -153,7 +153,6 @@ const app = {
   _applyFilter(items) {
     if (this._filter === 'recordings') return items.filter(r => r.source !== 'note')
     if (this._filter === 'notes')      return items.filter(r => r.source === 'note')
-    if (this._filter === 'marked')     return items.filter(r => r.bookmarked)
     return items
   },
 
@@ -183,17 +182,7 @@ const app = {
       return
     }
 
-    let lastSection = null
-    items.forEach(item => {
-      if (item.section !== lastSection) {
-        lastSection = item.section
-        const lbl = document.createElement('div')
-        lbl.className = 'sb-group-label'
-        lbl.textContent = item.section
-        list.appendChild(lbl)
-      }
-      list.appendChild(this._makeRecordingItem(item))
-    })
+    items.forEach(item => list.appendChild(this._makeRecordingItem(item)))
   },
 
   _makeRecordingItem(item) {
@@ -285,9 +274,10 @@ const app = {
     document.body.appendChild(_toastStack)
 
     window.showToast = function(text, opts = {}) {
-      const { actionLabel, action, duration = 3200 } = opts
+      const tone = typeof opts === 'string' ? opts : opts.tone
+      const { actionLabel, action, duration = 3200 } = typeof opts === 'string' ? {} : opts
       const toast = document.createElement('div')
-      toast.className = 'toast'
+      toast.className = 'toast' + (tone === 'error' ? ' toast--error' : '')
 
       const msg = document.createElement('span')
       msg.className = 'toast-text'

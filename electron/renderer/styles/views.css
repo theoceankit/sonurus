@@ -165,6 +165,7 @@
 }
 .toast--visible { opacity: 1; transform: translateY(0); }
 .toast--out     { opacity: 0; transform: translateY(4px); }
+.toast--error   { background: #C0392B; }
 
 .toast-text   { flex: 1; min-width: 0; }
 .toast-action {
