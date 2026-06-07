@@ -122,7 +122,8 @@ function renderEditorView(transcriptId, meta = null) {
     const titleRow = document.createElement('div')
     titleRow.className = 'focus-title-row'
 
-    const titleText = meta?.title
+    const titleText = transcript.title
+      || meta?.title
       || transcript.audio_path.split(/[\\/]/).pop().replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ')
     const title = document.createElement('h1')
     title.className = 'focus-title'

@@ -46,6 +46,7 @@ def get_transcript(
         audio_path=t.audio_path,
         language=t.language,
         status=t.status,
+        title=t.title,
         segments=[
             SegmentResponse(
                 start=s.start,
