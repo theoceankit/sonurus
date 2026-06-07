@@ -236,6 +236,7 @@ Full transcript with segments.
   "audio_path": "files/team_standup.wav",
   "language": "en",
   "status": "draft",
+  "title": "team_standup",
   "segments": [
     {
       "start": 0.0, "end": 4.2, "text": "Good morning everyone.",
