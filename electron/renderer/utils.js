@@ -11,14 +11,9 @@ const SPEAKER_PALETTE = [
   { color: '#7B6DB5', bg: '#EBE9F4' },
 ]
 
-function speakerColorIndex(spkId) {
-  let h = 0
-  for (let i = 0; i < spkId.length; i++) h = (Math.imul(31, h) + spkId.charCodeAt(i)) | 0
-  return Math.abs(h) % SPEAKER_PALETTE.length
-}
-
-function speakerPalette(spkId) {
-  return SPEAKER_PALETTE[speakerColorIndex(spkId)]
+function speakerPalette(spkId, knownMap = {}) {
+  const idx = (knownMap[spkId]?.colorIndex ?? 0) % SPEAKER_PALETTE.length
+  return SPEAKER_PALETTE[idx]
 }
 
 function speakerInitials(name) {
@@ -57,7 +52,7 @@ function makeAvatar(spkId, displayName, size = 24, knownMap = null) {
     el.classList.add('spk-avatar--unknown')
     el.textContent = '?'
   } else {
-    const p = speakerPalette(spkId)
+    const p = speakerPalette(spkId, knownMap)
     el.style.background = p.color
     el.textContent = speakerInitials(displayName)
   }

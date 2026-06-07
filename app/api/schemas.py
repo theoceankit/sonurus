@@ -32,6 +32,7 @@ class TranscriptResponse(BaseModel):
 class SpeakerResponse(BaseModel):
     id: str
     name: str
+    color_index: int
 
 
 class JobStarted(BaseModel):

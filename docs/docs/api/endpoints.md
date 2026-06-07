@@ -315,9 +315,15 @@ Returns only **recognized** speakers — those with a display name in `speaker_n
 
 ```json
 [
-  { "id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca", "name": "Alice" }
+  {
+    "id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca",
+    "name": "Alice",
+    "color_index": 2
+  }
 ]
 ```
+
+`color_index` is an index (0–4) into the fixed 5-entry palette in `utils.js`. Assigned once when the speaker is first saved, using the least-used palette slot to minimize collisions. Stored in `speaker_meta` (schema v3).
 
 ### `POST /speakers/{id}/rename`
 
@@ -353,4 +359,4 @@ app.dependency_overrides[get_storage_service] = lambda: TranscriptStorageService
 app.dependency_overrides[get_memory_service]  = lambda: SpeakerMemoryService(db_path=str(tmp / "mem.db"))
 ```
 
-See `tests/` for the full test suite (354 tests total).
+See `tests/` for the full test suite (379 tests total).
