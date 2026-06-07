@@ -37,6 +37,7 @@ const app = {
 
   _setView(el, editorMode = false) {
     const panel = document.getElementById('main-panel')
+    panel.firstElementChild?._cleanup?.()
     panel.innerHTML = ''
     panel.classList.toggle('main-panel--editor', editorMode)
     panel.appendChild(el)
@@ -52,7 +53,7 @@ const app = {
 
   },
 
-  showImport() {
+  showHome() {
     this._currentView = 'import'
     this._activeTranscriptId = null
     this._rerenderList()
@@ -144,15 +145,14 @@ const app = {
       this._rerenderList()
       if (autoOpen) {
         if (items.length > 0) this.showEditor(items[0].id)
-        else { this.showImport(); this.openNewRecordingModal() }
+        else { this.showHome(); this.openNewRecordingModal() }
       }
-    }).catch(() => { if (autoOpen) { this.showImport(); this.openNewRecordingModal() } })
+    }).catch(() => { if (autoOpen) { this.showHome(); this.openNewRecordingModal() } })
   },
 
   _applyFilter(items) {
     if (this._filter === 'recordings') return items.filter(r => r.source !== 'note')
     if (this._filter === 'notes')      return items.filter(r => r.source === 'note')
-    if (this._filter === 'marked')     return items.filter(r => r.bookmarked)
     return items
   },
 
@@ -182,17 +182,7 @@ const app = {
       return
     }
 
-    let lastSection = null
-    items.forEach(item => {
-      if (item.section !== lastSection) {
-        lastSection = item.section
-        const lbl = document.createElement('div')
-        lbl.className = 'sb-group-label'
-        lbl.textContent = item.section
-        list.appendChild(lbl)
-      }
-      list.appendChild(this._makeRecordingItem(item))
-    })
+    items.forEach(item => list.appendChild(this._makeRecordingItem(item)))
   },
 
   _makeRecordingItem(item) {
@@ -278,50 +268,6 @@ const app = {
   init() {
     loadSettings().then(() => this._loadSidebar({ autoOpen: true }))
 
-    // ── Toast system ───────────────────────────────────────────────────────────
-    const _toastStack = document.createElement('div')
-    _toastStack.id = 'toast-stack'
-    document.body.appendChild(_toastStack)
-
-    window.showToast = function(text, opts = {}) {
-      const { actionLabel, action, duration = 3200 } = opts
-      const toast = document.createElement('div')
-      toast.className = 'toast'
-
-      const msg = document.createElement('span')
-      msg.className = 'toast-text'
-      msg.textContent = text
-      toast.appendChild(msg)
-
-      if (actionLabel) {
-        const btn = document.createElement('button')
-        btn.className = 'toast-action'
-        btn.textContent = actionLabel
-        btn.addEventListener('click', () => { action?.(); dismiss() })
-        toast.appendChild(btn)
-      }
-
-      const closeBtn = document.createElement('button')
-      closeBtn.className = 'toast-close'
-      closeBtn.textContent = '✕'
-      closeBtn.addEventListener('click', dismiss)
-      toast.appendChild(closeBtn)
-
-      _toastStack.appendChild(toast)
-      requestAnimationFrame(() => toast.classList.add('toast--visible'))
-
-      let timer = setTimeout(dismiss, duration)
-
-      function dismiss() {
-        clearTimeout(timer)
-        toast.classList.remove('toast--visible')
-        toast.classList.add('toast--out')
-        setTimeout(() => toast.remove(), 220)
-      }
-
-      return { dismiss }
-    }
-
     // ── Sidebar buttons ────────────────────────────────────────────────────────
     document.getElementById('btn-import')
       .addEventListener('click', () => this.openNewRecordingModal())
@@ -338,7 +284,7 @@ const app = {
 
     // ── Titlebar — navigation ──────────────────────────────────────────────────
     document.getElementById('tb-back')
-      .addEventListener('click', () => { if (this._currentView !== 'import') this.showImport() })
+      .addEventListener('click', () => { if (this._currentView !== 'import') this.showHome() })
 
     // ── Titlebar — export / share ──────────────────────────────────────────────
     const exportBtn = document.getElementById('tb-export')
@@ -363,10 +309,6 @@ const app = {
     shareBtn.addEventListener('click', () => window.showToast?.('Share is not available yet'))
 
 
-
-    // ── Titlebar — search ──────────────────────────────────────────────────────
-    document.getElementById('tb-search-btn')
-      .addEventListener('click', () => document.getElementById('sb-search-input')?.focus())
 
     // ── Titlebar — record ──────────────────────────────────────────────────────
     document.getElementById('tb-record')

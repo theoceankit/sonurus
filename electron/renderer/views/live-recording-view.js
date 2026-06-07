@@ -25,15 +25,15 @@ function renderLiveRecordingView(settings = {}) {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  function fmtTime(s) {
+  function fmtElapsed(s) {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
   }
 
   function getLevel(analyser) {
     if (!analyser) return 0
-    const data = new Uint8Array(analyser.frequencyBinCount)
-    analyser.getByteFrequencyData(data)
-    return Math.min(1, data.reduce((a, b) => a + b, 0) / data.length / 64)
+    analyser._buf ||= new Uint8Array(analyser.frequencyBinCount)
+    analyser.getByteFrequencyData(analyser._buf)
+    return Math.min(1, analyser._buf.reduce((a, b) => a + b, 0) / analyser._buf.length / 64)
   }
 
   function stopStreams() {
@@ -163,7 +163,7 @@ function renderLiveRecordingView(settings = {}) {
     const backBtn = document.createElement('button')
     backBtn.className = 'progress-view__cancel'
     backBtn.textContent = '← Back'
-    backBtn.addEventListener('click', () => app.showImport())
+    backBtn.addEventListener('click', () => app.showHome())
     wrap.appendChild(banner)
     wrap.appendChild(backBtn)
     root.appendChild(wrap)
@@ -289,6 +289,7 @@ function renderLiveRecordingView(settings = {}) {
         })()
       } else {
         // Browser-only: mic alone, or Windows system audio mixed in browser
+        if (!recorder) { showError('Recording state is inconsistent'); return }
         recorder.onstop = () => finishRecording(elapsed_)
         recorder.stop()
       }
@@ -298,7 +299,7 @@ function renderLiveRecordingView(settings = {}) {
     // Tick timer
     timerInterval = setInterval(() => {
       elapsed++
-      timerEl.textContent = fmtTime(elapsed)
+      timerEl.textContent = fmtElapsed(elapsed)
     }, 1000)
 
     // Animate VU meters
@@ -341,7 +342,7 @@ function renderLiveRecordingView(settings = {}) {
       const backBtn = document.createElement('button')
       backBtn.className = 'progress-view__cancel'
       backBtn.textContent = '← Back'
-      backBtn.addEventListener('click', () => app.showImport())
+      backBtn.addEventListener('click', () => app.showHome())
       errView.appendChild(errBanner)
       errView.appendChild(backBtn)
       root.appendChild(errView)
@@ -421,7 +422,7 @@ function renderLiveRecordingView(settings = {}) {
     discardBtn.className = 'st-btn st-btn--ghost'
     discardBtn.style.cssText = 'height:36px;font-size:14px'
     discardBtn.textContent = 'Discard'
-    discardBtn.addEventListener('click', () => app.showImport())
+    discardBtn.addEventListener('click', () => app.showHome())
 
     const transcribeBtn = document.createElement('button')
     transcribeBtn.className = 'st-btn st-btn--primary'

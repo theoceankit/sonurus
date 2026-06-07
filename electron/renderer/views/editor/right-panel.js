@@ -1,7 +1,7 @@
 // ── Right panel ────────────────────────────────────────────────────────────────
 let _rightPanelPreviewAudio = null  // track to stop/clean up on rebuild
 
-function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio = null, suggestions = {}) {
+function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio = null, suggestions = {}, signal = null) {
   // Stop any preview playing from a previous right-panel build
   if (_rightPanelPreviewAudio) {
     _rightPanelPreviewAudio.pause()
@@ -66,8 +66,8 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
     previewAudio.pause()
   }
 
-  // Stop preview when user resumes main player (panel.isConnected guards against stale listeners after rebuild)
-  if (audio) audio.addEventListener('play', () => { if (panel.isConnected) stopPreview() })
+  // Stop preview when user resumes main player
+  if (audio) audio.addEventListener('play', () => { if (panel.isConnected) stopPreview() }, { signal })
 
   // ── Tab bar (segmented control) ─────────────────────────────────────────────
   const tabBar = document.createElement('div')
@@ -108,10 +108,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
   // ── Render dispatcher ───────────────────────────────────────────────────────
   function renderContent() {
     content.innerHTML = ''
-    if (activeTab === 'Speakers')  renderSpeakers()
-    else if (activeTab === 'Chapters') renderChapters()
-    else if (activeTab === 'Notes')    renderNotes()
-    else renderActivity()
+    renderSpeakers()
   }
 
   // ── Empty state helper ──────────────────────────────────────────────────────
@@ -184,10 +181,6 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
       content.appendChild(emptyState('No speakers', 'Transcript has no segments.'))
     }
   }
-
-  function renderChapters() {}
-  function renderNotes() {}
-  function renderActivity() {}
 
   panel.appendChild(tabBar)
   panel.appendChild(content)

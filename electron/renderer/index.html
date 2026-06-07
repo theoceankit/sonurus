@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; connect-src http://localhost:8000 ws://localhost:8000; style-src 'self' 'unsafe-inline'" />
+        content="default-src 'self'; connect-src http://localhost:8000 ws://localhost:8000; style-src 'self' 'unsafe-inline'; media-src 'self' file: blob:; worker-src 'none'" />
   <title>Sonorus</title>
   <link rel="icon" href="../assets/logo.png" />
   <link rel="stylesheet" href="styles/base.css" />
@@ -25,16 +25,11 @@
       <img src="../assets/logo.png" class="tb-logo" alt="Sonorus" />
     </div>
 
-    <!-- Nav — back/forward, left of search -->
+    <!-- Nav — back, left of search -->
     <div class="tb-nav">
       <button class="tb-tool" id="tb-back" title="Back">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
           <path d="M9 3l-4 4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-      <button class="tb-tool" id="tb-forward" title="Forward" disabled>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
     </div>
@@ -104,11 +99,6 @@
         <span class="sb-header-title">Transcripts</span>
         <span class="sb-header-count" id="sb-header-count"></span>
         <div style="flex:1"></div>
-        <button class="sb-hdr-btn" id="btn-sort" title="Sort by date">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-            <path d="M2.5 4h9M4 7h6M5.5 10h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          </svg>
-        </button>
         <button class="sb-hdr-btn" id="btn-import" title="New recording">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
@@ -156,6 +146,7 @@
   <script src="views/settings-view.js"></script>
   <script src="views/live-recording-view.js"></script>
   <script src="views/new-recording-modal.js"></script>
+  <script src="toast.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

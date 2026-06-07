@@ -1260,6 +1260,9 @@
       btn.disabled = true
     }
 
+    // UI-only mock: buttons visually confirm but do not trigger real system permission
+    // requests. Both "Continue" and "Skip" are equivalent — they dispatch completeSetup.
+    // TODO: wire to navigator.mediaDevices.getUserMedia / getDisplayMedia for real grants.
     permMicBtn.addEventListener('click', () => grantPerm(permMicBtn))
     permScreenBtn.addEventListener('click', () => grantPerm(permScreenBtn))
 

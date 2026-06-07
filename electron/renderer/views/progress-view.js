@@ -27,10 +27,11 @@ function renderProgressView(jobId, originalRequest = null) {
 
   // ── WebSocket ──────────────────────────────────────────────────────────────
   const ws = new WebSocket(`${WS_BASE}/ws/${jobId}`)
+  el._cleanup = () => ws.close()
 
   function stopAndReturn() {
     ws.close()
-    app.showImport()
+    app.showHome()
   }
 
   cancelBtn.addEventListener('click', () => {
@@ -91,7 +92,7 @@ function renderProgressView(jobId, originalRequest = null) {
     const backBtn = document.createElement('button')
     backBtn.className = 'st-btn st-btn--ghost'
     backBtn.textContent = '← Back'
-    backBtn.addEventListener('click', () => app.showImport())
+    backBtn.addEventListener('click', () => app.showHome())
 
     btnRow.appendChild(dlBtn)
     btnRow.appendChild(backBtn)
@@ -123,7 +124,7 @@ function renderProgressView(jobId, originalRequest = null) {
             cancelDlBtn.disabled  = true
             cancelDlBtn.textContent = 'Cancelling…'
             fetch(`${API_BASE}/models/${lang}/download/${dlJobId}`, { method: 'DELETE' })
-              .finally(() => { dlWs.close(); app.showImport() })
+              .finally(() => { dlWs.close(); app.showHome() })
           })
 
           dlWs.onmessage = ({ data }) => {
@@ -162,14 +163,14 @@ function renderProgressView(jobId, originalRequest = null) {
                   })
                     .then(r => r.json())
                     .then(({ job_id: newId }) => app.showProgress(newId, originalRequest))
-                    .catch(() => app.showImport())
+                    .catch(() => app.showHome())
                 })
                 btnRow.appendChild(retryBtn)
               }
               const back2 = document.createElement('button')
               back2.className = 'st-btn st-btn--ghost'
               back2.textContent = '← Back'
-              back2.addEventListener('click', () => app.showImport())
+              back2.addEventListener('click', () => app.showHome())
               btnRow.appendChild(back2)
 
             } else if (ev.type === 'cancelled' || ev.type === 'error') {
@@ -183,7 +184,7 @@ function renderProgressView(jobId, originalRequest = null) {
               const back2 = document.createElement('button')
               back2.className = 'st-btn st-btn--ghost'
               back2.textContent = '← Back'
-              back2.addEventListener('click', () => app.showImport())
+              back2.addEventListener('click', () => app.showHome())
               btnRow.appendChild(back2)
             }
           }
@@ -198,7 +199,7 @@ function renderProgressView(jobId, originalRequest = null) {
             const back2 = document.createElement('button')
             back2.className = 'st-btn st-btn--ghost'
             back2.textContent = '← Back'
-            back2.addEventListener('click', () => app.showImport())
+            back2.addEventListener('click', () => app.showHome())
             btnRow.appendChild(back2)
           }
         })
