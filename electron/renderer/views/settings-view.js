@@ -281,6 +281,97 @@ function _makeDeleteHandler(state, rerenderRows, onSuccess = null) {
   }
 }
 
+// ── Model row shared helpers ───────────────────────────────────────────────────
+
+function _makeDownloadBar(pct) {
+  const wrap = document.createElement('div')
+  wrap.style.cssText = 'display:flex;align-items:center;gap:10.5px;margin-top:7px'
+  const bar = document.createElement('div')
+  bar.style.cssText = 'flex:1;height:5px;background:rgba(40,30,80,0.08);border-radius:3px;overflow:hidden;max-width:294px'
+  const fill = document.createElement('div')
+  fill.style.cssText = `height:100%;background:linear-gradient(135deg,#5A57F2,#8E5BEF);border-radius:3px;width:${pct}%;transition:width 0.6s ease`
+  bar.appendChild(fill)
+  const label = document.createElement('span')
+  label.style.cssText = 'font-size:11.5px;color:rgba(25,24,42,0.55);font-family:ui-monospace,monospace;min-width:38px'
+  label.textContent = Math.round(pct) + '%'
+  wrap.appendChild(bar)
+  wrap.appendChild(label)
+  return wrap
+}
+
+function _makeStatusBadge(installed, downloading) {
+  const el = document.createElement('div')
+  el.className = 'st-model-status'
+  if (installed) {
+    el.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l2.5 2.5L10 3" stroke="#2EB387" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Installed`
+    el.style.color = '#2EB387'
+  } else if (downloading) {
+    el.innerHTML = `<span class="st-spin"></span> Downloading`
+    el.style.color = '#5A57F2'
+  } else {
+    el.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v7M3 6l3 3 3-3M2 11h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Not downloaded`
+    el.style.color = 'rgba(25,24,42,0.55)'
+  }
+  return el
+}
+
+function _makeModelActions(modelId, state, { onDownload, onDelete, onSelect = null, rerenderRows = null }) {
+  const actions = document.createElement('div')
+  actions.className = 'st-model-actions'
+  actions.addEventListener('click', e => e.stopPropagation())
+
+  const status = state.modelStatus[modelId]
+  const installed = status === 'installed'
+  const downloading = status === 'downloading'
+
+  if (!installed && !downloading) {
+    const dlBtn = document.createElement('button')
+    dlBtn.className = 'st-btn st-btn--primary st-btn--sm'
+    dlBtn.textContent = 'Download'
+    dlBtn.addEventListener('click', () => onDownload(modelId))
+    actions.appendChild(dlBtn)
+  }
+  if (downloading) {
+    const cancelBtn = document.createElement('button')
+    cancelBtn.className = 'st-btn st-btn--ghost st-btn--sm'
+    cancelBtn.textContent = 'Cancel'
+    cancelBtn.addEventListener('click', () => {
+      const active = state.activeDownload?.[modelId]
+      if (active) {
+        fetch(`${API_BASE}/models/${modelId}/download/${active.job_id}`, { method: 'DELETE' })
+          .finally(() => {
+            active.ws.close()
+            state.modelStatus[modelId] = 'available'
+            state.modelProgress[modelId] = 0
+            delete state.activeDownload[modelId]
+            rerenderRows?.()
+          })
+      } else {
+        state.modelStatus[modelId] = 'available'
+        state.modelProgress[modelId] = 0
+        rerenderRows?.()
+      }
+    })
+    actions.appendChild(cancelBtn)
+  }
+  if (installed && onSelect && state.transcribeModel !== modelId) {
+    const useBtn = document.createElement('button')
+    useBtn.className = 'st-btn st-btn--ghost st-btn--sm'
+    useBtn.textContent = 'Use'
+    useBtn.addEventListener('click', () => onSelect(modelId))
+    actions.appendChild(useBtn)
+  }
+  if (installed) {
+    const delBtn = document.createElement('button')
+    delBtn.className = 'st-btn st-btn--icon'
+    delBtn.title = 'Remove'
+    delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2.5 4h9M5 4V2.5h4V4M3.5 4l.5 7.5h6L10.5 4M6 6.5v3M8 6.5v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+    delBtn.addEventListener('click', () => onDelete(modelId))
+    actions.appendChild(delBtn)
+  }
+  return actions
+}
+
 // ── Model row ──────────────────────────────────────────────────────────────────
 
 function makeModelRow(model, state, onSelect, onDownload, onDelete) {
@@ -293,22 +384,19 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
     const status = state.modelStatus[model.id]
     const installed = status === 'installed'
     const downloading = status === 'downloading'
-    const isSelected = isDiarization ? false : state.transcribeModel === model.id
+    const isSelected = !isDiarization && state.transcribeModel === model.id
 
     row.classList.toggle('st-model-row--selected', isSelected)
     row.innerHTML = ''
 
-    // Icon
     const icon = document.createElement('div')
     icon.className = 'st-model-icon' + (isSelected ? ' st-model-icon--selected' : '')
     icon.innerHTML = isDiarization
       ? `<svg width="17" height="17" viewBox="0 0 18 18" fill="none"><circle cx="6" cy="6" r="2" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="6" r="2" stroke="currentColor" stroke-width="1.4"/><path d="M3 14c0-2 1.6-3 3-3s3 1 3 3M9 14c0-2 1.6-3 3-3s3 1 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>`
       : `<svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M9 2v14M3 5l-1.5 3L3 11M15 5l1.5 3L15 11M6 4l-1 5 1 5M12 4l1 5-1 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`
 
-    // Info
     const info = document.createElement('div')
     info.className = 'st-model-info'
-
     const nameRow = document.createElement('div')
     nameRow.className = 'st-model-name-row'
     const name = document.createElement('span')
@@ -318,108 +406,22 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
     if (model.recommended) nameRow.appendChild(makePill('Recommended', 'accent'))
     if (isSelected) nameRow.appendChild(makePill('In use', 'ok'))
     if (isDiarization) nameRow.appendChild(makePill('Diarization', 'amber'))
-
     const meta = document.createElement('div')
     meta.className = 'st-model-meta'
     meta.textContent = `${model.size}  ·  ${model.speed}  ·  ${model.acc}`
-
-    if (downloading) {
-      const pct = state.modelProgress[model.id] ?? 0
-      const pgWrap = document.createElement('div')
-      pgWrap.style.cssText = 'display:flex;align-items:center;gap:10.5px;margin-top:7px'
-      const bar = document.createElement('div')
-      bar.style.cssText = 'flex:1;height:5px;background:rgba(40,30,80,0.08);border-radius:3px;overflow:hidden;max-width:294px'
-      const barFill = document.createElement('div')
-      barFill.style.cssText = `height:100%;background:linear-gradient(135deg,#5A57F2,#8E5BEF);border-radius:3px;width:${pct}%;transition:width 0.6s ease`
-      bar.appendChild(barFill)
-      const pctLabel = document.createElement('span')
-      pctLabel.style.cssText = 'font-size:11.5px;color:rgba(25,24,42,0.55);font-family:ui-monospace,monospace;min-width:38px'
-      pctLabel.textContent = Math.round(pct) + '%'
-      pgWrap.appendChild(bar)
-      pgWrap.appendChild(pctLabel)
-      meta.appendChild(pgWrap)
-    }
-
+    if (downloading) meta.appendChild(_makeDownloadBar(state.modelProgress[model.id] ?? 0))
     info.appendChild(nameRow)
     info.appendChild(meta)
 
-    // Status
-    const statusEl = document.createElement('div')
-    statusEl.className = 'st-model-status'
-    if (installed) {
-      statusEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l2.5 2.5L10 3" stroke="#2EB387" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Installed`
-      statusEl.style.color = '#2EB387'
-    } else if (downloading) {
-      statusEl.innerHTML = `<span class="st-spin"></span> Downloading`
-      statusEl.style.color = '#5A57F2'
-    } else {
-      statusEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v7M3 6l3 3 3-3M2 11h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Not downloaded`
-      statusEl.style.color = 'rgba(25,24,42,0.55)'
-    }
-
-    // Actions
-    const actions = document.createElement('div')
-    actions.className = 'st-model-actions'
-    actions.addEventListener('click', e => e.stopPropagation())
-
-    if (!installed && !downloading) {
-      const dlBtn = document.createElement('button')
-      dlBtn.className = 'st-btn st-btn--primary st-btn--sm'
-      dlBtn.textContent = 'Download'
-      dlBtn.addEventListener('click', () => onDownload(model.id))
-      actions.appendChild(dlBtn)
-    }
-    if (downloading) {
-      const cancelBtn = document.createElement('button')
-      cancelBtn.className = 'st-btn st-btn--ghost st-btn--sm'
-      cancelBtn.textContent = 'Cancel'
-      cancelBtn.addEventListener('click', () => {
-        const active = state.activeDownload?.[model.id]
-        if (active) {
-          fetch(`${API_BASE}/models/${model.id}/download/${active.job_id}`, { method: 'DELETE' })
-            .finally(() => {
-              active.ws.close()
-              state.modelStatus[model.id] = 'available'
-              state.modelProgress[model.id] = 0
-              delete state.activeDownload[model.id]
-              update()
-            })
-        } else {
-          state.modelStatus[model.id] = 'available'
-          state.modelProgress[model.id] = 0
-          update()
-        }
-      })
-      actions.appendChild(cancelBtn)
-    }
-    if (installed && !isSelected && !isDiarization) {
-      const useBtn = document.createElement('button')
-      useBtn.className = 'st-btn st-btn--ghost st-btn--sm'
-      useBtn.textContent = 'Use'
-      useBtn.addEventListener('click', () => onSelect(model.id))
-      actions.appendChild(useBtn)
-    }
-    if (installed) {
-      const delBtn = document.createElement('button')
-      delBtn.className = 'st-btn st-btn--icon'
-      delBtn.title = 'Remove'
-      delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2.5 4h9M5 4V2.5h4V4M3.5 4l.5 7.5h6L10.5 4M6 6.5v3M8 6.5v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-      delBtn.addEventListener('click', () => onDelete(model.id))
-      actions.appendChild(delBtn)
-    }
-
     row.appendChild(icon)
     row.appendChild(info)
-    row.appendChild(statusEl)
-    row.appendChild(actions)
+    row.appendChild(_makeStatusBadge(installed, downloading))
+    row.appendChild(_makeModelActions(model.id, state, {
+      onDownload, onDelete, onSelect: isDiarization ? null : onSelect, rerenderRows: update,
+    }))
 
-    if (installed && !isDiarization) {
-      row.style.cursor = 'pointer'
-      row.onclick = () => onSelect(model.id)
-    } else {
-      row.style.cursor = 'default'
-      row.onclick = null
-    }
+    row.style.cursor = (installed && !isDiarization) ? 'pointer' : 'default'
+    row.onclick = (installed && !isDiarization) ? () => onSelect(model.id) : null
   }
 
   update()
@@ -445,16 +447,13 @@ function makeAlignmentModelRow(model, state, onDownload, onDelete) {
 
     row.innerHTML = ''
 
-    // Flag icon
     const icon = document.createElement('div')
     icon.className = 'st-model-icon'
     icon.style.cssText = 'display:flex;align-items:center;justify-content:center;font-size:19px'
     icon.textContent = flag
 
-    // Info
     const info = document.createElement('div')
     info.className = 'st-model-info'
-
     const nameRow = document.createElement('div')
     nameRow.className = 'st-model-name-row'
     const nameEl = document.createElement('span')
@@ -467,93 +466,17 @@ function makeAlignmentModelRow(model, state, onDownload, onDelete) {
       native.textContent = model.nativeName
       nameRow.appendChild(native)
     }
-
     const meta = document.createElement('div')
     meta.className = 'st-model-meta'
     meta.textContent = model.size + '  ·  wav2vec2'
-
-    if (downloading) {
-      const pct = state.modelProgress[model.id] ?? 0
-      const pgWrap = document.createElement('div')
-      pgWrap.style.cssText = 'display:flex;align-items:center;gap:10.5px;margin-top:7px'
-      const bar = document.createElement('div')
-      bar.style.cssText = 'flex:1;height:5px;background:rgba(40,30,80,0.08);border-radius:3px;overflow:hidden;max-width:294px'
-      const barFill = document.createElement('div')
-      barFill.style.cssText = `height:100%;background:linear-gradient(135deg,#5A57F2,#8E5BEF);border-radius:3px;width:${pct}%;transition:width 0.6s ease`
-      bar.appendChild(barFill)
-      const pctLabel = document.createElement('span')
-      pctLabel.style.cssText = 'font-size:11.5px;color:rgba(25,24,42,0.55);font-family:ui-monospace,monospace;min-width:38px'
-      pctLabel.textContent = Math.round(pct) + '%'
-      pgWrap.appendChild(bar)
-      pgWrap.appendChild(pctLabel)
-      meta.appendChild(pgWrap)
-    }
-
+    if (downloading) meta.appendChild(_makeDownloadBar(state.modelProgress[model.id] ?? 0))
     info.appendChild(nameRow)
     info.appendChild(meta)
 
-    // Status
-    const statusEl = document.createElement('div')
-    statusEl.className = 'st-model-status'
-    if (installed) {
-      statusEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l2.5 2.5L10 3" stroke="#2EB387" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Installed`
-      statusEl.style.color = '#2EB387'
-    } else if (downloading) {
-      statusEl.innerHTML = `<span class="st-spin"></span> Downloading`
-      statusEl.style.color = '#5A57F2'
-    } else {
-      statusEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v7M3 6l3 3 3-3M2 11h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Not downloaded`
-      statusEl.style.color = 'rgba(25,24,42,0.55)'
-    }
-
-    // Actions
-    const actions = document.createElement('div')
-    actions.className = 'st-model-actions'
-    actions.addEventListener('click', e => e.stopPropagation())
-
-    if (!installed && !downloading) {
-      const dlBtn = document.createElement('button')
-      dlBtn.className = 'st-btn st-btn--primary st-btn--sm'
-      dlBtn.textContent = 'Download'
-      dlBtn.addEventListener('click', () => onDownload(model.id))
-      actions.appendChild(dlBtn)
-    }
-    if (downloading) {
-      const cancelBtn = document.createElement('button')
-      cancelBtn.className = 'st-btn st-btn--ghost st-btn--sm'
-      cancelBtn.textContent = 'Cancel'
-      cancelBtn.addEventListener('click', () => {
-        const active = state.activeDownload?.[model.id]
-        if (active) {
-          fetch(`${API_BASE}/models/${model.id}/download/${active.job_id}`, { method: 'DELETE' })
-            .finally(() => {
-              active.ws.close()
-              state.modelStatus[model.id] = 'available'
-              state.modelProgress[model.id] = 0
-              delete state.activeDownload[model.id]
-              update()
-            })
-        } else {
-          state.modelStatus[model.id] = 'available'
-          state.modelProgress[model.id] = 0
-          update()
-        }
-      })
-      actions.appendChild(cancelBtn)
-    }
-    if (installed) {
-      const delBtn = document.createElement('button')
-      delBtn.className = 'st-btn st-btn--icon'
-      delBtn.title = 'Remove'
-      delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2.5 4h9M5 4V2.5h4V4M3.5 4l.5 7.5h6L10.5 4M6 6.5v3M8 6.5v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-      delBtn.addEventListener('click', () => onDelete(model.id))
-      actions.appendChild(delBtn)
-    }
-
     row.appendChild(icon)
     row.appendChild(info)
-    row.appendChild(statusEl)
-    row.appendChild(actions)
+    row.appendChild(_makeStatusBadge(installed, downloading))
+    row.appendChild(_makeModelActions(model.id, state, { onDownload, onDelete, rerenderRows: update }))
   }
 
   update()
