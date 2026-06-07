@@ -93,6 +93,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
   })
 
   let focusIdx = 0
+  let keyboardNav = false
 
   function buildList(filter, newFocusIdx = 0) {
     list.innerHTML = ''
@@ -142,10 +143,12 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
       }
 
       row.addEventListener('mouseenter', () => {
+        if (keyboardNav) return
         focusIdx = i
         list.querySelectorAll('.spk-picker-item--focused').forEach(el => el.classList.remove('spk-picker-item--focused'))
         row.classList.add('spk-picker-item--focused')
       })
+      row.addEventListener('mousemove', () => { keyboardNav = false })
       row.addEventListener('mousedown', e => {
         e.preventDefault()
         if (s.id === currentSpkId) { popup.remove(); return }
@@ -181,6 +184,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
     if (e.key === 'Escape') { e.preventDefault(); popup.remove(); return }
     if (e.key === 'ArrowDown') {
       e.preventDefault()
+      keyboardNav = true
       focusIdx = Math.min(focusIdx + 1, items.length - 1)
       items.forEach((el, i) => el.classList.toggle('spk-picker-item--focused', i === focusIdx))
       items[focusIdx]?.scrollIntoView({ block: 'nearest' })
@@ -188,6 +192,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault()
+      keyboardNav = true
       focusIdx = Math.max(focusIdx - 1, 0)
       items.forEach((el, i) => el.classList.toggle('spk-picker-item--focused', i === focusIdx))
       items[focusIdx]?.scrollIntoView({ block: 'nearest' })

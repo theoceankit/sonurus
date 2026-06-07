@@ -1,4 +1,7 @@
-// Standalone script to screenshot setup.html screens for verification
+// DEV-ONLY utility — never packaged (electron-builder ignores files not in package.json main/files)
+// Run manually: SCREEN=welcome npx electron electron/screenshot-setup.js
+// WARNING: uses contextIsolation:false/nodeIntegration:true for executeJavaScript access —
+//          must NOT be used as an entry point in production builds.
 const { app, BrowserWindow } = require('electron')
 const path = require('path')
 const fs = require('fs')

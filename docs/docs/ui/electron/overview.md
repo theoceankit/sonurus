@@ -42,25 +42,27 @@ To start the backend manually (e.g. for isolated API testing):
 
 ```
 electron/
-  main.js          — BrowserWindow, IPC handlers, backend lifecycle orchestration
-  backend.js       — Backend process spawn, health check, first-run pip install
-  preload.js       — contextBridge: exposes electronAPI.*
+  main.js              — BrowserWindow, IPC handlers, backend lifecycle orchestration
+  backend.js           — Backend process spawn, health check, first-run pip install
+  preload.js           — contextBridge: exposes electronAPI.*
+  screenshot-setup.js  — DEV-ONLY screenshot utility (never packaged)
   assets/
-    icon.png       — 512×512 source icon
+    icon.png           — 512×512 source icon
   renderer/
-    index.html     — App shell: left sidebar + main panel
-    setup.html     — First-run setup screen (shown during pip install)
-    utils.js       — API_BASE, WS_BASE, speaker helpers, fmtTime, makeAvatar
-    components.js  — makeDropdown (shared UI component)
-    data.js        — LANGUAGES, MODELS, ALIGNMENT_MODELS
-    app.js         — appSettings, loadSettings/saveSettings, view router, sidebar
+    index.html         — App shell: left sidebar + main panel
+    setup.html         — First-run setup screen (shown during pip install)
+    utils.js           — API_BASE, WS_BASE, speaker helpers, fmtTime, makeAvatar
+    components.js      — makeDropdown (shared UI component)
+    data.js            — LANGUAGES (static), MODELS (fallback), ALIGNMENT_MODELS (source of truth)
+    app.js             — appSettings, loadSettings/saveSettings, view router, sidebar
     styles/
-      base.css     — Design tokens, resets
-      layout.css   — Sidebar + main panel layout
-      editor.css   — Transcript editor styles
-      settings.css — Settings screen styles
-      views.css    — Progress and import view styles
-      modal.css    — Modal overlay styles
+      base.css         — Design tokens, resets
+      layout.css       — Sidebar + main panel layout
+      import.css       — Import/recording/progress view styles
+      editor.css       — Transcript editor styles
+      settings.css     — Settings screen styles
+      views.css        — Toasts, misc shared view styles
+      modal.css        — Modal overlay styles
     views/
       new-recording-modal.js  — Recording setup modal
       live-recording-view.js  — Active recording view
@@ -88,6 +90,9 @@ electron/
 | `saveRecording(buffer, ext)` | Write a recording buffer to `os.tmpdir()` |
 | `writeClipboard(text)` | Write text to the system clipboard |
 | `onSetupProgress(callback)` | Subscribe to first-run setup progress events |
+| `getPlatform()` | Returns `process.platform` (`'win32'`, `'darwin'`, `'linux'`) |
+| `startSetup()` | Signal main process that the renderer is ready to begin setup |
+| `completeSetup()` | Signal main process that setup is complete — opens the main window |
 
 ### Setup progress events
 
@@ -115,6 +120,56 @@ Settings are stored in `app.getPath('userData')/settings.json`. The main process
 Default values are defined in `DEFAULT_SETTINGS` in `main.js`. The renderer merges saved values on top of defaults via `Object.assign(appSettings, saved)`.
 
 `hfToken` is never passed to the renderer after loading — it is only used in `main.js` to set `HF_TOKEN` for the backend process.
+
+---
+
+## Audio playback
+
+The transcript editor creates a single persistent `Audio` element per editor session. Its `src` is set to `'file://' + transcript.audio_path` — a direct filesystem path returned by the API. This works because the renderer page is loaded via `file://`, so `file:` is covered by the `default-src 'self'` CSP directive (explicitly enumerated as `media-src 'self' file:` in `index.html`).
+
+The audio element survives editor rebuilds (triggered by speaker rename, segment edit, etc.) so playback is not interrupted. A cleanup hook on the root element pauses the audio and aborts all listeners when the user navigates to a different view.
+
+---
+
+## Live recording lifecycle
+
+`live-recording-view.js` manages four source modes and five internal phases:
+
+**Source modes** (selected in `new-recording-modal.js`):
+
+| `audioSource` | What is recorded |
+|---|---|
+| `mic` | Browser `getUserMedia` mic stream only |
+| `system` | Backend `AudioCaptureService` (macOS/Linux) or WASAPI loopback (Windows) |
+| `both` | Mic + system audio merged in browser via `AudioContext` |
+| `backend` | Backend capture only — no browser `MediaRecorder` |
+
+**Phase transitions:**
+
+```
+starting → recording → saving → review → [transcribe → progress view]
+                              ↘ error
+```
+
+- **starting** — brief phase while `getUserMedia` / `getDisplayMedia` permission is requested
+- **recording** — VU meters + elapsed timer active; `MediaRecorder` (if used) collecting chunks; `captureJobId` (if backend capture) is active
+- **saving** — blob uploaded or backend stop called; spinner shown
+- **review** — waveform + title input; user can start transcription or discard
+- **error** — shown on permission denial, upload failure, or null-recorder guard
+
+`captureJobId` holds the backend job id from `POST /audio/capture/start`. If non-null, stop is dispatched to `POST /audio/capture/stop/{captureJobId}`.
+
+---
+
+## First-run setup screens
+
+`setup.html` shows a 3-step setup flow on the first launch of a packaged build (or when `SONORUS_TEST_SETUP=1` is set):
+
+1. **Welcome** — intro screen, "Get started" button calls `electronAPI.startSetup()`
+2. **Installing** — phase/progress/log events from `backend.js` update the stepper and progress bar
+3. **Permissions** — mic and screen-recording grant buttons
+
+**Note:** the Permissions screen is currently a UI mock. Clicking "Grant" marks the button green but does not trigger actual system permission requests. Both "Continue" and "Skip" dispatch `electronAPI.completeSetup()` and are equivalent.
 
 ---
 
