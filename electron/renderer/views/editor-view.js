@@ -101,7 +101,7 @@ function renderEditorView(transcriptId, meta = null) {
         fetch(`${API_BASE}/speakers`).then(r => { if (!r.ok) throw new Error(r.status); return r.json() }),
         fetch(`${API_BASE}/transcripts/${transcriptId}/speaker-suggestions`).then(r => r.json()).catch(() => ({})),
       ])
-        .then(([t, spks, suggs]) => buildEditor(t, spks, meta, suggs))
+        .then(([t, spks, suggs]) => { buildEditor(t, spks, meta, suggs); app._loadSidebar() })
         .catch(err => window.showToast?.(`Failed to reload editor: ${err.message}`, 'error'))
     }
 

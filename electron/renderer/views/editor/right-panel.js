@@ -108,10 +108,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
   // ── Render dispatcher ───────────────────────────────────────────────────────
   function renderContent() {
     content.innerHTML = ''
-    if (activeTab === 'Speakers')  renderSpeakers()
-    else if (activeTab === 'Chapters') renderChapters()
-    else if (activeTab === 'Notes')    renderNotes()
-    else renderActivity()
+    renderSpeakers()
   }
 
   // ── Empty state helper ──────────────────────────────────────────────────────
@@ -184,10 +181,6 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
       content.appendChild(emptyState('No speakers', 'Transcript has no segments.'))
     }
   }
-
-  function renderChapters() {}
-  function renderNotes() {}
-  function renderActivity() {}
 
   panel.appendChild(tabBar)
   panel.appendChild(content)

@@ -25,15 +25,15 @@ function renderLiveRecordingView(settings = {}) {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  function fmtTime(s) {
+  function fmtElapsed(s) {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
   }
 
   function getLevel(analyser) {
     if (!analyser) return 0
-    const data = new Uint8Array(analyser.frequencyBinCount)
-    analyser.getByteFrequencyData(data)
-    return Math.min(1, data.reduce((a, b) => a + b, 0) / data.length / 64)
+    analyser._buf ||= new Uint8Array(analyser.frequencyBinCount)
+    analyser.getByteFrequencyData(analyser._buf)
+    return Math.min(1, analyser._buf.reduce((a, b) => a + b, 0) / analyser._buf.length / 64)
   }
 
   function stopStreams() {
@@ -299,7 +299,7 @@ function renderLiveRecordingView(settings = {}) {
     // Tick timer
     timerInterval = setInterval(() => {
       elapsed++
-      timerEl.textContent = fmtTime(elapsed)
+      timerEl.textContent = fmtElapsed(elapsed)
     }, 1000)
 
     // Animate VU meters
