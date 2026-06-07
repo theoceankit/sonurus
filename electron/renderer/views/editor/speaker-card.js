@@ -14,9 +14,9 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
     })
   }
   const _knownMap = {}
-  knownSpeakers.forEach(s => { _knownMap[s.id] = s.name })
+  knownSpeakers.forEach(s => { _knownMap[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
   const unrecognized = isUnrecognized(spkId, _knownMap)
-  const p = unrecognized ? null : speakerPalette(spkId)
+  const p = unrecognized ? null : speakerPalette(spkId, _knownMap)
 
   const card = document.createElement('div')
   card.className = unrecognized ? 'spk-card spk-card--unknown' : 'spk-card'
@@ -69,7 +69,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
     }
 
     if (suggestion) {
-      const p = speakerPalette(suggestion.speaker_id)
+      const p = speakerPalette(suggestion.speaker_id, _knownMap)
       const pct = Math.round(suggestion.score * 100)
 
       const sugg = document.createElement('div')

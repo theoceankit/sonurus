@@ -1,6 +1,8 @@
 // ── Speaker picker popup ──────────────────────────────────────────────────────
 function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, onReload, segmentStart = null) {
   document.getElementById('_spk-picker')?.remove()
+  const _pickerKnownMap = {}
+  knownSpeakers.forEach(s => { _pickerKnownMap[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
 
   const popup = document.createElement('div')
   popup.id = '_spk-picker'
@@ -122,7 +124,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
 
       const av = document.createElement('div')
       av.className = 'spk-picker-av'
-      const p = speakerPalette(s.id)
+      const p = speakerPalette(s.id, _pickerKnownMap)
       av.style.background = p.color
       av.textContent = speakerInitials(s.name)
 

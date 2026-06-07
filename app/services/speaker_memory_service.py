@@ -1,4 +1,5 @@
 """Speaker identity management — storage, resolution, and in-memory cache."""
+import random
 import re
 import sqlite3
 import threading
@@ -9,6 +10,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from app.config import SPEAKER_SIMILARITY_THRESHOLD
 from app.logger import get_logger
+
+PALETTE_SIZE = 5
 
 _UUID_RE = re.compile(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
@@ -29,7 +32,7 @@ def _new_speaker_id() -> str:
 class SpeakerRepository:
     """SQLite persistence for speaker embeddings and names."""
 
-    _SCHEMA_VERSION = 2
+    _SCHEMA_VERSION = 3
 
     def __init__(self, db_path: str):
         self.db_path = db_path
@@ -150,6 +153,14 @@ class SpeakerRepository:
             conn.execute("INSERT INTO speaker_names SELECT * FROM speaker_names_v1")
             conn.execute("DROP TABLE speaker_names_v1")
             conn.execute("UPDATE _meta SET value = '2' WHERE key = 'schema_version'")
+        if current < 3:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS speaker_meta (
+                    speaker_id  TEXT PRIMARY KEY,
+                    color_index INTEGER NOT NULL DEFAULT 0
+                )
+            """)
+            conn.execute("UPDATE _meta SET value = '3' WHERE key = 'schema_version'")
 
     def load(self) -> tuple[dict, dict]:
         with self._connect() as conn:
@@ -206,10 +217,23 @@ class SpeakerRepository:
                 ],
             )
 
+    def load_colors(self) -> dict[str, int]:
+        with self._connect() as conn:
+            rows = conn.execute("SELECT speaker_id, color_index FROM speaker_meta").fetchall()
+        return {spk_id: color_index for spk_id, color_index in rows}
+
+    def save_colors(self, colors: dict[str, int]):
+        with self._connect() as conn:
+            conn.executemany(
+                "INSERT OR REPLACE INTO speaker_meta (speaker_id, color_index) VALUES (?, ?)",
+                list(colors.items()),
+            )
+
     def remove(self, spk_id: str):
         with self._connect() as conn:
             conn.execute("DELETE FROM speaker_names WHERE speaker_id = ?", (spk_id,))
             conn.execute("DELETE FROM speaker_embeddings WHERE id = ?", (spk_id,))
+            conn.execute("DELETE FROM speaker_meta WHERE speaker_id = ?", (spk_id,))
 
     def find_by_name_in_db(self, name: str, label: str) -> str | None:
         with self._connect() as conn:
@@ -290,9 +314,30 @@ class SpeakerMemoryService:
         self._repo = SpeakerRepository(db_path)
         self.known_speakers, self.known_counts = self._repo.load()
         self.known_names = self._repo.load_names()
+        self.known_colors: dict[str, int] = self._repo.load_colors()
         self._dirty: set[str] = set()
         self._dirty_lock = threading.Lock()
+        self._dirty_colors: set[str] = set()
         log.info(f"Loaded {len(self.known_speakers)} known speakers")
+
+    def _assign_color(self, spk_id: str) -> int:
+        counts = [0] * PALETTE_SIZE
+        for idx in self.known_colors.values():
+            if 0 <= idx < PALETTE_SIZE:
+                counts[idx] += 1
+        min_count = min(counts)
+        candidates = [i for i, c in enumerate(counts) if c == min_count]
+        chosen = random.choice(candidates)
+        self.known_colors[spk_id] = chosen
+        self._dirty_colors.add(spk_id)
+        return chosen
+
+    def _ensure_color(self, spk_id: str):
+        if spk_id not in self.known_colors:
+            self._assign_color(spk_id)
+
+    def get_color_index(self, spk_id: str) -> int | None:
+        return self.known_colors.get(spk_id)
 
     def resolve(self, new_embeddings: dict) -> dict:
         """Pure speaker matching — does NOT mutate known_speakers."""
@@ -323,7 +368,13 @@ class SpeakerMemoryService:
         speakers_with_names = [s for s in self.known_names if s in self.known_speakers]
         if not dirty and not speakers_with_names:
             return
+        for spk_id in dirty:
+            self._ensure_color(spk_id)
         self._repo.save(dirty, self.known_speakers, self.known_counts, self.known_names)
+        self._repo.save_colors(
+            {spk_id: self.known_colors[spk_id] for spk_id in self._dirty_colors if spk_id in self.known_colors}
+        )
+        self._dirty_colors = set()
         log.info(f"Saved {len(self.known_speakers)} speakers → {self.db_path}")
 
     def reload_names(self):
@@ -334,10 +385,17 @@ class SpeakerMemoryService:
         """Reload all in-memory state from DB."""
         self.known_speakers, self.known_counts = self._repo.load()
         self.known_names = self._repo.load_names()
+        self.known_colors = self._repo.load_colors()
 
     def save_names_only(self):
         """Persist known_names without touching speaker_embeddings."""
+        for spk_id in self.known_names:
+            self._ensure_color(spk_id)
         self._repo.save_names_only(self.known_names, self.known_speakers)
+        self._repo.save_colors(
+            {spk_id: self.known_colors[spk_id] for spk_id in self._dirty_colors if spk_id in self.known_colors}
+        )
+        self._dirty_colors = set()
 
     def find_by_name(self, name: str, label: str = "display") -> str | None:
         """Returns the speaker UUID for the given display name, or None if not found."""
@@ -353,6 +411,7 @@ class SpeakerMemoryService:
         del self.known_speakers[spk_id]
         self.known_counts.pop(spk_id, None)
         self.known_names.pop(spk_id, None)
+        self.known_colors.pop(spk_id, None)
         self._repo.remove(spk_id)
 
     @staticmethod

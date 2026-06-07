@@ -86,11 +86,11 @@ function renderEditorView(transcriptId, meta = null) {
 
     // Known speaker map for display names
     const knownMap = {}
-    knownSpeakers.forEach(s => { knownMap[s.id] = s.name })
+    knownSpeakers.forEach(s => { knownMap[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
 
     const { unrecIds: _unrecIds } = buildSpeakerIndex(transcript.segments, knownMap)
     function displayName(spkId) {
-      if (knownMap[spkId]) return knownMap[spkId]
+      if (knownMap[spkId]) return knownMap[spkId].name
       const n = _unrecIds.indexOf(spkId) + 1
       return n > 0 ? `Unknown ${n}` : spkId
     }
@@ -146,7 +146,7 @@ function renderEditorView(transcriptId, meta = null) {
         const av = document.createElement('div')
         av.className = 'focus-header-av' + (known ? '' : ' focus-header-av--unknown')
         if (known) {
-          const p = speakerPalette(spkId)
+          const p = speakerPalette(spkId, knownMap)
           av.style.background = p.color
         }
         av.textContent = known ? speakerInitials(name) : '?'

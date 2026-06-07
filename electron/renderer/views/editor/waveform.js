@@ -71,7 +71,7 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
     const seg = segs.find(s => t >= s.start && t < s.end)
     if (!seg) return null
     const spkId = effectiveSpeaker(seg)
-    return isUnrecognized(spkId, knownMap) ? null : speakerPalette(spkId).color
+    return isUnrecognized(spkId, knownMap) ? null : speakerPalette(spkId, knownMap).color
   }
 
   function updateColors() {
@@ -80,6 +80,7 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
   }
 
   audio.addEventListener('loadedmetadata', () => { updateColors(); render() }, { signal })
+  if (audio.duration) updateColors()
   audio.addEventListener('timeupdate', render, { signal })
 
   // Hover scrubber
@@ -122,7 +123,7 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
 
     if (seg) {
       const spkId = effectiveSpeaker(seg)
-      tipName.textContent = knownMap[spkId] || 'Unknown speaker'
+      tipName.textContent = knownMap[spkId]?.name || 'Unknown speaker'
       tipName.style.display = 'block'
     } else {
       tipName.style.display = 'none'

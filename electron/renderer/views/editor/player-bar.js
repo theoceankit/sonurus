@@ -57,7 +57,7 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
   elapsed.textContent = '00:00'
 
   // ── Waveform ───────────────────────────────────────────────────────────────
-  const _km = {}; knownSpeakers.forEach(s => { _km[s.id] = s.name })
+  const _km = {}; knownSpeakers.forEach(s => { _km[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
   const waveform = buildWaveform(segs, audio, signal, _km)
 
   // ── Total ─────────────────────────────────────────────────────────────────
