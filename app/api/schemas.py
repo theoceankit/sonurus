@@ -25,6 +25,7 @@ class TranscriptResponse(BaseModel):
     audio_path: str
     language: str
     status: str
+    title: str | None = None
     segments: list[SegmentResponse]
 
 
