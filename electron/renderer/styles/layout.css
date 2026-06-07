@@ -116,11 +116,13 @@
   gap: 6px;
   cursor: pointer;
   letter-spacing: -0.005em;
+  font-variant-numeric: tabular-nums;
 
   flex-shrink: 0;
   transition: opacity 0.12s;
 }
-.tb-record:hover { opacity: 0.82; }
+.tb-record:hover:not(:disabled) { opacity: 0.82; }
+.tb-record:disabled { opacity: 0.55; cursor: default; }
 
 .tb-rec-dot {
   width: 7px;

@@ -1,5 +1,5 @@
 // ── Dropdown ────────────────────────────────────────────────────────────────────
-// Generic dropdown used in import-view and settings-view.
+// Generic dropdown used in new-recording-modal and settings-view.
 
 function makeDropdown(options, value, onChange, renderOption) {
   const wrap = document.createElement('div')
