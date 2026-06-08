@@ -10,9 +10,9 @@ import {themes as prismThemes} from 'prism-react-renderer';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
-  favicon: 'img/favicon.ico',
+  title: 'Sonorus',
+  tagline: 'Private meeting intelligence, on your device',
+  favicon: 'img/sonorus-icon.png',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -57,8 +57,6 @@ const config = {
           routeBasePath: '/',
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
         },
         blog: {
           showReadingTime: true,
@@ -66,11 +64,6 @@ const config = {
             type: ['rss', 'atom'],
             xslt: true,
           },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
-          // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
           onUntruncatedBlogPosts: 'warn',
@@ -88,24 +81,26 @@ const config = {
       // Replace with your project's social card
       image: 'img/docusaurus-social-card.jpg',
       colorMode: {
+        defaultMode: 'dark',
+        disableSwitch: false,
         respectPrefersColorScheme: true,
       },
       navbar: {
-        title: 'Whisper Project',
+        title: 'Sonorus',
         logo: {
-          alt: 'My Site Logo',
-          src: 'img/logo.svg',
+          alt: 'Sonorus',
+          src: 'img/sonorus-icon.png',
         },
         items: [
           {
             type: 'docSidebar',
             sidebarId: 'tutorialSidebar',
             position: 'left',
-            label: 'Documentation',
+            label: 'Docs',
           },
           {to: '/blog', label: 'Blog', position: 'left'},
           {
-            href: 'https://github.com/facebook/docusaurus',
+            href: 'https://github.com/kit/sonorus',
             label: 'GitHub',
             position: 'right',
           },
@@ -115,46 +110,31 @@ const config = {
         style: 'dark',
         links: [
           {
-            title: 'Docs',
+            title: 'Product',
             items: [
-              {
-                label: 'Introduction',
-                to: '/intro',
-              },
+              { label: 'Features', to: '/#capabilities' },
+              { label: 'Privacy', to: '/#privacy' },
+              { label: 'Download', to: '/#download' },
             ],
           },
           {
-            title: 'Community',
+            title: 'Resources',
             items: [
-              {
-                label: 'Stack Overflow',
-                href: 'https://stackoverflow.com/questions/tagged/docusaurus',
-              },
-              {
-                label: 'Discord',
-                href: 'https://discordapp.com/invite/docusaurus',
-              },
-              {
-                label: 'X',
-                href: 'https://x.com/docusaurus',
-              },
+              { label: 'Documentation', to: '/intro' },
+              { label: 'Blog', to: '/blog' },
+              { label: 'Changelog', href: 'https://github.com/kit/sonorus/releases' },
             ],
           },
           {
-            title: 'More',
+            title: 'Project',
             items: [
-              {
-                label: 'Blog',
-                to: '/blog',
-              },
-              {
-                label: 'GitHub',
-                href: 'https://github.com/facebook/docusaurus',
-              },
+              { label: 'GitHub', href: 'https://github.com/kit/sonorus' },
+              { label: 'Known Issues', to: '/known-issues' },
+              { label: 'Roadmap', to: '/roadmap/roadmap' },
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+        copyright: `© ${new Date().getFullYear()} Sonorus · Your audio never leaves your device.`,
       },
       prism: {
         theme: prismThemes.github,
