@@ -259,7 +259,7 @@ Full transcript with segments.
 
 ### `DELETE /transcripts/{id}`
 
-Deletes transcript and all its segments, then calls `CommitService.recompute_or_remove()` for every speaker that appeared in it: the deleted audio no longer contributes to their stored embeddings, and unnamed speakers left without segments are removed from memory. Returns `204`.
+Deletes transcript and all its segments, then calls `CommitService.recompute_or_remove()` for every speaker that appeared in it: the deleted audio no longer contributes to their stored embeddings, and unnamed speakers left without segments are removed from memory. If the transcript's audio file is a live recording inside `$SONORUS_DATA_DIR/recordings/` and no other transcript references it, the file is deleted too; imported audio elsewhere on disk and the `.files/` archive are never touched (a symlink is removed as a link). Returns `204`, or `404` for an unknown id.
 
 ### `PATCH /transcripts/{id}/segments/{start}/text`
 
