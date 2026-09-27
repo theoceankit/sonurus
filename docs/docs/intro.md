@@ -97,7 +97,7 @@ Stored in `speaker_memory.db` (SQLite, location: `$SONORUS_DATA_DIR`):
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 # Start the app (backend starts automatically)
-npm install && npm start
+npm ci && npm start
 ```
 
 Set your HuggingFace token in **Settings → API Keys** on first run. See [Setup](./environment/setup.md) for the full guide.

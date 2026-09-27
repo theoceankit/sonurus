@@ -45,8 +45,6 @@ CLAUDE.md
 
 # Node
 node_modules/
-package-lock.json
-!docs/package-lock.json
 
 # Build output
 dist/
