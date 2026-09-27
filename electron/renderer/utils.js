@@ -221,3 +221,17 @@ function speakerAssignRequest({ transcriptId, fromSpeakerId, segmentStart, targe
       : { from_speaker_id: fromSpeakerId, to_speaker_name: target.name, ...color },
   }
 }
+
+// ── Editor ──────────────────────────────────────────────────────────────────────
+// Remembers the scroll position of the elements matching selectors inside container;
+// the returned function applies it to whatever matches after the view was rebuilt.
+function preserveScroll(container, selectors) {
+  const saved = selectors
+    .map(sel => [sel, container.querySelector(sel)])
+    .filter(([, el]) => el)
+    .map(([sel, el]) => [sel, el.scrollTop])
+  return () => saved.forEach(([sel, top]) => {
+    const el = container.querySelector(sel)
+    if (el) el.scrollTop = top
+  })
+}

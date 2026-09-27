@@ -44,7 +44,7 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 
 ## Current coverage
 
-**501 Python unit and API tests** across **20 files** — no ML models are loaded — plus **51 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
+**501 Python unit and API tests** across **20 files** — no ML models are loaded — plus **53 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
 
 | File | Tests | What it covers |
 |---|---|---|
@@ -73,6 +73,7 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `tests/renderer/sidebar-delete.test.js` | 5 | `withoutRecording()`, `deleteTranscriptPrompt()` |
 | `tests/renderer/speakers.test.js` | 11 | `filterSpeakers()`, `duplicateNameIds()`, `speakerDisplayName()`, `speakerStatsLine()`, `deleteSpeakerPrompt()`, `buildKnownMap()` skipping unnamed rows, `effectiveSpeaker()` for unassigned segments |
 | `tests/renderer/new-speaker.test.js` | 6 | `leastUsedColorIndex()`, `hasSpeakerNamed()`, `speakerAssignRequest()` (one segment vs all segments, by id vs new name + color) |
+| `tests/renderer/editor-scroll.test.js` | 2 | `preserveScroll()` — the editor keeps its scroll position when it rebuilds after an edit |
 | `tests/renderer/icons.test.js` | 7 | `icon()` / `hydrateIcons()` markup; every icon name used in the renderer has a file in `electron/assets/icons/`; files are kebab-case with `xmlns` + `viewBox`; no inline SVG icons; renderer scripts still parse |
 
 ---
