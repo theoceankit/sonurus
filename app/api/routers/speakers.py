@@ -1,13 +1,16 @@
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.services.commit_service import CommitService
 from app.services.speaker_memory_service import SpeakerMemoryService, PALETTE_SIZE
 from app.services.transcript_storage_service import TranscriptStorageService
+from app.services.voice_sample import pick_voice_sample
 from app.api.dependencies import get_audio_capture_service, get_memory_service, get_storage_service
 from app.api.routers import transcription
 from app.api.schemas import (
     SpeakerResponse, RenameRequest, SpeakerUpdateRequest,
-    SpeakerDeleteResponse, SpeakerTranscriptItem,
+    SpeakerDeleteResponse, SpeakerTranscriptItem, SpeakerSampleResponse,
 )
 
 router = APIRouter(prefix="/speakers", tags=["speakers"])
@@ -102,3 +105,21 @@ def speaker_transcripts(
     if not rows and speaker_id not in memory.speaker_ids():
         raise HTTPException(status_code=404, detail="Speaker not found")
     return [SpeakerTranscriptItem(**row) for row in rows]
+
+
+@router.get("/{speaker_id}/sample", response_model=SpeakerSampleResponse)
+def speaker_sample(
+    speaker_id: str,
+    transcript_id: int | None = None,
+    memory: SpeakerMemoryService = Depends(get_memory_service),
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """A segment to play as the speaker's voice: the one closest to their
+    voice profile whose audio file still exists (optionally within one transcript)."""
+    segments = storage.speaker_segments(speaker_id, transcript_id)
+    if not segments and speaker_id not in memory.speaker_ids():
+        raise HTTPException(status_code=404, detail="Speaker not found")
+    sample = pick_voice_sample(segments, memory.known_speakers.get(speaker_id), os.path.isfile)
+    if sample is None:
+        raise HTTPException(status_code=404, detail="No audio available for this speaker")
+    return SpeakerSampleResponse(**sample)

@@ -290,6 +290,26 @@ class TranscriptStorageService:
             for db_id, title, audio_file, created_at, segments, duration in rows
         ]
 
+    def speaker_segments(self, speaker_id: str, transcript_id: int | None = None) -> list[dict]:
+        """Segments of speaker_id with their transcript's audio file and embedding
+        (optionally within one transcript) — candidates for a voice sample."""
+        query = (
+            "SELECT s.transcription_id, t.audio_file, s.start, s.end, s.text, s.embedding "
+            "FROM segments s JOIN transcriptions t ON t.id = s.transcription_id "
+            "WHERE s.speaker_id = ?"
+        )
+        params: tuple = (speaker_id,)
+        if transcript_id is not None:
+            query += " AND s.transcription_id = ?"
+            params += (transcript_id,)
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            {"transcription_id": tid, "audio_file": audio, "start": start, "end": end,
+             "text": text, "embedding": deserialize_embedding(blob)}
+            for tid, audio, start, end, text, blob in rows
+        ]
+
     def get_embeddings_grouped_by_transcript(self, speaker_id: str) -> dict:
         """Return {transcription_id: [embeddings]} for all non-null segment embeddings.
 

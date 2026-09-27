@@ -57,6 +57,14 @@ class SpeakerDeleteResponse(BaseModel):
     transcripts: int
 
 
+class SpeakerSampleResponse(BaseModel):
+    transcript_id: int
+    audio_path: str
+    start: float
+    end: float
+    text: str
+
+
 class SpeakerTranscriptItem(BaseModel):
     id: int
     title: str

@@ -372,6 +372,16 @@ Deletes a speaker through `CommitService.delete_speaker()`: every segment assign
 
 Returns the number of segments and transcripts that became unassigned, `404` for an unknown id, and `409` while a transcription job or an audio capture is running (the pipeline job holds its own memory snapshot and would write the profile back when it commits).
 
+### `GET /speakers/{id}/sample`
+
+A segment to play as the speaker's voice sample. Optional `?transcript_id=` limits it to one transcript.
+
+```json
+{ "transcript_id": 7, "audio_path": "/home/user/rec/weekly.wav", "start": 9.0, "end": 15.0, "text": "Yes, first item is the release." }
+```
+
+Chosen by `pick_voice_sample()` (`app/services/voice_sample.py`): only segments whose audio file still exists; segments of at least 2 s are preferred; among them the one whose embedding is closest to the speaker's voice profile, or the longest one when there is no profile or embedding. Returns `404` for an unknown speaker or when none of its recordings is available on disk.
+
 ### `GET /speakers/{id}/transcripts`
 
 Transcripts in which the speaker has segments, newest first. `404` for an unknown speaker.
