@@ -907,6 +907,48 @@ function buildResetSection() {
   ])
 }
 
+function buildDeleteDataSection() {
+  const wrap = document.createElement('div')
+  wrap.className = 'st-reset-wrap'
+
+  wrap.appendChild(makeWarningText(
+    'This permanently deletes all transcripts, all speakers and their voice profiles, '
+      + 'live recordings and the transcript archive.',
+    'This cannot be undone. Audio files you imported stay where they are; '
+      + 'downloaded models and preferences are kept.'
+  ))
+
+  const btns = makeConfirmButtons('Delete…', 'Delete everything', async () => {
+    try {
+      const r = await fetch(`${API_BASE}/data/reset`, { method: 'POST' })
+      const body = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(body.detail || `HTTP ${r.status}`)
+      app._activeTranscriptId = null
+      app._loadSidebar()
+      showToast(formatDataResetSummary(body))
+    } catch (err) {
+      showToast(`Could not delete data: ${err.message}`, 'error')
+    }
+  })
+  wrap.appendChild(btns)
+
+  const blocked = dataResetBlockReason(app._activeJobs.size, app._liveSession)
+  if (blocked) {
+    btns._trigger.disabled = true
+    btns._trigger.title = blocked
+  }
+
+  return makeSectionCard([
+    makeSectionHeader(
+      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M3.5 5h11M7 5V3.5h4V5M5 5l.7 9.5h6.6L13 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>`,
+      'Delete all data', 'Start over with an empty library.'
+    ),
+    wrap,
+  ])
+}
+
 // ── Main settings view ─────────────────────────────────────────────────────────
 
 function renderSettingsView() {
@@ -927,6 +969,7 @@ function renderSettingsView() {
     { id: 'export',    build: () => buildExportSection(state) },
     { id: 'audio',     build: () => buildAudioSection(state) },
     { id: 'reset',     build: () => buildResetSection() },
+    { id: 'data',      build: () => buildDeleteDataSection() },
   ]
 
   sections.forEach(s => {
