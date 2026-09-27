@@ -193,14 +193,6 @@ class TranscriptStorageService:
 
         return records
 
-    def get_embeddings_by_speaker(self, speaker_id: str) -> list:
-        with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT embedding FROM segments WHERE speaker_id = ? AND embedding IS NOT NULL",
-                (speaker_id,)
-            ).fetchall()
-        return [deserialize_embedding(r[0]) for r in rows]
-
     def get_embeddings_grouped_by_transcript(self, speaker_id: str) -> dict:
         """Return {transcription_id: [embeddings]} for all non-null segment embeddings.
 

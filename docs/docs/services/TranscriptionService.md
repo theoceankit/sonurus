@@ -93,4 +93,4 @@ Each segment and word in `result` receives a `speaker` label from the diarizatio
 ## Requirements
 
 - HuggingFace token in `.env` (`HF_TOKEN`) — required for downloading PyAnnote diarization models
-- Audio file in WAV format, mono, 16 kHz (conversion: `converter.py`)
+- Any audio/video file `ffmpeg` can decode — `whisperx.load_audio()` resamples it to 16 kHz mono

@@ -139,9 +139,9 @@ TranscriptStorageService().update_status(42, "finalized")
 
 ---
 
-### `get_embeddings_by_speaker(spk_id) → list[np.ndarray]`
+### `get_embeddings_grouped_by_transcript(spk_id) → dict[int, list[np.ndarray]]`
 
-Returns all non-null embeddings for a speaker across all transcripts. Used by `CommitService` to recompute speaker embeddings from scratch.
+Returns all non-null embeddings for a speaker across all transcripts, grouped by transcription id. Used by `CommitService._avg_from_db()` to recompute speaker embeddings from scratch with equal weight per recording.
 
 ---
 

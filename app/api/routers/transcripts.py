@@ -255,16 +255,3 @@ def reassign_speaker(
     commit_svc.commit_speaker(to_uuid)
     commit_svc.commit_new_speakers(t)
     commit_svc.recompute_or_remove(body.from_speaker_id)
-
-
-@router.post("/{transcript_id}/commit", status_code=204)
-def commit_transcript(
-    transcript_id: int,
-    storage: TranscriptStorageService = Depends(get_storage_service),
-    memory: SpeakerMemoryService = Depends(get_memory_service),
-):
-    try:
-        t = storage.load(transcript_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Transcript not found")
-    CommitService(memory, storage).commit(t)
