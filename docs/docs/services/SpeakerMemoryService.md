@@ -16,7 +16,7 @@ Diarization produces unstable IDs (`SPEAKER_00`, `SPEAKER_01`) that change from 
 
 ## Storage
 
-Data is stored in SQLite (`speaker_memory.db`). The service manages three tables:
+Data is stored in SQLite (`speaker_memory.db`). The service manages four tables:
 
 ```sql
 CREATE TABLE speaker_embeddings (
@@ -27,9 +27,14 @@ CREATE TABLE speaker_embeddings (
 
 CREATE TABLE speaker_names (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    speaker_id TEXT NOT NULL REFERENCES speaker_embeddings(id),
+    speaker_id TEXT NOT NULL,          -- no FK since schema v2: a name may exist before any embedding
     label      TEXT NOT NULL,          -- e.g. "display"
-    name       TEXT NOT NULL
+    name       TEXT NOT NULL           -- not unique: two people may share a name
+)
+
+CREATE TABLE speaker_meta (
+    speaker_id  TEXT PRIMARY KEY,
+    color_index INTEGER NOT NULL DEFAULT 0   -- palette slot 0..4 (schema v3)
 )
 
 CREATE TABLE _meta (
@@ -140,21 +145,33 @@ Called only from `CommitService`.
 
 ### `save_names_only()`
 
-Persists names changed by `set_name()` since the last save (including speakers without an embedding) to `speaker_names` without touching `speaker_embeddings`. Called from `POST /speakers/{id}/rename` and the reassign-by-name path.
+Persists names changed by `set_name()` since the last save (including speakers without an embedding) to `speaker_names` without touching `speaker_embeddings`. Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and the reassign-by-name path.
 
 ---
 
 ### `find_by_name(name, label="display") → str | None`
 
-Returns the speaker UUID for the given display name, or `None` if not found.
+Returns the speaker UUID for the given display name, or `None` if not found. Names are not unique, so with several matches it returns one of them.
+
+---
+
+### `speaker_ids() → set[str]`
+
+Every speaker memory knows about: with a voice profile (`known_speakers`), a name (`known_names`), or both. `GET /speakers` adds speakers that only have segments.
+
+---
+
+### `get_color_index(spk_id) → int | None` / `set_color(spk_id, color_index)`
+
+Read / persist the palette slot. `set_color()` raises `ValueError` outside `0..PALETTE_SIZE-1` and writes `speaker_meta` immediately. Called from `PATCH /speakers/{id}`.
 
 ---
 
 ### `remove_speaker(spk_id)`
 
-Removes a speaker from memory and from the database. No-op if not present.
+Removes a speaker — embedding, names and color — from memory (including pending dirty entries) and from the database. Works for speakers that only have a name; no-op if the speaker is unknown.
 
-Called after a reassignment to clean up temporary unrecognized IDs that no longer have any segments.
+Called only through `CommitService`: `recompute_or_remove()` drops unnamed speakers left without segments, and `delete_speaker()` removes a speaker the user deleted (after its segments were unassigned).
 
 ---
 
