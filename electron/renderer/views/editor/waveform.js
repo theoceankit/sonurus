@@ -123,7 +123,8 @@ function buildWaveform(segs, audio, signal, knownMap = {}) {
 
     if (seg) {
       const spkId = effectiveSpeaker(seg)
-      tipName.textContent = knownMap[spkId]?.name || 'Unknown speaker'
+      tipName.textContent = knownMap[spkId]?.name
+        || (spkId === UNASSIGNED_ID ? 'Unassigned' : 'Unknown speaker')
       tipName.style.display = 'block'
     } else {
       tipName.style.display = 'none'

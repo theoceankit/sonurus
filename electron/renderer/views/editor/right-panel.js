@@ -135,7 +135,8 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
     })
 
     const recognized   = Object.keys(durBySpeaker).filter(id => !isUnrecognized(id, knownMap))
-    const unrecognized = Object.keys(durBySpeaker).filter(id => isUnrecognized(id, knownMap))
+    const unrecognized = Object.keys(durBySpeaker).filter(id => id !== UNASSIGNED_ID && isUnrecognized(id, knownMap))
+    const hasUnassigned = UNASSIGNED_ID in durBySpeaker
 
     function sectionLabel(text, count) {
       const lbl = document.createElement('div')
@@ -170,7 +171,19 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
       })
     }
 
-    if (recognized.length === 0 && unrecognized.length === 0) {
+    // Segments of deleted speakers — one group, assignable in bulk
+    if (hasUnassigned) {
+      content.appendChild(sectionLabel('Unassigned', ''))
+      content.appendChild(makeSpeakerCard(
+        UNASSIGNED_ID, 'Unassigned',
+        countBySpeaker[UNASSIGNED_ID], durBySpeaker[UNASSIGNED_ID],
+        totalDur, transcriptId, onReload, knownSpeakers,
+        sampleBySpeaker[UNASSIGNED_ID] || null,
+        (setActive) => playPreview(firstSegBySpeaker[UNASSIGNED_ID], setActive), () => pausePreview()
+      ))
+    }
+
+    if (recognized.length === 0 && unrecognized.length === 0 && !hasUnassigned) {
       content.appendChild(emptyState('No speakers', 'Transcript has no segments.'))
     }
   }
