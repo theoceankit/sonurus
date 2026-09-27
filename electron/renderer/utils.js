@@ -119,3 +119,16 @@ function formatDataResetSummary({ transcripts, speakers, files }) {
   const n = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`
   return `Deleted ${n(transcripts, 'transcript')}, ${n(speakers, 'speaker')} and ${n(files, 'file')}.`
 }
+
+// ── Sidebar: delete transcript ──────────────────────────────────────────────────
+function withoutRecording(items, id) {
+  return items.filter(r => r.id !== id)
+}
+
+function deleteTranscriptPrompt(title) {
+  return {
+    title: title ? `Delete “${title}”?` : 'Delete this transcript?',
+    body: 'The transcript and its recording made in Sonorus will be deleted. '
+      + 'Imported audio files are kept. This cannot be undone.',
+  }
+}

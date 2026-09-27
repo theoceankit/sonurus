@@ -86,3 +86,53 @@ function makeDropdown(options, value, onChange, renderOption) {
   wrap.appendChild(list)
   return wrap
 }
+
+// ── Confirm dialog ──────────────────────────────────────────────────────────────
+// Modal with Cancel + a red confirm button. onConfirm may return a promise;
+// the dialog closes when it settles. Escape / backdrop click cancel.
+
+function openConfirmDialog({ title, body, confirmLabel = 'Delete', onConfirm }) {
+  const overlay = document.createElement('div')
+  overlay.className = 'nr-overlay'
+
+  const modal = document.createElement('div')
+  modal.className = 'nr-modal confirm-modal'
+  modal.setAttribute('role', 'alertdialog')
+
+  const h = document.createElement('div')
+  h.className = 'confirm-title'
+  h.textContent = title
+  const p = document.createElement('div')
+  p.className = 'confirm-body'
+  p.textContent = body
+
+  const btns = document.createElement('div')
+  btns.className = 'confirm-btns'
+  const cancelBtn = document.createElement('button')
+  cancelBtn.className = 'st-btn st-btn--ghost'
+  cancelBtn.textContent = 'Cancel'
+  const confirmBtn = document.createElement('button')
+  confirmBtn.className = 'st-btn st-btn--danger'
+  confirmBtn.textContent = confirmLabel
+  btns.append(cancelBtn, confirmBtn)
+
+  modal.append(h, p, btns)
+  overlay.appendChild(modal)
+
+  function onEsc(e) { if (e.key === 'Escape') close() }
+  function close() {
+    document.removeEventListener('keydown', onEsc)
+    overlay.remove()
+  }
+  document.addEventListener('keydown', onEsc)
+  overlay.addEventListener('mousedown', e => { if (e.target === overlay) close() })
+  cancelBtn.addEventListener('click', close)
+  confirmBtn.addEventListener('click', async () => {
+    cancelBtn.disabled = confirmBtn.disabled = true
+    try { await onConfirm() } finally { close() }
+  })
+
+  document.body.appendChild(overlay)
+  confirmBtn.focus()
+  return overlay
+}
