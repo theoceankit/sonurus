@@ -106,3 +106,16 @@ function makeAvatar(spkId, displayName, size = 24, knownMap = {}) {
 function defaultSettingsPatch(defaults, current) {
   return { ...defaults, hfToken: current.hfToken ?? defaults.hfToken }
 }
+
+// Why "Delete all data" must stay disabled right now, or null if it may run.
+function dataResetBlockReason(activeJobCount, liveSession) {
+  if (activeJobCount > 0) return 'Wait for the running transcription to finish.'
+  if (liveSession) return 'Stop the live recording first.'
+  return null
+}
+
+function formatDataResetSummary({ transcripts, speakers, files }) {
+  if (!transcripts && !speakers && !files) return 'There was no data to delete.'
+  const n = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`
+  return `Deleted ${n(transcripts, 'transcript')}, ${n(speakers, 'speaker')} and ${n(files, 'file')}.`
+}
