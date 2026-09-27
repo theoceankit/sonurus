@@ -1,9 +1,13 @@
+import os
 import uuid as _uuid
+from pathlib import Path
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity as _cos_sim
 from fastapi import APIRouter, Depends, HTTPException
 
+import app.config as config
+from app.logger import get_logger
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.commit_service import CommitService
@@ -14,6 +18,8 @@ from app.api.schemas import (
 )
 
 router = APIRouter(prefix="/transcripts", tags=["transcripts"])
+
+log = get_logger("TranscriptsAPI")
 
 
 def _effective_speaker(seg) -> str:
@@ -28,6 +34,30 @@ def _recompute_after_delete(speaker_ids, memory, storage) -> None:
     for spk_id in speaker_ids:
         if spk_id:
             commit_svc.recompute_or_remove(spk_id)
+
+
+def _delete_owned_recording(audio_file: str, storage: TranscriptStorageService) -> None:
+    """Delete a live recording once no transcript references it.
+
+    Only files directly owned by the app (inside RECORDINGS_DIR) are removed;
+    imported audio elsewhere on disk is never touched. A symlink is removed
+    as a link, its target is kept.
+    """
+    if not audio_file or storage.count_by_audio_file(audio_file) > 0:
+        return
+    path = Path(audio_file)
+    recordings = Path(config.RECORDINGS_DIR).resolve()
+    # Resolve the parent only, so a symlink itself is judged by where it lives.
+    parent = Path(os.path.abspath(path.parent)).resolve()
+    if parent != recordings and recordings not in parent.parents:
+        return
+    try:
+        (parent / path.name).unlink()
+        log.info(f"Deleted recording {audio_file}")
+    except FileNotFoundError:
+        pass
+    except OSError as e:
+        log.warning(f"Could not delete recording {audio_file}: {e}")
 
 
 @router.get("", response_model=list[TranscriptListItem])
@@ -138,6 +168,7 @@ def delete_transcript(
         raise HTTPException(status_code=404, detail="Transcript not found")
     storage.delete(transcript_id)
     _recompute_after_delete({_effective_speaker(s) for s in t.segments}, memory, storage)
+    _delete_owned_recording(t.audio_path, storage)
 
 
 @router.patch("/{transcript_id}/segments/{start}/speaker", status_code=204)
