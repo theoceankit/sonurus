@@ -1,32 +1,46 @@
-# UI icons
+---
+sidebar_position: 2
+---
 
-Every icon in the Electron UI is a file in this folder. The renderer never inlines SVG markup:
-JS calls `icon('name', size)` (`electron/renderer/icons.js`), static HTML writes
-`<span data-icon="name" data-size="14"></span>`.
+# Icons
 
-## Replacing an icon
+Every icon in the Electron UI is a file in `electron/assets/icons/<name>.svg`. The renderer contains
+no inline SVG icons.
 
-Overwrite `<name>.svg` with the new drawing — nothing else changes. Reload the app to see it.
+## Usage
 
-## Adding an icon
+- **JS:** `icon('delete', 14)` (`electron/renderer/icons.js`) returns a `<span class="icon">` with a
+  square 14 px box.
+- **Static HTML** (`index.html`, `setup.html`): `<span data-icon="search" data-size="13"></span>`;
+  `icons.js` fills these in when it loads, keeping any inline style of the placeholder (e.g. a color).
 
-Drop `<name>.svg` here, then reference it by name from the renderer and add a row to the table below.
+## Rendering
+
+The file is a CSS mask (`mask: url(...) center / contain`) over `background-color: currentColor`,
+so an icon takes the text color of its parent and the colors inside the file are ignored.
+Icons are therefore single-color. Styles are inline, not in a stylesheet: the CSP of `setup.html`
+allows inline styles only.
+
+## Replacing and adding an icon
+
+- **Replace:** overwrite `<name>.svg` with the new drawing and reload the app — nothing else changes.
+- **Add:** drop `<name>.svg` into the folder, reference it by name from the renderer and add a row
+  to the table below.
 
 ## Rules for a file
 
 - **Name:** kebab-case, by meaning (`delete`, `next-speaker`), not by look or source (`trash-2`, `mdi-…`).
-- **Root element:** `<svg xmlns="http://www.w3.org/2000/svg" viewBox="…">` — both attributes are required
-  (the file is loaded as an image, and the viewBox is what gets scaled).
-- **One color:** the file is used as a mask and filled with the text color of the surrounding UI,
-  so colors inside the file are ignored — only the shape (and its opacity) matters.
+- **Root element:** `<svg xmlns="http://www.w3.org/2000/svg" viewBox="…">` — both attributes are
+  required (the file is loaded as an image, and the viewBox is what gets scaled).
+- **One color:** only the shape (and its opacity) matters.
 - **Square viewBox**, glyph centered: the UI places every icon in a square box (`size` px).
   Padding inside the viewBox makes the icon look smaller.
 - `width` / `height` on the root are optional and ignored by the UI.
 
-`tests/renderer/icons.test.js` checks that every name used in the renderer has a file, that every file
-follows the rules above and is listed here, and that no inline SVG icons come back.
+`tests/renderer/icons.test.js` fails when a name used in the renderer has no file, when a file breaks
+the naming or root-element rules, or when inline SVG icons return.
 
-## Icons
+## Where each icon is used
 
 | Icon | Where it is used |
 |---|---|

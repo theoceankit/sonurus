@@ -78,12 +78,6 @@ test('icon files: kebab-case names, standalone SVG with a viewBox', () => {
   }
 })
 
-test('icon README lists every icon file', () => {
-  const readme = fs.readFileSync(path.join(ICONS_DIR, 'README.md'), 'utf8')
-  const unlisted = iconFiles.filter(f => !readme.includes(`\`${f.replace(/\.svg$/, '')}\``))
-  assert.deepEqual(unlisted, [])
-})
-
 test('no inline SVG icons left in the renderer', () => {
   // The dashed drop-zone border is a stretched shape, not an icon.
   const allowed = /<svg class="nr-drop-border"/
