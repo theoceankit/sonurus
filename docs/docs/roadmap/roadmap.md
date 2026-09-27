@@ -103,6 +103,20 @@ See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-uses-pe
 
 ---
 
+## UI without business logic
+
+Controls that are visible and persisted but do not affect behaviour yet. Each is marked with a `TODO(not implemented)` comment in the renderer. Implement the logic or hide the control before a public release.
+
+| Control | Where | Missing logic |
+|---|---|---|
+| "Diarize speakers" toggle | New recording modal (`new-recording-modal.js`) | Not sent to `POST /transcribe`; the pipeline always diarizes |
+| "Save audio file" toggle | New recording modal | Not sent anywhere; the recording is always kept |
+| Export format (txt/md/srt/vtt/json), include timestamps/speakers/bookmarks/audio, "duplicate" | Settings → Export (`settings-view.js`) | Titlebar export (`app.js`) always copies plain text scraped from the DOM |
+| Sidebar filters "Notes" and "Marked" | Sidebar (`index.html`, `app.js` `_applyFilter`) | API returns no `source` or mark fields — "Notes" is always empty, "Marked" shows all |
+| Titlebar search | `#tb-search-btn` | No handler; `_rerenderList(query)` is never called with a query |
+
+---
+
 ## Architecture
 
 ### CommitService as write coordinator
