@@ -73,7 +73,7 @@ electron/
       settings-view.js        — Settings screen
       speakers-view.js        — Speakers section: sidebar list items + speaker page
       editor/                 — Editor sub-components
-        tooltip.js, speaker-picker.js, segment-row.js,
+        tooltip.js, speaker-picker.js, new-speaker-modal.js, segment-row.js,
         speaker-card.js, waveform.js, player-bar.js, right-panel.js
 ```
 
@@ -197,6 +197,18 @@ The sidebar header has two tabs, **Transcripts** and **Speakers** (`.sb-tab`), e
 - **Delete** — **Delete speaker…** opens `openConfirmDialog()` with `deleteSpeakerPrompt()` (it says how many segments in how many transcripts become Unassigned) and calls `DELETE /speakers/{id}`. Like *Delete all data*, the button is disabled with the `dataResetBlockReason()` tooltip while a transcription job or live recording runs; the backend answers `409` in that case too.
 
 After a change the sidebar is reloaded so transcript avatars and the editor pick up new names and colors.
+
+### Assigning a speaker in the editor
+
+The speaker picker (`speaker-picker.js`) opens from a segment's speaker name (assigns that segment only) or from a right-panel card's **Assign speaker** (assigns every segment of that speaker in the transcript). Its search filters the named speakers; clicking one or pressing Enter assigns it. The request is built by `speakerAssignRequest()` (`utils.js`): `PATCH /transcripts/{id}/segments/{start}/speaker` for one segment, `POST /transcripts/{id}/reassign` for all.
+
+The footer button **Add new speaker…** (or Enter when nothing matches the search) closes the picker and opens `openNewSpeakerModal()` (`new-speaker-modal.js`):
+
+- **Name** — required (**Add speaker** is disabled while empty), prefilled with the picker search text. A name another speaker already has is allowed and noted under the field (`hasSpeakerNamed()`).
+- **Color** — palette swatches; the default is the color the fewest named speakers use (`leastUsedColorIndex()`). Sent as `color_index` with the name, so the speaker is created with it in one request.
+- **Assign to** — opened from a segment row: a toggle between *This segment* and *All segments of “X”*; opened from a card: a note that all segments of that speaker are assigned.
+
+Enter submits, Escape / backdrop / Cancel close it. A failed request keeps the dialog open and shows the error under the name.
 
 ### Unassigned segments in the editor
 
