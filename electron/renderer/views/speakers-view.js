@@ -38,6 +38,63 @@ function makeSpeakerListItem(row, { active = false, duplicate = false, onClick }
   return btn
 }
 
+// ── Voice sample player ────────────────────────────────────────────────────────
+const _SAMPLE_PLAY  = `<svg width="9" height="11" viewBox="0 0 11 12" fill="none"><path d="M1 1l9 5-9 5V1z" fill="currentColor"/></svg>`
+const _SAMPLE_PAUSE = `<svg width="9" height="11" viewBox="0 0 11 12" fill="none"><rect x="1" y="1" width="3" height="10" rx="0.7" fill="currentColor"/><rect x="7" y="1" width="3" height="10" rx="0.7" fill="currentColor"/></svg>`
+const SAMPLE_MAX_SEC = 15  // a very long segment is cut to a short preview
+
+function _sampleUrl(speakerId, transcriptId = null) {
+  const q = transcriptId == null ? '' : `?transcript_id=${transcriptId}`
+  return `${API_BASE}/speakers/${encodeURIComponent(speakerId)}/sample${q}`
+}
+
+// One Audio element per speaker page; one sample plays at a time.
+function makeSamplePlayer() {
+  const audio = new Audio()
+  let stopAt = 0
+  let activeBtn = null
+
+  function setIcon(btn, playing) {
+    btn.innerHTML = playing ? _SAMPLE_PAUSE : _SAMPLE_PLAY
+    btn.classList.toggle('spk-play-btn--playing', playing)
+  }
+  function stop() {
+    audio.pause()
+    if (activeBtn) setIcon(activeBtn, false)
+    activeBtn = null
+  }
+  audio.addEventListener('timeupdate', () => { if (audio.currentTime >= stopAt) stop() })
+  audio.addEventListener('ended', stop)
+
+  return {
+    // Toggle: a second click on the playing button stops it.
+    toggle(btn, sample) {
+      if (activeBtn === btn) { stop(); return }
+      stop()
+      const src = fileUrl(sample.audio_path)
+      if (audio.src !== src) audio.src = src
+      audio.currentTime = sample.start
+      stopAt = Math.min(sample.end, sample.start + SAMPLE_MAX_SEC)
+      activeBtn = btn
+      setIcon(btn, true)
+      audio.play().catch(err => {
+        stop()
+        window.showToast?.(`Could not play audio: ${err.message}`, 'error')
+      })
+    },
+    dispose() { stop(); audio.removeAttribute('src'); audio.load() },
+  }
+}
+
+function makeSamplePlayButton(label) {
+  const btn = document.createElement('button')
+  btn.className = 'spk-play-btn'
+  btn.innerHTML = _SAMPLE_PLAY
+  btn.setAttribute('aria-label', label)
+  btn.title = label
+  return btn
+}
+
 function renderSpeakersPlaceholder(text) {
   const el = document.createElement('div')
   el.className = 'spk-page-empty'
@@ -57,6 +114,8 @@ function _fmtDate(iso) {
 function renderSpeakerDetail(row, ctx) {
   const root = document.createElement('div')
   root.className = 'spk-page quiet-scroll'
+  const player = makeSamplePlayer()
+  root._cleanup = () => player.dispose()  // called by app._setView on navigation
 
   const content = document.createElement('div')
   content.className = 'spk-page-content'
@@ -105,6 +164,31 @@ function renderSpeakerDetail(row, ctx) {
   titleBox.append(form, error, sameName, sub)
   top.appendChild(titleBox)
   header.appendChild(top)
+
+  // ── Voice sample: the most characteristic segment ─────────────────────────
+  const sampleBox = document.createElement('div')
+  sampleBox.className = 'spk-sample'
+  const sampleText = document.createElement('span')
+  sampleText.className = 'spk-sample-text'
+  sampleText.textContent = 'Loading voice sample…'
+  sampleBox.appendChild(sampleText)
+  header.appendChild(sampleBox)
+
+  fetch(_sampleUrl(row.id))
+    .then(r => r.ok ? r.json() : null)
+    .catch(() => null)
+    .then(sample => {
+      if (!sample) {
+        sampleBox.classList.add('spk-sample--none')
+        sampleText.textContent = 'Audio unavailable — the recordings of this speaker were moved or deleted.'
+        return
+      }
+      const btn = makeSamplePlayButton('Play voice sample')
+      btn.addEventListener('click', () => player.toggle(btn, sample))
+      const q = sample.text.length > 120 ? sample.text.slice(0, 120) + '…' : sample.text
+      sampleText.textContent = `“${q}”`
+      sampleBox.prepend(btn)
+    })
 
   const dirty = () => input.value.trim() !== (row.name || '') && input.value.trim() !== ''
   input.addEventListener('input', () => { saveBtn.hidden = !dirty(); error.textContent = '' })
@@ -197,6 +281,28 @@ function renderSpeakerDetail(row, ctx) {
         return
       }
       items.forEach(t => {
+        const rowEl = document.createElement('div')
+        rowEl.className = 'spk-tr-row'
+
+        // The sample for this transcript is fetched on first click.
+        const playBtn = makeSamplePlayButton('Play a sample from this transcript')
+        let sample = null
+        playBtn.addEventListener('click', async () => {
+          if (!sample) {
+            playBtn.disabled = true
+            const r = await fetch(_sampleUrl(row.id, t.id)).catch(() => null)
+            playBtn.disabled = false
+            if (!r?.ok) {
+              playBtn.disabled = true
+              playBtn.title = 'Audio unavailable'
+              window.showToast?.('The audio of this transcript is unavailable.')
+              return
+            }
+            sample = await r.json()
+          }
+          player.toggle(playBtn, sample)
+        })
+
         const item = document.createElement('button')
         item.className = 'spk-tr-item'
         const title = document.createElement('span')
@@ -207,7 +313,8 @@ function renderSpeakerDetail(row, ctx) {
         meta.textContent = `${_fmtDate(t.created_at)} · ${t.segments} seg. · ${fmtTime(t.duration_sec)}`
         item.append(title, meta)
         item.addEventListener('click', () => ctx.onOpenTranscript(t.id))
-        trList.appendChild(item)
+        rowEl.append(playBtn, item)
+        trList.appendChild(rowEl)
       })
     })
     .catch(err => {

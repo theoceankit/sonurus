@@ -1300,3 +1300,57 @@ def test_suggestions_skip_unassigned_segments(reset_env):
     r = client.get(f"/transcripts/{first}/speaker-suggestions")
     assert r.status_code == 200
     assert "UNASSIGNED" not in r.json()
+
+
+# ── GET /speakers/{id}/sample ─────────────────────────────────────────────────
+
+def _sample_fixture(tmp_path):
+    """Alice speaks in two transcripts; both audio files exist."""
+    storage = app.dependency_overrides[get_storage_service]()
+    memory = app.dependency_overrides[get_memory_service]()
+    audio1, audio2 = tmp_path / "one.wav", tmp_path / "two.wav"
+    audio1.write_bytes(b"x")
+    audio2.write_bytes(b"x")
+    first = storage.save(Transcript(audio_path=str(audio1), segments=[
+        Segment(0.0, 3.0, "far voice", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(0.0, 1.0, 0.0)),
+        Segment(3.0, 6.0, "typical voice", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(1.0, 0.0, 0.0)),
+    ]))
+    second = storage.save(Transcript(audio_path=str(audio2), segments=[
+        Segment(0.0, 2.5, "other day", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(0.0, 1.0, 0.0)),
+    ]))
+    memory.update_embedding(_ALICE, _emb(1.0, 0.0, 0.0))
+    memory.set_name(_ALICE, "Alice")
+    memory.save()
+    return first, second, audio1, audio2
+
+
+def test_speaker_sample_is_the_most_typical_segment(client, tmp_path):
+    first, _, audio1, _ = _sample_fixture(tmp_path)
+    r = client.get(f"/speakers/{_ALICE}/sample")
+    assert r.status_code == 200, r.text
+    assert r.json() == {"transcript_id": first, "audio_path": str(audio1),
+                        "start": 3.0, "end": 6.0, "text": "typical voice"}
+
+
+def test_speaker_sample_limited_to_one_transcript(client, tmp_path):
+    _, second, _, _ = _sample_fixture(tmp_path)
+    r = client.get(f"/speakers/{_ALICE}/sample", params={"transcript_id": second})
+    assert r.status_code == 200
+    assert r.json()["text"] == "other day"
+
+
+def test_speaker_sample_skips_transcripts_without_audio(client, tmp_path):
+    _, second, audio1, _ = _sample_fixture(tmp_path)
+    audio1.unlink()
+    assert client.get(f"/speakers/{_ALICE}/sample").json()["transcript_id"] == second
+
+
+def test_speaker_sample_404_without_audio(client, tmp_path):
+    _, _, audio1, audio2 = _sample_fixture(tmp_path)
+    audio1.unlink()
+    audio2.unlink()
+    assert client.get(f"/speakers/{_ALICE}/sample").status_code == 404
+
+
+def test_speaker_sample_404_for_unknown_speaker(client):
+    assert client.get(f"/speakers/{_BOB}/sample").status_code == 404
