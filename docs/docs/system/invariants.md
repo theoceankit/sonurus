@@ -24,7 +24,7 @@ No code other than `CommitService` may call `SpeakerMemoryService.update_embeddi
 
 Two permitted exceptions that do not write embeddings:
 - `SpeakerMemoryService.save_names_only()` — writes only `speaker_names` (display names). Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and via `create_named_speaker()` when a user assigns segments to a new name.
-- `SpeakerMemoryService.set_color()` — writes only `speaker_meta` (palette color). Called from `PATCH /speakers/{id}`.
+- `SpeakerMemoryService.set_color()` — writes only `speaker_meta` (palette color). Called from `PATCH /speakers/{id}` and, with the optional `color_index`, when `PATCH /transcripts/{id}/segments/{start}/speaker` or `POST /transcripts/{id}/reassign` creates a speaker by name.
 - `SpeakerMemoryService.remove_speaker()` — deletes a speaker (embedding, names, color) from memory and DB. Called only through `CommitService`: `recompute_or_remove()` drops unnamed speakers left without segments, and `delete_speaker()` (`DELETE /speakers/{id}`) first unassigns the speaker's segments so nothing can recompute the profile back.
 - `SpeakerMemoryService.clear()` — deletes every speaker (embeddings, names, colors) and drops the in-memory state. Called only from `POST /data/reset` (full data reset), which runs `TranscriptStorageService.clear()` first, so no segments remain to recompute from.
 

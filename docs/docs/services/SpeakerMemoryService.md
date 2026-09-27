@@ -163,7 +163,7 @@ Every speaker memory knows about: with a voice profile (`known_speakers`), a nam
 
 ### `get_color_index(spk_id) → int | None` / `set_color(spk_id, color_index)`
 
-Read / persist the palette slot. `set_color()` raises `ValueError` outside `0..PALETTE_SIZE-1` and writes `speaker_meta` immediately. Called from `PATCH /speakers/{id}`.
+Read / persist the palette slot. `set_color()` raises `ValueError` outside `0..PALETTE_SIZE-1` and writes `speaker_meta` immediately. Called from `PATCH /speakers/{id}` and from the assign endpoints (`PATCH /transcripts/{id}/segments/{start}/speaker`, `POST /transcripts/{id}/reassign`) when they create a speaker by name with `color_index`.
 
 ---
 

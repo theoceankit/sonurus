@@ -20,6 +20,8 @@ The symmetrical `POST /reassign` endpoint correctly validates `to_speaker_id in 
 
 **Fix:** Validate that `body.speaker_id` matches UUID4 format **and** is present in `memory.known_speakers`; return 400 otherwise. Update the test.
 
+**Later change:** membership is now checked against `memory.speaker_ids()` (voice profile **or** display name) in both assign endpoints, so a named speaker created on segments too short for an embedding can still be assigned.
+
 **Files:** `app/api/routers/transcripts.py:69–88`, `tests/test_api.py`
 
 ---
