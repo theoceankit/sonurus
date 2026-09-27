@@ -902,3 +902,35 @@ def test_delete_segment_removes_unnamed_speaker_with_no_segments_left(client):
 
     assert _BOB not in _fresh_memory().known_speakers
     assert _ALICE in _fresh_memory().known_speakers
+
+
+# ── Single-segment reassign to a NEW named speaker ───────────────────────────
+
+def _transcript_with_two_alice_segments():
+    storage = app.dependency_overrides[get_storage_service]()
+    t = Transcript(audio_path="c.wav", segments=[
+        Segment(0.0, 2.0, "one", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(1.0, 0.0, 0.0)),
+        Segment(2.0, 4.0, "two", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(0.0, 1.0, 0.0)),
+    ])
+    return storage.save(t)
+
+
+def test_segment_speaker_by_name_moves_only_that_segment(client):
+    db_id = _transcript_with_two_alice_segments()
+
+    r = client.patch(f"/transcripts/{db_id}/segments/2.0/speaker", json={"speaker_name": "Carol"})
+    assert r.status_code == 204, r.text
+
+    segs = client.get(f"/transcripts/{db_id}").json()["segments"]
+    first, second = (s["speaker_final"] or s["speaker_resolved"] for s in segs)
+    assert first == _ALICE, "the other segment of the speaker must stay untouched"
+    assert second != _ALICE and _is_valid_uuid(second)
+    names = {s["id"]: s["name"] for s in client.get("/speakers").json()}
+    assert names.get(second) == "Carol"
+
+
+def test_segment_speaker_requires_exactly_one_of_id_or_name(client):
+    db_id = _transcript_with_two_alice_segments()
+    url = f"/transcripts/{db_id}/segments/0.0/speaker"
+    assert client.patch(url, json={}).status_code == 400
+    assert client.patch(url, json={"speaker_id": _ALICE, "speaker_name": "X"}).status_code == 400

@@ -56,7 +56,14 @@ class RenameRequest(BaseModel):
 
 
 class SegmentSpeakerRequest(BaseModel):
-    speaker_id: str
+    """Exactly one of: an existing speaker_id, or speaker_name to create a new speaker."""
+    speaker_id: str | None = None
+    speaker_name: str | None = Field(default=None, min_length=1, max_length=128)
+
+    @field_validator('speaker_name', mode='before')
+    @classmethod
+    def strip_name(cls, v):
+        return v.strip() if isinstance(v, str) else v
 
 
 class SegmentTextRequest(BaseModel):

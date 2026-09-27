@@ -20,6 +20,15 @@ def _effective_speaker(seg) -> str:
     return seg.speaker_final or seg.speaker_resolved or seg.speaker_raw
 
 
+def _create_named_speaker(memory: SpeakerMemoryService, name: str) -> str:
+    """New speaker UUID with a persisted display name; the embedding is
+    added by CommitService once segments are assigned to it."""
+    spk_id = memory._generate_new_speaker_id()
+    memory.set_name(spk_id, name)
+    memory.save_names_only()
+    return spk_id
+
+
 def _recompute_after_delete(speaker_ids, memory, storage) -> None:
     """Deleted segments must no longer contribute to speaker profiles (I4):
     recompute each affected speaker from the remaining DB segments, or drop
@@ -148,6 +157,8 @@ def update_segment_speaker(
     storage: TranscriptStorageService = Depends(get_storage_service),
     memory: SpeakerMemoryService = Depends(get_memory_service),
 ):
+    if (body.speaker_id is None) == (body.speaker_name is None):
+        raise HTTPException(status_code=400, detail="Provide exactly one of speaker_id or speaker_name")
     try:
         t = storage.load(transcript_id)
     except ValueError:
@@ -155,16 +166,20 @@ def update_segment_speaker(
     seg = next((s for s in t.segments if s.start == start), None)
     if seg is None:
         raise HTTPException(status_code=404, detail="Segment not found")
-    try:
-        _uuid.UUID(body.speaker_id, version=4)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="speaker_id must be a valid UUID4")
-    if body.speaker_id not in memory.known_speakers:
-        raise HTTPException(status_code=400, detail="speaker_id not found in known speakers")
+    if body.speaker_id is not None:
+        try:
+            _uuid.UUID(body.speaker_id, version=4)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="speaker_id must be a valid UUID4")
+        if body.speaker_id not in memory.known_speakers:
+            raise HTTPException(status_code=400, detail="speaker_id not found in known speakers")
+        to_spk_id = body.speaker_id
+    else:
+        to_spk_id = _create_named_speaker(memory, body.speaker_name)
     from_spk_id = _effective_speaker(seg)
-    storage.update_segment_speaker(transcript_id, start, seg.end, body.speaker_id)
+    storage.update_segment_speaker(transcript_id, start, seg.end, to_spk_id)
     commit_svc = CommitService(memory, storage)
-    commit_svc.commit_speaker(body.speaker_id)
+    commit_svc.commit_speaker(to_spk_id)
     commit_svc.recompute_or_remove(from_spk_id)
 
 
@@ -228,9 +243,7 @@ def reassign_speaker(
         if to_uuid not in memory.known_speakers:
             raise HTTPException(status_code=404, detail="Speaker not found")
     else:
-        to_uuid = memory._generate_new_speaker_id()
-        memory.set_name(to_uuid, body.to_speaker_name)
-        memory.save_names_only()
+        to_uuid = _create_named_speaker(memory, body.to_speaker_name)
 
     storage.update_segments_speaker(transcript_id, body.from_speaker_id, to_uuid)
     for seg in t.segments:

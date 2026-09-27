@@ -267,10 +267,14 @@ Returns `204`.
 ### `PATCH /transcripts/{id}/segments/{start}/speaker`
 
 ```json
+// Assign to an existing speaker:
 { "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca" }
+
+// Assign to a new speaker (creates a UUID with this display name):
+{ "speaker_name": "Carol" }
 ```
 
-`speaker_id` must be a UUID4. Returns `204`.
+Exactly one of `speaker_id` (a UUID4 of a known speaker) or `speaker_name` (1–128 chars, trimmed) must be provided, otherwise `400`. Returns `204`.
 
 Reassigns only this one segment (unlike `POST /reassign` which is bulk). After updating the DB, immediately recomputes embeddings for both the new speaker (`commit_speaker`) and the previous speaker (`recompute_or_remove`).
 
