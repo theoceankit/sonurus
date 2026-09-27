@@ -56,9 +56,7 @@ function renderNewRecordingModal({ onStart, onImport }) {
   const closeBtn = document.createElement('button')
   closeBtn.className = 'nr-modal-close'
   closeBtn.title = 'Close'
-  closeBtn.innerHTML = `<svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-    <path d="M1 1l7 7M8 1l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-  </svg>`
+  closeBtn.innerHTML = icon('close', 11)
   closeBtn.addEventListener('click', close)
   header.appendChild(closeBtn)
   modal.appendChild(header)
@@ -105,31 +103,20 @@ function renderNewRecordingModal({ onStart, onImport }) {
       id: 'mic',
       name: 'Microphone',
       desc: 'Just your voice',
-      icon: `<svg width="14" height="14" viewBox="0 0 18 18" fill="none">
-        <path d="M9 2a3 3 0 013 3v4a3 3 0 01-6 0V5a3 3 0 013-3z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-        <path d="M4 9a5 5 0 0010 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <line x1="9" y1="14" x2="9" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>`,
+      icon: icon('microphone', 14),
     },
     {
       id: 'system',
       name: 'System audio',
       desc: 'Calls, browser, apps',
-      icon: `<svg width="14" height="14" viewBox="0 0 18 18" fill="none">
-        <rect x="1.5" y="3" width="15" height="9.5" rx="1.5" stroke="currentColor" stroke-width="1.5" fill="none"/>
-        <path d="M6 12.5v2M12 12.5v2M4 14.5h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>`,
+      icon: icon('system-audio', 14),
     },
     {
       id: 'both',
       name: 'Both',
       desc: 'Recommended for meetings',
       recommended: true,
-      icon: `<svg width="14" height="14" viewBox="0 0 18 18" fill="none">
-        <path d="M6.5 2.5a2.5 2.5 0 015 0V7a2.5 2.5 0 01-5 0V2.5z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-        <path d="M3 7a6 6 0 0012 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <rect x="11" y="5" width="5.5" height="4" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
-      </svg>`,
+      icon: icon('microphone-and-system', 14),
     },
   ]
 
@@ -261,12 +248,8 @@ function renderNewRecordingModal({ onStart, onImport }) {
       const on = t.get()
       btn.classList.toggle('nr-toggle--on', on)
       btn.innerHTML = on
-        ? `<svg width="10" height="8" viewBox="0 0 11 9" fill="none">
-             <path d="M1 4.5l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-           </svg>${t.label}`
-        : `<svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-             <path d="M4.5 1v7M1 4.5h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-           </svg>${t.label}`
+        ? `${icon('check', 10)}${t.label}`
+        : `${icon('add', 11)}${t.label}`
     }
     refresh()
     btn.addEventListener('click', () => { t.set(!t.get()); refresh() })
@@ -282,9 +265,7 @@ function renderNewRecordingModal({ onStart, onImport }) {
   const importBtn = document.createElement('button')
   importBtn.className = 'nr-import-btn'
   importBtn.innerHTML = `
-    <svg width="12" height="13" viewBox="0 0 14 15" fill="none">
-      <path d="M7 1.5v9M3.5 7l3.5 4 3.5-4M2 13.5h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>Import audio file`
+    ${icon('import', 13)}Import audio file`
   importBtn.addEventListener('click', () => {
     window.electronAPI.openFile().then(filePath => {
       if (!filePath) return
@@ -396,9 +377,7 @@ function renderNewRecordingModal({ onStart, onImport }) {
       <rect width="100%" height="100%" rx="14" ry="14" fill="none"
         stroke="#0A84FF" stroke-width="3" stroke-dasharray="18,10" stroke-linecap="round"/>
     </svg>
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-      <path d="M14 4v14M7 11l7 8 7-8M5 23h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
+    ${icon('import', 28)}
     <span>Drop audio file to transcribe</span>`
   modal.appendChild(dropOverlay)
 

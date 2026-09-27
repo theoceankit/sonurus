@@ -562,9 +562,7 @@ const app = {
     delEl.className = 'rec-item-delete'
     delEl.setAttribute('role', 'button')
     delEl.title = 'Delete transcript'
-    delEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 18 18" fill="none">
-      <path d="M3.5 5h11M7 5V3.5h4V5M5 5l.7 9.5h6.6L13 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`
+    delEl.innerHTML = icon('delete', 14)
     delEl.addEventListener('click', e => {
       e.stopPropagation()
       this._confirmDeleteTranscript(item)

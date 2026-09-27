@@ -48,9 +48,11 @@ electron/
   screenshot-setup.js  — DEV-ONLY screenshot utility (never packaged)
   assets/
     icon.png           — 512×512 source icon
+    icons/             — every UI icon as <name>.svg (see Icons page)
   renderer/
     index.html         — App shell: left sidebar + main panel
     setup.html         — First-run setup screen (shown during pip install)
+    icons.js           — icon(name, size), hydrateIcons: renders files from assets/icons/
     utils.js           — API_BASE, WS_BASE, speaker helpers, fmtTime, makeAvatar
     components.js      — makeDropdown (shared UI component)
     data.js            — LANGUAGES (static), MODELS (fallback), ALIGNMENT_MODELS (source of truth)
@@ -243,6 +245,13 @@ Transcription runs entirely in the background — the main panel is never replac
 3. **Permissions** — mic and screen-recording grant buttons
 
 **Note:** the Permissions screen is currently a UI mock. Clicking "Grant" marks the button green but does not trigger actual system permission requests. Both "Continue" and "Skip" dispatch `electronAPI.completeSetup()` and are equivalent.
+
+---
+
+## Icons
+
+Every UI icon is a file in `electron/assets/icons/`, rendered by `icons.js` as a CSS mask over
+`currentColor`. Usage, file rules and where each icon is used: [Icons](./icons.md).
 
 ---
 

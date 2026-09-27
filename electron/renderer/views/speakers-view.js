@@ -39,8 +39,8 @@ function makeSpeakerListItem(row, { active = false, duplicate = false, onClick }
 }
 
 // ── Voice sample player ────────────────────────────────────────────────────────
-const _SAMPLE_PLAY  = `<svg width="9" height="11" viewBox="0 0 11 12" fill="none"><path d="M1 1l9 5-9 5V1z" fill="currentColor"/></svg>`
-const _SAMPLE_PAUSE = `<svg width="9" height="11" viewBox="0 0 11 12" fill="none"><rect x="1" y="1" width="3" height="10" rx="0.7" fill="currentColor"/><rect x="7" y="1" width="3" height="10" rx="0.7" fill="currentColor"/></svg>`
+const _SAMPLE_PLAY  = icon('play', 14)
+const _SAMPLE_PAUSE = icon('pause', 14)
 const SAMPLE_MAX_SEC = 15  // a very long segment is cut to a short preview
 
 function _sampleUrl(speakerId, transcriptId = null) {

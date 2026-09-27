@@ -8,17 +8,6 @@ What is still missing or needs updating in the docs.
 
 ---
 
-## Roadmap items to document
-
-### SVG icons — migrate from inline JS to file-based
-Currently all SVG icons in the Electron renderer are inlined as string literals in JS files (`SVG_EDIT = '<svg ...'`, etc.). The source files live in `app/assets/icons/` but are not loaded — they're there for reference.
-
-**Target:** load icons from `app/assets/icons/` at runtime (e.g. via `fetch()` or bundled as an asset map) so that adding or updating an icon only requires changing the SVG file, not editing JS source.
-
-**Scope:** `electron/renderer/views/editor-view.js`, `electron/renderer/app.js`; asset path to decide (keep in `app/assets/icons/` or move to `electron/assets/icons/`).
-
----
-
 ## Missing
 
 ### `environment/setup.md`

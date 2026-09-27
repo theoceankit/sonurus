@@ -50,11 +50,7 @@ function renderAlignmentModal(lang, originalRequest) {
 
   const dlBtn = document.createElement('button')
   dlBtn.className = 'st-btn st-btn--primary'
-  dlBtn.innerHTML = [
-    `<svg width="11" height="11" viewBox="0 0 12 12" fill="none">`,
-    `<path d="M6 1v7M3 6l3 3 3-3M2 11h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>`,
-    `</svg> Download${langSize ? ' ' + langSize : ''}`,
-  ].join('')
+  dlBtn.innerHTML = `${icon('download', 11)} Download${langSize ? ' ' + langSize : ''}`
 
   const dismissBtn = document.createElement('button')
   dismissBtn.className = 'st-btn st-btn--ghost'
@@ -117,12 +113,7 @@ function renderAlignmentModal(lang, originalRequest) {
             if (originalRequest) {
               const retryBtn = document.createElement('button')
               retryBtn.className = 'st-btn st-btn--primary'
-              retryBtn.innerHTML = [
-                `<svg width="11" height="11" viewBox="0 0 12 12" fill="none">`,
-                `<path d="M2 6a4 4 0 104-4H4M4 2v3h3" stroke="currentColor"`,
-                ` stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
-                `</svg> Retry transcription`,
-              ].join('')
+              retryBtn.innerHTML = `${icon('retry', 11)} Retry transcription`
               retryBtn.addEventListener('click', () => {
                 retryBtn.disabled = true
                 close()

@@ -223,7 +223,7 @@ function renderEditorView(transcriptId, meta = null) {
     const SEL_ACTIONS = [
       {
         label: 'Copy',
-        icon: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="4.5" y="4.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M3 8.5H2A1.5 1.5 0 0 1 .5 7V2A1.5 1.5 0 0 1 2 .5h5A1.5 1.5 0 0 1 8.5 2v1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+        icon: icon('copy', 15),
         action() {
           const text = window.getSelection()?.toString()
           if (text) navigator.clipboard.writeText(text)
@@ -235,7 +235,7 @@ function renderEditorView(transcriptId, meta = null) {
       },
       {
         label: 'Highlight',
-        icon: `<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 10.5h9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8.5 2L11 4.5l-5 5-3 .5.5-3 5-5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
+        icon: icon('highlight', 13),
         action() {
           hideSelToolbar()
           window.showToast?.('Highlights coming in a future update')
