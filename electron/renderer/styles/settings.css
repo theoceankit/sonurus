@@ -401,6 +401,7 @@
   transition: opacity 0.15s;
 }
 .st-btn:hover { opacity: 0.85; }
+.st-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .st-btn--primary {
   background: var(--accent);

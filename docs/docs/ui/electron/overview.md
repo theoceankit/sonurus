@@ -116,7 +116,12 @@ Phase transitions are detected by parsing pip output patterns:
 
 Settings are stored in `app.getPath('userData')/settings.json`. The main process reads this file before spawning the backend to extract `hfToken`.
 
-Default values are defined in `DEFAULT_SETTINGS` in `main.js`. The renderer merges saved values on top of defaults via `Object.assign(appSettings, saved)`.
+Default values are defined in `DEFAULT_SETTINGS` in `main.js` (used when `settings.json` is missing) and in `DEFAULT_APP_SETTINGS` in `app.js`. The renderer starts `appSettings` as a copy of `DEFAULT_APP_SETTINGS` and merges saved values on top via `Object.assign(appSettings, saved)`.
+
+The last two sections of the Settings screen are destructive and use the same two-step confirmation (`Reset…` / `Delete…` → `Cancel` + a red confirm button):
+
+- **Reset to defaults** writes `DEFAULT_APP_SETTINGS` back to `settings.json` via `defaultSettingsPatch()` (`utils.js`), keeping `hfToken`, re-applies the zoom and re-renders the page. Transcripts, models and recordings are not touched.
+- **Delete all data** calls `POST /data/reset`, then clears `_activeTranscriptId`, reloads the sidebar and shows a toast built by `formatDataResetSummary()`. The trigger button is disabled (with the reason from `dataResetBlockReason()` as its tooltip) while a background transcription job or a live recording is running; the backend enforces the same rule with `409`. Models, preferences and imported audio files are kept.
 
 `hfToken` is part of `appSettings` in the renderer (Settings → API Keys edits it, and it is sent as `hf_token` with model download requests). `main.js` reads it once at startup to set `HF_TOKEN` for the backend process, so a changed token reaches the transcription pipeline only after an app restart.
 

@@ -616,3 +616,35 @@ def test_load_without_embeddings_skips_blobs(tmp_path):
     assert loaded.segments[0].text == "x"
     assert svc.load(db_id).segments[0].embedding is not None
 
+
+
+# ---------------------------------------------------------------------------
+# clear()
+# ---------------------------------------------------------------------------
+
+def test_clear_removes_all_transcripts_and_segments(tmp_path):
+    svc = make_service(tmp_path)
+    svc.save(make_transcript())
+    svc.save(make_transcript(audio_path="files/other.wav"))
+
+    assert svc.clear() == 2
+
+    assert svc.list_all() == []
+    with sqlite3.connect(str(tmp_path / "test.db")) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM segments").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM transcriptions").fetchone()[0] == 0
+
+
+def test_clear_on_empty_db_returns_zero(tmp_path):
+    assert make_service(tmp_path).clear() == 0
+
+
+def test_save_works_after_clear(tmp_path):
+    svc = make_service(tmp_path)
+    svc.save(make_transcript())
+    svc.clear()
+
+    db_id = svc.save(make_transcript())
+
+    assert len(svc.load(db_id).segments) == 2
+    assert len(svc.list_all()) == 1

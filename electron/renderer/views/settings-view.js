@@ -824,56 +824,76 @@ function buildAudioSection(state) {
   ])
 }
 
-function buildResetSection() {
-  const wrap = document.createElement('div')
-  wrap.className = 'st-reset-wrap'
-
-  const text = document.createElement('div')
-  text.className = 'st-reset-text'
-  text.innerHTML = `<div class="st-reset-icon">!</div>
-    <div>
-      <div class="st-field-label">This resets all preferences shown on this page.</div>
-      <div class="st-field-hint" style="margin-top:3px">Transcripts, downloaded models, and recordings will not be deleted. The app will use English, system defaults, and the small model.</div>
-    </div>`
-
+// Two-step destructive action: [trigger] → [Cancel] [confirm]. onConfirm
+// returns a promise; the buttons are disabled while it runs.
+function makeConfirmButtons(triggerLabel, confirmLabel, onConfirm) {
   const btns = document.createElement('div')
   btns.className = 'st-reset-btns'
 
-  const resetBtn = document.createElement('button')
-  resetBtn.className = 'st-btn st-btn--ghost'
-  resetBtn.textContent = 'Reset…'
+  const triggerBtn = document.createElement('button')
+  triggerBtn.className = 'st-btn st-btn--ghost'
+  triggerBtn.textContent = triggerLabel
 
   const cancelBtn = document.createElement('button')
   cancelBtn.className = 'st-btn st-btn--ghost'
   cancelBtn.textContent = 'Cancel'
-  cancelBtn.style.display = 'none'
 
   const confirmBtn = document.createElement('button')
   confirmBtn.className = 'st-btn st-btn--danger'
-  confirmBtn.textContent = 'Confirm reset'
-  confirmBtn.style.display = 'none'
+  confirmBtn.textContent = confirmLabel
 
-  resetBtn.addEventListener('click', () => {
-    resetBtn.style.display = 'none'
-    cancelBtn.style.display = ''
-    confirmBtn.style.display = ''
-  })
-  cancelBtn.addEventListener('click', () => {
-    resetBtn.style.display = ''
-    cancelBtn.style.display = 'none'
-    confirmBtn.style.display = 'none'
-  })
-  confirmBtn.addEventListener('click', () => {
-    cancelBtn.style.display = 'none'
-    confirmBtn.style.display = 'none'
-    resetBtn.style.display = ''
+  const showConfirm = on => {
+    triggerBtn.style.display = on ? 'none' : ''
+    cancelBtn.style.display = on ? '' : 'none'
+    confirmBtn.style.display = on ? '' : 'none'
+  }
+  showConfirm(false)
+
+  triggerBtn.addEventListener('click', () => showConfirm(true))
+  cancelBtn.addEventListener('click', () => showConfirm(false))
+  confirmBtn.addEventListener('click', async () => {
+    cancelBtn.disabled = confirmBtn.disabled = true
+    try {
+      await onConfirm()
+    } finally {
+      cancelBtn.disabled = confirmBtn.disabled = false
+      showConfirm(false)
+    }
   })
 
-  btns.appendChild(resetBtn)
-  btns.appendChild(cancelBtn)
-  btns.appendChild(confirmBtn)
-  wrap.appendChild(text)
-  wrap.appendChild(btns)
+  btns.append(triggerBtn, cancelBtn, confirmBtn)
+  btns._trigger = triggerBtn
+  return btns
+}
+
+function makeWarningText(label, hint) {
+  const text = document.createElement('div')
+  text.className = 'st-reset-text'
+  text.innerHTML = `<div class="st-reset-icon">!</div>
+    <div>
+      <div class="st-field-label"></div>
+      <div class="st-field-hint" style="margin-top:3px"></div>
+    </div>`
+  text.querySelector('.st-field-label').textContent = label
+  text.querySelector('.st-field-hint').textContent = hint
+  return text
+}
+
+function buildResetSection() {
+  const wrap = document.createElement('div')
+  wrap.className = 'st-reset-wrap'
+
+  wrap.appendChild(makeWarningText(
+    'This resets all preferences shown on this page.',
+    'Transcripts, downloaded models, recordings and your Hugging Face token are kept. '
+      + 'The app will use automatic language detection, the small model, 100% scale and default audio devices.'
+  ))
+  wrap.appendChild(makeConfirmButtons('Reset…', 'Confirm reset', async () => {
+    await saveSettings(defaultSettingsPatch(DEFAULT_APP_SETTINGS, appSettings))
+    window.electronAPI.setZoom(appSettings.scale / 100)
+    app.showSettings()
+    showToast('Preferences reset to defaults.')
+  }))
 
   return makeSectionCard([
     makeSectionHeader(
@@ -882,6 +902,48 @@ function buildResetSection() {
         <path d="M9 7v4M9 12.5v.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
       </svg>`,
       'Reset to defaults', 'Restore Whisper preferences to their initial state.'
+    ),
+    wrap,
+  ])
+}
+
+function buildDeleteDataSection() {
+  const wrap = document.createElement('div')
+  wrap.className = 'st-reset-wrap'
+
+  wrap.appendChild(makeWarningText(
+    'This permanently deletes all transcripts, all speakers and their voice profiles, '
+      + 'live recordings and the transcript archive.',
+    'This cannot be undone. Audio files you imported stay where they are; '
+      + 'downloaded models and preferences are kept.'
+  ))
+
+  const btns = makeConfirmButtons('Delete…', 'Delete everything', async () => {
+    try {
+      const r = await fetch(`${API_BASE}/data/reset`, { method: 'POST' })
+      const body = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(body.detail || `HTTP ${r.status}`)
+      app._activeTranscriptId = null
+      app._loadSidebar()
+      showToast(formatDataResetSummary(body))
+    } catch (err) {
+      showToast(`Could not delete data: ${err.message}`, 'error')
+    }
+  })
+  wrap.appendChild(btns)
+
+  const blocked = dataResetBlockReason(app._activeJobs.size, app._liveSession)
+  if (blocked) {
+    btns._trigger.disabled = true
+    btns._trigger.title = blocked
+  }
+
+  return makeSectionCard([
+    makeSectionHeader(
+      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M3.5 5h11M7 5V3.5h4V5M5 5l.7 9.5h6.6L13 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>`,
+      'Delete all data', 'Start over with an empty library.'
     ),
     wrap,
   ])
@@ -907,6 +969,7 @@ function renderSettingsView() {
     { id: 'export',    build: () => buildExportSection(state) },
     { id: 'audio',     build: () => buildAudioSection(state) },
     { id: 'reset',     build: () => buildResetSection() },
+    { id: 'data',      build: () => buildDeleteDataSection() },
   ]
 
   sections.forEach(s => {
