@@ -225,3 +225,30 @@ def test_transcript_segment_inside_diarization_segment_gets_embedding():
     assert transcript.segments[0].embedding is not None, (
         "A segment contained within a diarization span must receive its embedding"
     )
+
+
+# ---------------------------------------------------------------------------
+# attach_embeddings(): speaker-aware matching
+# A Whisper segment can span a speaker change; the embedding must come from
+# the segment's own speaker, or it contaminates that speaker's profile.
+# ---------------------------------------------------------------------------
+
+def test_prefers_same_speaker_turn_over_larger_overlap():
+    seg_ = make_seg(0.0, 4.0, raw="SPEAKER_00")
+    other = make_emb(0.0, 3.0, speaker="SPEAKER_01")   # larger overlap, wrong voice
+    own = make_emb(3.0, 4.0, speaker="SPEAKER_00")
+
+    transcript = make_transcript(seg_)
+    TranscriptBuilder.attach_embeddings(transcript, [other, own])
+
+    assert np.allclose(transcript.segments[0].embedding, own["embedding"])
+
+
+def test_no_embedding_when_only_other_speakers_overlap():
+    seg_ = make_seg(0.0, 2.0, raw="SPEAKER_00")
+    other = make_emb(0.0, 2.0, speaker="SPEAKER_01")
+
+    transcript = make_transcript(seg_)
+    TranscriptBuilder.attach_embeddings(transcript, [other])
+
+    assert transcript.segments[0].embedding is None

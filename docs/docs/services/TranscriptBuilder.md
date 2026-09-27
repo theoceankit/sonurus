@@ -62,13 +62,15 @@ Assigns per-segment embeddings to transcript segments using time overlap.
 [{"start": float, "end": float, "speaker": str, "embedding": np.ndarray}, ...]
 ```
 
-**Algorithm:** for each transcript segment, finds the diarization span with maximum time overlap:
+**Algorithm:** for each transcript segment, considers only diarization spans of the **same speaker** (`emb["speaker"] == seg.speaker_raw`) and picks the one with maximum time overlap:
 
 ```python
 overlap = max(0.0, min(seg.end, emb["end"]) - max(seg.start, emb["start"]))
 ```
 
-A segment receives the embedding of the span with the highest overlap. If no overlap exists with any span, `segment.embedding` stays `None`.
+A segment receives the embedding of the same-speaker span with the highest overlap. If no span of its speaker overlaps it, `segment.embedding` stays `None`.
+
+**Why same speaker only:** a Whisper segment can span a speaker change. Picking the largest overlap regardless of speaker would attach another person's voice to the segment, and `CommitService` would then mix it into this speaker's stored embedding.
 
 **Why overlap instead of nearest distance:**
 
