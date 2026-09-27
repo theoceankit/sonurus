@@ -99,3 +99,10 @@ function makeAvatar(spkId, displayName, size = 24, knownMap = {}) {
   }
   return el
 }
+
+// ── Settings / data reset ───────────────────────────────────────────────────────
+// Patch that restores every preference to its default; the Hugging Face token
+// is a credential, not a preference, so it is kept.
+function defaultSettingsPatch(defaults, current) {
+  return { ...defaults, hfToken: current.hfToken ?? defaults.hfToken }
+}
