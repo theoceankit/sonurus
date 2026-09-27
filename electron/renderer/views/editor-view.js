@@ -47,6 +47,7 @@ function renderEditorView(transcriptId, meta = null) {
   // Persistent audio element — survives rebuilds so playback isn't interrupted
   const audio = new Audio()
   audio.preload = 'metadata'
+  audio.volume = 0.8
   let playerAbortCtrl = null
   let rightPanelEl = null
 
@@ -60,7 +61,6 @@ function renderEditorView(transcriptId, meta = null) {
 
     const srcChip = document.createElement('span')
     srcChip.className = 'focus-tag'
-    srcChip.style.cssText = ''
     srcChip.textContent = sourceLabel
     row.appendChild(srcChip)
 
@@ -77,7 +77,7 @@ function renderEditorView(transcriptId, meta = null) {
     focusPanel.innerHTML = ''
 
     // Load audio (set src only if changed)
-    const audioSrc = 'file://' + transcript.audio_path
+    const audioSrc = fileUrl(transcript.audio_path)
     if (audio.src !== audioSrc) audio.src = audioSrc
 
     // Abort previous player bar audio listeners
@@ -85,8 +85,7 @@ function renderEditorView(transcriptId, meta = null) {
     playerAbortCtrl = new AbortController()
 
     // Known speaker map for display names
-    const knownMap = {}
-    knownSpeakers.forEach(s => { knownMap[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
+    const knownMap = buildKnownMap(knownSpeakers)
 
     const { unrecIds: _unrecIds } = buildSpeakerIndex(transcript.segments, knownMap)
     function displayName(spkId) {
@@ -124,7 +123,7 @@ function renderEditorView(transcriptId, meta = null) {
 
     const titleText = transcript.title
       || meta?.title
-      || transcript.audio_path.split(/[\\/]/).pop().replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ')
+      || fileBaseName(transcript.audio_path).replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ')
     const title = document.createElement('h1')
     title.className = 'focus-title'
     title.textContent = titleText

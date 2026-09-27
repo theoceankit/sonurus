@@ -31,8 +31,9 @@ Returns available system audio sources for the current platform.
 // Linux (PulseAudio monitor sources)
 [{ "id": "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor", "label": "pci-0000_00_1f.3.analog-stereo (Monitor)" }]
 
-// Windows
-[{ "id": "wasapi", "label": "System audio" }]
+// Windows — always empty: system audio is captured in the renderer
+// (WASAPI loopback via setDisplayMediaRequestHandler), not by the backend
+[]
 ```
 
 ### `POST /audio/capture/start`
@@ -55,12 +56,10 @@ Stops the capture process and returns the path to the recorded WAV file. Optiona
 
 ```json
 // Request (optional)
-{ "mic_path": "/tmp/sonorus-mic-abc123.wav" }
+{ "mic_path": "<data-dir>/recordings/sonorus-rec-abc123.webm" }
 
-// Response 200
-{ "file_path": "/tmp/sonorus-sys-d63f61eb.wav" }
-// or, if mic_path was provided:
-{ "file_path": "/tmp/sonorus-merged-d63f61eb.wav" }
+// Response 200 (with or without mic_path)
+{ "file_path": "<data-dir>/recordings/sonorus-rec-d63f61eb.wav" }
 ```
 
 - `404` — job not found (already stopped or invalid ID)
@@ -98,6 +97,10 @@ When `language` is `null` (auto-detect), the guard for alignment models cannot f
 ### `WS /ws/{job_id}`
 
 WebSocket that streams pipeline progress. Connect immediately after `POST /transcribe`.
+
+Closing or losing the socket does **not** cancel the job (cancellation is explicit via `DELETE /transcribe/{job_id}`). The job's event queue stays registered until the job ends, so a client can reconnect and continue receiving events; events consumed by the previous connection are not replayed.
+
+After every job — done, error or cancelled — the worker drops its model references and calls `torch.cuda.empty_cache()`.
 
 ```json
 // Lifecycle events — sent before any progress
@@ -137,7 +140,7 @@ Cancels a running transcription job. Sets a `threading.Event` that raises `_JobC
 
 ## Models
 
-Manages the local model cache. Install status is detected by checking for `refs/main` in the HuggingFace cache directory structure.
+Manages the local model cache. A repo counts as installed when its HuggingFace cache dir has `refs/main`, no `.sonorus-downloading` marker and no `blobs/*.incomplete` files. `huggingface_hub` writes `refs/main` before fetching any file, so the marker (created before a download, removed after it succeeds) is what distinguishes an interrupted download from a complete one.
 
 Model directories:
 - Whisper: `.models/whisper/`
@@ -179,7 +182,7 @@ Unknown `model_id` returns `422`.
 
 ### `DELETE /models/{model_id}/download/{job_id}`
 
-Cancels an in-progress download. Sets a `threading.Event` that stops the download loop between repos. The WS receives a `cancelled` event.
+Cancels an in-progress download. Sets a `threading.Event`; each `snapshot_download` runs in a child process, which is terminated immediately, so the transfer stops mid-file. Partial files stay in the cache and a later download resumes them. The WS receives a `cancelled` event.
 
 - `200` — cancel signal sent
 - `404` — job not found
@@ -256,7 +259,7 @@ Full transcript with segments.
 
 ### `DELETE /transcripts/{id}`
 
-Deletes transcript and all its segments. Returns `204`.
+Deletes transcript and all its segments, then calls `CommitService.recompute_or_remove()` for every speaker that appeared in it: the deleted audio no longer contributes to their stored embeddings, and unnamed speakers left without segments are removed from memory. Returns `204`.
 
 ### `PATCH /transcripts/{id}/segments/{start}/text`
 
@@ -269,16 +272,20 @@ Returns `204`.
 ### `PATCH /transcripts/{id}/segments/{start}/speaker`
 
 ```json
+// Assign to an existing speaker:
 { "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca" }
+
+// Assign to a new speaker (creates a UUID with this display name):
+{ "speaker_name": "Carol" }
 ```
 
-`speaker_id` must be a UUID4. Returns `204`.
+Exactly one of `speaker_id` (a UUID4 of a known speaker) or `speaker_name` (1–128 chars, trimmed) must be provided, otherwise `400`. Returns `204`.
 
 Reassigns only this one segment (unlike `POST /reassign` which is bulk). After updating the DB, immediately recomputes embeddings for both the new speaker (`commit_speaker`) and the previous speaker (`recompute_or_remove`).
 
 ### `DELETE /transcripts/{id}/segments/{start}`
 
-Returns `204`.
+Deletes one segment, then calls `recompute_or_remove()` for its speaker (same rules as transcript deletion). Returns `204`.
 
 ### `POST /transcripts/{id}/reassign`
 
@@ -300,10 +307,6 @@ Exactly one of `to_speaker_id` or `to_speaker_name` must be provided:
 - Recomputes `from_speaker_id` embedding from their remaining segments, or removes them from memory if no segments remain and they have no display name.
 
 Returns `204`.
-
-### `POST /transcripts/{id}/commit`
-
-Recomputes embeddings for all speakers in the transcript from all their segments across the entire database. Returns `204`.
 
 ---
 

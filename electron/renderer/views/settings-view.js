@@ -1,6 +1,9 @@
 // ── Static data ────────────────────────────────────────────────────────────────
 // LANGUAGES and MODELS are loaded from data.js
 
+// TODO(not implemented): export format and include-* / duplicate options are
+// UI only — the titlebar export always copies plain text. See roadmap
+// "UI without business logic".
 const ST_EXPORT_FORMATS = [
   { id: 'txt',  label: 'Plain text', ext: '.txt',  desc: 'No formatting, raw transcript' },
   { id: 'md',   label: 'Markdown',   ext: '.md',   desc: 'Speakers as headers, timestamps inline' },
@@ -791,24 +794,10 @@ function buildAudioSection(state) {
     // System audio: on macOS/Linux fetch sources from backend (bypasses Chromium restrictions).
     // On Windows use browser devices (WASAPI loopback is handled by Electron's setDisplayMediaRequestHandler).
     const platform = await window.electronAPI.getPlatform()
-    const sysOpts = [{ value: null, label: 'Disabled' }]
-
-    if (platform === 'win32') {
-      inputs
-        .filter(d => /virtual|loopback|system|output|mix|monitor/i.test(d.label))
-        .forEach(d => sysOpts.push({ value: d.deviceId, label: d.label || `Device (${d.deviceId.slice(0, 8)})` }))
-      if (sysOpts.length === 1) {
-        sysOpts.push({ value: '__desktop__', label: 'System audio (WASAPI)' })
-      }
-    } else {
-      try {
-        const r = await fetch(`${API_BASE}/audio/capture/sources`)
-        if (r.ok) {
-          const { sources } = await r.json()
-          sources.forEach(s => sysOpts.push({ value: s.id, label: s.label }))
-        }
-      } catch (_) {}
-    }
+    const sysOpts = [
+      { value: null, label: 'Disabled' },
+      ...await listSystemAudioSources(platform, inputs),
+    ]
 
     const sysVal = sysOpts.some(o => o.value === state.recordingSystemDevice) ? state.recordingSystemDevice : null
     const sysDrop = makeDropdown(sysOpts, sysVal, v => {

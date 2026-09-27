@@ -27,3 +27,10 @@ jobs:
 
       - name: Run tests
         run: python -m pytest tests/ -v
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run renderer tests
+        run: node --test 'tests/renderer/*.test.js'

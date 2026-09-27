@@ -24,7 +24,7 @@ const MODELS = [
   { id: 'small',    name: 'Whisper Small',    size: '244 MB',  speed: '~4× realtime',  acc: 'Good',               installed: false, recommended: false, kind: 'whisper'      },
   { id: 'medium',   name: 'Whisper Medium',   size: '769 MB',  speed: '~2× realtime',  acc: 'Very good',          installed: false, recommended: false, kind: 'whisper'      },
   { id: 'large-v3', name: 'Whisper Large v3', size: '1.55 GB', speed: '~1× realtime',  acc: 'Best',               installed: false, recommended: true,  kind: 'whisper'      },
-  { id: 'diarize',  name: 'Diarization · v2', size: '112 MB',  speed: '—',             acc: 'Speaker separation', installed: false, recommended: false, kind: 'diarization'  },
+  { id: 'diarize',  name: 'Diarization · v2', size: '130 MB',  speed: '—',             acc: 'Speaker separation', installed: false, recommended: false, kind: 'diarization'  },
 ]
 
 // ── Alignment Models ──────────────────────────────────────────────────────────

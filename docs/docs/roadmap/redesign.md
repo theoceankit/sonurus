@@ -203,7 +203,7 @@ Four tabs replacing the single Speakers tab:
 5. **Activity tab**: static placeholder feed ("Coming soon")
 6. **Speakers tab** improvements:
    - Unrecognized speaker cards: add quote snippet (first 80 chars of the speaker's text)
-   - Add AI suggestion strip when similarity score ≥ 60%: colored dot + "Likely {name}" + score% + Confirm ✓ / Reject ✗ buttons
+   - Add AI suggestion strip when similarity score ≥ 60%: colored dot + `"Likely {name}"` + score% + Confirm ✓ / Reject ✗ buttons
    - Confirm → calls existing `POST /reassign` bulk endpoint
 
 ---

@@ -55,6 +55,7 @@ $SONORUS_DATA_DIR/
     hf/               ← PyAnnote model weights
     alignment/        ← wav2vec2 alignment models
   speaker_memory.db   ← Speaker memory + transcripts
+  recordings/         ← Live recordings (sonorus-rec-*.wav / .webm) referenced by the DB
   .files/             ← Audio archive + .txt exports
   sonorus.log         ← Backend log (packaged mode)
   settings.json       ← App settings (written by Electron)

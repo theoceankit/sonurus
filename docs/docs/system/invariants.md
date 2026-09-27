@@ -23,7 +23,7 @@ Rules that must always hold. Violating any of these corrupts speaker memory or p
 No code other than `CommitService` may call `SpeakerMemoryService.update_embedding()` or write to `speaker_embeddings`.
 
 Two permitted exceptions that do not write embeddings:
-- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names` (display names). Called from `POST /speakers/{id}/rename`.
+- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names` (display names). Called from `POST /speakers/{id}/rename` and via `create_named_speaker()` when a user assigns segments to a new name.
 - `SpeakerMemoryService.remove_speaker()` — deletes a speaker from memory and DB. Called from `POST /transcripts/{id}/reassign` to clean up replaced temporary IDs.
 
 **Why:** Centralising embedding writes to `CommitService` makes it possible to reason about when and why voice profiles change. Name management and cleanup are deliberately separated from embedding updates.
@@ -77,7 +77,7 @@ It must never use the aggregated embeddings produced by `EmbeddingService.extrac
 
 **In code:** `app/services/commit_service.py` — `_avg_from_db(speaker_id, guard_emb=None)` is the single averaging kernel; all commit methods call it. `TranscriptStorageService.get_embeddings_grouped_by_transcript(spk_id)` returns `{transcription_id: [embeddings]}`. `commit_speaker()` and `recompute_or_remove()` pass the current stored embedding as `guard_emb`. The aggregated dict from `EmbeddingService.extract_all()` is never passed into `CommitService`; only the per-segment list is used (attached to the transcript via `TranscriptBuilder.attach_embeddings()`).
 
-**Dirty tracking:** `SpeakerMemoryService.save()` only writes to `speaker_embeddings` for speakers marked dirty by `update_embedding()`. This prevents a long-lived API server instance with stale in-memory state from overwriting embeddings computed by a concurrent pipeline instance.
+**Dirty tracking:** `SpeakerMemoryService.save()` only writes to `speaker_embeddings` for speakers marked dirty by `update_embedding()`, and only writes `speaker_names` rows for names changed by `set_name()` on that instance. This prevents a long-lived instance with stale in-memory state (the API singleton or a pipeline job) from overwriting embeddings or names written by another instance.
 
 **Target state:** The principle stays. Further improvement: store multiple embedding vectors per speaker and use clustering instead of a single averaged vector, which would better handle voice variation across sessions.
 
@@ -97,7 +97,7 @@ The display name is **never** stored as the speaker ID. All IDs in `speaker_embe
 
 **Why:** Decoupling identity (UUID) from display name allows two speakers with the same name (e.g. two people named "Alice") to coexist as distinct UUIDs. Renaming a speaker only updates `speaker_names` without touching segment data or embeddings.
 
-**Target state:** The principle stays. The remaining improvement is to replace the string-prefix fallback in `isUnrecognized()` with a single authoritative check against `knownMap` in all code paths.
+**Target state:** The principle stays.
 
 ---
 

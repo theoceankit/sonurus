@@ -5,6 +5,7 @@ Service tests mock subprocess.Popen so no real process is started.
 API tests inject a stub AudioCaptureService via dependency_overrides.
 """
 import uuid as uuid_module
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -128,33 +129,36 @@ def test_stop_capture_unknown_job_raises():
         svc.stop_capture("nonexistent-job-id")
 
 
-def test_stop_capture_without_mic_returns_system_file():
+def test_stop_capture_without_mic_returns_system_file(tmp_path):
     """stop_capture(job_id) without mic_path returns the system audio file path.
 
-    No ffmpeg merge should be performed; the returned path is the raw
-    capture output file.
+    No ffmpeg merge should be performed; the returned path is the capture
+    output moved into the recordings dir.
     """
     AudioCaptureService = _get_service_class()
 
-    mock_stat = MagicMock()
-    mock_stat.st_size = 1000
+    procs = []
+    def _popen(cmd, **kwargs):
+        proc = _fake_capture_popen([])(cmd, **kwargs)
+        procs.append(proc)
+        return proc
 
-    mock_proc = _make_mock_popen()
-    with patch("app.services.audio_capture_service.subprocess.Popen", return_value=mock_proc), \
-         patch("app.services.audio_capture_service.Path.exists", return_value=True), \
-         patch("app.services.audio_capture_service.Path.stat", return_value=mock_stat):
-        svc = AudioCaptureService()
+    with patch("app.services.audio_capture_service.subprocess.Popen", side_effect=_popen), \
+         patch("app.services.audio_capture_service.subprocess.run") as mock_run, \
+         patch("app.services.audio_capture_service.sys.platform", "linux"):
+        svc = AudioCaptureService(recordings_dir=tmp_path)
         job_id = svc.start_capture()
         file_path = svc.stop_capture(job_id)
 
     assert isinstance(file_path, str), "stop_capture must return a string path"
     assert len(file_path) > 0, "returned path must not be empty"
+    mock_run.assert_not_called()
     # SIGINT (or equivalent) must have been sent to the subprocess
-    mock_proc.send_signal.assert_called_once()
-    mock_proc.wait.assert_called_once()
+    procs[0].send_signal.assert_called_once()
+    procs[0].wait.assert_called_once()
 
 
-def test_stop_capture_with_mic_path_returns_merged_file():
+def test_stop_capture_with_mic_path_returns_merged_file(tmp_path):
     """stop_capture(job_id, mic_path=...) returns a different (merged) file path.
 
     When mic_path is provided, the service should merge system + mic audio
@@ -162,24 +166,15 @@ def test_stop_capture_with_mic_path_returns_merged_file():
     """
     AudioCaptureService = _get_service_class()
 
-    mock_proc_sys = _make_mock_popen()
-    mock_proc_mic = _make_mock_popen()
-
-    mock_stat = MagicMock()
-    mock_stat.st_size = 1000
-
-    with patch(
-        "app.services.audio_capture_service.subprocess.Popen",
-        side_effect=[mock_proc_sys, mock_proc_mic],
-    ), patch("app.services.audio_capture_service.Path.exists", return_value=True), \
-       patch("app.services.audio_capture_service.Path.stat", return_value=mock_stat):
-        svc = AudioCaptureService()
+    with patch("app.services.audio_capture_service.subprocess.Popen",
+               side_effect=_fake_capture_popen([])), \
+         patch("app.services.audio_capture_service.subprocess.run", side_effect=_fake_merge_run), \
+         patch("app.services.audio_capture_service.sys.platform", "linux"):
+        svc = AudioCaptureService(recordings_dir=tmp_path)
         jid_sys = svc.start_capture()
         jid_mic = svc.start_capture()
-
-        with patch("app.services.audio_capture_service.subprocess.run", return_value=None):
-            path_sys = svc.stop_capture(jid_sys)
-            path_merged = svc.stop_capture(jid_mic, mic_path="/tmp/mic.webm")
+        path_sys = svc.stop_capture(jid_sys)
+        path_merged = svc.stop_capture(jid_mic, mic_path="/tmp/mic.webm")
 
     assert isinstance(path_merged, str), "merged path must be a string"
     assert len(path_merged) > 0, "merged path must not be empty"
@@ -265,3 +260,130 @@ def test_post_stop_with_mic_path(capture_client):
     assert "file_path" in body, f"Response must contain 'file_path', got {body}"
     assert isinstance(body["file_path"], str)
     assert len(body["file_path"]) > 0
+
+
+# ── Regression: capture process must never block on a full stderr pipe ───────
+
+# Mimics ffmpeg: writes the output file, then streams progress lines to stderr
+# until SIGINT arrives, and only then exits. If stderr is a pipe nobody reads,
+# the write blocks once the pipe buffer is full and the process never exits.
+_CHATTY_CAPTURE_SCRIPT = r"""
+import signal, sys, time
+stop = False
+def _on_sigint(*_):
+    global stop
+    stop = True
+signal.signal(signal.SIGINT, _on_sigint)
+with open(sys.argv[1], "wb") as f:
+    f.write(b"RIFF" + b"\0" * 100)
+line = b"size=  1024kB time=00:00:10.00 bitrate= 705.6kbits/s speed=1x\n" * 4
+while not stop:
+    sys.stderr.buffer.write(line)
+    sys.stderr.buffer.flush()
+    time.sleep(0.001)
+"""
+
+
+@pytest.mark.skipif(__import__("sys").platform == "win32", reason="POSIX signals only")
+def test_stop_capture_does_not_hang_on_chatty_stderr(tmp_path):
+    import sys
+    import threading
+    import time
+
+    AudioCaptureService = _get_service_class()
+    svc = AudioCaptureService()
+    script = tmp_path / "chatty.py"
+    script.write_text(_CHATTY_CAPTURE_SCRIPT)
+
+    with patch.object(svc, "_build_command",
+                      side_effect=lambda _src, out: [sys.executable, str(script), out]), \
+         patch("app.services.audio_capture_service.sys.platform", "linux"):
+        job_id = svc.start_capture(source_id="test.monitor")
+        time.sleep(1.5)  # far more than a 64 KB pipe buffer worth of output
+
+        result = {}
+        t = threading.Thread(target=lambda: result.update(path=svc.stop_capture(job_id)), daemon=True)
+        t.start()
+        t.join(timeout=15)
+
+    assert not t.is_alive(), "stop_capture() hung: capture process blocked on stderr"
+    assert result["path"].endswith(".wav")
+
+
+def test_linux_ffmpeg_command_disables_stats():
+    AudioCaptureService = _get_service_class()
+    with patch("app.services.audio_capture_service.sys.platform", "linux"):
+        cmd = AudioCaptureService()._build_command("x.monitor", "/tmp/out.wav")
+    assert "-nostats" in cmd
+    assert cmd[cmd.index("-loglevel") + 1] == "error"
+
+
+# ── Recordings must be persisted outside the OS temp directory ────────────────
+
+def _fake_capture_popen(output_holder):
+    """Popen side effect that 'records' by writing a small WAV to the output path."""
+    def _popen(cmd, **_kwargs):
+        out = cmd[-1]
+        with open(out, "wb") as f:
+            f.write(b"RIFF" + b"\0" * 100)
+        output_holder.append(out)
+        return _make_mock_popen()
+    return _popen
+
+
+def _fake_merge_run(cmd, **_kwargs):
+    with open(cmd[-1], "wb") as f:
+        f.write(b"RIFF" + b"\0" * 200)
+
+
+def test_system_only_recording_is_moved_to_recordings_dir(tmp_path):
+    AudioCaptureService = _get_service_class()
+    rec_dir = tmp_path / "recordings"
+    svc = AudioCaptureService(recordings_dir=rec_dir)
+    outputs = []
+    with patch("app.services.audio_capture_service.subprocess.Popen",
+               side_effect=_fake_capture_popen(outputs)), \
+         patch("app.services.audio_capture_service.sys.platform", "linux"):
+        job_id = svc.start_capture(source_id="x.monitor")
+        final = svc.stop_capture(job_id)
+
+    assert Path(final).parent == rec_dir
+    assert Path(final).is_file()
+    assert not Path(outputs[0]).exists(), "temp capture file must not be left behind"
+
+
+def test_merged_recording_goes_to_recordings_dir_and_intermediates_removed(tmp_path):
+    AudioCaptureService = _get_service_class()
+    rec_dir = tmp_path / "recordings"
+    rec_dir.mkdir()
+    mic = rec_dir / "sonorus-rec-mic.webm"
+    mic.write_bytes(b"webm")
+    svc = AudioCaptureService(recordings_dir=rec_dir)
+    outputs = []
+    with patch("app.services.audio_capture_service.subprocess.Popen",
+               side_effect=_fake_capture_popen(outputs)), \
+         patch("app.services.audio_capture_service.subprocess.run", side_effect=_fake_merge_run), \
+         patch("app.services.audio_capture_service.sys.platform", "linux"):
+        job_id = svc.start_capture(source_id="x.monitor")
+        final = svc.stop_capture(job_id, mic_path=str(mic))
+
+    assert Path(final).parent == rec_dir
+    assert Path(final).is_file()
+    assert not Path(outputs[0]).exists(), "system capture temp file must be removed"
+    assert not mic.exists(), "mic recording inside recordings dir must be removed after merge"
+
+
+def test_merge_never_deletes_mic_file_outside_recordings_dir(tmp_path):
+    AudioCaptureService = _get_service_class()
+    rec_dir = tmp_path / "recordings"
+    mic = tmp_path / "user-file.webm"
+    mic.write_bytes(b"webm")
+    svc = AudioCaptureService(recordings_dir=rec_dir)
+    with patch("app.services.audio_capture_service.subprocess.Popen",
+               side_effect=_fake_capture_popen([])), \
+         patch("app.services.audio_capture_service.subprocess.run", side_effect=_fake_merge_run), \
+         patch("app.services.audio_capture_service.sys.platform", "linux"):
+        job_id = svc.start_capture(source_id="x.monitor")
+        svc.stop_capture(job_id, mic_path=str(mic))
+
+    assert mic.exists()

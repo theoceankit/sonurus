@@ -11,6 +11,14 @@ const SPEAKER_PALETTE = [
   { color: '#7B6DB5', bg: '#EBE9F4' },
 ]
 
+// Recognized speakers keyed by id, from GET /speakers rows:
+// { [id]: { name, colorIndex } }. The one shape used across the renderer.
+function buildKnownMap(speakers) {
+  const map = {}
+  speakers.forEach(s => { map[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
+  return map
+}
+
 function speakerPalette(spkId, knownMap = {}) {
   const idx = (knownMap[spkId]?.colorIndex ?? 0) % SPEAKER_PALETTE.length
   return SPEAKER_PALETTE[idx]
@@ -22,17 +30,50 @@ function speakerInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-function isUnrecognized(spkId, knownMap = null) {
-  if (spkId.startsWith('SPEAKER_')) return true
-  if (knownMap !== null) return !(spkId in knownMap)
-  // Fallback: both legacy spk_* and new full UUIDs are unrecognized without knownMap
-  return spkId.startsWith('spk_') || _UUID_RE.test(spkId)
+// Recognized = has a display name, i.e. is present in knownMap (built from
+// GET /speakers, which lists named speakers only). Raw SPEAKER_* labels never are.
+function isUnrecognized(spkId, knownMap = {}) {
+  return spkId.startsWith('SPEAKER_') || !(spkId in knownMap)
 }
 
 function effectiveSpeaker(seg) {
   return seg.speaker_final || seg.speaker_resolved || seg.speaker_raw || '?'
+}
+
+// Filesystem path → file:// URL. Every path segment is percent-encoded so
+// spaces, non-ASCII, '#' and '?' survive; Windows drive letters are kept.
+function fileUrl(fsPath) {
+  const segments = fsPath.replace(/\\/g, '/').split('/')
+  const encoded = segments.map(s => /^[A-Za-z]:$/.test(s) ? s : encodeURIComponent(s)).join('/')
+  return 'file://' + (encoded.startsWith('/') ? encoded : '/' + encoded)
+}
+
+// Last path component of a POSIX or Windows path.
+function fileBaseName(fsPath) {
+  return fsPath.split(/[\\/]/).pop()
+}
+
+// System-audio source options for the recording UI: [{ value, label }].
+// Windows: captured in the renderer (WASAPI loopback via Electron's display
+// media handler) plus any virtual loopback inputs the browser exposes.
+// macOS/Linux: captured by the backend (GET /audio/capture/sources).
+async function listSystemAudioSources(platform, audioInputs) {
+  if (platform === 'win32') {
+    return [
+      { value: '__desktop__', label: 'System audio (WASAPI)' },
+      ...audioInputs
+        .filter(d => /virtual|loopback|system|output|mix|monitor/i.test(d.label))
+        .map(d => ({ value: d.deviceId, label: d.label })),
+    ]
+  }
+  try {
+    const r = await fetch(`${API_BASE}/audio/capture/sources`)
+    if (!r.ok) return []
+    const { sources } = await r.json()
+    return sources.map(s => ({ value: s.id, label: s.label }))
+  } catch (_) {
+    return []
+  }
 }
 
 function fmtTime(sec) {
@@ -42,7 +83,7 @@ function fmtTime(sec) {
 }
 
 // ── Avatar ──────────────────────────────────────────────────────────────────────
-function makeAvatar(spkId, displayName, size = 24, knownMap = null) {
+function makeAvatar(spkId, displayName, size = 24, knownMap = {}) {
   const el = document.createElement('div')
   el.className = 'spk-avatar'
   el.style.width = el.style.height = size + 'px'

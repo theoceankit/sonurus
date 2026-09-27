@@ -57,7 +57,7 @@ known_names = {
 
 | Format | Source | Description |
 |---|---|---|
-| UUID4 | `_generate_new_speaker_id()` | All current speaker IDs |
+| UUID4 | `resolve()` (new voices), `create_named_speaker()` | All current speaker IDs |
 | `person_N` | Legacy / imported | Old records from previous versions; migrated to UUID4 on startup |
 
 ---
@@ -120,15 +120,19 @@ Returns the speaker's name for the given label from `known_names`. Returns `None
 
 ### `set_name(spk_id, name, label="display")`
 
-Writes a name to `known_names` (in memory only, until `save()` or `save_names_only()` is called).
+Writes a name to `known_names` and marks the speaker's names dirty (in memory only, until `save()` or `save_names_only()` is called).
 
 ---
 
 ### `save()`
 
-Persists `known_speakers` (dirty speakers only) and `known_names` to SQLite.
+Persists dirty embeddings and dirty names to SQLite in one transaction.
 
-Dirty tracking: only speakers touched by `update_embedding()` since the last `save()` are written to `speaker_embeddings`. This prevents a long-lived API server instance with stale in-memory state from overwriting embeddings computed by a concurrent pipeline run.
+Dirty tracking:
+- only speakers touched by `update_embedding()` since the last `save()` are written to `speaker_embeddings`;
+- only names changed by `set_name()` since the last save are written to `speaker_names`, and only for speakers that have an embedding.
+
+This prevents a long-lived instance with stale in-memory state from overwriting data written by another instance. In particular, the pipeline job holds its own instance for the whole transcription; without name dirty tracking its final `save()` reverted speaker renames made in the UI while the job was running.
 
 Called only from `CommitService`.
 
@@ -136,7 +140,7 @@ Called only from `CommitService`.
 
 ### `save_names_only()`
 
-Persists `known_names` to `speaker_names` without touching `speaker_embeddings`. Called from `POST /speakers/{id}/rename`.
+Persists names changed by `set_name()` since the last save (including speakers without an embedding) to `speaker_names` without touching `speaker_embeddings`. Called from `POST /speakers/{id}/rename` and the reassign-by-name path.
 
 ---
 
@@ -160,14 +164,9 @@ Creates `speaker_embeddings`, `speaker_names`, and `_meta` tables if missing. Ru
 
 ---
 
-### `_generate_new_speaker_id() → str`
+### `create_named_speaker(name, label="display") → str`
 
-Generates a UUID4 for a new speaker:
-
-```python
-str(uuid.uuid4())
-# e.g. "550e8400-e29b-41d4-a716-446655440000"
-```
+Creates a new UUID4 speaker ID, sets its display name and persists it via `save_names_only()`. Does not write an embedding: `CommitService` adds one once segments with embeddings are assigned to the new ID. Used by `POST /transcripts/{id}/reassign` (`to_speaker_name`) and `PATCH …/segments/{start}/speaker` (`speaker_name`).
 
 ---
 

@@ -12,16 +12,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
   const panel = document.createElement('div')
   panel.className = 'right-panel'
 
-  const knownMap = {}
-  knownSpeakers.forEach(s => { knownMap[s.id] = s.name })
-
-  // Stable "Unknown N" display name for unrecognized speakers
-  const { unrecIds } = buildSpeakerIndex(transcript.segments, knownMap)
-  function getDisplayName(spkId) {
-    if (knownMap[spkId]) return knownMap[spkId]
-    const n = unrecIds.indexOf(spkId) + 1
-    return n > 0 ? `Unknown ${n}` : spkId
-  }
+  const knownMap = buildKnownMap(knownSpeakers)
 
   // ── Speaker preview (separate Audio element, player bar unaffected) ──────────
   const previewAudio = new Audio()
@@ -68,6 +59,8 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
 
   // Stop preview when user resumes main player
   if (audio) audio.addEventListener('play', () => { if (panel.isConnected) stopPreview() }, { signal })
+  // …and when the editor is rebuilt or left (the signal is aborted in both cases)
+  signal?.addEventListener('abort', () => stopPreview())
 
   // ── Tab bar (segmented control) ─────────────────────────────────────────────
   const tabBar = document.createElement('div')
@@ -155,7 +148,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
       content.appendChild(sectionLabel('Recognized', recognized.length))
       recognized.forEach(spkId => {
         content.appendChild(makeSpeakerCard(
-          spkId, knownMap[spkId] || spkId,
+          spkId, knownMap[spkId].name,
           countBySpeaker[spkId], durBySpeaker[spkId],
           totalDur, transcriptId, onReload, knownSpeakers,
           null, (setActive) => playPreview(firstSegBySpeaker[spkId], setActive), () => pausePreview()
@@ -167,7 +160,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
       content.appendChild(sectionLabel('Unrecognized', unrecognized.length))
       unrecognized.forEach((spkId, i) => {
         const card = makeSpeakerCard(
-          spkId, `Unknown speaker ${i + 1}`,
+          spkId, `Unknown ${i + 1}`,  // same numbering as segment rows (first appearance)
           countBySpeaker[spkId], durBySpeaker[spkId],
           totalDur, transcriptId, onReload, knownSpeakers,
           sampleBySpeaker[spkId] || null, (setActive) => playPreview(firstSegBySpeaker[spkId], setActive), () => pausePreview(),

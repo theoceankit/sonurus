@@ -292,3 +292,98 @@ def test_delete_model_updates_list_models(tmp_path):
     result = svc.list_models()
     installed = {entry["id"]: entry["installed"] for entry in result}
     assert installed["small"] is False
+
+
+# ---------------------------------------------------------------------------
+# Interrupted downloads must not look installed
+# (huggingface_hub writes refs/main BEFORE downloading any file)
+# ---------------------------------------------------------------------------
+
+def test_is_installed_false_while_download_marker_present(tmp_path):
+    models_dir = tmp_path / "whisper"
+    cache = install_model(models_dir, "small")
+    (cache / ".sonorus-downloading").write_text("")
+    assert ModelService(models_dir).is_installed("small") is False
+
+
+def test_is_installed_false_with_incomplete_blob(tmp_path):
+    models_dir = tmp_path / "whisper"
+    cache = install_model(models_dir, "small")
+    (cache / "blobs").mkdir()
+    (cache / "blobs" / "abc.incomplete").write_bytes(b"partial")
+    assert ModelService(models_dir).is_installed("small") is False
+
+
+def test_download_success_leaves_model_installed(tmp_path):
+    from unittest.mock import patch
+    models_dir = tmp_path / "whisper"
+    svc = ModelService(models_dir)
+
+    def fake_snapshot(repo, cache_dir, **_kw):
+        install_model(Path(cache_dir), "tiny")
+
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=fake_snapshot):
+        svc.download_model("tiny")
+    assert svc.is_installed("tiny") is True
+
+
+def test_download_failure_leaves_model_not_installed(tmp_path):
+    from unittest.mock import patch
+    models_dir = tmp_path / "whisper"
+    svc = ModelService(models_dir)
+
+    def failing_snapshot(repo, cache_dir, **_kw):
+        install_model(Path(cache_dir), "tiny")  # refs/main already written…
+        raise OSError("connection reset")        # …then the transfer dies
+
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=failing_snapshot):
+        with pytest.raises(OSError):
+            svc.download_model("tiny")
+    assert svc.is_installed("tiny") is False
+
+
+# ---------------------------------------------------------------------------
+# Cancel must stop the transfer, not wait for it to finish
+# ---------------------------------------------------------------------------
+
+def _slow_worker(kwargs, conn):
+    """Stand-in for the snapshot_download subprocess worker: never finishes on its own."""
+    import time
+    time.sleep(60)
+
+
+def test_run_download_cancel_terminates_worker_process():
+    import threading
+    import time
+    from asyncio import CancelledError
+    from app.services.model_service import _run_download
+
+    cancel = threading.Event()
+    threading.Timer(0.5, cancel.set).start()
+    started = time.monotonic()
+    with pytest.raises(CancelledError):
+        _run_download({}, cancel_event=cancel, worker=_slow_worker, in_subprocess=True)
+    assert time.monotonic() - started < 10, "cancel must not wait for the download to finish"
+
+
+def _failing_worker(kwargs, conn):
+    conn.send(("error", "OSError", "boom"))
+
+
+def test_run_download_propagates_worker_error():
+    import threading
+    from app.services.model_service import _run_download
+    with pytest.raises(RuntimeError, match="boom"):
+        _run_download({}, cancel_event=threading.Event(), worker=_failing_worker, in_subprocess=True)
+
+
+def _crashing_worker(kwargs, conn):
+    import os
+    os._exit(3)  # dies without reporting, e.g. killed by the OOM killer
+
+
+def test_run_download_reports_worker_crash():
+    import threading
+    from app.services.model_service import _run_download
+    with pytest.raises(RuntimeError, match="exited unexpectedly"):
+        _run_download({}, cancel_event=threading.Event(), worker=_crashing_worker, in_subprocess=True)

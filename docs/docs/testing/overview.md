@@ -12,33 +12,47 @@ pytest tests/ -v
 
 # Single file
 pytest tests/test_commit_service.py -v
+
+# Renderer unit tests (Node >= 22, no dependencies)
+node --test 'tests/renderer/*.test.js'
 ```
+
+### No network in tests
+
+`tests/conftest.py` replaces `huggingface_hub.snapshot_download` (no-op) and `huggingface_hub.model_info` (raises `OSError`, so download size falls back to the catalog estimate) for the whole session. Download jobs run in background threads that outlive a test's own `patch()`, so a per-test stub is not enough. `ModelService.RUN_DOWNLOADS_IN_SUBPROCESS` is also set to `False`, so tests can patch `snapshot_download` in-process.
+
+### Renderer tests
+
+Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-renderer.js` evaluates them in a `node:vm` context, so their top-level function declarations (e.g. `fileUrl()` from `utils.js`) can be tested with `node:test` without a browser. Pass stubs for browser globals via the second argument of `loadRenderer(files, globals)`. DOM-heavy behaviour is verified manually in the running app.
 
 ---
 
 ## Current coverage
 
-**334 unit and API tests** across **17 files** — no ML models are loaded.
+**408 Python unit and API tests** across **19 files** — no ML models are loaded — plus **13 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
 
 | File | Tests | What it covers |
 |---|---|---|
-| `test_api.py` | 34 | End-to-end API routes: transcribe, transcripts CRUD, speaker rename, commit, cancel |
-| `test_transcript_storage_service.py` | 32 | `save()`, `load()`, `update_*`, `list_all()`, `delete_segment()`, `get_embeddings_by_speaker()` |
-| `test_speaker_memory_service.py` | 30 | `resolve()` purity, `set_name()` / `get_name()`, persistence, `save_names_only()`, `find_by_name()`, UUID migration |
+| `test_api.py` | 39 | End-to-end API routes: transcribe, transcripts CRUD, speaker rename, cancel, delete → speaker recompute, single-segment reassign |
+| `test_transcript_storage_service.py` | 37 | `save()`, `load()`, `update_*`, `list_all()`, `delete_segment()`, `get_embeddings_grouped_by_transcript()`, segment indexes, `load(with_embeddings=False)` |
+| `test_speaker_memory_service.py` | 35 | `resolve()` purity, `set_name()` / `get_name()`, persistence, `save_names_only()`, `find_by_name()`, UUID migration |
+| `test_model_service.py` | 31 | `WHISPER_CATALOG`, `list_models()`, `is_installed()`, `download_model()`, `delete_model()` for Whisper models |
 | `test_alignment_model.py` | 29 | `ALIGNMENT_CATALOG`, `is_installed()`, `download_model()`, `delete_model()`, API routes for alignment models |
+| `test_commit_service.py` | 25 | `CommitService` API contract, `commit()`, `commit_speaker()`, `commit_new_speakers()`, `commit_recognized_speakers()`, `recompute_or_remove()` |
 | `test_diarization_model.py` | 25 | `DIARIZATION_CATALOG`, `is_installed()`, `download_model()`, `delete_model()`, API routes for diarize model |
-| `test_model_service.py` | 24 | `WHISPER_CATALOG`, `list_models()`, `is_installed()`, `download_model()`, `delete_model()` for Whisper models |
-| `test_models_api.py` | 21 | `GET /models`, `POST /models/{id}/download`, `DELETE /models/{id}`, WS progress stream |
-| `test_commit_service.py` | 20 | `CommitService` API contract, `commit()`, `commit_speaker()`, `commit_new_speakers()`, `commit_recognized_speakers()`, `recompute_or_remove()` |
+| `test_speaker_color.py` | 25 | `speaker_meta` color persistence, least-used palette assignment, schema v3 migration |
+| `test_models_api.py` | 22 | `GET /models`, `POST /models/{id}/download`, `DELETE /models/{id}`, WS progress stream |
+| `test_transcription_guard.py` | 21 | `POST /transcribe` 400 guard when Whisper / diarization / alignment model not installed |
+| `test_transcript_builder.py` | 20 | `TranscriptBuilder.build()` (WhisperX output → Transcript) and `attach_embeddings()` (time-overlap matching) |
 | `test_download_progress.py` | 19 | WS byte-level progress stream, polling loop, `done`/`error` events |
-| `test_transcription_guard.py` | 18 | `POST /transcribe` 400 guard when Whisper / diarization / alignment model not installed |
-| `test_transcript_builder.py` | 18 | `TranscriptBuilder.build()` (WhisperX output → Transcript) and `attach_embeddings()` (time-overlap matching) |
 | `test_archive_service.py` | 16 | `ArchiveService.archive()`, `format_time()` |
-| `test_transcribe_schema.py` | 12 | `TranscribeRequest` schema validation, optional `whisper_model` and `language` fields |
+| `test_audio_capture.py` | 16 | `AudioCaptureService` start/stop/merge, recordings dir, stderr-deadlock regression, `/audio/capture/*` routes |
 | `test_logger.py` | 12 | `setup_logging()`, `get_logger()`, `LOG_LEVEL` env var, file logging |
+| `test_transcribe_schema.py` | 12 | `TranscribeRequest` schema validation, optional `whisper_model` and `language` fields |
 | `test_embedding_persistence.py` | 11 | Per-segment embedding round-trip through `save()` / `load()` |
 | `test_model_cancel.py` | 10 | `cancel_event` in `download_model()`, `DELETE /models/{id}/download/{job_id}`, WS `cancelled` event |
 | `test_embedding_service.py` | 3 | `EmbeddingService.extract_all()` single-pass invariant |
+| `tests/renderer/utils.test.js` | 13 | `fileUrl()`, `fileBaseName()`, `isUnrecognized()`, `buildKnownMap()`, `listSystemAudioSources()` |
 
 ---
 

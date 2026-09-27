@@ -43,12 +43,23 @@ class TranscriptBuilder:
         transcript: Transcript,
         segment_embeddings: List[Dict[str, Any]],
     ) -> Transcript:
-        """Assigns per-segment embeddings by maximum time overlap. No overlap → embedding stays None."""
+        """Assigns each segment the embedding of the diarization turn of the SAME
+        speaker (segment.speaker_raw) with the largest time overlap.
+
+        A Whisper segment can span a speaker change; taking the turn with the
+        largest overlap regardless of speaker would attach another person's
+        voice and contaminate this speaker's profile on commit. No overlapping
+        turn of the same speaker → embedding stays None.
+        """
+        by_speaker: Dict[str, List[Dict[str, Any]]] = {}
+        for emb in segment_embeddings:
+            by_speaker.setdefault(emb["speaker"], []).append(emb)
+
         for seg in transcript.segments:
             best_match = None
             best_overlap = 0.0
 
-            for emb in segment_embeddings:
+            for emb in by_speaker.get(seg.speaker_raw, ()):
                 overlap = max(0.0, min(seg.end, emb["end"]) - max(seg.start, emb["start"]))
                 if overlap > best_overlap:
                     best_overlap = overlap

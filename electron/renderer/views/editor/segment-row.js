@@ -188,25 +188,41 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
     sel.addRange(range)
   }
 
+  // Hiding the focused contenteditable fires `blur`, which calls commitEdit()
+  // again. `editing` is cleared before the editor is hidden so that re-entry
+  // is a no-op — otherwise Escape would save and Ctrl+Enter would save twice.
   function commitEdit() {
+    if (!editing) return
     const newText = editArea.innerText.trim()
     if (!newText || newText === seg.text) { cancelEdit(); return }
+    editing = false
+    closeEditor()
+    const prevText = seg.text
+    seg.text = newText
+    textEl.textContent = newText
     fetch(`${API_BASE}/transcripts/${transcriptId}/segments/${seg.start}/text`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: newText }),
-    }).then(() => { seg.text = newText; textEl.textContent = newText; cancelEdit() })
-      .catch(err => { window.showToast?.(`Failed to save edit: ${err.message}`, 'error'); cancelEdit() })
+    })
+      .then(r => { if (!r.ok) throw new Error(`Server error ${r.status}`) })
+      .catch(err => {
+        seg.text = prevText
+        textEl.textContent = prevText
+        window.showToast?.(`Failed to save edit: ${err.message}`, 'error')
+      })
   }
 
   function cancelEdit() {
     editing = false
+    closeEditor()
+  }
+
+  function closeEditor() {
     row.classList.remove('seg-row--editing')
     editWrap.style.display = 'none'
     textEl.style.display = ''
   }
-
-  row.dataset.edit = ''  // marker for selection toolbar
 
   editArea.addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commitEdit() }

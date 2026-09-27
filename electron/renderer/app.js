@@ -225,7 +225,7 @@ const app = {
 
     this._liveSession = {
       recorder, audioCtx, micStream, sysStream,
-      captureJobId, chunks, elapsed, timerInterval,
+      captureJobId, chunks, timerInterval,
       settings: { title, model, language },
     }
   },
@@ -242,7 +242,6 @@ const app = {
     if (labelEl) labelEl.textContent = 'Stopping…'
 
     const { recorder, audioCtx, micStream, sysStream, captureJobId, chunks, settings } = session
-    const elapsed = session.elapsed
 
     const doTranscribe = async filePath => {
       const body = {
@@ -331,7 +330,7 @@ const app = {
   // ── Background transcription queue ─────────────────────────────────────────
 
   _addJob(jobId, body) {
-    const fileName = (body.audio_path || '').split('/').pop() || 'Recording'
+    const fileName = fileBaseName(body.audio_path || '') || 'Recording'
     const title = body.title || fileName
     const job = { jobId, title, status: 'queued', ws: null, originalRequest: body, error: null }
     this._activeJobs.set(jobId, job)
@@ -475,8 +474,7 @@ const app = {
       fetch(`${API_BASE}/speakers`).then(r => r.json()),
     ]).then(([items, speakers]) => {
       this._allRecordings = items
-      this._knownSpeakers = {}
-      speakers.forEach(s => { this._knownSpeakers[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
+      this._knownSpeakers = buildKnownMap(speakers)
       this._rerenderList()
       if (autoOpen) {
         if (items.length > 0) this.showEditor(items[0].id)
@@ -485,6 +483,9 @@ const app = {
     }).catch(() => { if (autoOpen) { this.showHome(); this.openNewRecordingModal() } })
   },
 
+  // TODO(not implemented): the API has no `source` field and no marks yet, so
+  // "Notes" is always empty and "Marked" shows everything. The titlebar search
+  // (#tb-search-btn) has no handler. See roadmap "UI without business logic".
   _applyFilter(items) {
     if (this._filter === 'recordings') return items.filter(r => r.source !== 'note')
     if (this._filter === 'notes')      return items.filter(r => r.source === 'note')
@@ -624,6 +625,7 @@ const app = {
     // ── Titlebar — export / share ──────────────────────────────────────────────
     const exportBtn = document.getElementById('tb-export')
     attachSegTooltip(exportBtn, 'below')
+    // TODO(not implemented): ignores Settings → Export (format, include-* options)
     exportBtn.addEventListener('click', () => {
       const rows = document.querySelectorAll('.seg-row')
       if (!rows.length) return
