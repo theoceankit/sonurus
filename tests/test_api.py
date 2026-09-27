@@ -1462,3 +1462,36 @@ def test_reassign_to_named_speaker_without_profile(client):
     })
     assert r.status_code == 204, r.text
     assert carol in app.dependency_overrides[get_memory_service]().known_speakers
+
+
+# ── Transcript title ──────────────────────────────────────────────────────────
+
+def test_patch_transcript_title_updates_get_and_list(client):
+    db_id = _saved_id(client)
+
+    r = client.patch(f"/transcripts/{db_id}", json={"title": "  Weekly sync  "})
+    assert r.status_code == 204, r.text
+
+    assert client.get(f"/transcripts/{db_id}").json()["title"] == "Weekly sync"
+    listed = {row["id"]: row for row in client.get("/transcripts").json()}
+    assert listed[db_id]["title"] == "Weekly sync"
+
+
+def test_patch_transcript_title_unknown_id_returns_404(client):
+    r = client.patch("/transcripts/999", json={"title": "Ghost"})
+    assert r.status_code == 404
+
+
+@pytest.mark.parametrize("title", ["", "   ", "x" * 201])
+def test_patch_transcript_title_rejects_invalid(client, title):
+    db_id = _saved_id(client)
+
+    r = client.patch(f"/transcripts/{db_id}", json={"title": title})
+    assert r.status_code == 422
+
+    assert client.get(f"/transcripts/{db_id}").json()["title"] is None
+
+
+def test_patch_transcript_title_missing_field_returns_422(client):
+    db_id = _saved_id(client)
+    assert client.patch(f"/transcripts/{db_id}", json={}).status_code == 422

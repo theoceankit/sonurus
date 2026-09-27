@@ -86,6 +86,16 @@ class TranscriptStorageService:
             )
         log.info(f"UPDATE segments speaker_id={new_speaker} at [{start:.2f}-{end:.2f}] for transcription={db_id}")
 
+    def update_title(self, db_id: int, title: str) -> bool:
+        """Set the transcript title. Returns False if the transcript does not exist."""
+        with self._connect() as conn:
+            updated = conn.execute(
+                "UPDATE transcriptions SET title = ? WHERE id = ?", (title, db_id)
+            ).rowcount
+        if updated:
+            log.info(f"UPDATE transcriptions title for id={db_id}")
+        return bool(updated)
+
     def update_segment_text(self, db_id: int, start: float, end: float, new_text: str) -> None:
         with self._connect() as conn:
             conn.execute(

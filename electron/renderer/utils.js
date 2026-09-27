@@ -142,6 +142,21 @@ function deleteTranscriptPrompt(title) {
   }
 }
 
+// ── Editor: rename transcript ───────────────────────────────────────────────────
+const TITLE_MAX_LENGTH = 200 // TranscriptUpdateRequest.title max_length
+
+// The title to send, or null when there is nothing valid to save
+// (blank, unchanged, or over the server limit).
+function titleToSave(raw, current) {
+  const title = (raw || '').trim()
+  if (!title || title === current || title.length > TITLE_MAX_LENGTH) return null
+  return title
+}
+
+function transcriptTitleRequest(transcriptId, title) {
+  return { url: `${API_BASE}/transcripts/${transcriptId}`, method: 'PATCH', body: { title } }
+}
+
 // ── Speakers section ────────────────────────────────────────────────────────────
 function _nameKey(name) {
   return (name || '').trim().toLowerCase()
