@@ -77,7 +77,7 @@ It must never use the aggregated embeddings produced by `EmbeddingService.extrac
 
 **In code:** `app/services/commit_service.py` — `_avg_from_db(speaker_id, guard_emb=None)` is the single averaging kernel; all commit methods call it. `TranscriptStorageService.get_embeddings_grouped_by_transcript(spk_id)` returns `{transcription_id: [embeddings]}`. `commit_speaker()` and `recompute_or_remove()` pass the current stored embedding as `guard_emb`. The aggregated dict from `EmbeddingService.extract_all()` is never passed into `CommitService`; only the per-segment list is used (attached to the transcript via `TranscriptBuilder.attach_embeddings()`).
 
-**Dirty tracking:** `SpeakerMemoryService.save()` only writes to `speaker_embeddings` for speakers marked dirty by `update_embedding()`. This prevents a long-lived API server instance with stale in-memory state from overwriting embeddings computed by a concurrent pipeline instance.
+**Dirty tracking:** `SpeakerMemoryService.save()` only writes to `speaker_embeddings` for speakers marked dirty by `update_embedding()`, and only writes `speaker_names` rows for names changed by `set_name()` on that instance. This prevents a long-lived instance with stale in-memory state (the API singleton or a pipeline job) from overwriting embeddings or names written by another instance.
 
 **Target state:** The principle stays. Further improvement: store multiple embedding vectors per speaker and use clustering instead of a single averaged vector, which would better handle voice variation across sessions.
 
