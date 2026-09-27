@@ -34,9 +34,11 @@ Any other code writing to `known_speakers` or calling `memory.save()` violates t
 - `resolve()` must remain a pure function
 - Only after user review is the final speaker assignment known
 
-Two permitted exceptions that do not write embeddings:
-- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names`. Called from `POST /speakers/{id}/rename`.
-- `SpeakerMemoryService.remove_speaker()` — deletes a temporary speaker after reassignment.
+Permitted exceptions that do not write embeddings:
+- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names`. Called from `PATCH /speakers/{id}` and `POST /speakers/{id}/rename`.
+- `SpeakerMemoryService.set_color()` — writes only `speaker_meta`. Called from `PATCH /speakers/{id}`.
+- `SpeakerMemoryService.remove_speaker()` — deletes a speaker's profile, names and color; called only through `CommitService` (`recompute_or_remove()`, `delete_speaker()`).
+- `SpeakerMemoryService.clear()` — full data reset (`POST /data/reset`).
 
 ---
 
@@ -92,7 +94,13 @@ Updates embeddings for speakers that **already exist in memory** (auto-recognize
 
 ### `recompute_or_remove(speaker_id)`
 
-After a reassignment, recomputes the source speaker's embedding from remaining DB segments. If no segments remain and the speaker has no display name, removes them from memory entirely.
+After a reassignment, recomputes the source speaker's embedding from remaining DB segments. If no segments remain and the speaker has no display name, removes them from memory entirely. No-op for raw `SPEAKER_*` labels and the `UNASSIGNED` pseudo-id.
+
+---
+
+### `delete_speaker(speaker_id) → dict`
+
+Deletes a speaker (`DELETE /speakers/{id}`): first `storage.unassign_speaker()` detaches all its segments (they become unassigned and no longer feed any profile), then `memory.remove_speaker()` drops its embedding, names and color. Returns `{"segments": n, "transcripts": m}`. The order matters — with segments still assigned, a later recompute could rebuild the profile.
 
 ---
 

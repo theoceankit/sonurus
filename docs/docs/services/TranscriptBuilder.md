@@ -6,7 +6,7 @@ sidebar_position: 4
 
 `TranscriptBuilder` is a static converter service. Transforms raw ML pipeline output into the domain model (`Transcript` / `Segment`).
 
-Does not perform inference, does not persist data, makes no business decisions — only maps data structures.
+Does not perform inference and does not persist data. Its one rule: raw diarization labels never become the speaker of a segment (see [Speakers without a match](#speakers-without-a-match)).
 
 ---
 
@@ -44,8 +44,9 @@ Segment(
     end=seg["end"],
     text=seg["text"].strip(),
     speaker_raw=seg.get("speaker", "UNKNOWN"),   # raw diarization ID
-    speaker_resolved=speaker_map.get(raw_speaker),  # None if not in mapping
-    speaker_final=None                              # set only by the user
+    speaker_resolved=<UUID>,                        # from speaker_map, or a new UUID
+    speaker_final=None,                             # set only by the user
+    unassigned=<no diarization speaker>,            # True for UNKNOWN
 )
 ```
 
@@ -78,6 +79,11 @@ WhisperX produces fine-grained segments; diarization produces coarser spans. A "
 
 ---
 
-## When `speaker_resolved` is `None`
+## Speakers without a match
 
-If `raw_speaker` was not present in `speaker_map` (e.g. the speaker was filtered out during embedding extraction), `speaker_resolved` stays `None`. In the CLI and in `commit()`, `speaker_raw` is used as a fallback in such segments.
+`resolve()` maps only diarization speakers that have an aggregated embedding (enough speech, see `EMBEDDING_MIN_DURATION`).
+
+- A `SPEAKER_XX` missing from `speaker_map` gets a **new UUID** — one per label within the transcript. It is an unnamed speaker without a voice profile: it shows up in the Speakers section and can be named, reassigned or deleted, but is not recognized in later recordings.
+- A segment without any diarization speaker (`UNKNOWN`) gets `speaker_resolved = None` and `unassigned = True` — it waits for the user to assign someone.
+
+So `speaker_raw` is never the effective speaker of a stored segment. Transcript schema v6 applied the same rule to rows saved earlier.
