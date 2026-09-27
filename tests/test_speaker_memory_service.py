@@ -270,6 +270,59 @@ def test_names_for_multiple_speakers_all_persisted(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Concurrent instances: a stale instance must not revert names
+# (the pipeline job holds its own instance for the whole transcription)
+# ---------------------------------------------------------------------------
+
+def _two_instances_with_named_speaker(tmp_path):
+    db = str(tmp_path / "memory.db")
+    api = SpeakerMemoryService(db_path=db)
+    api.update_embedding("spk", np.array([1.0, 0.0, 0.0], dtype=np.float32))
+    api.set_name("spk", "Alice")
+    api.save()
+    job = SpeakerMemoryService(db_path=db)  # snapshot taken at job start
+    return db, api, job
+
+
+def test_stale_instance_save_does_not_revert_rename(tmp_path):
+    db, api, job = _two_instances_with_named_speaker(tmp_path)
+    api.set_name("spk", "Alice Smith")
+    api.save_names_only()
+
+    job.update_embedding("spk", np.array([0.9, 0.1, 0.0], dtype=np.float32))
+    job.save()
+
+    assert SpeakerMemoryService(db_path=db).get_name("spk") == "Alice Smith"
+
+
+def test_stale_instance_save_names_only_does_not_revert_rename(tmp_path):
+    db, api, job = _two_instances_with_named_speaker(tmp_path)
+    api.set_name("spk", "Alice Smith")
+    api.save_names_only()
+
+    job.set_name("other", "Bob")
+    job.save_names_only()
+
+    fresh = SpeakerMemoryService(db_path=db)
+    assert fresh.get_name("spk") == "Alice Smith"
+    assert fresh.get_name("other") == "Bob"
+
+
+def test_stale_instance_save_does_not_resurrect_removed_speaker_name(tmp_path):
+    db, api, job = _two_instances_with_named_speaker(tmp_path)
+    api.update_embedding("gone", np.array([0.0, 1.0, 0.0], dtype=np.float32))
+    api.set_name("gone", "Ghost")
+    api.save()
+    job.reload()
+    api.remove_speaker("gone")
+
+    job.update_embedding("spk", np.array([0.9, 0.1, 0.0], dtype=np.float32))
+    job.save()
+
+    assert SpeakerMemoryService(db_path=db).get_name("gone") is None
+
+
+# ---------------------------------------------------------------------------
 # save_names_only()
 # ---------------------------------------------------------------------------
 

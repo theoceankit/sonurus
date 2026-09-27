@@ -120,15 +120,19 @@ Returns the speaker's name for the given label from `known_names`. Returns `None
 
 ### `set_name(spk_id, name, label="display")`
 
-Writes a name to `known_names` (in memory only, until `save()` or `save_names_only()` is called).
+Writes a name to `known_names` and marks the speaker's names dirty (in memory only, until `save()` or `save_names_only()` is called).
 
 ---
 
 ### `save()`
 
-Persists `known_speakers` (dirty speakers only) and `known_names` to SQLite.
+Persists dirty embeddings and dirty names to SQLite in one transaction.
 
-Dirty tracking: only speakers touched by `update_embedding()` since the last `save()` are written to `speaker_embeddings`. This prevents a long-lived API server instance with stale in-memory state from overwriting embeddings computed by a concurrent pipeline run.
+Dirty tracking:
+- only speakers touched by `update_embedding()` since the last `save()` are written to `speaker_embeddings`;
+- only names changed by `set_name()` since the last save are written to `speaker_names`, and only for speakers that have an embedding.
+
+This prevents a long-lived instance with stale in-memory state from overwriting data written by another instance. In particular, the pipeline job holds its own instance for the whole transcription; without name dirty tracking its final `save()` reverted speaker renames made in the UI while the job was running.
 
 Called only from `CommitService`.
 
@@ -136,7 +140,7 @@ Called only from `CommitService`.
 
 ### `save_names_only()`
 
-Persists `known_names` to `speaker_names` without touching `speaker_embeddings`. Called from `POST /speakers/{id}/rename`.
+Persists names changed by `set_name()` since the last save (including speakers without an embedding) to `speaker_names` without touching `speaker_embeddings`. Called from `POST /speakers/{id}/rename` and the reassign-by-name path.
 
 ---
 
