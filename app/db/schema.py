@@ -1,6 +1,6 @@
 """Transcript DB schema management: creation and versioned migrations."""
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 def init_db(conn) -> None:
@@ -78,3 +78,11 @@ def _run_migrations(conn, current: int) -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_segments_transcription ON segments(transcription_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_segments_speaker ON segments(speaker_id)")
         conn.execute("UPDATE _ts_schema_version SET version = 4")
+        current = 4
+    if current < 5:
+        # Segments of a deleted speaker: speaker_id is NULL and the segment is
+        # shown as "Unassigned" instead of falling back to speaker_raw.
+        seg_cols = {r[1] for r in conn.execute("PRAGMA table_info(segments)").fetchall()}
+        if "unassigned" not in seg_cols:
+            conn.execute("ALTER TABLE segments ADD COLUMN unassigned INTEGER NOT NULL DEFAULT 0")
+        conn.execute("UPDATE _ts_schema_version SET version = 5")

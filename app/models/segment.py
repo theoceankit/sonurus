@@ -1,6 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Optional, Any
 
+# Effective speaker of a segment whose speaker was deleted. Never stored in
+# segments.speaker_id (which holds UUIDs only) and never a speaker in memory.
+UNASSIGNED = "UNASSIGNED"
+
 
 @dataclass
 class Segment:
@@ -19,3 +23,6 @@ class Segment:
 
     # per-segment pyannote embedding
     embedding: Any = field(default=None, compare=False, repr=False)
+
+    # speaker was deleted; the segment waits for the user to assign someone
+    unassigned: bool = False
