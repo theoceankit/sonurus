@@ -131,7 +131,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
     assignBtn.innerHTML = `${icon('assign-speaker', 12)}Assign speaker`
     assignBtn.addEventListener('click', e => {
       e.stopPropagation()
-      showSpeakerPicker(assignBtn, spkId, knownSpeakers, transcriptId, onReload)
+      showSpeakerPicker(assignBtn, spkId, knownSpeakers, transcriptId, onReload, { currentName: displayName })
     })
     card.appendChild(assignBtn)
 
@@ -174,7 +174,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
   attachSegTooltip(reassignCardBtn)
   reassignCardBtn.addEventListener('click', e => {
     e.stopPropagation()
-    showSpeakerPicker(reassignCardBtn, spkId, knownSpeakers, transcriptId, onReload)
+    showSpeakerPicker(reassignCardBtn, spkId, knownSpeakers, transcriptId, onReload, { currentName: displayName })
   })
 
   cardActions.appendChild(playCardBtn)

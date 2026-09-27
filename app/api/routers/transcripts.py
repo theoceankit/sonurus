@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 import app.config as config
 from app.logger import get_logger
 from app.services.transcript_storage_service import TranscriptStorageService
-from app.services.speaker_memory_service import SpeakerMemoryService
+from app.services.speaker_memory_service import PALETTE_SIZE, SpeakerMemoryService
 from app.services.commit_service import CommitService
 from app.api.dependencies import get_memory_service, get_storage_service
 from app.models.segment import UNASSIGNED
@@ -37,6 +37,23 @@ def _recompute_after_delete(speaker_ids, memory, storage) -> None:
     for spk_id in speaker_ids:
         if spk_id:
             commit_svc.recompute_or_remove(spk_id)
+
+
+def _check_new_speaker_color(color_index: int | None, creates_speaker: bool) -> None:
+    """color_index is only meaningful for a speaker created by name, and must be in the palette."""
+    if color_index is None:
+        return
+    if not creates_speaker:
+        raise HTTPException(status_code=400, detail="color_index is only allowed when creating a speaker by name")
+    if not 0 <= color_index < PALETTE_SIZE:
+        raise HTTPException(status_code=400, detail=f"color_index must be in 0..{PALETTE_SIZE - 1}")
+
+
+def _create_speaker(memory: SpeakerMemoryService, name: str, color_index: int | None) -> str:
+    spk_id = memory.create_named_speaker(name)
+    if color_index is not None:
+        memory.set_color(spk_id, color_index)
+    return spk_id
 
 
 def _delete_owned_recording(audio_file: str, storage: TranscriptStorageService) -> None:
@@ -186,6 +203,7 @@ def update_segment_speaker(
 ):
     if (body.speaker_id is None) == (body.speaker_name is None):
         raise HTTPException(status_code=400, detail="Provide exactly one of speaker_id or speaker_name")
+    _check_new_speaker_color(body.color_index, body.speaker_name is not None)
     try:
         t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
@@ -202,7 +220,7 @@ def update_segment_speaker(
             raise HTTPException(status_code=400, detail="speaker_id not found in known speakers")
         to_spk_id = body.speaker_id
     else:
-        to_spk_id = memory.create_named_speaker(body.speaker_name)
+        to_spk_id = _create_speaker(memory, body.speaker_name, body.color_index)
     from_spk_id = _effective_speaker(seg)
     storage.update_segment_speaker(transcript_id, start, seg.end, to_spk_id)
     commit_svc = CommitService(memory, storage)
@@ -256,6 +274,7 @@ def reassign_speaker(
     has_name = body.to_speaker_name is not None
     if has_id == has_name:
         raise HTTPException(status_code=400, detail="Provide exactly one of to_speaker_id or to_speaker_name")
+    _check_new_speaker_color(body.color_index, has_name)
 
     try:
         t = storage.load(transcript_id, with_embeddings=False)
@@ -270,7 +289,7 @@ def reassign_speaker(
         if to_uuid not in memory.known_speakers:
             raise HTTPException(status_code=404, detail="Speaker not found")
     else:
-        to_uuid = memory.create_named_speaker(body.to_speaker_name)
+        to_uuid = _create_speaker(memory, body.to_speaker_name, body.color_index)
 
     storage.update_segments_speaker(transcript_id, body.from_speaker_id, to_uuid)
     for seg in t.segments:
