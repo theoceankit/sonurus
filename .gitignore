@@ -74,5 +74,7 @@ htmlcov/
 # Design mockups
 redesign/
 
+opencode.json
+
 # Live recordings (dev server started from project root)
 recordings/
