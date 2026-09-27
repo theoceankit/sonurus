@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime, date, timedelta
 
 from app.models.transcript import Transcript
-from app.models.segment import Segment
+from app.models.segment import Segment, UNASSIGNED
 from app.logger import get_logger
 from app.db.schema import init_db
 from app.db.serializers import serialize_embedding, deserialize_embedding
@@ -40,14 +40,15 @@ class TranscriptStorageService:
 
             conn.executemany(
                 """INSERT INTO segments
-                       (transcription_id, speaker_id, start, end, text, speaker_raw, embedding)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                       (transcription_id, speaker_id, start, end, text, speaker_raw, embedding, unassigned)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 [
                     (
                         db_id,
-                        seg.speaker_final or seg.speaker_resolved,
+                        None if seg.unassigned else (seg.speaker_final or seg.speaker_resolved),
                         seg.start, seg.end, seg.text, seg.speaker_raw,
                         serialize_embedding(seg.embedding),
+                        int(seg.unassigned),
                     )
                     for seg in transcript.segments
                 ],
@@ -59,19 +60,28 @@ class TranscriptStorageService:
         return db_id
 
     def update_segments_speaker(self, db_id: int, from_spk: str, to_spk: str) -> None:
-        """Reassign all segments of from_spk to to_spk within a transcription."""
+        """Reassign all segments of from_spk to to_spk within a transcription.
+        from_spk may be UNASSIGNED to assign every unassigned segment."""
         with self._connect() as conn:
-            conn.execute(
-                "UPDATE segments SET speaker_id = ? WHERE transcription_id = ? AND speaker_id = ?",
-                (to_spk, db_id, from_spk),
-            )
+            if from_spk == UNASSIGNED:
+                conn.execute(
+                    "UPDATE segments SET speaker_id = ?, unassigned = 0 "
+                    "WHERE transcription_id = ? AND unassigned = 1",
+                    (to_spk, db_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE segments SET speaker_id = ? WHERE transcription_id = ? AND speaker_id = ?",
+                    (to_spk, db_id, from_spk),
+                )
         log.info(f"UPDATE segments speaker_id={to_spk} where transcription={db_id} from={from_spk}")
 
     def update_segment_speaker(self, db_id: int, start: float, end: float, new_speaker: str) -> None:
         """Reassign a single segment's speaker identified by its time range."""
         with self._connect() as conn:
             conn.execute(
-                "UPDATE segments SET speaker_id = ? WHERE transcription_id = ? AND start = ? AND end = ?",
+                "UPDATE segments SET speaker_id = ?, unassigned = 0 "
+                "WHERE transcription_id = ? AND start = ? AND end = ?",
                 (new_speaker, db_id, start, end),
             )
         log.info(f"UPDATE segments speaker_id={new_speaker} at [{start:.2f}-{end:.2f}] for transcription={db_id}")
@@ -97,6 +107,21 @@ class TranscriptStorageService:
             conn.execute("DELETE FROM segments WHERE transcription_id = ?", (db_id,))
             conn.execute("DELETE FROM transcriptions WHERE id = ?", (db_id,))
         log.info(f"DELETE transcription id={db_id} and its segments")
+
+    def unassign_speaker(self, speaker_id: str) -> dict:
+        """Detach every segment of a deleted speaker: speaker_id becomes NULL and
+        the segment is flagged unassigned. Returns affected segment/transcript counts."""
+        with self._connect() as conn:
+            segments, transcripts = conn.execute(
+                "SELECT COUNT(*), COUNT(DISTINCT transcription_id) FROM segments WHERE speaker_id = ?",
+                (speaker_id,),
+            ).fetchone()
+            conn.execute(
+                "UPDATE segments SET speaker_id = NULL, unassigned = 1 WHERE speaker_id = ?",
+                (speaker_id,),
+            )
+        log.info(f"UPDATE segments unassigned speaker={speaker_id}: {segments} rows in {transcripts} transcriptions")
+        return {"segments": segments, "transcripts": transcripts}
 
     def count_by_audio_file(self, audio_file: str) -> int:
         """Number of transcriptions that reference audio_file."""
@@ -136,7 +161,7 @@ class TranscriptStorageService:
 
             emb_col = "embedding" if with_embeddings else "NULL"
             seg_rows = conn.execute(
-                f"""SELECT start, end, text, speaker_raw, speaker_id, {emb_col}
+                f"""SELECT start, end, text, speaker_raw, speaker_id, {emb_col}, unassigned
                    FROM segments
                    WHERE transcription_id = ?
                    ORDER BY start""",
@@ -150,6 +175,7 @@ class TranscriptStorageService:
                 speaker_raw=r[3] or "",
                 speaker_resolved=r[4],
                 embedding=deserialize_embedding(r[5]),
+                unassigned=bool(r[6]),
             )
             for r in seg_rows
         ]
@@ -213,6 +239,56 @@ class TranscriptStorageService:
             })
 
         return records
+
+    def speaker_stats(self) -> dict[str, dict]:
+        """Per-speaker usage across all transcripts:
+        {speaker_id: {segments, transcripts, duration_sec, last_seen}}.
+        Unassigned and raw-label segments (speaker_id NULL) are not counted."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                """SELECT s.speaker_id,
+                          COUNT(*),
+                          COUNT(DISTINCT s.transcription_id),
+                          SUM(s.end - s.start),
+                          MAX(t.created_at)
+                   FROM segments s
+                   JOIN transcriptions t ON t.id = s.transcription_id
+                   WHERE s.speaker_id IS NOT NULL
+                   GROUP BY s.speaker_id""",
+            ).fetchall()
+        return {
+            spk_id: {
+                "segments": segments,
+                "transcripts": transcripts,
+                "duration_sec": duration or 0.0,
+                "last_seen": last_seen or "",
+            }
+            for spk_id, segments, transcripts, duration, last_seen in rows
+        }
+
+    def transcripts_for_speaker(self, speaker_id: str) -> list[dict]:
+        """Transcripts in which speaker_id speaks, newest first."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                """SELECT t.id, t.title, t.audio_file, t.created_at,
+                          COUNT(*), SUM(s.end - s.start)
+                   FROM segments s
+                   JOIN transcriptions t ON t.id = s.transcription_id
+                   WHERE s.speaker_id = ?
+                   GROUP BY t.id
+                   ORDER BY t.created_at DESC""",
+                (speaker_id,),
+            ).fetchall()
+        return [
+            {
+                "id": db_id,
+                "title": title or os.path.splitext(os.path.basename(audio_file))[0],
+                "created_at": created_at or "",
+                "segments": segments,
+                "duration_sec": duration or 0.0,
+            }
+            for db_id, title, audio_file, created_at, segments, duration in rows
+        ]
 
     def get_embeddings_grouped_by_transcript(self, speaker_id: str) -> dict:
         """Return {transcription_id: [embeddings]} for all non-null segment embeddings.
