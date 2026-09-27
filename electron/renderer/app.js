@@ -34,6 +34,11 @@ const app = {
   _currentView: 'import',
   _inspectorVisible: true,
   _filter: 'all',
+  _section: 'transcripts', // sidebar tab: 'transcripts' | 'speakers'
+  _speakers: [],           // every GET /speakers row, named and unnamed
+  _speakerQuery: '',
+  _speakerFilter: 'all',   // 'all' | 'named' | 'unnamed'
+  _activeSpeakerId: null,
   _liveSession: null,    // non-null while a background recording is active
   _activeJobs: new Map(), // jobId → { jobId, title, status, ws, originalRequest, error }
 
@@ -58,6 +63,7 @@ const app = {
   },
 
   showHome() {
+    this._showSection('transcripts')
     this._currentView = 'import'
     this._activeTranscriptId = null
     this._rerenderList()
@@ -69,6 +75,7 @@ const app = {
     this._activeTranscriptId = null
     document.getElementById('btn-import').classList.remove('sb-new-btn--active')
     this._rerenderList()
+    this._rerenderSpeakerList()
     this._setView(renderSettingsView(), false)
   },
 
@@ -100,8 +107,10 @@ const app = {
   },
 
   showEditor(transcriptId) {
+    this._showSection('transcripts')
     this._currentView = 'editor'
     this._activeTranscriptId = transcriptId
+    this._lastTranscriptId = transcriptId
     document.getElementById('btn-import').classList.remove('sb-new-btn--active')
     this._rerenderList()
     const meta = (this._allRecordings || []).find(r => r.id === transcriptId) || null
@@ -476,8 +485,10 @@ const app = {
       fetch(`${API_BASE}/speakers`).then(r => r.json()),
     ]).then(([items, speakers]) => {
       this._allRecordings = items
+      this._speakers = speakers
       this._knownSpeakers = buildKnownMap(speakers)
       this._rerenderList()
+      this._rerenderSpeakerList()
       if (autoOpen) {
         if (items.length > 0) this.showEditor(items[0].id)
         else { this.showHome(); this.openNewRecordingModal() }
@@ -633,10 +644,148 @@ const app = {
 
   _setFilter(filter) {
     this._filter = filter
-    document.querySelectorAll('.sb-filter-btn').forEach(btn => {
+    document.querySelectorAll('#sb-filter .sb-filter-btn').forEach(btn => {
       btn.classList.toggle('sb-filter-btn--active', btn.dataset.filter === filter)
     })
     this._rerenderList()
+  },
+
+  // ── Speakers section ────────────────────────────────────────────────────────
+
+  // Sidebar tab + pane only; does not change the main panel.
+  _showSection(section) {
+    this._section = section
+    document.querySelectorAll('.sb-tab').forEach(tab => {
+      const active = tab.dataset.section === section
+      tab.classList.toggle('sb-tab--active', active)
+      tab.setAttribute('aria-selected', String(active))
+    })
+    document.getElementById('sb-pane-transcripts').hidden = section !== 'transcripts'
+    document.getElementById('sb-pane-speakers').hidden = section !== 'speakers'
+  },
+
+  _onSectionTab(section) {
+    if (section === this._section) return
+    if (section === 'speakers') { this.showSpeakers(); return }
+    const last = this._lastTranscriptId
+    if (last != null && this._allRecordings.some(r => r.id === last)) this.showEditor(last)
+    else this.showHome()
+  },
+
+  showSpeakers() {
+    this._showSection('speakers')
+    if (this._activeTranscriptId != null) this._lastTranscriptId = this._activeTranscriptId
+    this._activeTranscriptId = null
+    this._rerenderList()
+    const active = this._speakers.find(s => s.id === this._activeSpeakerId)
+    if (active) { this.showSpeaker(active.id); return }
+    this._activeSpeakerId = null
+    this._currentView = 'speakers'
+    this._rerenderSpeakerList()
+    this._setView(renderSpeakersPlaceholder(
+      this._speakers.length ? 'Select a speaker to see and edit their details.' : 'No speakers yet.'
+    ), false)
+  },
+
+  showSpeaker(speakerId) {
+    const row = this._speakers.find(s => s.id === speakerId)
+    if (!row) { this._activeSpeakerId = null; this.showSpeakers(); return }
+    this._showSection('speakers')
+    this._currentView = 'speakers'
+    this._activeSpeakerId = speakerId
+    this._rerenderSpeakerList()
+    this._setView(renderSpeakerDetail(row, {
+      duplicate: duplicateNameIds(this._speakers).has(speakerId),
+      deleteBlockReason: dataResetBlockReason(this._activeJobs.size, this._liveSession),
+      onSave: patch => this._updateSpeaker(row, patch),
+      onDelete: () => this._confirmDeleteSpeaker(row),
+      onOpenTranscript: id => this.showEditor(id),
+    }), false)
+  },
+
+  async _updateSpeaker(row, patch) {
+    const r = await fetch(`${API_BASE}/speakers/${encodeURIComponent(row.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    const body = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      const detail = typeof body.detail === 'string' ? body.detail : `Server error ${r.status}`
+      throw new Error(detail)
+    }
+    this._speakers = this._speakers.map(s => s.id === row.id ? { ...s, ...body } : s)
+    this._knownSpeakers = buildKnownMap(this._speakers)
+    this.invalidateSidebar()
+    this._rerenderList()
+    this.showSpeaker(row.id)
+    this._loadSidebar()
+  },
+
+  _confirmDeleteSpeaker(row) {
+    const { title, body } = deleteSpeakerPrompt(row)
+    openConfirmDialog({
+      title, body, confirmLabel: 'Delete',
+      onConfirm: () => this._deleteSpeaker(row),
+    })
+  },
+
+  async _deleteSpeaker(row) {
+    let result
+    try {
+      const r = await fetch(`${API_BASE}/speakers/${encodeURIComponent(row.id)}`, { method: 'DELETE' })
+      result = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(typeof result.detail === 'string' ? result.detail : `Server error ${r.status}`)
+    } catch (err) {
+      window.showToast?.(`Could not delete: ${err.message}`, 'error')
+      return
+    }
+    this._speakers = this._speakers.filter(s => s.id !== row.id)
+    this._knownSpeakers = buildKnownMap(this._speakers)
+    this._activeSpeakerId = null
+    this.invalidateSidebar()
+    this.showSpeakers()
+    this._loadSidebar()
+    const unassigned = result.segments ? ` ${result.segments} segment${result.segments === 1 ? ' is' : 's are'} now Unassigned.` : ''
+    window.showToast?.(`Deleted “${speakerDisplayName(row)}”.${unassigned}`)
+  },
+
+  _setSpeakerFilter(filter) {
+    this._speakerFilter = filter
+    document.querySelectorAll('#sb-speaker-filter .sb-filter-btn').forEach(btn => {
+      btn.classList.toggle('sb-filter-btn--active', btn.dataset.filter === filter)
+    })
+    this._rerenderSpeakerList()
+  },
+
+  _rerenderSpeakerList() {
+    const list = document.getElementById('speakers-list')
+    if (!list) return
+    const all = this._speakers
+    const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n || '' }
+    setCount('sb-speakers-count', all.length)
+    setCount('speaker-count-all', all.length)
+    setCount('speaker-count-named', all.filter(s => s.name).length)
+    setCount('speaker-count-unnamed', all.filter(s => !s.name).length)
+
+    const items = filterSpeakers(all, this._speakerQuery, this._speakerFilter)
+    list.replaceChildren()
+    if (items.length === 0) {
+      const empty = document.createElement('div')
+      empty.className = 'sb-empty'
+      empty.textContent = this._speakerQuery.trim() ? 'No speakers match'
+        : this._speakerFilter === 'named' ? 'No named speakers'
+        : this._speakerFilter === 'unnamed' ? 'No unnamed speakers'
+        : 'No speakers yet'
+      list.appendChild(empty)
+      return
+    }
+    const dups = duplicateNameIds(all)
+    items.forEach(row => list.appendChild(makeSpeakerListItem(row, {
+      active: row.id === this._activeSpeakerId && this._currentView === 'speakers',
+      duplicate: dups.has(row.id),
+      onClick: () => this.showSpeaker(row.id),
+    })))
   },
 
   // ── Init ────────────────────────────────────────────────────────────────────
@@ -650,6 +799,20 @@ const app = {
 
     document.getElementById('btn-settings')
       .addEventListener('click', () => this.showSettings())
+
+    // ── Sidebar section tabs + speakers search/filter ─────────────────────────
+    document.getElementById('sb-tabs')
+      .addEventListener('click', e => {
+        const tab = e.target.closest('.sb-tab')
+        if (tab) this._onSectionTab(tab.dataset.section)
+      })
+    document.getElementById('speaker-search')
+      .addEventListener('input', e => { this._speakerQuery = e.target.value; this._rerenderSpeakerList() })
+    document.getElementById('sb-speaker-filter')
+      .addEventListener('click', e => {
+        const btn = e.target.closest('.sb-filter-btn')
+        if (btn) this._setSpeakerFilter(btn.dataset.filter)
+      })
 
     // ── Filter chips ──────────────────────────────────────────────────────────
     document.getElementById('sb-filter')

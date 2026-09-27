@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="styles/import.css" />
   <link rel="stylesheet" href="styles/editor.css" />
   <link rel="stylesheet" href="styles/settings.css" />
+  <link rel="stylesheet" href="styles/speakers.css" />
   <link rel="stylesheet" href="styles/views.css" />
   <link rel="stylesheet" href="styles/modal.css" />
 </head>
@@ -94,10 +95,16 @@
   <div id="app-row">
     <aside id="sidebar">
 
-      <!-- Header: title + count + Sort + New -->
+      <!-- Header: section tabs + New -->
       <div class="sb-header">
-        <span class="sb-header-title">Transcripts</span>
-        <span class="sb-header-count" id="sb-header-count"></span>
+        <div class="sb-tabs" id="sb-tabs" role="tablist">
+          <button class="sb-tab sb-tab--active" data-section="transcripts" role="tab" aria-selected="true">
+            Transcripts <span class="sb-header-count" id="sb-header-count"></span>
+          </button>
+          <button class="sb-tab" data-section="speakers" role="tab" aria-selected="false">
+            Speakers <span class="sb-header-count" id="sb-speakers-count"></span>
+          </button>
+        </div>
         <div style="flex:1"></div>
         <button class="sb-hdr-btn" id="btn-import" title="New recording">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -106,24 +113,51 @@
         </button>
       </div>
 
-<!-- Filter chips (segmented control) -->
-      <div class="sb-filter-wrap">
-        <div class="sb-filter-seg" id="sb-filter">
-          <button class="sb-filter-btn sb-filter-btn--active" data-filter="all">
-            All <span class="sb-filter-count" id="filter-count-all"></span>
-          </button>
-          <button class="sb-filter-btn" data-filter="recordings">Rec.</button>
-          <button class="sb-filter-btn" data-filter="notes">Notes</button>
-          <button class="sb-filter-btn" data-filter="marked">Marked</button>
+      <!-- Transcripts section -->
+      <div class="sb-pane" id="sb-pane-transcripts">
+        <!-- Filter chips (segmented control) -->
+        <div class="sb-filter-wrap">
+          <div class="sb-filter-seg" id="sb-filter">
+            <button class="sb-filter-btn sb-filter-btn--active" data-filter="all">
+              All <span class="sb-filter-count" id="filter-count-all"></span>
+            </button>
+            <button class="sb-filter-btn" data-filter="recordings">Rec.</button>
+            <button class="sb-filter-btn" data-filter="notes">Notes</button>
+            <button class="sb-filter-btn" data-filter="marked">Marked</button>
+          </div>
         </div>
+
+        <!-- Active transcription jobs -->
+        <div id="job-queue" style="display:none"></div>
+
+        <!-- Recordings list -->
+        <div id="recordings-list" class="sb-list quiet-scroll"></div>
       </div>
 
-      <!-- Active transcription jobs -->
-      <div id="job-queue" style="display:none"></div>
-
-      <!-- Recordings list -->
-      <div id="recordings-list" class="sb-list quiet-scroll"></div>
-
+      <!-- Speakers section -->
+      <div class="sb-pane" id="sb-pane-speakers" hidden>
+        <div class="sb-search-wrap">
+          <svg class="sb-search-icon" width="11" height="11" viewBox="0 0 13 13" fill="none">
+            <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M8.5 8.5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+          <input class="sb-search" id="speaker-search" type="search" placeholder="Search speakers" autocomplete="off" />
+        </div>
+        <div class="sb-filter-wrap">
+          <div class="sb-filter-seg" id="sb-speaker-filter">
+            <button class="sb-filter-btn sb-filter-btn--active" data-filter="all">
+              All <span class="sb-filter-count" id="speaker-count-all"></span>
+            </button>
+            <button class="sb-filter-btn" data-filter="named">
+              Named <span class="sb-filter-count" id="speaker-count-named"></span>
+            </button>
+            <button class="sb-filter-btn" data-filter="unnamed">
+              Unnamed <span class="sb-filter-count" id="speaker-count-unnamed"></span>
+            </button>
+          </div>
+        </div>
+        <div id="speakers-list" class="sb-list quiet-scroll"></div>
+      </div>
 
     </aside>
 
@@ -147,6 +181,7 @@
   <script src="views/editor/right-panel.js"></script>
   <script src="views/editor-view.js"></script>
   <script src="views/settings-view.js"></script>
+  <script src="views/speakers-view.js"></script>
   <script src="views/new-recording-modal.js"></script>
   <script src="toast.js"></script>
   <script src="app.js"></script>
