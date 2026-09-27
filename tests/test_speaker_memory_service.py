@@ -773,14 +773,6 @@ def test_speaker_ids_include_voice_only_and_name_only_speakers(tmp_path):
     assert svc.speaker_ids() == {"voice", named}
 
 
-def test_name_taken_ignores_case_and_surrounding_whitespace(tmp_path):
-    svc = make_memory(tmp_path)
-    alice = svc.create_named_speaker("Alice Smith")
-    assert svc.is_name_taken("  alice smith ")
-    assert not svc.is_name_taken("Alice")
-    assert not svc.is_name_taken("alice smith", exclude_id=alice)
-
-
 def test_set_color_persists(tmp_path):
     svc = make_memory_with_speaker(tmp_path, "spk")
     svc.save()

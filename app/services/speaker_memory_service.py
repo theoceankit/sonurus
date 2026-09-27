@@ -431,14 +431,6 @@ class SpeakerMemoryService:
         """Every speaker memory knows about: with a voice profile, a name, or both."""
         return set(self.known_speakers) | set(self.known_names)
 
-    def is_name_taken(self, name: str, exclude_id: str | None = None, label: str = "display") -> bool:
-        """True if another speaker already has this name (case- and whitespace-insensitive)."""
-        key = name.strip().casefold()
-        return any(
-            spk_id != exclude_id and (labels.get(label) or "").strip().casefold() == key
-            for spk_id, labels in self.known_names.items()
-        )
-
     def remove_speaker(self, spk_id: str):
         """Remove a speaker (profile, names, color) from memory and the database.
         No-op if not present."""

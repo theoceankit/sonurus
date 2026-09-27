@@ -99,7 +99,7 @@ The display name is **never** stored as the speaker ID. All IDs in `speaker_embe
 
 **In the UI:** `isUnrecognized(spkId, knownMap)` in `utils.js` — `knownMap` is built from the named rows of `GET /speakers` (`buildKnownMap()` skips `name: null`). A speaker is unrecognized if absent from `knownMap`, if their ID starts with `SPEAKER_`, or for the `UNASSIGNED` pseudo-id.
 
-**Why:** Decoupling identity (UUID) from display name means renaming a speaker only updates `speaker_names` without touching segment data or embeddings. Display names set through `PATCH /speakers/{id}` or `POST /speakers/{id}/rename` must be unique (case- and whitespace-insensitive, `409` otherwise). Assigning segments to a new name in the editor (`speaker_name` / `to_speaker_name`) still creates a new UUID even if the name exists, so duplicates can appear there and in older databases; the Speakers section marks them.
+**Why:** Decoupling identity (UUID) from display name means renaming a speaker only updates `speaker_names` without touching segment data or embeddings. Display names are not unique: two different people named "Alice" coexist as two UUIDs, and assigning segments to a new name always creates a new UUID. The UI marks speakers that share a name and shows their usage to tell them apart.
 
 **Target state:** The principle stays.
 

@@ -157,7 +157,8 @@ function filterSpeakers(rows, query, filter) {
   })
 }
 
-// Ids of named speakers whose name another speaker also has (legacy duplicates).
+// Ids of named speakers whose name another speaker also has. Allowed — the id is
+// the identity — but shown so the user can tell them apart.
 function duplicateNameIds(rows) {
   const byKey = {}
   rows.filter(r => r.name).forEach(r => { (byKey[_nameKey(r.name)] ||= []).push(r.id) })
