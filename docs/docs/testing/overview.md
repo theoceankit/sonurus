@@ -21,6 +21,21 @@ node --test 'tests/renderer/*.test.js'
 
 `tests/conftest.py` replaces `huggingface_hub.snapshot_download` (no-op) and `huggingface_hub.model_info` (raises `OSError`, so download size falls back to the catalog estimate) for the whole session. Download jobs run in background threads that outlive a test's own `patch()`, so a per-test stub is not enough. `ModelService.RUN_DOWNLOADS_IN_SUBPROCESS` is also set to `False`, so tests can patch `snapshot_download` in-process.
 
+### CI environment
+
+The Tests workflow (`.github/workflows/tests.yml`) installs only `requirements-test.txt` — no `torch`, `huggingface_hub`, WhisperX or PyAnnote. `tests/conftest.py` replaces those modules with `MagicMock` stubs in `sys.modules` when they are not importable. A local `.venv` has the real libraries, so two classes of failure show up only in CI:
+
+- **Spawned child processes do not get the stubs.** A `multiprocessing` child re-imports the module that defines its target function. Worker stand-ins for `_run_download(..., in_subprocess=True)` therefore live in `tests/download_workers.py`, which imports no app code.
+- **Slower runners expose timing races.** A background job thread may reach a patched call after the `POST` that started it has returned, so a patch must stay active until the job finishes (see `_running_job` in `test_transcription_guard.py`).
+
+To reproduce CI locally, run the suite in a separate venv with only the test requirements:
+
+```bash
+python3.12 -m venv /tmp/ci-venv
+/tmp/ci-venv/bin/pip install -r requirements-test.txt
+/tmp/ci-venv/bin/python -m pytest tests/ -v
+```
+
 ### Renderer tests
 
 Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-renderer.js` evaluates them in a `node:vm` context, so their top-level function declarations (e.g. `fileUrl()` from `utils.js`) can be tested with `node:test` without a browser. Pass stubs for browser globals via the second argument of `loadRenderer(files, globals)`. DOM-heavy behaviour is verified manually in the running app.
@@ -60,8 +75,13 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 
 ```
 tests/
+├── conftest.py                        # ML library stubs, no-network downloads
+├── download_workers.py                # App-free stand-ins for subprocess download workers
+├── renderer/                          # node:test renderer tests + load-renderer.js
+├── test_alignment_model.py
 ├── test_api.py                        # Full API integration
 ├── test_archive_service.py
+├── test_audio_capture.py
 ├── test_commit_service.py
 ├── test_diarization_model.py
 ├── test_download_progress.py
@@ -71,6 +91,7 @@ tests/
 ├── test_model_cancel.py
 ├── test_models_api.py
 ├── test_model_service.py
+├── test_speaker_color.py
 ├── test_speaker_memory_service.py
 ├── test_transcribe_schema.py
 ├── test_transcript_builder.py
