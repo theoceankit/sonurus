@@ -17,9 +17,6 @@ uvicorn app.api.main:app --port 8000
 # API server — silence logs
 LOG_LEVEL=off uvicorn app.api.main:app --port 8000
 
-# CLI — INFO by default
-python main.py
-
 # Write logs to a file as well
 LOG_FILE=app.log uvicorn app.api.main:app --port 8000
 ```
@@ -118,7 +115,6 @@ Examples:
 |---|---|
 | `app/logger.py` | `setup_logging(default_level)` — configures the `app` logger; `get_logger(name)` — returns a named child logger |
 | `app/api/main.py` | Calls `setup_logging(default_level="info")` — API server is on by default |
-| `main.py` | Calls `setup_logging(default_level="info")` — CLI is on by default |
 
 ### Relation to `VERBOSE`
 

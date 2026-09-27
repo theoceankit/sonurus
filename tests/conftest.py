@@ -44,3 +44,23 @@ if not _is_importable("torch"):
         "huggingface_hub",
     ]:
         sys.modules[_name] = MagicMock()
+
+
+# ModelService runs each snapshot_download in a child process in production.
+# Tests patch huggingface_hub.snapshot_download, which only works in-process.
+import app.services.model_service as _model_service  # noqa: E402
+_model_service.RUN_DOWNLOADS_IN_SUBPROCESS = False
+
+# No test may touch the network. Several API tests start a download without
+# patching it; the download runs in a background thread that outlives the
+# test (and any per-test patch), so the stubs are installed for the whole
+# session. Tests that need specific behaviour still patch these themselves.
+import huggingface_hub as _hf  # noqa: E402
+
+
+def _no_network(*_args, **_kwargs):
+    raise OSError("network access is disabled in tests")
+
+
+_hf.snapshot_download = lambda *_args, **_kwargs: None
+_hf.model_info = _no_network

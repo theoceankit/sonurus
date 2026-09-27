@@ -86,7 +86,7 @@ electron/
 | `readSettings()` | Read `settings.json` from `app.getPath('userData')` |
 | `writeSettings(data)` | Write `settings.json` to `app.getPath('userData')` |
 | `setZoom(factor)` | Call `webContents.setZoomFactor(factor)` |
-| `saveRecording(buffer, ext)` | Write a recording buffer to `os.tmpdir()` |
+| `saveRecording(buffer, ext)` | Write a recording buffer to `userData/recordings/` |
 | `writeClipboard(text)` | Write text to the system clipboard |
 | `onSetupProgress(callback)` | Subscribe to first-run setup progress events |
 | `getPlatform()` | Returns `process.platform` (`'win32'`, `'darwin'`, `'linux'`) |
@@ -118,13 +118,13 @@ Settings are stored in `app.getPath('userData')/settings.json`. The main process
 
 Default values are defined in `DEFAULT_SETTINGS` in `main.js`. The renderer merges saved values on top of defaults via `Object.assign(appSettings, saved)`.
 
-`hfToken` is never passed to the renderer after loading — it is only used in `main.js` to set `HF_TOKEN` for the backend process.
+`hfToken` is part of `appSettings` in the renderer (Settings → API Keys edits it, and it is sent as `hf_token` with model download requests). `main.js` reads it once at startup to set `HF_TOKEN` for the backend process, so a changed token reaches the transcription pipeline only after an app restart.
 
 ---
 
 ## Audio playback
 
-The transcript editor creates a single persistent `Audio` element per editor session. Its `src` is set to `'file://' + transcript.audio_path` — a direct filesystem path returned by the API. This works because the renderer page is loaded via `file://`, so `file:` is covered by the `default-src 'self'` CSP directive (explicitly enumerated as `media-src 'self' file:` in `index.html`).
+The transcript editor creates a single persistent `Audio` element per editor session. Its `src` is set to `fileUrl(transcript.audio_path)` (`utils.js`) — a `file://` URL built from the filesystem path returned by the API, with every path segment percent-encoded so spaces, non-ASCII characters, `#` and `?` survive, and Windows drive letters handled. The encoded form is stable under browser URL normalisation, so the `audio.src !== audioSrc` check does not reset playback on every editor rebuild. This works because the renderer page is loaded via `file://`, so `file:` is covered by the `default-src 'self'` CSP directive (explicitly enumerated as `media-src 'self' file:` in `index.html`).
 
 The audio element survives editor rebuilds (triggered by speaker rename, segment edit, etc.) so playback is not interrupted. A cleanup hook on the root element pauses the audio and aborts all listeners when the user navigates to a different view.
 
@@ -152,7 +152,7 @@ Recording runs entirely in the background — no dedicated recording view. The f
 
 ```js
 { recorder, audioCtx, micStream, sysStream,
-  captureJobId, chunks, elapsed, timerInterval,
+  captureJobId, chunks, timerInterval,
   settings: { title, model, language } }
 ```
 

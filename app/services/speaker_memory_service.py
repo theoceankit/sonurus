@@ -180,9 +180,9 @@ class SpeakerRepository:
             result.setdefault(spk_id, {})[label] = name
         return result
 
-    def save(self, dirty: set, known_speakers: dict, known_counts: dict, known_names: dict):
-        """Atomic: persist dirty embeddings + all names in one transaction."""
-        speakers_with_names = [s for s in known_names if s in known_speakers]
+    def save(self, dirty: set, known_speakers: dict, known_counts: dict,
+             known_names: dict, name_ids: set):
+        """Atomic: persist dirty embeddings + names of name_ids in one transaction."""
         with self._connect() as conn:
             if dirty:
                 conn.executemany(
@@ -193,29 +193,25 @@ class SpeakerRepository:
                         for spk_id in dirty if spk_id in known_speakers
                     ],
                 )
-            for spk_id in speakers_with_names:
-                conn.execute("DELETE FROM speaker_names WHERE speaker_id = ?", (spk_id,))
-            conn.executemany(
-                "INSERT INTO speaker_names (speaker_id, label, name) VALUES (?, ?, ?)",
-                [
-                    (spk_id, label, name)
-                    for spk_id in speakers_with_names
-                    for label, name in known_names[spk_id].items()
-                ],
-            )
+            self._write_names(conn, known_names, name_ids)
 
-    def save_names_only(self, known_names: dict, known_speakers: dict):
+    def save_names_only(self, known_names: dict, name_ids: set):
         with self._connect() as conn:
-            for spk_id in known_names:
-                conn.execute("DELETE FROM speaker_names WHERE speaker_id = ?", (spk_id,))
-            conn.executemany(
-                "INSERT INTO speaker_names (speaker_id, label, name) VALUES (?, ?, ?)",
-                [
-                    (spk_id, label, name)
-                    for spk_id in known_names
-                    for label, name in known_names[spk_id].items()
-                ],
-            )
+            self._write_names(conn, known_names, name_ids)
+
+    @staticmethod
+    def _write_names(conn, known_names: dict, name_ids: set):
+        """Replace the stored names of name_ids only — other rows are left untouched."""
+        for spk_id in name_ids:
+            conn.execute("DELETE FROM speaker_names WHERE speaker_id = ?", (spk_id,))
+        conn.executemany(
+            "INSERT INTO speaker_names (speaker_id, label, name) VALUES (?, ?, ?)",
+            [
+                (spk_id, label, name)
+                for spk_id in name_ids
+                for label, name in known_names.get(spk_id, {}).items()
+            ],
+        )
 
     def load_colors(self) -> dict[str, int]:
         with self._connect() as conn:
@@ -318,6 +314,10 @@ class SpeakerMemoryService:
         self._dirty: set[str] = set()
         self._dirty_lock = threading.Lock()
         self._dirty_colors: set[str] = set()
+        # Names changed via set_name() since the last save. Only these are
+        # written, so a long-lived instance with a stale snapshot (e.g. the
+        # pipeline job) never reverts names changed through another instance.
+        self._dirty_names: set[str] = set()
         log.info(f"Loaded {len(self.known_speakers)} known speakers")
 
     def _assign_color(self, spk_id: str) -> int:
@@ -359,18 +359,20 @@ class SpeakerMemoryService:
 
     def set_name(self, spk_id: str, name: str, label: str = "display"):
         self.known_names.setdefault(spk_id, {})[label] = name
+        self._dirty_names.add(spk_id)
 
     def save(self):
-        """Persist dirty embeddings and all names to SQLite."""
+        """Persist dirty embeddings and changed names of speakers that have an embedding."""
         with self._dirty_lock:
             dirty = self._dirty
             self._dirty = set()
-        speakers_with_names = [s for s in self.known_names if s in self.known_speakers]
-        if not dirty and not speakers_with_names:
+        name_ids = {s for s in self._dirty_names if s in self.known_speakers}
+        if not dirty and not name_ids:
             return
         for spk_id in dirty:
             self._ensure_color(spk_id)
-        self._repo.save(dirty, self.known_speakers, self.known_counts, self.known_names)
+        self._repo.save(dirty, self.known_speakers, self.known_counts, self.known_names, name_ids)
+        self._dirty_names -= name_ids
         self._repo.save_colors(
             {spk_id: self.known_colors[spk_id] for spk_id in self._dirty_colors if spk_id in self.known_colors}
         )
@@ -380,18 +382,21 @@ class SpeakerMemoryService:
     def reload_names(self):
         """Reload known_names from DB, replacing any uncommitted set_name() changes."""
         self.known_names = self._repo.load_names()
+        self._dirty_names = set()
 
     def reload(self):
         """Reload all in-memory state from DB."""
         self.known_speakers, self.known_counts = self._repo.load()
         self.known_names = self._repo.load_names()
         self.known_colors = self._repo.load_colors()
+        self._dirty_names = set()
 
     def save_names_only(self):
-        """Persist known_names without touching speaker_embeddings."""
-        for spk_id in self.known_names:
+        """Persist names changed since the last save without touching speaker_embeddings."""
+        for spk_id in self._dirty_names:
             self._ensure_color(spk_id)
-        self._repo.save_names_only(self.known_names, self.known_speakers)
+        self._repo.save_names_only(self.known_names, self._dirty_names)
+        self._dirty_names = set()
         self._repo.save_colors(
             {spk_id: self.known_colors[spk_id] for spk_id in self._dirty_colors if spk_id in self.known_colors}
         )
@@ -414,6 +419,13 @@ class SpeakerMemoryService:
         self.known_colors.pop(spk_id, None)
         self._repo.remove(spk_id)
 
-    @staticmethod
-    def _generate_new_speaker_id() -> str:
-        return _new_speaker_id()
+    def create_named_speaker(self, name: str, label: str = "display") -> str:
+        """Create a new speaker ID with a persisted display name.
+
+        Writes speaker_names only; the embedding is added by CommitService once
+        segments with embeddings are assigned to the new ID.
+        """
+        spk_id = _new_speaker_id()
+        self.set_name(spk_id, name, label)
+        self.save_names_only()
+        return spk_id

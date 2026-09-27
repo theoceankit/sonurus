@@ -16,6 +16,20 @@ from app.api.schemas import (
 router = APIRouter(prefix="/transcripts", tags=["transcripts"])
 
 
+def _effective_speaker(seg) -> str:
+    return seg.speaker_final or seg.speaker_resolved or seg.speaker_raw
+
+
+def _recompute_after_delete(speaker_ids, memory, storage) -> None:
+    """Deleted segments must no longer contribute to speaker profiles (I4):
+    recompute each affected speaker from the remaining DB segments, or drop
+    unnamed speakers that have no segments left."""
+    commit_svc = CommitService(memory, storage)
+    for spk_id in speaker_ids:
+        if spk_id:
+            commit_svc.recompute_or_remove(spk_id)
+
+
 @router.get("", response_model=list[TranscriptListItem])
 def list_transcripts(storage: TranscriptStorageService = Depends(get_storage_service)):
     return [
@@ -38,7 +52,7 @@ def get_transcript(
     storage: TranscriptStorageService = Depends(get_storage_service),
 ):
     try:
-        t = storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
     return TranscriptResponse(
@@ -83,7 +97,7 @@ def get_speaker_suggestions(
 
     embeddings_by_speaker: dict[str, list] = {}
     for seg in t.segments:
-        spk_id = seg.speaker_final or seg.speaker_resolved or seg.speaker_raw
+        spk_id = _effective_speaker(seg)
         if not spk_id or spk_id in recognized:
             continue
         if seg.embedding is not None:
@@ -116,12 +130,14 @@ def get_speaker_suggestions(
 def delete_transcript(
     transcript_id: int,
     storage: TranscriptStorageService = Depends(get_storage_service),
+    memory: SpeakerMemoryService = Depends(get_memory_service),
 ):
     try:
-        storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
     storage.delete(transcript_id)
+    _recompute_after_delete({_effective_speaker(s) for s in t.segments}, memory, storage)
 
 
 @router.patch("/{transcript_id}/segments/{start}/speaker", status_code=204)
@@ -132,23 +148,29 @@ def update_segment_speaker(
     storage: TranscriptStorageService = Depends(get_storage_service),
     memory: SpeakerMemoryService = Depends(get_memory_service),
 ):
+    if (body.speaker_id is None) == (body.speaker_name is None):
+        raise HTTPException(status_code=400, detail="Provide exactly one of speaker_id or speaker_name")
     try:
-        t = storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
     seg = next((s for s in t.segments if s.start == start), None)
     if seg is None:
         raise HTTPException(status_code=404, detail="Segment not found")
-    try:
-        _uuid.UUID(body.speaker_id, version=4)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="speaker_id must be a valid UUID4")
-    if body.speaker_id not in memory.known_speakers:
-        raise HTTPException(status_code=400, detail="speaker_id not found in known speakers")
-    from_spk_id = seg.speaker_final or seg.speaker_resolved or seg.speaker_raw
-    storage.update_segment_speaker(transcript_id, start, seg.end, body.speaker_id)
+    if body.speaker_id is not None:
+        try:
+            _uuid.UUID(body.speaker_id, version=4)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="speaker_id must be a valid UUID4")
+        if body.speaker_id not in memory.known_speakers:
+            raise HTTPException(status_code=400, detail="speaker_id not found in known speakers")
+        to_spk_id = body.speaker_id
+    else:
+        to_spk_id = memory.create_named_speaker(body.speaker_name)
+    from_spk_id = _effective_speaker(seg)
+    storage.update_segment_speaker(transcript_id, start, seg.end, to_spk_id)
     commit_svc = CommitService(memory, storage)
-    commit_svc.commit_speaker(body.speaker_id)
+    commit_svc.commit_speaker(to_spk_id)
     commit_svc.recompute_or_remove(from_spk_id)
 
 
@@ -160,7 +182,7 @@ def update_segment_text(
     storage: TranscriptStorageService = Depends(get_storage_service),
 ):
     try:
-        t = storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
     seg = next((s for s in t.segments if s.start == start), None)
@@ -174,15 +196,17 @@ def delete_segment(
     transcript_id: int,
     start: float,
     storage: TranscriptStorageService = Depends(get_storage_service),
+    memory: SpeakerMemoryService = Depends(get_memory_service),
 ):
     try:
-        t = storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
     seg = next((s for s in t.segments if s.start == start), None)
     if seg is None:
         raise HTTPException(status_code=404, detail="Segment not found")
     storage.delete_segment(transcript_id, start, seg.end)
+    _recompute_after_delete({_effective_speaker(seg)}, memory, storage)
 
 
 @router.post("/{transcript_id}/reassign", status_code=204)
@@ -198,11 +222,11 @@ def reassign_speaker(
         raise HTTPException(status_code=400, detail="Provide exactly one of to_speaker_id or to_speaker_name")
 
     try:
-        t = storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
 
-    if not any((seg.speaker_final or seg.speaker_resolved or seg.speaker_raw) == body.from_speaker_id for seg in t.segments):
+    if not any(_effective_speaker(seg) == body.from_speaker_id for seg in t.segments):
         raise HTTPException(status_code=400, detail="from_speaker_id not found in transcript segments")
 
     if has_id:
@@ -210,13 +234,11 @@ def reassign_speaker(
         if to_uuid not in memory.known_speakers:
             raise HTTPException(status_code=404, detail="Speaker not found")
     else:
-        to_uuid = memory._generate_new_speaker_id()
-        memory.set_name(to_uuid, body.to_speaker_name)
-        memory.save_names_only()
+        to_uuid = memory.create_named_speaker(body.to_speaker_name)
 
     storage.update_segments_speaker(transcript_id, body.from_speaker_id, to_uuid)
     for seg in t.segments:
-        effective = seg.speaker_final or seg.speaker_resolved or seg.speaker_raw
+        effective = _effective_speaker(seg)
         if effective == body.from_speaker_id:
             seg.speaker_final = to_uuid
 
@@ -224,16 +246,3 @@ def reassign_speaker(
     commit_svc.commit_speaker(to_uuid)
     commit_svc.commit_new_speakers(t)
     commit_svc.recompute_or_remove(body.from_speaker_id)
-
-
-@router.post("/{transcript_id}/commit", status_code=204)
-def commit_transcript(
-    transcript_id: int,
-    storage: TranscriptStorageService = Depends(get_storage_service),
-    memory: SpeakerMemoryService = Depends(get_memory_service),
-):
-    try:
-        t = storage.load(transcript_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Transcript not found")
-    CommitService(memory, storage).commit(t)

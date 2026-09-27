@@ -124,19 +124,6 @@ REQUESTS_CA_BUNDLE=/path/to/.venv/lib/python3.11/site-packages/certifi/cacert.pe
 npm start
 ```
 
-### CLI
-
-```bash
-# Place a WAV file at testdata/output.wav, then:
-.venv/bin/python main.py
-```
-
-### Convert video to WAV
-
-```bash
-.venv/bin/python converter.py
-```
-
 ---
 
 ## How it works

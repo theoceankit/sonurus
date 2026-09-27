@@ -270,6 +270,59 @@ def test_names_for_multiple_speakers_all_persisted(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Concurrent instances: a stale instance must not revert names
+# (the pipeline job holds its own instance for the whole transcription)
+# ---------------------------------------------------------------------------
+
+def _two_instances_with_named_speaker(tmp_path):
+    db = str(tmp_path / "memory.db")
+    api = SpeakerMemoryService(db_path=db)
+    api.update_embedding("spk", np.array([1.0, 0.0, 0.0], dtype=np.float32))
+    api.set_name("spk", "Alice")
+    api.save()
+    job = SpeakerMemoryService(db_path=db)  # snapshot taken at job start
+    return db, api, job
+
+
+def test_stale_instance_save_does_not_revert_rename(tmp_path):
+    db, api, job = _two_instances_with_named_speaker(tmp_path)
+    api.set_name("spk", "Alice Smith")
+    api.save_names_only()
+
+    job.update_embedding("spk", np.array([0.9, 0.1, 0.0], dtype=np.float32))
+    job.save()
+
+    assert SpeakerMemoryService(db_path=db).get_name("spk") == "Alice Smith"
+
+
+def test_stale_instance_save_names_only_does_not_revert_rename(tmp_path):
+    db, api, job = _two_instances_with_named_speaker(tmp_path)
+    api.set_name("spk", "Alice Smith")
+    api.save_names_only()
+
+    job.set_name("other", "Bob")
+    job.save_names_only()
+
+    fresh = SpeakerMemoryService(db_path=db)
+    assert fresh.get_name("spk") == "Alice Smith"
+    assert fresh.get_name("other") == "Bob"
+
+
+def test_stale_instance_save_does_not_resurrect_removed_speaker_name(tmp_path):
+    db, api, job = _two_instances_with_named_speaker(tmp_path)
+    api.update_embedding("gone", np.array([0.0, 1.0, 0.0], dtype=np.float32))
+    api.set_name("gone", "Ghost")
+    api.save()
+    job.reload()
+    api.remove_speaker("gone")
+
+    job.update_embedding("spk", np.array([0.9, 0.1, 0.0], dtype=np.float32))
+    job.save()
+
+    assert SpeakerMemoryService(db_path=db).get_name("gone") is None
+
+
+# ---------------------------------------------------------------------------
 # save_names_only()
 # ---------------------------------------------------------------------------
 
@@ -601,3 +654,21 @@ def test_known_speakers_has_uuid_keys_after_migration(tmp_path):
     assert len(uuid_keys) == 1, (
         f"Expected exactly one UUID4 key in known_speakers, got: {list(memory.known_speakers.keys())}"
     )
+
+
+# ---------------------------------------------------------------------------
+# create_named_speaker()
+# ---------------------------------------------------------------------------
+
+def test_create_named_speaker_persists_name_without_embedding(tmp_path):
+    svc = make_memory(tmp_path)
+    spk_id = svc.create_named_speaker("Carol")
+
+    assert _is_valid_uuid(spk_id)
+    assert spk_id not in svc.known_speakers, "embedding is added later by CommitService"
+    assert SpeakerMemoryService(db_path=str(tmp_path / "memory.db")).get_name(spk_id) == "Carol"
+
+
+def test_create_named_speaker_returns_distinct_ids(tmp_path):
+    svc = make_memory(tmp_path)
+    assert svc.create_named_speaker("A") != svc.create_named_speaker("A")

@@ -13,8 +13,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
       else { onPreviewPlay?.(setActive) }
     })
   }
-  const _knownMap = {}
-  knownSpeakers.forEach(s => { _knownMap[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
+  const _knownMap = buildKnownMap(knownSpeakers)
   const unrecognized = isUnrecognized(spkId, _knownMap)
   const p = unrecognized ? null : speakerPalette(spkId, _knownMap)
 
@@ -26,7 +25,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
     const top = document.createElement('div')
     top.className = 'spk-card-top'
 
-    const avatar = makeAvatar(spkId, displayName, 28)
+    const avatar = makeAvatar(spkId, displayName, 28, _knownMap)
 
     const info = document.createElement('div')
     info.className = 'spk-card-info'

@@ -1,4 +1,5 @@
 import fnmatch
+import multiprocessing
 import os
 import shutil
 import threading
@@ -24,8 +25,8 @@ DIARIZATION_CATALOG = {
             "pyannote/speaker-diarization-community-1",
             "pyannote/embedding",
         ],
-        "size_bytes": 300_000_000,
-        "name": "Diarization · v2", "size": "112 MB", "speed": "—", "acc": "Speaker separation", "recommended": False, "kind": "diarization",
+        "size_bytes": 136_000_000,
+        "name": "Diarization · v2", "size": "130 MB", "speed": "—", "acc": "Speaker separation", "recommended": False, "kind": "diarization",
     },
 }
 
@@ -77,9 +78,84 @@ _WHISPER_ALLOW_PATTERNS = [
 ]
 
 
+# Present in a repo cache dir while a download is in progress. huggingface_hub
+# writes refs/main before fetching any file, so refs/main alone does not mean
+# the model is complete; an interrupted download leaves this marker behind.
+_DOWNLOAD_MARKER = ".sonorus-downloading"
+
+# Each snapshot_download runs in a child process so that cancelling can stop the
+# transfer mid-file (a thread cannot be interrupted). Tests switch this off to
+# patch huggingface_hub.snapshot_download in-process.
+RUN_DOWNLOADS_IN_SUBPROCESS = True
+
+
 # ---------------------------------------------------------------------------
 # Module-level helpers
 # ---------------------------------------------------------------------------
+
+def _is_repo_complete(cache_dir: Path) -> bool:
+    if not (cache_dir / "refs" / "main").exists():
+        return False
+    if (cache_dir / _DOWNLOAD_MARKER).exists():
+        return False
+    blobs = cache_dir / "blobs"
+    return not (blobs.is_dir() and any(blobs.glob("*.incomplete")))
+
+
+def _snapshot(kwargs: dict) -> None:
+    kwargs = dict(kwargs)
+    huggingface_hub.snapshot_download(kwargs.pop("repo_id"), **kwargs)
+
+
+def _snapshot_worker(kwargs: dict, conn) -> None:
+    """Child-process entry point: run snapshot_download and report the outcome."""
+    try:
+        _snapshot(kwargs)
+        conn.send(("ok",))
+    except BaseException as exc:
+        conn.send(("error", type(exc).__name__, str(exc)))
+
+
+def _run_download(kwargs: dict, cancel_event=None, worker=_snapshot_worker,
+                  in_subprocess: bool | None = None) -> None:
+    """Run snapshot_download(**kwargs); raise CancelledError as soon as cancel_event is set."""
+    if in_subprocess is None:
+        in_subprocess = RUN_DOWNLOADS_IN_SUBPROCESS
+    if cancel_event is not None and cancel_event.is_set():
+        raise CancelledError()
+
+    if not in_subprocess:
+        _snapshot(kwargs)
+        if cancel_event is not None and cancel_event.is_set():
+            raise CancelledError()
+        return
+
+    ctx = multiprocessing.get_context("spawn")
+    recv_conn, send_conn = ctx.Pipe(duplex=False)
+    proc = ctx.Process(target=worker, args=(kwargs, send_conn), daemon=True)
+    proc.start()
+    send_conn.close()
+    try:
+        while proc.is_alive():
+            if cancel_event is not None and cancel_event.is_set():
+                proc.terminate()
+                proc.join(timeout=5)
+                if proc.is_alive():
+                    proc.kill()
+                    proc.join()
+                raise CancelledError()
+            proc.join(timeout=0.2)
+        try:
+            result = recv_conn.recv() if recv_conn.poll() else None
+        except EOFError:  # child died without reporting
+            result = None
+    finally:
+        recv_conn.close()
+
+    if result is None:
+        raise RuntimeError(f"Download process exited unexpectedly (code {proc.exitcode})")
+    if result[0] == "error":
+        raise RuntimeError(f"{result[1]}: {result[2]}")
 
 def _matches_allow_patterns(filename: str, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatch(filename, p) for p in patterns)
@@ -147,16 +223,25 @@ class ModelService:
 
     def is_installed(self, model_id: str) -> bool:
         if model_id in WHISPER_CATALOG:
-            return (self._cache_dir(model_id) / "refs" / "main").exists()
+            return _is_repo_complete(self._cache_dir(model_id))
         if model_id in DIARIZATION_CATALOG:
             return all(
-                (self._hf_cache_dir(repo) / "refs" / "main").exists()
+                _is_repo_complete(self._hf_cache_dir(repo))
                 for repo in DIARIZATION_CATALOG[model_id]["hf_repos"]
             )
         if model_id in ALIGNMENT_CATALOG:
             hf_repo = ALIGNMENT_CATALOG[model_id]["hf_repo"]
-            return (self._alignment_dir(hf_repo) / "refs" / "main").exists()
+            return _is_repo_complete(self._alignment_dir(hf_repo))
         raise ValueError(f"Unknown model_id: {model_id!r}")
+
+    @staticmethod
+    def _download_repo(cache_dir: Path, kwargs: dict, cancel_event) -> None:
+        """Download one repo; its marker is removed only after a successful download."""
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        marker = cache_dir / _DOWNLOAD_MARKER
+        marker.touch()
+        _run_download(kwargs, cancel_event)
+        marker.unlink(missing_ok=True)
 
     def list_models(self) -> list[dict]:
         result = []
@@ -278,9 +363,6 @@ class ModelService:
         token = hf_token or os.getenv("HF_TOKEN")
 
         if model_id in WHISPER_CATALOG:
-            if cancel_event is not None and cancel_event.is_set():
-                raise CancelledError()
-
             stop, poller = self._start_poller(
                 dirs=[self._cache_dir(model_id)],
                 model_id=model_id,
@@ -288,17 +370,14 @@ class ModelService:
                 cancel_event=cancel_event,
             )
             try:
-                huggingface_hub.snapshot_download(
-                    WHISPER_CATALOG[model_id]["hf_repo"],
+                self._download_repo(self._cache_dir(model_id), dict(
+                    repo_id=WHISPER_CATALOG[model_id]["hf_repo"],
                     cache_dir=str(self._models_dir),
                     token=token,
                     allow_patterns=_WHISPER_ALLOW_PATTERNS,
-                )
+                ), cancel_event)
             finally:
                 self._stop_poller(stop, poller)
-
-            if cancel_event is not None and cancel_event.is_set():
-                raise CancelledError()
 
         elif model_id in DIARIZATION_CATALOG:
             dirs = [self._hf_cache_dir(repo) for repo in DIARIZATION_CATALOG[model_id]["hf_repos"]]
@@ -310,13 +389,11 @@ class ModelService:
             )
             try:
                 for repo in DIARIZATION_CATALOG[model_id]["hf_repos"]:
-                    if cancel_event is not None and cancel_event.is_set():
-                        raise CancelledError()
-                    huggingface_hub.snapshot_download(
-                        repo,
+                    self._download_repo(self._hf_cache_dir(repo), dict(
+                        repo_id=repo,
                         cache_dir=str(self._hf_models_dir),
                         token=token,
-                    )
+                    ), cancel_event)
             finally:
                 self._stop_poller(stop, poller)
 
@@ -330,17 +407,13 @@ class ModelService:
                 cancel_event=cancel_event,
             )
             try:
-                if cancel_event is not None and cancel_event.is_set():
-                    raise CancelledError()
-                huggingface_hub.snapshot_download(
-                    hf_repo,
+                self._download_repo(self._alignment_dir(hf_repo), dict(
+                    repo_id=hf_repo,
                     cache_dir=str(self._alignment_models_dir),
                     token=token,
-                )
+                ), cancel_event)
             finally:
                 self._stop_poller(stop, poller)
-            if cancel_event is not None and cancel_event.is_set():
-                raise CancelledError()
 
         else:
             raise ValueError(f"Unknown model_id: {model_id!r}")

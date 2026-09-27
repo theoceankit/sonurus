@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 import app.config as config
 from app.api.schemas import DownloadRequest
-from app.services.model_service import ModelService
+from app.services.model_service import ModelService, WHISPER_CATALOG, DIARIZATION_CATALOG, ALIGNMENT_CATALOG
 from app.logger import get_logger
 
 log = get_logger("models")
@@ -18,6 +18,8 @@ log = get_logger("models")
 router = APIRouter(tags=["models"])
 
 _executor = ThreadPoolExecutor(max_workers=2)
+
+_HEARTBEAT_INTERVAL = 15  # seconds between heartbeats when no progress arrives
 
 # job_id → threading.Queue carrying a single terminal event (done/error/cancelled)
 _download_jobs: dict[str, _queue.Queue] = {}
@@ -91,12 +93,8 @@ async def download_model(model_id: str, body: DownloadRequest = DownloadRequest(
 
 @router.delete("/models/{model_id}/download/{job_id}")
 async def cancel_download(model_id: str, job_id: str):
-    from app.services.model_service import WHISPER_CATALOG, DIARIZATION_CATALOG, ALIGNMENT_CATALOG
     if model_id not in WHISPER_CATALOG and model_id not in DIARIZATION_CATALOG and model_id not in ALIGNMENT_CATALOG:
-        return JSONResponse(
-            {"detail": [{"type": "literal_error", "loc": ["path", "model_id"], "msg": f"Input should be a valid model id", "input": model_id, "ctx": {"expected": "a known model id"}}]},
-            status_code=422,
-        )
+        return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=422)
     if job_id not in _cancel_events:
         return JSONResponse({"detail": f"No active download job '{job_id}'"}, status_code=404)
     _cancel_events[job_id].set()
@@ -113,11 +111,12 @@ async def ws_download_progress(websocket: WebSocket, job_id: str):
         await websocket.close()
         return
 
-    loop = asyncio.get_running_loop()
     try:
         while True:
             try:
-                event = await loop.run_in_executor(_executor, lambda: q.get(timeout=15))
+                # Wait on the default thread pool, never on _executor: with every
+                # download worker busy, reads queued there would never run.
+                event = await asyncio.to_thread(q.get, timeout=_HEARTBEAT_INTERVAL)
             except _queue.Empty:
                 await websocket.send_json({"type": "heartbeat"})
                 continue

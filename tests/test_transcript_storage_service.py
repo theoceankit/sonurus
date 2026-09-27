@@ -1,7 +1,7 @@
 """
 Tests for TranscriptStorageService — save(), load(), update_segments_speaker(),
 update_segment_speaker(), list_all(), update_segment_text(), delete_segment(),
-and get_embeddings_by_speaker().
+and get_embeddings_grouped_by_transcript().
 """
 
 import sqlite3
@@ -412,8 +412,13 @@ def test_delete_segment_no_match_is_noop(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# get_embeddings_by_speaker()
+# get_embeddings_grouped_by_transcript() — filtering rules
 # ---------------------------------------------------------------------------
+
+def _all_embeddings(svc, speaker_id):
+    """Flatten get_embeddings_grouped_by_transcript() across transcripts."""
+    return [e for embs in svc.get_embeddings_grouped_by_transcript(speaker_id).values() for e in embs]
+
 
 def test_get_embeddings_returns_embeddings_for_known_speaker(tmp_path):
     """Save 1 transcript with 2 segments belonging to speaker A — method returns
@@ -430,7 +435,7 @@ def test_get_embeddings_returns_embeddings_for_known_speaker(tmp_path):
 
     svc.save(make_transcript([seg1, seg2]))
 
-    result = svc.get_embeddings_by_speaker("speaker-A")
+    result = _all_embeddings(svc, "speaker-A")
 
     assert len(result) == 2
     assert all(isinstance(e, np.ndarray) for e in result)
@@ -449,7 +454,7 @@ def test_get_embeddings_returns_empty_for_unknown_speaker(tmp_path):
     seg.speaker_final = "speaker-A"
     svc.save(make_transcript([seg]))
 
-    result = svc.get_embeddings_by_speaker("speaker-NOBODY")
+    result = _all_embeddings(svc, "speaker-NOBODY")
 
     assert result == []
 
@@ -471,7 +476,7 @@ def test_get_embeddings_ignores_null_embeddings(tmp_path):
 
     svc.save(make_transcript([seg1, seg2, seg3]))
 
-    result = svc.get_embeddings_by_speaker("speaker-A")
+    result = _all_embeddings(svc, "speaker-A")
 
     assert len(result) == 2
     vectors = [e.tolist() for e in result]
@@ -480,7 +485,7 @@ def test_get_embeddings_ignores_null_embeddings(tmp_path):
 
 
 def test_get_embeddings_aggregates_across_transcripts(tmp_path):
-    """Speaker A appears in two separate transcriptions — get_embeddings_by_speaker
+    """Speaker A appears in two separate transcriptions — the grouped query
     returns the embeddings from both transcriptions combined."""
     svc = make_service(tmp_path)
 
@@ -495,7 +500,7 @@ def test_get_embeddings_aggregates_across_transcripts(tmp_path):
     svc.save(make_transcript([seg1], audio_path="files/session1.wav"))
     svc.save(make_transcript([seg2], audio_path="files/session2.wav"))
 
-    result = svc.get_embeddings_by_speaker("speaker-A")
+    result = _all_embeddings(svc, "speaker-A")
 
     assert len(result) == 2
     vectors = [e.tolist() for e in result]
@@ -562,8 +567,52 @@ def test_get_embeddings_does_not_return_other_speakers(tmp_path):
 
     svc.save(make_transcript([seg_a, seg_b]))
 
-    result = svc.get_embeddings_by_speaker("speaker-A")
+    result = _all_embeddings(svc, "speaker-A")
 
     assert len(result) == 1
     assert np.allclose(result[0], emb_a)
     assert not any(np.allclose(e, emb_b) for e in result)
+
+
+# ---------------------------------------------------------------------------
+# Performance: indexes and embedding-free loads
+# ---------------------------------------------------------------------------
+
+def _index_columns(db_path):
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='segments'"
+        ).fetchall()
+        return {
+            tuple(c[2] for c in conn.execute(f"PRAGMA index_info('{name}')"))
+            for (name,) in rows
+        }
+
+
+def test_segments_indexed_by_transcription_and_speaker(tmp_path):
+    svc = make_service(tmp_path)
+    cols = _index_columns(svc.db_path)
+    assert ("transcription_id",) in cols
+    assert ("speaker_id",) in cols
+
+
+def test_indexes_added_to_existing_v3_database(tmp_path):
+    db = str(tmp_path / "old.db")
+    TranscriptStorageService(db_path=db)
+    with sqlite3.connect(db) as conn:  # simulate a DB created before the indexes existed
+        for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='segments' AND sql IS NOT NULL").fetchall():
+            conn.execute(f"DROP INDEX {name}")
+        conn.execute("UPDATE _ts_schema_version SET version = 3")
+    TranscriptStorageService(db_path=db)
+    assert ("speaker_id",) in _index_columns(db)
+
+
+def test_load_without_embeddings_skips_blobs(tmp_path):
+    svc = make_service(tmp_path)
+    seg = Segment(0.0, 1.0, "x", "SPEAKER_00", speaker_resolved="a", embedding=np.ones(3, dtype=np.float32))
+    db_id = svc.save(make_transcript([seg]))
+    loaded = svc.load(db_id, with_embeddings=False)
+    assert loaded.segments[0].embedding is None
+    assert loaded.segments[0].text == "x"
+    assert svc.load(db_id).segments[0].embedding is not None
+
