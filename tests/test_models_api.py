@@ -392,3 +392,39 @@ def test_download_unknown_model_id_returns_422(client):
         f"Expected 422 for unknown model_id (not in any catalog), "
         f"got {r.status_code}: {r.text}"
     )
+
+
+# ── Regression: progress must stream while other downloads occupy workers ────
+
+def test_progress_streams_with_two_concurrent_downloads(client):
+    import threading
+    from unittest.mock import patch
+
+    release = threading.Event()
+
+    def fake_download(self, model_id, cancel_event=None, on_progress=None, hf_token=None):
+        on_progress({"type": "progress", "pct": 10.0})
+        release.wait(timeout=20)  # keeps a worker thread busy, like a real download
+
+    from concurrent.futures import ThreadPoolExecutor
+    pool = ThreadPoolExecutor(max_workers=2)  # same size as production, isolated from other tests
+
+    with patch("app.api.routers.models.ModelService.download_model", fake_download), \
+         patch("app.api.routers.models._executor", pool):
+        job_a = client.post("/models/tiny/download").json()["job_id"]
+        client.post("/models/base/download").json()["job_id"]
+
+        received = []
+        got_event = threading.Event()
+        def _listen():
+            with client.websocket_connect(f"/ws/models/{job_a}") as ws:
+                received.append(ws.receive_json())
+                got_event.set()
+
+        threading.Thread(target=_listen, daemon=True).start()
+        starved = not got_event.wait(timeout=5)
+        release.set()
+    pool.shutdown(wait=True)
+
+    assert not starved, "WebSocket got no events while two downloads were running"
+    assert received and received[0]["type"] == "progress"
