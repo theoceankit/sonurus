@@ -84,7 +84,7 @@ stateDiagram-v2
 :::
 
 :::note[Non-speaker edits bypass the commit pipeline]
-Inline segment text edits (`update_segment_text`) write directly to the `segments` table via `TranscriptStorageService` and do **not** invoke `CommitService`. Segment and transcript deletes remove audio from the DB, so they call `CommitService.recompute_or_remove()` for the affected speakers to keep embeddings consistent with the remaining segments. Speaker reassignment goes through `CommitService` (see [I2](./invariants.md#i2--only-commitservicecommit-writes-to-speaker-memory)).
+Inline segment text edits (`update_segment_text`) write directly to the `segments` table via `TranscriptStorageService` and do **not** invoke `CommitService`. Segment and transcript deletes remove audio from the DB, so they call `CommitService.recompute_or_remove()` for the affected speakers to keep embeddings consistent with the remaining segments. Speaker reassignment goes through `CommitService` (see [I2](./invariants.md#i2--only-commitservice-writes-speaker-embeddings)).
 :::
 
 ---
