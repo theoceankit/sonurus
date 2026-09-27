@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import Link from '@docusaurus/Link';
+import useBrokenLinks from '@docusaurus/useBrokenLinks';
 import Layout from '@theme/Layout';
 import styles from './index.module.css';
 
@@ -133,7 +134,7 @@ const DOC_CARDS = [
     ),
     title: 'Roadmap',
     desc: 'Planned features and architectural improvements, organised by area.',
-    to: '/roadmap/roadmap',
+    to: '/roadmap',
   },
   {
     icon: (
@@ -173,7 +174,7 @@ const PLATFORMS = [
     name: 'macOS',
     meta: 'Universal · Apple silicon + Intel · 12.0+',
     label: 'Download .dmg',
-    href: 'https://github.com/kit/sonorus/releases',
+    href: 'https://github.com/theoceankit/sonurus/releases',
   },
   {
     icon: (
@@ -184,7 +185,7 @@ const PLATFORMS = [
     name: 'Windows',
     meta: 'x64 · Windows 10 & 11',
     label: 'Download .exe',
-    href: 'https://github.com/kit/sonorus/releases',
+    href: 'https://github.com/theoceankit/sonurus/releases',
   },
   {
     icon: (
@@ -195,14 +196,21 @@ const PLATFORMS = [
     name: 'Linux',
     meta: 'AppImage · .deb · x86_64',
     label: 'Download build',
-    href: 'https://github.com/kit/sonorus/releases',
+    href: 'https://github.com/theoceankit/sonurus/releases',
   },
 ];
 
 /* ============================================================
    Main page
    ============================================================ */
+// Section ids linked from the footer (/#privacy etc.); plain `id` attributes
+// are invisible to the broken-anchor check unless registered.
+const SECTION_ANCHORS = ['privacy', 'how', 'capabilities', 'download'];
+
 export default function Home() {
+  const brokenLinks = useBrokenLinks();
+  SECTION_ANCHORS.forEach((id) => brokenLinks.collectAnchor(id));
+
   useEffect(() => {
     const els = document.querySelectorAll('.reveal');
     const obs = new IntersectionObserver(
@@ -240,11 +248,11 @@ export default function Home() {
             No cloud, no uploads, no accounts. The recording stays exactly where you made it.
           </p>
           <div className={`reveal ${styles.heroActions}`} data-d="2">
-            <a className={`${styles.btn} ${styles.btnPrimary}`} href="https://github.com/kit/sonorus/releases">
+            <a className={`${styles.btn} ${styles.btnPrimary}`} href="https://github.com/theoceankit/sonurus/releases">
               <IconDownload />
               Download for macOS
             </a>
-            <a className={`${styles.btn} ${styles.btnGhost}`} href="https://github.com/kit/sonorus">
+            <a className={`${styles.btn} ${styles.btnGhost}`} href="https://github.com/theoceankit/sonurus">
               <IconGitHub />
               View on GitHub
             </a>
