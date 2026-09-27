@@ -1,4 +1,5 @@
 """Tests for the model-installation guard on POST /transcribe."""
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -490,13 +491,21 @@ def _wait_job_finished(job_id: str, timeout: float = 5.0) -> None:
     assert job_id not in transcription._cancel_events, "job did not finish"
 
 
-def _start_job(tc, tmp_path, controller):
+@contextmanager
+def _running_job(tc, tmp_path, controller):
+    """Start a job with `controller` and wait for it to finish on exit.
+
+    The job thread calls create_controller() some time after POST returns,
+    so the patch must stay active until the job has finished.
+    """
     from unittest.mock import MagicMock
     _install_whisper_and_diarize(tmp_path)
     with patch("app.api.routers.transcription.create_controller", return_value=(controller, MagicMock())):
         r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
         assert r.status_code == 200, r.text
-        return r.json()["job_id"]
+        job_id = r.json()["job_id"]
+        yield job_id
+        _wait_job_finished(job_id)
 
 
 def test_models_released_when_pipeline_fails(client):
@@ -506,8 +515,8 @@ def test_models_released_when_pipeline_fails(client):
     controller.run_pipeline.side_effect = RuntimeError("CUDA out of memory")
 
     with patch("torch.cuda.empty_cache") as empty_cache:
-        job_id = _start_job(tc, tmp_path, controller)
-        _wait_job_finished(job_id)
+        with _running_job(tc, tmp_path, controller):
+            pass
 
     assert controller.transcription_service.model is None
     assert controller.embedding_service.inference is None
@@ -530,9 +539,9 @@ def test_models_released_when_job_cancelled_mid_pipeline(client):
     controller = MagicMock()
     controller.run_pipeline.side_effect = run_pipeline
     with patch("torch.cuda.empty_cache") as empty_cache:
-        job_ids.append(_start_job(tc, tmp_path, controller))
-        job_known.set()
-        _wait_job_finished(job_ids[0])
+        with _running_job(tc, tmp_path, controller) as job_id:
+            job_ids.append(job_id)
+            job_known.set()
 
     assert controller.transcription_service.model is None
     empty_cache.assert_called()
