@@ -124,7 +124,7 @@ function renderEditorView(transcriptId, meta = null) {
 
     const titleText = transcript.title
       || meta?.title
-      || transcript.audio_path.split(/[\\/]/).pop().replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ')
+      || fileBaseName(transcript.audio_path).replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ')
     const title = document.createElement('h1')
     title.className = 'focus-title'
     title.textContent = titleText

@@ -161,7 +161,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
       content.appendChild(sectionLabel('Unrecognized', unrecognized.length))
       unrecognized.forEach((spkId, i) => {
         const card = makeSpeakerCard(
-          spkId, `Unknown speaker ${i + 1}`,
+          spkId, `Unknown ${i + 1}`,  // same numbering as segment rows (first appearance)
           countBySpeaker[spkId], durBySpeaker[spkId],
           totalDur, transcriptId, onReload, knownSpeakers,
           sampleBySpeaker[spkId] || null, (setActive) => playPreview(firstSegBySpeaker[spkId], setActive), () => pausePreview(),
