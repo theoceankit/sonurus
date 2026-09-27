@@ -346,26 +346,7 @@ function renderNewRecordingModal({ onStart, onImport }) {
         })),
       ]
 
-      const sysOptions = []
-
-      if (platform === 'win32') {
-        // Windows: WASAPI loopback via Electron's setDisplayMediaRequestHandler
-        sysOptions.push({ value: '__desktop__', label: 'System audio (WASAPI)' })
-        // Surface any browser-visible loopback devices as well
-        inputs
-          .filter(d => /virtual|loopback|system|output|mix|monitor/i.test(d.label))
-          .forEach(d => sysOptions.push({ value: d.deviceId, label: d.label }))
-      } else {
-        // macOS: ScreenCaptureKit via backend AudioCaptureService
-        // Linux: PipeWire/PulseAudio monitor sources via backend AudioCaptureService
-        try {
-          const r = await fetch(`${API_BASE}/audio/capture/sources`)
-          if (r.ok) {
-            const { sources } = await r.json()
-            sources.forEach(s => sysOptions.push({ value: s.id, label: s.label }))
-          }
-        } catch (_) {}
-      }
+      const sysOptions = await listSystemAudioSources(platform, inputs)
 
       if (!sysOptions.length) {
         sysOptions.push({ value: '__default__', label: 'Not available' })

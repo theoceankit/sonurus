@@ -25,8 +25,8 @@ DIARIZATION_CATALOG = {
             "pyannote/speaker-diarization-community-1",
             "pyannote/embedding",
         ],
-        "size_bytes": 300_000_000,
-        "name": "Diarization · v2", "size": "112 MB", "speed": "—", "acc": "Speaker separation", "recommended": False, "kind": "diarization",
+        "size_bytes": 136_000_000,
+        "name": "Diarization · v2", "size": "130 MB", "speed": "—", "acc": "Speaker separation", "recommended": False, "kind": "diarization",
     },
 }
 

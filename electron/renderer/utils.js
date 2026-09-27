@@ -40,6 +40,34 @@ function fileUrl(fsPath) {
   return 'file://' + (encoded.startsWith('/') ? encoded : '/' + encoded)
 }
 
+// Last path component of a POSIX or Windows path.
+function fileBaseName(fsPath) {
+  return fsPath.split(/[\\/]/).pop()
+}
+
+// System-audio source options for the recording UI: [{ value, label }].
+// Windows: captured in the renderer (WASAPI loopback via Electron's display
+// media handler) plus any virtual loopback inputs the browser exposes.
+// macOS/Linux: captured by the backend (GET /audio/capture/sources).
+async function listSystemAudioSources(platform, audioInputs) {
+  if (platform === 'win32') {
+    return [
+      { value: '__desktop__', label: 'System audio (WASAPI)' },
+      ...audioInputs
+        .filter(d => /virtual|loopback|system|output|mix|monitor/i.test(d.label))
+        .map(d => ({ value: d.deviceId, label: d.label })),
+    ]
+  }
+  try {
+    const r = await fetch(`${API_BASE}/audio/capture/sources`)
+    if (!r.ok) return []
+    const { sources } = await r.json()
+    return sources.map(s => ({ value: s.id, label: s.label }))
+  } catch (_) {
+    return []
+  }
+}
+
 function fmtTime(sec) {
   const m = Math.floor(sec / 60)
   const s = Math.floor(sec % 60)

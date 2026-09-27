@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 import app.config as config
 from app.api.schemas import DownloadRequest
-from app.services.model_service import ModelService
+from app.services.model_service import ModelService, WHISPER_CATALOG, DIARIZATION_CATALOG, ALIGNMENT_CATALOG
 from app.logger import get_logger
 
 log = get_logger("models")
@@ -93,12 +93,8 @@ async def download_model(model_id: str, body: DownloadRequest = DownloadRequest(
 
 @router.delete("/models/{model_id}/download/{job_id}")
 async def cancel_download(model_id: str, job_id: str):
-    from app.services.model_service import WHISPER_CATALOG, DIARIZATION_CATALOG, ALIGNMENT_CATALOG
     if model_id not in WHISPER_CATALOG and model_id not in DIARIZATION_CATALOG and model_id not in ALIGNMENT_CATALOG:
-        return JSONResponse(
-            {"detail": [{"type": "literal_error", "loc": ["path", "model_id"], "msg": f"Input should be a valid model id", "input": model_id, "ctx": {"expected": "a known model id"}}]},
-            status_code=422,
-        )
+        return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=422)
     if job_id not in _cancel_events:
         return JSONResponse({"detail": f"No active download job '{job_id}'"}, status_code=404)
     _cancel_events[job_id].set()

@@ -330,7 +330,7 @@ const app = {
   // ── Background transcription queue ─────────────────────────────────────────
 
   _addJob(jobId, body) {
-    const fileName = (body.audio_path || '').split('/').pop() || 'Recording'
+    const fileName = fileBaseName(body.audio_path || '') || 'Recording'
     const title = body.title || fileName
     const job = { jobId, title, status: 'queued', ws: null, originalRequest: body, error: null }
     this._activeJobs.set(jobId, job)

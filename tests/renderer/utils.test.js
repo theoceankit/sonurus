@@ -4,6 +4,10 @@ const { loadRenderer } = require('./load-renderer')
 
 const { fileUrl } = loadRenderer(['utils.js'])
 
+// Values created inside the VM context have that realm's prototypes;
+// normalise before deep comparisons.
+const plain = v => JSON.parse(JSON.stringify(v))
+
 test('fileUrl: plain POSIX path', () => {
   assert.equal(fileUrl('/home/u/rec.wav'), 'file:///home/u/rec.wav')
 })
@@ -46,4 +50,40 @@ test('isUnrecognized: without a known map every speaker is unrecognized', () => 
   // no legacy spk_* / "looks like a name" heuristics
   assert.equal(isUnrecognized('spk_123'), true)
   assert.equal(isUnrecognized('Alice'), true)
+})
+
+test('fileBaseName: POSIX and Windows paths', () => {
+  const { fileBaseName } = loadRenderer(['utils.js'])
+  assert.equal(fileBaseName('/home/u/Запись 1.wav'), 'Запись 1.wav')
+  assert.equal(fileBaseName('C:\\Users\\u\\rec.webm'), 'rec.webm')
+  assert.equal(fileBaseName(''), '')
+})
+
+test('listSystemAudioSources: Windows uses renderer loopback + virtual inputs', async () => {
+  const { listSystemAudioSources } = loadRenderer(['utils.js'], {
+    fetch: () => { throw new Error('backend must not be queried on Windows') },
+  })
+  const inputs = [
+    { deviceId: 'mic1', label: 'USB Microphone' },
+    { deviceId: 'vb', label: 'CABLE Output (VB-Audio Virtual Cable)' },
+  ]
+  const opts = await listSystemAudioSources('win32', inputs)
+  assert.deepEqual(plain(opts.map(o => o.value)), ['__desktop__', 'vb'])
+})
+
+test('listSystemAudioSources: macOS/Linux ask the backend', async () => {
+  const { listSystemAudioSources } = loadRenderer(['utils.js'], {
+    fetch: async url => ({
+      ok: url.endsWith('/audio/capture/sources'),
+      json: async () => ({ sources: [{ id: 'x.monitor', label: 'Speakers (Monitor)' }] }),
+    }),
+  })
+  assert.deepEqual(plain(await listSystemAudioSources('linux', [])), [{ value: 'x.monitor', label: 'Speakers (Monitor)' }])
+})
+
+test('listSystemAudioSources: backend unreachable → empty list', async () => {
+  const { listSystemAudioSources } = loadRenderer(['utils.js'], {
+    fetch: async () => { throw new Error('ECONNREFUSED') },
+  })
+  assert.deepEqual(plain(await listSystemAudioSources('darwin', [])), [])
 })
