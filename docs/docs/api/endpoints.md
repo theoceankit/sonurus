@@ -249,13 +249,16 @@ Full transcript with segments.
       "start": 0.0, "end": 4.2, "text": "Good morning everyone.",
       "speaker_raw": "SPEAKER_00",
       "speaker_resolved": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca",
-      "speaker_final": null
+      "speaker_final": null,
+      "unassigned": false
     }
   ]
 }
 ```
 
 `speaker_resolved` and `speaker_final` are always UUID4 strings. Display names are resolved separately via `GET /speakers`.
+
+`unassigned: true` marks a segment whose speaker was deleted (`DELETE /speakers/{id}`): both speaker fields are `null` and its effective speaker is the pseudo-id `UNASSIGNED`, not `speaker_raw`. Assigning a speaker to it (single or bulk) clears the flag.
 
 ### `DELETE /transcripts/{id}`
 
@@ -291,6 +294,8 @@ Deletes one segment, then calls `recompute_or_remove()` for its speaker (same ru
 
 Bulk-reassigns **all** segments of one speaker to another across the transcript, then recomputes embeddings.
 
+`from_speaker_id` may be `"UNASSIGNED"` to assign every unassigned segment of the transcript.
+
 Exactly one of `to_speaker_id` or `to_speaker_name` must be provided:
 
 ```json
@@ -314,19 +319,38 @@ Returns `204`.
 
 ### `GET /speakers`
 
-Returns only **recognized** speakers — those with a display name in `speaker_names`. Unrecognized speakers (committed to memory but without a name) are excluded.
+Returns **every** speaker: those with a voice profile (`speaker_embeddings`), a display name (`speaker_names`), or segments assigned to them. `name` is `null` for unrecognized (unnamed) speakers. Named speakers come first, sorted by name; unnamed ones follow, most recently seen first.
 
 ```json
 [
   {
     "id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca",
     "name": "Alice",
-    "color_index": 2
+    "color_index": 2,
+    "segments": 14,
+    "transcripts": 3,
+    "duration_sec": 312.4,
+    "last_seen": "2026-09-27T10:15:02.123456"
   }
 ]
 ```
 
-`color_index` is an index (0–4) into the fixed 5-entry palette in `utils.js`. Assigned once when the speaker is first saved, using the least-used palette slot to minimize collisions. Stored in `speaker_meta` (schema v3).
+`color_index` is an index (0–4) into the fixed 5-entry palette in `utils.js`. Assigned once when the speaker is first saved, using the least-used palette slot to minimize collisions; the user can change it with `PATCH /speakers/{id}`. Stored in `speaker_meta` (schema v3).
+
+`segments`, `transcripts`, `duration_sec` (sum of segment lengths) and `last_seen` (`created_at` of the newest transcript) count segments whose `speaker_id` is this speaker; unassigned segments are not counted. The editor keeps only the named rows (`buildKnownMap`, `namedSpeakers` in `utils.js`).
+
+### `PATCH /speakers/{id}`
+
+Changes the display name and/or color. At least one field is required.
+
+```json
+{ "name": "Alice Ivanova", "color_index": 3 }
+```
+
+- `name` — 1–128 chars, trimmed. Names are unique case- and whitespace-insensitively: `409` if another speaker already has it (the speaker's own name in another case is allowed). Duplicates created before this rule are kept and marked in the UI.
+- `color_index` — `0..4`, otherwise `400`.
+
+Works for any speaker listed by `GET /speakers`, including one that only has segments (naming it makes it recognized). Returns `200` with the updated `GET /speakers` row, `400` for an empty body, `404` for an unknown id. Never touches the embedding.
 
 ### `POST /speakers/{id}/rename`
 
@@ -336,7 +360,27 @@ Returns only **recognized** speakers — those with a display name in `speaker_n
 { "name": "Alice Ivanova" }
 ```
 
-Returns `204`. Returns `404` if speaker is not in `known_speakers`. Only updates `speaker_names` — does not touch the embedding or count.
+Returns `204`. Returns `404` if speaker is not in `known_speakers`, `409` if another speaker already has the name. Only updates `speaker_names` — does not touch the embedding or count. Kept for compatibility; new code uses `PATCH /speakers/{id}`.
+
+### `DELETE /speakers/{id}`
+
+Deletes a speaker through `CommitService.delete_speaker()`: every segment assigned to it becomes **unassigned** (`speaker_id = NULL`, `unassigned = 1`), then its embedding, names and color are removed. Future recordings no longer match the deleted voice.
+
+```json
+{ "segments": 12, "transcripts": 3 }
+```
+
+Returns the number of segments and transcripts that became unassigned, `404` for an unknown id, and `409` while a transcription job or an audio capture is running (the pipeline job holds its own memory snapshot and would write the profile back when it commits).
+
+### `GET /speakers/{id}/transcripts`
+
+Transcripts in which the speaker has segments, newest first. `404` for an unknown speaker.
+
+```json
+[
+  { "id": 7, "title": "Weekly sync", "created_at": "2026-09-27T10:15:02", "segments": 5, "duration_sec": 48.2 }
+]
+```
 
 ---
 

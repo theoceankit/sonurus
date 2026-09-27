@@ -41,6 +41,17 @@ See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-recompu
 
 ---
 
+## UI — Speakers
+
+### ✅ Speakers section
+A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-only) with search, an All / Named / Unnamed filter and usage statistics. The speaker page renames (names are unique), recolors, lists the transcripts the speaker appears in, and deletes the speaker — its segments become **Unassigned** (transcript schema v5) and can be reassigned in the editor. See [API → Speakers](../api/endpoints.md#speakers) and [Electron UI → Speakers section](../ui/electron/overview.md#speakers-section).
+
+### Merge speakers and full speaker profiles
+**Current:** duplicate names (from older databases, or from assigning segments to a new name that already exists) are only marked; there is no merge. A speaker has a display name and a color.  
+**Target:** merge A → B (move all of A's segments to B, recompute B from the DB, drop A); first name, last name, alias and avatar from the [vision](./vision.md#3-speakers); optionally a voice preview on the speaker page.
+
+---
+
 ## UI — Settings & Model Management
 
 ### ✅ Whisper model selection per transcription

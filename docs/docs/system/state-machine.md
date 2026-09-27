@@ -103,15 +103,20 @@ stateDiagram-v2
 
     Resolved --> Collapsed : save() + load()
     Overridden --> Collapsed : save() + load()
+
+    Collapsed --> Unassigned : DELETE /speakers/{id}
+    Unassigned --> Collapsed : user assigns a speaker
 ```
 
-**Effective speaker** = `speaker_final ?? speaker_resolved ?? speaker_raw`
+**Effective speaker** = `UNASSIGNED` if `unassigned`, else `speaker_final ?? speaker_resolved ?? speaker_raw`
 
 | Field | Set by | Stable across sessions |
 |---|---|---|
 | `speaker_raw` | `TranscriptionService` — diarization | No — `SPEAKER_00` can be a different person next run |
 | `speaker_resolved` | `SpeakerMemoryService.resolve()` — cosine similarity matching | Yes, if similarity ≥ 0.75 |
 | `speaker_final` | User action in UI | Yes — explicit user decision |
+
+**Unassigned** — the segment's speaker was deleted (`CommitService.delete_speaker()`). `segments.speaker_id` is `NULL` and `segments.unassigned = 1` (transcript schema v5); the segment does not fall back to `speaker_raw`, feeds no voice profile, and is never committed. Assigning a speaker to it — one segment or all unassigned segments of a transcript at once — sets `speaker_id` and clears the flag.
 
 **Collapsed** is not a named state in the code — it describes what happens after `save()` + `load()`. `TranscriptStorageService` stores only the effective speaker in the `speaker_id` column and restores it into `speaker_resolved`. `speaker_final` is always `None` after load. The distinction between "auto-matched" and "user-corrected" is permanently lost.
 
