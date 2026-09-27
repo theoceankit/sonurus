@@ -44,12 +44,12 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 
 ## Current coverage
 
-**426 Python unit and API tests** across **19 files** — no ML models are loaded — plus **22 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
+**434 Python unit and API tests** across **19 files** — no ML models are loaded — plus **27 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
 
 | File | Tests | What it covers |
 |---|---|---|
-| `test_api.py` | 47 | End-to-end API routes: transcribe, transcripts CRUD, speaker rename, cancel, delete → speaker recompute, single-segment reassign, `POST /data/reset` (DB + files, imported files kept, 409 while jobs run) |
-| `test_transcript_storage_service.py` | 40 | `save()`, `load()`, `update_*`, `list_all()`, `delete_segment()`, `clear()`, `get_embeddings_grouped_by_transcript()`, segment indexes, `load(with_embeddings=False)` |
+| `test_api.py` | 54 | End-to-end API routes: transcribe, transcripts CRUD, speaker rename, cancel, delete → speaker recompute, single-segment reassign, live-recording cleanup on `DELETE /transcripts/{id}` (imported/escaping/symlinked/shared files kept), `POST /data/reset` (DB + files, imported files kept, 409 while jobs run) |
+| `test_transcript_storage_service.py` | 41 | `save()`, `load()`, `update_*`, `list_all()`, `delete_segment()`, `clear()`, `count_by_audio_file()`, `get_embeddings_grouped_by_transcript()`, segment indexes, `load(with_embeddings=False)` |
 | `test_speaker_memory_service.py` | 41 | `resolve()` purity, `set_name()` / `get_name()`, persistence, `save_names_only()`, `find_by_name()`, UUID migration, `clear()` (DB + in-memory + dirty sets) |
 | `test_model_service.py` | 31 | `WHISPER_CATALOG`, `list_models()`, `is_installed()`, `download_model()`, `delete_model()` for Whisper models |
 | `test_alignment_model.py` | 29 | `ALIGNMENT_CATALOG`, `is_installed()`, `download_model()`, `delete_model()`, API routes for alignment models |
@@ -69,6 +69,7 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `test_embedding_service.py` | 3 | `EmbeddingService.extract_all()` single-pass invariant |
 | `tests/renderer/utils.test.js` | 13 | `fileUrl()`, `fileBaseName()`, `isUnrecognized()`, `buildKnownMap()`, `listSystemAudioSources()` |
 | `tests/renderer/settings-reset.test.js` | 9 | `defaultSettingsPatch()`, `dataResetBlockReason()`, `formatDataResetSummary()` |
+| `tests/renderer/sidebar-delete.test.js` | 5 | `withoutRecording()`, `deleteTranscriptPrompt()` |
 
 ---
 

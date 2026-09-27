@@ -134,6 +134,12 @@ Deletes a transcription and all its segments.
 
 ---
 
+### `count_by_audio_file(audio_file) → int`
+
+Number of transcriptions whose `audio_file` equals the given path. `DELETE /transcripts/{id}` uses it to delete a live recording only once no transcript references it.
+
+---
+
 ### `clear() → int`
 
 Deletes every transcription and segment in one transaction and returns the number of transcriptions removed. Schema tables are kept. Used only by `POST /data/reset`.
