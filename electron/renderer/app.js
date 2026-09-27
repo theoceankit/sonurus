@@ -225,7 +225,7 @@ const app = {
 
     this._liveSession = {
       recorder, audioCtx, micStream, sysStream,
-      captureJobId, chunks, elapsed, timerInterval,
+      captureJobId, chunks, timerInterval,
       settings: { title, model, language },
     }
   },
@@ -242,7 +242,6 @@ const app = {
     if (labelEl) labelEl.textContent = 'Stopping…'
 
     const { recorder, audioCtx, micStream, sysStream, captureJobId, chunks, settings } = session
-    const elapsed = session.elapsed
 
     const doTranscribe = async filePath => {
       const body = {

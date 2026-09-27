@@ -29,3 +29,21 @@ test('fileUrl: result is stable under WHATWG URL normalisation', () => {
     assert.equal(new URL(fileUrl(p)).href, fileUrl(p))
   }
 })
+
+const { isUnrecognized } = loadRenderer(['utils.js'])
+
+test('isUnrecognized: raw diarization labels are always unrecognized', () => {
+  assert.equal(isUnrecognized('SPEAKER_00', { SPEAKER_00: { name: 'x' } }), true)
+})
+
+test('isUnrecognized: a UUID is recognized only when it is in the known map', () => {
+  const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  assert.equal(isUnrecognized(id, { [id]: { name: 'Alice' } }), false)
+  assert.equal(isUnrecognized(id, {}), true)
+})
+
+test('isUnrecognized: without a known map every speaker is unrecognized', () => {
+  // no legacy spk_* / "looks like a name" heuristics
+  assert.equal(isUnrecognized('spk_123'), true)
+  assert.equal(isUnrecognized('Alice'), true)
+})

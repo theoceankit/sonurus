@@ -15,14 +15,6 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
   const knownMap = {}
   knownSpeakers.forEach(s => { knownMap[s.id] = s.name })
 
-  // Stable "Unknown N" display name for unrecognized speakers
-  const { unrecIds } = buildSpeakerIndex(transcript.segments, knownMap)
-  function getDisplayName(spkId) {
-    if (knownMap[spkId]) return knownMap[spkId]
-    const n = unrecIds.indexOf(spkId) + 1
-    return n > 0 ? `Unknown ${n}` : spkId
-  }
-
   // ── Speaker preview (separate Audio element, player bar unaffected) ──────────
   const previewAudio = new Audio()
   _rightPanelPreviewAudio = previewAudio

@@ -22,13 +22,10 @@ function speakerInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-function isUnrecognized(spkId, knownMap = null) {
-  if (spkId.startsWith('SPEAKER_')) return true
-  if (knownMap !== null) return !(spkId in knownMap)
-  // Fallback: both legacy spk_* and new full UUIDs are unrecognized without knownMap
-  return spkId.startsWith('spk_') || _UUID_RE.test(spkId)
+// Recognized = has a display name, i.e. is present in knownMap (built from
+// GET /speakers, which lists named speakers only). Raw SPEAKER_* labels never are.
+function isUnrecognized(spkId, knownMap = {}) {
+  return spkId.startsWith('SPEAKER_') || !(spkId in knownMap)
 }
 
 function effectiveSpeaker(seg) {
@@ -50,7 +47,7 @@ function fmtTime(sec) {
 }
 
 // ── Avatar ──────────────────────────────────────────────────────────────────────
-function makeAvatar(spkId, displayName, size = 24, knownMap = null) {
+function makeAvatar(spkId, displayName, size = 24, knownMap = {}) {
   const el = document.createElement('div')
   el.className = 'spk-avatar'
   el.style.width = el.style.height = size + 'px'
