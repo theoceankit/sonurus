@@ -175,3 +175,15 @@ def test_format_time_over_one_hour():
 
 def test_format_time_exact_one_hour():
     assert format_time(3600) == "01:00:00"
+
+
+def test_archive_labels_unassigned_segments(tmp_path):
+    svc = make_service(tmp_path)
+    audio = make_audio(tmp_path)
+    transcript = make_transcript(audio, segments=[Segment(0.0, 5.0, "Hi", "UNKNOWN", unassigned=True)])
+
+    dest = svc.archive(transcript, display_fn=lambda spk: spk)
+    content = open(os.path.join(dest, "meeting.txt")).read()
+
+    assert "Unassigned" in content
+    assert "UNKNOWN" not in content

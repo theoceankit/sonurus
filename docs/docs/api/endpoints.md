@@ -256,7 +256,7 @@ Full transcript with segments.
 }
 ```
 
-`speaker_resolved` and `speaker_final` are always UUID4 strings. Display names are resolved separately via `GET /speakers`.
+`speaker_resolved` and `speaker_final` are always UUID4 strings (a diarization speaker with too little speech for a voice profile still gets its own UUID). Display names are resolved separately via `GET /speakers`.
 
 `unassigned: true` marks a segment whose speaker was deleted (`DELETE /speakers/{id}`): both speaker fields are `null` and its effective speaker is the pseudo-id `UNASSIGNED`, not `speaker_raw`. Assigning a speaker to it (single or bulk) clears the flag.
 
