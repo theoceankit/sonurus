@@ -68,6 +68,8 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
 
   // Stop preview when user resumes main player
   if (audio) audio.addEventListener('play', () => { if (panel.isConnected) stopPreview() }, { signal })
+  // …and when the editor is rebuilt or left (the signal is aborted in both cases)
+  signal?.addEventListener('abort', () => stopPreview())
 
   // ── Tab bar (segmented control) ─────────────────────────────────────────────
   const tabBar = document.createElement('div')

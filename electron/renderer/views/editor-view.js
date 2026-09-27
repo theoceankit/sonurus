@@ -47,6 +47,7 @@ function renderEditorView(transcriptId, meta = null) {
   // Persistent audio element — survives rebuilds so playback isn't interrupted
   const audio = new Audio()
   audio.preload = 'metadata'
+  audio.volume = 0.8
   let playerAbortCtrl = null
   let rightPanelEl = null
 

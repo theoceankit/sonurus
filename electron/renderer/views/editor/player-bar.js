@@ -67,11 +67,13 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
   total.textContent = '00:00'
 
   // ── Speed ─────────────────────────────────────────────────────────────────
+  // The audio element outlives the player bar (rebuilt after every edit), so
+  // speed and volume controls start from its current state, not defaults.
   const SPEEDS = [1, 1.2, 1.5, 2]
-  let speedIdx = 0
+  let speedIdx = Math.max(0, SPEEDS.indexOf(audio.playbackRate))
   const speedBtn = document.createElement('button')
   speedBtn.className = 'player-speed'
-  speedBtn.textContent = '1×'
+  speedBtn.textContent = SPEEDS[speedIdx] + '×'
   speedBtn.addEventListener('click', () => {
     speedIdx = (speedIdx + 1) % SPEEDS.length
     audio.playbackRate = SPEEDS[speedIdx]
@@ -83,7 +85,7 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
   volWrap.className = 'vol-wrap'
 
   const volBtn = makeBtn(I_VOLUME)
-  audio.volume = 0.8
+  volBtn.style.opacity = audio.volume === 0 ? '0.4' : '1'
 
   const volPopup = document.createElement('div')
   volPopup.className = 'vol-popup'
