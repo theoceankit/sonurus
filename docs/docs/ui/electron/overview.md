@@ -48,7 +48,7 @@ electron/
   screenshot-setup.js  — DEV-ONLY screenshot utility (never packaged)
   assets/
     icon.png           — 512×512 source icon
-    icons/             — every UI icon as <name>.svg + README.md (rules, where each is used)
+    icons/             — every UI icon as <name>.svg (see Icons page)
   renderer/
     index.html         — App shell: left sidebar + main panel
     setup.html         — First-run setup screen (shown during pip install)
@@ -250,21 +250,8 @@ Transcription runs entirely in the background — the main panel is never replac
 
 ## Icons
 
-Every UI icon is a file in `electron/assets/icons/<name>.svg`; the renderer contains no inline SVG
-icons. `electron/assets/icons/README.md` holds the file rules and a table of where each icon is used.
-
-- **JS:** `icon('delete', 14)` returns a `<span class="icon">` with a square 14 px box.
-- **Static HTML** (`index.html`, `setup.html`): `<span data-icon="search" data-size="13"></span>`;
-  `icons.js` fills these in when it loads, keeping any inline style of the placeholder (e.g. a color).
-- **Rendering:** the file is a CSS mask (`mask: url(...) center / contain`) over
-  `background-color: currentColor`, so an icon takes the text color of its parent and the colors
-  inside the file are ignored. Icons are therefore single-color.
-- Styles are inline, not in a stylesheet: the CSP of `setup.html` allows inline styles only.
-- **Replacing** an icon means overwriting its file; **adding** one means dropping a file and calling
-  it by name. Names are kebab-case and describe the meaning (`next-speaker`), not the drawing.
-
-`tests/renderer/icons.test.js` fails when a name used in the renderer has no file, when a file lacks
-`xmlns` / `viewBox` or is missing from the README, or when inline SVG icons return.
+Every UI icon is a file in `electron/assets/icons/`, rendered by `icons.js` as a CSS mask over
+`currentColor`. Usage, file rules and where each icon is used: [Icons](./icons.md).
 
 ---
 
