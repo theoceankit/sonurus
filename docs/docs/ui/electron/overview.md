@@ -198,6 +198,10 @@ The sidebar header has two tabs, **Transcripts** and **Speakers** (`.sb-tab`), e
 
 After a change the sidebar is reloaded so transcript avatars and the editor pick up new names and colors.
 
+### Editor reload
+
+Every edit in the editor (assigning a speaker, confirming a suggestion, editing or deleting a segment) calls `reload()` in `editor-view.js`, which fetches the transcript, speakers and suggestions again and rebuilds the editor with `buildEditor()`. The rebuild replaces the segment list and the right panel, so `reload()` wraps it in `preserveScroll()` (`utils.js`) to keep the scroll position of `.seg-list` and `.right-content`.
+
 ### Unassigned segments in the editor
 
 `effectiveSpeaker()` returns `UNASSIGNED` for a segment with `unassigned: true`. The editor treats it as one group: labelled **Unassigned** in segment rows and the waveform tooltip, excluded from the `Unknown N` numbering and from the header speaker count, and shown in its own right-panel section whose **Assign speaker** reassigns all of them (`POST /transcripts/{id}/reassign` with `from_speaker_id: "UNASSIGNED"`). A single segment is assigned from its speaker-name button as usual.
