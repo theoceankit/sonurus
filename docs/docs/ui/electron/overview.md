@@ -86,7 +86,7 @@ electron/
 | `readSettings()` | Read `settings.json` from `app.getPath('userData')` |
 | `writeSettings(data)` | Write `settings.json` to `app.getPath('userData')` |
 | `setZoom(factor)` | Call `webContents.setZoomFactor(factor)` |
-| `saveRecording(buffer, ext)` | Write a recording buffer to `os.tmpdir()` |
+| `saveRecording(buffer, ext)` | Write a recording buffer to `userData/recordings/` |
 | `writeClipboard(text)` | Write text to the system clipboard |
 | `onSetupProgress(callback)` | Subscribe to first-run setup progress events |
 | `getPlatform()` | Returns `process.platform` (`'win32'`, `'darwin'`, `'linux'`) |

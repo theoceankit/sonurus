@@ -23,7 +23,7 @@ Running capture in a Python subprocess sidesteps these restrictions and keeps al
 
 | Platform | Tool | How it works |
 |---|---|---|
-| macOS | `sonorus-capture` (Swift binary, ScreenCaptureKit) | Spawned as a subprocess; writes WAV to a temp file; stopped with SIGINT |
+| macOS | `sonorus-capture` (Swift binary, ScreenCaptureKit) | Spawned as a subprocess; writes WAV to an intermediate temp file; stopped with SIGINT |
 | Linux | `ffmpeg -nostats -loglevel error -f pulse -i <monitor_source>` | PulseAudio monitor source recorded directly; sources enumerated via `pactl list short sources` |
 | Windows | `setDisplayMediaRequestHandler(audio: 'loopback')` in renderer | WASAPI loopback handled in Electron main process; no backend subprocess needed |
 
@@ -45,13 +45,17 @@ POST /audio/capture/stop/{job_id}  { mic_path?: "..." }
   → process.wait(timeout=10), kill() if it does not exit
   → reads the log file tail, logs it (logging.warning) and deletes it
   → logs output file size
-  → if mic_path provided: ffmpeg amix merge → merged WAV
+  → no mic_path: move the capture file to $SONORUS_DATA_DIR/recordings/sonorus-rec-<job_id>.wav
+  → mic_path: ffmpeg amix merge into the same final path; delete the temp capture file
+    and the mic file (only if it lives inside the recordings dir)
   → returns final WAV path
 
 POST /transcribe  { audio_path: "<returned path>" }
 ```
 
-Mic recording (WebM via `MediaRecorder`) is saved to a temp file by the Electron main process via IPC `save-recording`. The path is passed as `mic_path` to `stop_capture`.
+Mic recording (WebM via `MediaRecorder`) is saved to `$SONORUS_DATA_DIR/recordings/` by the Electron main process via IPC `save-recording`. The path is passed as `mic_path` to `stop_capture`.
+
+Final recordings are never kept in the OS temp directory: their path is stored in `transcriptions.audio_file`, and `/tmp` is wiped on reboot on many systems (e.g. `tmpfs`).
 
 ---
 

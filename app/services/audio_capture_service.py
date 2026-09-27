@@ -1,4 +1,5 @@
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -7,6 +8,8 @@ import threading
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+
+from app.config import RECORDINGS_DIR
 
 
 _STOP_TIMEOUT_SEC = 10
@@ -20,8 +23,9 @@ class _CaptureJob:
 
 
 class AudioCaptureService:
-    def __init__(self, capture_bin: str | None = None):
+    def __init__(self, capture_bin: str | None = None, recordings_dir: Path = RECORDINGS_DIR):
         self._capture_bin = capture_bin or self._find_capture_bin()
+        self._recordings_dir = Path(recordings_dir)
         self._jobs: dict[str, _CaptureJob] = {}
         self._lock = threading.Lock()
 
@@ -120,9 +124,16 @@ class AudioCaptureService:
                 "permission in System Settings → Privacy & Security → Screen Recording."
             )
 
+        self._recordings_dir.mkdir(parents=True, exist_ok=True)
+        final = self._recordings_dir / f"sonorus-rec-{job_id}.wav"
         if mic_path is None:
-            return job.output_path
-        return self._merge(job.output_path, mic_path, job_id)
+            shutil.move(job.output_path, final)
+            return str(final)
+        self._merge(job.output_path, mic_path, str(final))
+        Path(job.output_path).unlink(missing_ok=True)
+        if self._is_own_recording(mic_path):
+            Path(mic_path).unlink(missing_ok=True)
+        return str(final)
 
     # ── Internals ───────────────────────────────────────────────────────────
 
@@ -141,8 +152,14 @@ class AudioCaptureService:
         return [self._ffmpeg(), *quiet, "-f", "pulse", "-i", source,
                 "-ar", "44100", "-ac", "2", output_path]
 
-    def _merge(self, system_path: str, mic_path: str, job_id: str) -> str:
-        merged = str(Path(tempfile.gettempdir()) / f"sonorus-merged-{job_id}.wav")
+    def _is_own_recording(self, path: str) -> bool:
+        """True if path is a file inside the recordings dir (safe to delete)."""
+        try:
+            return Path(path).resolve().parent == self._recordings_dir.resolve()
+        except OSError:
+            return False
+
+    def _merge(self, system_path: str, mic_path: str, merged: str) -> None:
         subprocess.run(
             [self._ffmpeg(), "-y",
              "-i", system_path, "-i", mic_path,
@@ -152,7 +169,6 @@ class AudioCaptureService:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        return merged
 
     def _linux_sources(self) -> list[dict]:
         try:
