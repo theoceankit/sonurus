@@ -84,14 +84,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
 
   newBtn.addEventListener('mousedown', e => {
     e.preventDefault()
-    const name = search.value.trim() || 'Speaker'
-    fetch(`${API_BASE}/transcripts/${transcriptId}/reassign`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from_speaker_id: currentSpkId, to_speaker_name: name }),
-    })
-      .then(r => { if (!r.ok) throw new Error(r.status); popup.remove(); onReload() })
-      .catch(err => window.showToast?.(`Failed to reassign speaker: ${err.message}`, 'error'))
+    assignSpeaker({ name: search.value.trim() || 'Speaker' })
   })
 
   let focusIdx = 0
@@ -154,20 +147,23 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
       row.addEventListener('mousedown', e => {
         e.preventDefault()
         if (s.id === currentSpkId) { popup.remove(); return }
-        assignSpeaker(s.id)
+        assignSpeaker({ id: s.id })
       })
       list.appendChild(row)
     })
   }
 
-  function assignSpeaker(spkId) {
+  // target: { id } for an existing speaker or { name } for a new one.
+  // Opened from a segment row → only that segment; otherwise every segment of currentSpkId.
+  function assignSpeaker(target) {
     const isSingle = segmentStart !== null
     const url = isSingle
       ? `${API_BASE}/transcripts/${transcriptId}/segments/${segmentStart}/speaker`
       : `${API_BASE}/transcripts/${transcriptId}/reassign`
-    const body = isSingle
-      ? JSON.stringify({ speaker_id: spkId })
-      : JSON.stringify({ from_speaker_id: currentSpkId, to_speaker_id: spkId })
+    const body = JSON.stringify(isSingle
+      ? (target.id ? { speaker_id: target.id } : { speaker_name: target.name })
+      : (target.id ? { from_speaker_id: currentSpkId, to_speaker_id: target.id }
+                   : { from_speaker_id: currentSpkId, to_speaker_name: target.name }))
     fetch(url, { method: isSingle ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body })
       .then(r => { if (!r.ok) throw new Error(r.status); popup.remove(); onReload() })
       .catch(err => window.showToast?.(`Failed to assign speaker: ${err.message}`, 'error'))
