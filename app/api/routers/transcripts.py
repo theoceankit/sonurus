@@ -216,7 +216,8 @@ def update_segment_speaker(
             _uuid.UUID(body.speaker_id, version=4)
         except ValueError:
             raise HTTPException(status_code=400, detail="speaker_id must be a valid UUID4")
-        if body.speaker_id not in memory.known_speakers:
+        # A named speaker may have no voice profile yet (its segments were too short)
+        if body.speaker_id not in memory.speaker_ids():
             raise HTTPException(status_code=400, detail="speaker_id not found in known speakers")
         to_spk_id = body.speaker_id
     else:
@@ -286,7 +287,7 @@ def reassign_speaker(
 
     if has_id:
         to_uuid = body.to_speaker_id
-        if to_uuid not in memory.known_speakers:
+        if to_uuid not in memory.speaker_ids():
             raise HTTPException(status_code=404, detail="Speaker not found")
     else:
         to_uuid = _create_speaker(memory, body.to_speaker_name, body.color_index)

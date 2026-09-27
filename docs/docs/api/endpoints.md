@@ -282,7 +282,7 @@ Returns `204`.
 { "speaker_name": "Carol", "color_index": 2 }
 ```
 
-Exactly one of `speaker_id` (a UUID4 of a known speaker) or `speaker_name` (1–128 chars, trimmed) must be provided, otherwise `400`. Optional `color_index` (`0`–`4`) sets the new speaker's palette color; it is only accepted together with `speaker_name` and inside the palette, otherwise `400` (nothing is created). Without it a color is assigned automatically. Returns `204`.
+Exactly one of `speaker_id` (a UUID4 of a known speaker — one with a voice profile or a display name) or `speaker_name` (1–128 chars, trimmed) must be provided, otherwise `400`. Optional `color_index` (`0`–`4`) sets the new speaker's palette color; it is only accepted together with `speaker_name` and inside the palette, otherwise `400` (nothing is created). Without it a color is assigned automatically. Returns `204`.
 
 Reassigns only this one segment (unlike `POST /reassign` which is bulk). After updating the DB, immediately recomputes embeddings for both the new speaker (`commit_speaker`) and the previous speaker (`recompute_or_remove`).
 
@@ -307,7 +307,7 @@ Exactly one of `to_speaker_id` or `to_speaker_name` must be provided:
 ```
 
 - `to_speaker_name` — generates a new UUID4, saves the display name to `speaker_names`, recomputes the embedding from all DB segments. Optional `color_index` sets its palette color, with the same rules as for `PATCH /segments/{start}/speaker` (`400` with `to_speaker_id` or outside the palette).
-- `to_speaker_id` — must be a UUID already in `speaker_embeddings`. Recomputes that speaker's embedding from all their DB segments.
+- `to_speaker_id` — must be a known speaker: in `speaker_embeddings` or with a display name in `speaker_names` (a speaker created on segments too short for an embedding has no profile yet), otherwise `404`. Recomputes that speaker's embedding from all their DB segments, creating it if the speaker had none.
 - Also commits embeddings for any other unrecognized speakers in the transcript not yet in memory.
 - Recomputes `from_speaker_id` embedding from their remaining segments, or removes them from memory if no segments remain and they have no display name.
 
