@@ -100,8 +100,12 @@ class TranscriptStorageService:
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
-    def load(self, db_id: int) -> Transcript:
-        """Load a full Transcript from DB by id."""
+    def load(self, db_id: int, with_embeddings: bool = True) -> Transcript:
+        """Load a Transcript from DB by id.
+
+        with_embeddings=False skips reading and deserialising the embedding
+        BLOBs — for callers that only need text/timing/speakers.
+        """
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT audio_file, language, status, title FROM transcriptions WHERE id = ?",
@@ -114,8 +118,9 @@ class TranscriptStorageService:
             audio_file, language, status, title_db = row
             log.info(f"SELECT transcriptions id={db_id}")
 
+            emb_col = "embedding" if with_embeddings else "NULL"
             seg_rows = conn.execute(
-                """SELECT start, end, text, speaker_raw, speaker_id, embedding
+                f"""SELECT start, end, text, speaker_raw, speaker_id, {emb_col}
                    FROM segments
                    WHERE transcription_id = ?
                    ORDER BY start""",
