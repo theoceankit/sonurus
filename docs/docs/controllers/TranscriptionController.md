@@ -4,75 +4,37 @@ sidebar_position: 1
 
 # Transcription Controller
 
-`TranscriptionController` is the business logic layer between services and the CLI. It orchestrates the pipeline, handles user actions on the transcript, and delegates writes to services.
+`TranscriptionController` orchestrates the ML pipeline for `POST /transcribe`. It is built by `service_factory.create_controller()` together with its services.
 
-Does not perform ML inference and does not access the database directly — only through services.
+Does not perform ML inference itself, does not access the database and never writes speaker memory — saving and committing happen in the API router (`app/api/routers/transcription.py`) after the pipeline returns. Transcript editing (reassigning, renaming, deleting speakers) lives in the API routers and `CommitService`, not here.
 
 ---
 
 ## Methods
 
-### `run_pipeline(audio_path, on_progress=None) → Transcript`
+### `__init__(transcription_service, embedding_service, memory_service)`
+
+Keeps references to the three services the pipeline needs.
+
+---
+
+### `run_pipeline(audio_path, on_progress=None, language=None) → Transcript`
 
 Runs the full ML pipeline:
-1. `TranscriptionService.transcribe()` — ASR + diarization
-2. `EmbeddingService.extract_all()` — embeddings in a single pass
-3. `SpeakerMemoryService.resolve()` — matches against memory
-4. `TranscriptBuilder.build()` — assembles `Transcript`
+1. `TranscriptionService.transcribe(audio_path, language)` — ASR + alignment + diarization (`language=None` auto-detects)
+2. `EmbeddingService.extract_all()` — aggregated and per-segment embeddings in a single pass
+3. `SpeakerMemoryService.resolve()` — pure matching against memory
+4. `TranscriptBuilder.build()` — assembles the `Transcript` (unmatched `SPEAKER_XX` get new UUIDs, `UNKNOWN` segments are unassigned)
 5. `TranscriptBuilder.attach_embeddings()` — attaches per-segment embeddings
 
 Returns a `Transcript` with status `draft`.
 
 `on_progress` is an optional callback `(step: str) → None` called at each pipeline step (used by the API router to stream progress over WebSocket).
 
----
-
-### `reassign_speaker(transcript, segment_idx, new_speaker_id)`
-
-Sets `speaker_final` for a single segment.
-
----
-
-### `reassign_all_by_speaker(transcript, from_speaker, new_speaker_id)`
-
-Sets `speaker_final` for all segments where the effective speaker equals `from_speaker`.
-
-Effective speaker: `speaker_final or speaker_resolved or speaker_raw`.
-
----
-
-### `create_new_speaker() → str`
-
-Generates a new temporary UUID4 speaker ID.
+After it returns, the router saves the transcript (`TranscriptStorageService.save()`), updates auto-recognized speakers (`CommitService.commit_recognized_speakers()`), reloads the API memory singleton and archives the transcript.
 
 ---
 
 ### `get_display_name(spk_id) → str`
 
-Returns the speaker's display name (`display` label from `speaker_names`). If no name is set, returns `spk_id` as-is.
-
----
-
-### `rename_speaker(spk_id, name, label="display")`
-
-Writes a name to `SpeakerMemoryService.known_names`. Persisted to the database only after `commit()`.
-
----
-
-### `resolve_display_name_to_id(name) → str | None`
-
-Looks up a speaker by display name in `known_names`. Returns `spk_id` or `None`.
-
----
-
-### `get_all_known_speakers() → list[tuple[str, str]]`
-
-Returns all known speakers from the database as `[(spk_id, display_name), ...]`.
-
-Used in the CLI to show speakers from past sessions when assigning a segment.
-
----
-
-### `commit(transcript)`
-
-Calls `CommitService.commit()` and `TranscriptStorageService.save()` — the single write point to the database.
+Returns the speaker's display name (`display` label from `speaker_names`). If no name is set, returns `spk_id` as-is. Passed to `ArchiveService.archive()` as `display_fn`.

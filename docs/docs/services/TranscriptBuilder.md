@@ -58,7 +58,7 @@ Segment(
 
 Assigns per-segment embeddings to transcript segments using time overlap.
 
-**`segment_embeddings` parameter** — list from `EmbeddingService.extract_segments()`:
+**`segment_embeddings` parameter** — the per-segment list returned by `EmbeddingService.extract_all()` (second element):
 ```python
 [{"start": float, "end": float, "speaker": str, "embedding": np.ndarray}, ...]
 ```
