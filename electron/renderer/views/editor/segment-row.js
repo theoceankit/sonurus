@@ -49,7 +49,7 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
   if (p) nameBtn.style.color = p.color
   nameBtn.addEventListener('click', e => {
     e.stopPropagation()
-    showSpeakerPicker(nameBtn, spkId, knownSpeakers, transcriptId, onReload, seg.start)
+    showSpeakerPicker(nameBtn, spkId, knownSpeakers, transcriptId, onReload, { segmentStart: seg.start, currentName: displayName })
   })
 
   const chevron = document.createElement('span')
