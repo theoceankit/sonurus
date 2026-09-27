@@ -77,7 +77,7 @@ function renderEditorView(transcriptId, meta = null) {
     focusPanel.innerHTML = ''
 
     // Load audio (set src only if changed)
-    const audioSrc = 'file://' + transcript.audio_path
+    const audioSrc = fileUrl(transcript.audio_path)
     if (audio.src !== audioSrc) audio.src = audioSrc
 
     // Abort previous player bar audio listeners

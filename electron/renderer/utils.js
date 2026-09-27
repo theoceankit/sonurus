@@ -35,6 +35,14 @@ function effectiveSpeaker(seg) {
   return seg.speaker_final || seg.speaker_resolved || seg.speaker_raw || '?'
 }
 
+// Filesystem path → file:// URL. Every path segment is percent-encoded so
+// spaces, non-ASCII, '#' and '?' survive; Windows drive letters are kept.
+function fileUrl(fsPath) {
+  const segments = fsPath.replace(/\\/g, '/').split('/')
+  const encoded = segments.map(s => /^[A-Za-z]:$/.test(s) ? s : encodeURIComponent(s)).join('/')
+  return 'file://' + (encoded.startsWith('/') ? encoded : '/' + encoded)
+}
+
 function fmtTime(sec) {
   const m = Math.floor(sec / 60)
   const s = Math.floor(sec % 60)

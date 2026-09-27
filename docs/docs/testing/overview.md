@@ -12,7 +12,14 @@ pytest tests/ -v
 
 # Single file
 pytest tests/test_commit_service.py -v
+
+# Renderer unit tests (Node >= 22, no dependencies)
+node --test 'tests/renderer/*.test.js'
 ```
+
+### Renderer tests
+
+Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-renderer.js` evaluates them in a `node:vm` context, so their top-level function declarations (e.g. `fileUrl()` from `utils.js`) can be tested with `node:test` without a browser. Pass stubs for browser globals via the second argument of `loadRenderer(files, globals)`. DOM-heavy behaviour is verified manually in the running app.
 
 ---
 
