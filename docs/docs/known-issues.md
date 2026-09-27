@@ -8,6 +8,18 @@ All open issues in one place.
 
 ---
 
+### Segment rows shift by 6 px when a speaker changes
+
+**Severity:** cosmetic — does not affect data.
+
+**Symptom:** after changing a segment's speaker in the editor, rows on screen jump up or down by 6 px. The scroll position itself is kept (`preserveScroll()` in `reload()`).
+
+**Cause:** the first row of each speaker turn gets `.seg-row--speaker-break` (`margin-top: 6px`, `editor.css`), so row heights depend on who speaks. Changing one segment's speaker usually adds or removes a break above it, below it, or both, and the list height changes. Scroll can hold only one point still, so compensating it does not help: holding the edited row still (tried, not merged) moves every other visible row by 6 px instead.
+
+**Pending fix:** make speaker-dependent styling layout-neutral. Drop the margin and draw the speaker break as a 1 px divider that does not take space (`.seg-row::after` with `position: absolute; top: 0`, or an inset `box-shadow`). Then a speaker change only recolors and relabels rows. Verify in Electron that every visible row keeps its position when a break appears and when it disappears.
+
+---
+
 ### model.safetensors downloads during first transcription
 
 **Severity:** minor — does not affect correctness; adds ~1.26 GB download on first use of a language.
