@@ -1354,3 +1354,65 @@ def test_speaker_sample_404_without_audio(client, tmp_path):
 
 def test_speaker_sample_404_for_unknown_speaker(client):
     assert client.get(f"/speakers/{_BOB}/sample").status_code == 404
+
+
+# ── New speaker color (Add new speaker modal) ─────────────────────────────────
+
+def _speaker_by_name(client, name):
+    return next(s for s in client.get("/speakers").json() if s["name"] == name)
+
+
+def test_update_segment_speaker_new_name_with_color(client):
+    """PATCH segment speaker with speaker_name + color_index gives the new speaker that color."""
+    db_id = _saved_id(client)
+    r = client.patch(
+        f"/transcripts/{db_id}/segments/0.0/speaker",
+        json={"speaker_name": "Dana", "color_index": 3},
+    )
+    assert r.status_code == 204
+    assert _speaker_by_name(client, "Dana")["color_index"] == 3
+
+
+def test_reassign_new_name_with_color(client):
+    """POST /reassign with to_speaker_name + color_index gives the new speaker that color."""
+    db_id = _saved_id(client)
+    r = client.post(f"/transcripts/{db_id}/reassign", json={
+        "from_speaker_id": "Alice",
+        "to_speaker_name": "Erin",
+        "color_index": 2,
+    })
+    assert r.status_code == 204
+    assert _speaker_by_name(client, "Erin")["color_index"] == 2
+
+
+@pytest.mark.parametrize("color", [-1, 5])
+def test_new_speaker_color_out_of_palette_is_rejected(client, color):
+    """An out-of-palette color_index is a 400 and creates no speaker."""
+    db_id = _saved_id(client)
+    r1 = client.patch(
+        f"/transcripts/{db_id}/segments/0.0/speaker",
+        json={"speaker_name": "Dana", "color_index": color},
+    )
+    r2 = client.post(f"/transcripts/{db_id}/reassign", json={
+        "from_speaker_id": "Alice", "to_speaker_name": "Erin", "color_index": color,
+    })
+    assert (r1.status_code, r2.status_code) == (400, 400)
+    names = {s["name"] for s in client.get("/speakers").json()}
+    assert not names & {"Dana", "Erin"}
+
+
+def test_color_index_with_existing_speaker_id_is_rejected(client):
+    """color_index only applies to a new speaker; with an existing id it is a 400."""
+    memory = app.dependency_overrides[get_memory_service]()
+    spk_uuid = str(uuid_module.uuid4())
+    memory.update_embedding(spk_uuid, np.array([1.0, 0.0, 0.0], dtype=np.float32))
+    memory.save()
+    db_id = _saved_id(client)
+    r1 = client.patch(
+        f"/transcripts/{db_id}/segments/0.0/speaker",
+        json={"speaker_id": spk_uuid, "color_index": 1},
+    )
+    r2 = client.post(f"/transcripts/{db_id}/reassign", json={
+        "from_speaker_id": "Alice", "to_speaker_id": spk_uuid, "color_index": 1,
+    })
+    assert (r1.status_code, r2.status_code) == (400, 400)
