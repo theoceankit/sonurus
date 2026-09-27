@@ -37,7 +37,7 @@ See [Domain Invariants → I6](../system/invariants.md#i6--speaker-matching-is-e
 ### Multi-vector speaker profiles (long-term)
 **Current:** one averaged embedding vector per speaker — cannot represent voice variation across sessions or acoustic conditions.  
 **Target:** store multiple embedding vectors per speaker and use clustering (e.g. k-means) to match new audio against the speaker's voice distribution.  
-See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-uses-per-segment-embeddings).
+See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-recomputes-embeddings-from-all-db-segments).
 
 ---
 
@@ -120,7 +120,7 @@ Controls that are visible and persisted but do not affect behaviour yet. Each is
 ### CommitService as write coordinator
 **Current:** `CommitService.commit()` writes synchronously and directly. Works for a single user.  
 **Target:** if multi-user support or streaming transcription is added, CommitService should become a write coordinator with a queue or transaction log — still the single entry point for all memory writes.  
-See [Domain Invariants → I2](../system/invariants.md#i2--only-commitservicecommit-writes-to-speaker-memory).
+See [Domain Invariants → I2](../system/invariants.md#i2--only-commitservice-writes-speaker-embeddings).
 
 
 ### Pending
