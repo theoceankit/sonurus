@@ -7,10 +7,12 @@
 // ── Speaker index helper ────────────────────────────────────────────────────────
 // Builds the "Unknown N" display-name index once per buildEditor call so
 // displayName() does not have to iterate all segments on every row (O(N²)).
+// Unassigned segments are one group of their own and are not numbered.
 function buildSpeakerIndex(segments, knownMap) {
   const firstSeen = {}
   segments.forEach(s => {
     const id = effectiveSpeaker(s)
+    if (id === UNASSIGNED_ID) return
     if (isUnrecognized(id, knownMap) && !(id in firstSeen)) firstSeen[id] = s.start
   })
   const unrecIds = Object.keys(firstSeen).sort((a, b) => firstSeen[a] - firstSeen[b])
@@ -84,12 +86,14 @@ function renderEditorView(transcriptId, meta = null) {
     if (playerAbortCtrl) playerAbortCtrl.abort()
     playerAbortCtrl = new AbortController()
 
-    // Known speaker map for display names
+    // Only named speakers are offered in pickers and shown by name
+    knownSpeakers = namedSpeakers(knownSpeakers)
     const knownMap = buildKnownMap(knownSpeakers)
 
     const { unrecIds: _unrecIds } = buildSpeakerIndex(transcript.segments, knownMap)
     function displayName(spkId) {
       if (knownMap[spkId]) return knownMap[spkId].name
+      if (spkId === UNASSIGNED_ID) return 'Unassigned'
       const n = _unrecIds.indexOf(spkId) + 1
       return n > 0 ? `Unknown ${n}` : spkId
     }
@@ -135,7 +139,9 @@ function renderEditorView(transcriptId, meta = null) {
     const metaRow = document.createElement('div')
     metaRow.className = 'focus-meta'
 
+    // Unassigned segments are not a speaker
     const uniqueSpkIds = [...new Set(transcript.segments.map(s => effectiveSpeaker(s)))]
+      .filter(id => id !== UNASSIGNED_ID)
     if (uniqueSpkIds.length > 0) {
       const avatarGroup = document.createElement('div')
       avatarGroup.className = 'focus-avatar-group'
