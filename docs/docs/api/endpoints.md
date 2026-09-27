@@ -254,7 +254,7 @@ Full transcript with segments.
 
 ### `DELETE /transcripts/{id}`
 
-Deletes transcript and all its segments. Returns `204`.
+Deletes transcript and all its segments, then calls `CommitService.recompute_or_remove()` for every speaker that appeared in it: the deleted audio no longer contributes to their stored embeddings, and unnamed speakers left without segments are removed from memory. Returns `204`.
 
 ### `PATCH /transcripts/{id}/segments/{start}/text`
 
@@ -276,7 +276,7 @@ Reassigns only this one segment (unlike `POST /reassign` which is bulk). After u
 
 ### `DELETE /transcripts/{id}/segments/{start}`
 
-Returns `204`.
+Deletes one segment, then calls `recompute_or_remove()` for its speaker (same rules as transcript deletion). Returns `204`.
 
 ### `POST /transcripts/{id}/reassign`
 
