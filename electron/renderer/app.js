@@ -474,8 +474,7 @@ const app = {
       fetch(`${API_BASE}/speakers`).then(r => r.json()),
     ]).then(([items, speakers]) => {
       this._allRecordings = items
-      this._knownSpeakers = {}
-      speakers.forEach(s => { this._knownSpeakers[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
+      this._knownSpeakers = buildKnownMap(speakers)
       this._rerenderList()
       if (autoOpen) {
         if (items.length > 0) this.showEditor(items[0].id)

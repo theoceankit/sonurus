@@ -11,6 +11,14 @@ const SPEAKER_PALETTE = [
   { color: '#7B6DB5', bg: '#EBE9F4' },
 ]
 
+// Recognized speakers keyed by id, from GET /speakers rows:
+// { [id]: { name, colorIndex } }. The one shape used across the renderer.
+function buildKnownMap(speakers) {
+  const map = {}
+  speakers.forEach(s => { map[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
+  return map
+}
+
 function speakerPalette(spkId, knownMap = {}) {
   const idx = (knownMap[spkId]?.colorIndex ?? 0) % SPEAKER_PALETTE.length
   return SPEAKER_PALETTE[idx]

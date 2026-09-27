@@ -87,3 +87,12 @@ test('listSystemAudioSources: backend unreachable → empty list', async () => {
   })
   assert.deepEqual(plain(await listSystemAudioSources('darwin', [])), [])
 })
+
+test('buildKnownMap: GET /speakers rows → { id: { name, colorIndex } }', () => {
+  const { buildKnownMap } = loadRenderer(['utils.js'])
+  const map = buildKnownMap([
+    { id: 'a', name: 'Alice', color_index: 3 },
+    { id: 'b', name: 'Bob' },
+  ])
+  assert.deepEqual(plain(map), { a: { name: 'Alice', colorIndex: 3 }, b: { name: 'Bob', colorIndex: 0 } })
+})
