@@ -475,3 +475,96 @@ def test_transcribe_guard_passes_when_alignment_model_installed(client):
         f"got {r.status_code}: {r.text}"
     )
     assert "job_id" in r.json()
+
+
+# ---------------------------------------------------------------------------
+# Job lifecycle: GPU teardown and WebSocket disconnects
+# ---------------------------------------------------------------------------
+
+def _wait_job_finished(job_id: str, timeout: float = 5.0) -> None:
+    import time
+    from app.api.routers import transcription
+    deadline = time.monotonic() + timeout
+    while job_id in transcription._cancel_events and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert job_id not in transcription._cancel_events, "job did not finish"
+
+
+def _start_job(tc, tmp_path, controller):
+    from unittest.mock import MagicMock
+    _install_whisper_and_diarize(tmp_path)
+    with patch("app.api.routers.transcription.create_controller", return_value=(controller, MagicMock())):
+        r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
+        assert r.status_code == 200, r.text
+        return r.json()["job_id"]
+
+
+def test_models_released_when_pipeline_fails(client):
+    from unittest.mock import MagicMock
+    tc, tmp_path = client
+    controller = MagicMock()
+    controller.run_pipeline.side_effect = RuntimeError("CUDA out of memory")
+
+    with patch("torch.cuda.empty_cache") as empty_cache:
+        job_id = _start_job(tc, tmp_path, controller)
+        _wait_job_finished(job_id)
+
+    assert controller.transcription_service.model is None
+    assert controller.embedding_service.inference is None
+    empty_cache.assert_called()
+
+
+def test_models_released_when_job_cancelled_mid_pipeline(client):
+    import threading
+    from unittest.mock import MagicMock
+    from app.api.routers import transcription
+    tc, tmp_path = client
+    job_ids = []
+    job_known = threading.Event()
+
+    def run_pipeline(audio_path, on_progress, language=None):
+        job_known.wait(5)
+        transcription._cancel_events[job_ids[0]].set()  # user clicks × mid-run
+        on_progress("Transcribing audio…")              # raises _JobCancelled
+
+    controller = MagicMock()
+    controller.run_pipeline.side_effect = run_pipeline
+    with patch("torch.cuda.empty_cache") as empty_cache:
+        job_ids.append(_start_job(tc, tmp_path, controller))
+        job_known.set()
+        _wait_job_finished(job_ids[0])
+
+    assert controller.transcription_service.model is None
+    empty_cache.assert_called()
+
+
+def test_websocket_disconnect_does_not_cancel_job():
+    """A dropped progress socket (renderer reload, transient error) must leave
+    the job running and its queue available for a reconnect."""
+    import asyncio
+    import threading
+    from fastapi import WebSocketDisconnect
+    from app.api.routers import transcription
+
+    class _DisconnectedSocket:
+        async def accept(self): pass
+        async def close(self): pass
+        async def send_json(self, data): raise WebSocketDisconnect()
+
+    job_id = "test-disconnect-job"
+    cancel = threading.Event()
+
+    async def _run():
+        q = asyncio.Queue()
+        q.put_nowait({"type": "progress", "step": "Transcribing audio…"})
+        transcription._jobs[job_id] = q
+        transcription._cancel_events[job_id] = cancel
+        await transcription.ws_progress(_DisconnectedSocket(), job_id)
+
+    try:
+        asyncio.run(_run())
+        assert not cancel.is_set(), "closing the progress WebSocket must not cancel the job"
+        assert job_id in transcription._jobs, "queue must stay registered so a client can reconnect"
+    finally:
+        transcription._jobs.pop(job_id, None)
+        transcription._cancel_events.pop(job_id, None)

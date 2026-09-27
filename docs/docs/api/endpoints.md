@@ -97,6 +97,10 @@ When `language` is `null` (auto-detect), the guard for alignment models cannot f
 
 WebSocket that streams pipeline progress. Connect immediately after `POST /transcribe`.
 
+Closing or losing the socket does **not** cancel the job (cancellation is explicit via `DELETE /transcribe/{job_id}`). The job's event queue stays registered until the job ends, so a client can reconnect and continue receiving events; events consumed by the previous connection are not replayed.
+
+After every job — done, error or cancelled — the worker drops its model references and calls `torch.cuda.empty_cache()`.
+
 ```json
 // Lifecycle events — sent before any progress
 { "type": "queued" }    // job registered; executor has not started it yet
