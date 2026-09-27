@@ -94,9 +94,11 @@ class RenameRequest(BaseModel):
 
 
 class SegmentSpeakerRequest(BaseModel):
-    """Exactly one of: an existing speaker_id, or speaker_name to create a new speaker."""
+    """Exactly one of: an existing speaker_id, or speaker_name to create a new speaker.
+    color_index sets the new speaker's palette color (only with speaker_name)."""
     speaker_id: str | None = None
     speaker_name: str | None = Field(default=None, min_length=1, max_length=128)
+    color_index: int | None = None
 
     @field_validator('speaker_name', mode='before')
     @classmethod
@@ -113,9 +115,11 @@ class DownloadRequest(BaseModel):
 
 
 class ReassignRequest(BaseModel):
+    """color_index sets the new speaker's palette color (only with to_speaker_name)."""
     from_speaker_id: str
     to_speaker_id: str | None = None
     to_speaker_name: str | None = None
+    color_index: int | None = None
 
 
 class DataResetResponse(BaseModel):

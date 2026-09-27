@@ -188,3 +188,36 @@ function deleteSpeakerPrompt({ name, segments = 0, transcripts = 0 }) {
       + 'recognized in new recordings. This cannot be undone.',
   }
 }
+
+// ── New speaker ─────────────────────────────────────────────────────────────────
+// Default color for a new speaker: the palette color fewest speakers use (lowest index on ties).
+function leastUsedColorIndex(rows) {
+  const counts = SPEAKER_PALETTE.map(() => 0)
+  rows.forEach(r => { if (r.color_index in counts) counts[r.color_index]++ })
+  return counts.indexOf(Math.min(...counts))
+}
+
+function hasSpeakerNamed(rows, name) {
+  const key = _nameKey(name)
+  return !!key && rows.some(r => r.name && _nameKey(r.name) === key)
+}
+
+// target: { id } for an existing speaker or { name, colorIndex? } for a new one.
+// With a segmentStart only that segment is assigned, otherwise every segment of fromSpeakerId.
+function speakerAssignRequest({ transcriptId, fromSpeakerId, segmentStart, target }) {
+  const color = target.colorIndex != null ? { color_index: target.colorIndex } : {}
+  if (segmentStart != null) {
+    return {
+      url: `${API_BASE}/transcripts/${transcriptId}/segments/${segmentStart}/speaker`,
+      method: 'PATCH',
+      body: target.id ? { speaker_id: target.id } : { speaker_name: target.name, ...color },
+    }
+  }
+  return {
+    url: `${API_BASE}/transcripts/${transcriptId}/reassign`,
+    method: 'POST',
+    body: target.id
+      ? { from_speaker_id: fromSpeakerId, to_speaker_id: target.id }
+      : { from_speaker_id: fromSpeakerId, to_speaker_name: target.name, ...color },
+  }
+}

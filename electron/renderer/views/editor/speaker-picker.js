@@ -1,5 +1,7 @@
 // ── Speaker picker popup ──────────────────────────────────────────────────────
-function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, onReload, segmentStart = null) {
+// currentName: display name of currentSpkId (shown by the new speaker modal).
+// segmentStart: set when opened from a segment row — assigns only that segment.
+function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, onReload, { segmentStart = null, currentName = '' } = {}) {
   document.getElementById('_spk-picker')?.remove()
   const _pickerKnownMap = buildKnownMap(knownSpeakers)
   // Speakers sharing a name are told apart by their usage line
@@ -60,16 +62,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
 
   const newLabel = document.createElement('span')
   newLabel.className = 'spk-picker-new-label'
-
-  function updateNewLabel(q) {
-    newLabel.innerHTML = ''
-    newLabel.append('Add new speaker ')
-    const nameSpan = document.createElement('span')
-    nameSpan.className = 'spk-picker-new-name'
-    nameSpan.textContent = q.trim() ? `"${q.trim()}"` : '"Speaker"'
-    newLabel.appendChild(nameSpan)
-  }
-  updateNewLabel('')
+  newLabel.textContent = 'Add new speaker…'
 
   newBtn.appendChild(newAv)
   newBtn.appendChild(newLabel)
@@ -78,8 +71,23 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
 
   newBtn.addEventListener('mousedown', e => {
     e.preventDefault()
-    assignSpeaker({ name: search.value.trim() || 'Speaker' })
+    openNewSpeakerDialog()
   })
+
+  // The picker closes; the modal takes over, prefilled with what was typed.
+  function openNewSpeakerDialog() {
+    const initialName = search.value
+    popup.remove()
+    openNewSpeakerModal({
+      initialName,
+      knownSpeakers,
+      fromName: currentName,
+      segmentScope: segmentStart !== null,
+      onSubmit: ({ name, colorIndex, scope }) => requestAssign(
+        { name, colorIndex }, scope === 'segment' ? segmentStart : null,
+      ).then(onReload),
+    })
+  }
 
   let focusIdx = 0
   let keyboardNav = false
@@ -151,27 +159,24 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
     })
   }
 
-  // target: { id } for an existing speaker or { name } for a new one.
-  // Opened from a segment row → only that segment; otherwise every segment of currentSpkId.
+  function requestAssign(target, start) {
+    const { url, method, body } = speakerAssignRequest({
+      transcriptId, fromSpeakerId: currentSpkId, segmentStart: start, target,
+    })
+    return fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(r => { if (!r.ok) throw new Error(`Failed to assign speaker (${r.status})`) })
+  }
+
   function assignSpeaker(target) {
-    const isSingle = segmentStart !== null
-    const url = isSingle
-      ? `${API_BASE}/transcripts/${transcriptId}/segments/${segmentStart}/speaker`
-      : `${API_BASE}/transcripts/${transcriptId}/reassign`
-    const body = JSON.stringify(isSingle
-      ? (target.id ? { speaker_id: target.id } : { speaker_name: target.name })
-      : (target.id ? { from_speaker_id: currentSpkId, to_speaker_id: target.id }
-                   : { from_speaker_id: currentSpkId, to_speaker_name: target.name }))
-    fetch(url, { method: isSingle ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body })
-      .then(r => { if (!r.ok) throw new Error(r.status); popup.remove(); onReload() })
-      .catch(err => window.showToast?.(`Failed to assign speaker: ${err.message}`, 'error'))
+    requestAssign(target, segmentStart)
+      .then(() => { popup.remove(); onReload() })
+      .catch(err => window.showToast?.(err.message, 'error'))
   }
 
   buildList('')
 
   search.addEventListener('input', () => {
     clearBtn.style.display = search.value ? '' : 'none'
-    updateNewLabel(search.value)
     buildList(search.value, 0)
   })
 
@@ -198,6 +203,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
       e.preventDefault()
       const focused = items[focusIdx]
       if (focused) focused.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+      else if (search.value.trim()) openNewSpeakerDialog()  // nothing matches → create it
     }
   })
 

@@ -44,7 +44,7 @@ the naming or root-element rules, or when inline SVG icons return.
 
 | Icon | Where it is used |
 |---|---|
-| `add` | New recording (sidebar), new speaker in the speaker picker, off-state of export toggles |
+| `add` | New recording (sidebar), "Add new speaker…" in the speaker picker, off-state of export toggles |
 | `alert` | Settings: model notes, "Reset to defaults" section |
 | `alignment` | Settings: "Alignment Models" section |
 | `api-keys` | Settings: "API Keys" section |
