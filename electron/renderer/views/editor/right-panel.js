@@ -12,8 +12,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
   const panel = document.createElement('div')
   panel.className = 'right-panel'
 
-  const knownMap = {}
-  knownSpeakers.forEach(s => { knownMap[s.id] = s.name })
+  const knownMap = buildKnownMap(knownSpeakers)
 
   // ── Speaker preview (separate Audio element, player bar unaffected) ──────────
   const previewAudio = new Audio()
@@ -149,7 +148,7 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
       content.appendChild(sectionLabel('Recognized', recognized.length))
       recognized.forEach(spkId => {
         content.appendChild(makeSpeakerCard(
-          spkId, knownMap[spkId] || spkId,
+          spkId, knownMap[spkId].name,
           countBySpeaker[spkId], durBySpeaker[spkId],
           totalDur, transcriptId, onReload, knownSpeakers,
           null, (setActive) => playPreview(firstSegBySpeaker[spkId], setActive), () => pausePreview()

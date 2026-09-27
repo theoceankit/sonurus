@@ -85,8 +85,7 @@ function renderEditorView(transcriptId, meta = null) {
     playerAbortCtrl = new AbortController()
 
     // Known speaker map for display names
-    const knownMap = {}
-    knownSpeakers.forEach(s => { knownMap[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
+    const knownMap = buildKnownMap(knownSpeakers)
 
     const { unrecIds: _unrecIds } = buildSpeakerIndex(transcript.segments, knownMap)
     function displayName(spkId) {
