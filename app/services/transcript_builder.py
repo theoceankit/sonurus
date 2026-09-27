@@ -1,3 +1,5 @@
+import uuid
+
 from ..models.transcript import Transcript
 from ..models.segment import Segment
 from typing import List, Dict, Any
@@ -12,9 +14,18 @@ class TranscriptBuilder:
     def build(result: dict, speaker_map: Dict[str, str], audio_path: str) -> Transcript:
 
         segments = []
+        # Diarization speakers that resolve() did not map (no embedding: too
+        # little speech) still get a stable id, one per label — raw SPEAKER_XX
+        # labels are unstable across runs and are never persisted as speakers.
+        speaker_map = dict(speaker_map)
 
         for seg in result["segments"]:
             raw_speaker = seg.get("speaker", "UNKNOWN")
+
+            if raw_speaker not in speaker_map and raw_speaker.startswith("SPEAKER_"):
+                speaker_map[raw_speaker] = str(uuid.uuid4())
+                log.info(f"{raw_speaker} → {speaker_map[raw_speaker]} (new, no embedding)")
+            resolved = speaker_map.get(raw_speaker)
 
             segment = Segment(
                 start=seg["start"],
@@ -22,9 +33,11 @@ class TranscriptBuilder:
                 text=seg["text"].strip(),
 
                 speaker_raw=raw_speaker,
-                speaker_resolved=speaker_map.get(raw_speaker),
+                speaker_resolved=resolved,
 
-                speaker_final=None
+                speaker_final=None,
+                # no diarization speaker at all — the user assigns one
+                unassigned=resolved is None,
             )
 
             segments.append(segment)

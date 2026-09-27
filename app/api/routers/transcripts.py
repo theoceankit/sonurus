@@ -12,6 +12,7 @@ from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.commit_service import CommitService
 from app.api.dependencies import get_memory_service, get_storage_service
+from app.models.segment import UNASSIGNED
 from app.api.schemas import (
     TranscriptListItem, TranscriptResponse, SegmentResponse,
     SegmentSpeakerRequest, SegmentTextRequest, ReassignRequest,
@@ -23,6 +24,8 @@ log = get_logger("TranscriptsAPI")
 
 
 def _effective_speaker(seg) -> str:
+    if seg.unassigned:
+        return UNASSIGNED
     return seg.speaker_final or seg.speaker_resolved or seg.speaker_raw
 
 
@@ -99,6 +102,7 @@ def get_transcript(
                 speaker_raw=s.speaker_raw,
                 speaker_resolved=s.speaker_resolved,
                 speaker_final=s.speaker_final,
+                unassigned=s.unassigned,
             )
             for s in t.segments
         ],
@@ -128,7 +132,8 @@ def get_speaker_suggestions(
     embeddings_by_speaker: dict[str, list] = {}
     for seg in t.segments:
         spk_id = _effective_speaker(seg)
-        if not spk_id or spk_id in recognized:
+        # Unassigned segments may mix several voices — no single suggestion.
+        if not spk_id or spk_id == UNASSIGNED or spk_id in recognized:
             continue
         if seg.embedding is not None:
             embeddings_by_speaker.setdefault(spk_id, []).append(seg.embedding)

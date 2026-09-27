@@ -34,10 +34,13 @@ class ArchiveService:
         get_name = display_fn or (lambda x: x)
         lines = []
         for seg in transcript.segments:
-            spk_id = seg.speaker_final or seg.speaker_resolved or seg.speaker_raw
+            if seg.unassigned:
+                speaker = "Unassigned"
+            else:
+                speaker = get_name(seg.speaker_final or seg.speaker_resolved or seg.speaker_raw)
             start = format_time(seg.start)
             end   = format_time(seg.end)
-            lines.append(f"[{start} - {end}] {get_name(spk_id)}: {seg.text}")
+            lines.append(f"[{start} - {end}] {speaker}: {seg.text}")
 
         txt_path = os.path.join(dest_dir, stem + ".txt")
         with open(txt_path, "w", encoding="utf-8") as f:

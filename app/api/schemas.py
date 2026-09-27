@@ -8,6 +8,7 @@ class SegmentResponse(BaseModel):
     speaker_raw: str
     speaker_resolved: str | None
     speaker_final: str | None
+    unassigned: bool = False
 
 
 class TranscriptListItem(BaseModel):
@@ -30,9 +31,46 @@ class TranscriptResponse(BaseModel):
 
 
 class SpeakerResponse(BaseModel):
+    """A speaker in the Speakers section. name is None for unnamed speakers."""
     id: str
-    name: str
+    name: str | None
     color_index: int
+    segments: int = 0
+    transcripts: int = 0
+    duration_sec: float = 0.0
+    last_seen: str = ""
+
+
+class SpeakerUpdateRequest(BaseModel):
+    """At least one of name / color_index."""
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    color_index: int | None = None
+
+    @field_validator('name', mode='before')
+    @classmethod
+    def strip_name(cls, v):
+        return v.strip() if isinstance(v, str) else v
+
+
+class SpeakerDeleteResponse(BaseModel):
+    segments: int
+    transcripts: int
+
+
+class SpeakerSampleResponse(BaseModel):
+    transcript_id: int
+    audio_path: str
+    start: float
+    end: float
+    text: str
+
+
+class SpeakerTranscriptItem(BaseModel):
+    id: int
+    title: str
+    created_at: str
+    segments: int
+    duration_sec: float
 
 
 class JobStarted(BaseModel):

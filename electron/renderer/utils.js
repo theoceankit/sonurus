@@ -11,12 +11,20 @@ const SPEAKER_PALETTE = [
   { color: '#7B6DB5', bg: '#EBE9F4' },
 ]
 
-// Recognized speakers keyed by id, from GET /speakers rows:
+// Effective speaker of a segment whose speaker was deleted (see Segment.unassigned).
+const UNASSIGNED_ID = 'UNASSIGNED'
+
+// Recognized (named) speakers keyed by id, from GET /speakers rows:
 // { [id]: { name, colorIndex } }. The one shape used across the renderer.
 function buildKnownMap(speakers) {
   const map = {}
-  speakers.forEach(s => { map[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
+  speakers.forEach(s => { if (s.name) map[s.id] = { name: s.name, colorIndex: s.color_index ?? 0 } })
   return map
+}
+
+// GET /speakers rows that have a display name — what the editor offers.
+function namedSpeakers(speakers) {
+  return speakers.filter(s => s.name)
 }
 
 function speakerPalette(spkId, knownMap = {}) {
@@ -31,12 +39,13 @@ function speakerInitials(name) {
 }
 
 // Recognized = has a display name, i.e. is present in knownMap (built from
-// GET /speakers, which lists named speakers only). Raw SPEAKER_* labels never are.
+// the named GET /speakers rows). Raw SPEAKER_* labels and UNASSIGNED never are.
 function isUnrecognized(spkId, knownMap = {}) {
   return spkId.startsWith('SPEAKER_') || !(spkId in knownMap)
 }
 
 function effectiveSpeaker(seg) {
+  if (seg.unassigned) return UNASSIGNED_ID
   return seg.speaker_final || seg.speaker_resolved || seg.speaker_raw || '?'
 }
 
@@ -130,5 +139,52 @@ function deleteTranscriptPrompt(title) {
     title: title ? `Delete “${title}”?` : 'Delete this transcript?',
     body: 'The transcript and its recording made in Sonorus will be deleted. '
       + 'Imported audio files are kept. This cannot be undone.',
+  }
+}
+
+// ── Speakers section ────────────────────────────────────────────────────────────
+function _nameKey(name) {
+  return (name || '').trim().toLowerCase()
+}
+
+// filter: 'all' | 'named' | 'unnamed'. A non-empty query matches names only.
+function filterSpeakers(rows, query, filter) {
+  const q = _nameKey(query)
+  return rows.filter(r => {
+    if (filter === 'named' && !r.name) return false
+    if (filter === 'unnamed' && r.name) return false
+    return !q || _nameKey(r.name).includes(q)
+  })
+}
+
+// Ids of named speakers whose name another speaker also has. Allowed — the id is
+// the identity — but shown so the user can tell them apart.
+function duplicateNameIds(rows) {
+  const byKey = {}
+  rows.filter(r => r.name).forEach(r => { (byKey[_nameKey(r.name)] ||= []).push(r.id) })
+  return new Set(Object.values(byKey).filter(group => group.length > 1).flat())
+}
+
+function speakerDisplayName(row) {
+  return row.name || 'Unnamed speaker'
+}
+
+function _plural(count, word) {
+  return `${count} ${word}${count === 1 ? '' : 's'}`
+}
+
+function speakerStatsLine({ transcripts = 0, duration_sec = 0 }) {
+  if (!transcripts) return 'Not in any transcript'
+  return `${_plural(transcripts, 'transcript')} · ${fmtTime(duration_sec)}`
+}
+
+function deleteSpeakerPrompt({ name, segments = 0, transcripts = 0 }) {
+  const effect = segments
+    ? `${_plural(segments, 'segment')} in ${_plural(transcripts, 'transcript')} will become Unassigned. `
+    : ''
+  return {
+    title: name ? `Delete “${name}”?` : 'Delete this speaker?',
+    body: `${effect}The voice profile is removed, so this speaker will no longer be `
+      + 'recognized in new recordings. This cannot be undone.',
   }
 }

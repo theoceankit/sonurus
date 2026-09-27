@@ -61,6 +61,7 @@ electron/
       import.css       — Import/recording/progress view styles
       editor.css       — Transcript editor styles
       settings.css     — Settings screen styles
+      speakers.css     — Sidebar section tabs, speaker list, speaker page
       views.css        — Toasts, misc shared view styles
       modal.css        — Modal overlay styles
     views/
@@ -68,6 +69,7 @@ electron/
       alignment-modal.js      — Alignment model download + retry (shown on alignment_model_missing error)
       editor-view.js          — Transcript editor entry point
       settings-view.js        — Settings screen
+      speakers-view.js        — Speakers section: sidebar list items + speaker page
       editor/                 — Editor sub-components
         tooltip.js, speaker-picker.js, segment-row.js,
         speaker-card.js, waveform.js, player-bar.js, right-panel.js
@@ -180,6 +182,23 @@ Clicking **+** while a session is active shows a toast ("Recording is already in
 ## Deleting a transcript
 
 Hovering a sidebar item replaces its time with a trash icon (`.rec-item-delete`, a `span role="button"` because the item itself is a `<button>`). Clicking it opens `openConfirmDialog()` (`components.js`) with the text from `deleteTranscriptPrompt()` (`utils.js`); Escape or a backdrop click cancels. On confirm, `app._deleteTranscript()` calls `DELETE /transcripts/{id}` (a `404` counts as already deleted), removes the item via `withoutRecording()`, goes home if that transcript was open (`_activeTranscriptId`), reloads the sidebar and shows a toast. The backend also deletes the app's own live recording for that transcript; imported audio files are kept.
+
+---
+
+## Speakers section
+
+The sidebar header has two tabs, **Transcripts** and **Speakers** (`.sb-tab`), each with its own pane (`#sb-pane-transcripts`, `#sb-pane-speakers`). `app._showSection()` only toggles the tab and pane; `showSpeakers()` / `showSpeaker(id)` also render the main panel. Opening a transcript (`showEditor`) or going home switches back to the Transcripts tab; switching back by hand reopens the last transcript.
+
+- **List** — every `GET /speakers` row (`app._speakers`, loaded by `_loadSidebar()` together with the transcripts). Search matches the display name case-insensitively; the **All / Named / Unnamed** filter narrows it (`filterSpeakers()` in `utils.js`, unnamed speakers never match a non-empty query). Speakers that share a name get a *same name* badge (`duplicateNameIds()`); the speaker picker in the editor shows their usage line (`speakerStatsLine()`) next to the name so they can be told apart.
+- **Speaker page** (`renderSpeakerDetail()` in `speakers-view.js`) — inline name field (Enter or **Save** sends `PATCH /speakers/{id}`, Escape reverts; a name another speaker also has is saved and noted under the field), color swatches (named speakers only — unnamed ones are always grey), statistics, and **Appears in** (`GET /speakers/{id}/transcripts`; clicking a row opens the editor).
+- **Voice sample** — the page header plays the most characteristic segment (`GET /speakers/{id}/sample`) with its text as a quote; each **Appears in** row has its own ▶ that fetches a sample from that transcript on first click. One `Audio` element per page (`makeSamplePlayer()`), one sample at a time, a preview stops at the segment end or after 15 s, and playback stops when the page is left (`_cleanup`). Missing audio shows "Audio unavailable".
+- **Delete** — **Delete speaker…** opens `openConfirmDialog()` with `deleteSpeakerPrompt()` (it says how many segments in how many transcripts become Unassigned) and calls `DELETE /speakers/{id}`. Like *Delete all data*, the button is disabled with the `dataResetBlockReason()` tooltip while a transcription job or live recording runs; the backend answers `409` in that case too.
+
+After a change the sidebar is reloaded so transcript avatars and the editor pick up new names and colors.
+
+### Unassigned segments in the editor
+
+`effectiveSpeaker()` returns `UNASSIGNED` for a segment with `unassigned: true`. The editor treats it as one group: labelled **Unassigned** in segment rows and the waveform tooltip, excluded from the `Unknown N` numbering and from the header speaker count, and shown in its own right-panel section whose **Assign speaker** reassigns all of them (`POST /transcripts/{id}/reassign` with `from_speaker_id: "UNASSIGNED"`). A single segment is assigned from its speaker-name button as usual.
 
 ---
 
