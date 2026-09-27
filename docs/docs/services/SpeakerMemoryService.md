@@ -158,6 +158,12 @@ Called after a reassignment to clean up temporary unrecognized IDs that no longe
 
 ---
 
+### `clear() → int`
+
+Deletes every speaker — named ones included — from `speaker_embeddings`, `speaker_names` and `speaker_meta`, and resets `known_speakers`, `known_counts`, `known_names`, `known_colors` and all dirty sets, so a later `save()` / `save_names_only()` cannot restore anything. `_meta` (schema version, migration flags) is kept. Returns the number of speakers removed. Used only by `POST /data/reset`.
+
+---
+
 ### `_init_db()`
 
 Creates `speaker_embeddings`, `speaker_names`, and `_meta` tables if missing. Runs migration `m001_uuid_speakers`: converts any legacy human-name speaker ID to a UUID4, stores the original name in `speaker_names`, and updates all `segments.speaker_id` references.

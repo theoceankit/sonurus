@@ -340,6 +340,26 @@ Returns `204`. Returns `404` if speaker is not in `known_speakers`. Only updates
 
 ---
 
+## Data
+
+### `POST /data/reset`
+
+Deletes all user data and returns the backend to an empty library:
+
+- every transcription and segment (`transcriptions`, `segments`);
+- every speaker, **named ones included** — `speaker_embeddings`, `speaker_names`, `speaker_meta`;
+- the contents of `$SONORUS_DATA_DIR/recordings/` (live recordings) and `$SONORUS_DATA_DIR/.files/` (archive).
+
+The API memory singleton is emptied too, including its pending dirty sets, so a later `save()` cannot write old speakers back. Schema/version tables (`_meta`, `_ts_schema_version`), downloaded models and `settings.json` are kept. Audio files outside the data directory (imported files referenced by `transcriptions.audio_file`) are never deleted; symlinks inside the cleared directories are removed as links without touching their targets.
+
+```json
+{ "transcripts": 2, "speakers": 3, "files": 5 }
+```
+
+Returns `409` while a transcription job (`POST /transcribe`) or an audio capture (`POST /audio/capture/start`) is running: the pipeline job holds its own memory snapshot and would write its transcript and speakers back after the reset.
+
+---
+
 ## Health
 
 ### `GET /health`
