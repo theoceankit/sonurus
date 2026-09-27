@@ -654,3 +654,21 @@ def test_known_speakers_has_uuid_keys_after_migration(tmp_path):
     assert len(uuid_keys) == 1, (
         f"Expected exactly one UUID4 key in known_speakers, got: {list(memory.known_speakers.keys())}"
     )
+
+
+# ---------------------------------------------------------------------------
+# create_named_speaker()
+# ---------------------------------------------------------------------------
+
+def test_create_named_speaker_persists_name_without_embedding(tmp_path):
+    svc = make_memory(tmp_path)
+    spk_id = svc.create_named_speaker("Carol")
+
+    assert _is_valid_uuid(spk_id)
+    assert spk_id not in svc.known_speakers, "embedding is added later by CommitService"
+    assert SpeakerMemoryService(db_path=str(tmp_path / "memory.db")).get_name(spk_id) == "Carol"
+
+
+def test_create_named_speaker_returns_distinct_ids(tmp_path):
+    svc = make_memory(tmp_path)
+    assert svc.create_named_speaker("A") != svc.create_named_speaker("A")

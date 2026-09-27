@@ -23,7 +23,7 @@ Rules that must always hold. Violating any of these corrupts speaker memory or p
 No code other than `CommitService` may call `SpeakerMemoryService.update_embedding()` or write to `speaker_embeddings`.
 
 Two permitted exceptions that do not write embeddings:
-- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names` (display names). Called from `POST /speakers/{id}/rename`.
+- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names` (display names). Called from `POST /speakers/{id}/rename` and via `create_named_speaker()` when a user assigns segments to a new name.
 - `SpeakerMemoryService.remove_speaker()` — deletes a speaker from memory and DB. Called from `POST /transcripts/{id}/reassign` to clean up replaced temporary IDs.
 
 **Why:** Centralising embedding writes to `CommitService` makes it possible to reason about when and why voice profiles change. Name management and cleanup are deliberately separated from embedding updates.
