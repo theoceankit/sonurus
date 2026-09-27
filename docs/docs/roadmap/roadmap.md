@@ -47,7 +47,7 @@ See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-uses-pe
 **Done.** Import view dropdown lets the user pick any of the 5 Whisper models (tiny → large-v3) before starting transcription. Selection is persisted to `settings.json` and sent as `whisper_model` in `POST /transcribe`. Backend threads it through `service_factory` → `TranscriptionService` constructor.
 
 ### ✅ Settings persistence
-**Done.** `settings.json` in the project root persists `{ scale, transcribeLang, transcribeModel, exportFormat }` via Electron IPC (`ipcMain` read/write). `loadSettings()` is called on app init; `saveSettings(patch)` is called on any preference change.
+**Done.** `settings.json` in Electron `userData` persists user preferences via Electron IPC (`ipcMain` read/write). `loadSettings()` is called on app init; `saveSettings(patch)` is called on any preference change.
 
 ### ✅ Model management UI
 **Done.** Settings view fetches `GET /models` on open to show real install status. Download (`POST /models/{id}/download`) streams progress and ETA via WebSocket. Delete (`DELETE /models/{id}`) removes the cache directory. Model selection calls `saveSettings`.
@@ -80,20 +80,18 @@ See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-uses-pe
 | Edit | ✅ Done | Inline contenteditable; `PATCH /transcripts/{id}/segments/{start}/text`; Enter to save, Escape to cancel |
 | Copy | ✅ Done | Copies segment text to clipboard |
 | Delete | ✅ Done | `DELETE /transcripts/{id}/segments/{start}`; row fades out |
-| Play | Partial | Scrolls segment into view; does not seek audio player to timestamp |
+| Play | ✅ Done | Seeks the player to the segment start and plays |
 | Bookmark | Pending | Semantics undefined — flag in DB, local list, or other |
 
-### Back button
-**Current:** rendered but not connected.  
-**Target:** navigate back to `ImportView`.
+### ✅ Back button
+**Done.** The titlebar back button returns to the home view (`app.showHome()`).
 
 ---
 
 ## UI — Import & Progress
 
-### File validation before transcription
-**Current:** "Start transcription" is always enabled; clicking without a file falls back to `testdata/output.wav`.  
-**Target:** disable the button until a valid file is selected; remove the hardcoded fallback.
+### ✅ File validation before transcription
+**Done.** Import goes through the native file dialog or drag-and-drop (`new-recording-modal.js`), so a file is always selected; `POST /transcribe` returns `400` if `audio_path` does not exist or is not readable.
 
 ### ✅ Background transcription queue
 **Done.** Transcription no longer takes over the main panel. Jobs run in the background and are shown as cards in a queue section at the top of the sidebar. Multiple files can be queued while the user continues browsing or editing other transcripts. The backend already serialised jobs via `ThreadPoolExecutor(max_workers=1)`; the frontend now tracks them in `app._activeJobs`. On completion: toast + sidebar refresh. `alignment_model_missing` errors surface as a modal with inline download + retry (`alignment-modal.js`).
@@ -127,9 +125,7 @@ See [Domain Invariants → I2](../system/invariants.md#i2--only-commitservicecom
 
 ### Pending
 
-- Audio playback: Play button on segment seeks player to timestamp
 - Bookmark semantics (see Segment action buttons above)
-- Electron packaging / distribution build
 
 ---
 
