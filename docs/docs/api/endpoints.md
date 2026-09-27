@@ -279,10 +279,10 @@ Returns `204`.
 { "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca" }
 
 // Assign to a new speaker (creates a UUID with this display name):
-{ "speaker_name": "Carol" }
+{ "speaker_name": "Carol", "color_index": 2 }
 ```
 
-Exactly one of `speaker_id` (a UUID4 of a known speaker) or `speaker_name` (1–128 chars, trimmed) must be provided, otherwise `400`. Returns `204`.
+Exactly one of `speaker_id` (a UUID4 of a known speaker) or `speaker_name` (1–128 chars, trimmed) must be provided, otherwise `400`. Optional `color_index` (`0`–`4`) sets the new speaker's palette color; it is only accepted together with `speaker_name` and inside the palette, otherwise `400` (nothing is created). Without it a color is assigned automatically. Returns `204`.
 
 Reassigns only this one segment (unlike `POST /reassign` which is bulk). After updating the DB, immediately recomputes embeddings for both the new speaker (`commit_speaker`) and the previous speaker (`recompute_or_remove`).
 
@@ -299,14 +299,14 @@ Bulk-reassigns **all** segments of one speaker to another across the transcript,
 Exactly one of `to_speaker_id` or `to_speaker_name` must be provided:
 
 ```json
-// Assign to a new person (creates a new UUID):
-{ "from_speaker_id": "7e251ba6-...", "to_speaker_name": "Alice" }
+// Assign to a new person (creates a new UUID; color_index is optional):
+{ "from_speaker_id": "7e251ba6-...", "to_speaker_name": "Alice", "color_index": 1 }
 
 // Merge into an existing recognized speaker:
 { "from_speaker_id": "7e251ba6-...", "to_speaker_id": "385dbc1d-..." }
 ```
 
-- `to_speaker_name` — generates a new UUID4, saves the display name to `speaker_names`, recomputes the embedding from all DB segments.
+- `to_speaker_name` — generates a new UUID4, saves the display name to `speaker_names`, recomputes the embedding from all DB segments. Optional `color_index` sets its palette color, with the same rules as for `PATCH /segments/{start}/speaker` (`400` with `to_speaker_id` or outside the palette).
 - `to_speaker_id` — must be a UUID already in `speaker_embeddings`. Recomputes that speaker's embedding from all their DB segments.
 - Also commits embeddings for any other unrecognized speakers in the transcript not yet in memory.
 - Recomputes `from_speaker_id` embedding from their remaining segments, or removes them from memory if no segments remain and they have no display name.
