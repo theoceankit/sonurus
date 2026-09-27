@@ -95,7 +95,11 @@ ipcMain.handle('write-clipboard', (_e, text) => { clipboard.writeText(text) })
 
 // Recordings are referenced by the transcript DB, so they must survive reboots:
 // same dir as the backend's RECORDINGS_DIR ($SONORUS_DATA_DIR/recordings).
+const RECORDING_EXTS = new Set(['webm', 'wav'])
+
 ipcMain.handle('save-recording', (_e, { buffer, ext }) => {
+  // ext comes from the renderer and ends up in a file path — never trust it
+  if (!RECORDING_EXTS.has(ext)) throw new Error(`Unsupported recording extension: ${ext}`)
   const dir = path.join(app.getPath('userData'), 'recordings')
   fs.mkdirSync(dir, { recursive: true })
   const dest = path.join(dir, `sonorus-rec-${crypto.randomUUID()}.${ext}`)
