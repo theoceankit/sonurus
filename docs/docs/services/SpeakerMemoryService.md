@@ -57,7 +57,7 @@ known_names = {
 
 | Format | Source | Description |
 |---|---|---|
-| UUID4 | `_generate_new_speaker_id()` | All current speaker IDs |
+| UUID4 | `resolve()` (new voices), `create_named_speaker()` | All current speaker IDs |
 | `person_N` | Legacy / imported | Old records from previous versions; migrated to UUID4 on startup |
 
 ---
@@ -164,14 +164,9 @@ Creates `speaker_embeddings`, `speaker_names`, and `_meta` tables if missing. Ru
 
 ---
 
-### `_generate_new_speaker_id() → str`
+### `create_named_speaker(name, label="display") → str`
 
-Generates a UUID4 for a new speaker:
-
-```python
-str(uuid.uuid4())
-# e.g. "550e8400-e29b-41d4-a716-446655440000"
-```
+Creates a new UUID4 speaker ID, sets its display name and persists it via `save_names_only()`. Does not write an embedding: `CommitService` adds one once segments with embeddings are assigned to the new ID. Used by `POST /transcripts/{id}/reassign` (`to_speaker_name`) and `PATCH …/segments/{start}/speaker` (`speaker_name`).
 
 ---
 

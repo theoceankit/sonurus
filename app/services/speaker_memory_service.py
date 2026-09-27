@@ -419,6 +419,13 @@ class SpeakerMemoryService:
         self.known_colors.pop(spk_id, None)
         self._repo.remove(spk_id)
 
-    @staticmethod
-    def _generate_new_speaker_id() -> str:
-        return _new_speaker_id()
+    def create_named_speaker(self, name: str, label: str = "display") -> str:
+        """Create a new speaker ID with a persisted display name.
+
+        Writes speaker_names only; the embedding is added by CommitService once
+        segments with embeddings are assigned to the new ID.
+        """
+        spk_id = _new_speaker_id()
+        self.set_name(spk_id, name, label)
+        self.save_names_only()
+        return spk_id
