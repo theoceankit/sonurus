@@ -659,3 +659,223 @@ def test_count_by_audio_file(tmp_path):
     assert svc.count_by_audio_file("a.wav") == 2
     assert svc.count_by_audio_file("b.wav") == 1
     assert svc.count_by_audio_file("c.wav") == 0
+
+
+# ---------------------------------------------------------------------------
+# Unassigned segments (schema v5)
+# ---------------------------------------------------------------------------
+
+from app.models.segment import UNASSIGNED
+
+
+def test_segments_default_to_assigned(tmp_path):
+    svc = make_service(tmp_path)
+    db_id = svc.save(make_transcript())
+    assert [s.unassigned for s in svc.load(db_id).segments] == [False, False]
+
+
+def test_unassign_speaker_flags_segments_across_transcripts(tmp_path):
+    svc = make_service(tmp_path)
+    first = svc.save(make_transcript())
+    second = svc.save(make_transcript([
+        Segment(0.0, 1.0, "A", "SPEAKER_00", speaker_resolved="Alice"),
+        Segment(1.0, 2.0, "B", "SPEAKER_00", speaker_resolved="Alice"),
+        Segment(2.0, 3.0, "C", "SPEAKER_01", speaker_resolved="Carol"),
+    ]))
+
+    assert svc.unassign_speaker("Alice") == {"segments": 3, "transcripts": 2}
+
+    segs = svc.load(second).segments
+    assert [s.unassigned for s in segs] == [True, True, False]
+    assert [s.speaker_resolved for s in segs] == [None, None, "Carol"]
+    assert svc.load(first).segments[1].speaker_resolved == "Bob"
+
+
+def test_unassign_unknown_speaker_changes_nothing(tmp_path):
+    svc = make_service(tmp_path)
+    db_id = svc.save(make_transcript())
+    assert svc.unassign_speaker("Nobody") == {"segments": 0, "transcripts": 0}
+    assert not any(s.unassigned for s in svc.load(db_id).segments)
+
+
+def test_unassigned_segments_do_not_contribute_embeddings(tmp_path):
+    svc = make_service(tmp_path)
+    emb = np.ones(3, dtype=np.float32)
+    svc.save(make_transcript([Segment(0.0, 1.0, "x", "SPEAKER_00", speaker_resolved="Alice", embedding=emb)]))
+    svc.unassign_speaker("Alice")
+    assert svc.get_embeddings_grouped_by_transcript("Alice") == {}
+
+
+def test_save_round_trips_unassigned_flag(tmp_path):
+    svc = make_service(tmp_path)
+    seg = Segment(0.0, 1.0, "x", "SPEAKER_00", speaker_resolved="Alice", unassigned=True)
+    db_id = svc.save(make_transcript([seg]))
+    loaded = svc.load(db_id).segments[0]
+    assert loaded.unassigned is True
+    assert loaded.speaker_resolved is None
+
+
+def test_single_segment_reassign_clears_unassigned_flag(tmp_path):
+    svc = make_service(tmp_path)
+    db_id = svc.save(make_transcript())
+    svc.unassign_speaker("Alice")
+
+    svc.update_segment_speaker(db_id, 0.0, 2.0, "Carol")
+
+    seg = svc.load(db_id).segments[0]
+    assert seg.unassigned is False
+    assert seg.speaker_resolved == "Carol"
+
+
+def test_bulk_reassign_from_unassigned_moves_only_flagged_segments(tmp_path):
+    svc = make_service(tmp_path)
+    db_id = svc.save(make_transcript([
+        Segment(0.0, 1.0, "A", "SPEAKER_00", speaker_resolved="Alice"),
+        Segment(1.0, 2.0, "B", "SPEAKER_01", speaker_resolved="Bob"),
+        Segment(2.0, 3.0, "C", "SPEAKER_00", speaker_resolved="Alice"),
+        Segment(3.0, 4.0, "D", "SPEAKER_02"),  # raw fallback, not unassigned
+    ]))
+    svc.unassign_speaker("Alice")
+
+    svc.update_segments_speaker(db_id, UNASSIGNED, "Carol")
+
+    segs = svc.load(db_id).segments
+    assert [s.speaker_resolved for s in segs] == ["Carol", "Bob", "Carol", None]
+    assert not any(s.unassigned for s in segs)
+
+
+def test_unassigned_segments_are_not_listed_as_transcript_speakers(tmp_path):
+    svc = make_service(tmp_path)
+    svc.save(make_transcript())
+    svc.unassign_speaker("Alice")
+    assert svc.list_all()[0]["speakers"] == ["Bob"]
+
+
+def test_unassigned_column_added_to_existing_v4_database(tmp_path):
+    db = str(tmp_path / "old.db")
+    with sqlite3.connect(db) as conn:  # a v4 database: no unassigned column
+        conn.execute("CREATE TABLE _ts_schema_version (version INTEGER NOT NULL DEFAULT 0)")
+        conn.execute("INSERT INTO _ts_schema_version VALUES (4)")
+        conn.execute("CREATE TABLE transcriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, audio_file TEXT NOT NULL,"
+                     " language TEXT, status TEXT DEFAULT 'draft', created_at TEXT, title TEXT)")
+        conn.execute("CREATE TABLE segments (id INTEGER PRIMARY KEY AUTOINCREMENT, transcription_id INTEGER NOT NULL,"
+                     " speaker_id TEXT, start REAL NOT NULL, end REAL NOT NULL, text TEXT NOT NULL,"
+                     " speaker_raw TEXT, embedding BLOB)")
+        conn.execute("INSERT INTO transcriptions (audio_file) VALUES ('a.wav')")
+        conn.execute("INSERT INTO segments (transcription_id, speaker_id, start, end, text, speaker_raw)"
+                     " VALUES (1, 'Alice', 0, 1, 'x', 'SPEAKER_00')")
+
+    svc = TranscriptStorageService(db_path=db)
+
+    seg = svc.load(1).segments[0]
+    assert seg.unassigned is False and seg.speaker_resolved == "Alice"
+    from app.db.schema import SCHEMA_VERSION
+    with sqlite3.connect(db) as conn:
+        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION
+
+
+# ---------------------------------------------------------------------------
+# Speaker statistics
+# ---------------------------------------------------------------------------
+
+def test_speaker_stats_aggregates_segments_transcripts_and_time(tmp_path):
+    svc = make_service(tmp_path)
+    svc.save(make_transcript([
+        Segment(0.0, 2.0, "A", "SPEAKER_00", speaker_resolved="Alice"),
+        Segment(2.0, 3.5, "B", "SPEAKER_00", speaker_resolved="Alice"),
+        Segment(3.5, 4.0, "C", "SPEAKER_01", speaker_resolved="Bob"),
+    ]))
+    svc.save(make_transcript([Segment(0.0, 1.0, "D", "SPEAKER_00", speaker_resolved="Alice")]))
+
+    stats = svc.speaker_stats()
+
+    assert stats["Alice"]["segments"] == 3
+    assert stats["Alice"]["transcripts"] == 2
+    assert stats["Alice"]["duration_sec"] == pytest.approx(4.5)
+    assert stats["Alice"]["last_seen"]
+    assert stats["Bob"] == {**stats["Bob"], "segments": 1, "transcripts": 1}
+
+
+def test_speaker_stats_ignore_unassigned_and_raw_segments(tmp_path):
+    svc = make_service(tmp_path)
+    svc.save(make_transcript([
+        Segment(0.0, 1.0, "A", "SPEAKER_00", speaker_resolved="Alice"),
+        Segment(1.0, 2.0, "B", "SPEAKER_01"),
+    ]))
+    svc.unassign_speaker("Alice")
+    assert svc.speaker_stats() == {}
+
+
+def test_transcripts_for_speaker_lists_each_transcript_once(tmp_path):
+    svc = make_service(tmp_path)
+    first = svc.save(make_transcript([
+        Segment(0.0, 2.0, "A", "SPEAKER_00", speaker_resolved="Alice"),
+        Segment(2.0, 3.0, "B", "SPEAKER_00", speaker_resolved="Alice"),
+    ], audio_path="files/first.wav"))
+    svc.save(make_transcript([Segment(0.0, 1.0, "C", "SPEAKER_00", speaker_resolved="Bob")]))
+
+    rows = svc.transcripts_for_speaker("Alice")
+
+    assert len(rows) == 1
+    assert rows[0]["id"] == first
+    assert rows[0]["title"] == "first"
+    assert rows[0]["segments"] == 2
+    assert rows[0]["duration_sec"] == pytest.approx(3.0)
+    assert rows[0]["created_at"]
+
+
+def test_transcripts_for_unknown_speaker_is_empty(tmp_path):
+    assert make_service(tmp_path).transcripts_for_speaker("Nobody") == []
+
+
+def _v5_database(db, rows):
+    """A v5 DB whose segments rows are (transcription_id, speaker_id, speaker_raw, unassigned)."""
+    TranscriptStorageService(db_path=db)
+    with sqlite3.connect(db) as conn:
+        conn.execute("INSERT INTO transcriptions (id, audio_file) VALUES (1, 'a.wav'), (2, 'b.wav')")
+        for i, (tid, spk, raw, unassigned) in enumerate(rows):
+            conn.execute(
+                "INSERT INTO segments (transcription_id, speaker_id, start, end, text, speaker_raw, unassigned)"
+                " VALUES (?, ?, ?, ?, 'x', ?, ?)", (tid, spk, float(i), float(i) + 1, raw, unassigned))
+        conn.execute("UPDATE _ts_schema_version SET version = 5")
+
+
+def test_v6_migration_gives_raw_labels_a_uuid_per_transcript(tmp_path):
+    import uuid
+    db = str(tmp_path / "old.db")
+    _v5_database(db, [
+        (1, None, "SPEAKER_02", 0), (1, None, "SPEAKER_02", 0), (1, None, "SPEAKER_03", 0),
+        (2, None, "SPEAKER_02", 0), (1, "Alice", "SPEAKER_00", 0),
+    ])
+
+    svc = TranscriptStorageService(db_path=db)
+
+    t1, t2 = svc.load(1).segments, svc.load(2).segments
+    a, b, c, alice = (s.speaker_resolved for s in t1)
+    assert uuid.UUID(a).version == 4 and a == b and a != c
+    assert t2[0].speaker_resolved not in (a, c), "same label in another transcript is another speaker"
+    assert alice == "Alice"
+    assert not any(s.unassigned for s in t1 + t2)
+    with sqlite3.connect(db) as conn:
+        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == 6
+
+
+def test_v6_migration_unassigns_segments_without_a_diarization_speaker(tmp_path):
+    db = str(tmp_path / "old.db")
+    _v5_database(db, [(1, None, "UNKNOWN", 0), (1, None, "", 0), (1, None, None, 0), (1, None, "SPEAKER_00", 1)])
+
+    segs = TranscriptStorageService(db_path=db).load(1).segments
+
+    assert all(s.unassigned for s in segs)
+    assert all(s.speaker_resolved is None for s in segs)
+
+
+def test_bulk_reassign_works_for_a_migrated_raw_speaker(tmp_path):
+    db = str(tmp_path / "old.db")
+    _v5_database(db, [(1, None, "SPEAKER_02", 0), (1, None, "SPEAKER_02", 0)])
+    svc = TranscriptStorageService(db_path=db)
+    old = svc.load(1).segments[0].speaker_resolved
+
+    svc.update_segments_speaker(1, old, "Carol")
+
+    assert [s.speaker_resolved for s in svc.load(1).segments] == ["Carol", "Carol"]

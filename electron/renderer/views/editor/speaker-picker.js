@@ -2,6 +2,8 @@
 function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, onReload, segmentStart = null) {
   document.getElementById('_spk-picker')?.remove()
   const _pickerKnownMap = buildKnownMap(knownSpeakers)
+  // Speakers sharing a name are told apart by their usage line
+  const _sameName = duplicateNameIds(knownSpeakers)
 
   const popup = document.createElement('div')
   popup.id = '_spk-picker'
@@ -123,6 +125,12 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
       const nm = document.createElement('span')
       nm.className = 'spk-picker-item-name'
       nm.textContent = s.name
+      if (_sameName.has(s.id)) {
+        const meta = document.createElement('span')
+        meta.className = 'spk-picker-item-meta'
+        meta.textContent = speakerStatsLine(s)
+        nm.appendChild(meta)
+      }
 
       row.appendChild(av)
       row.appendChild(nm)

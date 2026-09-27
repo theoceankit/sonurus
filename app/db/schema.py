@@ -1,6 +1,7 @@
 """Transcript DB schema management: creation and versioned migrations."""
+import uuid
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 6
 
 
 def init_db(conn) -> None:
@@ -78,3 +79,31 @@ def _run_migrations(conn, current: int) -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_segments_transcription ON segments(transcription_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_segments_speaker ON segments(speaker_id)")
         conn.execute("UPDATE _ts_schema_version SET version = 4")
+        current = 4
+    if current < 5:
+        # Segments of a deleted speaker: speaker_id is NULL and the segment is
+        # shown as "Unassigned" instead of falling back to speaker_raw.
+        seg_cols = {r[1] for r in conn.execute("PRAGMA table_info(segments)").fetchall()}
+        if "unassigned" not in seg_cols:
+            conn.execute("ALTER TABLE segments ADD COLUMN unassigned INTEGER NOT NULL DEFAULT 0")
+        conn.execute("UPDATE _ts_schema_version SET version = 5")
+        current = 5
+    if current < 6:
+        _assign_raw_speakers(conn)
+        conn.execute("UPDATE _ts_schema_version SET version = 6")
+
+
+def _assign_raw_speakers(conn) -> None:
+    """Segments stored without a speaker id fell back to the raw diarization
+    label. Give each (transcript, SPEAKER_XX) its own new UUID; segments with
+    no diarization speaker at all become unassigned."""
+    pairs = conn.execute(
+        "SELECT DISTINCT transcription_id, speaker_raw FROM segments "
+        "WHERE speaker_id IS NULL AND unassigned = 0 AND speaker_raw LIKE 'SPEAKER\\_%' ESCAPE '\\'"
+    ).fetchall()
+    conn.executemany(
+        "UPDATE segments SET speaker_id = ? "
+        "WHERE transcription_id = ? AND speaker_raw = ? AND speaker_id IS NULL AND unassigned = 0",
+        [(str(uuid.uuid4()), tid, raw) for tid, raw in pairs],
+    )
+    conn.execute("UPDATE segments SET unassigned = 1 WHERE speaker_id IS NULL AND unassigned = 0")

@@ -23,8 +23,9 @@ Rules that must always hold. Violating any of these corrupts speaker memory or p
 No code other than `CommitService` may call `SpeakerMemoryService.update_embedding()` or write to `speaker_embeddings`.
 
 Two permitted exceptions that do not write embeddings:
-- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names` (display names). Called from `POST /speakers/{id}/rename` and via `create_named_speaker()` when a user assigns segments to a new name.
-- `SpeakerMemoryService.remove_speaker()` — deletes a speaker from memory and DB. Called from `POST /transcripts/{id}/reassign` to clean up replaced temporary IDs.
+- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names` (display names). Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and via `create_named_speaker()` when a user assigns segments to a new name.
+- `SpeakerMemoryService.set_color()` — writes only `speaker_meta` (palette color). Called from `PATCH /speakers/{id}`.
+- `SpeakerMemoryService.remove_speaker()` — deletes a speaker (embedding, names, color) from memory and DB. Called only through `CommitService`: `recompute_or_remove()` drops unnamed speakers left without segments, and `delete_speaker()` (`DELETE /speakers/{id}`) first unassigns the speaker's segments so nothing can recompute the profile back.
 - `SpeakerMemoryService.clear()` — deletes every speaker (embeddings, names, colors) and drops the in-memory state. Called only from `POST /data/reset` (full data reset), which runs `TranscriptStorageService.clear()` first, so no segments remain to recompute from.
 
 **Why:** Centralising embedding writes to `CommitService` makes it possible to reason about when and why voice profiles change. Name management and cleanup are deliberately separated from embedding updates.
@@ -40,8 +41,10 @@ Two permitted exceptions that do not write embeddings:
 The effective speaker for any segment is always resolved as:
 
 ```
-speaker_final ?? speaker_resolved ?? speaker_raw
+unassigned ? UNASSIGNED : speaker_final ?? speaker_resolved ?? speaker_raw
 ```
+
+`unassigned` (set when the segment's speaker is deleted) wins over every speaker field: such a segment has no speaker until the user assigns one, and it never falls back to the unstable `speaker_raw`. `UNASSIGNED` is a pseudo-id — never stored in `segments.speaker_id` and never a speaker in memory.
 
 No code may read `speaker_raw` or `speaker_resolved` as the effective speaker when `speaker_final` is set.
 
@@ -94,9 +97,9 @@ A speaker is **RECOGNIZED** if and only if they have a display name entry in `sp
 
 The display name is **never** stored as the speaker ID. All IDs in `speaker_embeddings` and `segments.speaker_id` are UUID4 strings (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
 
-**In the UI:** `isUnrecognized(spkId, knownMap)` in `utils.js` — `knownMap` is built from `GET /speakers` (which only returns recognized speakers). A speaker is unrecognized if absent from `knownMap` or if their ID starts with `SPEAKER_`.
+**In the UI:** `isUnrecognized(spkId, knownMap)` in `utils.js` — `knownMap` is built from the named rows of `GET /speakers` (`buildKnownMap()` skips `name: null`). A speaker is unrecognized if absent from `knownMap`, if their ID starts with `SPEAKER_`, or for the `UNASSIGNED` pseudo-id.
 
-**Why:** Decoupling identity (UUID) from display name allows two speakers with the same name (e.g. two people named "Alice") to coexist as distinct UUIDs. Renaming a speaker only updates `speaker_names` without touching segment data or embeddings.
+**Why:** Decoupling identity (UUID) from display name means renaming a speaker only updates `speaker_names` without touching segment data or embeddings. Display names are not unique: two different people named "Alice" coexist as two UUIDs, and assigning segments to a new name always creates a new UUID. The UI marks speakers that share a name and shows their usage to tell them apart.
 
 **Target state:** The principle stays.
 

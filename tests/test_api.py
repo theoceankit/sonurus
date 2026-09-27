@@ -1114,3 +1114,243 @@ def test_delete_transcript_with_missing_recording_succeeds(client, recordings_di
 
 def test_delete_unknown_transcript_returns_404(client, recordings_dir):
     assert client.delete("/transcripts/9999").status_code == 404
+
+
+# ── Speakers section: list, update, delete, transcripts ──────────────────────
+
+_BOB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+_CAROL = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+
+
+def _speakers_fixture():
+    """Alice: named, voice, 2 segments in 2 transcripts. Bob: unnamed, voice,
+    1 segment. Carol: in segments only (no profile, no name)."""
+    storage = app.dependency_overrides[get_storage_service]()
+    memory = app.dependency_overrides[get_memory_service]()
+    first = storage.save(Transcript(audio_path="first.wav", segments=[
+        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(1.0, 0.0, 0.0)),
+        Segment(2.0, 3.0, "b", "SPEAKER_01", speaker_resolved=_BOB, embedding=_emb(0.0, 1.0, 0.0)),
+        Segment(3.0, 4.0, "c", "SPEAKER_02", speaker_resolved=_CAROL),
+    ]))
+    second = storage.save(Transcript(audio_path="second.wav", segments=[
+        Segment(0.0, 1.5, "d", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(1.0, 0.1, 0.0)),
+    ]))
+    memory.update_embedding(_ALICE, _emb(1.0, 0.0, 0.0))
+    memory.update_embedding(_BOB, _emb(0.0, 1.0, 0.0))
+    memory.set_name(_ALICE, "Alice")
+    memory.save()
+    return first, second
+
+
+def _speaker_rows(client):
+    r = client.get("/speakers")
+    assert r.status_code == 200, r.text
+    return {row["id"]: row for row in r.json()}
+
+
+def test_list_speakers_includes_unnamed_and_segment_only_speakers(client):
+    _speakers_fixture()
+    rows = _speaker_rows(client)
+    assert set(rows) == {_ALICE, _BOB, _CAROL}
+    assert rows[_ALICE]["name"] == "Alice"
+    assert rows[_BOB]["name"] is None
+    assert rows[_CAROL]["name"] is None
+
+
+def test_list_speakers_reports_usage_statistics(client):
+    _speakers_fixture()
+    alice = _speaker_rows(client)[_ALICE]
+    assert alice["segments"] == 2
+    assert alice["transcripts"] == 2
+    assert alice["duration_sec"] == pytest.approx(3.5)
+    assert alice["last_seen"]
+
+
+def test_list_speakers_puts_named_first(client):
+    _speakers_fixture()
+    ids = [row["id"] for row in client.get("/speakers").json()]
+    assert ids[0] == _ALICE
+
+
+def test_patch_speaker_renames_and_recolors(client):
+    _speakers_fixture()
+    r = client.patch(f"/speakers/{_BOB}", json={"name": "  Bob  ", "color_index": 2})
+    assert r.status_code == 200, r.text
+    assert r.json()["name"] == "Bob" and r.json()["color_index"] == 2
+    row = _speaker_rows(client)[_BOB]
+    assert row["name"] == "Bob" and row["color_index"] == 2
+
+
+def test_patch_speaker_can_name_a_segment_only_speaker(client):
+    _speakers_fixture()
+    assert client.patch(f"/speakers/{_CAROL}", json={"name": "Carol"}).status_code == 200
+    assert _speaker_rows(client)[_CAROL]["name"] == "Carol"
+
+
+def test_patch_speaker_allows_a_name_another_speaker_has(client):
+    """Names are labels, not identities: two people named Alice are two UUIDs."""
+    _speakers_fixture()
+    r = client.patch(f"/speakers/{_BOB}", json={"name": "Alice"})
+    assert r.status_code == 200, r.text
+    rows = _speaker_rows(client)
+    assert rows[_BOB]["name"] == "Alice" and rows[_ALICE]["name"] == "Alice"
+
+
+def test_patch_speaker_keeping_own_name_is_allowed(client):
+    _speakers_fixture()
+    assert client.patch(f"/speakers/{_ALICE}", json={"name": "ALICE"}).status_code == 200
+
+
+@pytest.mark.parametrize("body", [{}, {"color_index": 5}, {"color_index": -1}, {"name": "   "}])
+def test_patch_speaker_rejects_invalid_body(client, body):
+    _speakers_fixture()
+    assert client.patch(f"/speakers/{_ALICE}", json=body).status_code in (400, 422)
+
+
+def test_patch_unknown_speaker_returns_404(client):
+    assert client.patch(f"/speakers/{_BOB}", json={"name": "X"}).status_code == 404
+
+
+def test_rename_allows_a_name_another_speaker_has(client):
+    _speakers_fixture()
+    assert client.post(f"/speakers/{_BOB}/rename", json={"name": "Alice"}).status_code == 204
+
+
+def test_speaker_transcripts(client):
+    first, second = _speakers_fixture()
+    r = client.get(f"/speakers/{_ALICE}/transcripts")
+    assert r.status_code == 200
+    assert {t["id"] for t in r.json()} == {first, second}
+    assert client.get(f"/speakers/{_BOB}/transcripts").json()[0]["title"] == "first"
+
+
+def test_speaker_transcripts_unknown_returns_404(client):
+    assert client.get(f"/speakers/{_BOB}/transcripts").status_code == 404
+
+
+def test_delete_speaker_unassigns_segments(reset_env):
+    client, *_ = reset_env
+    first, second = _speakers_fixture()
+
+    r = client.delete(f"/speakers/{_ALICE}")
+
+    assert r.status_code == 200, r.text
+    assert r.json() == {"segments": 2, "transcripts": 2}
+    assert _ALICE not in _speaker_rows(client)
+    segs = client.get(f"/transcripts/{first}").json()["segments"]
+    assert segs[0]["unassigned"] is True
+    assert segs[0]["speaker_resolved"] is None and segs[0]["speaker_final"] is None
+    assert segs[1]["unassigned"] is False
+    assert _ALICE not in _fresh_memory().known_speakers
+
+
+def test_delete_unknown_speaker_returns_404(reset_env):
+    client, *_ = reset_env
+    assert client.delete(f"/speakers/{_ALICE}").status_code == 404
+
+
+def test_delete_speaker_returns_409_while_transcription_runs(reset_env, monkeypatch):
+    from app.api.routers import transcription
+    client, *_ = reset_env
+    _speakers_fixture()
+    monkeypatch.setitem(transcription._jobs, "job-1", None)
+    assert client.delete(f"/speakers/{_ALICE}").status_code == 409
+    assert _ALICE in _speaker_rows(client)
+
+
+def test_delete_speaker_returns_409_while_capture_runs(reset_env):
+    client, _, _, capture = reset_env
+    _speakers_fixture()
+    capture.active = True
+    assert client.delete(f"/speakers/{_ALICE}").status_code == 409
+
+
+def test_bulk_reassign_unassigned_segments(reset_env):
+    client, *_ = reset_env
+    first, _ = _speakers_fixture()
+    client.delete(f"/speakers/{_ALICE}")
+
+    r = client.post(f"/transcripts/{first}/reassign",
+                    json={"from_speaker_id": "UNASSIGNED", "to_speaker_name": "Dana"})
+
+    assert r.status_code == 204, r.text
+    seg = client.get(f"/transcripts/{first}").json()["segments"][0]
+    assert seg["unassigned"] is False
+    dana = seg["speaker_final"] or seg["speaker_resolved"]
+    assert _speaker_rows(client)[dana]["name"] == "Dana"
+    assert dana in _fresh_memory().known_speakers, "Dana's profile is built from the reassigned segment"
+
+
+def test_single_segment_reassign_of_unassigned_segment(reset_env):
+    client, *_ = reset_env
+    first, _ = _speakers_fixture()
+    client.delete(f"/speakers/{_ALICE}")
+
+    r = client.patch(f"/transcripts/{first}/segments/0.0/speaker", json={"speaker_id": _BOB})
+
+    assert r.status_code == 204, r.text
+    seg = client.get(f"/transcripts/{first}").json()["segments"][0]
+    assert seg["unassigned"] is False and seg["speaker_resolved"] == _BOB
+
+
+def test_suggestions_skip_unassigned_segments(reset_env):
+    client, *_ = reset_env
+    first, _ = _speakers_fixture()
+    client.delete(f"/speakers/{_ALICE}")
+    r = client.get(f"/transcripts/{first}/speaker-suggestions")
+    assert r.status_code == 200
+    assert "UNASSIGNED" not in r.json()
+
+
+# ── GET /speakers/{id}/sample ─────────────────────────────────────────────────
+
+def _sample_fixture(tmp_path):
+    """Alice speaks in two transcripts; both audio files exist."""
+    storage = app.dependency_overrides[get_storage_service]()
+    memory = app.dependency_overrides[get_memory_service]()
+    audio1, audio2 = tmp_path / "one.wav", tmp_path / "two.wav"
+    audio1.write_bytes(b"x")
+    audio2.write_bytes(b"x")
+    first = storage.save(Transcript(audio_path=str(audio1), segments=[
+        Segment(0.0, 3.0, "far voice", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(0.0, 1.0, 0.0)),
+        Segment(3.0, 6.0, "typical voice", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(1.0, 0.0, 0.0)),
+    ]))
+    second = storage.save(Transcript(audio_path=str(audio2), segments=[
+        Segment(0.0, 2.5, "other day", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(0.0, 1.0, 0.0)),
+    ]))
+    memory.update_embedding(_ALICE, _emb(1.0, 0.0, 0.0))
+    memory.set_name(_ALICE, "Alice")
+    memory.save()
+    return first, second, audio1, audio2
+
+
+def test_speaker_sample_is_the_most_typical_segment(client, tmp_path):
+    first, _, audio1, _ = _sample_fixture(tmp_path)
+    r = client.get(f"/speakers/{_ALICE}/sample")
+    assert r.status_code == 200, r.text
+    assert r.json() == {"transcript_id": first, "audio_path": str(audio1),
+                        "start": 3.0, "end": 6.0, "text": "typical voice"}
+
+
+def test_speaker_sample_limited_to_one_transcript(client, tmp_path):
+    _, second, _, _ = _sample_fixture(tmp_path)
+    r = client.get(f"/speakers/{_ALICE}/sample", params={"transcript_id": second})
+    assert r.status_code == 200
+    assert r.json()["text"] == "other day"
+
+
+def test_speaker_sample_skips_transcripts_without_audio(client, tmp_path):
+    _, second, audio1, _ = _sample_fixture(tmp_path)
+    audio1.unlink()
+    assert client.get(f"/speakers/{_ALICE}/sample").json()["transcript_id"] == second
+
+
+def test_speaker_sample_404_without_audio(client, tmp_path):
+    _, _, audio1, audio2 = _sample_fixture(tmp_path)
+    audio1.unlink()
+    audio2.unlink()
+    assert client.get(f"/speakers/{_ALICE}/sample").status_code == 404
+
+
+def test_speaker_sample_404_for_unknown_speaker(client):
+    assert client.get(f"/speakers/{_BOB}/sample").status_code == 404

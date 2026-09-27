@@ -702,3 +702,50 @@ def test_recompute_or_remove_uses_guard_but_includes_compatible_transcripts(tmp_
     # Both transcripts are compatible → embedding is updated (count now 2).
     assert spk in memory.known_speakers
     assert np.allclose(memory.known_speakers[spk], norm_t1, atol=1e-5)
+
+
+# ---------------------------------------------------------------------------
+# delete_speaker(speaker_id) and the UNASSIGNED pseudo-speaker
+# ---------------------------------------------------------------------------
+
+from app.models.segment import UNASSIGNED
+
+
+def test_delete_speaker_unassigns_segments_and_removes_profile(tmp_path):
+    memory, storage, commit_svc = make_services(tmp_path)
+    e1 = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    e2 = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+    db_id = storage.save(make_transcript([
+        make_segment(0.0, 1.0, "a", "SPEAKER_00", "alice", e1),
+        make_segment(1.0, 2.0, "b", "SPEAKER_01", "bob", e2),
+    ]))
+    commit_svc.commit(storage.load(db_id))
+    memory.set_name("alice", "Alice")
+    memory.save_names_only()
+    bob_before = memory.known_speakers["bob"].copy()
+
+    result = commit_svc.delete_speaker("alice")
+
+    assert result == {"segments": 1, "transcripts": 1}
+    assert "alice" not in memory.known_speakers
+    assert memory.get_name("alice") is None
+    assert memory.get_color_index("alice") is None
+    assert np.allclose(memory.known_speakers["bob"], bob_before)
+    segs = storage.load(db_id).segments
+    assert segs[0].unassigned and segs[0].speaker_resolved is None
+    fresh = SpeakerMemoryService(db_path=memory.db_path)
+    assert "alice" not in fresh.known_speakers and fresh.get_name("alice") is None
+
+
+def test_delete_name_only_speaker(tmp_path):
+    memory, storage, commit_svc = make_services(tmp_path)
+    spk = memory.create_named_speaker("Carol")
+    assert commit_svc.delete_speaker(spk) == {"segments": 0, "transcripts": 0}
+    assert memory.get_name(spk) is None
+
+
+def test_unassigned_is_never_committed(tmp_path):
+    memory, storage, commit_svc = make_services(tmp_path)
+    commit_svc.commit_speaker(UNASSIGNED)
+    commit_svc.recompute_or_remove(UNASSIGNED)
+    assert UNASSIGNED not in memory.known_speakers
