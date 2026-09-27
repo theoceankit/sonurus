@@ -47,5 +47,3 @@ Documents `Transcript` and `Segment` dataclasses. Needs translation to English a
 ### `controllers/TranscriptionController.md`
 Needs translation to English and a review for accuracy against current code.
 
-### `ui/cli/cli.md`
-Currently in Russian. Needs translation.
