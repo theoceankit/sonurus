@@ -98,6 +98,15 @@ class TranscriptStorageService:
             conn.execute("DELETE FROM transcriptions WHERE id = ?", (db_id,))
         log.info(f"DELETE transcription id={db_id} and its segments")
 
+    def clear(self) -> int:
+        """Delete every transcription and segment. Returns the number of transcriptions removed."""
+        with self._connect() as conn:
+            count = conn.execute("SELECT COUNT(*) FROM transcriptions").fetchone()[0]
+            conn.execute("DELETE FROM segments")
+            conn.execute("DELETE FROM transcriptions")
+        log.info(f"DELETE all transcriptions ({count}) and their segments")
+        return count
+
     # ── Read ──────────────────────────────────────────────────────────────────
 
     def load(self, db_id: int, with_embeddings: bool = True) -> Transcript:

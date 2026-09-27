@@ -53,6 +53,10 @@ class AudioCaptureService:
             return []  # Windows captures system audio in the renderer (WASAPI loopback)
         return self._linux_sources()
 
+    def has_active_jobs(self) -> bool:
+        with self._lock:
+            return bool(self._jobs)
+
     def start_capture(self, source_id: str | None = None) -> str:
         job_id = str(uuid.uuid4())
         output_path = str(Path(tempfile.gettempdir()) / f"sonorus-sys-{job_id}.wav")

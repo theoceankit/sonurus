@@ -672,3 +672,91 @@ def test_create_named_speaker_persists_name_without_embedding(tmp_path):
 def test_create_named_speaker_returns_distinct_ids(tmp_path):
     svc = make_memory(tmp_path)
     assert svc.create_named_speaker("A") != svc.create_named_speaker("A")
+
+
+# ---------------------------------------------------------------------------
+# clear()
+# ---------------------------------------------------------------------------
+
+def _populated_memory(tmp_path):
+    svc = make_memory(tmp_path)
+    named = svc.create_named_speaker("Alice")
+    unnamed = str(uuid_module.uuid4())
+    svc.update_embedding(named, np.array([1.0, 0.0, 0.0]))
+    svc.update_embedding(unnamed, np.array([0.0, 1.0, 0.0]))
+    svc.save()
+    return svc, named, unnamed
+
+
+def test_clear_removes_all_speakers_from_db(tmp_path):
+    svc, _, _ = _populated_memory(tmp_path)
+
+    assert svc.clear() == 2
+
+    with sqlite3.connect(str(tmp_path / "memory.db")) as conn:
+        for table in ("speaker_embeddings", "speaker_names", "speaker_meta"):
+            assert conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0, table
+
+
+def test_clear_empties_in_memory_state(tmp_path):
+    svc, named, _ = _populated_memory(tmp_path)
+
+    svc.clear()
+
+    assert svc.known_speakers == {}
+    assert svc.known_counts == {}
+    assert svc.known_names == {}
+    assert svc.known_colors == {}
+    assert svc.get_name(named) is None
+
+
+def test_clear_is_persistent_for_new_instances(tmp_path):
+    svc, _, _ = _populated_memory(tmp_path)
+    svc.clear()
+
+    fresh = make_memory(tmp_path)
+
+    assert fresh.known_speakers == {}
+    assert fresh.known_names == {}
+    assert fresh.known_colors == {}
+
+
+def test_save_after_clear_does_not_restore_pending_changes(tmp_path):
+    """Pending (dirty) embeddings/names/colors must be dropped by clear()."""
+    svc, named, _ = _populated_memory(tmp_path)
+    svc.update_embedding(named, np.array([0.0, 0.0, 1.0]))
+    svc.set_name(named, "Alice 2")
+
+    svc.clear()
+    svc.save()
+    svc.save_names_only()
+
+    fresh = make_memory(tmp_path)
+    assert fresh.known_speakers == {}
+    assert fresh.known_names == {}
+    assert fresh.known_colors == {}
+
+
+def test_clear_keeps_schema_version(tmp_path):
+    svc, _, _ = _populated_memory(tmp_path)
+    with sqlite3.connect(str(tmp_path / "memory.db")) as conn:
+        before = conn.execute("SELECT key, value FROM _meta ORDER BY key").fetchall()
+
+    svc.clear()
+
+    with sqlite3.connect(str(tmp_path / "memory.db")) as conn:
+        after = conn.execute("SELECT key, value FROM _meta ORDER BY key").fetchall()
+    assert after == before
+
+
+def test_new_speakers_can_be_added_after_clear(tmp_path):
+    svc, _, _ = _populated_memory(tmp_path)
+    svc.clear()
+
+    spk = svc.create_named_speaker("Bob")
+    svc.update_embedding(spk, np.array([1.0, 1.0, 0.0]))
+    svc.save()
+
+    fresh = make_memory(tmp_path)
+    assert list(fresh.known_speakers) == [spk]
+    assert fresh.get_name(spk) == "Bob"
