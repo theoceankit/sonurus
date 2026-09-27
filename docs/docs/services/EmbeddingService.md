@@ -19,10 +19,10 @@ The service provides two embedding representations:
 
 | Representation | Method | Used by |
 |---|---|---|
-| Aggregated (per `SPEAKER_XX`) | `extract_all()`, `extract()` | `SpeakerMemoryService.resolve()` |
-| Per-segment (per diarization span) | `extract_all()`, `extract_segments()` | `TranscriptBuilder.attach_embeddings()` |
+| Aggregated (per `SPEAKER_XX`) | `extract_all()` | `SpeakerMemoryService.resolve()` |
+| Per-segment (per diarization span) | `extract_all()` | `TranscriptBuilder.attach_embeddings()` |
 
-**Recommended method:** `extract_all()` — single pyannote pass, returns both representations at once.
+`extract_all()` is the only public method — a single pyannote pass returns both representations. A diarization speaker whose spans are all shorter than `min_duration` gets no aggregated embedding; `TranscriptBuilder` then gives it a new UUID without a voice profile.
 
 ---
 
@@ -54,9 +54,9 @@ diarize_segments — DataFrame: start | end | speaker
 
 ## Methods
 
-### `__init__(device, sample_rate=16000, min_duration=1.0)`
+### `__init__(device, sample_rate=EMBEDDING_SAMPLE_RATE, min_duration=EMBEDDING_MIN_DURATION, models_dir=MODELS_DIR)`
 
-Initialises the service and loads the `pyannote/embedding` model.
+Initialises the service and loads the `pyannote/embedding` model from `models_dir`.
 
 **Parameters:**
 - `device` — torch device (`cuda` / `cpu`)
@@ -75,19 +75,11 @@ aggregated, segments = embedding_service.extract_all(audio, diarization)
 
 **Returns:** `(aggregated_dict, segments_list)`
 
-Delegates internally to `extract_segments()` + `_aggregate_from_segments()`.
+Delegates internally to `_extract_segments()` + `_aggregate_from_segments()`.
 
 ---
 
-### `extract(audio, diarize_segments)`
-
-Returns only the aggregated embeddings. Useful when per-segment is not needed.
-
-**Returns:** `{"SPEAKER_00": np.array([...]), ...}`
-
----
-
-### `extract_segments(audio, diarize_segments)`
+### `_extract_segments(audio, diarize_segments)`
 
 Returns an embedding for each individual diarization segment, without aggregation.
 
