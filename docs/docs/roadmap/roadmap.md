@@ -44,7 +44,7 @@ See [Domain Invariants → I4](../system/invariants.md#i4--commitservice-recompu
 ## UI — Speakers
 
 ### ✅ Speakers section
-A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-only) with search, an All / Named / Unnamed filter and usage statistics. The speaker page renames (several speakers may share a name), recolors, lists the transcripts the speaker appears in, and plays a voice sample, and deletes the speaker — its segments become **Unassigned** (transcript schema v5) and can be reassigned in the editor. See [API → Speakers](../api/endpoints.md#speakers) and [Electron UI → Speakers section](../ui/electron/overview.md#speakers-section).
+A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-only) with search, an All / Named / Unnamed filter and usage statistics. The speaker page renames (several speakers may share a name), recolors, lists the transcripts the speaker appears in, plays a voice sample, and deletes the speaker — its segments become **Unassigned** (transcript schema v5) and can be reassigned in the editor. See [API → Speakers](../api/endpoints.md#speakers) and [Electron UI → Speakers section](../ui/electron/overview.md#speakers-section).
 
 ### Merge speakers and full speaker profiles
 **Current:** speakers that share a name are only marked; there is no merge for the case when they turn out to be the same person. A speaker has a display name and a color.  
