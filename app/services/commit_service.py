@@ -1,8 +1,14 @@
 import numpy as np
 
 from app.logger import get_logger
+from app.models.segment import UNASSIGNED
 
 log = get_logger("CommitService")
+
+
+def _has_no_profile(speaker_id: str) -> bool:
+    """Raw diarization labels and UNASSIGNED never get a voice profile."""
+    return speaker_id == UNASSIGNED or speaker_id.startswith('SPEAKER_')
 
 
 class CommitService:
@@ -73,7 +79,7 @@ class CommitService:
         This prevents a manually-labelled recording from corrupting the embedding
         when the system itself would not have recognised the speaker there.
         """
-        if speaker_id.startswith('SPEAKER_'):
+        if _has_no_profile(speaker_id):
             return
         guard_emb = self.memory.known_speakers.get(speaker_id)
         avg, count = self._avg_from_db(speaker_id, guard_emb=guard_emb)
@@ -84,7 +90,7 @@ class CommitService:
 
     def recompute_or_remove(self, speaker_id: str):
         """After reassignment: recompute FROM speaker, or remove if no segments left and unnamed."""
-        if speaker_id.startswith('SPEAKER_'):
+        if _has_no_profile(speaker_id):
             return
         # Un-guarded check: are there any segments with embeddings at all?
         any_avg, _ = self._avg_from_db(speaker_id)
@@ -106,6 +112,15 @@ class CommitService:
             return
         self.memory.update_embedding(speaker_id, avg, count)
         self.memory.save()
+
+    def delete_speaker(self, speaker_id: str) -> dict:
+        """Delete a speaker: its segments become unassigned (they no longer feed
+        any profile), then its profile, names and color are removed.
+        Returns the affected {segments, transcripts} counts."""
+        result = self.storage.unassign_speaker(speaker_id)
+        self.memory.remove_speaker(speaker_id)
+        log.info(f"Deleted speaker {speaker_id} ({result['segments']} segments unassigned)")
+        return result
 
     def commit_recognized_speakers(self, transcript):
         """Update embeddings for speakers already in memory (auto-recognized in new session)."""

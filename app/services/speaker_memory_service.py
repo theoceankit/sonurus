@@ -349,6 +349,14 @@ class SpeakerMemoryService:
     def get_color_index(self, spk_id: str) -> int | None:
         return self.known_colors.get(spk_id)
 
+    def set_color(self, spk_id: str, color_index: int):
+        """Persist a user-chosen palette color. Raises ValueError outside the palette."""
+        if not 0 <= color_index < PALETTE_SIZE:
+            raise ValueError(f"color_index must be in 0..{PALETTE_SIZE - 1}")
+        self.known_colors[spk_id] = color_index
+        self._dirty_colors.discard(spk_id)
+        self._repo.save_colors({spk_id: color_index})
+
     def resolve(self, new_embeddings: dict) -> dict:
         """Pure speaker matching — does NOT mutate known_speakers."""
         log.info(
@@ -419,14 +427,29 @@ class SpeakerMemoryService:
                 return spk_id
         return self._repo.find_by_name_in_db(name, label)
 
+    def speaker_ids(self) -> set[str]:
+        """Every speaker memory knows about: with a voice profile, a name, or both."""
+        return set(self.known_speakers) | set(self.known_names)
+
+    def is_name_taken(self, name: str, exclude_id: str | None = None, label: str = "display") -> bool:
+        """True if another speaker already has this name (case- and whitespace-insensitive)."""
+        key = name.strip().casefold()
+        return any(
+            spk_id != exclude_id and (labels.get(label) or "").strip().casefold() == key
+            for spk_id, labels in self.known_names.items()
+        )
+
     def remove_speaker(self, spk_id: str):
-        """Remove a speaker from memory and the database. No-op if not present."""
-        if spk_id not in self.known_speakers:
-            return
-        del self.known_speakers[spk_id]
+        """Remove a speaker (profile, names, color) from memory and the database.
+        No-op if not present."""
+        self.known_speakers.pop(spk_id, None)
         self.known_counts.pop(spk_id, None)
         self.known_names.pop(spk_id, None)
         self.known_colors.pop(spk_id, None)
+        self._dirty_names.discard(spk_id)
+        self._dirty_colors.discard(spk_id)
+        with self._dirty_lock:
+            self._dirty.discard(spk_id)
         self._repo.remove(spk_id)
 
     def clear(self) -> int:

@@ -760,3 +760,46 @@ def test_new_speakers_can_be_added_after_clear(tmp_path):
     fresh = make_memory(tmp_path)
     assert list(fresh.known_speakers) == [spk]
     assert fresh.get_name(spk) == "Bob"
+
+
+# ---------------------------------------------------------------------------
+# Speakers section: ids, name uniqueness, color, removal of name-only speakers
+# ---------------------------------------------------------------------------
+
+def test_speaker_ids_include_voice_only_and_name_only_speakers(tmp_path):
+    svc = make_memory_with_speaker(tmp_path, "voice")
+    svc.save()
+    named = svc.create_named_speaker("Carol")  # no embedding yet
+    assert svc.speaker_ids() == {"voice", named}
+
+
+def test_name_taken_ignores_case_and_surrounding_whitespace(tmp_path):
+    svc = make_memory(tmp_path)
+    alice = svc.create_named_speaker("Alice Smith")
+    assert svc.is_name_taken("  alice smith ")
+    assert not svc.is_name_taken("Alice")
+    assert not svc.is_name_taken("alice smith", exclude_id=alice)
+
+
+def test_set_color_persists(tmp_path):
+    svc = make_memory_with_speaker(tmp_path, "spk")
+    svc.save()
+    svc.set_color("spk", 3)
+    assert svc.get_color_index("spk") == 3
+    assert SpeakerMemoryService(db_path=svc.db_path).get_color_index("spk") == 3
+
+
+@pytest.mark.parametrize("bad", [-1, 5, 99])
+def test_set_color_rejects_index_outside_palette(tmp_path, bad):
+    svc = make_memory_with_speaker(tmp_path, "spk")
+    with pytest.raises(ValueError):
+        svc.set_color("spk", bad)
+
+
+def test_remove_speaker_removes_name_only_speaker(tmp_path):
+    svc = make_memory(tmp_path)
+    spk = svc.create_named_speaker("Carol")
+    svc.remove_speaker(spk)
+    assert svc.get_name(spk) is None
+    assert spk not in svc.speaker_ids()
+    assert SpeakerMemoryService(db_path=svc.db_path).get_name(spk) is None
