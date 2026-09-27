@@ -1416,3 +1416,49 @@ def test_color_index_with_existing_speaker_id_is_rejected(client):
         "from_speaker_id": "Alice", "to_speaker_id": spk_uuid, "color_index": 1,
     })
     assert (r1.status_code, r2.status_code) == (400, 400)
+
+
+# ── Named speaker without a voice profile ─────────────────────────────────────
+# A speaker created by name on segments too short for an embedding has a name but
+# no profile. It is offered in the picker, so it must be assignable.
+
+def _named_speaker_without_profile(name="Carol") -> str:
+    memory = app.dependency_overrides[get_memory_service]()
+    spk_id = memory.create_named_speaker(name)
+    assert spk_id not in memory.known_speakers
+    return spk_id
+
+
+def _saved_id_with_embeddings() -> int:
+    storage = app.dependency_overrides[get_storage_service]()
+    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    return storage.save(Transcript(
+        audio_path="files/test.wav", language="en",
+        segments=[
+            Segment(0.0, 2.0, "Hello", "SPEAKER_00", speaker_resolved="Alice", embedding=emb),
+            Segment(2.0, 4.0, "World", "SPEAKER_01", speaker_resolved="Bob", embedding=emb),
+        ],
+    ))
+
+
+def test_update_segment_speaker_to_named_speaker_without_profile(client):
+    """PATCH segment speaker accepts a named speaker that has no voice profile yet,
+    and builds its profile from the newly assigned segment."""
+    carol = _named_speaker_without_profile()
+    db_id = _saved_id_with_embeddings()
+    r = client.patch(f"/transcripts/{db_id}/segments/0.0/speaker", json={"speaker_id": carol})
+    assert r.status_code == 204, r.text
+    segs = client.get(f"/transcripts/{db_id}").json()["segments"]
+    assert segs[0]["speaker_final"] == carol or segs[0]["speaker_resolved"] == carol
+    assert carol in app.dependency_overrides[get_memory_service]().known_speakers
+
+
+def test_reassign_to_named_speaker_without_profile(client):
+    """POST /reassign accepts a named speaker that has no voice profile yet."""
+    carol = _named_speaker_without_profile()
+    db_id = _saved_id_with_embeddings()
+    r = client.post(f"/transcripts/{db_id}/reassign", json={
+        "from_speaker_id": "Alice", "to_speaker_id": carol,
+    })
+    assert r.status_code == 204, r.text
+    assert carol in app.dependency_overrides[get_memory_service]().known_speakers
