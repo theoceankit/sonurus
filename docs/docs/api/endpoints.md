@@ -135,7 +135,7 @@ Cancels a running transcription job. Sets a `threading.Event` that raises `_JobC
 
 ## Models
 
-Manages the local model cache. Install status is detected by checking for `refs/main` in the HuggingFace cache directory structure.
+Manages the local model cache. A repo counts as installed when its HuggingFace cache dir has `refs/main`, no `.sonorus-downloading` marker and no `blobs/*.incomplete` files. `huggingface_hub` writes `refs/main` before fetching any file, so the marker (created before a download, removed after it succeeds) is what distinguishes an interrupted download from a complete one.
 
 Model directories:
 - Whisper: `.models/whisper/`
@@ -177,7 +177,7 @@ Unknown `model_id` returns `422`.
 
 ### `DELETE /models/{model_id}/download/{job_id}`
 
-Cancels an in-progress download. Sets a `threading.Event` that stops the download loop between repos. The WS receives a `cancelled` event.
+Cancels an in-progress download. Sets a `threading.Event`; each `snapshot_download` runs in a child process, which is terminated immediately, so the transfer stops mid-file. Partial files stay in the cache and a later download resumes them. The WS receives a `cancelled` event.
 
 - `200` — cancel signal sent
 - `404` — job not found

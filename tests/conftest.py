@@ -44,3 +44,9 @@ if not _is_importable("torch"):
         "huggingface_hub",
     ]:
         sys.modules[_name] = MagicMock()
+
+
+# ModelService runs each snapshot_download in a child process in production.
+# Tests patch huggingface_hub.snapshot_download, which only works in-process.
+import app.services.model_service as _model_service  # noqa: E402
+_model_service.RUN_DOWNLOADS_IN_SUBPROCESS = False
