@@ -15,10 +15,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
 
   const searchIcon = document.createElement('span')
   searchIcon.className = 'spk-picker-search-icon'
-  searchIcon.innerHTML = `<svg width="11" height="11" viewBox="0 0 13 13" fill="none">
-    <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/>
-    <path d="M8.5 8.5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-  </svg>`
+  searchIcon.innerHTML = icon('search', 13)
 
   const search = document.createElement('input')
   search.className = 'spk-picker-search'
@@ -27,9 +24,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
   const clearBtn = document.createElement('button')
   clearBtn.className = 'spk-picker-clear'
   clearBtn.style.display = 'none'
-  clearBtn.innerHTML = `<svg width="6" height="6" viewBox="0 0 6 6" fill="none">
-    <path d="M1 1l4 4M5 1L1 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-  </svg>`
+  clearBtn.innerHTML = icon('close', 7)
   clearBtn.addEventListener('mousedown', e => {
     e.preventDefault()
     search.value = ''
@@ -61,9 +56,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
 
   const newAv = document.createElement('span')
   newAv.className = 'spk-picker-new-av'
-  newAv.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-    <path d="M5 1.5v7M1.5 5h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-  </svg>`
+  newAv.innerHTML = icon('add', 12)
 
   const newLabel = document.createElement('span')
   newLabel.className = 'spk-picker-new-label'
@@ -138,9 +131,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
       if (s.id === currentSpkId) {
         const check = document.createElement('span')
         check.className = 'spk-picker-check'
-        check.innerHTML = `<svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-          <path d="M1 4.5l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`
+        check.innerHTML = icon('check', 11)
         row.appendChild(check)
       }
 
