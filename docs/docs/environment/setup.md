@@ -111,7 +111,7 @@ python3.12 -m venv .venv
 
 ```bash
 # Backend starts automatically when Electron launches
-npm install
+npm ci
 npm start
 ```
 

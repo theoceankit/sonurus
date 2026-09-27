@@ -80,7 +80,7 @@ pip install -r requirements.txt
 ### 4. Install Electron dependencies
 
 ```bash
-npm install
+npm ci
 ```
 
 ### 5. Configure environment
@@ -153,5 +153,5 @@ Tests do not require ML models or audio files.
 Full documentation is in `docs/` (Docusaurus). To run locally:
 
 ```bash
-cd docs && npm install && npm start
+cd docs && npm ci && npm start
 ```
