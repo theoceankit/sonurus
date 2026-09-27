@@ -44,12 +44,12 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 
 ## Current coverage
 
-**478 Python unit and API tests** across **19 files** — no ML models are loaded — plus **38 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
+**483 Python unit and API tests** across **19 files** — no ML models are loaded — plus **38 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
 
 | File | Tests | What it covers |
 |---|---|---|
 | `test_api.py` | 76 | End-to-end API routes: transcribe, transcripts CRUD, speaker rename, cancel, delete → speaker recompute, single-segment reassign, live-recording cleanup on `DELETE /transcripts/{id}` (imported/escaping/symlinked/shared files kept), `POST /data/reset` (DB + files, imported files kept, 409 while jobs run), Speakers section (`GET /speakers` with unnamed speakers and statistics, `PATCH` name/color (shared names allowed), `DELETE` → unassigned segments and 409 while jobs run, `GET /speakers/{id}/transcripts`, reassigning unassigned segments) |
-| `test_transcript_storage_service.py` | 54 | `save()`, `load()`, `update_*`, `list_all()`, `delete_segment()`, `clear()`, `count_by_audio_file()`, `get_embeddings_grouped_by_transcript()`, segment indexes, `load(with_embeddings=False)`, unassigned segments + schema v5 migration, `speaker_stats()`, `transcripts_for_speaker()` |
+| `test_transcript_storage_service.py` | 57 | `save()`, `load()`, `update_*`, `list_all()`, `delete_segment()`, `clear()`, `count_by_audio_file()`, `get_embeddings_grouped_by_transcript()`, segment indexes, `load(with_embeddings=False)`, unassigned segments + schema v5 migration, schema v6 (raw labels → UUID / unassigned), `speaker_stats()`, `transcripts_for_speaker()` |
 | `test_speaker_memory_service.py` | 47 | `resolve()` purity, `set_name()` / `get_name()`, persistence, `save_names_only()`, `find_by_name()`, UUID migration, `clear()` (DB + in-memory + dirty sets), `speaker_ids()`, `set_color()`, removing name-only speakers |
 | `test_model_service.py` | 31 | `WHISPER_CATALOG`, `list_models()`, `is_installed()`, `download_model()`, `delete_model()` for Whisper models |
 | `test_alignment_model.py` | 29 | `ALIGNMENT_CATALOG`, `is_installed()`, `download_model()`, `delete_model()`, API routes for alignment models |
@@ -58,9 +58,9 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `test_speaker_color.py` | 25 | `speaker_meta` color persistence, least-used palette assignment, schema v3 migration |
 | `test_models_api.py` | 22 | `GET /models`, `POST /models/{id}/download`, `DELETE /models/{id}`, WS progress stream |
 | `test_transcription_guard.py` | 21 | `POST /transcribe` 400 guard when Whisper / diarization / alignment model not installed |
-| `test_transcript_builder.py` | 20 | `TranscriptBuilder.build()` (WhisperX output → Transcript) and `attach_embeddings()` (time-overlap matching) |
+| `test_transcript_builder.py` | 21 | `TranscriptBuilder.build()` (WhisperX output → Transcript, UUID for unmatched `SPEAKER_XX`, `UNKNOWN` → unassigned) and `attach_embeddings()` (time-overlap matching) |
 | `test_download_progress.py` | 19 | WS byte-level progress stream, polling loop, `done`/`error` events |
-| `test_archive_service.py` | 16 | `ArchiveService.archive()`, `format_time()` |
+| `test_archive_service.py` | 17 | `ArchiveService.archive()` (incl. "Unassigned" label), `format_time()` |
 | `test_audio_capture.py` | 17 | `AudioCaptureService` start/stop/merge, `has_active_jobs()`, recordings dir, stderr-deadlock regression, `/audio/capture/*` routes |
 | `test_logger.py` | 12 | `setup_logging()`, `get_logger()`, `LOG_LEVEL` env var, file logging |
 | `test_transcribe_schema.py` | 12 | `TranscribeRequest` schema validation, optional `whisper_model` and `language` fields |

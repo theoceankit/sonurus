@@ -110,10 +110,26 @@ def test_build_applies_speaker_map():
     assert transcript.segments[0].speaker_resolved == "Alice"
 
 
-def test_build_unknown_speaker_gets_none_resolved():
-    result = make_result(seg(0.0, 2.0, "Hi", "SPEAKER_99"))
-    transcript = TranscriptBuilder.build(result, {"SPEAKER_00": "Alice"}, "audio.wav")
-    assert transcript.segments[0].speaker_resolved is None
+def test_build_unmatched_diarization_speaker_gets_its_own_uuid():
+    """A SPEAKER_XX without a voice profile match (e.g. too little speech for an
+    embedding) still gets a stable UUID — raw labels are never persisted."""
+    import uuid
+    result = make_result(
+        seg(0.0, 1.0, "a", "SPEAKER_98"), seg(1.0, 2.0, "b", "SPEAKER_99"), seg(2.0, 3.0, "c", "SPEAKER_98"),
+    )
+    segs = TranscriptBuilder.build(result, {"SPEAKER_00": "Alice"}, "audio.wav").segments
+    ids = [s.speaker_resolved for s in segs]
+    assert uuid.UUID(ids[0]).version == 4 and uuid.UUID(ids[1]).version == 4
+    assert ids[0] == ids[2] and ids[0] != ids[1]
+    assert not any(s.unassigned for s in segs)
+    assert [s.speaker_raw for s in segs] == ["SPEAKER_98", "SPEAKER_99", "SPEAKER_98"]
+
+
+def test_build_segment_without_diarization_speaker_is_unassigned():
+    result = make_result(seg(0.0, 1.0, "Hi"), seg(1.0, 2.0, "Yo", "SPEAKER_00"))
+    segs = TranscriptBuilder.build(result, {"SPEAKER_00": "Alice"}, "audio.wav").segments
+    assert segs[0].unassigned is True and segs[0].speaker_resolved is None
+    assert segs[1].unassigned is False and segs[1].speaker_resolved == "Alice"
 
 
 def test_build_missing_speaker_field_defaults_to_unknown():
