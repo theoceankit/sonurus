@@ -11,6 +11,8 @@ function renderNewRecordingModal({ onStart, onImport }) {
   let sysDeviceId   = appSettings.recordingSystemDevice || null
   let modelValue    = appSettings.transcribeModel       || 'large-v3'
   let langValue     = appSettings.transcribeLang        || 'auto'
+  // TODO(not implemented): `diarize` and `saveAudio` are persisted but not yet
+  // sent to the backend — see roadmap "UI without business logic".
   let diarize       = appSettings.recordingDiarize !== false
   let saveAudio     = appSettings.recordingSaveAudio    !== false
 
