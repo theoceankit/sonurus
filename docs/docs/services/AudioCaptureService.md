@@ -24,7 +24,7 @@ Running capture in a Python subprocess sidesteps these restrictions and keeps al
 | Platform | Tool | How it works |
 |---|---|---|
 | macOS | `sonorus-capture` (Swift binary, ScreenCaptureKit) | Spawned as a subprocess; writes WAV to a temp file; stopped with SIGINT |
-| Linux | `ffmpeg -f pulse -i <monitor_source>` | PulseAudio monitor source recorded directly; sources enumerated via `pactl list short sources` |
+| Linux | `ffmpeg -nostats -loglevel error -f pulse -i <monitor_source>` | PulseAudio monitor source recorded directly; sources enumerated via `pactl list short sources` |
 | Windows | `setDisplayMediaRequestHandler(audio: 'loopback')` in renderer | WASAPI loopback handled in Electron main process; no backend subprocess needed |
 
 ---
@@ -34,16 +34,16 @@ Running capture in a Python subprocess sidesteps these restrictions and keeps al
 ```
 POST /audio/capture/start
   → AudioCaptureService.start_capture(source_id)
-  → spawns platform process (stderr=PIPE)
-  → stores { process, output_path } under job_id
+  → spawns platform process (stderr → sonorus-sys-<job_id>.log, never a pipe)
+  → stores { process, output_path, log_path } under job_id
   → returns job_id
 
 [user records...]
 
 POST /audio/capture/stop/{job_id}  { mic_path?: "..." }
   → sends SIGINT to capture process
-  → process.wait()
-  → reads and logs stderr (warnings to logging.warning)
+  → process.wait(timeout=10), kill() if it does not exit
+  → reads the log file tail, logs it (logging.warning) and deletes it
   → logs output file size
   → if mic_path provided: ffmpeg amix merge → merged WAV
   → returns final WAV path
@@ -171,3 +171,7 @@ ffmpeg -y \
 | `native/macos/sonorus-capture/main.swift` | Swift binary — ScreenCaptureKit capture |
 | `electron/backend.js` | Sets `SONORUS_CAPTURE_BIN` env var so the server finds the binary |
 | `build/entitlements.mac.plist` | `com.apple.security.screen-capture` entitlement for signed builds |
+
+:::note[Why stderr is not a pipe]
+The capture process runs for the whole recording. An unread `stderr=PIPE` fills its 64 KB buffer after a few minutes of ffmpeg progress output; ffmpeg then blocks on `write()`, stops capturing, and never exits on SIGINT — `stop_capture()` would hang forever. stderr is therefore redirected to a log file, and ffmpeg is started with `-nostats -loglevel error`.
+:::
