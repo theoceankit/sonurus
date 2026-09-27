@@ -188,3 +188,17 @@ function deleteSpeakerPrompt({ name, segments = 0, transcripts = 0 }) {
       + 'recognized in new recordings. This cannot be undone.',
   }
 }
+
+// ── Editor ──────────────────────────────────────────────────────────────────────
+// Remembers the scroll position of the elements matching selectors inside container;
+// the returned function applies it to whatever matches after the view was rebuilt.
+function preserveScroll(container, selectors) {
+  const saved = selectors
+    .map(sel => [sel, container.querySelector(sel)])
+    .filter(([, el]) => el)
+    .map(([sel, el]) => [sel, el.scrollTop])
+  return () => saved.forEach(([sel, top]) => {
+    const el = container.querySelector(sel)
+    if (el) el.scrollTop = top
+  })
+}
