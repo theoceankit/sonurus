@@ -9,6 +9,7 @@ sidebar_position: 6
 Used in two scenarios:
 - **Write** — after the transcription pipeline (`save`)
 - **Read** — when opening past recordings from the sidebar (`load`, `list_all`) and when reassigning speakers (`update_segments_speaker`, `update_segment_speaker`)
+- **Speakers section** — usage statistics, a speaker's transcripts and voice-sample candidates (`speaker_stats`, `transcripts_for_speaker`, `speaker_segments`), and detaching a deleted speaker (`unassign_speaker`)
 
 ---
 
@@ -20,7 +21,8 @@ CREATE TABLE transcriptions (
     audio_file TEXT NOT NULL,
     language   TEXT,
     status     TEXT DEFAULT 'draft',
-    created_at TEXT
+    created_at TEXT,
+    title      TEXT                             -- schema v3
 )
 
 CREATE TABLE segments (
@@ -31,16 +33,19 @@ CREATE TABLE segments (
     end              REAL NOT NULL,
     text             TEXT NOT NULL,
     speaker_raw      TEXT,
-    embedding        BLOB
+    embedding        BLOB,
+    unassigned       INTEGER NOT NULL DEFAULT 0  -- schema v5
 )
 
 CREATE INDEX idx_segments_transcription ON segments(transcription_id);  -- schema v4
 CREATE INDEX idx_segments_speaker       ON segments(speaker_id);        -- schema v4
 ```
 
-`speaker_id` — current effective speaker ID (`speaker_final or speaker_resolved`). Updated on reassign via `update_segments_speaker()` (bulk) or `update_segment_speaker()` (single segment).
+`speaker_id` — current effective speaker ID (`speaker_final or speaker_resolved`), always a UUID4 or `NULL`. Updated on reassign via `update_segments_speaker()` (bulk) or `update_segment_speaker()` (single segment).
 
-`speaker_raw` — original diarization ID (`SPEAKER_00` etc.), stored for auditing and never changed.
+`speaker_raw` — original diarization ID (`SPEAKER_00` etc.), stored for auditing and never changed. It is never used as a speaker: `TranscriptBuilder` gives unmatched diarization speakers their own UUID, and schema v6 did the same for rows stored earlier (one new UUID per transcript and raw label).
+
+`unassigned` — `1` for a segment without a speaker: its speaker was deleted (`unassign_speaker()`), or diarization gave it none (`UNKNOWN`). `speaker_id` is then `NULL`; `load()` returns `Segment.unassigned = True`. Assigning a speaker (`update_segment_speaker()`, or `update_segments_speaker()` with `from_spk = UNASSIGNED`) clears it.
 
 `status` — transcript status: `'draft'` immediately after the pipeline.
 
@@ -52,7 +57,7 @@ CREATE INDEX idx_segments_speaker       ON segments(speaker_id);        -- schem
 
 ### `save(transcript) → int`
 
-Inserts a row into `transcriptions` and all segments into `segments`. Sets `transcript.db_id`. Returns the new `id`.
+Inserts a row into `transcriptions` and all segments into `segments` (an `unassigned` segment is stored with `speaker_id = NULL`). Sets `transcript.db_id`. Returns the new `id`.
 
 ```python
 db_id = TranscriptStorageService().save(transcript)
@@ -98,7 +103,7 @@ Each item:
 
 ### `update_segments_speaker(db_id, from_spk, to_spk)`
 
-Reassigns all segments of `from_spk` to `to_spk` within a single transcription.
+Reassigns all segments of `from_spk` to `to_spk` within a single transcription. With `from_spk = UNASSIGNED` (`app.models.segment`) it assigns every unassigned segment of the transcription and clears their flag.
 
 ```python
 TranscriptStorageService().update_segments_speaker(42, "spk_fabc8834", "spk_new")
@@ -108,7 +113,7 @@ TranscriptStorageService().update_segments_speaker(42, "spk_fabc8834", "spk_new"
 
 ### `update_segment_speaker(db_id, start, end, new_speaker)`
 
-Reassigns the speaker for a **single** segment identified by its start and end time.
+Reassigns the speaker for a **single** segment identified by its start and end time, and clears its `unassigned` flag.
 
 ```python
 TranscriptStorageService().update_segment_speaker(42, 12.4, 17.8, "spk_new")
@@ -146,13 +151,27 @@ Deletes every transcription and segment in one transaction and returns the numbe
 
 ---
 
-### `update_status(db_id, status)`
+### `unassign_speaker(speaker_id) → dict`
 
-Updates the `status` field in the `transcriptions` table.
+Detaches every segment of a deleted speaker: `speaker_id = NULL`, `unassigned = 1`. Returns `{"segments": n, "transcripts": m}`. Called by `CommitService.delete_speaker()`.
 
-```python
-TranscriptStorageService().update_status(42, "finalized")
-```
+---
+
+### `speaker_stats() → dict[str, dict]`
+
+`{speaker_id: {segments, transcripts, duration_sec, last_seen}}` over all transcripts in one query; unassigned segments are not counted. Feeds `GET /speakers`.
+
+---
+
+### `transcripts_for_speaker(speaker_id) → list[dict]`
+
+Transcripts in which the speaker has segments, newest first: `id`, `title`, `created_at`, `segments`, `duration_sec`. Feeds `GET /speakers/{id}/transcripts`.
+
+---
+
+### `speaker_segments(speaker_id, transcript_id=None) → list[dict]`
+
+The speaker's segments with their transcript's `audio_file` and `embedding`, optionally within one transcript — the candidates `pick_voice_sample()` chooses from for `GET /speakers/{id}/sample`.
 
 ---
 
@@ -164,7 +183,7 @@ Returns all non-null embeddings for a speaker across all transcripts, grouped by
 
 ### `_init_db()`
 
-Creates tables if they do not exist. Runs migrations: adds the `status` column to `transcriptions` and the `embedding` column to `segments` if missing (for compatibility with older databases).
+Creates tables if they do not exist and runs the versioned migrations in `app/db/schema.py` (tracked in `_ts_schema_version`): v1 base tables + `status`, v2 `segments.embedding`, v3 `transcriptions.title`, v4 indexes, v5 `segments.unassigned`, v6 UUIDs for stored raw diarization labels (`UNKNOWN` rows become unassigned).
 
 ---
 

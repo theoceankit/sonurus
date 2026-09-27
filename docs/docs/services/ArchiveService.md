@@ -49,7 +49,7 @@ The date is taken at the time `archive()` is called. The audio file is copied, n
 [00:05 - 00:08] Bob: All good, thanks.
 ```
 
-Timestamp: `MM:SS` (up to one hour) or `HH:MM:SS` (longer). Speaker name is the result of `display_fn(spk_id)`, defaulting to the raw ID.
+Timestamp: `MM:SS` (up to one hour) or `HH:MM:SS` (longer). Speaker name is the result of `display_fn(spk_id)` for the effective speaker (`speaker_final or speaker_resolved or speaker_raw`), defaulting to the ID itself; unassigned segments are written as `Unassigned`.
 
 ---
 
