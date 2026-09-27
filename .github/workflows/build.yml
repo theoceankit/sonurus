@@ -21,7 +21,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build sonorus-capture binary
         run: npm run build:capture
@@ -52,7 +52,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Bundle Python backend
         run: node scripts/bundle-backend.js
@@ -78,7 +78,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Bundle Python backend
         run: node scripts/bundle-backend.js

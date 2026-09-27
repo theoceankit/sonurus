@@ -66,7 +66,7 @@ Triggered by any tag matching `v*`.
 | `release` | `ubuntu-latest` | Draft GitHub Release with all artifacts |
 
 Each build job:
-1. `npm install`
+1. `npm ci` — installs the exact versions pinned in `package-lock.json`
 2. `node scripts/bundle-backend.js` — downloads Python standalone + copies `app/`
 3. `npx electron-builder --<platform> --<arch> --publish never`
 
