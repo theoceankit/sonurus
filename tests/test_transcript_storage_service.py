@@ -648,3 +648,14 @@ def test_save_works_after_clear(tmp_path):
 
     assert len(svc.load(db_id).segments) == 2
     assert len(svc.list_all()) == 1
+
+
+def test_count_by_audio_file(tmp_path):
+    svc = make_service(tmp_path)
+    svc.save(make_transcript(audio_path="a.wav"))
+    svc.save(make_transcript(audio_path="a.wav"))
+    svc.save(make_transcript(audio_path="b.wav"))
+
+    assert svc.count_by_audio_file("a.wav") == 2
+    assert svc.count_by_audio_file("b.wav") == 1
+    assert svc.count_by_audio_file("c.wav") == 0

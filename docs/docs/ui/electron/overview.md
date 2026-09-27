@@ -177,6 +177,12 @@ Clicking **+** while a session is active shows a toast ("Recording is already in
 
 ---
 
+## Deleting a transcript
+
+Hovering a sidebar item replaces its time with a trash icon (`.rec-item-delete`, a `span role="button"` because the item itself is a `<button>`). Clicking it opens `openConfirmDialog()` (`components.js`) with the text from `deleteTranscriptPrompt()` (`utils.js`); Escape or a backdrop click cancels. On confirm, `app._deleteTranscript()` calls `DELETE /transcripts/{id}` (a `404` counts as already deleted), removes the item via `withoutRecording()`, goes home if that transcript was open (`_activeTranscriptId`), reloads the sidebar and shows a toast. The backend also deletes the app's own live recording for that transcript; imported audio files are kept.
+
+---
+
 ## Background transcription queue
 
 Transcription runs entirely in the background — the main panel is never replaced by a progress view. The user can navigate freely (open other transcripts, change settings) while jobs run.
