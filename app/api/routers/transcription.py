@@ -42,6 +42,21 @@ class _JobCancelled(Exception):
     pass
 
 
+def _release_models(controller) -> None:
+    """Drop model references and return cached GPU memory to the driver.
+
+    Runs after every job — success, error or cancel — so a failed job does
+    not keep several GiB of VRAM allocated until the next one starts.
+    """
+    if controller is not None:
+        controller.transcription_service.model = None
+        controller.embedding_service.inference = None
+    import gc
+    gc.collect()
+    import torch
+    torch.cuda.empty_cache()
+
+
 @router.post("/transcribe", response_model=JobStarted)
 async def start_transcribe(
     body: TranscribeRequest,
@@ -87,6 +102,7 @@ async def start_transcribe(
             pass  # event loop already closed (e.g. test teardown)
 
     def _run():
+        controller = None
         try:
             if not _VERBOSE:
                 suppress_ml_noise("thread")
@@ -115,12 +131,6 @@ async def start_transcribe(
             api_memory.reload()
             ArchiveService().archive(transcript, display_fn=controller.get_display_name)
 
-            controller.transcription_service.model = None
-            controller.embedding_service.inference = None
-            del controller
-            import gc; gc.collect()
-            import torch; torch.cuda.empty_cache()
-
             _emit({"type": "done", "transcript_id": transcript.db_id})
         except _JobCancelled:
             _emit({"type": "cancelled"})
@@ -131,6 +141,7 @@ async def start_transcribe(
         except Exception as exc:
             _emit({"type": "error", "message": str(exc)})
         finally:
+            _release_models(controller)
             _jobs.pop(job_id, None)
             _cancel_events.pop(job_id, None)
 
@@ -170,8 +181,8 @@ async def ws_progress(websocket: WebSocket, job_id: str):
             if event["type"] in ("done", "error", "cancelled"):
                 break
     except WebSocketDisconnect:
-        cancel_event = _cancel_events.get(job_id)
-        if cancel_event:
-            cancel_event.set()
-    finally:
-        _jobs.pop(job_id, None)
+        # The client went away (renderer reload, transient error). The job keeps
+        # running and its queue stays registered, so a client can reconnect;
+        # _run() unregisters it when the job ends. Cancelling is explicit only
+        # (DELETE /transcribe/{job_id}).
+        pass
