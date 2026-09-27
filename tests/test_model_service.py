@@ -5,6 +5,8 @@ from pathlib import Path
 
 from app.services.model_service import ModelService, WHISPER_CATALOG
 
+import download_workers
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -346,12 +348,6 @@ def test_download_failure_leaves_model_not_installed(tmp_path):
 # Cancel must stop the transfer, not wait for it to finish
 # ---------------------------------------------------------------------------
 
-def _slow_worker(kwargs, conn):
-    """Stand-in for the snapshot_download subprocess worker: never finishes on its own."""
-    import time
-    time.sleep(60)
-
-
 def test_run_download_cancel_terminates_worker_process():
     import threading
     import time
@@ -362,28 +358,19 @@ def test_run_download_cancel_terminates_worker_process():
     threading.Timer(0.5, cancel.set).start()
     started = time.monotonic()
     with pytest.raises(CancelledError):
-        _run_download({}, cancel_event=cancel, worker=_slow_worker, in_subprocess=True)
+        _run_download({}, cancel_event=cancel, worker=download_workers.slow_worker, in_subprocess=True)
     assert time.monotonic() - started < 10, "cancel must not wait for the download to finish"
-
-
-def _failing_worker(kwargs, conn):
-    conn.send(("error", "OSError", "boom"))
 
 
 def test_run_download_propagates_worker_error():
     import threading
     from app.services.model_service import _run_download
     with pytest.raises(RuntimeError, match="boom"):
-        _run_download({}, cancel_event=threading.Event(), worker=_failing_worker, in_subprocess=True)
-
-
-def _crashing_worker(kwargs, conn):
-    import os
-    os._exit(3)  # dies without reporting, e.g. killed by the OOM killer
+        _run_download({}, cancel_event=threading.Event(), worker=download_workers.failing_worker, in_subprocess=True)
 
 
 def test_run_download_reports_worker_crash():
     import threading
     from app.services.model_service import _run_download
     with pytest.raises(RuntimeError, match="exited unexpectedly"):
-        _run_download({}, cancel_event=threading.Event(), worker=_crashing_worker, in_subprocess=True)
+        _run_download({}, cancel_event=threading.Event(), worker=download_workers.crashing_worker, in_subprocess=True)
