@@ -14,7 +14,7 @@ from app.services.commit_service import CommitService
 from app.api.dependencies import get_memory_service, get_storage_service
 from app.models.segment import UNASSIGNED
 from app.api.schemas import (
-    TranscriptListItem, TranscriptResponse, SegmentResponse,
+    TranscriptListItem, TranscriptResponse, SegmentResponse, TranscriptUpdateRequest,
     SegmentSpeakerRequest, SegmentTextRequest, ReassignRequest,
 )
 
@@ -176,6 +176,17 @@ def get_speaker_suggestions(
         }
 
     return result
+
+
+@router.patch("/{transcript_id}", status_code=204)
+def update_transcript(
+    transcript_id: int,
+    body: TranscriptUpdateRequest,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """Edit transcript metadata (title). Speakers and segments are untouched."""
+    if not storage.update_title(transcript_id, body.title):
+        raise HTTPException(status_code=404, detail="Transcript not found")
 
 
 @router.delete("/{transcript_id}", status_code=204)
