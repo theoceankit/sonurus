@@ -1,9 +1,9 @@
 // ── Speaker card (right panel) ─────────────────────────────────────────────────
 function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSec, transcriptId, onReload, knownSpeakers = [], sample = null, onPreviewPlay = null, onPreviewPause = null, suggestion = null) {
-  const SVG_PLAY_SM  = `<svg width="8" height="10" viewBox="0 0 11 12" fill="none"><path d="M1 1l9 5-9 5V1z" fill="currentColor"/></svg>`
-  const SVG_PAUSE_SM = `<svg width="8" height="10" viewBox="0 0 11 12" fill="none"><rect x="1" y="1" width="3" height="10" rx="0.7" fill="currentColor"/><rect x="7" y="1" width="3" height="10" rx="0.7" fill="currentColor"/></svg>`
-  const SVG_PLAY_MD  = `<svg width="9" height="11" viewBox="0 0 11 12" fill="none"><path d="M1 1l9 5-9 5V1z" fill="currentColor"/></svg>`
-  const SVG_PAUSE_MD = `<svg width="9" height="11" viewBox="0 0 11 12" fill="none"><rect x="1" y="1" width="3" height="10" rx="0.7" fill="currentColor"/><rect x="7" y="1" width="3" height="10" rx="0.7" fill="currentColor"/></svg>`
+  const ICON_PLAY_SM  = icon('play', 13)
+  const ICON_PAUSE_SM = icon('pause', 13)
+  const ICON_PLAY_MD  = icon('play', 15)
+  const ICON_PAUSE_MD = icon('pause', 15)
 
   function makeToggle(btn, playSvg, pauseSvg) {
     let active = false
@@ -43,8 +43,8 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
 
     const playBtn = document.createElement('button')
     playBtn.className = 'spk-card-play-btn'
-    playBtn.innerHTML = SVG_PLAY_SM
-    makeToggle(playBtn, SVG_PLAY_SM, SVG_PAUSE_SM)
+    playBtn.innerHTML = ICON_PLAY_SM
+    makeToggle(playBtn, ICON_PLAY_SM, ICON_PAUSE_SM)
 
     top.appendChild(avatar)
     top.appendChild(info)
@@ -99,9 +99,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
       const confirmBtn = document.createElement('button')
       confirmBtn.className = 'spk-suggestion-btn spk-suggestion-btn--confirm'
       confirmBtn.style.background = p.color
-      confirmBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-        <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>`
+      confirmBtn.innerHTML = icon('check', 11)
       confirmBtn.addEventListener('click', e => {
         e.stopPropagation()
         confirmBtn.disabled = true
@@ -116,9 +114,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
 
       const rejectBtn = document.createElement('button')
       rejectBtn.className = 'spk-suggestion-btn spk-suggestion-btn--reject'
-      rejectBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-        <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-      </svg>`
+      rejectBtn.innerHTML = icon('close', 10)
       rejectBtn.addEventListener('click', e => { e.stopPropagation(); sugg.remove() })
 
       btns.appendChild(confirmBtn)
@@ -132,12 +128,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
     // Assign speaker button
     const assignBtn = document.createElement('button')
     assignBtn.className = 'spk-assign-btn'
-    assignBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <line x1="19" y1="8" x2="19" y2="14"/>
-      <line x1="22" y1="11" x2="16" y2="11"/>
-    </svg>Assign speaker`
+    assignBtn.innerHTML = `${icon('assign-speaker', 12)}Assign speaker`
     assignBtn.addEventListener('click', e => {
       e.stopPropagation()
       showSpeakerPicker(assignBtn, spkId, knownSpeakers, transcriptId, onReload)
@@ -172,16 +163,14 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
   const playCardBtn = document.createElement('button')
   playCardBtn.className = 'spk-card-btn'
   playCardBtn.setAttribute('data-tooltip', 'Play speaker')
-  playCardBtn.innerHTML = SVG_PLAY_MD
+  playCardBtn.innerHTML = ICON_PLAY_MD
   attachSegTooltip(playCardBtn)
-  makeToggle(playCardBtn, SVG_PLAY_MD, SVG_PAUSE_MD)
+  makeToggle(playCardBtn, ICON_PLAY_MD, ICON_PAUSE_MD)
 
   const reassignCardBtn = document.createElement('button')
   reassignCardBtn.className = 'spk-card-btn'
   reassignCardBtn.setAttribute('data-tooltip', 'Assign speaker')
-  reassignCardBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M21 11V8a2 2 0 0 0-2-2h-6m0 0l3 3m-3-3l3-3M3 13.013v3a2 2 0 0 0 2 2h6m0 0l-3-3m3 3l-3 3m8-4.511a2 2 0 1 0 4.001-.001a2 2 0 0 0-4.001.001m-12-12a2 2 0 1 0 4.001-.001A2 2 0 0 0 4 4.502m17 16.997a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2m-6-12a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2"/>
-  </svg>`
+  reassignCardBtn.innerHTML = icon('reassign-speaker', 14)
   attachSegTooltip(reassignCardBtn)
   reassignCardBtn.addEventListener('click', e => {
     e.stopPropagation()

@@ -29,18 +29,13 @@
     <!-- Nav — back, left of search -->
     <div class="tb-nav">
       <button class="tb-tool" id="tb-back" title="Back">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M9 3l-4 4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <span data-icon="arrow-left" data-size="16"></span>
       </button>
     </div>
 
     <!-- Center — centered in the middle grid column -->
     <button class="tb-search" id="tb-search-btn" title="Search (⌘F)">
-      <svg width="11" height="11" viewBox="0 0 13 13" fill="none">
-        <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/>
-        <path d="M8.5 8.5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
+      <span data-icon="search" data-size="13"></span>
       <span class="tb-search-label">Search transcripts…</span>
       <span class="tb-search-kbd">⌘F</span>
     </button>
@@ -48,16 +43,10 @@
     <!-- Right section — utility buttons -->
     <div class="tb-right">
       <button class="tb-tool" id="tb-export" data-tooltip="Copy to clipboard">
-        <svg width="13" height="14" viewBox="0 0 13 14" fill="none">
-          <rect x="4.5" y="3.5" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
-          <path d="M3 10H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5a1 1 0 0 1 1 1v1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-        </svg>
+        <span data-icon="copy" data-size="15"></span>
       </button>
       <button class="tb-tool" id="tb-share" data-tooltip="Share">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M7 1.5v8M4 4l3-3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M2.5 9v3.5h9V9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <span data-icon="share" data-size="16"></span>
       </button>
 
       <div class="tb-sep" id="tb-sep-record" style="display:none"></div>
@@ -70,22 +59,13 @@
       <div class="tb-sep"></div>
 
       <button class="tb-tool" id="tb-inspector-toggle" title="Toggle inspector">
-        <svg width="14" height="13" viewBox="0 0 16 14" fill="none">
-          <rect x="1.5" y="2" width="13" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/>
-          <line x1="10" y1="2" x2="10" y2="12" stroke="currentColor" stroke-width="1.3"/>
-        </svg>
+        <span data-icon="inspector" data-size="15"></span>
       </button>
 
       <div class="tb-sep"></div>
 
       <button class="tb-tool" id="btn-settings" title="Settings">
-        <svg width="13" height="13" viewBox="0 0 17 17" fill="none">
-          <circle cx="8.5" cy="8.5" r="2.5" stroke="currentColor" stroke-width="1.4" fill="none"/>
-          <path d="M8.5 1.5v2M8.5 13.5v2M1.5 8.5h2M13.5 8.5h2
-                   M3.5 3.5l1.4 1.4M12.1 12.1l1.4 1.4
-                   M3.5 13.5l1.4-1.4M12.1 4.9l1.4-1.4"
-                stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-        </svg>
+        <span data-icon="settings" data-size="16"></span>
       </button>
     </div>
 
@@ -107,9 +87,7 @@
         </div>
         <div style="flex:1"></div>
         <button class="sb-hdr-btn" id="btn-import" title="New recording">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-            <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          </svg>
+          <span data-icon="add" data-size="16"></span>
         </button>
       </div>
 
@@ -137,10 +115,7 @@
       <!-- Speakers section -->
       <div class="sb-pane" id="sb-pane-speakers" hidden>
         <div class="sb-search-wrap">
-          <svg class="sb-search-icon" width="11" height="11" viewBox="0 0 13 13" fill="none">
-            <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/>
-            <path d="M8.5 8.5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          </svg>
+          <span class="sb-search-icon" data-icon="search" data-size="13"></span>
           <input class="sb-search" id="speaker-search" type="search" placeholder="Search speakers" autocomplete="off" />
         </div>
         <div class="sb-filter-wrap">
@@ -168,6 +143,7 @@
   <div id="player-slot"></div>
   </div>
 
+  <script src="icons.js"></script>
   <script src="utils.js"></script>
   <script src="components.js"></script>
   <script src="data.js"></script>

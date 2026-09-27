@@ -60,13 +60,13 @@ function makePill(label, tone) {
   return el
 }
 
-function makeSectionHeader(svgPath, label, sub) {
+function makeSectionHeader(iconHtml, label, sub) {
   const wrap = document.createElement('div')
   wrap.className = 'st-section-header'
 
   const icon = document.createElement('div')
   icon.className = 'st-section-icon'
-  icon.innerHTML = svgPath
+  icon.innerHTML = iconHtml
 
   const text = document.createElement('div')
   const t = document.createElement('div')
@@ -306,13 +306,13 @@ function _makeStatusBadge(installed, downloading) {
   const el = document.createElement('div')
   el.className = 'st-model-status'
   if (installed) {
-    el.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l2.5 2.5L10 3" stroke="#2EB387" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Installed`
+    el.innerHTML = `${icon('check', 12)} Installed`
     el.style.color = '#2EB387'
   } else if (downloading) {
     el.innerHTML = `<span class="st-spin"></span> Downloading`
     el.style.color = '#5A57F2'
   } else {
-    el.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v7M3 6l3 3 3-3M2 11h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Not downloaded`
+    el.innerHTML = `${icon('download', 12)} Not downloaded`
     el.style.color = 'rgba(25,24,42,0.55)'
   }
   return el
@@ -368,7 +368,7 @@ function _makeModelActions(modelId, state, { onDownload, onDelete, onSelect = nu
     const delBtn = document.createElement('button')
     delBtn.className = 'st-btn st-btn--icon'
     delBtn.title = 'Remove'
-    delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2.5 4h9M5 4V2.5h4V4M3.5 4l.5 7.5h6L10.5 4M6 6.5v3M8 6.5v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+    delBtn.innerHTML = icon('delete', 14)
     delBtn.addEventListener('click', () => onDelete(modelId))
     actions.appendChild(delBtn)
   }
@@ -395,8 +395,8 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
     const icon = document.createElement('div')
     icon.className = 'st-model-icon' + (isSelected ? ' st-model-icon--selected' : '')
     icon.innerHTML = isDiarization
-      ? `<svg width="17" height="17" viewBox="0 0 18 18" fill="none"><circle cx="6" cy="6" r="2" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="6" r="2" stroke="currentColor" stroke-width="1.4"/><path d="M3 14c0-2 1.6-3 3-3s3 1 3 3M9 14c0-2 1.6-3 3-3s3 1 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>`
-      : `<svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M9 2v14M3 5l-1.5 3L3 11M15 5l1.5 3L15 11M6 4l-1 5 1 5M12 4l1 5-1 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`
+      ? icon('speakers', 17)
+      : icon('waveform', 17)
 
     const info = document.createElement('div')
     info.className = 'st-model-info'
@@ -506,10 +506,7 @@ function buildInterfaceSection(state) {
 
   return makeSectionCard([
     makeSectionHeader(
-      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <rect x="2.5" y="3" width="13" height="10" rx="1.6" stroke="currentColor" stroke-width="1.4"/>
-        <path d="M6 15.5h6M9 13.5v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>`,
+      icon('interface', 18),
       'Interface', 'App language, appearance, and sizing.'
     ),
     makeFieldRow('App language', 'Language used across menus and dialogs.', langDrop),
@@ -556,7 +553,7 @@ function buildModelsSection(state, rerender) {
 
   const footer = document.createElement('div')
   footer.className = 'st-models-footer'
-  footer.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 4v3.5M7 9.5v.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+  footer.innerHTML = `${icon('alert', 14)}
     Models stored in <code class="st-code">.models/</code>`
 
   const modelControl = document.createElement('div')
@@ -565,13 +562,7 @@ function buildModelsSection(state, rerender) {
 
   return makeSectionCard([
     makeSectionHeader(
-      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <circle cx="5" cy="5" r="1.8" stroke="currentColor" stroke-width="1.4"/>
-        <circle cx="13" cy="13" r="1.8" stroke="currentColor" stroke-width="1.4"/>
-        <circle cx="13" cy="5" r="1.8" stroke="currentColor" stroke-width="1.4"/>
-        <circle cx="5" cy="13" r="1.8" stroke="currentColor" stroke-width="1.4"/>
-        <path d="M6.5 5h5M6.5 13h5M5 6.5v5M13 6.5v5" stroke="currentColor" stroke-width="1.4"/>
-      </svg>`,
+      icon('models', 18),
       'ML Models', 'Whisper transcription · diarization · language.'
     ),
     makeFieldRow('Transcription language', 'Whisper auto-detects when set to "Detect".', langDrop),
@@ -609,7 +600,7 @@ function buildAlignmentSection(state) {
 
   const footer = document.createElement('div')
   footer.className = 'st-models-footer'
-  footer.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 4v3.5M7 9.5v.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+  footer.innerHTML = `${icon('alert', 14)}
     Stored in <code class="st-code">.models/alignment/</code>. Not needed for English, French, German, Spanish, or Italian.`
 
   const wrapper = document.createElement('div')
@@ -618,11 +609,7 @@ function buildAlignmentSection(state) {
 
   return makeSectionCard([
     makeSectionHeader(
-      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <path d="M2 5h14M2 9h9M2 13h11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-        <circle cx="15.5" cy="13" r="2" stroke="currentColor" stroke-width="1.3"/>
-        <path d="M17 14.5l1.5 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-      </svg>`,
+      icon('alignment', 18),
       'Alignment Models', 'wav2vec2 word-level timestamps — download for each language you use.'
     ),
     wrapper,
@@ -645,10 +632,7 @@ function buildApiKeysSection(state) {
   const eyeBtn = document.createElement('button')
   eyeBtn.className = 'st-btn st-btn--icon'
   eyeBtn.title = 'Show / hide token'
-  eyeBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M1 7s2-4 6-4 6 4 6 4-2 4-6 4-6-4-6-4z" stroke="currentColor" stroke-width="1.3"/>
-    <circle cx="7" cy="7" r="1.8" stroke="currentColor" stroke-width="1.3"/>
-  </svg>`
+  eyeBtn.innerHTML = icon('eye', 14)
   eyeBtn.addEventListener('click', () => {
     visible = !visible
     input.type = visible ? 'text' : 'password'
@@ -664,11 +648,7 @@ function buildApiKeysSection(state) {
 
   return makeSectionCard([
     makeSectionHeader(
-      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <circle cx="8" cy="7.5" r="3.5" stroke="currentColor" stroke-width="1.4"/>
-        <path d="M10.5 10.5L15 15" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-        <path d="M8 5.5v2M7 6.5h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-      </svg>`,
+      icon('api-keys', 18),
       'API Keys', 'Credentials for accessing ML model providers.'
     ),
     makeFieldRow(
@@ -734,9 +714,7 @@ function buildExportSection(state) {
 
   return makeSectionCard([
     makeSectionHeader(
-      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <path d="M9 2v9M5.5 7.5L9 11l3.5-3.5M3 13v2h12v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>`,
+      icon('export', 18),
       'Export', 'Default format and destination for exports.'
     ),
     makeFieldRow('Default format', 'Used when exporting without selecting a format.', tilesWrap),
@@ -814,10 +792,7 @@ function buildAudioSection(state) {
 
   return makeSectionCard([
     makeSectionHeader(
-      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <path d="M9 2a3 3 0 013 3v4a3 3 0 01-6 0V5a3 3 0 013-3z" stroke="currentColor" stroke-width="1.4" fill="none"/>
-        <path d="M4 9a5 5 0 0010 0M9 14v2M6 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>`,
+      icon('microphone', 18),
       'Audio devices', 'Input devices for live recording.'
     ),
     controlsWrap,
@@ -897,10 +872,7 @@ function buildResetSection() {
 
   return makeSectionCard([
     makeSectionHeader(
-      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <path d="M9 3a6 6 0 100 12A6 6 0 009 3z" stroke="currentColor" stroke-width="1.4" fill="none"/>
-        <path d="M9 7v4M9 12.5v.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>`,
+      icon('alert', 18),
       'Reset to defaults', 'Restore Whisper preferences to their initial state.'
     ),
     wrap,
@@ -940,9 +912,7 @@ function buildDeleteDataSection() {
 
   return makeSectionCard([
     makeSectionHeader(
-      `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <path d="M3.5 5h11M7 5V3.5h4V5M5 5l.7 9.5h6.6L13 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      </svg>`,
+      icon('delete', 20),
       'Delete all data', 'Start over with an empty library.'
     ),
     wrap,

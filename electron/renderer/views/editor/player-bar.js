@@ -6,33 +6,13 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
   bar.className = 'player-bar'
 
   // ── Icons ──────────────────────────────────────────────────────────────────
-  const I_PREV_SPK = `<svg width="15" height="13" viewBox="0 0 15 13" fill="none">
-    <rect x="2" y="3" width="1.4" height="7" rx="0.4" fill="currentColor"/>
-    <path d="M11.5 3L5 6.5L11.5 10V3z" fill="currentColor"/>
-  </svg>`
-  const I_PREV_15  = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M8 3.5L4.5 7l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M5 7h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-  </svg>`
-  const I_PLAY    = `<svg width="10" height="11" viewBox="0 0 10 12" fill="none" style="margin-left:1px">
-    <path d="M1 1l8 5-8 5V1z" fill="currentColor"/>
-  </svg>`
-  const I_PAUSE   = `<svg width="10" height="11" viewBox="0 0 11 12" fill="none">
-    <rect x="1" y="1" width="3" height="10" rx="0.7" fill="currentColor"/>
-    <rect x="7" y="1" width="3" height="10" rx="0.7" fill="currentColor"/>
-  </svg>`
-  const I_NEXT_15  = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M6 3.5L9.5 7 6 10.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M3 7h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-  </svg>`
-  const I_NEXT_SPK = `<svg width="15" height="13" viewBox="0 0 15 13" fill="none">
-    <path d="M3.5 3L10 6.5L3.5 10V3z" fill="currentColor"/>
-    <rect x="11.6" y="3" width="1.4" height="7" rx="0.4" fill="currentColor"/>
-  </svg>`
-  const I_VOLUME  = `<svg width="14" height="13" viewBox="0 0 16 14" fill="none">
-    <path d="M2 5v4h2.5L8 11.5v-9L4.5 5H2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/>
-    <path d="M10.5 4.5c1 .8 1 4.2 0 5M12.5 3c2 1.5 2 7 0 8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/>
-  </svg>`
+  const I_PREV_SPK = icon('prev-speaker', 17)
+  const I_PREV_15  = icon('rewind', 17)
+  const I_PLAY     = icon('play', 17)
+  const I_PAUSE    = icon('pause', 17)
+  const I_NEXT_15  = icon('forward', 17)
+  const I_NEXT_SPK = icon('next-speaker', 17)
+  const I_VOLUME   = icon('volume', 16)
 
   function makeBtn(html, cls = '') {
     const btn = document.createElement('button')

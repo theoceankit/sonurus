@@ -13,9 +13,7 @@ function makeDropdown(options, value, onChange, renderOption) {
   valSpan.className = 'st-dropdown-value'
   const chevron = document.createElement('span')
   chevron.className = 'st-dropdown-chevron'
-  chevron.innerHTML = `<svg width="10" height="6" viewBox="0 0 10 6" fill="none">
-    <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`
+  chevron.innerHTML = icon('chevron-down', 10)
   trigger.appendChild(valSpan)
   trigger.appendChild(chevron)
 
@@ -45,9 +43,7 @@ function makeDropdown(options, value, onChange, renderOption) {
       if (opt.value === current) {
         const check = document.createElement('span')
         check.className = 'st-dropdown-check'
-        check.innerHTML = `<svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-          <path d="M1 4.5l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`
+        check.innerHTML = icon('check', 11)
         item.appendChild(check)
       }
       item.addEventListener('click', () => {
