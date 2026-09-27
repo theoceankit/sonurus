@@ -1034,3 +1034,83 @@ def test_reset_returns_409_while_audio_capture_runs(reset_env):
     assert r.status_code == 409
     assert len(client.get("/transcripts").json()) == 2
     assert (recordings / "sonorus-rec-1.wav").exists()
+
+
+# ── DELETE /transcripts/{id} — app-owned audio ────────────────────────────────
+
+@pytest.fixture
+def recordings_dir(tmp_path, monkeypatch):
+    import app.config as config
+    d = tmp_path / "data" / "recordings"
+    d.mkdir(parents=True)
+    monkeypatch.setattr(config, "RECORDINGS_DIR", d)
+    return d
+
+
+def _save(audio_path):
+    storage = app.dependency_overrides[get_storage_service]()
+    return storage.save(_make_transcript(audio_path=str(audio_path)))
+
+
+def test_delete_transcript_removes_its_live_recording(client, recordings_dir):
+    rec = recordings_dir / "sonorus-rec-1.wav"
+    rec.write_bytes(b"x")
+    tid = _save(rec)
+
+    assert client.delete(f"/transcripts/{tid}").status_code == 204
+
+    assert not rec.exists()
+
+
+def test_delete_transcript_keeps_imported_file_outside_data_dir(client, recordings_dir, tmp_path):
+    imported = tmp_path / "imported" / "talk.wav"
+    imported.parent.mkdir()
+    imported.write_bytes(b"x")
+    tid = _save(imported)
+
+    assert client.delete(f"/transcripts/{tid}").status_code == 204
+
+    assert imported.exists()
+
+
+def test_delete_transcript_keeps_recording_still_used_by_another(client, recordings_dir):
+    rec = recordings_dir / "sonorus-rec-1.wav"
+    rec.write_bytes(b"x")
+    tid = _save(rec)
+    _save(rec)
+
+    assert client.delete(f"/transcripts/{tid}").status_code == 204
+
+    assert rec.exists()
+
+
+def test_delete_transcript_ignores_path_escaping_recordings_dir(client, recordings_dir, tmp_path):
+    outside = tmp_path / "data" / "secret.wav"
+    outside.write_bytes(b"x")
+    tid = _save(recordings_dir / ".." / "secret.wav")
+
+    assert client.delete(f"/transcripts/{tid}").status_code == 204
+
+    assert outside.exists()
+
+
+def test_delete_transcript_keeps_symlink_target(client, recordings_dir, tmp_path):
+    target = tmp_path / "imported.wav"
+    target.write_bytes(b"x")
+    link = recordings_dir / "link.wav"
+    link.symlink_to(target)
+    tid = _save(link)
+
+    assert client.delete(f"/transcripts/{tid}").status_code == 204
+
+    assert target.exists()
+
+
+def test_delete_transcript_with_missing_recording_succeeds(client, recordings_dir):
+    tid = _save(recordings_dir / "gone.wav")
+    assert client.delete(f"/transcripts/{tid}").status_code == 204
+    assert client.get(f"/transcripts/{tid}").status_code == 404
+
+
+def test_delete_unknown_transcript_returns_404(client, recordings_dir):
+    assert client.delete("/transcripts/9999").status_code == 404

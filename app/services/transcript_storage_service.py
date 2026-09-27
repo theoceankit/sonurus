@@ -98,6 +98,13 @@ class TranscriptStorageService:
             conn.execute("DELETE FROM transcriptions WHERE id = ?", (db_id,))
         log.info(f"DELETE transcription id={db_id} and its segments")
 
+    def count_by_audio_file(self, audio_file: str) -> int:
+        """Number of transcriptions that reference audio_file."""
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT COUNT(*) FROM transcriptions WHERE audio_file = ?", (audio_file,)
+            ).fetchone()[0]
+
     def clear(self) -> int:
         """Delete every transcription and segment. Returns the number of transcriptions removed."""
         with self._connect() as conn:
