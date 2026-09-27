@@ -1,6 +1,6 @@
 """Transcript DB schema management: creation and versioned migrations."""
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def init_db(conn) -> None:
@@ -71,3 +71,10 @@ def _run_migrations(conn, current: int) -> None:
         if "title" not in txn_cols:
             conn.execute("ALTER TABLE transcriptions ADD COLUMN title TEXT")
         conn.execute("UPDATE _ts_schema_version SET version = 3")
+        current = 3
+    if current < 4:
+        # Every transcript load filters by transcription_id and every speaker
+        # embedding recompute by speaker_id — both were full table scans.
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_segments_transcription ON segments(transcription_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_segments_speaker ON segments(speaker_id)")
+        conn.execute("UPDATE _ts_schema_version SET version = 4")

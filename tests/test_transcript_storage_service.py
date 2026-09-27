@@ -572,3 +572,47 @@ def test_get_embeddings_does_not_return_other_speakers(tmp_path):
     assert len(result) == 1
     assert np.allclose(result[0], emb_a)
     assert not any(np.allclose(e, emb_b) for e in result)
+
+
+# ---------------------------------------------------------------------------
+# Performance: indexes and embedding-free loads
+# ---------------------------------------------------------------------------
+
+def _index_columns(db_path):
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='segments'"
+        ).fetchall()
+        return {
+            tuple(c[2] for c in conn.execute(f"PRAGMA index_info('{name}')"))
+            for (name,) in rows
+        }
+
+
+def test_segments_indexed_by_transcription_and_speaker(tmp_path):
+    svc = make_service(tmp_path)
+    cols = _index_columns(svc.db_path)
+    assert ("transcription_id",) in cols
+    assert ("speaker_id",) in cols
+
+
+def test_indexes_added_to_existing_v3_database(tmp_path):
+    db = str(tmp_path / "old.db")
+    TranscriptStorageService(db_path=db)
+    with sqlite3.connect(db) as conn:  # simulate a DB created before the indexes existed
+        for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='segments' AND sql IS NOT NULL").fetchall():
+            conn.execute(f"DROP INDEX {name}")
+        conn.execute("UPDATE _ts_schema_version SET version = 3")
+    TranscriptStorageService(db_path=db)
+    assert ("speaker_id",) in _index_columns(db)
+
+
+def test_load_without_embeddings_skips_blobs(tmp_path):
+    svc = make_service(tmp_path)
+    seg = Segment(0.0, 1.0, "x", "SPEAKER_00", speaker_resolved="a", embedding=np.ones(3, dtype=np.float32))
+    db_id = svc.save(make_transcript([seg]))
+    loaded = svc.load(db_id, with_embeddings=False)
+    assert loaded.segments[0].embedding is None
+    assert loaded.segments[0].text == "x"
+    assert svc.load(db_id).segments[0].embedding is not None
+

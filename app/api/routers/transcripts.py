@@ -61,7 +61,7 @@ def get_transcript(
     storage: TranscriptStorageService = Depends(get_storage_service),
 ):
     try:
-        t = storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
     return TranscriptResponse(
@@ -142,7 +142,7 @@ def delete_transcript(
     memory: SpeakerMemoryService = Depends(get_memory_service),
 ):
     try:
-        t = storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
     storage.delete(transcript_id)
@@ -160,7 +160,7 @@ def update_segment_speaker(
     if (body.speaker_id is None) == (body.speaker_name is None):
         raise HTTPException(status_code=400, detail="Provide exactly one of speaker_id or speaker_name")
     try:
-        t = storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
     seg = next((s for s in t.segments if s.start == start), None)
@@ -191,7 +191,7 @@ def update_segment_text(
     storage: TranscriptStorageService = Depends(get_storage_service),
 ):
     try:
-        t = storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
     seg = next((s for s in t.segments if s.start == start), None)
@@ -208,7 +208,7 @@ def delete_segment(
     memory: SpeakerMemoryService = Depends(get_memory_service),
 ):
     try:
-        t = storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
     seg = next((s for s in t.segments if s.start == start), None)
@@ -231,7 +231,7 @@ def reassign_speaker(
         raise HTTPException(status_code=400, detail="Provide exactly one of to_speaker_id or to_speaker_name")
 
     try:
-        t = storage.load(transcript_id)
+        t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
 

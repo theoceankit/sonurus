@@ -33,6 +33,9 @@ CREATE TABLE segments (
     speaker_raw      TEXT,
     embedding        BLOB
 )
+
+CREATE INDEX idx_segments_transcription ON segments(transcription_id);  -- schema v4
+CREATE INDEX idx_segments_speaker       ON segments(speaker_id);        -- schema v4
 ```
 
 `speaker_id` — current effective speaker ID (`speaker_final or speaker_resolved`). Updated on reassign via `update_segments_speaker()` (bulk) or `update_segment_speaker()` (single segment).
@@ -62,9 +65,11 @@ seg.speaker_final or seg.speaker_resolved
 
 ---
 
-### `load(db_id) → Transcript`
+### `load(db_id, with_embeddings=True) → Transcript`
 
-Loads a full `Transcript` from the database by ID. Segments are ordered by ascending `start`.
+Loads a `Transcript` from the database by ID. Segments are ordered by ascending `start`.
+
+`with_embeddings=False` does not read the embedding BLOBs (`segment.embedding` is `None`). API endpoints that only need text, timing and speaker IDs use it; only `GET /transcripts/{id}/speaker-suggestions` needs the embeddings.
 
 ```python
 transcript = TranscriptStorageService().load(42)
