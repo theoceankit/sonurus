@@ -25,16 +25,13 @@ const config = {
 
   themes: ['@docusaurus/theme-mermaid'],
 
-  // Set the production url of your site here
-  url: 'https://your-docusaurus-site.example.com',
-  // Set the /<baseUrl>/ pathname under which your site is served
-  // For GitHub pages deployment, it is often '/<projectName>/'
+  // The site is not deployed yet. For GitHub Pages, set baseUrl to
+  // '/sonurus/' (internal links are baseUrl-relative and keep working).
+  url: 'https://theoceankit.github.io',
   baseUrl: '/',
 
-  // GitHub pages deployment config.
-  // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: 'theoceankit',
+  projectName: 'sonurus',
 
   onBrokenLinks: 'throw',
 
@@ -55,19 +52,8 @@ const config = {
         docs: {
           sidebarPath: './sidebars.js',
           routeBasePath: '/',
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -78,8 +64,7 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      // Replace with your project's social card
-      image: 'img/docusaurus-social-card.jpg',
+      image: 'img/sonorus-icon.png',
       colorMode: {
         defaultMode: 'dark',
         disableSwitch: false,
@@ -98,7 +83,6 @@ const config = {
             position: 'left',
             label: 'Docs',
           },
-          {to: '/blog', label: 'Blog', position: 'left'},
           {
             type: 'html',
             position: 'right',
@@ -121,7 +105,6 @@ const config = {
             title: 'Resources',
             items: [
               { label: 'Documentation', to: '/intro' },
-              { label: 'Blog', to: '/blog' },
               { label: 'Changelog', href: 'https://github.com/theoceankit/sonurus/releases' },
             ],
           },
