@@ -251,40 +251,6 @@ def test_delete_segment_not_found(client):
     assert r.status_code == 404
 
 
-# ── Commit ────────────────────────────────────────────────────────────────────
-
-def test_commit_transcript(client):
-    """POST /transcripts/{id}/commit persists the speaker embedding to memory.
-
-    Uses a proper UUID4 speaker_resolved to match production flow — after the
-    speaker-UUID refactor, all resolved speaker IDs are UUID4 strings.
-    """
-    storage = app.dependency_overrides[get_storage_service]()
-    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    spk_uuid = str(uuid_module.uuid4())
-    t = Transcript(
-        audio_path="files/test.wav",
-        language="en",
-        segments=[
-            Segment(0.0, 2.0, "Hello", "SPEAKER_00", speaker_resolved=spk_uuid, embedding=emb),
-        ],
-    )
-    db_id = storage.save(t)
-    r = client.post(f"/transcripts/{db_id}/commit")
-    assert r.status_code == 204
-
-    memory = app.dependency_overrides[get_memory_service]()
-    assert spk_uuid in memory.known_speakers, (
-        f"Expected UUID speaker {spk_uuid!r} in memory after commit, "
-        f"got keys: {list(memory.known_speakers.keys())}"
-    )
-
-
-def test_commit_transcript_not_found(client):
-    r = client.post("/transcripts/999/commit")
-    assert r.status_code == 404
-
-
 # ── Speakers ──────────────────────────────────────────────────────────────────
 
 def test_list_speakers_empty(client):

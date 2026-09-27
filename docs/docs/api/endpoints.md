@@ -31,8 +31,9 @@ Returns available system audio sources for the current platform.
 // Linux (PulseAudio monitor sources)
 [{ "id": "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor", "label": "pci-0000_00_1f.3.analog-stereo (Monitor)" }]
 
-// Windows
-[{ "id": "wasapi", "label": "System audio" }]
+// Windows — always empty: system audio is captured in the renderer
+// (WASAPI loopback via setDisplayMediaRequestHandler), not by the backend
+[]
 ```
 
 ### `POST /audio/capture/start`
@@ -306,10 +307,6 @@ Exactly one of `to_speaker_id` or `to_speaker_name` must be provided:
 - Recomputes `from_speaker_id` embedding from their remaining segments, or removes them from memory if no segments remain and they have no display name.
 
 Returns `204`.
-
-### `POST /transcripts/{id}/commit`
-
-Recomputes embeddings for all speakers in the transcript from all their segments across the entire database. Returns `204`.
 
 ---
 

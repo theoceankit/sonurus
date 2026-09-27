@@ -50,7 +50,7 @@ class AudioCaptureService:
                 return []
             return [{"id": "sckit", "label": "System audio (ScreenCaptureKit)"}]
         if p == "win32":
-            return [{"id": "wasapi", "label": "System audio"}]
+            return []  # Windows captures system audio in the renderer (WASAPI loopback)
         return self._linux_sources()
 
     def start_capture(self, source_id: str | None = None) -> str:
@@ -143,10 +143,9 @@ class AudioCaptureService:
             if not self._capture_bin:
                 raise RuntimeError("sonorus-capture binary not found; run: npm run build:capture")
             return [self._capture_bin, "--output", output_path]
-        quiet = ["-nostats", "-loglevel", "error"]
         if p == "win32":
-            return [self._ffmpeg(), *quiet, "-f", "wasapi", "-loopback", "1", "-i", "",
-                    "-ar", "44100", "-ac", "2", output_path]
+            raise RuntimeError("System audio on Windows is captured in the renderer, not the backend")
+        quiet = ["-nostats", "-loglevel", "error"]
         # Linux
         source = source_id or "default.monitor"
         return [self._ffmpeg(), *quiet, "-f", "pulse", "-i", source,

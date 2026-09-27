@@ -131,12 +131,6 @@ npm start
 .venv/bin/python main.py
 ```
 
-### Convert video to WAV
-
-```bash
-.venv/bin/python converter.py
-```
-
 ---
 
 ## How it works

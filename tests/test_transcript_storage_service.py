@@ -1,7 +1,7 @@
 """
 Tests for TranscriptStorageService — save(), load(), update_segments_speaker(),
 update_segment_speaker(), list_all(), update_segment_text(), delete_segment(),
-and get_embeddings_by_speaker().
+and get_embeddings_grouped_by_transcript().
 """
 
 import sqlite3
@@ -412,8 +412,13 @@ def test_delete_segment_no_match_is_noop(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# get_embeddings_by_speaker()
+# get_embeddings_grouped_by_transcript() — filtering rules
 # ---------------------------------------------------------------------------
+
+def _all_embeddings(svc, speaker_id):
+    """Flatten get_embeddings_grouped_by_transcript() across transcripts."""
+    return [e for embs in svc.get_embeddings_grouped_by_transcript(speaker_id).values() for e in embs]
+
 
 def test_get_embeddings_returns_embeddings_for_known_speaker(tmp_path):
     """Save 1 transcript with 2 segments belonging to speaker A — method returns
@@ -430,7 +435,7 @@ def test_get_embeddings_returns_embeddings_for_known_speaker(tmp_path):
 
     svc.save(make_transcript([seg1, seg2]))
 
-    result = svc.get_embeddings_by_speaker("speaker-A")
+    result = _all_embeddings(svc, "speaker-A")
 
     assert len(result) == 2
     assert all(isinstance(e, np.ndarray) for e in result)
@@ -449,7 +454,7 @@ def test_get_embeddings_returns_empty_for_unknown_speaker(tmp_path):
     seg.speaker_final = "speaker-A"
     svc.save(make_transcript([seg]))
 
-    result = svc.get_embeddings_by_speaker("speaker-NOBODY")
+    result = _all_embeddings(svc, "speaker-NOBODY")
 
     assert result == []
 
@@ -471,7 +476,7 @@ def test_get_embeddings_ignores_null_embeddings(tmp_path):
 
     svc.save(make_transcript([seg1, seg2, seg3]))
 
-    result = svc.get_embeddings_by_speaker("speaker-A")
+    result = _all_embeddings(svc, "speaker-A")
 
     assert len(result) == 2
     vectors = [e.tolist() for e in result]
@@ -480,7 +485,7 @@ def test_get_embeddings_ignores_null_embeddings(tmp_path):
 
 
 def test_get_embeddings_aggregates_across_transcripts(tmp_path):
-    """Speaker A appears in two separate transcriptions — get_embeddings_by_speaker
+    """Speaker A appears in two separate transcriptions — the grouped query
     returns the embeddings from both transcriptions combined."""
     svc = make_service(tmp_path)
 
@@ -495,7 +500,7 @@ def test_get_embeddings_aggregates_across_transcripts(tmp_path):
     svc.save(make_transcript([seg1], audio_path="files/session1.wav"))
     svc.save(make_transcript([seg2], audio_path="files/session2.wav"))
 
-    result = svc.get_embeddings_by_speaker("speaker-A")
+    result = _all_embeddings(svc, "speaker-A")
 
     assert len(result) == 2
     vectors = [e.tolist() for e in result]
@@ -562,7 +567,7 @@ def test_get_embeddings_does_not_return_other_speakers(tmp_path):
 
     svc.save(make_transcript([seg_a, seg_b]))
 
-    result = svc.get_embeddings_by_speaker("speaker-A")
+    result = _all_embeddings(svc, "speaker-A")
 
     assert len(result) == 1
     assert np.allclose(result[0], emb_a)
