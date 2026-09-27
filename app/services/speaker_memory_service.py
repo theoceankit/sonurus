@@ -231,6 +231,16 @@ class SpeakerRepository:
             conn.execute("DELETE FROM speaker_embeddings WHERE id = ?", (spk_id,))
             conn.execute("DELETE FROM speaker_meta WHERE speaker_id = ?", (spk_id,))
 
+    def clear(self) -> int:
+        """Delete every speaker (embeddings, names, colors). _meta is kept."""
+        with self._connect() as conn:
+            ids = {row[0] for row in conn.execute("SELECT id FROM speaker_embeddings")}
+            ids |= {row[0] for row in conn.execute("SELECT speaker_id FROM speaker_names")}
+            conn.execute("DELETE FROM speaker_names")
+            conn.execute("DELETE FROM speaker_embeddings")
+            conn.execute("DELETE FROM speaker_meta")
+        return len(ids)
+
     def find_by_name_in_db(self, name: str, label: str) -> str | None:
         with self._connect() as conn:
             row = conn.execute(
@@ -418,6 +428,22 @@ class SpeakerMemoryService:
         self.known_names.pop(spk_id, None)
         self.known_colors.pop(spk_id, None)
         self._repo.remove(spk_id)
+
+    def clear(self) -> int:
+        """Delete all speakers from the database and drop the in-memory state,
+        including pending (dirty) changes, so a later save() cannot restore them.
+        Used only by the full data reset. Returns the number of speakers removed."""
+        with self._dirty_lock:
+            self._dirty = set()
+            removed = self._repo.clear()
+        self.known_speakers = {}
+        self.known_counts = {}
+        self.known_names = {}
+        self.known_colors = {}
+        self._dirty_names = set()
+        self._dirty_colors = set()
+        log.info(f"Cleared all speakers ({removed})")
+        return removed
 
     def create_named_speaker(self, name: str, label: str = "display") -> str:
         """Create a new speaker ID with a persisted display name.

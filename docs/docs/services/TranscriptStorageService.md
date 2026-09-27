@@ -134,6 +134,12 @@ Deletes a transcription and all its segments.
 
 ---
 
+### `clear() → int`
+
+Deletes every transcription and segment in one transaction and returns the number of transcriptions removed. Schema tables are kept. Used only by `POST /data/reset`.
+
+---
+
 ### `update_status(db_id, status)`
 
 Updates the `status` field in the `transcriptions` table.

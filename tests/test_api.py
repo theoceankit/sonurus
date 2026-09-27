@@ -900,3 +900,137 @@ def test_segment_speaker_requires_exactly_one_of_id_or_name(client):
     url = f"/transcripts/{db_id}/segments/0.0/speaker"
     assert client.patch(url, json={}).status_code == 400
     assert client.patch(url, json={"speaker_id": _ALICE, "speaker_name": "X"}).status_code == 400
+
+
+# ── POST /data/reset ──────────────────────────────────────────────────────────
+
+class _IdleCapture:
+    def __init__(self, active=False):
+        self.active = active
+
+    def has_active_jobs(self) -> bool:
+        return self.active
+
+
+@pytest.fixture
+def reset_env(client, tmp_path, monkeypatch):
+    """client + isolated recordings/.files dirs + an idle capture service."""
+    import app.config as config
+    from app.api.dependencies import get_audio_capture_service
+    from app.services.archive_service import ArchiveService
+
+    data_dir = tmp_path / "data"
+    recordings = data_dir / "recordings"
+    archive = data_dir / ".files"
+    recordings.mkdir(parents=True)
+    archive.mkdir(parents=True)
+    monkeypatch.setattr(config, "RECORDINGS_DIR", recordings)
+    monkeypatch.setattr(ArchiveService, "BASE_DIR", str(archive))
+
+    capture = _IdleCapture()
+    app.dependency_overrides[get_audio_capture_service] = lambda: capture
+    yield client, recordings, archive, capture
+
+
+def test_reset_deletes_transcripts_and_all_speakers(reset_env):
+    client, *_ = reset_env
+    _setup_two_transcripts()  # Alice is named, Bob is not
+    assert _fresh_memory().known_speakers
+
+    r = client.post("/data/reset")
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["transcripts"] == 2
+    assert body["speakers"] == 2
+    assert client.get("/transcripts").json() == []
+    assert client.get("/speakers").json() == []
+    fresh = _fresh_memory()
+    assert fresh.known_speakers == {}
+    assert fresh.known_names == {}
+
+
+def test_reset_clears_the_api_memory_singleton(reset_env):
+    """The DI memory instance itself must be emptied, not only the DB."""
+    client, *_ = reset_env
+    shared = _fresh_memory()
+    app.dependency_overrides[get_memory_service] = lambda: shared
+    spk = shared.create_named_speaker("Carol")
+    shared.update_embedding(spk, np.ones(3))
+    shared.save()
+
+    assert client.post("/data/reset").status_code == 200
+
+    assert shared.known_speakers == {}
+    assert shared.known_names == {}
+
+
+def test_reset_deletes_recordings_and_archive(reset_env):
+    client, recordings, archive, _ = reset_env
+    (recordings / "sonorus-rec-1.wav").write_bytes(b"x")
+    day = archive / "2026-09-27" / "meeting"
+    day.mkdir(parents=True)
+    (day / "meeting.wav").write_bytes(b"x")
+    (day / "meeting.txt").write_text("hi")
+
+    r = client.post("/data/reset")
+
+    assert r.status_code == 200
+    assert r.json()["files"] == 3
+    assert list(recordings.iterdir()) == []
+    assert list(archive.iterdir()) == []
+
+
+def test_reset_keeps_audio_files_outside_data_dir(reset_env, tmp_path):
+    client, recordings, _, _ = reset_env
+    outside = tmp_path / "imported" / "interview.wav"
+    outside.parent.mkdir()
+    outside.write_bytes(b"audio")
+    _storage = app.dependency_overrides[get_storage_service]()
+    _storage.save(_make_transcript(audio_path=str(outside)))
+    (recordings / "link.wav").symlink_to(outside)
+
+    assert client.post("/data/reset").status_code == 200
+
+    assert outside.read_bytes() == b"audio"
+    assert not (recordings / "link.wav").exists()
+    assert not (recordings / "link.wav").is_symlink()
+
+
+def test_reset_on_empty_data_succeeds(reset_env):
+    client, *_ = reset_env
+    r = client.post("/data/reset")
+    assert r.status_code == 200
+    assert r.json() == {"transcripts": 0, "speakers": 0, "files": 0}
+
+
+def test_reset_works_when_data_dirs_do_not_exist(reset_env):
+    client, recordings, archive, _ = reset_env
+    recordings.rmdir()
+    archive.rmdir()
+    assert client.post("/data/reset").status_code == 200
+
+
+def test_reset_returns_409_while_transcription_job_runs(reset_env, monkeypatch):
+    from app.api.routers import transcription
+    client, *_ = reset_env
+    _setup_two_transcripts()
+    monkeypatch.setitem(transcription._jobs, "job-1", None)
+
+    r = client.post("/data/reset")
+
+    assert r.status_code == 409
+    assert len(client.get("/transcripts").json()) == 2
+
+
+def test_reset_returns_409_while_audio_capture_runs(reset_env):
+    client, recordings, _, capture = reset_env
+    _setup_two_transcripts()
+    (recordings / "sonorus-rec-1.wav").write_bytes(b"x")
+    capture.active = True
+
+    r = client.post("/data/reset")
+
+    assert r.status_code == 409
+    assert len(client.get("/transcripts").json()) == 2
+    assert (recordings / "sonorus-rec-1.wav").exists()

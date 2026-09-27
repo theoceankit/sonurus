@@ -1,6 +1,6 @@
 
 // ── Settings (persisted to disk via IPC) ────────────────────────────────────
-const appSettings = {
+const DEFAULT_APP_SETTINGS = Object.freeze({
   scale: 100,
   transcribeLang: 'auto',
   transcribeModel: 'small',
@@ -12,7 +12,9 @@ const appSettings = {
   recordingDiarize: true,
   recordingSaveAudio: true,
   hfToken: '',
-}
+})
+
+const appSettings = { ...DEFAULT_APP_SETTINGS }
 
 async function loadSettings() {
   const saved = await window.electronAPI.readSettings()

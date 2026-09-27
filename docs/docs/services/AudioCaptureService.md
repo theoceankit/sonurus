@@ -53,6 +53,8 @@ POST /audio/capture/stop/{job_id}  { mic_path?: "..." }
 POST /transcribe  { audio_path: "<returned path>" }
 ```
 
+`has_active_jobs()` reports whether any capture is still running; `POST /data/reset` returns `409` while it is `True`, so a reset never races with a file being written into the recordings directory.
+
 Mic recording (WebM via `MediaRecorder`) is saved to `$SONORUS_DATA_DIR/recordings/` by the Electron main process via IPC `save-recording`. The path is passed as `mic_path` to `stop_capture`.
 
 Final recordings are never kept in the OS temp directory: their path is stored in `transcriptions.audio_file`, and `/tmp` is wiped on reboot on many systems (e.g. `tmpfs`).
