@@ -19,6 +19,8 @@ router = APIRouter(tags=["models"])
 
 _executor = ThreadPoolExecutor(max_workers=2)
 
+_HEARTBEAT_INTERVAL = 15  # seconds between heartbeats when no progress arrives
+
 # job_id → threading.Queue carrying a single terminal event (done/error/cancelled)
 _download_jobs: dict[str, _queue.Queue] = {}
 # job_id → threading.Event for cancellation
@@ -113,11 +115,12 @@ async def ws_download_progress(websocket: WebSocket, job_id: str):
         await websocket.close()
         return
 
-    loop = asyncio.get_running_loop()
     try:
         while True:
             try:
-                event = await loop.run_in_executor(_executor, lambda: q.get(timeout=15))
+                # Wait on the default thread pool, never on _executor: with every
+                # download worker busy, reads queued there would never run.
+                event = await asyncio.to_thread(q.get, timeout=_HEARTBEAT_INTERVAL)
             except _queue.Empty:
                 await websocket.send_json({"type": "heartbeat"})
                 continue
