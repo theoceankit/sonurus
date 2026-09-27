@@ -265,3 +265,59 @@ def test_post_stop_with_mic_path(capture_client):
     assert "file_path" in body, f"Response must contain 'file_path', got {body}"
     assert isinstance(body["file_path"], str)
     assert len(body["file_path"]) > 0
+
+
+# ── Regression: capture process must never block on a full stderr pipe ───────
+
+# Mimics ffmpeg: writes the output file, then streams progress lines to stderr
+# until SIGINT arrives, and only then exits. If stderr is a pipe nobody reads,
+# the write blocks once the pipe buffer is full and the process never exits.
+_CHATTY_CAPTURE_SCRIPT = r"""
+import signal, sys, time
+stop = False
+def _on_sigint(*_):
+    global stop
+    stop = True
+signal.signal(signal.SIGINT, _on_sigint)
+with open(sys.argv[1], "wb") as f:
+    f.write(b"RIFF" + b"\0" * 100)
+line = b"size=  1024kB time=00:00:10.00 bitrate= 705.6kbits/s speed=1x\n" * 4
+while not stop:
+    sys.stderr.buffer.write(line)
+    sys.stderr.buffer.flush()
+    time.sleep(0.001)
+"""
+
+
+@pytest.mark.skipif(__import__("sys").platform == "win32", reason="POSIX signals only")
+def test_stop_capture_does_not_hang_on_chatty_stderr(tmp_path):
+    import sys
+    import threading
+    import time
+
+    AudioCaptureService = _get_service_class()
+    svc = AudioCaptureService()
+    script = tmp_path / "chatty.py"
+    script.write_text(_CHATTY_CAPTURE_SCRIPT)
+
+    with patch.object(svc, "_build_command",
+                      side_effect=lambda _src, out: [sys.executable, str(script), out]), \
+         patch("app.services.audio_capture_service.sys.platform", "linux"):
+        job_id = svc.start_capture(source_id="test.monitor")
+        time.sleep(1.5)  # far more than a 64 KB pipe buffer worth of output
+
+        result = {}
+        t = threading.Thread(target=lambda: result.update(path=svc.stop_capture(job_id)), daemon=True)
+        t.start()
+        t.join(timeout=15)
+
+    assert not t.is_alive(), "stop_capture() hung: capture process blocked on stderr"
+    assert result["path"].endswith(".wav")
+
+
+def test_linux_ffmpeg_command_disables_stats():
+    AudioCaptureService = _get_service_class()
+    with patch("app.services.audio_capture_service.sys.platform", "linux"):
+        cmd = AudioCaptureService()._build_command("x.monitor", "/tmp/out.wav")
+    assert "-nostats" in cmd
+    assert cmd[cmd.index("-loglevel") + 1] == "error"

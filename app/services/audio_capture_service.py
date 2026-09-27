@@ -9,10 +9,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+_STOP_TIMEOUT_SEC = 10
+
+
 @dataclass
 class _CaptureJob:
     process: subprocess.Popen
     output_path: str
+    log_path: str
 
 
 class AudioCaptureService:
@@ -48,32 +52,38 @@ class AudioCaptureService:
     def start_capture(self, source_id: str | None = None) -> str:
         job_id = str(uuid.uuid4())
         output_path = str(Path(tempfile.gettempdir()) / f"sonorus-sys-{job_id}.wav")
+        log_path = str(Path(tempfile.gettempdir()) / f"sonorus-sys-{job_id}.log")
         cmd = self._build_command(source_id, output_path)
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        is_darwin = sys.platform == "darwin"
+        # stderr goes to a file, never a pipe: the capture process runs for the
+        # whole recording and would block once an unread pipe buffer fills up.
+        # stdout is only needed on macOS for the READY handshake.
+        with open(log_path, "wb") as log_file:
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE if is_darwin else subprocess.DEVNULL,
+                stderr=log_file,
+            )
 
-        if sys.platform == "darwin":
+        if is_darwin:
             import select as _select
             ready, _, _ = _select.select([process.stdout], [], [], 5.0)
             if not ready:
                 process.kill()
-                stderr = process.stderr.read(4096).decode(errors="replace").strip()
+                stderr = _read_log(log_path)
                 raise RuntimeError(
                     f"sonorus-capture timed out starting.{(' ' + stderr) if stderr else ''}"
                 )
             line = process.stdout.readline().decode().strip()
             process.stdout.close()
             if line != "READY":
-                stderr = process.stderr.read(4096).decode(errors="replace").strip()
+                stderr = _read_log(log_path)
                 raise RuntimeError(
                     f"sonorus-capture failed to start: {stderr or line}"
                 )
 
         with self._lock:
-            self._jobs[job_id] = _CaptureJob(process=process, output_path=output_path)
+            self._jobs[job_id] = _CaptureJob(process=process, output_path=output_path, log_path=log_path)
         return job_id
 
     def stop_capture(self, job_id: str, mic_path: str | None = None) -> str:
@@ -88,9 +98,15 @@ class AudioCaptureService:
             job.process.send_signal(signal.SIGINT)
         except (ProcessLookupError, OSError):
             pass
-        job.process.wait()
+        try:
+            job.process.wait(timeout=_STOP_TIMEOUT_SEC)
+        except subprocess.TimeoutExpired:
+            log.warning("capture process did not exit after SIGINT; killing it")
+            job.process.kill()
+            job.process.wait()
 
-        stderr_out = job.process.stderr.read().decode(errors="replace").strip()
+        stderr_out = _read_log(job.log_path)
+        Path(job.log_path).unlink(missing_ok=True)
         if stderr_out:
             log.warning("sonorus-capture stderr:\n%s", stderr_out)
 
@@ -116,12 +132,13 @@ class AudioCaptureService:
             if not self._capture_bin:
                 raise RuntimeError("sonorus-capture binary not found; run: npm run build:capture")
             return [self._capture_bin, "--output", output_path]
+        quiet = ["-nostats", "-loglevel", "error"]
         if p == "win32":
-            return [self._ffmpeg(), "-f", "wasapi", "-loopback", "1", "-i", "",
+            return [self._ffmpeg(), *quiet, "-f", "wasapi", "-loopback", "1", "-i", "",
                     "-ar", "44100", "-ac", "2", output_path]
         # Linux
         source = source_id or "default.monitor"
-        return [self._ffmpeg(), "-f", "pulse", "-i", source,
+        return [self._ffmpeg(), *quiet, "-f", "pulse", "-i", source,
                 "-ar", "44100", "-ac", "2", output_path]
 
     def _merge(self, system_path: str, mic_path: str, job_id: str) -> str:
@@ -154,3 +171,12 @@ class AudioCaptureService:
             return sources
         except Exception:
             return []
+
+
+def _read_log(path: str, limit: int = 4096) -> str:
+    """Return the tail of a capture process log file ('' if unreadable)."""
+    try:
+        with open(path, "rb") as f:
+            return f.read()[-limit:].decode(errors="replace").strip()
+    except OSError:
+        return ""
