@@ -224,8 +224,6 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
     textEl.style.display = ''
   }
 
-  row.dataset.edit = ''  // marker for selection toolbar
-
   editArea.addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commitEdit() }
     if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }

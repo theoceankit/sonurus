@@ -97,7 +97,7 @@ The display name is **never** stored as the speaker ID. All IDs in `speaker_embe
 
 **Why:** Decoupling identity (UUID) from display name allows two speakers with the same name (e.g. two people named "Alice") to coexist as distinct UUIDs. Renaming a speaker only updates `speaker_names` without touching segment data or embeddings.
 
-**Target state:** The principle stays. The remaining improvement is to replace the string-prefix fallback in `isUnrecognized()` with a single authoritative check against `knownMap` in all code paths.
+**Target state:** The principle stays.
 
 ---
 

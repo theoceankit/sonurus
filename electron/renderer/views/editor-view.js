@@ -61,7 +61,6 @@ function renderEditorView(transcriptId, meta = null) {
 
     const srcChip = document.createElement('span')
     srcChip.className = 'focus-tag'
-    srcChip.style.cssText = ''
     srcChip.textContent = sourceLabel
     row.appendChild(srcChip)
 

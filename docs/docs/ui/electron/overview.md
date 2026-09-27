@@ -152,7 +152,7 @@ Recording runs entirely in the background — no dedicated recording view. The f
 
 ```js
 { recorder, audioCtx, micStream, sysStream,
-  captureJobId, chunks, elapsed, timerInterval,
+  captureJobId, chunks, timerInterval,
   settings: { title, model, language } }
 ```
 
