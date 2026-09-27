@@ -329,6 +329,26 @@
   min-width: 0;
 }
 
+.rec-item-delete {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: -2px -4px -2px 0;
+  border-radius: 4px;
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.rec-item:hover .rec-item-delete,
+.rec-item:focus-within .rec-item-delete { display: inline-flex; }
+.rec-item:hover .rec-item-time { display: none; }
+.rec-item-delete:hover { background: rgba(0,0,0,0.08); color: var(--red); }
+.rec-item--active .rec-item-delete { color: rgba(255,255,255,0.8); }
+.rec-item--active .rec-item-delete:hover { background: rgba(255,255,255,0.18); color: #fff; }
+
 .rec-item-time {
   font-size: 11px;
   font-weight: 400;

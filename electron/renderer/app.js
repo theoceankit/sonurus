@@ -545,6 +545,21 @@ const app = {
       titleEl.appendChild(timeEl)
     }
 
+    // Delete icon — replaces the time on hover. A span, not a nested button
+    // (the item itself is a <button>).
+    const delEl = document.createElement('span')
+    delEl.className = 'rec-item-delete'
+    delEl.setAttribute('role', 'button')
+    delEl.title = 'Delete transcript'
+    delEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 18 18" fill="none">
+      <path d="M3.5 5h11M7 5V3.5h4V5M5 5l.7 9.5h6.6L13 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`
+    delEl.addEventListener('click', e => {
+      e.stopPropagation()
+      this._confirmDeleteTranscript(item)
+    })
+    titleEl.appendChild(delEl)
+
     btn.appendChild(titleEl)
 
     // Meta row: duration + avatars
@@ -591,6 +606,29 @@ const app = {
     btn.appendChild(metaEl)
     btn.addEventListener('click', () => this.showEditor(item.id))
     return btn
+  },
+
+  _confirmDeleteTranscript(item) {
+    const { title, body } = deleteTranscriptPrompt(item.title)
+    openConfirmDialog({
+      title, body, confirmLabel: 'Delete',
+      onConfirm: () => this._deleteTranscript(item),
+    })
+  },
+
+  async _deleteTranscript(item) {
+    try {
+      const r = await fetch(`${API_BASE}/transcripts/${item.id}`, { method: 'DELETE' })
+      if (!r.ok && r.status !== 404) throw new Error(`Server error ${r.status}`)
+    } catch (err) {
+      window.showToast?.(`Could not delete: ${err.message}`, 'error')
+      return
+    }
+    this._allRecordings = withoutRecording(this._allRecordings, item.id)
+    if (this._activeTranscriptId === item.id) this.showHome()
+    else this._rerenderList()
+    this._loadSidebar()
+    window.showToast?.(`Deleted “${item.title}”.`)
   },
 
   _setFilter(filter) {
