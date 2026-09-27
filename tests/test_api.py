@@ -1187,11 +1187,13 @@ def test_patch_speaker_can_name_a_segment_only_speaker(client):
     assert _speaker_rows(client)[_CAROL]["name"] == "Carol"
 
 
-def test_patch_speaker_rejects_taken_name(client):
+def test_patch_speaker_allows_a_name_another_speaker_has(client):
+    """Names are labels, not identities: two people named Alice are two UUIDs."""
     _speakers_fixture()
-    r = client.patch(f"/speakers/{_BOB}", json={"name": "alice"})
-    assert r.status_code == 409
-    assert _speaker_rows(client)[_BOB]["name"] is None
+    r = client.patch(f"/speakers/{_BOB}", json={"name": "Alice"})
+    assert r.status_code == 200, r.text
+    rows = _speaker_rows(client)
+    assert rows[_BOB]["name"] == "Alice" and rows[_ALICE]["name"] == "Alice"
 
 
 def test_patch_speaker_keeping_own_name_is_allowed(client):
@@ -1209,9 +1211,9 @@ def test_patch_unknown_speaker_returns_404(client):
     assert client.patch(f"/speakers/{_BOB}", json={"name": "X"}).status_code == 404
 
 
-def test_rename_rejects_taken_name(client):
+def test_rename_allows_a_name_another_speaker_has(client):
     _speakers_fixture()
-    assert client.post(f"/speakers/{_BOB}/rename", json={"name": "Alice"}).status_code == 409
+    assert client.post(f"/speakers/{_BOB}/rename", json={"name": "Alice"}).status_code == 204
 
 
 def test_speaker_transcripts(client):

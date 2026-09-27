@@ -347,7 +347,7 @@ Changes the display name and/or color. At least one field is required.
 { "name": "Alice Ivanova", "color_index": 3 }
 ```
 
-- `name` — 1–128 chars, trimmed. Names are unique case- and whitespace-insensitively: `409` if another speaker already has it (the speaker's own name in another case is allowed). Duplicates created before this rule are kept and marked in the UI.
+- `name` — 1–128 chars, trimmed. Names need not be unique: two people named "Alice" are two speaker ids. The UI marks speakers that share a name.
 - `color_index` — `0..4`, otherwise `400`.
 
 Works for any speaker listed by `GET /speakers`, including one that only has segments (naming it makes it recognized). Returns `200` with the updated `GET /speakers` row, `400` for an empty body, `404` for an unknown id. Never touches the embedding.
@@ -360,7 +360,7 @@ Works for any speaker listed by `GET /speakers`, including one that only has seg
 { "name": "Alice Ivanova" }
 ```
 
-Returns `204`. Returns `404` if speaker is not in `known_speakers`, `409` if another speaker already has the name. Only updates `speaker_names` — does not touch the embedding or count. Kept for compatibility; new code uses `PATCH /speakers/{id}`.
+Returns `204`. Returns `404` if speaker is not in `known_speakers`. Only updates `speaker_names` — does not touch the embedding or count. Kept for compatibility; new code uses `PATCH /speakers/{id}`.
 
 ### `DELETE /speakers/{id}`
 

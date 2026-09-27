@@ -28,11 +28,6 @@ def _require_speaker(spk_id, memory, stats) -> None:
         raise HTTPException(status_code=404, detail="Speaker not found")
 
 
-def _require_free_name(name, spk_id, memory) -> None:
-    if memory.is_name_taken(name, exclude_id=spk_id):
-        raise HTTPException(status_code=409, detail="Another speaker already has this name")
-
-
 @router.get("", response_model=list[SpeakerResponse])
 def list_speakers(
     memory: SpeakerMemoryService = Depends(get_memory_service),
@@ -61,7 +56,6 @@ def update_speaker(
     stats = storage.speaker_stats()
     _require_speaker(speaker_id, memory, stats)
     if body.name is not None:
-        _require_free_name(body.name, speaker_id, memory)
         memory.set_name(speaker_id, body.name)
         memory.save_names_only()
     if body.color_index is not None:
@@ -77,7 +71,6 @@ def rename_speaker(
 ):
     if speaker_id not in memory.known_speakers:
         raise HTTPException(status_code=404, detail="Speaker not found")
-    _require_free_name(body.name, speaker_id, memory)
     memory.set_name(speaker_id, body.name)
     memory.save_names_only()
 

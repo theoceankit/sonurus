@@ -169,6 +169,8 @@
 
 .spk-name-error { font-size: 12px; color: var(--red-dark); min-height: 0; }
 .spk-name-error:empty { display: none; }
+.spk-name-hint { font-size: 12px; color: #A07227; }
+.spk-name-hint:empty { display: none; }
 .spk-page-sub { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
 
 .spk-stats {

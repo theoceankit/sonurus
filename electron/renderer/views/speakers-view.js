@@ -23,8 +23,8 @@ function makeSpeakerListItem(row, { active = false, duplicate = false, onClick }
   if (duplicate) {
     const badge = document.createElement('span')
     badge.className = 'spk-dup-badge'
-    badge.textContent = 'duplicate'
-    badge.title = 'Another speaker has the same name'
+    badge.textContent = 'same name'
+    badge.title = 'Another speaker has the same name — they are different people'
     nameRow.appendChild(badge)
   }
 
@@ -91,14 +91,18 @@ function renderSpeakerDetail(row, ctx) {
   const error = document.createElement('div')
   error.className = 'spk-name-error'
 
+  // Same names are allowed (identity is the id); just make it visible.
+  const sameName = document.createElement('div')
+  sameName.className = 'spk-name-hint'
+  if (ctx.duplicate) sameName.textContent = `Another speaker is also named “${row.name}”.`
+
   const sub = document.createElement('div')
   sub.className = 'spk-page-sub'
   sub.textContent = row.name
     ? 'Recognized speaker'
     : 'Unnamed speaker — add a name to recognize them in transcripts'
-  if (ctx.duplicate) sub.textContent += ' · another speaker has the same name'
 
-  titleBox.append(form, error, sub)
+  titleBox.append(form, error, sameName, sub)
   top.appendChild(titleBox)
   header.appendChild(top)
 
