@@ -148,20 +148,25 @@ body::before {
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* GitHub link in navbar */
-.navbar__item.navbar__item--right a[href*="github"] {
+/* GitHub button in navbar */
+.navbar-github-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 14px;
   color: var(--ink-soft);
   border: 1px solid var(--hairline-strong);
   border-radius: 9px;
   padding: 6px 14px;
+  text-decoration: none;
   transition: color 0.2s, border-color 0.2s, background 0.2s;
 }
 
-.navbar__item.navbar__item--right a[href*="github"]:hover {
+.navbar-github-btn:hover {
   color: var(--ink);
   border-color: rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.05);
+  text-decoration: none;
 }
 
 /* ============================================================
@@ -325,7 +330,7 @@ body::before {
   background: rgba(0, 0, 0, 0.05);
 }
 
-[data-theme='light'] .navbar__item.navbar__item--right a[href*="github"]:hover {
+[data-theme='light'] .navbar-github-btn:hover {
   background: rgba(0, 0, 0, 0.04);
   border-color: rgba(0, 0, 0, 0.22);
 }
