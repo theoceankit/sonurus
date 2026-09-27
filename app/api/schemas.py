@@ -78,3 +78,9 @@ class ReassignRequest(BaseModel):
     from_speaker_id: str
     to_speaker_id: str | None = None
     to_speaker_name: str | None = None
+
+
+class DataResetResponse(BaseModel):
+    transcripts: int
+    speakers: int
+    files: int

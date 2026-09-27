@@ -387,3 +387,12 @@ def test_merge_never_deletes_mic_file_outside_recordings_dir(tmp_path):
         svc.stop_capture(job_id, mic_path=str(mic))
 
     assert mic.exists()
+
+
+def test_has_active_jobs_tracks_running_capture(tmp_path):
+    AudioCaptureService = _get_service_class()
+    with patch("app.services.audio_capture_service.subprocess.Popen", return_value=_make_mock_popen()):
+        svc = AudioCaptureService(recordings_dir=tmp_path)
+        assert svc.has_active_jobs() is False
+        svc.start_capture()
+        assert svc.has_active_jobs() is True
