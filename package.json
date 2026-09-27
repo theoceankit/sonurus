@@ -30,7 +30,9 @@
       {
         "from": "electron/resources/mac/",
         "to": "mac/",
-        "filter": ["sonorus-capture"]
+        "filter": [
+          "sonorus-capture"
+        ]
       }
     ],
     "directories": {
@@ -45,7 +47,9 @@
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "target": [
-        { "target": "dmg" }
+        {
+          "target": "dmg"
+        }
       ]
     },
     "dmg": {
@@ -96,7 +100,7 @@
     }
   },
   "devDependencies": {
-    "electron": "^33.0.0",
+    "electron": "^33.4.11",
     "electron-builder": "^26.8.1",
     "ffmpeg-static": "^5.3.0",
     "png2icons": "^2.0.1",
@@ -105,5 +109,10 @@
   "dependencies": {
     "playwright": "^1.60.0",
     "playwright-core": "^1.60.0"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true,
+    "ffmpeg-static@5.3.0": true,
+    "electron-winstaller@5.4.0": true
   }
 }
