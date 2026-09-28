@@ -94,6 +94,9 @@ A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-o
 | Play | ✅ Done | Seeks the player to the segment start and plays |
 | Bookmark | Pending | Semantics undefined — flag in DB, local list, or other |
 
+### ✅ Transcript title
+**Done.** Click the editor title to rename the transcript (`PATCH /transcripts/{id}`). See [Electron UI → Renaming a transcript](../ui/electron/overview.md#renaming-a-transcript).
+
 ### ✅ Back button
 **Done.** The titlebar back button returns to the home view (`app.showHome()`).
 

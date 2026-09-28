@@ -260,6 +260,14 @@ Full transcript with segments.
 
 `unassigned: true` marks a segment whose speaker was deleted (`DELETE /speakers/{id}`): both speaker fields are `null` and its effective speaker is the pseudo-id `UNASSIGNED`, not `speaker_raw`. Assigning a speaker to it (single or bulk) clears the flag.
 
+### `PATCH /transcripts/{id}`
+
+```json
+{ "title": "Weekly sync" }
+```
+
+Renames the transcript. `title` is trimmed and must be 1–200 characters (`422` otherwise). Only transcript metadata changes — segments, speakers and the `.files/` archive are untouched. Returns `204`, or `404` for an unknown id. A transcript without a title is listed under its audio file name (`GET /transcripts`).
+
 ### `DELETE /transcripts/{id}`
 
 Deletes transcript and all its segments, then calls `CommitService.recompute_or_remove()` for every speaker that appeared in it: the deleted audio no longer contributes to their stored embeddings, and unnamed speakers left without segments are removed from memory. If the transcript's audio file is a live recording inside `$SONORUS_DATA_DIR/recordings/` and no other transcript references it, the file is deleted too; imported audio elsewhere on disk and the `.files/` archive are never touched (a symlink is removed as a link). Returns `204`, or `404` for an unknown id.

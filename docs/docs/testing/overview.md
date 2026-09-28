@@ -44,12 +44,12 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 
 ## Current coverage
 
-**503 Python unit and API tests** across **20 files** — no ML models are loaded — plus **53 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
+**512 Python unit and API tests** across **20 files** — no ML models are loaded — plus **58 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
 
 | File | Tests | What it covers |
 |---|---|---|
-| `test_api.py` | 88 | End-to-end API routes: transcribe, transcripts CRUD, speaker rename, cancel, delete → speaker recompute, single-segment reassign, live-recording cleanup on `DELETE /transcripts/{id}` (imported/escaping/symlinked/shared files kept), `POST /data/reset` (DB + files, imported files kept, 409 while jobs run), Speakers section (`GET /speakers` with unnamed speakers and statistics, `PATCH` name/color (shared names allowed), `DELETE` → unassigned segments and 409 while jobs run, `GET /speakers/{id}/transcripts`, `GET /speakers/{id}/sample`, reassigning unassigned segments), `color_index` for a speaker created by name, assigning a named speaker without a voice profile |
-| `test_transcript_storage_service.py` | 57 | `save()`, `load()`, `update_*`, `list_all()`, `delete_segment()`, `clear()`, `count_by_audio_file()`, `get_embeddings_grouped_by_transcript()`, segment indexes, `load(with_embeddings=False)`, unassigned segments + schema v5 migration, schema v6 (raw labels → UUID / unassigned), `speaker_stats()`, `transcripts_for_speaker()` |
+| `test_api.py` | 94 | End-to-end API routes: transcribe, transcripts CRUD, speaker rename, cancel, delete → speaker recompute, single-segment reassign, live-recording cleanup on `DELETE /transcripts/{id}` (imported/escaping/symlinked/shared files kept), `POST /data/reset` (DB + files, imported files kept, 409 while jobs run), Speakers section (`GET /speakers` with unnamed speakers and statistics, `PATCH` name/color (shared names allowed), `DELETE` → unassigned segments and 409 while jobs run, `GET /speakers/{id}/transcripts`, `GET /speakers/{id}/sample`, reassigning unassigned segments), `color_index` for a speaker created by name, assigning a named speaker without a voice profile, `PATCH /transcripts/{id}` title (trimmed, 404, 422 for blank / over 200 chars) |
+| `test_transcript_storage_service.py` | 60 | `save()`, `load()`, `update_*` (incl. `update_title()`), `list_all()`, `delete_segment()`, `clear()`, `count_by_audio_file()`, `get_embeddings_grouped_by_transcript()`, segment indexes, `load(with_embeddings=False)`, unassigned segments + schema v5 migration, schema v6 (raw labels → UUID / unassigned), `speaker_stats()`, `transcripts_for_speaker()` |
 | `test_speaker_memory_service.py` | 47 | `resolve()` purity, `set_name()` / `get_name()`, persistence, `save_names_only()`, `find_by_name()`, UUID migration, `clear()` (DB + in-memory + dirty sets), `speaker_ids()`, `set_color()`, removing name-only speakers |
 | `test_model_service.py` | 31 | `WHISPER_CATALOG`, `list_models()`, `is_installed()`, `download_model()`, `delete_model()` for Whisper models |
 | `test_alignment_model.py` | 29 | `ALIGNMENT_CATALOG`, `is_installed()`, `download_model()`, `delete_model()`, API routes for alignment models |
@@ -73,6 +73,7 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `tests/renderer/sidebar-delete.test.js` | 5 | `withoutRecording()`, `deleteTranscriptPrompt()` |
 | `tests/renderer/speakers.test.js` | 11 | `filterSpeakers()`, `duplicateNameIds()`, `speakerDisplayName()`, `speakerStatsLine()`, `deleteSpeakerPrompt()`, `buildKnownMap()` skipping unnamed rows, `effectiveSpeaker()` for unassigned segments |
 | `tests/renderer/new-speaker.test.js` | 6 | `leastUsedColorIndex()`, `hasSpeakerNamed()`, `speakerAssignRequest()` (one segment vs all segments, by id vs new name + color) |
+| `tests/renderer/transcript-title.test.js` | 5 | `titleToSave()` (trim, blank / unchanged / over 200 chars skipped), `transcriptTitleRequest()` |
 | `tests/renderer/editor-scroll.test.js` | 2 | `preserveScroll()` — the editor keeps its scroll position when it rebuilds after an edit |
 | `tests/renderer/icons.test.js` | 7 | `icon()` / `hydrateIcons()` markup; every icon name used in the renderer has a file in `electron/assets/icons/`; files are kebab-case with `xmlns` + `viewBox`; no inline SVG icons; renderer scripts still parse |
 
