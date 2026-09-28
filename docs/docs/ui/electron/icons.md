@@ -64,7 +64,7 @@ the naming or root-element rules, or when inline SVG icons return.
 | `eye` | Settings: show / hide token |
 | `forward` | Player: forward 15 s |
 | `highlight` | Selection toolbar: Highlight |
-| `import` | New recording modal: import a file, drop overlay |
+| `import` | New recording modal: import a file, drop overlays (modal and window) |
 | `inspector` | Titlebar: toggle the right panel |
 | `interface` | Settings: "Interface" section |
 | `microphone` | Microphone source, "Audio devices" section, setup permission |
