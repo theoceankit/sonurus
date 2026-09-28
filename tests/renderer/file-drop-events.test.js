@@ -28,7 +28,7 @@ function setup(state = {}) {
   const ctx = loadRenderer(['utils.js', 'file-drop.js'], { window, document, icon: () => '' })
   const drops = []
   ctx.initFileDrop({
-    getState: () => ({ view: 'import', recording: false, modalOpen: false, ...state }),
+    getState: () => ({ view: 'import', modalOpen: false, ...state }),
     onDrop: d => drops.push(JSON.parse(JSON.stringify(d))),
   })
   const fire = (type, { files = ['a.mp3'], types = ['Files'], prevented = false } = {}) => {

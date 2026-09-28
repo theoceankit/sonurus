@@ -15,7 +15,7 @@ For individual open bugs see [Known Issues](../known-issues.md).
 ### ✅ Recompute-from-segments embeddings
 **Done.** `CommitService` no longer uses incremental averaging. Every commit queries all segments for the affected speaker(s) from the DB and recomputes the mean from scratch. This means:
 - Retroactive corrections are reflected immediately — reassigning a segment from A to B removes A's contribution at the next commit for A.
-- Auto-recognized speakers' embeddings are updated after each new session via `commit_recognized_speakers()`, called automatically after `POST /transcribe` saves the transcript.
+- Auto-recognized speakers' embeddings are updated after each new session via `commit_recognized_speakers()`, called automatically after a queued job saves the transcript.
 - Per-segment reassign (`PATCH /segments/{start}/speaker`) also triggers immediate embedding recomputation for both affected speakers.
 - `SpeakerMemoryService.save()` uses dirty tracking — only writes freshly computed speakers to DB, preventing a stale long-lived instance from overwriting correct values.
 
@@ -55,7 +55,7 @@ A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-o
 ## UI — Settings & Model Management
 
 ### ✅ Whisper model selection per transcription
-**Done.** Import view dropdown lets the user pick any of the 5 Whisper models (tiny → large-v3) before starting transcription. Selection is persisted to `settings.json` and sent as `whisper_model` in `POST /transcribe`. Backend threads it through `service_factory` → `TranscriptionService` constructor.
+**Done.** Import view dropdown lets the user pick any of the 5 Whisper models (tiny → large-v3) before starting transcription. Selection is persisted to `settings.json` and sent as `whisper_model` in `POST /queue/jobs`. Backend threads it through `service_factory` → `TranscriptionService` constructor.
 
 ### ✅ Settings persistence
 **Done.** `settings.json` in Electron `userData` persists user preferences via Electron IPC (`ipcMain` read/write). `loadSettings()` is called on app init; `saveSettings(patch)` is called on any preference change.
@@ -75,8 +75,8 @@ A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-o
 - `ModelService` unified catalog covers all three groups with `is_installed`, `download`, `delete`, `list`
 - `GET /models` returns all 41 entries; `POST/DELETE /models/{id}` handle all types
 - Settings → Alignment Models: 35 language rows with flag emoji, native name, size, Download/Cancel/Delete
-- `POST /transcribe` returns `400` if Whisper, diarization, or alignment model (explicit language) is not installed
-- Auto-detect language: if whisperx detects a language whose alignment model is missing, `AlignmentModelMissingError` is raised and the WS emits `{error_code: "alignment_model_missing", language: "ru"}` — frontend transforms into a download popup with Retry after download completes
+- `POST /queue/jobs` returns `400` if Whisper, diarization, or alignment model (explicit language) is not installed
+- Auto-detect language: if whisperx detects a language whose alignment model is missing, `AlignmentModelMissingError` is raised and the job fails with `error_code: "alignment_model_missing"`, `error_language: "ru"` — frontend transforms into a download popup with Retry after download completes
 
 **Remaining edge case (low priority):** Transformers `from_pretrained()` downloads both `pytorch_model.bin` and `model.safetensors` formats. Our `snapshot_download` fetches `pytorch_model.bin`, but on first `load_align_model()` call Transformers also fetches `model.safetensors` (~1.26 GB) in the background. Transcription succeeds; the file is only downloaded once.
 
@@ -105,19 +105,19 @@ A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-o
 ## UI — Import & Progress
 
 ### ✅ File validation before transcription
-**Done.** Import goes through the native file dialog or drag-and-drop (window or `new-recording-modal.js`), so a file is always selected; dropped files are filtered by extension (`isSupportedAudio()`, same list as the dialog filter); `POST /transcribe` returns `400` if `audio_path` does not exist or is not readable.
+**Done.** Import goes through the native file dialog or drag-and-drop (window or `new-recording-modal.js`), so a file is always selected; dropped files are filtered by extension (`isSupportedAudio()`, same list as the dialog filter); `POST /queue/jobs` returns `400` if `audio_path` does not exist or is not readable.
 
 ### ✅ Drop files to transcribe
-**Done.** Audio files dropped on the home view or the editor are queued right away with the model and language from Settings; several files are queued in drop order. Settings and Speakers ignore drops; during a live recording the drop is refused (until the [controllable transcription queue](#controllable-transcription-queue) lands). See [Electron UI → Dropping files to transcribe](../ui/electron/overview.md#dropping-files-to-transcribe).
+**Done.** Audio files dropped on the home view or the editor are queued right away with the model and language from Settings; several files are queued in drop order. Settings and Speakers ignore drops; during a live recording dropped files are queued and wait (the recording pauses the queue). See [Electron UI → Dropping files to transcribe](../ui/electron/overview.md#dropping-files-to-transcribe).
 
 ### Controllable transcription queue
-**Pending — requirements agreed, technical design not started.** Transcription can fail, the machine may be needed for other work, and a new recording should not compete with an older transcription. The user controls when the queue runs, can collect recordings and imports first and transcribe them later, and can retry failed jobs without importing again. A paused or interrupted job always starts over — no partial progress is kept.
+**In progress.** Done: the pipeline in a child process, the persistent queue in the backend ([Transcription Queue](../services/TranscriptionQueue.md), `/queue` API) and the UI — queue section from the server's snapshot, Pause / Start, Retry, delete with confirmation, start mode in Settings, recording pauses the queue, drops and imports while recording ([Electron UI → Transcription queue](../ui/electron/overview.md#transcription-queue)). Pending: editing a job's title / model / language and drag-and-drop order in the UI (the API exists). Transcription can fail, the machine may be needed for other work, and a new recording should not compete with an older transcription. The user controls when the queue runs, can collect recordings and imports first and transcribe them later, and can retry failed jobs without importing again. A paused or interrupted job always starts over — no partial progress is kept.
 
 **Queue**
 - The queue as a whole is either **running** or **paused**; Pause and Start apply to the whole queue.
 - Pausing interrupts the running job; it runs again from the start when the queue resumes.
 - Jobs are reordered by drag and drop.
-- The queue (jobs, order, parameters, errors) survives an app restart. After a restart the queue is always paused and waits for a manual Start; the job that was running is run again from the start.
+- The queue (jobs, order, parameters, errors) survives an app restart. If jobs are waiting at start-up (e.g. the app was closed mid-job), the queue comes up paused and waits for a manual Start; the job that was running is run again from the start. With nothing waiting (empty queue, or only failed jobs), the automatic mode starts running right away, so new files are transcribed without pressing Start; the manual mode always waits.
 
 **Start mode (Settings)**
 - **Automatic:** adding a job starts the queue unless the user paused it.
@@ -141,10 +141,10 @@ A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-o
 **Pending.** Run a finished transcript again, e.g. with another model or language. Replaces the existing transcript, so it must be decided what happens to the user's speaker corrections and title. Separate from retrying a failed job in the queue.
 
 ### ✅ Background transcription queue
-**Done.** Transcription no longer takes over the main panel. Jobs run in the background and are shown as cards in a queue section at the top of the sidebar. Multiple files can be queued while the user continues browsing or editing other transcripts. The backend already serialised jobs via `ThreadPoolExecutor(max_workers=1)`; the frontend now tracks them in `app._activeJobs`. On completion: toast + sidebar refresh. `alignment_model_missing` errors surface as a modal with inline download + retry (`alignment-modal.js`).
+**Done.** Transcription no longer takes over the main panel. Jobs run in the background and are shown as cards in a queue section at the top of the sidebar. Multiple files can be queued while the user continues browsing or editing other transcripts. Now a persistent, controllable queue owned by the backend (see *Controllable transcription queue*); the renderer shows the snapshot from `WS /ws/queue`. On completion: toast + sidebar refresh. `alignment_model_missing` failures surface as a modal with inline download + Retry (`alignment-modal.js`).
 
 ### ✅ Pipeline cancellation
-**Done.** Cancel button (`×`) on each sidebar job card sends `DELETE /transcribe/{job_id}`; the API sets a `threading.Event` and the job's pipeline child process is terminated at once, on any step ([Pipeline Process](../services/PipelineProcess.md)). WebSocket receives a `cancelled` event and the card is removed.
+**Done, then replaced.** A running job is stopped at once, on any step, by terminating its pipeline child process ([Pipeline Process](../services/PipelineProcess.md)). The old cancel (`×` → `DELETE /transcribe/{job_id}`, job gone) became **Pause** (the job waits and later runs again) and **delete** (`×` with confirmation, the job and its audio are removed).
 
 ---
 
@@ -154,7 +154,7 @@ Controls that are visible and persisted but do not affect behaviour yet. Each is
 
 | Control | Where | Missing logic |
 |---|---|---|
-| "Diarize speakers" toggle | New recording modal (`new-recording-modal.js`) | Not sent to `POST /transcribe`; the pipeline always diarizes |
+| "Diarize speakers" toggle | New recording modal (`new-recording-modal.js`) | Not sent to `POST /queue/jobs`; the pipeline always diarizes |
 | "Save audio file" toggle | New recording modal | Not sent anywhere; the recording is always kept |
 | Export format (txt/md/srt/vtt/json), include timestamps/speakers/bookmarks/audio, "duplicate" | Settings → Export (`settings-view.js`) | Titlebar export (`app.js`) always copies plain text scraped from the DOM |
 | Sidebar filters "Notes" and "Marked" | Sidebar (`index.html`, `app.js` `_applyFilter`) | API returns no `source` or mark fields — "Notes" is always empty, "Marked" shows all |

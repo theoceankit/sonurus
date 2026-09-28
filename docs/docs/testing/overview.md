@@ -19,7 +19,7 @@ node --test 'tests/renderer/*.test.js'
 
 ### No network in tests
 
-`tests/conftest.py` replaces `huggingface_hub.snapshot_download` (no-op) and `huggingface_hub.model_info` (raises `OSError`, so download size falls back to the catalog estimate) for the whole session. Download jobs run in background threads that outlive a test's own `patch()`, so a per-test stub is not enough. `ModelService.RUN_DOWNLOADS_IN_SUBPROCESS` is also set to `False`, so tests can patch `snapshot_download` in-process, and `pipeline_process.RUN_PIPELINE_IN_SUBPROCESS` to `False`, so API tests can patch `create_controller`.
+`tests/conftest.py` replaces `huggingface_hub.snapshot_download` (no-op) and `huggingface_hub.model_info` (raises `OSError`, so download size falls back to the catalog estimate) for the whole session. Download jobs run in background threads that outlive a test's own `patch()`, so a per-test stub is not enough. `ModelService.RUN_DOWNLOADS_IN_SUBPROCESS` is also set to `False`, so tests can patch `snapshot_download` in-process, and `pipeline_process.RUN_PIPELINE_IN_SUBPROCESS` to `False`, so tests can patch `create_controller`. An autouse fixture replaces `get_transcription_queue` in every test with a paused queue on a temporary database, so no test touches the real `DB_PATH` (without `SONORUS_DATA_DIR` that is the project root).
 
 ### CI environment
 
@@ -44,11 +44,11 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 
 ## Current coverage
 
-**535 Python unit and API tests** across **21 files** — no ML models are loaded — plus **76 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
+**607 Python unit and API tests** across **25 files** — no ML models are loaded — plus **86 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
 
 | File | Tests | What it covers |
 |---|---|---|
-| `test_api.py` | 96 | End-to-end API routes: transcribe, transcripts CRUD, speaker rename, cancel, delete → speaker recompute, single-segment reassign, live-recording and import-copy cleanup on `DELETE /transcripts/{id}` (originals/escaping/symlinked/shared files kept), orphan import copies removed at startup, `POST /data/reset` (DB + files, imported files kept, 409 while jobs run), Speakers section (`GET /speakers` with unnamed speakers and statistics, `PATCH` name/color (shared names allowed), `DELETE` → unassigned segments and 409 while jobs run, `GET /speakers/{id}/transcripts`, `GET /speakers/{id}/sample`, reassigning unassigned segments), `color_index` for a speaker created by name, assigning a named speaker without a voice profile, `PATCH /transcripts/{id}` title (trimmed, 404, 422 for blank / over 200 chars) |
+| `test_api.py` | 93 | End-to-end API routes: transcripts CRUD, speaker rename, delete → speaker recompute, single-segment reassign, live-recording and import-copy cleanup on `DELETE /transcripts/{id}` (originals/escaping/symlinked/shared files kept), orphan import copies removed at startup (copies of transcripts and queued jobs kept), `POST /data/reset` (DB + files, imported files kept, 409 while a job runs), Speakers section (`GET /speakers` with unnamed speakers and statistics, `PATCH` name/color (shared names allowed), `DELETE` → unassigned segments and 409 while a job runs, `GET /speakers/{id}/transcripts`, `GET /speakers/{id}/sample`, reassigning unassigned segments), `color_index` for a speaker created by name, assigning a named speaker without a voice profile, `PATCH /transcripts/{id}` title (trimmed, 404, 422 for blank / over 200 chars) |
 | `test_transcript_storage_service.py` | 62 | `save()`, `load()`, `update_*` (incl. `update_title()`), `list_all()`, `audio_files()`, `delete_segment()`, `clear()`, `count_by_audio_file()`, `get_embeddings_grouped_by_transcript()`, segment indexes, `load(with_embeddings=False)`, unassigned segments + schema v5 migration, schema v6 (raw labels → UUID / unassigned), `speaker_stats()`, `transcripts_for_speaker()` |
 | `test_speaker_memory_service.py` | 47 | `resolve()` purity, `set_name()` / `get_name()`, persistence, `save_names_only()`, `find_by_name()`, UUID migration, `clear()` (DB + in-memory + dirty sets), `speaker_ids()`, `set_color()`, removing name-only speakers |
 | `test_model_service.py` | 31 | `WHISPER_CATALOG`, `list_models()`, `is_installed()`, `download_model()`, `delete_model()` for Whisper models |
@@ -57,11 +57,15 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `test_diarization_model.py` | 25 | `DIARIZATION_CATALOG`, `is_installed()`, `download_model()`, `delete_model()`, API routes for diarize model |
 | `test_speaker_color.py` | 25 | `speaker_meta` color persistence, least-used palette assignment, schema v3 migration |
 | `test_models_api.py` | 22 | `GET /models`, `POST /models/{id}/download`, `DELETE /models/{id}`, WS progress stream |
-| `test_transcription_guard.py` | 34 | `POST /transcribe` 400 guard when Whisper / diarization / alignment model not installed; imported audio copied into `recordings/` before the job queues (live recordings not copied), default title = original file name, copy removed on cancel / failure (live recording kept), 400 when the copy fails; child-process mode: no models loaded in the backend, the result is saved by the backend, cancel reaches the runner |
-| `test_pipeline_process.py` | 12 | `run_pipeline_process()`: progress relayed, result returned, cancel stops the child at once (also mid-step and before start), `on_progress` errors stop it, child errors / missing alignment model / crash mapped to exceptions; the real worker with a fake pipe; `Transcript` with embeddings survives pickling |
+| `test_transcription_guard.py` | 18 | `POST /queue/jobs` 400 guard when Whisper / diarization / alignment model not installed (auto-detect not blocked); `TranscriptionService` raises `AlignmentModelMissingError` with the language |
+| `test_queue_api.py` | 21 | `/queue` API: adding (import copied, live recording not, default title / model, `auto` language → null, 400 for a missing file or failed copy), snapshot, start / pause, recording endpoints, start mode setting, `PATCH` (only fields sent, 404 / 409 running / 400 model not installed / 422), `DELETE` with audio, retry, order, `WS /ws/queue` (snapshot, changes, `job_done`), old `/transcribe` endpoints gone; speaker delete and data reset 409 only while a job runs, reset clears a paused queue |
+| `test_transcription_queue.py` | 41 | `TranscriptionQueue` with a stand-in runner: start-up state (empty queue runs in auto mode, waits in manual mode; left-over waiting jobs pause it; failed jobs alone do not), order, auto vs manual start mode, pause re-runs a job from the start, failures to the end + skipped, alignment failure fields, retry, delete (waiting / running, audio inside `recordings/` only), edit (not the running job), reorder, recording pause / auto-resume rules, `hold()`, subscribers, snapshots in order across threads, stop and interruption keep the job waiting |
+| `test_job_store.py` | 17 | `JobStore`: fields, order, persistence, edit, move to end, reorder validation, delete, running → waiting, clear, audio paths, settings, shared DB file with transcripts |
+| `test_transcription_job.py` | 7 | `make_job_runner()`: save with the job title + commit, cancel after the pipeline saves nothing, models released on failure / cancel, a failed commit keeps the saved transcript, child-process mode (no models in the backend, saved through storage, cancel passed through) |
+| `test_pipeline_process.py` | 15 | `run_pipeline_process()`: progress relayed, result returned, cancel stops the child at once (also mid-step and before start), `on_progress` errors stop it, child errors / missing alignment model / crash mapped to exceptions, SIGTERM from outside = interruption; group signals do not reach the child, the child exits when the backend dies; the real worker with a fake pipe; `Transcript` with embeddings survives pickling |
 | `test_transcript_builder.py` | 21 | `TranscriptBuilder.build()` (WhisperX output → Transcript, UUID for unmatched `SPEAKER_XX`, `UNKNOWN` → unassigned) and `attach_embeddings()` (time-overlap matching) |
 | `test_download_progress.py` | 19 | WS byte-level progress stream, polling loop, `done`/`error` events |
-| `test_audio_store.py` | 11 | `import_audio()` (unique copy, extension, live recording kept, symlink followed, no partial copy on error), `is_import_copy()`, `discard_import()`, `remove_orphan_imports()` |
+| `test_audio_store.py` | 13 | `import_audio()` (unique copy, extension, live recording kept, symlink followed, no partial copy on error), `is_import_copy()`, `discard_import()`, `discard_owned_audio()` (copies and live recordings, never files outside `recordings/`, symlink targets kept), `remove_orphan_imports()` |
 | `test_audio_capture.py` | 17 | `AudioCaptureService` start/stop/merge, `has_active_jobs()`, recordings dir, stderr-deadlock regression, `/audio/capture/*` routes |
 | `test_logger.py` | 12 | `setup_logging()`, `get_logger()`, `LOG_LEVEL` env var, file logging |
 | `test_transcribe_schema.py` | 12 | `TranscribeRequest` schema validation, optional `whisper_model` and `language` fields |
@@ -76,7 +80,8 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `tests/renderer/new-speaker.test.js` | 6 | `leastUsedColorIndex()`, `hasSpeakerNamed()`, `speakerAssignRequest()` (one segment vs all segments, by id vs new name + color) |
 | `tests/renderer/transcript-title.test.js` | 5 | `titleToSave()` (trim, blank / unchanged / over 200 chars skipped), `transcriptTitleRequest()` |
 | `tests/renderer/editor-scroll.test.js` | 2 | `preserveScroll()` — the editor keeps its scroll position when it rebuilds after an edit |
-| `tests/renderer/file-drop.test.js` | 12 | `isSupportedAudio()`, `dropDecision()` (home / editor import, settings / speakers / open modal ignore, recording blocks, unsupported files skipped), `importRequest()` |
+| `tests/renderer/file-drop.test.js` | 11 | `isSupportedAudio()`, `dropDecision()` (home / editor import, settings / speakers / open modal ignore, a live recording does not block, unsupported files skipped), `importRequest()` |
+| `tests/renderer/queue.test.js` | 11 | `queueStateLabel()`, `queueToggle()`, `queueJobCount()`, `jobStatusText()` (step, waiting / paused, first error line, missing alignment model), `deleteJobPrompt()` (import vs live recording), `importRequest()` → `POST /queue/jobs`, `dataResetBlockReason()` asks to pause the queue |
 | `tests/renderer/file-drop-events.test.js` | 6 | `initFileDrop()` with stub `window` / `document`: overlay show / hide, a drop already handled by the modal is not imported again, non-file drags untouched, drop effect per view |
 | `tests/renderer/icons.test.js` | 7 | `icon()` / `hydrateIcons()` markup; every icon name used in the renderer has a file in `electron/assets/icons/`; files are kebab-case with `xmlns` + `viewBox`; no inline SVG icons; renderer scripts still parse |
 
@@ -89,6 +94,7 @@ tests/
 ├── conftest.py                        # ML library stubs, no-network downloads
 ├── download_workers.py                # App-free stand-ins for subprocess download workers
 ├── pipeline_workers.py                # App-free stand-ins for the pipeline child process
+├── queue_helpers.py                   # Stand-in pipeline runner + wait_for for queue tests
 ├── renderer/                          # node:test renderer tests + load-renderer.js
 ├── test_alignment_model.py
 ├── test_api.py                        # Full API integration
@@ -99,16 +105,20 @@ tests/
 ├── test_download_progress.py
 ├── test_embedding_persistence.py
 ├── test_embedding_service.py
+├── test_job_store.py
 ├── test_logger.py
 ├── test_model_cancel.py
 ├── test_models_api.py
 ├── test_model_service.py
 ├── test_pipeline_process.py
+├── test_queue_api.py
 ├── test_speaker_color.py
 ├── test_speaker_memory_service.py
 ├── test_transcribe_schema.py
 ├── test_transcript_builder.py
 ├── test_transcription_guard.py
+├── test_transcription_job.py
+├── test_transcription_queue.py
 ├── test_voice_sample.py
 └── test_transcript_storage_service.py
 ```

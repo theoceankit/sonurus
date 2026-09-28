@@ -117,8 +117,8 @@ function defaultSettingsPatch(defaults, current) {
 }
 
 // Why "Delete all data" must stay disabled right now, or null if it may run.
-function dataResetBlockReason(activeJobCount, liveSession) {
-  if (activeJobCount > 0) return 'Wait for the running transcription to finish.'
+function dataResetBlockReason(runningJobCount, liveSession) {
+  if (runningJobCount > 0) return 'Pause the transcription queue first.'
   if (liveSession) return 'Stop the live recording first.'
   return null
 }
@@ -167,19 +167,20 @@ function isSupportedAudio(name) {
 }
 
 // Files dropped on the window. Settings and Speakers ignore them, an open
-// modal handles its own drop, a live recording blocks the import.
-function dropDecision({ view, recording, modalOpen, files }) {
+// modal handles its own drop. A live recording does not block imports: it
+// pauses the transcription queue, so the files just wait.
+function dropDecision({ view, modalOpen, files }) {
   if (view !== 'import' && view !== 'editor') return { action: 'ignore' }
   if (modalOpen) return { action: 'ignore' }
-  if (recording) return { action: 'blocked' }
   const supported = files.filter(file => isSupportedAudio(file.name))
   return { action: 'import', files: supported, skipped: files.length - supported.length }
 }
 
-// No title → the backend uses the file name.
+// Adds a job to the transcription queue. No title → the backend uses the
+// file name.
 function importRequest(filePath, { model, language, title = null }) {
   return {
-    url: `${API_BASE}/transcribe`,
+    url: `${API_BASE}/queue/jobs`,
     method: 'POST',
     body: {
       audio_path: filePath,
@@ -187,6 +188,44 @@ function importRequest(filePath, { model, language, title = null }) {
       language: language === 'auto' ? null : language,
       title: (title || '').trim() || null,
     },
+  }
+}
+
+// ── Transcription queue (snapshot from WS /ws/queue) ────────────────────────────
+
+function queueJobCount(snapshot) {
+  return snapshot ? snapshot.jobs.length : 0
+}
+
+function queueStateLabel(snapshot) {
+  if (!snapshot.paused) return 'Running'
+  return snapshot.paused_by_recording ? 'Paused while recording' : 'Paused'
+}
+
+// The header button. Start is allowed during a recording too (user's choice).
+function queueToggle(snapshot) {
+  return snapshot.paused
+    ? { action: 'start', label: 'Start', icon: 'play' }
+    : { action: 'pause', label: 'Pause', icon: 'pause' }
+}
+
+function jobStatusText(job, snapshot) {
+  if (job.status === 'running') return snapshot.step || 'Starting…'
+  if (job.status === 'failed') {
+    if (job.error_code === 'alignment_model_missing')
+      return `Alignment model for "${job.error_language}" is not installed`
+    return (job.error || '').split('\n')[0].trim() || 'Failed'
+  }
+  return snapshot.paused ? 'Waiting · queue paused' : 'Waiting'
+}
+
+function deleteJobPrompt(job) {
+  const isImport = fileBaseName(job.audio_path).startsWith('sonorus-import-')
+  return {
+    title: `Delete “${job.title}”?`,
+    body: isImport
+      ? 'The job and the app’s copy of the file will be deleted. Your original file is kept.'
+      : 'The recording will be deleted. This cannot be undone.',
   }
 }
 

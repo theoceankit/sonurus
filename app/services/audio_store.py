@@ -59,6 +59,19 @@ def discard_import(path: str, recordings_dir: str | Path) -> None:
         log.warning(f"Could not delete import copy {path}: {e}")
 
 
+def discard_owned_audio(path: str, recordings_dir: str | Path) -> None:
+    """Delete an audio file the app owns — a live recording or an import copy
+    — e.g. when its queued job is deleted. Files outside recordings_dir (the
+    user's originals) are left alone; a symlink is removed, not its target."""
+    if not _in_dir(path, recordings_dir):
+        return
+    try:
+        Path(path).unlink(missing_ok=True)
+        log.info(f"Deleted {path}")
+    except OSError as e:
+        log.warning(f"Could not delete {path}: {e}")
+
+
 def remove_orphan_imports(recordings_dir: str | Path, referenced: set[str]) -> int:
     """Delete import copies no transcript references — left over when the
     backend stopped mid-job. Live recordings are never removed: an

@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Transcription Controller
 
-`TranscriptionController` orchestrates the ML pipeline for `POST /transcribe`. It is built by `service_factory.create_controller()` together with its services.
+`TranscriptionController` orchestrates the ML pipeline of a queued transcription job (`POST /queue/jobs`). It is built by `service_factory.create_controller()` together with its services.
 
 Does not perform ML inference itself, does not access the database and never writes speaker memory — saving and committing happen in the API router (`app/api/routers/transcription.py`) after the pipeline returns. Transcript editing (reassigning, renaming, deleting speakers) lives in the API routers and `CommitService`, not here.
 

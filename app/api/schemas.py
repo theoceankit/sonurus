@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -82,15 +84,62 @@ class SpeakerTranscriptItem(BaseModel):
     duration_sec: float
 
 
-class JobStarted(BaseModel):
-    job_id: str
-
-
 class TranscribeRequest(BaseModel):
+    """POST /queue/jobs. language null or "auto" = auto-detect; no title =
+    the file name without its extension."""
     audio_path: str
     whisper_model: str | None = None
     language: str | None = None
     title: str | None = None
+
+
+class QueueJob(BaseModel):
+    id: str
+    audio_path: str
+    title: str
+    whisper_model: str
+    language: str | None
+    status: Literal["waiting", "running", "failed"]
+    error: str | None
+    error_code: str | None
+    error_language: str | None
+    created_at: str
+
+
+class QueueSnapshot(BaseModel):
+    type: Literal["snapshot"] = "snapshot"
+    paused: bool
+    paused_by_recording: bool
+    recording: bool
+    start_mode: Literal["auto", "manual"]
+    running_job_id: str | None
+    step: str | None
+    jobs: list[QueueJob]
+
+
+class JobUpdateRequest(BaseModel):
+    """PATCH /queue/jobs/{id}: only the fields sent are changed; language
+    null or "auto" = auto-detect."""
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    whisper_model: str | None = Field(default=None, min_length=1)
+    language: str | None = None
+
+    @field_validator('title', mode='before')
+    @classmethod
+    def strip_title(cls, v):
+        return v.strip() if isinstance(v, str) else v
+
+
+class QueueOrderRequest(BaseModel):
+    job_ids: list[str]
+
+
+class QueueSettingsRequest(BaseModel):
+    start_mode: Literal["auto", "manual"]
+
+
+class JobDeleted(BaseModel):
+    deleted: bool
 
 
 class RenameRequest(BaseModel):
