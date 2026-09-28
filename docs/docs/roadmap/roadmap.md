@@ -110,8 +110,10 @@ A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-o
 ### ✅ Drop files to transcribe
 **Done.** Audio files dropped on the home view or the editor are queued right away with the model and language from Settings; several files are queued in drop order. Settings and Speakers ignore drops; during a live recording dropped files are queued and wait (the recording pauses the queue). See [Electron UI → Dropping files to transcribe](../ui/electron/overview.md#dropping-files-to-transcribe).
 
-### Controllable transcription queue
-**In progress.** Done: the pipeline in a child process, the persistent queue in the backend ([Transcription Queue](../services/TranscriptionQueue.md), `/queue` API) and the UI — queue section from the server's snapshot, Pause / Start, Retry, delete with confirmation, start mode in Settings, recording pauses the queue, drops and imports while recording ([Electron UI → Transcription queue](../ui/electron/overview.md#transcription-queue)). Pending: editing a job's title / model / language and drag-and-drop order in the UI (the API exists). Transcription can fail, the machine may be needed for other work, and a new recording should not compete with an older transcription. The user controls when the queue runs, can collect recordings and imports first and transcribe them later, and can retry failed jobs without importing again. A paused or interrupted job always starts over — no partial progress is kept.
+### ✅ Controllable transcription queue
+**Done.** The pipeline runs in a child process, the queue is persisted and run by the backend ([Transcription Queue](../services/TranscriptionQueue.md), `/queue` API), and the sidebar controls it — Pause / Start, Retry, delete with confirmation, editing a job's title / model / language, drag-and-drop order, start mode in Settings, a recording pauses the queue, drops and imports while recording ([Electron UI → Transcription queue](../ui/electron/overview.md#transcription-queue)). 
+
+Why: transcription can fail, the machine may be needed for other work, and a new recording should not compete with an older transcription. The user controls when the queue runs, can collect recordings and imports first and transcribe them later, and can retry failed jobs without importing again. A paused or interrupted job always starts over — no partial progress is kept.
 
 **Queue**
 - The queue as a whole is either **running** or **paused**; Pause and Start apply to the whole queue.
