@@ -62,7 +62,9 @@ $SONORUS_DATA_DIR/
   python-packages/    ← pip-installed ML deps (packaged mode)
 ```
 
-In dev mode (`npm start` without `SONORUS_TEST_SETUP`), `SONORUS_DATA_DIR` is still set by Electron to `app.getPath('userData')`, so models and the database also go to the user data directory — not the project root.
+In dev mode (`npm start` without `SONORUS_TEST_SETUP`), `SONORUS_DATA_DIR` is still set by Electron to `app.getPath('userData')`, so models and the database also go to the user data directory — not the project root. In dev mode Electron takes the app name from `name` in `package.json` (`productName` lives under `build` and only electron-builder reads it), so on Linux the dir is `~/.config/sonorus/`; the packaged app uses `~/.config/Sonorus/`. The two never share data.
+
+If a backend already answers on port 8000 when the app starts (e.g. one started manually with `uvicorn`), Electron reuses it and its `SONORUS_DATA_DIR` applies instead. Live recordings still end up in that backend's `recordings/`: the UI uploads them (`POST /audio/recordings`) and only the backend writes files there.
 
 ### .env file (dev only)
 
