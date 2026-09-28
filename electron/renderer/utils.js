@@ -157,6 +157,39 @@ function transcriptTitleRequest(transcriptId, title) {
   return { url: `${API_BASE}/transcripts/${transcriptId}`, method: 'PATCH', body: { title } }
 }
 
+// ── Import: file drop ───────────────────────────────────────────────────────────
+// Same list as the file dialog filter in electron/main.js (open-file).
+const SUPPORTED_AUDIO_EXTENSIONS = ['wav', 'mp3', 'm4a', 'flac', 'ogg', 'mp4', 'mkv', 'webm']
+
+function isSupportedAudio(name) {
+  const m = /\.([^./\\]+)$/.exec(name || '')
+  return !!m && SUPPORTED_AUDIO_EXTENSIONS.includes(m[1].toLowerCase())
+}
+
+// Files dropped on the window. Settings and Speakers ignore them, an open
+// modal handles its own drop, a live recording blocks the import.
+function dropDecision({ view, recording, modalOpen, files }) {
+  if (view !== 'import' && view !== 'editor') return { action: 'ignore' }
+  if (modalOpen) return { action: 'ignore' }
+  if (recording) return { action: 'blocked' }
+  const supported = files.filter(file => isSupportedAudio(file.name))
+  return { action: 'import', files: supported, skipped: files.length - supported.length }
+}
+
+// No title → the backend uses the file name.
+function importRequest(filePath, { model, language, title = null }) {
+  return {
+    url: `${API_BASE}/transcribe`,
+    method: 'POST',
+    body: {
+      audio_path: filePath,
+      whisper_model: model,
+      language: language === 'auto' ? null : language,
+      title: (title || '').trim() || null,
+    },
+  }
+}
+
 // ── Speakers section ────────────────────────────────────────────────────────────
 function _nameKey(name) {
   return (name || '').trim().toLowerCase()
