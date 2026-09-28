@@ -17,6 +17,8 @@ Messages from the child (over a Pipe):
 """
 import multiprocessing
 import os
+import signal
+import threading
 
 # ML modules (torch, whisperx, …) are imported inside the functions: the
 # spawned child imports this module first, and warnings must be silenced
@@ -31,6 +33,15 @@ _POLL_INTERVAL = 0.2  # seconds between cancel checks while the child is silent
 
 class PipelineCancelled(Exception):
     pass
+
+
+class PipelineInterrupted(PipelineCancelled):
+    """The child was stopped from outside the backend: SIGTERM, SIGINT or
+    SIGHUP (session logout, system shutdown, a task manager)."""
+
+
+# Deaths that mean "someone stopped it", unlike e.g. the OOM killer's SIGKILL.
+_INTERRUPT_EXIT_CODES = {-s for s in (getattr(signal, n, None) for n in ("SIGTERM", "SIGINT", "SIGHUP")) if s}
 
 
 def _pipeline_worker(args: dict, conn) -> None:
@@ -60,6 +71,34 @@ def _pipeline_worker(args: dict, conn) -> None:
             conn.send(("error", type(exc).__name__, str(exc)))
 
 
+def _child_main(worker, args: dict, conn, lifeline) -> None:
+    """Child-process bootstrap: its lifetime belongs to the backend.
+
+    Signals sent to the backend's process group (Ctrl+C in a terminal, a
+    group SIGTERM) must not kill the child on their own: the backend's
+    shutdown stops it and puts the job back into the queue, while a child
+    dying first would look like a failed job. And if the backend dies
+    without stopping it (SIGKILL, crash), the lifeline pipe closes and the
+    child exits instead of holding the GPU until the job ends.
+    """
+    if os.name == "posix":
+        try:
+            os.setsid()
+        except OSError:
+            pass
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    def watch_backend():
+        try:
+            lifeline.recv()  # the backend never sends: returns only on EOF
+        except (EOFError, OSError):
+            pass
+        os._exit(1)
+
+    threading.Thread(target=watch_backend, daemon=True).start()
+    worker(args, conn)
+
+
 def _stop(proc) -> None:
     proc.terminate()
     proc.join(timeout=5)
@@ -73,17 +112,20 @@ def run_pipeline_process(args: dict, on_progress, cancel_event, worker=_pipeline
 
     args: audio_path, whisper_model, language, db_path (speaker memory, read
     only). Raises PipelineCancelled as soon as cancel_event is set, and
-    AlignmentModelMissingError / RuntimeError for the child's errors. The
-    child never outlives this call.
+    AlignmentModelMissingError / RuntimeError for the child's errors, and
+    PipelineInterrupted if the child was stopped from outside. The child
+    never outlives this call.
     """
     if cancel_event.is_set():
         raise PipelineCancelled()
 
     ctx = multiprocessing.get_context("spawn")
     recv_conn, send_conn = ctx.Pipe(duplex=False)
-    proc = ctx.Process(target=worker, args=(args, send_conn), daemon=True)
+    life_recv, life_send = ctx.Pipe(duplex=False)
+    proc = ctx.Process(target=_child_main, args=(worker, args, send_conn, life_recv), daemon=True)
     proc.start()
     send_conn.close()
+    life_recv.close()
     result = None
     try:
         while result is None:
@@ -108,8 +150,11 @@ def run_pipeline_process(args: dict, on_progress, cancel_event, worker=_pipeline
         else:
             proc.join()
         recv_conn.close()
+        life_send.close()
 
     if result is None:
+        if proc.exitcode in _INTERRUPT_EXIT_CODES:
+            raise PipelineInterrupted()
         raise RuntimeError(f"Transcription process exited unexpectedly (code {proc.exitcode})")
     kind = result[0]
     if kind == "done":
