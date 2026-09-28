@@ -56,6 +56,7 @@ electron/
     utils.js           — API_BASE, WS_BASE, speaker helpers, fmtTime, makeAvatar
     components.js      — makeDropdown (shared UI component)
     data.js            — LANGUAGES (static), MODELS (fallback), ALIGNMENT_MODELS (source of truth)
+    file-drop.js       — initFileDrop: window drag-and-drop of audio files + drop overlay
     app.js             — appSettings, loadSettings/saveSettings, view router, sidebar
     styles/
       base.css         — Design tokens, resets
@@ -258,6 +259,25 @@ Transcription runs entirely in the background — the main panel is never replac
 
 ---
 
+## Dropping files to transcribe
+
+Audio files dropped on the window go straight to the transcription queue — no modal. `initFileDrop()` (`file-drop.js`) listens on `window` and touches only drags that carry files (`dataTransfer.types` includes `Files`), so text drags keep working. What a drop does is decided by `dropDecision()` (`utils.js`) from `app._fileDropState()`:
+
+| Situation | Result |
+|---|---|
+| Home or editor (`_currentView` `import` / `editor`) | Overlay over `#main-panel` (`.fd-overlay`); on drop every supported file is queued |
+| Settings or Speakers | Ignored: no overlay, drop effect `none` |
+| Any modal open (`.nr-overlay`) | Ignored — the New Recording modal handles its own drop |
+| Live recording running | Grey overlay "Stop recording to import files"; a drop shows a toast and queues nothing |
+
+- Supported types are `SUPPORTED_AUDIO_EXTENSIONS` (`utils.js`, same list as the file dialog filter in `main.js`), checked by `isSupportedAudio()`. Other files are skipped with a toast ("Skipped N unsupported files"); the New Recording modal rejects them too.
+- Several files are sent one `POST /transcribe` at a time by `app._importFiles()` (shared with the modal), in drop order. Each request waits while the backend copies the file into `recordings/`, so a toast ("Importing N files…") is shown right away.
+- Model and language come from `appSettings.transcribeModel` / `transcribeLang` (`importRequest()`); the title is left `null`, so the backend uses the file name without its extension (the job card shows the same).
+- A drop that a drop zone below already handled (`defaultPrevented`, i.e. the modal) is skipped, otherwise the modal — already closed by then — would be imported twice.
+- `dragover` / `drop` with files are always cancelled, in every view: an unhandled file drop makes Electron open the file in the window.
+
+---
+
 ## First-run setup screens
 
 `setup.html` shows a 3-step setup flow on the first launch of a packaged build (or when `SONORUS_TEST_SETUP=1` is set):
@@ -283,3 +303,4 @@ Every UI icon is a file in `electron/assets/icons/`, rendered by `icons.js` as a
 - Only `electronAPI.*` methods are exposed to the renderer
 - CORS in FastAPI is restricted to `null`, `127.0.0.1`, `localhost`
 - Media permissions granted only for `permission === 'media'` (microphone)
+- `will-navigate` is cancelled for the main window: pages never navigate themselves (`setup.html` → `index.html` is `loadFile()` from `main.js`)

@@ -105,7 +105,13 @@ A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-o
 ## UI — Import & Progress
 
 ### ✅ File validation before transcription
-**Done.** Import goes through the native file dialog or drag-and-drop (`new-recording-modal.js`), so a file is always selected; `POST /transcribe` returns `400` if `audio_path` does not exist or is not readable.
+**Done.** Import goes through the native file dialog or drag-and-drop (window or `new-recording-modal.js`), so a file is always selected; dropped files are filtered by extension (`isSupportedAudio()`, same list as the dialog filter); `POST /transcribe` returns `400` if `audio_path` does not exist or is not readable.
+
+### ✅ Drop files to transcribe
+**Done.** Audio files dropped on the home view or the editor are queued right away with the model and language from Settings; several files are queued in drop order. Settings and Speakers ignore drops; during a live recording the drop is refused. See [Electron UI → Dropping files to transcribe](../ui/electron/overview.md#dropping-files-to-transcribe).
+
+### Pause the transcription queue
+**Pending.** Today a drop (and the New Recording modal) is refused while a live recording runs, so transcription never competes with the recording for the CPU/GPU. Target: the queue can be paused — automatically while recording, or by the user — and files can still be added; jobs wait and start when the queue resumes. Needs a server-side pause (the `ThreadPoolExecutor(max_workers=1)` worker starts a job as soon as it is queued, and `POST /transcribe` has no recording guard), a paused state for queued cards, and lifting the renderer's recording block in `dropDecision()`.
 
 ### ✅ Background transcription queue
 **Done.** Transcription no longer takes over the main panel. Jobs run in the background and are shown as cards in a queue section at the top of the sidebar. Multiple files can be queued while the user continues browsing or editing other transcripts. The backend already serialised jobs via `ThreadPoolExecutor(max_workers=1)`; the frontend now tracks them in `app._activeJobs`. On completion: toast + sidebar refresh. `alignment_model_missing` errors surface as a modal with inline download + retry (`alignment-modal.js`).
