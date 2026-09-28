@@ -33,6 +33,3 @@ class TranscriptionController:
         TranscriptBuilder.attach_embeddings(transcript, segments)
 
         return transcript
-
-    def get_display_name(self, spk_id: str) -> str:
-        return self.memory_service.get_name(spk_id, label="display") or spk_id

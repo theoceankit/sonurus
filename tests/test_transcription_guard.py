@@ -13,17 +13,6 @@ from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.speaker_memory_service import SpeakerMemoryService
 
 
-@pytest.fixture(autouse=True)
-def _patch_archive_service():
-    """Prevent ArchiveService from running with mock transcript objects.
-
-    MagicMock().__index__() returns 1 (stdout FD). shutil.copy2(MagicMock, ...)
-    opens and closes FD 1 as a side effect, corrupting pytest's terminal writer.
-    """
-    with patch("app.api.routers.transcription.ArchiveService"):
-        yield
-
-
 # ---------------------------------------------------------------------------
 # Fixture
 # ---------------------------------------------------------------------------
@@ -44,8 +33,13 @@ def client(tmp_path):
     config.WHISPER_MODELS_DIR = tmp_path / "whisper"
     config.HF_MODELS_DIR = tmp_path / "hf"
     config.ALIGNMENT_MODELS_DIR = tmp_path / "alignment"
+    # Imported audio is copied here — never into the real data dir.
+    original_recordings = config.RECORDINGS_DIR
+    config.RECORDINGS_DIR = tmp_path / "data" / "recordings"
 
     yield TestClient(app), tmp_path
+
+    config.RECORDINGS_DIR = original_recordings
 
     config.WHISPER_MODELS_DIR = original_whisper
     config.HF_MODELS_DIR = original_hf
@@ -577,3 +571,192 @@ def test_websocket_disconnect_does_not_cancel_job():
     finally:
         transcription._jobs.pop(job_id, None)
         transcription._cancel_events.pop(job_id, None)
+
+
+# ---------------------------------------------------------------------------
+# Imported audio is copied into the app's recordings dir
+# ---------------------------------------------------------------------------
+
+def _recordings(tmp_path: Path) -> Path:
+    return tmp_path / "data" / "recordings"
+
+
+def _imports(tmp_path: Path) -> list[Path]:
+    d = _recordings(tmp_path)
+    return sorted(d.glob("sonorus-import-*")) if d.exists() else []
+
+
+def _pipeline_recording_path(seen: list, transcript=None):
+    from unittest.mock import MagicMock
+    t = transcript or MagicMock()
+
+    def run_pipeline(audio_path, on_progress, language=None):
+        seen.append(audio_path)
+        t.audio_path = audio_path
+        return t
+    return run_pipeline, t
+
+
+def test_import_runs_pipeline_on_a_copy_in_recordings(client):
+    from unittest.mock import MagicMock
+    tc, tmp_path = client
+    seen = []
+    controller = MagicMock()
+    controller.run_pipeline.side_effect, transcript = _pipeline_recording_path(seen)
+
+    with _running_job(tc, tmp_path, controller):
+        pass
+
+    original = tmp_path / "audio.wav"
+    assert original.exists(), "the imported original must be kept"
+    [copy] = _imports(tmp_path)
+    assert seen == [str(copy)]
+    assert transcript.audio_path == str(copy)
+    assert copy.read_bytes() == original.read_bytes()
+
+
+def test_import_is_copied_before_the_job_starts(client):
+    """The copy exists as soon as POST returns, even while the job is still
+    queued behind another one (the original may vanish in the meantime)."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    from unittest.mock import MagicMock
+    tc, tmp_path = client
+    _install_whisper_and_diarize(tmp_path)
+    busy = ThreadPoolExecutor(max_workers=1)
+    release = threading.Event()
+    busy.submit(release.wait, 5)  # another job occupies the only worker
+    controller = MagicMock()
+    try:
+        with patch("app.api.routers.transcription._executor", busy), \
+             patch("app.api.routers.transcription.create_controller", return_value=(controller, MagicMock())):
+            r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
+            assert r.status_code == 200, r.text
+            assert len(_imports(tmp_path)) == 1
+            controller.run_pipeline.assert_not_called()
+            release.set()
+            _wait_job_finished(r.json()["job_id"])
+    finally:
+        release.set()
+        busy.shutdown(wait=True)
+
+
+def test_import_without_title_is_titled_after_the_original_file(client):
+    from unittest.mock import MagicMock
+    tc, tmp_path = client
+    controller = MagicMock()
+    controller.run_pipeline.side_effect, transcript = _pipeline_recording_path([])
+
+    with _running_job(tc, tmp_path, controller):
+        pass
+
+    assert transcript.title == "audio"
+
+
+def test_import_with_title_keeps_it(client):
+    from unittest.mock import MagicMock
+    tc, tmp_path = client
+    _install_whisper_and_diarize(tmp_path)
+    controller = MagicMock()
+    controller.run_pipeline.side_effect, transcript = _pipeline_recording_path([])
+
+    with patch("app.api.routers.transcription.create_controller", return_value=(controller, MagicMock())):
+        r = tc.post("/transcribe", json={
+            "audio_path": _make_audio(tmp_path), "whisper_model": "small", "title": "Weekly sync",
+        })
+        assert r.status_code == 200, r.text
+        _wait_job_finished(r.json()["job_id"])
+
+    assert transcript.title == "Weekly sync"
+
+
+def test_live_recording_is_not_copied(client):
+    from unittest.mock import MagicMock
+    tc, tmp_path = client
+    _install_whisper_and_diarize(tmp_path)
+    rec = _recordings(tmp_path) / "sonorus-rec-1.wav"
+    rec.parent.mkdir(parents=True)
+    rec.write_bytes(b"RIFF\x00\x00\x00\x00WAVEfmt ")
+    seen = []
+    controller = MagicMock()
+    controller.run_pipeline.side_effect, _ = _pipeline_recording_path(seen)
+
+    with patch("app.api.routers.transcription.create_controller", return_value=(controller, MagicMock())):
+        r = tc.post("/transcribe", json={"audio_path": str(rec), "whisper_model": "small"})
+        assert r.status_code == 200, r.text
+        _wait_job_finished(r.json()["job_id"])
+
+    assert seen == [str(rec)]
+    assert [p.name for p in _recordings(tmp_path).iterdir()] == ["sonorus-rec-1.wav"]
+
+
+def test_import_copy_removed_when_pipeline_fails(client):
+    from unittest.mock import MagicMock
+    tc, tmp_path = client
+    controller = MagicMock()
+    controller.run_pipeline.side_effect = RuntimeError("CUDA out of memory")
+
+    with _running_job(tc, tmp_path, controller):
+        pass
+
+    assert _imports(tmp_path) == []
+    assert (tmp_path / "audio.wav").exists()
+
+
+def test_import_copy_removed_when_job_cancelled(client):
+    import threading
+    from unittest.mock import MagicMock
+    from app.api.routers import transcription
+    tc, tmp_path = client
+    job_ids = []
+    job_known = threading.Event()
+
+    def run_pipeline(audio_path, on_progress, language=None):
+        job_known.wait(5)
+        transcription._cancel_events[job_ids[0]].set()
+        on_progress("Transcribing audio…")
+
+    controller = MagicMock()
+    controller.run_pipeline.side_effect = run_pipeline
+    with _running_job(tc, tmp_path, controller) as job_id:
+        job_ids.append(job_id)
+        job_known.set()
+
+    assert _imports(tmp_path) == []
+
+
+def test_live_recording_kept_when_pipeline_fails(client):
+    from unittest.mock import MagicMock
+    tc, tmp_path = client
+    _install_whisper_and_diarize(tmp_path)
+    rec = _recordings(tmp_path) / "sonorus-rec-1.wav"
+    rec.parent.mkdir(parents=True)
+    rec.write_bytes(b"x")
+    controller = MagicMock()
+    controller.run_pipeline.side_effect = RuntimeError("boom")
+
+    with patch("app.api.routers.transcription.create_controller", return_value=(controller, MagicMock())):
+        r = tc.post("/transcribe", json={"audio_path": str(rec), "whisper_model": "small"})
+        _wait_job_finished(r.json()["job_id"])
+
+    assert rec.exists(), "a live recording is the only copy — never delete it on failure"
+
+
+def test_import_copy_failure_returns_400_and_starts_no_job(client):
+    from app.api.routers import transcription
+    tc, tmp_path = client
+    _install_whisper_and_diarize(tmp_path)
+    jobs_before = set(transcription._jobs)
+
+    with patch("app.services.audio_store.shutil.copy2", side_effect=OSError(28, "No space left on device")):
+        r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
+
+    assert r.status_code == 400
+    assert "copy" in r.json()["detail"].lower()
+    assert set(transcription._jobs) == jobs_before
+    assert _imports(tmp_path) == []
+
+
+def test_archive_service_is_gone():
+    import importlib.util
+    assert importlib.util.find_spec("app.services.archive_service") is None

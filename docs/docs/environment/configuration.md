@@ -38,7 +38,7 @@ Used when the backend is started manually (`uvicorn ...`) or set by `electron/ba
 | Variable | Default | Description |
 |---|---|---|
 | `HF_TOKEN` | — | HuggingFace token. In packaged/`npm start` mode, taken from `settings.hfToken`. In manual mode, load from `.env`. |
-| `SONORUS_DATA_DIR` | `.` (CWD) | Root directory for user data: models, database, archive, log. Set automatically to `app.getPath('userData')` when launched via Electron. |
+| `SONORUS_DATA_DIR` | `.` (CWD) | Root directory for user data: models, database, audio, log. Set automatically to `app.getPath('userData')` when launched via Electron. |
 | `VERBOSE` | `false` | If `true`, ML library warnings are printed. Useful for debugging. |
 | `LOG_LEVEL` | `info` | Server log level: `debug`, `info`, `warning`, `error`, `off`. |
 | `LOG_FILE` | — | If set, logs are also written to this file. Set to `$SONORUS_DATA_DIR/sonorus.log` in packaged mode. |
@@ -55,8 +55,8 @@ $SONORUS_DATA_DIR/
     hf/               ← PyAnnote model weights
     alignment/        ← wav2vec2 alignment models
   speaker_memory.db   ← Speaker memory + transcripts
-  recordings/         ← Live recordings (sonorus-rec-*.wav / .webm) referenced by the DB
-  .files/             ← Audio archive + .txt exports
+  recordings/         ← Audio referenced by the DB: live recordings (sonorus-rec-*)
+                        and copies of imported files (sonorus-import-*)
   sonorus.log         ← Backend log (packaged mode)
   settings.json       ← App settings (written by Electron)
   python-packages/    ← pip-installed ML deps (packaged mode)

@@ -15,14 +15,18 @@ if not _verbose:
 from app.logger import setup_logging
 from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data
 from app.api.dependencies import get_memory_service, get_storage_service
+from app.services.audio_store import remove_orphan_imports
+import app.config as config
 
 setup_logging(default_level="info")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    get_storage_service()
+    storage = get_storage_service()
     get_memory_service()
+    # Import copies of jobs that never finished (backend stopped mid-job).
+    remove_orphan_imports(config.RECORDINGS_DIR, storage.audio_files())
     yield
     transcription.shutdown_executor()
     models.shutdown_executor()

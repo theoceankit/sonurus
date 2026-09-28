@@ -909,3 +909,20 @@ def test_update_title_missing_id_returns_false(tmp_path):
     svc = make_service(tmp_path)
 
     assert svc.update_title(999, "Ghost") is False
+
+
+# ---------------------------------------------------------------------------
+# audio_files()
+# ---------------------------------------------------------------------------
+
+def test_audio_files_returns_every_referenced_path(tmp_path):
+    svc = make_service(tmp_path)
+    svc.save(make_transcript(audio_path="/data/recordings/a.wav"))
+    svc.save(make_transcript(audio_path="/data/recordings/a.wav"))
+    svc.save(make_transcript(audio_path="/data/recordings/b.mp3"))
+
+    assert svc.audio_files() == {"/data/recordings/a.wav", "/data/recordings/b.mp3"}
+
+
+def test_audio_files_empty_db(tmp_path):
+    assert make_service(tmp_path).audio_files() == set()
