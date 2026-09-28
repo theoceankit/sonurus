@@ -65,7 +65,8 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `test_pipeline_process.py` | 15 | `run_pipeline_process()`: progress relayed, result returned, cancel stops the child at once (also mid-step and before start), `on_progress` errors stop it, child errors / missing alignment model / crash mapped to exceptions, SIGTERM from outside = interruption; group signals do not reach the child, the child exits when the backend dies; the real worker with a fake pipe; `Transcript` with embeddings survives pickling |
 | `test_transcript_builder.py` | 21 | `TranscriptBuilder.build()` (WhisperX output → Transcript, UUID for unmatched `SPEAKER_XX`, `UNKNOWN` → unassigned) and `attach_embeddings()` (time-overlap matching) |
 | `test_download_progress.py` | 19 | WS byte-level progress stream, polling loop, `done`/`error` events |
-| `test_audio_store.py` | 13 | `import_audio()` (unique copy, extension, live recording kept, symlink followed, no partial copy on error), `is_import_copy()`, `discard_import()`, `discard_owned_audio()` (copies and live recordings, never files outside `recordings/`, symlink targets kept), `remove_orphan_imports()` |
+| `test_audio_store.py` | 21 | `import_audio()` (unique copy, extension, live recording kept, symlink followed, no partial copy on error), `is_import_copy()`, `discard_import()`, `discard_owned_audio()` (copies and live recordings, never files outside `recordings/`, symlink targets kept), `remove_orphan_imports()`, `save_recording()` (live recording named `sonorus-rec-*`, format whitelist, empty body rejected, nothing left on failure) |
+| `test_recordings_api.py` | 6 | `POST /audio/recordings`: stored in the backend's `RECORDINGS_DIR` by `Content-Type` (webm/wav), `415` for other types, `400` for an empty body |
 | `test_audio_capture.py` | 17 | `AudioCaptureService` start/stop/merge, `has_active_jobs()`, recordings dir, stderr-deadlock regression, `/audio/capture/*` routes |
 | `test_logger.py` | 12 | `setup_logging()`, `get_logger()`, `LOG_LEVEL` env var, file logging |
 | `test_transcribe_schema.py` | 12 | `TranscribeRequest` schema validation, optional `whisper_model` and `language` fields |
@@ -73,7 +74,7 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `test_model_cancel.py` | 10 | `cancel_event` in `download_model()`, `DELETE /models/{id}/download/{job_id}`, WS `cancelled` event |
 | `test_voice_sample.py` | 8 | `pick_voice_sample()`: closest to the voice profile, longest fallback, ≥ 2 s preference, missing audio files skipped |
 | `test_embedding_service.py` | 3 | `EmbeddingService.extract_all()` single-pass invariant |
-| `tests/renderer/utils.test.js` | 13 | `fileUrl()`, `fileBaseName()`, `isUnrecognized()`, `buildKnownMap()`, `listSystemAudioSources()` |
+| `tests/renderer/utils.test.js` | 15 | `fileUrl()`, `fileBaseName()`, `isUnrecognized()`, `buildKnownMap()`, `listSystemAudioSources()`, `uploadRecording()` |
 | `tests/renderer/settings-reset.test.js` | 9 | `defaultSettingsPatch()`, `dataResetBlockReason()`, `formatDataResetSummary()` |
 | `tests/renderer/sidebar-delete.test.js` | 5 | `withoutRecording()`, `deleteTranscriptPrompt()` |
 | `tests/renderer/speakers.test.js` | 11 | `filterSpeakers()`, `duplicateNameIds()`, `speakerDisplayName()`, `speakerStatsLine()`, `deleteSpeakerPrompt()`, `buildKnownMap()` skipping unnamed rows, `effectiveSpeaker()` for unassigned segments |
@@ -100,6 +101,7 @@ tests/
 ├── test_alignment_model.py
 ├── test_api.py                        # Full API integration
 ├── test_audio_store.py
+├── test_recordings_api.py
 ├── test_audio_capture.py
 ├── test_commit_service.py
 ├── test_diarization_model.py

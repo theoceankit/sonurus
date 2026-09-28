@@ -1,20 +1,23 @@
-"""App-owned copies of imported audio.
+"""App-owned audio: copies of imported files and live recordings.
 
 A transcript must stay playable when the user moves or deletes the file they
 imported, so every imported file is copied into RECORDINGS_DIR and the
-transcript references the copy. Live recordings are already there and are
-used as they are.
+transcript references the copy. Live recordings are uploaded by the UI and
+written there by save_recording(), then used as they are.
 """
 import os
 import shutil
 import uuid
 from pathlib import Path
+from typing import AsyncIterator
 
 from app.logger import get_logger
 
 log = get_logger("AudioStore")
 
 IMPORT_PREFIX = "sonorus-import-"
+RECORDING_PREFIX = "sonorus-rec-"
+RECORDING_EXTS = frozenset({"webm", "wav"})
 
 
 def _in_dir(path: str | Path, directory: str | Path) -> bool:
@@ -40,6 +43,34 @@ def import_audio(src: str, recordings_dir: str | Path) -> str:
         dest.unlink(missing_ok=True)
         raise
     log.info(f"Imported {src} → {dest}")
+    return str(dest)
+
+
+async def save_recording(chunks: AsyncIterator[bytes], ext: str,
+                         recordings_dir: str | Path) -> str:
+    """Write an uploaded live recording to recordings_dir as
+    sonorus-rec-<uuid>.<ext> and return its path. The file appears under its
+    final name only when complete. Raises ValueError for an unsupported ext or
+    an empty recording; on any failure nothing is left behind."""
+    if ext not in RECORDING_EXTS:
+        raise ValueError(f"Unsupported recording format: {ext!r}")
+    recordings = Path(recordings_dir)
+    recordings.mkdir(parents=True, exist_ok=True)
+    dest = recordings / f"{RECORDING_PREFIX}{uuid.uuid4()}.{ext}"
+    part = dest.with_name(dest.name + ".part")
+    size = 0
+    try:
+        with open(part, "wb") as f:
+            async for chunk in chunks:
+                f.write(chunk)
+                size += len(chunk)
+        if size == 0:
+            raise ValueError("The recording is empty")
+        part.replace(dest)
+    except BaseException:
+        part.unlink(missing_ok=True)
+        raise
+    log.info(f"Saved recording {dest} ({size} bytes)")
     return str(dest)
 
 

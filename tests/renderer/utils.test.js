@@ -96,3 +96,27 @@ test('buildKnownMap: GET /speakers rows → { id: { name, colorIndex } }', () =>
   ])
   assert.deepEqual(plain(map), { a: { name: 'Alice', colorIndex: 3 }, b: { name: 'Bob', colorIndex: 0 } })
 })
+
+test('uploadRecording: POSTs the blob to the backend and returns its path', async () => {
+  const calls = []
+  const { uploadRecording } = loadRenderer(['utils.js'], {
+    fetch: async (url, opts) => {
+      calls.push({ url, opts })
+      return { ok: true, json: async () => ({ file_path: '/data/recordings/sonorus-rec-1.webm' }) }
+    },
+  })
+  const blob = { type: 'audio/webm;codecs=opus' }
+  assert.equal(await uploadRecording(blob), '/data/recordings/sonorus-rec-1.webm')
+  assert.equal(calls.length, 1)
+  assert.ok(calls[0].url.endsWith('/audio/recordings'))
+  assert.equal(calls[0].opts.method, 'POST')
+  assert.equal(calls[0].opts.body, blob)
+  assert.equal(calls[0].opts.headers['Content-Type'], 'audio/webm;codecs=opus')
+})
+
+test('uploadRecording: backend error → throws its detail', async () => {
+  const { uploadRecording } = loadRenderer(['utils.js'], {
+    fetch: async () => ({ ok: false, json: async () => ({ detail: 'The recording is empty' }) }),
+  })
+  await assert.rejects(uploadRecording({ type: 'audio/webm' }), /The recording is empty/)
+})

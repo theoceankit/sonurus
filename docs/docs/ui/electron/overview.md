@@ -91,7 +91,6 @@ electron/
 | `readSettings()` | Read `settings.json` from `app.getPath('userData')` |
 | `writeSettings(data)` | Write `settings.json` to `app.getPath('userData')` |
 | `setZoom(factor)` | Call `webContents.setZoomFactor(factor)` |
-| `saveRecording(buffer, ext)` | Write a recording buffer to `userData/recordings/` |
 | `writeClipboard(text)` | Write text to the system clipboard |
 | `onSetupProgress(callback)` | Subscribe to first-run setup progress events |
 | `getPlatform()` | Returns `process.platform` (`'win32'`, `'darwin'`, `'linux'`) |
@@ -172,9 +171,9 @@ Recording runs entirely in the background — no dedicated recording view. The f
 
 | Condition | Stop logic |
 |---|---|
-| `captureJobId && recorder` | Stop recorder → save mic blob → `POST capture/stop` with `mic_path` → merged `file_path` |
+| `captureJobId && recorder` | Stop recorder → upload mic blob (`POST /audio/recordings`) → `POST capture/stop` with `mic_path` → merged `file_path` |
 | `captureJobId` only | `POST capture/stop {}` → returns `file_path` |
-| `recorder` only | Stop recorder → save blob → use temp path |
+| `recorder` only | Stop recorder → upload blob (`POST /audio/recordings`) → returned `file_path` |
 
 The file is queued with `app._importFiles()` (`POST /queue/jobs`). Afterwards — also after an error (toast) — `_setRecordingActive(false)` and `POST /queue/recording/stop`: the queue resumes by itself only in the automatic start mode and only if the recording paused it. A recording that fails to start sends `recording/stop` too.
 

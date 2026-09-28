@@ -1,7 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard, desktopCapturer } = require('electron')
 const path = require('path')
 const fs = require('fs')
-const crypto = require('crypto')
 const { startBackend, stopBackend, needsSetup } = require('./backend')
 
 // macOS routes Cmd+C/V/X/A through the app's Edit menu — without it,
@@ -97,20 +96,6 @@ ipcMain.handle('open-file', async () => {
 ipcMain.handle('get-platform', () => process.platform)
 
 ipcMain.handle('write-clipboard', (_e, text) => { clipboard.writeText(text) })
-
-// Recordings are referenced by the transcript DB, so they must survive reboots:
-// same dir as the backend's RECORDINGS_DIR ($SONORUS_DATA_DIR/recordings).
-const RECORDING_EXTS = new Set(['webm', 'wav'])
-
-ipcMain.handle('save-recording', (_e, { buffer, ext }) => {
-  // ext comes from the renderer and ends up in a file path — never trust it
-  if (!RECORDING_EXTS.has(ext)) throw new Error(`Unsupported recording extension: ${ext}`)
-  const dir = path.join(app.getPath('userData'), 'recordings')
-  fs.mkdirSync(dir, { recursive: true })
-  const dest = path.join(dir, `sonorus-rec-${crypto.randomUUID()}.${ext}`)
-  fs.writeFileSync(dest, Buffer.from(buffer))
-  return dest
-})
 
 app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {

@@ -36,8 +36,8 @@ The user clicks **+** in the sidebar, chooses audio sources in the New Recording
 Handled entirely in the renderer:
 
 1. `getUserMedia({ audio: true, deviceId: micDeviceId })` → `MediaRecorder` → WebM chunks
-2. On stop: blob → `blob.arrayBuffer()` → IPC `save-recording(buffer, 'webm')` → temp path
-3. The temp path is sent to `POST /transcribe` as `audio_path`
+2. On stop: blob → `POST /audio/recordings` (raw body, `Content-Type: audio/webm`) → the backend stores it as `recordings/sonorus-rec-<uuid>.webm` and returns the path
+3. The path is queued with `POST /queue/jobs` as `audio_path`
 
 ### System audio (macOS + Linux)
 
@@ -68,8 +68,8 @@ navigator.mediaDevices.getDisplayMedia({ audio: true, video: { width:1, height:1
   → intercepted by Electron setDisplayMediaRequestHandler
   → callback({ video: sources[0], audio: 'loopback' })   ← WASAPI loopback, no picker
   → video tracks discarded; audio track mixed into AudioContext
-MediaRecorder (WebM) → blob → IPC save-recording → temp .webm
-POST /transcribe  { audio_path: temp.webm }
+MediaRecorder (WebM) → blob → POST /audio/recordings → recordings/sonorus-rec-<uuid>.webm
+POST /queue/jobs  { audio_path: "<returned path>" }
 ```
 
 No backend capture process is started on Windows; `POST /audio/capture/*` is not called.
@@ -85,13 +85,13 @@ No backend capture process is started on Windows; `POST /audio/capture/*` is not
 | File | Role |
 |---|---|
 | `app/services/audio_capture_service.py` | Platform dispatch, ffmpeg merge |
-| `app/api/routers/audio_capture.py` | `/audio/capture/*` endpoints |
+| `app/api/routers/audio_capture.py` | `/audio/capture/*` endpoints, `POST /audio/recordings` (upload of a renderer recording) |
 | `native/macos/sonorus-capture/main.swift` | Swift SCK binary — build with `npm run build:capture` (requires Xcode Command Line Tools: `xcode-select --install`) |
 | `electron/renderer/app.js` | `_startLiveRecording()`, `_stopLiveRecording()`, `_liveSession` — background recording state |
 | `electron/renderer/views/new-recording-modal.js` | Source picker modal, fetches backend sources |
 | `electron/renderer/views/settings-view.js` | Audio device settings section |
-| `electron/main.js` | `save-recording` IPC, media permission handler, `SONORUS_CAPTURE_BIN` env |
-| `electron/preload.js` | Exposes `saveRecording`, `getPlatform` via `contextBridge` |
+| `electron/main.js` | Media permission handler, `SONORUS_CAPTURE_BIN` env |
+| `electron/preload.js` | Exposes `getPlatform` via `contextBridge` |
 
 ---
 
