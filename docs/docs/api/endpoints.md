@@ -103,7 +103,7 @@ WebSocket that streams pipeline progress. Connect immediately after `POST /trans
 
 Closing or losing the socket does **not** cancel the job (cancellation is explicit via `DELETE /transcribe/{job_id}`). The job's event queue stays registered until the job ends, so a client can reconnect and continue receiving events; events consumed by the previous connection are not replayed.
 
-After every job — done, error or cancelled — the worker drops its model references and calls `torch.cuda.empty_cache()`.
+The pipeline runs in a child process ([Pipeline Process](../services/PipelineProcess.md)); its GPU memory is freed when it exits, after every job — done, error or cancelled.
 
 ```json
 // Lifecycle events — sent before any progress
@@ -134,7 +134,7 @@ After every job — done, error or cancelled — the worker drops its model refe
 
 ### `DELETE /transcribe/{job_id}`
 
-Cancels a running transcription job. Sets a `threading.Event` that raises `_JobCancelled` in the worker thread at the next progress checkpoint. The WS receives a `cancelled` event.
+Cancels a transcription job. Sets a `threading.Event`: a queued job never starts; a running job's child process is terminated within a fraction of a second, on any step. The WS receives a `cancelled` event and nothing is saved.
 
 - `200 {"cancelled": true}` — cancel signal sent
 - `404 {"cancelled": false}` — job not found (already finished or invalid ID)

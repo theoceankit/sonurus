@@ -31,7 +31,7 @@ stateDiagram-v2
 
 ## 2. ML Pipeline
 
-The pipeline runs inside a `ThreadPoolExecutor` thread (called from `POST /transcribe`). Any unhandled exception at any step is caught and returned as an error event over the WebSocket.
+Jobs from `POST /transcribe` run one at a time on a `ThreadPoolExecutor` thread, which runs the pipeline in a child process ([Pipeline Process](../services/PipelineProcess.md)) and saves the result itself. Any unhandled exception at any step is caught and returned as an error event over the WebSocket. A cancel stops the child at once, on any step.
 
 ```mermaid
 stateDiagram-v2

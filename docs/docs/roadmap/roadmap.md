@@ -144,7 +144,7 @@ A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-o
 **Done.** Transcription no longer takes over the main panel. Jobs run in the background and are shown as cards in a queue section at the top of the sidebar. Multiple files can be queued while the user continues browsing or editing other transcripts. The backend already serialised jobs via `ThreadPoolExecutor(max_workers=1)`; the frontend now tracks them in `app._activeJobs`. On completion: toast + sidebar refresh. `alignment_model_missing` errors surface as a modal with inline download + retry (`alignment-modal.js`).
 
 ### ✅ Pipeline cancellation
-**Done.** Cancel button (`×`) on each sidebar job card sends `DELETE /transcribe/{job_id}`; the API sets a `threading.Event` that raises `_JobCancelled` in the worker thread at the next `on_progress` checkpoint. WebSocket receives a `cancelled` event and the card is removed.
+**Done.** Cancel button (`×`) on each sidebar job card sends `DELETE /transcribe/{job_id}`; the API sets a `threading.Event` and the job's pipeline child process is terminated at once, on any step ([Pipeline Process](../services/PipelineProcess.md)). WebSocket receives a `cancelled` event and the card is removed.
 
 ---
 
