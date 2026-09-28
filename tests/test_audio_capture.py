@@ -291,7 +291,7 @@ def test_stop_capture_does_not_hang_on_chatty_stderr(tmp_path):
     import time
 
     AudioCaptureService = _get_service_class()
-    svc = AudioCaptureService()
+    svc = AudioCaptureService(recordings_dir=tmp_path / "recordings")
     script = tmp_path / "chatty.py"
     script.write_text(_CHATTY_CAPTURE_SCRIPT)
 
