@@ -40,7 +40,8 @@ const app = {
   _speakerFilter: 'all',   // 'all' | 'named' | 'unnamed'
   _activeSpeakerId: null,
   _liveSession: null,    // non-null while a background recording is active
-  _activeJobs: new Map(), // jobId → { jobId, title, status, ws, originalRequest, error }
+  _queue: null,          // last snapshot from WS /ws/queue (null until connected)
+  _queueWs: null,
 
   // ── Navigation ──────────────────────────────────────────────────────────────
 
@@ -80,11 +81,9 @@ const app = {
   },
 
   openNewRecordingModal() {
-    if (this._liveSession) {
-      window.showToast?.('Recording is already in progress')
-      return
-    }
     const overlay = renderNewRecordingModal({
+      // While recording, the modal only imports (the queue waits for the recording).
+      recording: !!this._liveSession,
       onStart: settings => this._startLiveRecording(settings),
       onImport: ({ filePath, title, model, language }) =>
         this._importFiles([filePath], { title, model, language }),
@@ -94,8 +93,9 @@ const app = {
 
   // ── Import ──────────────────────────────────────────────────────────────────
 
-  // One request at a time: the backend copies each file into recordings/
-  // before it answers, and the queue keeps the order the files came in.
+  // Adds files to the transcription queue, one request at a time: the backend
+  // copies each file into recordings/ before it answers, and the queue keeps
+  // the order the files came in. The queue section updates from WS /ws/queue.
   async _importFiles(paths, options) {
     for (const filePath of paths) {
       const { url, method, body } = importRequest(filePath, options)
@@ -105,11 +105,12 @@ const app = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
-        if (!r.ok) throw new Error(`Server error ${r.status}`)
-        const { job_id } = await r.json()
-        this._addJob(job_id, body)
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}))
+          throw new Error(data.detail || `Server error ${r.status}`)
+        }
       } catch (err) {
-        window.showToast?.(`Could not start ${fileBaseName(filePath)}: ${err.message}`, 'error')
+        window.showToast?.(`Could not add ${fileBaseName(filePath)}: ${err.message}`, 'error')
       }
     }
   },
@@ -117,16 +118,11 @@ const app = {
   _fileDropState() {
     return {
       view: this._currentView,
-      recording: !!this._liveSession,
       modalOpen: !!document.querySelector('.nr-overlay'),
     }
   },
 
   _onFileDrop(decision) {
-    if (decision.action === 'blocked') {
-      window.showToast?.('Stop the recording to import files')
-      return
-    }
     if (decision.action !== 'import') return
     const { files, skipped } = decision
     if (skipped) window.showToast?.(`Skipped ${skipped} unsupported file${skipped === 1 ? '' : 's'}`)
@@ -183,6 +179,8 @@ const app = {
     if (labelEl) labelEl.textContent = 'Starting…'
     const btn = document.getElementById('tb-record')
     if (btn) btn.disabled = true
+    // Frees the CPU/GPU for the recording: the running transcription stops.
+    await this._queueRecording('start')
 
     let recorder = null, audioCtx = null
     let micStream = null, sysStream = null
@@ -250,6 +248,7 @@ const app = {
         fetch(`${API_BASE}/audio/capture/stop/${captureJobId}`, { method: 'POST' }).catch(() => {})
       }
       this._setRecordingActive(false)
+      this._queueRecording('stop')
       window.showToast?.(`Could not start recording: ${err.message}`)
       return
     }
@@ -286,28 +285,10 @@ const app = {
 
     const { recorder, audioCtx, micStream, sysStream, captureJobId, chunks, settings } = session
 
-    const doTranscribe = async filePath => {
-      const body = {
-        audio_path: filePath,
-        whisper_model: settings.model,
-        language: settings.language === 'auto' ? null : settings.language,
-        title: settings.title || null,
-      }
-      try {
-        const r = await fetch(`${API_BASE}/transcribe`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-        if (!r.ok) throw new Error(`Server error ${r.status}`)
-        const { job_id } = await r.json()
-        this._setRecordingActive(false)
-        this._addJob(job_id, body)
-      } catch (err) {
-        this._setRecordingActive(false)
-        window.showToast?.(`Could not start transcription: ${err.message}`)
-      }
-    }
+    // The new recording joins the end of the queue.
+    const doTranscribe = filePath => this._importFiles([filePath], {
+      title: settings.title, model: settings.model, language: settings.language,
+    })
 
     const saveBrowserChunks = async () => {
       const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' })
@@ -365,138 +346,165 @@ const app = {
         }).then(filePath => doTranscribe(filePath))
       }
     } catch (err) {
-      this._setRecordingActive(false)
       window.showToast?.(`Recording error: ${err.message}`)
+    } finally {
+      this._setRecordingActive(false)
+      // After the recording was queued: the queue may resume (auto mode).
+      await this._queueRecording('stop')
     }
   },
 
-  // ── Background transcription queue ─────────────────────────────────────────
+  // ── Transcription queue ─────────────────────────────────────────────────────
+  // The backend owns the queue; WS /ws/queue sends a snapshot after every
+  // change plus job_done / job_failed.
 
-  _addJob(jobId, body) {
-    // Same fallback as the backend: the file name without its extension
-    const fileName = fileBaseName(body.audio_path || '').replace(/\.[^.]+$/, '') || 'Recording'
-    const title = body.title || fileName
-    const job = { jobId, title, status: 'queued', ws: null, originalRequest: body, error: null }
-    this._activeJobs.set(jobId, job)
-    this._renderJobQueue()
+  _connectQueue() {
+    const ws = new WebSocket(`${WS_BASE}/ws/queue`)
+    this._queueWs = ws
+    ws.onmessage = ({ data }) => this._onQueueEvent(JSON.parse(data))
+    ws.onclose = () => {
+      if (this._queueWs !== ws) return
+      this._queueWs = null
+      setTimeout(() => this._connectQueue(), 2000) // backend restarting
+    }
+  },
 
-    const ws = new WebSocket(`${WS_BASE}/ws/${jobId}`)
-    job.ws = ws
-
-    ws.onmessage = ({ data }) => {
-      const event = JSON.parse(data)
-      if (event.type === 'heartbeat') return
-
-      if (event.type === 'queued') {
-        job.status = 'queued'
-      } else if (event.type === 'started') {
-        job.status = 'Loading models…'
-      } else if (event.type === 'progress') {
-        job.status = event.step
-      } else if (event.type === 'done') {
-        ws.close()
-        this._activeJobs.delete(jobId)
-        this._renderJobQueue()
-        this.invalidateSidebar()
-        this._loadSidebar()
-        window.showToast?.(`✓ ${job.title}`)
-        return
-      } else if (event.type === 'cancelled') {
-        ws.close()
-        this._activeJobs.delete(jobId)
-        this._renderJobQueue()
-        return
-      } else if (event.type === 'error') {
-        ws.close()
-        if (event.error_code === 'alignment_model_missing') {
-          this._activeJobs.delete(jobId)
-          this._renderJobQueue()
-          document.body.appendChild(renderAlignmentModal(event.language, body))
-          return
-        }
-        job.error = event.message || 'Transcription failed'
+  _onQueueEvent(event) {
+    if (event.type === 'snapshot') {
+      this._queue = event
+      this._renderJobQueue()
+    } else if (event.type === 'job_done') {
+      this.invalidateSidebar()
+      this._loadSidebar()
+      window.showToast?.(`✓ ${event.title}`)
+    } else if (event.type === 'job_failed') {
+      if (event.error_code === 'alignment_model_missing') {
+        document.body.appendChild(renderAlignmentModal(event.error_language, event.job_id))
+      } else {
+        window.showToast?.(`Transcription failed: ${event.title}`, 'error')
       }
-
-      this._renderJobQueue()
     }
+  },
 
-    ws.onerror = () => {
-      job.error = 'Connection lost'
-      this._renderJobQueue()
+  // Queue API call; errors become a toast. Returns the response body or null.
+  async _queueRequest(path, { method = 'POST', body } = {}) {
+    try {
+      const r = await fetch(`${API_BASE}${path}`, {
+        method,
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(data.detail || `Server error ${r.status}`)
+      return data
+    } catch (err) {
+      window.showToast?.(err.message, 'error')
+      return null
     }
+  },
+
+  // A live recording pauses the queue; never fails the recording itself.
+  _queueRecording(state) {
+    return fetch(`${API_BASE}/queue/recording/${state}`, { method: 'POST' }).catch(() => {})
   },
 
   _renderJobQueue() {
     const container = document.getElementById('job-queue')
     if (!container) return
-    container.innerHTML = ''
-
-    if (this._activeJobs.size === 0) {
+    const q = this._queue
+    container.replaceChildren()
+    if (!queueJobCount(q)) {
       container.style.display = 'none'
       return
     }
-
     container.style.display = ''
-    for (const job of this._activeJobs.values()) {
-      container.appendChild(this._makeJobItem(job))
-    }
+    container.appendChild(this._makeQueueHeader(q))
+    for (const job of q.jobs) container.appendChild(this._makeJobItem(job, q))
   },
 
-  _makeJobItem(job) {
-    const isError  = job.error !== null
-    const isQueued = !isError && job.status === 'queued'
+  _makeQueueHeader(q) {
+    const header = document.createElement('div')
+    header.className = 'job-queue__header'
+
+    const title = document.createElement('span')
+    title.className = 'job-queue__title'
+    title.textContent = `Queue · ${queueJobCount(q)}`
+
+    const state = document.createElement('span')
+    state.className = 'job-queue__state' + (q.paused ? ' job-queue__state--paused' : '')
+    state.textContent = queueStateLabel(q)
+
+    const toggle = queueToggle(q)
+    const btn = document.createElement('button')
+    btn.className = 'job-queue__toggle'
+    btn.innerHTML = `${icon(toggle.icon, 10)}<span></span>`
+    btn.lastChild.textContent = toggle.label
+    btn.addEventListener('click', () => {
+      btn.disabled = true
+      this._queueRequest(`/queue/${toggle.action}`)
+    })
+
+    header.append(title, state, btn)
+    return header
+  },
+
+  _makeJobItem(job, q) {
+    const failed  = job.status === 'failed'
+    const running = job.status === 'running'
 
     const el = document.createElement('div')
-    el.className = 'job-item' + (isError ? ' job-item--error' : '')
+    el.className = 'job-item' + (failed ? ' job-item--error' : '')
 
     const header = document.createElement('div')
     header.className = 'job-item__header'
 
-    const icon = document.createElement('div')
-    icon.className = 'job-item__icon'
-    if (isError) {
-      icon.classList.add('job-item__icon--error')
-      icon.textContent = '!'
-    } else if (isQueued) {
-      icon.classList.add('job-item__icon--queued')
+    const mark = document.createElement('div')
+    mark.className = 'job-item__icon'
+    if (failed) {
+      mark.classList.add('job-item__icon--error')
+      mark.textContent = '!'
+    } else if (running && !q.paused) {
+      mark.classList.add('job-item__icon--spinner')
     } else {
-      icon.classList.add('job-item__icon--spinner')
+      mark.classList.add('job-item__icon--queued')
     }
 
     const titleEl = document.createElement('span')
     titleEl.className = 'job-item__title'
     titleEl.textContent = job.title
+    titleEl.title = job.title
+    header.append(mark, titleEl)
 
-    const btn = document.createElement('button')
-    btn.className = 'job-item__cancel'
-    btn.setAttribute('aria-label', isError ? 'Dismiss' : 'Cancel')
-    btn.textContent = '×'
+    if (failed) {
+      const retry = document.createElement('button')
+      retry.className = 'job-item__action'
+      retry.title = 'Retry'
+      retry.setAttribute('aria-label', 'Retry')
+      retry.innerHTML = icon('retry', 11)
+      retry.addEventListener('click', () => {
+        retry.disabled = true
+        this._queueRequest(`/queue/jobs/${job.id}/retry`)
+      })
+      header.appendChild(retry)
+    }
 
-    header.appendChild(icon)
-    header.appendChild(titleEl)
-    header.appendChild(btn)
+    const del = document.createElement('button')
+    del.className = 'job-item__action'
+    del.title = 'Delete'
+    del.setAttribute('aria-label', 'Delete')
+    del.textContent = '×'
+    del.addEventListener('click', () => openConfirmDialog({
+      ...deleteJobPrompt(job),
+      onConfirm: () => this._queueRequest(`/queue/jobs/${job.id}`, { method: 'DELETE' }),
+    }))
+    header.appendChild(del)
 
     const statusEl = document.createElement('div')
     statusEl.className = 'job-item__status'
-    statusEl.textContent = isError
-      ? job.error
-      : isQueued ? 'Queued' : (job.status || '…')
+    statusEl.textContent = jobStatusText(job, q)
+    if (failed && job.error) statusEl.title = job.error
 
-    el.appendChild(header)
-    el.appendChild(statusEl)
-
-    if (isError) {
-      btn.addEventListener('click', () => {
-        this._activeJobs.delete(job.jobId)
-        this._renderJobQueue()
-      })
-    } else {
-      btn.addEventListener('click', () => {
-        btn.disabled = true
-        fetch(`${API_BASE}/transcribe/${job.jobId}`, { method: 'DELETE' }).catch(() => {})
-      })
-    }
-
+    el.append(header, statusEl)
     return el
   },
 
@@ -727,7 +735,7 @@ const app = {
     this._rerenderSpeakerList()
     this._setView(renderSpeakerDetail(row, {
       duplicate: duplicateNameIds(this._speakers).has(speakerId),
-      deleteBlockReason: dataResetBlockReason(this._activeJobs.size, this._liveSession),
+      deleteBlockReason: dataResetBlockReason(this._queue?.running_job_id ? 1 : 0, this._liveSession),
       onSave: patch => this._updateSpeaker(row, patch),
       onDelete: () => this._confirmDeleteSpeaker(row),
       onOpenTranscript: id => this.showEditor(id),
@@ -823,6 +831,7 @@ const app = {
 
   init() {
     loadSettings().then(() => this._loadSidebar({ autoOpen: true }))
+    this._connectQueue()
 
     initFileDrop({
       getState: () => this._fileDropState(),

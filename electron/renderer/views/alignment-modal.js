@@ -2,7 +2,7 @@
 // Shown when a background transcription job fails with alignment_model_missing.
 // Lets the user download the required model and retry without navigating away.
 
-function renderAlignmentModal(lang, originalRequest) {
+function renderAlignmentModal(lang, retryJobId) {
   const alignModel = ALIGNMENT_MODELS.find(m => m.id === lang) || {}
   const langName   = alignModel.name       || lang
   const langNative = alignModel.nativeName || ''
@@ -110,21 +110,15 @@ function renderAlignmentModal(lang, originalRequest) {
             desc.textContent    = `${langName} alignment model is ready.`
 
             btnRow.innerHTML = ''
-            if (originalRequest) {
+            if (retryJobId) {
               const retryBtn = document.createElement('button')
               retryBtn.className = 'st-btn st-btn--primary'
               retryBtn.innerHTML = `${icon('retry', 11)} Retry transcription`
               retryBtn.addEventListener('click', () => {
                 retryBtn.disabled = true
                 close()
-                fetch(`${API_BASE}/transcribe`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(originalRequest),
-                })
-                  .then(r => r.json())
-                  .then(({ job_id }) => app._addJob(job_id, originalRequest))
-                  .catch(() => window.showToast?.('Could not start transcription', 'error'))
+                // The failed job goes back to the end of the queue.
+                app._queueRequest(`/queue/jobs/${retryJobId}/retry`)
               })
               btnRow.appendChild(retryBtn)
             }
