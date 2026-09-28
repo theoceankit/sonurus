@@ -176,6 +176,8 @@ The symmetrical `POST /reassign` endpoint correctly validates `to_speaker_id in 
 
 **Files:** `app/services/archive_service.py`, `app/api/routers/transcription.py:115`
 
+**Superseded:** `ArchiveService` and the `.files/` archive were removed; imported audio is copied into `recordings/` instead ([Audio Store](../services/AudioStore.md)).
+
 ---
 
 ## 3. Scalability

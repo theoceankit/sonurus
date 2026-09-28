@@ -58,7 +58,7 @@ Each step sends a progress message over WebSocket, displayed in the sidebar job 
 | Transcribing | `TranscriptionService.transcribe()` — WhisperX ASR + alignment + diarization |
 | Identifying speakers | `EmbeddingService.extract_all()` → `SpeakerMemoryService.resolve()` |
 | Building transcript | `TranscriptBuilder.build()` → `TranscriptBuilder.attach_embeddings()` |
-| Saving | `TranscriptStorageService.save()` → `ArchiveService.archive()` |
+| Saving | `TranscriptStorageService.save()` → `CommitService.commit_recognized_speakers()` |
 
 ---
 

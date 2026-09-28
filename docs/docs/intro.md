@@ -38,11 +38,12 @@ In the packaged app and in `npm start`, the backend lifecycle is managed by `ele
 ## Pipeline
 
 ```
-transcribe → extract_all → resolve → build → attach_embeddings → [review] → commit → save → archive
+copy imported audio → transcribe → extract_all → resolve → build → attach_embeddings → [review] → commit → save
 ```
 
 | Step | Service | Description |
 |---|---|---|
+| 0 | `audio_store.import_audio()` | Copies an imported file into `$SONORUS_DATA_DIR/recordings/` so the transcript does not depend on the original |
 | 1 | `TranscriptionService` | WhisperX ASR + alignment + diarisation |
 | 2 | `EmbeddingService.extract_all()` | Single PyAnnote pass: aggregated embeddings per `SPEAKER_XX` + per-segment embeddings |
 | 3 | `SpeakerMemoryService.resolve()` | Cosine similarity matching against known speakers — pure function, no writes |
@@ -51,7 +52,6 @@ transcribe → extract_all → resolve → build → attach_embeddings → [revi
 | 6 | Review | Transcript editor + speaker reassignment |
 | 7 | `CommitService.commit()` | Aggregates embeddings by final speaker, updates `speaker_memory.db` |
 | 8 | `TranscriptStorageService.save()` | Persists transcript and segments to SQLite |
-| 9 | `ArchiveService.archive()` | Copies audio + saves `.txt` transcript to `$SONORUS_DATA_DIR/.files/YYYY-MM-DD/<stem>/` |
 
 ---
 

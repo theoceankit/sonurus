@@ -28,7 +28,7 @@ User data lives outside the bundle in `app.getPath('userData')` and is never pac
   python-packages/               ← pip install on first run
   .models/                       ← ML model weights (downloaded on demand)
   speaker_memory.db              ← transcripts + speaker memory
-  .files/                        ← audio archive + .txt exports
+  recordings/                    ← live recordings + copies of imported audio
   settings.json                  ← user settings
   sonorus.log                    ← backend log
 ```

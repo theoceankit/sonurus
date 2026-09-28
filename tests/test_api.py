@@ -914,22 +914,17 @@ class _IdleCapture:
 
 @pytest.fixture
 def reset_env(client, tmp_path, monkeypatch):
-    """client + isolated recordings/.files dirs + an idle capture service."""
+    """client + isolated recordings dir + an idle capture service."""
     import app.config as config
     from app.api.dependencies import get_audio_capture_service
-    from app.services.archive_service import ArchiveService
 
-    data_dir = tmp_path / "data"
-    recordings = data_dir / "recordings"
-    archive = data_dir / ".files"
+    recordings = tmp_path / "data" / "recordings"
     recordings.mkdir(parents=True)
-    archive.mkdir(parents=True)
     monkeypatch.setattr(config, "RECORDINGS_DIR", recordings)
-    monkeypatch.setattr(ArchiveService, "BASE_DIR", str(archive))
 
     capture = _IdleCapture()
     app.dependency_overrides[get_audio_capture_service] = lambda: capture
-    yield client, recordings, archive, capture
+    yield client, recordings, capture
 
 
 def test_reset_deletes_transcripts_and_all_speakers(reset_env):
@@ -965,24 +960,20 @@ def test_reset_clears_the_api_memory_singleton(reset_env):
     assert shared.known_names == {}
 
 
-def test_reset_deletes_recordings_and_archive(reset_env):
-    client, recordings, archive, _ = reset_env
+def test_reset_deletes_recordings_and_imported_copies(reset_env):
+    client, recordings, _ = reset_env
     (recordings / "sonorus-rec-1.wav").write_bytes(b"x")
-    day = archive / "2026-09-27" / "meeting"
-    day.mkdir(parents=True)
-    (day / "meeting.wav").write_bytes(b"x")
-    (day / "meeting.txt").write_text("hi")
+    (recordings / "sonorus-import-1.mp3").write_bytes(b"x")
 
     r = client.post("/data/reset")
 
     assert r.status_code == 200
-    assert r.json()["files"] == 3
+    assert r.json()["files"] == 2
     assert list(recordings.iterdir()) == []
-    assert list(archive.iterdir()) == []
 
 
 def test_reset_keeps_audio_files_outside_data_dir(reset_env, tmp_path):
-    client, recordings, _, _ = reset_env
+    client, recordings, _ = reset_env
     outside = tmp_path / "imported" / "interview.wav"
     outside.parent.mkdir()
     outside.write_bytes(b"audio")
@@ -1005,9 +996,8 @@ def test_reset_on_empty_data_succeeds(reset_env):
 
 
 def test_reset_works_when_data_dirs_do_not_exist(reset_env):
-    client, recordings, archive, _ = reset_env
+    client, recordings, _ = reset_env
     recordings.rmdir()
-    archive.rmdir()
     assert client.post("/data/reset").status_code == 200
 
 
@@ -1024,7 +1014,7 @@ def test_reset_returns_409_while_transcription_job_runs(reset_env, monkeypatch):
 
 
 def test_reset_returns_409_while_audio_capture_runs(reset_env):
-    client, recordings, _, capture = reset_env
+    client, recordings, capture = reset_env
     _setup_two_transcripts()
     (recordings / "sonorus-rec-1.wav").write_bytes(b"x")
     capture.active = True
@@ -1259,7 +1249,7 @@ def test_delete_speaker_returns_409_while_transcription_runs(reset_env, monkeypa
 
 
 def test_delete_speaker_returns_409_while_capture_runs(reset_env):
-    client, _, _, capture = reset_env
+    client, _, capture = reset_env
     _speakers_fixture()
     capture.active = True
     assert client.delete(f"/speakers/{_ALICE}").status_code == 409
@@ -1495,3 +1485,50 @@ def test_patch_transcript_title_rejects_invalid(client, title):
 def test_patch_transcript_title_missing_field_returns_422(client):
     db_id = _saved_id(client)
     assert client.patch(f"/transcripts/{db_id}", json={}).status_code == 422
+
+
+
+def test_delete_transcript_removes_its_imported_copy(client, recordings_dir, tmp_path):
+    original = tmp_path / "imported" / "interview.wav"
+    original.parent.mkdir()
+    original.write_bytes(b"audio")
+    copy = recordings_dir / "sonorus-import-1.wav"
+    copy.write_bytes(b"audio")
+    tid = _save(copy)
+
+    assert client.delete(f"/transcripts/{tid}").status_code == 204
+
+    assert not copy.exists()
+    assert original.exists()
+
+
+def test_startup_removes_orphan_import_copies(tmp_path, monkeypatch):
+    """Copies left by a job the backend never finished are removed at startup;
+    referenced copies and live recordings stay."""
+    import app.config as config
+    import app.api.main as main_module
+
+    recordings = tmp_path / "data" / "recordings"
+    recordings.mkdir(parents=True)
+    kept = recordings / "sonorus-import-kept.wav"
+    orphan = recordings / "sonorus-import-orphan.wav"
+    live = recordings / "sonorus-rec-1.wav"
+    for f in (kept, orphan, live):
+        f.write_bytes(b"x")
+    storage = TranscriptStorageService(db_path=str(tmp_path / "t.db"))
+    storage.save(_make_transcript(audio_path=str(kept)))
+
+    monkeypatch.setattr(config, "RECORDINGS_DIR", recordings)
+    monkeypatch.setattr(main_module, "get_storage_service", lambda: storage)
+    monkeypatch.setattr(main_module, "get_memory_service",
+                        lambda: SpeakerMemoryService(db_path=str(tmp_path / "m.db")))
+    # Lifespan exit shuts the job executors down — keep them for later tests.
+    monkeypatch.setattr(main_module.transcription, "shutdown_executor", lambda: None)
+    monkeypatch.setattr(main_module.models, "shutdown_executor", lambda: None)
+
+    with TestClient(app):
+        pass
+
+    assert kept.exists()
+    assert live.exists()
+    assert not orphan.exists()

@@ -11,7 +11,8 @@ WHISPER_MODELS_DIR = MODELS_DIR / "whisper"
 HF_MODELS_DIR = MODELS_DIR / "hf"
 ALIGNMENT_MODELS_DIR = MODELS_DIR / "alignment"
 
-# Live recordings (final audio files referenced by transcriptions.audio_file).
+# App-owned audio referenced by transcriptions.audio_file: live recordings
+# (sonorus-rec-*) and copies of imported files (sonorus-import-*).
 # Must not live in the OS temp dir — it is wiped on reboot on many systems.
 RECORDINGS_DIR = _data_dir / "recordings"
 

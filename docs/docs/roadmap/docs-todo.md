@@ -28,7 +28,6 @@ Seven service docs exist but are in Russian and predate the current doc format. 
 | `TranscriptBuilder.md` | Russian, old format |
 | `TranscriptionService.md` | Russian, old format |
 | `TranscriptStorageService.md` | Russian, old format |
-| `ArchiveService.md` | Russian, old format |
 
 ### `data-models.md`
 Documents `Transcript` and `Segment` dataclasses. Needs translation to English and alignment with the speaker identity state machine described in [State Machines → Segment: Speaker Identity](../system/state-machine.md#4-segment-speaker-identity).
