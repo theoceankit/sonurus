@@ -86,24 +86,56 @@ const app = {
     }
     const overlay = renderNewRecordingModal({
       onStart: settings => this._startLiveRecording(settings),
-      onImport: ({ filePath, title, model, language }) => {
-        const body = {
-          audio_path: filePath,
-          whisper_model: model,
-          language: language === 'auto' ? null : language,
-          title: title || null,
-        }
-        fetch(`${API_BASE}/transcribe`, {
-          method: 'POST',
+      onImport: ({ filePath, title, model, language }) =>
+        this._importFiles([filePath], { title, model, language }),
+    })
+    document.body.appendChild(overlay)
+  },
+
+  // ── Import ──────────────────────────────────────────────────────────────────
+
+  // One request at a time: the backend copies each file into recordings/
+  // before it answers, and the queue keeps the order the files came in.
+  async _importFiles(paths, options) {
+    for (const filePath of paths) {
+      const { url, method, body } = importRequest(filePath, options)
+      try {
+        const r = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
-          .then(r => { if (!r.ok) throw new Error(`Server error ${r.status}`); return r.json() })
-          .then(({ job_id }) => this._addJob(job_id, body))
-          .catch(err => window.showToast?.(`Could not start: ${err.message}`))
-      },
+        if (!r.ok) throw new Error(`Server error ${r.status}`)
+        const { job_id } = await r.json()
+        this._addJob(job_id, body)
+      } catch (err) {
+        window.showToast?.(`Could not start ${fileBaseName(filePath)}: ${err.message}`, 'error')
+      }
+    }
+  },
+
+  _fileDropState() {
+    return {
+      view: this._currentView,
+      recording: !!this._liveSession,
+      modalOpen: !!document.querySelector('.nr-overlay'),
+    }
+  },
+
+  _onFileDrop(decision) {
+    if (decision.action === 'blocked') {
+      window.showToast?.('Stop the recording to import files')
+      return
+    }
+    if (decision.action !== 'import') return
+    const { files, skipped } = decision
+    if (skipped) window.showToast?.(`Skipped ${skipped} unsupported file${skipped === 1 ? '' : 's'}`)
+    if (!files.length) return
+    window.showToast?.(files.length === 1 ? `Importing ${files[0].name}…` : `Importing ${files.length} files…`)
+    this._importFiles(files.map(file => file.path), {
+      model: appSettings.transcribeModel || 'large-v3',
+      language: appSettings.transcribeLang || 'auto',
     })
-    document.body.appendChild(overlay)
   },
 
   showEditor(transcriptId) {
@@ -341,7 +373,8 @@ const app = {
   // ── Background transcription queue ─────────────────────────────────────────
 
   _addJob(jobId, body) {
-    const fileName = fileBaseName(body.audio_path || '') || 'Recording'
+    // Same fallback as the backend: the file name without its extension
+    const fileName = fileBaseName(body.audio_path || '').replace(/\.[^.]+$/, '') || 'Recording'
     const title = body.title || fileName
     const job = { jobId, title, status: 'queued', ws: null, originalRequest: body, error: null }
     this._activeJobs.set(jobId, job)
@@ -790,6 +823,11 @@ const app = {
 
   init() {
     loadSettings().then(() => this._loadSidebar({ autoOpen: true }))
+
+    initFileDrop({
+      getState: () => this._fileDropState(),
+      onDrop: decision => this._onFileDrop(decision),
+    })
 
     // ── Sidebar buttons ────────────────────────────────────────────────────────
     document.getElementById('btn-import')
