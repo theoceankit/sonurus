@@ -210,6 +210,8 @@ The symmetrical `POST /reassign` endpoint correctly validates `to_speaker_id in 
 
 **Files:** `app/api/routers/transcription.py:45–50`, `app/api/routers/models.py:16–21`, `app/api/main.py`
 
+**Status (2026-09):** done. Transcription jobs are no longer module-level state: `TranscriptionQueue` (persisted by `JobStore`) is created by `get_transcription_queue()`, its worker is started and stopped by the lifespan, and progress goes through one `WS /ws/queue` subscription instead of per-job queues ([Transcription Queue](../services/TranscriptionQueue.md)). The download executor in `models.py` is shut down by the lifespan.
+
 ---
 
 ## 4. Services That Need Splitting
