@@ -91,6 +91,7 @@ def _isolated_transcription_queue(tmp_path_factory):
     root = tmp_path_factory.mktemp("queue")
     queue = TranscriptionQueue(JobStore(db_path=str(root / "jobs.db")), never_runs,
                                recordings_dir=root / "recordings")
+    queue.pause()  # an empty queue would otherwise come up running (auto mode)
     app.dependency_overrides[get_transcription_queue] = lambda: queue
     yield
     app.dependency_overrides.pop(get_transcription_queue, None)

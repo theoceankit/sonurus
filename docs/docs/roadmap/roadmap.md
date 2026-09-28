@@ -117,7 +117,7 @@ A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-o
 - The queue as a whole is either **running** or **paused**; Pause and Start apply to the whole queue.
 - Pausing interrupts the running job; it runs again from the start when the queue resumes.
 - Jobs are reordered by drag and drop.
-- The queue (jobs, order, parameters, errors) survives an app restart. After a restart the queue is always paused and waits for a manual Start; the job that was running is run again from the start.
+- The queue (jobs, order, parameters, errors) survives an app restart. If jobs are waiting at start-up (e.g. the app was closed mid-job), the queue comes up paused and waits for a manual Start; the job that was running is run again from the start. With nothing waiting (empty queue, or only failed jobs), the automatic mode starts running right away, so new files are transcribed without pressing Start; the manual mode always waits.
 
 **Start mode (Settings)**
 - **Automatic:** adding a job starts the queue unless the user paused it.

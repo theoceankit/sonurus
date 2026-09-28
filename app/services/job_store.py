@@ -3,7 +3,7 @@
 Jobs and queue settings live in the same database file as transcripts
 (DB_PATH) but in their own tables, created here. The queue survives a
 restart; which job is running and whether the queue is paused are not
-stored (after a restart the queue is always paused).
+stored (see TranscriptionQueue for the state at start-up).
 """
 from __future__ import annotations
 

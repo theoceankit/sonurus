@@ -11,7 +11,7 @@ sidebar_position: 10
 ## Rules
 
 - The queue as a whole is **running** or **paused**. Pausing stops the running job at once; it goes back to `waiting` and later runs again **from the start** (no partial progress is kept).
-- After a backend restart the queue is always **paused**. A job left `running` (backend stopped mid-job) is `waiting` again.
+- At start-up a job left `running` (backend stopped mid-job) is `waiting` again. If any job is `waiting`, the queue comes up **paused**, so left-over work does not take the machine by itself. With nothing waiting (empty, or only `failed` jobs) it comes up running in `auto` mode and paused in `manual` mode.
 - **Start mode** (stored): `auto` — a running queue waits for new jobs when it runs out of them, so adding a job runs it unless the queue is paused. `manual` — the queue pauses itself when nothing is left to run; jobs added while it runs are picked up in the same pass.
 - **Live recording**: `recording_started()` pauses a running queue and stops its job (`paused_by_recording`). `recording_stopped()` resumes only in `auto` mode and only if the recording paused it; a pause by the user (before or during the recording) stays. Jobs can be added while recording.
 - A **failed** job moves to the end of the queue with its error and is skipped until `retry()`, which puts it back at the end as `waiting`. It is never retried by itself: a persistent error would loop.

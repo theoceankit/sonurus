@@ -44,7 +44,7 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 
 ## Current coverage
 
-**605 Python unit and API tests** across **25 files** — no ML models are loaded — plus **86 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
+**607 Python unit and API tests** across **25 files** — no ML models are loaded — plus **86 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
 
 | File | Tests | What it covers |
 |---|---|---|
@@ -59,7 +59,7 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `test_models_api.py` | 22 | `GET /models`, `POST /models/{id}/download`, `DELETE /models/{id}`, WS progress stream |
 | `test_transcription_guard.py` | 18 | `POST /queue/jobs` 400 guard when Whisper / diarization / alignment model not installed (auto-detect not blocked); `TranscriptionService` raises `AlignmentModelMissingError` with the language |
 | `test_queue_api.py` | 21 | `/queue` API: adding (import copied, live recording not, default title / model, `auto` language → null, 400 for a missing file or failed copy), snapshot, start / pause, recording endpoints, start mode setting, `PATCH` (only fields sent, 404 / 409 running / 400 model not installed / 422), `DELETE` with audio, retry, order, `WS /ws/queue` (snapshot, changes, `job_done`), old `/transcribe` endpoints gone; speaker delete and data reset 409 only while a job runs, reset clears a paused queue |
-| `test_transcription_queue.py` | 39 | `TranscriptionQueue` with a stand-in runner: paused after start-up / restart, order, auto vs manual start mode, pause re-runs a job from the start, failures to the end + skipped, alignment failure fields, retry, delete (waiting / running, audio inside `recordings/` only), edit (not the running job), reorder, recording pause / auto-resume rules, `hold()`, subscribers, snapshots in order across threads, stop and interruption keep the job waiting |
+| `test_transcription_queue.py` | 41 | `TranscriptionQueue` with a stand-in runner: start-up state (empty queue runs in auto mode, waits in manual mode; left-over waiting jobs pause it; failed jobs alone do not), order, auto vs manual start mode, pause re-runs a job from the start, failures to the end + skipped, alignment failure fields, retry, delete (waiting / running, audio inside `recordings/` only), edit (not the running job), reorder, recording pause / auto-resume rules, `hold()`, subscribers, snapshots in order across threads, stop and interruption keep the job waiting |
 | `test_job_store.py` | 17 | `JobStore`: fields, order, persistence, edit, move to end, reorder validation, delete, running → waiting, clear, audio paths, settings, shared DB file with transcripts |
 | `test_transcription_job.py` | 7 | `make_job_runner()`: save with the job title + commit, cancel after the pipeline saves nothing, models released on failure / cancel, a failed commit keeps the saved transcript, child-process mode (no models in the backend, saved through storage, cancel passed through) |
 | `test_pipeline_process.py` | 15 | `run_pipeline_process()`: progress relayed, result returned, cancel stops the child at once (also mid-step and before start), `on_progress` errors stop it, child errors / missing alignment model / crash mapped to exceptions, SIGTERM from outside = interruption; group signals do not reach the child, the child exits when the backend dies; the real worker with a fake pipe; `Transcript` with embeddings survives pickling |

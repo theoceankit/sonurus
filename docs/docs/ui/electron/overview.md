@@ -231,7 +231,7 @@ Every edit in the editor (assigning a speaker, confirming a suggestion, editing 
 
 The backend owns the queue ([Transcription Queue](../../services/TranscriptionQueue.md)); the renderer only shows it and sends commands. The main panel is never replaced by a progress view.
 
-**Connection:** `app._connectQueue()` (in `init()`) opens `WS /ws/queue` and keeps the latest snapshot in `app._queue`. The socket reconnects every 2 s while the backend is away (restart); a new backend comes up paused, and its first snapshot shows that.
+**Connection:** `app._connectQueue()` (in `init()`) opens `WS /ws/queue` and keeps the latest snapshot in `app._queue`. The socket reconnects every 2 s while the backend is away (restart); its first snapshot shows the new state (paused if jobs were left waiting).
 
 **Events** (`app._onQueueEvent()`):
 
