@@ -7,14 +7,17 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
+from app.services import pipeline_process
+from app.services.pipeline_process import PipelineCancelled, run_pipeline_process
 from app.services.service_factory import create_controller
 from app.services.audio_store import discard_import, import_audio
 from app.services.commit_service import CommitService
 from app.services.model_service import ModelService, ALIGNMENT_CATALOG
 from app.services.speaker_memory_service import SpeakerMemoryService
+from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.transcription_service import AlignmentModelMissingError
 from app.api.schemas import TranscribeRequest, JobStarted
-from app.api.dependencies import get_memory_service
+from app.api.dependencies import get_memory_service, get_storage_service
 import app.config as config
 from app.config import WHISPER_MODEL
 
@@ -38,15 +41,12 @@ def shutdown_executor():
     _executor.shutdown(wait=False)
 
 
-class _JobCancelled(Exception):
-    pass
-
-
 def _release_models(controller) -> None:
     """Drop model references and return cached GPU memory to the driver.
 
     Runs after every job — success, error or cancel — so a failed job does
-    not keep several GiB of VRAM allocated until the next one starts.
+    not keep several GiB of VRAM allocated until the next one starts. Only
+    matters in-process (tests): a child process frees everything on exit.
     """
     if controller is not None:
         controller.transcription_service.model = None
@@ -61,6 +61,7 @@ def _release_models(controller) -> None:
 async def start_transcribe(
     body: TranscribeRequest,
     api_memory: SpeakerMemoryService = Depends(get_memory_service),
+    storage: TranscriptStorageService = Depends(get_storage_service),
 ):
     whisper_model = body.whisper_model or WHISPER_MODEL
     ms = ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR)
@@ -120,27 +121,36 @@ async def start_transcribe(
 
             def on_progress(step: str):
                 if cancel_event.is_set():
-                    raise _JobCancelled()
+                    raise PipelineCancelled()
                 _emit({"type": "progress", "step": step})
 
             on_progress("Loading models…")
-            controller, storage = create_controller(whisper_model=body.whisper_model or WHISPER_MODEL)
-
-            transcript = controller.run_pipeline(audio_path, on_progress=on_progress, language=body.language)
+            if pipeline_process.RUN_PIPELINE_IN_SUBPROCESS:
+                # The child only computes; saving and commit happen here.
+                transcript = run_pipeline_process(
+                    {"audio_path": audio_path, "whisper_model": whisper_model,
+                     "language": body.language, "db_path": api_memory.db_path},
+                    on_progress, cancel_event,
+                )
+                memory, job_storage = SpeakerMemoryService(db_path=api_memory.db_path), storage
+            else:
+                controller, job_storage = create_controller(whisper_model=whisper_model)
+                transcript = controller.run_pipeline(audio_path, on_progress=on_progress, language=body.language)
+                memory = controller.memory_service
 
             if cancel_event.is_set():
-                raise _JobCancelled()
+                raise PipelineCancelled()
 
             transcript.title = title
 
             on_progress("Saving to database…")
-            storage.save(transcript)
+            job_storage.save(transcript)
             saved = True  # from here on the transcript references the copy
-            CommitService(controller.memory_service, storage).commit_recognized_speakers(transcript)
+            CommitService(memory, job_storage).commit_recognized_speakers(transcript)
             api_memory.reload()
 
             _emit({"type": "done", "transcript_id": transcript.db_id})
-        except _JobCancelled:
+        except PipelineCancelled:
             _emit({"type": "cancelled"})
         except AlignmentModelMissingError as exc:
             # Emit a structured error so the frontend can offer a targeted

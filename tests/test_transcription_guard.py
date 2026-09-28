@@ -760,3 +760,88 @@ def test_import_copy_failure_returns_400_and_starts_no_job(client):
 def test_archive_service_is_gone():
     import importlib.util
     assert importlib.util.find_spec("app.services.archive_service") is None
+
+
+# ---------------------------------------------------------------------------
+# Pipeline in a child process (production mode; conftest turns it off)
+# ---------------------------------------------------------------------------
+
+@contextmanager
+def _subprocess_job(tc, tmp_path, runner, **body):
+    """Start a job with the child-process runner replaced by `runner`."""
+    from app.services import pipeline_process
+    _install_whisper_and_diarize(tmp_path)
+    with patch.object(pipeline_process, "RUN_PIPELINE_IN_SUBPROCESS", True), \
+         patch("app.api.routers.transcription.run_pipeline_process", side_effect=runner) as run, \
+         patch("app.api.routers.transcription.create_controller") as create:
+        r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", **body})
+        assert r.status_code == 200, r.text
+        _wait_job_finished(r.json()["job_id"])
+        yield run, create
+
+
+def test_subprocess_job_runs_the_copy_and_saves_the_transcript(client):
+    from app.models.segment import Segment
+    from app.models.transcript import Transcript
+    tc, tmp_path = client
+    seen = {}
+
+    def runner(args, on_progress, cancel_event):
+        seen.update(args)
+        on_progress("Transcribing audio…")
+        return Transcript(segments=[Segment(0.0, 1.0, "hello", "SPEAKER_00")],
+                          audio_path=args["audio_path"], language="en")
+
+    with _subprocess_job(tc, tmp_path, runner, language="en") as (run, create):
+        pass
+
+    create.assert_not_called()  # no ML models are loaded in the backend process
+    [copy] = _imports(tmp_path)
+    assert seen == {"audio_path": str(copy), "whisper_model": "small", "language": "en",
+                    "db_path": str(tmp_path / "memory.db")}
+    storage = TranscriptStorageService(db_path=str(tmp_path / "transcripts.db"))
+    [item] = storage.list_all()
+    saved = storage.load(item["id"])
+    assert saved.title == "audio"
+    assert saved.audio_path == str(copy)
+    assert [s.text for s in saved.segments] == ["hello"]
+
+
+def test_subprocess_job_cancelled_discards_the_import_copy(client):
+    from app.services.pipeline_process import PipelineCancelled
+    tc, tmp_path = client
+
+    def runner(args, on_progress, cancel_event):
+        raise PipelineCancelled()
+
+    with _subprocess_job(tc, tmp_path, runner):
+        pass
+
+    assert _imports(tmp_path) == []
+    assert TranscriptStorageService(db_path=str(tmp_path / "transcripts.db")).list_all() == []
+
+
+def test_delete_stops_a_subprocess_job(client):
+    """DELETE /transcribe/{id} sets the event the runner watches."""
+    import threading
+    from app.api.routers import transcription
+    from app.services.pipeline_process import PipelineCancelled
+    tc, tmp_path = client
+    started = threading.Event()
+
+    def runner(args, on_progress, cancel_event):
+        started.set()
+        if not cancel_event.wait(5):
+            raise AssertionError("cancel never reached the runner")
+        raise PipelineCancelled()
+
+    from app.services import pipeline_process
+    _install_whisper_and_diarize(tmp_path)
+    with patch.object(pipeline_process, "RUN_PIPELINE_IN_SUBPROCESS", True), \
+         patch("app.api.routers.transcription.run_pipeline_process", side_effect=runner):
+        r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
+        job_id = r.json()["job_id"]
+        assert started.wait(5)
+        assert tc.delete(f"/transcribe/{job_id}").status_code == 200
+        _wait_job_finished(job_id)
+    assert _imports(tmp_path) == []
