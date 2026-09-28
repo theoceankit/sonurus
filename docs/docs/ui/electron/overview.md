@@ -249,10 +249,12 @@ The backend owns the queue ([Transcription Queue](../../services/TranscriptionQu
 | Job | Icon | Status line (`jobStatusText()`) | Buttons |
 |---|---|---|---|
 | Running | Spinner | The snapshot's `step` (`Loading models…`, `Transcribing audio…`, …) | × |
-| Waiting | Empty circle | `Waiting`, or `Waiting · queue paused` | × |
-| Failed | Red `!`, red card | First line of the error (full text in the tooltip); a missing alignment model is named | Retry (`retry` icon), × |
+| Waiting | Empty circle | `Waiting`, or `Waiting · queue paused` | Edit, × |
+| Failed | Red `!`, red card | First line of the error (full text in the tooltip); a missing alignment model is named | Edit, Retry (`retry` icon), × |
 
 - **×** opens `openConfirmDialog()` with `deleteJobPrompt()`: an import says the app's copy goes and the original is kept; a live recording says it is deleted for good. Confirm → `DELETE /queue/jobs/{id}` (a running job is stopped first).
+- **Edit** (`edit` icon, every job except the running one — `canEditJob()`) opens `openJobEditModal()` (`views/queue-job-modal.js`): title, Whisper model (installed state from `GET /models`) and language (`Detect automatically` = null). `jobEditPatch()` sends only the changed fields (`PATCH /queue/jobs/{id}`); a blank title or one over 200 characters is refused in the dialog, and a server error (e.g. the model is not installed, or the job started meanwhile → 409) keeps the dialog open with the message.
+- **Order:** drag a card onto another (`app._attachJobDrag()`); the upper / lower half of the target decides before / after (`dropPlace()`), `reorderJobIds()` builds the new order and `PUT /queue/order` stores it. The insertion line is a shadow, so no card moves while dragging. Snapshots that arrive during a drag are kept and drawn at `dragend`, because rebuilding the cards would end the drag. Only drags carrying a job id (`application/x-sonorus-job`) are handled; file drops stay with `file-drop.js`.
 - Queue calls go through `app._queueRequest()`: an error becomes a toast.
 
 **Adding jobs:** `app._importFiles(paths, options)` posts `importRequest()` (`POST /queue/jobs`) one file at a time; the card appears with the next snapshot. Used by the New Recording modal, window drops and a stopped recording.
