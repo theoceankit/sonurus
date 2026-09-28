@@ -22,8 +22,12 @@ def env(tmp_path):
     runner = Runner()
     queues = []
 
-    def make(**kw):
-        q = TranscriptionQueue(store, runner, recordings_dir=recordings, **kw)
+    def make(start_paused=True):
+        """start_paused: jobs wait until the test starts the queue (the
+        start-up rule itself is tested with start_paused=False)."""
+        q = TranscriptionQueue(store, runner, recordings_dir=recordings)
+        if start_paused:
+            q.pause()
         q.start_worker()
         queues.append(q)
         return q
@@ -52,18 +56,42 @@ def idle(q):
 
 # ── Initial state ─────────────────────────────────────────────────────────────
 
-def test_a_new_queue_is_paused_with_auto_start_mode(env):
-    make, *_ = env
-    s = make().snapshot()
-    assert s == {"type": "snapshot", "paused": True, "paused_by_recording": False, "recording": False,
-                 "start_mode": "auto", "running_job_id": None, "step": None, "jobs": []}
+def test_a_new_empty_queue_runs_in_auto_mode(env):
+    """Nothing left over to protect: new jobs start right away."""
+    make, _, runner, recordings = env
+    q = make(start_paused=False)
+    assert q.snapshot() == {"type": "snapshot", "paused": False, "paused_by_recording": False,
+                            "recording": False, "start_mode": "auto", "running_job_id": None,
+                            "step": None, "jobs": []}
+    _add(q, recordings, "a")
+    wait_for(lambda: runner.started == ["a"])
+
+
+def test_a_new_empty_queue_waits_in_manual_mode(env):
+    make, store, runner, recordings = env
+    store.set_setting("start_mode", "manual")
+    q = make(start_paused=False)
+    assert q.snapshot()["paused"] is True
+    _add(q, recordings, "a")
+    time.sleep(0.1)
+    assert runner.started == []
+
+
+def test_only_failed_jobs_left_do_not_pause_a_new_queue(env):
+    make, store, runner, recordings = env
+    job = store.add(audio_path="/rec/a.wav", title="a", whisper_model="small", language=None)
+    store.update(job["id"], status="failed", error="boom")
+    q = make(start_paused=False)
+    assert q.snapshot()["paused"] is False
+    time.sleep(0.1)
+    assert runner.started == []  # failed jobs wait for Retry
 
 
 def test_after_a_restart_the_queue_is_paused_and_an_interrupted_job_waits(env):
     make, store, runner, recordings = env
     job = store.add(audio_path="/rec/a.wav", title="a", whisper_model="small", language=None)
     store.update(job["id"], status="running")
-    q = make()
+    q = make(start_paused=False)
     assert q.snapshot()["paused"] is True
     assert [j["status"] for j in q.snapshot()["jobs"]] == ["waiting"]
     time.sleep(0.1)

@@ -41,6 +41,7 @@ def api(tmp_path):
     queue = TranscriptionQueue(JobStore(db_path=str(tmp_path / "jobs.db")), runner,
                                recordings_dir=config.RECORDINGS_DIR)
     queue.start_worker()
+    queue.pause()  # jobs wait unless a test starts the queue
     app.dependency_overrides[get_transcription_queue] = lambda: queue
     app.dependency_overrides[get_storage_service] = lambda: TranscriptStorageService(
         db_path=str(tmp_path / "transcripts.db"))
@@ -83,7 +84,7 @@ def test_add_copies_the_import_and_queues_a_waiting_job(api):
     assert (job["status"], job["title"], job["whisper_model"], job["language"]) == \
         ("waiting", "Team Meeting", "small", None)
     assert [j["id"] for j in queue.snapshot()["jobs"]] == [job["id"]]
-    assert runner.started == []  # a new backend's queue is paused
+    assert runner.started == []  # the queue is paused
 
 
 def test_add_keeps_a_given_title_and_language(api):

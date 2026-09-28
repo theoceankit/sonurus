@@ -2,7 +2,9 @@
 
 The queue as a whole is running or paused. Pausing interrupts the running
 job, which runs again from the start when the queue resumes (no partial
-progress is kept). After a restart the queue is always paused.
+progress is kept). A backend that starts with jobs waiting comes up paused,
+so left-over work does not take the machine by itself; with nothing waiting
+it comes up running in auto mode.
 
 Start mode (stored):
 - auto   — a running queue waits for new jobs when it runs out of them;
@@ -57,10 +59,12 @@ class TranscriptionQueue:
         store.reset_running()  # interrupted by a restart: run again
 
         self._cond = threading.Condition()
-        self._paused = True
+        self._start_mode = store.get_setting("start_mode", "auto")
+        # Failed jobs don't count: they wait for Retry anyway.
+        left_over = any(j["status"] == "waiting" for j in store.list())
+        self._paused = left_over or self._start_mode == "manual"
         self._paused_by_recording = False
         self._recording = False
-        self._start_mode = store.get_setting("start_mode", "auto")
         self._running_id: str | None = None
         self._step: str | None = None
         self._cancel: threading.Event | None = None

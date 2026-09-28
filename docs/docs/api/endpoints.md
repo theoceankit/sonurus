@@ -68,7 +68,7 @@ Stops the capture process and returns the path to the recorded WAV file. Optiona
 
 ## Transcription queue
 
-Transcription jobs are persisted in the database and run one at a time by the queue ([Transcription Queue](../services/TranscriptionQueue.md)). The queue as a whole is **running** or **paused**; pausing stops the running job at once and it runs again from the start later. After a backend restart the queue is always paused. Each job's pipeline runs in a child process ([Pipeline Process](../services/PipelineProcess.md)).
+Transcription jobs are persisted in the database and run one at a time by the queue ([Transcription Queue](../services/TranscriptionQueue.md)). The queue as a whole is **running** or **paused**; pausing stops the running job at once and it runs again from the start later. A backend that starts with jobs waiting (e.g. one interrupted by closing the app) comes up paused; with nothing waiting it comes up running in auto mode and paused in manual mode. Each job's pipeline runs in a child process ([Pipeline Process](../services/PipelineProcess.md)).
 
 ### Job
 
