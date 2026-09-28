@@ -85,6 +85,19 @@ async function listSystemAudioSources(platform, audioInputs) {
   }
 }
 
+// Uploads a finished live recording; the backend stores it in its own
+// recordings dir (it alone writes there) and returns the file path.
+async function uploadRecording(blob) {
+  const r = await fetch(`${API_BASE}/audio/recordings`, {
+    method: 'POST',
+    headers: { 'Content-Type': blob.type },
+    body: blob,
+  })
+  const data = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(data.detail || 'Failed to save the recording.')
+  return data.file_path
+}
+
 function fmtTime(sec) {
   const m = Math.floor(sec / 60)
   const s = Math.floor(sec % 60)

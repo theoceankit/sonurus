@@ -176,3 +176,54 @@ def test_remove_orphan_imports_keeps_referenced_and_live(tmp_path, recordings):
 
 def test_remove_orphan_imports_missing_dir_is_noop(recordings):
     assert remove_orphan_imports(recordings, set()) == 0
+
+
+# ── save_recording() ──────────────────────────────────────────────────────────
+
+async def _chunks(*parts):
+    for p in parts:
+        yield p
+
+
+def _save(recordings, ext, *parts):
+    import asyncio
+    from app.services.audio_store import save_recording
+    return asyncio.run(save_recording(_chunks(*parts), ext, recordings))
+
+
+def test_save_recording_writes_live_recording_into_recordings(recordings):
+    path = Path(_save(recordings, "webm", b"abc", b"def"))
+    assert path.parent == recordings
+    assert path.name.startswith("sonorus-rec-") and path.suffix == ".webm"
+    assert path.read_bytes() == b"abcdef"
+    assert not is_import_copy(str(path), recordings)
+
+
+def test_save_recording_names_are_unique(recordings):
+    assert _save(recordings, "wav", b"a") != _save(recordings, "wav", b"a")
+
+
+@pytest.mark.parametrize("ext", ["mp3", "", "../webm", "webm/../../x"])
+def test_save_recording_rejects_other_extensions(recordings, ext):
+    with pytest.raises(ValueError):
+        _save(recordings, ext, b"a")
+    assert not recordings.exists() or not any(recordings.iterdir())
+
+
+def test_save_recording_rejects_empty_body(recordings):
+    with pytest.raises(ValueError):
+        _save(recordings, "webm")
+    assert not recordings.exists() or not any(recordings.iterdir())
+
+
+def test_save_recording_failure_leaves_nothing_behind(recordings):
+    import asyncio
+    from app.services.audio_store import save_recording
+
+    async def broken():
+        yield b"part"
+        raise OSError("client went away")
+
+    with pytest.raises(OSError):
+        asyncio.run(save_recording(broken(), "webm", recordings))
+    assert not any(recordings.iterdir())
