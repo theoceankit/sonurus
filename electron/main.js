@@ -40,6 +40,11 @@ function createWindow(setupMode = false) {
   const page = setupMode ? 'setup.html' : 'index.html'
   mainWin.loadFile(path.join(__dirname, 'renderer', page))
 
+  // Pages never navigate themselves (setup.html → index.html is loadFile()
+  // from here, which does not emit will-navigate). Blocks e.g. a file dropped
+  // outside a drop zone from replacing the app with that file.
+  mainWin.webContents.on('will-navigate', e => e.preventDefault())
+
   // F12 opens DevTools in development only
   if (!app.isPackaged) {
     mainWin.webContents.on('before-input-event', (_e, input) => {

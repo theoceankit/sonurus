@@ -399,6 +399,10 @@ function renderNewRecordingModal({ onStart, onImport }) {
     dropOverlay.classList.remove('nr-drop-overlay--active')
     const file = e.dataTransfer.files[0]
     if (!file) return
+    if (!isSupportedAudio(file.name)) {
+      window.showToast?.(`Unsupported file type: ${file.name}`)
+      return
+    }
     const filePath = window.electronAPI.getFilePath(file)
     if (!filePath) return
     const title = titleInput.hasAttribute('data-default')

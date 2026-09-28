@@ -44,7 +44,7 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 
 ## Current coverage
 
-**520 Python unit and API tests** across **20 files** — no ML models are loaded — plus **58 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
+**520 Python unit and API tests** across **20 files** — no ML models are loaded — plus **76 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
 
 | File | Tests | What it covers |
 |---|---|---|
@@ -75,6 +75,8 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `tests/renderer/new-speaker.test.js` | 6 | `leastUsedColorIndex()`, `hasSpeakerNamed()`, `speakerAssignRequest()` (one segment vs all segments, by id vs new name + color) |
 | `tests/renderer/transcript-title.test.js` | 5 | `titleToSave()` (trim, blank / unchanged / over 200 chars skipped), `transcriptTitleRequest()` |
 | `tests/renderer/editor-scroll.test.js` | 2 | `preserveScroll()` — the editor keeps its scroll position when it rebuilds after an edit |
+| `tests/renderer/file-drop.test.js` | 12 | `isSupportedAudio()`, `dropDecision()` (home / editor import, settings / speakers / open modal ignore, recording blocks, unsupported files skipped), `importRequest()` |
+| `tests/renderer/file-drop-events.test.js` | 6 | `initFileDrop()` with stub `window` / `document`: overlay show / hide, a drop already handled by the modal is not imported again, non-file drags untouched, drop effect per view |
 | `tests/renderer/icons.test.js` | 7 | `icon()` / `hydrateIcons()` markup; every icon name used in the renderer has a file in `electron/assets/icons/`; files are kebab-case with `xmlns` + `viewBox`; no inline SVG icons; renderer scripts still parse |
 
 ---
