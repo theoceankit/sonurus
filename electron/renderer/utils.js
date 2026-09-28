@@ -229,6 +229,42 @@ function deleteJobPrompt(job) {
   }
 }
 
+// Title, model and language can be changed on every job except the running one.
+function canEditJob(job) {
+  return job.status !== 'running'
+}
+
+// { patch } with only the changed fields (null when nothing changed), or
+// { error }. form.language 'auto' = auto-detect = null on the job.
+function jobEditPatch(job, form) {
+  const title = (form.title || '').trim()
+  if (!title) return { error: 'Title cannot be empty.' }
+  if (title.length > TITLE_MAX_LENGTH) return { error: `Title is longer than ${TITLE_MAX_LENGTH} characters.` }
+  const language = form.language === 'auto' ? null : form.language
+  const patch = {}
+  if (title !== job.title) patch.title = title
+  if (form.model !== job.whisper_model) patch.whisper_model = form.model
+  if (language !== job.language) patch.language = language
+  return { patch: Object.keys(patch).length ? patch : null }
+}
+
+function jobEditRequest(jobId, patch) {
+  return { url: `${API_BASE}/queue/jobs/${jobId}`, method: 'PATCH', body: patch }
+}
+
+// New order after dropping draggedId before / after targetId.
+function reorderJobIds(ids, draggedId, targetId, place) {
+  if (draggedId === targetId || !ids.includes(draggedId) || !ids.includes(targetId)) return [...ids]
+  const rest = ids.filter(id => id !== draggedId)
+  const at = rest.indexOf(targetId) + (place === 'after' ? 1 : 0)
+  return [...rest.slice(0, at), draggedId, ...rest.slice(at)]
+}
+
+// Where a dragged card lands relative to the card under the pointer.
+function dropPlace(rect, clientY) {
+  return clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+}
+
 // ── Speakers section ────────────────────────────────────────────────────────────
 function _nameKey(name) {
   return (name || '').trim().toLowerCase()

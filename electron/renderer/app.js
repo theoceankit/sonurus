@@ -42,6 +42,7 @@ const app = {
   _liveSession: null,    // non-null while a background recording is active
   _queue: null,          // last snapshot from WS /ws/queue (null until connected)
   _queueWs: null,
+  _queueDrag: null,      // id of the job card being dragged
 
   // ── Navigation ──────────────────────────────────────────────────────────────
 
@@ -372,7 +373,8 @@ const app = {
   _onQueueEvent(event) {
     if (event.type === 'snapshot') {
       this._queue = event
-      this._renderJobQueue()
+      // Rebuilding the cards would end a drag; dragend renders the latest.
+      if (!this._queueDrag) this._renderJobQueue()
     } else if (event.type === 'job_done') {
       this.invalidateSidebar()
       this._loadSidebar()
@@ -420,6 +422,66 @@ const app = {
     container.style.display = ''
     container.appendChild(this._makeQueueHeader(q))
     for (const job of q.jobs) container.appendChild(this._makeJobItem(job, q))
+  },
+
+  // Drag a card onto another to reorder (PUT /queue/order). Only drags that
+  // carry a job id are handled; file drops are file-drop.js's.
+  _attachJobDrag(el, job) {
+    const TYPE = 'application/x-sonorus-job'
+    const container = document.getElementById('job-queue')
+    const clearMarks = () => container.querySelectorAll('.job-item--drop-before, .job-item--drop-after')
+      .forEach(c => c.classList.remove('job-item--drop-before', 'job-item--drop-after'))
+
+    el.draggable = true
+    el.addEventListener('dragstart', e => {
+      if (e.target.closest('button')) { e.preventDefault(); return }
+      e.dataTransfer.setData(TYPE, job.id)
+      e.dataTransfer.effectAllowed = 'move'
+      this._queueDrag = job.id
+      el.classList.add('job-item--dragging')
+    })
+    el.addEventListener('dragover', e => {
+      if (!e.dataTransfer.types.includes(TYPE)) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      const place = dropPlace(el.getBoundingClientRect(), e.clientY)
+      clearMarks()
+      if (this._queueDrag !== job.id) el.classList.add(`job-item--drop-${place}`)
+    })
+    el.addEventListener('drop', e => {
+      if (!e.dataTransfer.types.includes(TYPE)) return
+      e.preventDefault()
+      const dragged = e.dataTransfer.getData(TYPE)
+      const ids = this._queue.jobs.map(j => j.id)
+      const order = reorderJobIds(ids, dragged, job.id, dropPlace(el.getBoundingClientRect(), e.clientY))
+      if (order.some((id, i) => id !== ids[i])) {
+        this._queueRequest('/queue/order', { method: 'PUT', body: { job_ids: order } })
+      }
+    })
+    el.addEventListener('dragend', () => {
+      this._queueDrag = null
+      this._renderJobQueue()
+    })
+    el.addEventListener('dragleave', e => {
+      if (!el.contains(e.relatedTarget)) el.classList.remove('job-item--drop-before', 'job-item--drop-after')
+    })
+  },
+
+  _openJobEdit(job) {
+    openJobEditModal({
+      job,
+      onSubmit: async patch => {
+        const { url, method, body } = jobEditRequest(job.id, patch)
+        const r = await fetch(url, {
+          method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        })
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}))
+          const detail = Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail
+          throw new Error(detail || `Server error ${r.status}`)
+        }
+      },
+    })
   },
 
   _makeQueueHeader(q) {
@@ -475,6 +537,16 @@ const app = {
     titleEl.title = job.title
     header.append(mark, titleEl)
 
+    if (canEditJob(job)) {
+      const editBtn = document.createElement('button')
+      editBtn.className = 'job-item__action'
+      editBtn.title = 'Transcription settings'
+      editBtn.setAttribute('aria-label', 'Edit')
+      editBtn.innerHTML = icon('edit', 11)
+      editBtn.addEventListener('click', () => this._openJobEdit(job))
+      header.appendChild(editBtn)
+    }
+
     if (failed) {
       const retry = document.createElement('button')
       retry.className = 'job-item__action'
@@ -505,6 +577,7 @@ const app = {
     if (failed && job.error) statusEl.title = job.error
 
     el.append(header, statusEl)
+    this._attachJobDrag(el, job)
     return el
   },
 

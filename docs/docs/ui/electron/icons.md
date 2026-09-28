@@ -59,7 +59,7 @@ the naming or root-element rules, or when inline SVG icons return.
 | `copy` | Titlebar: Copy to clipboard, selection toolbar, segment row |
 | `delete` | Delete transcript / segment / model, "Delete all data" section |
 | `download` | Download a model (settings, alignment prompt) |
-| `edit` | Segment row: Edit |
+| `edit` | Segment row: Edit; queue card: transcription settings |
 | `export` | Settings: "Export" section |
 | `eye` | Settings: show / hide token |
 | `forward` | Player: forward 15 s |
