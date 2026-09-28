@@ -24,47 +24,42 @@ test('isSupportedAudio: rejects other files', () => {
 
 test('dropDecision: home and editor import the supported files in order', () => {
   for (const view of ['import', 'editor']) {
-    const d = dropDecision({ view, recording: false, modalOpen: false, files: [f('a.mp3'), f('b.wav')] })
+    const d = dropDecision({ view, modalOpen: false, files: [f('a.mp3'), f('b.wav')] })
     assert.deepEqual(plain(d), { action: 'import', files: [f('a.mp3'), f('b.wav')], skipped: 0 }, view)
   }
 })
 
 test('dropDecision: unsupported files are skipped and counted', () => {
-  const d = dropDecision({ view: 'import', recording: false, modalOpen: false,
+  const d = dropDecision({ view: 'import', modalOpen: false,
     files: [f('a.txt'), f('b.mp3'), f('c.pdf')] })
   assert.deepEqual(plain(d), { action: 'import', files: [f('b.mp3')], skipped: 2 })
 })
 
 test('dropDecision: only unsupported files → import nothing, report skipped', () => {
-  const d = dropDecision({ view: 'import', recording: false, modalOpen: false, files: [f('a.txt')] })
+  const d = dropDecision({ view: 'import', modalOpen: false, files: [f('a.txt')] })
   assert.deepEqual(plain(d), { action: 'import', files: [], skipped: 1 })
 })
 
 test('dropDecision: settings and speakers ignore drops', () => {
   for (const view of ['settings', 'speakers']) {
-    const d = dropDecision({ view, recording: false, modalOpen: false, files: [f('a.mp3')] })
+    const d = dropDecision({ view, modalOpen: false, files: [f('a.mp3')] })
     assert.equal(d.action, 'ignore', view)
   }
 })
 
 test('dropDecision: an open modal handles (or ignores) the drop itself', () => {
-  const d = dropDecision({ view: 'import', recording: false, modalOpen: true, files: [f('a.mp3')] })
+  const d = dropDecision({ view: 'import', modalOpen: true, files: [f('a.mp3')] })
   assert.equal(d.action, 'ignore')
 })
 
-test('dropDecision: blocked while a live recording runs', () => {
-  const d = dropDecision({ view: 'editor', recording: true, modalOpen: false, files: [f('a.mp3')] })
-  assert.equal(d.action, 'blocked')
+test('dropDecision: a live recording does not block imports (the queue is paused)', () => {
+  const d = dropDecision({ view: 'editor', modalOpen: false, files: [f('a.mp3')] })
+  assert.deepEqual(plain(d), { action: 'import', files: [f('a.mp3')], skipped: 0 })
 })
 
-test('dropDecision: settings stays ignored even while recording', () => {
-  const d = dropDecision({ view: 'settings', recording: true, modalOpen: false, files: [f('a.mp3')] })
-  assert.equal(d.action, 'ignore')
-})
-
-test('importRequest: POST /transcribe with model, language and title', () => {
+test('importRequest: POST /queue/jobs with model, language and title', () => {
   assert.deepEqual(plain(importRequest('/in/a.mp3', { model: 'small', language: 'ru', title: 'Sync' })), {
-    url: 'http://localhost:8000/transcribe',
+    url: 'http://localhost:8000/queue/jobs',
     method: 'POST',
     body: { audio_path: '/in/a.mp3', whisper_model: 'small', language: 'ru', title: 'Sync' },
   })

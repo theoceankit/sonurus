@@ -13,7 +13,9 @@ import pipeline_workers
 from app.models.segment import Segment
 from app.models.transcript import Transcript
 from app.services import pipeline_process
-from app.services.pipeline_process import PipelineCancelled, _pipeline_worker, run_pipeline_process
+from app.services.pipeline_process import (
+    PipelineCancelled, PipelineInterrupted, _pipeline_worker, run_pipeline_process,
+)
 from app.services.transcription_service import AlignmentModelMissingError
 
 ARGS = {"audio_path": "/rec/a.wav", "whisper_model": "small", "language": None, "db_path": "/data/x.db"}
@@ -99,6 +101,14 @@ def test_missing_alignment_model_is_raised_with_its_language():
     assert exc.value.language == "de"
 
 
+@pytest.mark.skipif(os.name != "posix", reason="signals are POSIX")
+def test_child_terminated_from_outside_is_an_interruption_not_an_error():
+    """SIGTERM/SIGINT/SIGHUP (logout, shutdown, a task manager) stop the job;
+    only other deaths (e.g. the OOM killer's SIGKILL) are errors."""
+    with pytest.raises(PipelineInterrupted):
+        _run(pipeline_workers.terminated_worker)
+
+
 def test_child_dying_without_a_result_is_an_error():
     with pytest.raises(RuntimeError, match="exited unexpectedly.*3"):
         _run(pipeline_workers.crashing_worker)
@@ -158,3 +168,63 @@ def test_transcript_with_embeddings_survives_the_trip_between_processes():
     back = pickle.loads(pickle.dumps(t))
     assert back.segments[0].text == "hi" and back.segments[0].speaker_resolved == "u1"
     assert np.array_equal(back.segments[0].embedding, emb)
+
+
+# ── The child's lifetime belongs to the backend ───────────────────────────────
+
+posix_only = pytest.mark.skipif(os.name != "posix", reason="process groups and signals are POSIX")
+
+
+@posix_only
+def test_signals_to_the_backends_process_group_do_not_reach_the_child():
+    """Ctrl+C in a terminal (or a group SIGTERM) must go through the backend's
+    shutdown, which puts the running job back into the queue — the child
+    dying on its own would fail the job instead."""
+    import signal
+    cancel = threading.Event()
+    pids = []
+
+    def on_progress(step):
+        pids.append(int(step.split()[1]))
+        child = pids[0]
+        assert os.getpgid(child) != os.getpgid(0)
+        os.kill(child, signal.SIGINT)
+        time.sleep(0.3)
+        assert _alive(child), "SIGINT must be ignored by the child"
+        cancel.set()
+
+    with pytest.raises(PipelineCancelled):
+        _run(pipeline_workers.pid_worker, on_progress=on_progress, cancel_event=cancel)
+    assert not _alive(pids[0])
+
+
+@posix_only
+def test_the_child_exits_when_the_backend_dies():
+    """A killed backend (SIGKILL, crash) must not leave a child holding the GPU."""
+    import multiprocessing
+    import signal
+    ctx = multiprocessing.get_context("spawn")
+    report = ctx.Queue()
+    middle = ctx.Process(target=pipeline_workers.run_and_report, args=(report,))
+    middle.start()
+    child = report.get(timeout=30)
+    assert _alive(child)
+    os.kill(middle.pid, signal.SIGKILL)
+    middle.join()
+    deadline = time.monotonic() + 5
+    while _alive_or_zombie_gone(child) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert not _alive_or_zombie_gone(child)
+
+
+def _alive_or_zombie_gone(pid: int) -> bool:
+    """True while pid runs; an orphan is reaped by init, so no zombie check."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    try:
+        with open(f"/proc/{pid}/stat") as f:
+            return f.read().split()[2] != "Z"
+    except FileNotFoundError:
+        return False

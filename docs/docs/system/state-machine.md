@@ -25,13 +25,13 @@ stateDiagram-v2
 
 **Reviewing** — `EditorView` is shown with a real `Transcript`. User can edit speakers and reassign speaker identity. Clicking any recording in the left sidebar loads it from the database and replaces the current editor. Available from both Idle and Reviewing.
 
-**Background queue (orthogonal to navigation state)** — Any number of transcription jobs can run concurrently with navigation. Jobs are tracked in `app._activeJobs` (`Map<jobId, job>`) and displayed as cards in the sidebar queue section above the recordings list. On completion a toast is shown and the sidebar refreshes. See [Electron UI → Background transcription queue](../ui/electron/overview.md#background-transcription-queue).
+**Transcription queue (orthogonal to navigation state)** — The backend runs queued jobs one at a time while the user navigates. The renderer keeps the latest snapshot from `WS /ws/queue` in `app._queue` and shows it as cards in the sidebar queue section above the recordings list, with Pause / Start, Retry and delete. On completion a toast is shown and the sidebar refreshes. See [Electron UI → Transcription queue](../ui/electron/overview.md#transcription-queue).
 
 ---
 
 ## 2. ML Pipeline
 
-Jobs from `POST /transcribe` run one at a time on a `ThreadPoolExecutor` thread, which runs the pipeline in a child process ([Pipeline Process](../services/PipelineProcess.md)) and saves the result itself. Any unhandled exception at any step is caught and returned as an error event over the WebSocket. A cancel stops the child at once, on any step.
+Jobs from `POST /queue/jobs` are persisted and run one at a time by the queue's worker thread ([Transcription Queue](../services/TranscriptionQueue.md)), which runs the pipeline in a child process ([Pipeline Process](../services/PipelineProcess.md)) and saves the result itself. An exception at any step fails the job: it moves to the end of the queue with its error and a `job_failed` event goes out over `WS /ws/queue`. Pausing the queue stops the child at once, on any step; the job then waits and later runs again from the start.
 
 ```mermaid
 stateDiagram-v2

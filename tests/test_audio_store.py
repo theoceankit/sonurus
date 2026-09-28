@@ -5,6 +5,7 @@ import pytest
 
 from app.services.audio_store import (
     discard_import,
+    discard_owned_audio,
     import_audio,
     is_import_copy,
     remove_orphan_imports,
@@ -123,6 +124,38 @@ def test_discard_import_never_touches_live_recordings_or_originals(tmp_path, rec
 
     assert rec.exists()
     assert src.exists()
+
+
+# ── discard_owned_audio() ─────────────────────────────────────────────────────
+
+def test_discard_owned_audio_removes_copies_and_live_recordings(tmp_path, recordings):
+    rec = recordings / "sonorus-rec-1.webm"
+    rec.parent.mkdir(parents=True)
+    rec.write_bytes(b"x")
+    copy = import_audio(str(_audio(tmp_path)), recordings)
+
+    discard_owned_audio(str(rec), recordings)
+    discard_owned_audio(copy, recordings)
+
+    assert not rec.exists()
+    assert not Path(copy).exists()
+
+
+def test_discard_owned_audio_never_touches_files_outside_recordings(tmp_path, recordings):
+    recordings.mkdir(parents=True)
+    src = _audio(tmp_path)
+    link = recordings / "sonorus-rec-link.wav"
+    outside = tmp_path / "elsewhere.wav"
+    outside.write_bytes(b"keep")
+    link.symlink_to(outside)
+
+    discard_owned_audio(str(src), recordings)
+    discard_owned_audio(str(recordings / "missing.wav"), recordings)
+    discard_owned_audio(str(link), recordings)
+
+    assert src.exists()
+    assert outside.read_bytes() == b"keep"  # the link goes, its target stays
+    assert not link.exists() and not link.is_symlink()
 
 
 # ── remove_orphan_imports() ───────────────────────────────────────────────────

@@ -514,6 +514,17 @@ function buildInterfaceSection(state) {
   ])
 }
 
+// Stored by the backend with the queue (PUT /queue/settings), not in settings.json.
+function makeStartModeDropdown() {
+  const opts = [
+    { value: 'auto', label: 'Automatically' },
+    { value: 'manual', label: 'Manually' },
+  ]
+  return makeDropdown(opts, app._queue?.start_mode || 'auto', v => {
+    app._queueRequest('/queue/settings', { method: 'PUT', body: { start_mode: v } })
+  })
+}
+
 function buildModelsSection(state, rerender) {
   const langOpts = LANGUAGES.map(l => ({ value: l.code, ...l }))
   const langDrop = makeLangDropdown(langOpts, state.transcribeLang, v => { state.transcribeLang = v })
@@ -566,6 +577,9 @@ function buildModelsSection(state, rerender) {
       'ML Models', 'Whisper transcription · diarization · language.'
     ),
     makeFieldRow('Transcription language', 'Whisper auto-detects when set to "Detect".', langDrop),
+    makeFieldRow('Start transcription',
+      'Automatically: new recordings and imports are transcribed right away. Manually: they wait until you press Start in the queue.',
+      makeStartModeDropdown()),
     modelControl,
   ])
 }
@@ -904,7 +918,7 @@ function buildDeleteDataSection() {
   })
   wrap.appendChild(btns)
 
-  const blocked = dataResetBlockReason(app._activeJobs.size, app._liveSession)
+  const blocked = dataResetBlockReason(app._queue?.running_job_id ? 1 : 0, app._liveSession)
   if (blocked) {
     btns._trigger.disabled = true
     btns._trigger.title = blocked

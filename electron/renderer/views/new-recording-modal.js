@@ -1,9 +1,9 @@
 // ── New Recording Modal ──────────────────────────────────────────────────────
 // Shown when the user clicks Record or +. Collects audio source, devices,
 // model/language, and toggles before starting a live recording or importing
-// an audio file.
+// an audio file. While a recording runs (`recording`) it only imports.
 
-function renderNewRecordingModal({ onStart, onImport }) {
+function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   // ── State ──────────────────────────────────────────────────────────────────
 
   let audioSource   = appSettings.recordingAudioSource || 'both'
@@ -282,6 +282,10 @@ function renderNewRecordingModal({ onStart, onImport }) {
   const startBtn = document.createElement('button')
   startBtn.className = 'nr-start-btn'
   startBtn.textContent = 'Start recording'
+  if (recording) {
+    startBtn.disabled = true
+    startBtn.title = 'A recording is already in progress'
+  }
   startBtn.addEventListener('click', () => {
     const settings = {
       audioSource,

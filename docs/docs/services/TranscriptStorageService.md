@@ -196,7 +196,7 @@ Creates tables if they do not exist and runs the versioned migrations in `app/db
 ## Position in the pipeline
 
 ```
-POST /transcribe (router)
+queue worker (transcription_job.run_job)
     ↓
 TranscriptStorageService.save(transcript)           ← write after pipeline
 

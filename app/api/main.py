@@ -14,7 +14,7 @@ if not _verbose:
 
 from app.logger import setup_logging
 from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data
-from app.api.dependencies import get_memory_service, get_storage_service
+from app.api.dependencies import get_memory_service, get_storage_service, get_transcription_queue
 from app.services.audio_store import remove_orphan_imports
 import app.config as config
 
@@ -25,10 +25,13 @@ setup_logging(default_level="info")
 async def lifespan(app: FastAPI):
     storage = get_storage_service()
     get_memory_service()
-    # Import copies of jobs that never finished (backend stopped mid-job).
-    remove_orphan_imports(config.RECORDINGS_DIR, storage.audio_files())
+    queue = get_transcription_queue()
+    # Import copies no transcript and no queued job references (e.g. the
+    # backend stopped between copying a file and queuing it).
+    remove_orphan_imports(config.RECORDINGS_DIR, storage.audio_files() | queue.audio_paths())
+    queue.start_worker()
     yield
-    transcription.shutdown_executor()
+    queue.stop_worker()
     models.shutdown_executor()
 
 

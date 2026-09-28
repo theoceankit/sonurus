@@ -325,7 +325,6 @@
 }
 .fd-overlay--active { display: flex; }
 .fd-overlay .nr-drop-border { inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); }
-.fd-overlay--blocked { background: rgba(245,245,247,0.88); color: var(--ink-3); }
 
 /* ── Alignment Modal ────────────────────────────────────────────────────────── */
 .am-modal {

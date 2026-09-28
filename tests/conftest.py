@@ -69,3 +69,29 @@ def _no_network(*_args, **_kwargs):
 
 _hf.snapshot_download = lambda *_args, **_kwargs: None
 _hf.model_info = _no_network
+
+
+# The real transcription queue lives in DB_PATH (the project root when no
+# SONORUS_DATA_DIR is set). Every test gets a paused queue on its own
+# database instead; tests that need a running one override it themselves.
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _isolated_transcription_queue(tmp_path_factory):
+    from app.api.dependencies import get_transcription_queue
+    from app.api.main import app
+    from app.services.job_store import JobStore
+    from app.services.transcription_queue import TranscriptionQueue
+
+    def never_runs(job, on_progress, cancel_event):
+        raise AssertionError("the default test queue never runs jobs")
+
+    # Not in tmp_path: some tests count what is in there.
+    root = tmp_path_factory.mktemp("queue")
+    queue = TranscriptionQueue(JobStore(db_path=str(root / "jobs.db")), never_runs,
+                               recordings_dir=root / "recordings")
+    queue.pause()  # an empty queue would otherwise come up running (auto mode)
+    app.dependency_overrides[get_transcription_queue] = lambda: queue
+    yield
+    app.dependency_overrides.pop(get_transcription_queue, None)
