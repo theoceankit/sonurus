@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from fastapi.responses import JSONResponse
 
 from app.services.service_factory import create_controller
-from app.services.archive_service import ArchiveService
+from app.services.audio_store import discard_import, import_audio
 from app.services.commit_service import CommitService
 from app.services.model_service import ModelService, ALIGNMENT_CATALOG
 from app.services.speaker_memory_service import SpeakerMemoryService
@@ -86,6 +86,14 @@ async def start_transcribe(
     if not os.access(body.audio_path, os.R_OK):
         raise HTTPException(status_code=400, detail=f"audio_path not readable: {body.audio_path}")
 
+    # Copy an imported file now, before the job queues: the transcript must
+    # stay playable after the user moves or deletes the original.
+    try:
+        audio_path = await asyncio.to_thread(import_audio, body.audio_path, config.RECORDINGS_DIR)
+    except OSError as exc:
+        raise HTTPException(status_code=400, detail=f"Could not copy audio file: {exc}")
+    title = body.title or os.path.splitext(os.path.basename(body.audio_path))[0]
+
     job_id = str(uuid.uuid4())
     queue: asyncio.Queue = asyncio.Queue()
     cancel_event = threading.Event()
@@ -103,6 +111,7 @@ async def start_transcribe(
 
     def _run():
         controller = None
+        saved = False
         try:
             if not _VERBOSE:
                 suppress_ml_noise("thread")
@@ -117,19 +126,18 @@ async def start_transcribe(
             on_progress("Loading models…")
             controller, storage = create_controller(whisper_model=body.whisper_model or WHISPER_MODEL)
 
-            transcript = controller.run_pipeline(body.audio_path, on_progress=on_progress, language=body.language)
+            transcript = controller.run_pipeline(audio_path, on_progress=on_progress, language=body.language)
 
             if cancel_event.is_set():
                 raise _JobCancelled()
 
-            if body.title:
-                transcript.title = body.title
+            transcript.title = title
 
             on_progress("Saving to database…")
             storage.save(transcript)
+            saved = True  # from here on the transcript references the copy
             CommitService(controller.memory_service, storage).commit_recognized_speakers(transcript)
             api_memory.reload()
-            ArchiveService().archive(transcript, display_fn=controller.get_display_name)
 
             _emit({"type": "done", "transcript_id": transcript.db_id})
         except _JobCancelled:
@@ -141,6 +149,8 @@ async def start_transcribe(
         except Exception as exc:
             _emit({"type": "error", "message": str(exc)})
         finally:
+            if not saved:
+                discard_import(audio_path, config.RECORDINGS_DIR)
             _release_models(controller)
             _jobs.pop(job_id, None)
             _cancel_events.pop(job_id, None)

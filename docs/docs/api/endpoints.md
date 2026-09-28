@@ -77,7 +77,8 @@ Starts the ML pipeline in a background thread. Returns a `job_id` immediately.
 {
   "audio_path": "/absolute/path/to/file.wav",
   "whisper_model": "large-v3",   // optional — omit to use WHISPER_MODEL from config
-  "language": "ru"               // optional — omit or null for auto-detection
+  "language": "ru",              // optional — omit or null for auto-detection
+  "title": "Weekly sync"         // optional — defaults to the audio file name without extension
 }
 
 // Response 200
@@ -91,6 +92,8 @@ Starts the ML pipeline in a background thread. Returns a `job_id` immediately.
 | Whisper model not installed | `"Whisper model 'large-v3' is not installed. Download it in Settings."` |
 | Diarization model not installed | `"Diarization model is not installed. Download it in Settings."` |
 | Explicit language in `ALIGNMENT_CATALOG` and alignment model not installed | `"Alignment model for language 'ru' is not installed. Download it in Settings."` |
+
+**Audio copy** — an imported file (anything outside `$SONORUS_DATA_DIR/recordings/`) is copied to `recordings/sonorus-import-<uuid>.<ext>` before the job is queued, and the transcript references the copy; the original is never touched. A live recording is used as it is. If the copy fails (e.g. no disk space) the request returns `400` (`"Could not copy audio file: …"`) and no job starts. A cancelled or failed job deletes its copy. See [Audio Store](../services/AudioStore.md).
 
 When `language` is `null` (auto-detect), the guard for alignment models cannot fire before the job starts. If the detected language requires an alignment model that is not installed, the pipeline raises `AlignmentModelMissingError` and the WS emits a structured error event (see below).
 
@@ -266,11 +269,11 @@ Full transcript with segments.
 { "title": "Weekly sync" }
 ```
 
-Renames the transcript. `title` is trimmed and must be 1–200 characters (`422` otherwise). Only transcript metadata changes — segments, speakers and the `.files/` archive are untouched. Returns `204`, or `404` for an unknown id. A transcript without a title is listed under its audio file name (`GET /transcripts`).
+Renames the transcript. `title` is trimmed and must be 1–200 characters (`422` otherwise). Only transcript metadata changes — segments, speakers and the audio file are untouched. Returns `204`, or `404` for an unknown id. A transcript without a title is listed under its audio file name (`GET /transcripts`).
 
 ### `DELETE /transcripts/{id}`
 
-Deletes transcript and all its segments, then calls `CommitService.recompute_or_remove()` for every speaker that appeared in it: the deleted audio no longer contributes to their stored embeddings, and unnamed speakers left without segments are removed from memory. If the transcript's audio file is a live recording inside `$SONORUS_DATA_DIR/recordings/` and no other transcript references it, the file is deleted too; imported audio elsewhere on disk and the `.files/` archive are never touched (a symlink is removed as a link). Returns `204`, or `404` for an unknown id.
+Deletes transcript and all its segments, then calls `CommitService.recompute_or_remove()` for every speaker that appeared in it: the deleted audio no longer contributes to their stored embeddings, and unnamed speakers left without segments are removed from memory. If the transcript's audio file is inside `$SONORUS_DATA_DIR/recordings/` (a live recording or the copy of an imported file) and no other transcript references it, the file is deleted too; the user's original imported file elsewhere on disk is never touched (a symlink is removed as a link). Returns `204`, or `404` for an unknown id.
 
 ### `PATCH /transcripts/{id}/segments/{start}/text`
 
@@ -410,9 +413,9 @@ Deletes all user data and returns the backend to an empty library:
 
 - every transcription and segment (`transcriptions`, `segments`);
 - every speaker, **named ones included** — `speaker_embeddings`, `speaker_names`, `speaker_meta`;
-- the contents of `$SONORUS_DATA_DIR/recordings/` (live recordings) and `$SONORUS_DATA_DIR/.files/` (archive).
+- the contents of `$SONORUS_DATA_DIR/recordings/` (live recordings and copies of imported files).
 
-The API memory singleton is emptied too, including its pending dirty sets, so a later `save()` cannot write old speakers back. Schema/version tables (`_meta`, `_ts_schema_version`), downloaded models and `settings.json` are kept. Audio files outside the data directory (imported files referenced by `transcriptions.audio_file`) are never deleted; symlinks inside the cleared directories are removed as links without touching their targets.
+The API memory singleton is emptied too, including its pending dirty sets, so a later `save()` cannot write old speakers back. Schema/version tables (`_meta`, `_ts_schema_version`), downloaded models and `settings.json` are kept. The user's original imported files outside the data directory are never deleted; symlinks inside the cleared directories are removed as links without touching their targets.
 
 ```json
 { "transcripts": 2, "speakers": 3, "files": 5 }

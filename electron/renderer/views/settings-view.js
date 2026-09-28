@@ -884,8 +884,8 @@ function buildDeleteDataSection() {
   wrap.className = 'st-reset-wrap'
 
   wrap.appendChild(makeWarningText(
-    'This permanently deletes all transcripts, all speakers and their voice profiles, '
-      + 'live recordings and the transcript archive.',
+    'This permanently deletes all transcripts, all speakers and their voice profiles '
+      + 'and live recordings.',
     'This cannot be undone. Audio files you imported stay where they are; '
       + 'downloaded models and preferences are kept.'
   ))

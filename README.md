@@ -130,8 +130,8 @@ npm start
 
 **Pipeline:**
 ```
-transcribe → extract embeddings → resolve speakers → build transcript
-          → [user review] → commit → save → archive
+copy audio → transcribe → extract embeddings → resolve speakers → build transcript
+          → [user review] → commit → save
 ```
 
 **Speaker memory:** each speaker is stored as a UUID with a voice embedding in `speaker_memory.db`. On each new session, known speakers are matched by cosine similarity (threshold 0.75). Corrections made by the user feed back into the embeddings on commit, improving future recognition.

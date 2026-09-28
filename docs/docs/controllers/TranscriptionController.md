@@ -31,10 +31,4 @@ Returns a `Transcript` with status `draft`.
 
 `on_progress` is an optional callback `(step: str) → None` called at each pipeline step (used by the API router to stream progress over WebSocket).
 
-After it returns, the router saves the transcript (`TranscriptStorageService.save()`), updates auto-recognized speakers (`CommitService.commit_recognized_speakers()`), reloads the API memory singleton and archives the transcript.
-
----
-
-### `get_display_name(spk_id) → str`
-
-Returns the speaker's display name (`display` label from `speaker_names`). If no name is set, returns `spk_id` as-is. Passed to `ArchiveService.archive()` as `display_fn`.
+After it returns, the router saves the transcript (`TranscriptStorageService.save()`), updates auto-recognized speakers (`CommitService.commit_recognized_speakers()`), and reloads the API memory singleton. `audio_path` is already the app-owned copy (see [Audio Store](../services/AudioStore.md)).

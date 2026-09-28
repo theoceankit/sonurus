@@ -140,6 +140,11 @@ class TranscriptStorageService:
                 "SELECT COUNT(*) FROM transcriptions WHERE audio_file = ?", (audio_file,)
             ).fetchone()[0]
 
+    def audio_files(self) -> set[str]:
+        """Every audio path referenced by a transcript."""
+        with self._connect() as conn:
+            return {r[0] for r in conn.execute("SELECT DISTINCT audio_file FROM transcriptions")}
+
     def clear(self) -> int:
         """Delete every transcription and segment. Returns the number of transcriptions removed."""
         with self._connect() as conn:
