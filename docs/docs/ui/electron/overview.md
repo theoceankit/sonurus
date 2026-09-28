@@ -181,6 +181,12 @@ Clicking **+** while a session is active shows a toast ("Recording is already in
 
 ---
 
+## Renaming a transcript
+
+The editor title (`.focus-title`) is editable: a click, or Enter while it has focus, swaps it for an input (`.focus-title-input`, text selected). Enter or leaving the field saves, Escape cancels. `titleToSave()` (`utils.js`) skips a blank or unchanged title or one over 200 characters; otherwise `PATCH /transcripts/{id}` is sent via `transcriptTitleRequest()`. The new title is shown at once and the sidebar reloads on success; on an error the old title comes back with a toast. The title is always set with `textContent`.
+
+---
+
 ## Deleting a transcript
 
 Hovering a transcript in the sidebar (Transcripts tab) replaces its time with a trash icon (`.rec-item-delete`, a `span role="button"` because the item itself is a `<button>`). Clicking it opens `openConfirmDialog()` (`components.js`) with the text from `deleteTranscriptPrompt()` (`utils.js`); Escape or a backdrop click cancels. On confirm, `app._deleteTranscript()` calls `DELETE /transcripts/{id}` (a `404` counts as already deleted), removes the item via `withoutRecording()`, goes home if that transcript was open (`_activeTranscriptId`), reloads the sidebar and shows a toast. The backend also deletes the app's own live recording for that transcript; imported audio files are kept.

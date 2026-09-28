@@ -30,6 +30,15 @@ class TranscriptResponse(BaseModel):
     segments: list[SegmentResponse]
 
 
+class TranscriptUpdateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+
+    @field_validator('title', mode='before')
+    @classmethod
+    def strip_title(cls, v):
+        return v.strip() if isinstance(v, str) else v
+
+
 class SpeakerResponse(BaseModel):
     """A speaker in the Speakers section. name is None for unnamed speakers."""
     id: str

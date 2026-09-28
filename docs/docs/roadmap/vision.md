@@ -30,7 +30,7 @@ Users should be able to get transcriptions from multiple input types:
 ### Editing
 - Edit the text of individual segments.
 - Reassign speakers manually; corrections must feed back into the speaker recognition system (via embeddings) so future sessions benefit.
-- Edit the transcript title, timestamp, and tags.
+- Edit the transcript title (done), timestamp, and tags.
 - Delete the entire transcript or individual segments.
 
 ### Annotation

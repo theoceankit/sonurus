@@ -121,6 +121,12 @@ TranscriptStorageService().update_segment_speaker(42, 12.4, 17.8, "spk_new")
 
 ---
 
+### `update_title(db_id, title) → bool`
+
+Sets `transcriptions.title`. Returns `False` if no transcript has that id. Feeds `PATCH /transcripts/{id}`.
+
+---
+
 ### `update_segment_text(db_id, start, end, new_text)`
 
 Updates the text for a single segment identified by its time range.

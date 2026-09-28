@@ -879,3 +879,33 @@ def test_bulk_reassign_works_for_a_migrated_raw_speaker(tmp_path):
     svc.update_segments_speaker(1, old, "Carol")
 
     assert [s.speaker_resolved for s in svc.load(1).segments] == ["Carol", "Carol"]
+
+
+# ---------------------------------------------------------------------------
+# update_title()
+# ---------------------------------------------------------------------------
+
+def test_update_title_persists_for_load_and_list_all(tmp_path):
+    svc = make_service(tmp_path)
+    db_id = svc.save(make_transcript(audio_path="files/team_standup.wav"))
+
+    assert svc.update_title(db_id, "Weekly sync") is True
+
+    assert svc.load(db_id, with_embeddings=False).title == "Weekly sync"
+    assert svc.list_all()[0]["title"] == "Weekly sync"
+
+
+def test_update_title_only_affects_given_transcription(tmp_path):
+    svc = make_service(tmp_path)
+    a = svc.save(make_transcript(audio_path="files/a.wav"))
+    b = svc.save(make_transcript(audio_path="files/b.wav"))
+
+    svc.update_title(a, "Renamed")
+
+    assert svc.load(b, with_embeddings=False).title is None
+
+
+def test_update_title_missing_id_returns_false(tmp_path):
+    svc = make_service(tmp_path)
+
+    assert svc.update_title(999, "Ghost") is False

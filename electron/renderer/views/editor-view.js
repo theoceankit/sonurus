@@ -137,8 +137,63 @@ function renderEditorView(transcriptId, meta = null) {
     const title = document.createElement('h1')
     title.className = 'focus-title'
     title.textContent = titleText
+    title.title = 'Click to rename'
+    title.tabIndex = 0
 
-    titleRow.appendChild(title)
+    const titleInput = document.createElement('input')
+    titleInput.className = 'focus-title-input'
+    titleInput.maxLength = TITLE_MAX_LENGTH
+    titleInput.setAttribute('aria-label', 'Transcript title')
+    titleInput.hidden = true
+
+    let editingTitle = false
+    const startTitleEdit = () => {
+      if (editingTitle) return
+      editingTitle = true
+      titleInput.value = title.textContent
+      title.hidden = true
+      titleInput.hidden = false
+      titleInput.focus()
+      titleInput.select()
+    }
+    // Hiding the focused input fires `blur` → finishTitleEdit() again;
+    // `editingTitle` is cleared first so that re-entry is a no-op.
+    const finishTitleEdit = save => {
+      if (!editingTitle) return
+      editingTitle = false
+      const prev = title.textContent
+      const next = save ? titleToSave(titleInput.value, prev) : null
+      titleInput.hidden = true
+      title.hidden = false
+      if (!next) return
+      title.textContent = next
+      const req = transcriptTitleRequest(transcriptId, next)
+      fetch(req.url, {
+        method: req.method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body),
+      })
+        .then(r => { if (!r.ok) throw new Error(`Server error ${r.status}`) })
+        .then(() => {
+          transcript.title = next
+          app._loadSidebar()
+        })
+        .catch(err => {
+          title.textContent = prev
+          window.showToast?.(`Failed to rename: ${err.message}`, 'error')
+        })
+    }
+    title.addEventListener('click', startTitleEdit)
+    title.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); startTitleEdit() }
+    })
+    titleInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); finishTitleEdit(true); title.focus() }
+      else if (e.key === 'Escape') { e.preventDefault(); finishTitleEdit(false); title.focus() }
+    })
+    titleInput.addEventListener('blur', () => finishTitleEdit(true))
+
+    titleRow.append(title, titleInput)
     topBar.appendChild(titleRow)
 
     // Meta row: speaker avatars + count + language
