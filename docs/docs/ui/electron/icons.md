@@ -71,13 +71,13 @@ the naming or root-element rules, or when inline SVG icons return.
 | `microphone-and-system` | New recording modal: "Both" source |
 | `models` | Settings: "ML Models" section |
 | `next-speaker` | Player: next speaker |
-| `pause` | Player, speaker card preview, speaker voice sample |
-| `play` | Player, speaker card preview, speaker voice sample |
+| `pause` | Player, speaker card preview, speaker voice sample, transcription queue: Pause |
+| `play` | Player, speaker card preview, speaker voice sample, transcription queue: Start |
 | `play-outline` | Segment row: Play segment |
 | `prev-speaker` | Player: previous speaker |
 | `privacy` | Setup: privacy note |
 | `reassign-speaker` | Speaker card: reassign |
-| `retry` | Alignment prompt: Retry transcription |
+| `retry` | Alignment prompt: Retry transcription; failed job card: Retry |
 | `rewind` | Player: back 15 s |
 | `search` | Titlebar search, speaker search, speaker picker |
 | `settings` | Titlebar: Settings |

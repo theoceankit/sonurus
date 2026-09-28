@@ -145,10 +145,10 @@ The audio element survives editor rebuilds (triggered by speaker rename, segment
 Recording runs entirely in the background — no dedicated recording view. The flow is:
 
 1. User clicks **+** → `new-recording-modal.js` opens (source picker, model/language)
-2. "Start recording" → modal closes; `app._startLiveRecording(settings)` runs
+2. "Start recording" → modal closes; `app._startLiveRecording(settings)` runs. It first sends `POST /queue/recording/start`: the queue pauses and a running transcription stops at once, so the recording gets the CPU/GPU
 3. The **Record button** appears in the titlebar with a live elapsed timer (`0:00`, `1:23`, …)
 4. User navigates freely while recording continues in the background
-5. Clicking the **Record button** → `app._stopLiveRecording()` → saves file → `POST /transcribe` → progress view
+5. Clicking the **Record button** → `app._stopLiveRecording()` → saves file → `POST /queue/jobs` → the recording joins the end of the transcription queue
 
 **Source modes** (selected in `new-recording-modal.js`):
 
@@ -176,9 +176,9 @@ Recording runs entirely in the background — no dedicated recording view. The f
 | `captureJobId` only | `POST capture/stop {}` → returns `file_path` |
 | `recorder` only | Stop recorder → save blob → use temp path |
 
-On success: `POST /transcribe` → `app._addJob()` — transcription runs in the background queue. On error: toast; `_setRecordingActive(false)`.
+The file is queued with `app._importFiles()` (`POST /queue/jobs`). Afterwards — also after an error (toast) — `_setRecordingActive(false)` and `POST /queue/recording/stop`: the queue resumes by itself only in the automatic start mode and only if the recording paused it. A recording that fails to start sends `recording/stop` too.
 
-Clicking **+** while a session is active shows a toast ("Recording is already in progress") instead of opening the modal.
+Clicking **+** while a session is active opens the modal for imports only: "Start recording" is disabled (tooltip "A recording is already in progress"). Imports and drops during a recording are queued and wait.
 
 ---
 
@@ -227,35 +227,39 @@ Every edit in the editor (assigning a speaker, confirming a suggestion, editing 
 
 ---
 
-## Background transcription queue
+## Transcription queue
 
-Transcription runs entirely in the background — the main panel is never replaced by a progress view. The user can navigate freely (open other transcripts, change settings) while jobs run.
+The backend owns the queue ([Transcription Queue](../../services/TranscriptionQueue.md)); the renderer only shows it and sends commands. The main panel is never replaced by a progress view.
 
-**Flow:**
+**Connection:** `app._connectQueue()` (in `init()`) opens `WS /ws/queue` and keeps the latest snapshot in `app._queue`. The socket reconnects every 2 s while the backend is away (restart); a new backend comes up paused, and its first snapshot shows that.
 
-1. File imported or recording stopped → `POST /transcribe` (an imported file is first copied into `recordings/`, see [Audio Store](../../services/AudioStore.md)) → `app._addJob(job_id, body)`
-2. A job card appears in the **sidebar queue section** (above the recordings list) showing title, spinner, and current step text
-3. Multiple jobs can be queued; the backend processes them serially (`ThreadPoolExecutor(max_workers=1)`)
-4. On completion: toast notification (`✓ filename`) + sidebar refreshes; no auto-navigation
-5. On `alignment_model_missing` error: `renderAlignmentModal()` opens as an overlay — user downloads the model and clicks Retry (the request is re-sent with the original path, so the file is copied again)
+**Events** (`app._onQueueEvent()`):
 
-**Job states in the sidebar card:**
+| Event | Renderer |
+|---|---|
+| `snapshot` | `app._queue` = snapshot; `_renderJobQueue()` |
+| `job_done` | Sidebar reloads; toast `✓ title`; no auto-navigation |
+| `job_failed` | Toast `Transcription failed: title` — or, for `alignment_model_missing`, `renderAlignmentModal(language, jobId)`: download the model, then **Retry transcription** (`POST /queue/jobs/{id}/retry`) |
 
-| State | Icon | Status text |
-|---|---|---|
-| Queued (waiting for executor) | Empty circle | `Queued` |
-| Running | Spinning circle | Step text (`Loading models…`, `Diarizing…`, …) |
-| Error | Red `!` | Error message; `×` dismisses the card |
+**Sidebar queue section** (`#job-queue`, above the recordings list, hidden while the queue is empty):
 
-**State in `app._activeJobs`** (`Map<jobId, job>`):
+- Header: `Queue · N`, the state from `queueStateLabel()` (`Running` in green, `Paused`, `Paused while recording`) and a **Pause** / **Start** button (`queueToggle()` → `POST /queue/pause|start`). Start is allowed during a recording too.
+- One card per job, in queue order:
 
-```js
-{ jobId, title, status, ws, originalRequest, error }
-```
+| Job | Icon | Status line (`jobStatusText()`) | Buttons |
+|---|---|---|---|
+| Running | Spinner | The snapshot's `step` (`Loading models…`, `Transcribing audio…`, …) | × |
+| Waiting | Empty circle | `Waiting`, or `Waiting · queue paused` | × |
+| Failed | Red `!`, red card | First line of the error (full text in the tooltip); a missing alignment model is named | Retry (`retry` icon), × |
 
-`status` is the latest step string from the WebSocket. `error` is `null` while running; set to the error message string on failure.
+- **×** opens `openConfirmDialog()` with `deleteJobPrompt()`: an import says the app's copy goes and the original is kept; a live recording says it is deleted for good. Confirm → `DELETE /queue/jobs/{id}` (a running job is stopped first).
+- Queue calls go through `app._queueRequest()`: an error becomes a toast.
 
-**Cancel:** clicking `×` on a running/queued card sends `DELETE /transcribe/{jobId}`. The backend sets the `threading.Event`; the WS receives `cancelled` and the card is removed.
+**Adding jobs:** `app._importFiles(paths, options)` posts `importRequest()` (`POST /queue/jobs`) one file at a time; the card appears with the next snapshot. Used by the New Recording modal, window drops and a stopped recording.
+
+**Start mode:** Settings → ML Models → **Start transcription** (`Automatically` / `Manually`), stored by the backend (`PUT /queue/settings`), not in `settings.json`.
+
+**Delete all data** is disabled while a job is running ("Pause the transcription queue first."); queued jobs are removed by the reset.
 
 ---
 
@@ -268,10 +272,11 @@ Audio files dropped on the window go straight to the transcription queue — no 
 | Home or editor (`_currentView` `import` / `editor`) | Overlay over `#main-panel` (`.fd-overlay`); on drop every supported file is queued |
 | Settings or Speakers | Ignored: no overlay, drop effect `none` |
 | Any modal open (`.nr-overlay`) | Ignored — the New Recording modal handles its own drop |
-| Live recording running | Grey overlay "Stop recording to import files"; a drop shows a toast and queues nothing |
+
+A live recording does not block drops: it pauses the queue, so dropped files wait at the end of it.
 
 - Supported types are `SUPPORTED_AUDIO_EXTENSIONS` (`utils.js`, same list as the file dialog filter in `main.js`), checked by `isSupportedAudio()`. Other files are skipped with a toast ("Skipped N unsupported files"); the New Recording modal rejects them too.
-- Several files are sent one `POST /transcribe` at a time by `app._importFiles()` (shared with the modal), in drop order. Each request waits while the backend copies the file into `recordings/`, so a toast ("Importing N files…") is shown right away.
+- Several files are sent one `POST /queue/jobs` at a time by `app._importFiles()` (shared with the modal), in drop order. Each request waits while the backend copies the file into `recordings/`, so a toast ("Importing N files…") is shown right away.
 - Model and language come from `appSettings.transcribeModel` / `transcribeLang` (`importRequest()`); the title is left `null`, so the backend uses the file name without its extension (the job card shows the same).
 - A drop that a drop zone below already handled (`defaultPrevented`, i.e. the modal) is skipped, otherwise the modal — already closed by then — would be imported twice.
 - `dragover` / `drop` with files are always cancelled, in every view: an unhandled file drop makes Electron open the file in the window.
