@@ -1,5 +1,5 @@
-"""Tests for the model-installation guard on POST /transcribe."""
-from contextlib import contextmanager
+"""Model-installation guards on POST /queue/jobs, and TranscriptionService
+raising AlignmentModelMissingError. The queue stays paused, so no job runs."""
 from pathlib import Path
 from unittest.mock import patch
 
@@ -7,8 +7,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.main import app
-from app.api.dependencies import get_memory_service, get_storage_service
+from app.api.dependencies import get_memory_service, get_storage_service, get_transcription_queue
+from app.services.job_store import JobStore
 from app.services.model_service import DIARIZATION_CATALOG, WHISPER_CATALOG
+from app.services.transcription_queue import TranscriptionQueue
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.speaker_memory_service import SpeakerMemoryService
 
@@ -36,6 +38,10 @@ def client(tmp_path):
     # Imported audio is copied here — never into the real data dir.
     original_recordings = config.RECORDINGS_DIR
     config.RECORDINGS_DIR = tmp_path / "data" / "recordings"
+    # Paused and never started: jobs are only queued.
+    queue = TranscriptionQueue(JobStore(db_path=str(tmp_path / "jobs.db")), run_job=None,
+                               recordings_dir=config.RECORDINGS_DIR)
+    app.dependency_overrides[get_transcription_queue] = lambda: queue
 
     yield TestClient(app), tmp_path
 
@@ -74,7 +80,7 @@ def _install_diarize(hf_dir: Path) -> None:
 
 def test_transcribe_returns_400_when_whisper_not_installed(client):
     tc, tmp_path = client
-    r = tc.post("/transcribe", json={"audio_path": "/fake/audio.wav", "whisper_model": "small"})
+    r = tc.post("/queue/jobs", json={"audio_path": "/fake/audio.wav", "whisper_model": "small"})
     assert r.status_code == 400, f"Expected 400 when whisper model not installed, got {r.status_code}: {r.text}"
     assert "small" in r.json()["detail"]
 
@@ -83,7 +89,7 @@ def test_transcribe_returns_400_with_default_model_when_not_installed(client):
     """Uses default WHISPER_MODEL when whisper_model is omitted — guard must still fire."""
     import app.config as config
     tc, tmp_path = client
-    r = tc.post("/transcribe", json={"audio_path": "/fake/audio.wav"})
+    r = tc.post("/queue/jobs", json={"audio_path": "/fake/audio.wav"})
     assert r.status_code == 400, (
         f"Expected 400 when default whisper model not installed, got {r.status_code}: {r.text}"
     )
@@ -92,7 +98,7 @@ def test_transcribe_returns_400_with_default_model_when_not_installed(client):
 def test_transcribe_400_detail_mentions_settings(client):
     """The 400 error message must mention Settings so the user knows where to fix it."""
     tc, tmp_path = client
-    r = tc.post("/transcribe", json={"audio_path": "/fake/audio.wav", "whisper_model": "tiny"})
+    r = tc.post("/queue/jobs", json={"audio_path": "/fake/audio.wav", "whisper_model": "tiny"})
     assert r.status_code == 400
     assert "Settings" in r.json()["detail"]
 
@@ -106,7 +112,7 @@ def test_transcribe_returns_400_when_diarize_not_installed(client):
     tc, tmp_path = client
     _install_whisper(tmp_path / "whisper", "tiny")
 
-    r = tc.post("/transcribe", json={"audio_path": "/fake/audio.wav", "whisper_model": "tiny"})
+    r = tc.post("/queue/jobs", json={"audio_path": "/fake/audio.wav", "whisper_model": "tiny"})
     assert r.status_code == 400, (
         f"Expected 400 when diarization model not installed, got {r.status_code}: {r.text}"
     )
@@ -117,7 +123,7 @@ def test_transcribe_diarize_400_detail_mentions_settings(client):
     tc, tmp_path = client
     _install_whisper(tmp_path / "whisper", "tiny")
 
-    r = tc.post("/transcribe", json={"audio_path": "/fake/audio.wav", "whisper_model": "tiny"})
+    r = tc.post("/queue/jobs", json={"audio_path": "/fake/audio.wav", "whisper_model": "tiny"})
     assert r.status_code == 400
     assert "Settings" in r.json()["detail"]
 
@@ -128,7 +134,7 @@ def test_transcribe_diarize_400_detail_mentions_settings(client):
 
 def test_transcribe_guard_passes_when_both_models_installed(client):
     """When both models are installed the guard passes and the pipeline starts
-    (job_id is returned). We do NOT actually run the pipeline — snapshot_download
+    (the job is queued). We do NOT actually run the pipeline — snapshot_download
     is never called here — so we just verify the HTTP response is 200."""
     from unittest.mock import patch, MagicMock
 
@@ -136,7 +142,7 @@ def test_transcribe_guard_passes_when_both_models_installed(client):
     _install_whisper(tmp_path / "whisper", "small")
     _install_diarize(tmp_path / "hf")
 
-    # Patch create_controller so no actual ML code runs.
+    # The queue is paused, so the pipeline never runs; the patch is a safety net.
     mock_controller = MagicMock()
     mock_controller.memory_service = MagicMock()
     mock_transcript = MagicMock()
@@ -145,13 +151,13 @@ def test_transcribe_guard_passes_when_both_models_installed(client):
 
     mock_storage = MagicMock()
 
-    with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, mock_storage)):
-        r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
+    with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, mock_storage)):
+        r = tc.post("/queue/jobs", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
 
     assert r.status_code == 200, (
         f"Expected 200 when both models are installed, got {r.status_code}: {r.text}"
     )
-    assert "job_id" in r.json()
+    assert r.json()["status"] == "waiting"
 
 
 # ---------------------------------------------------------------------------
@@ -181,13 +187,13 @@ def _install_alignment(alignment_dir: Path, lang_code: str) -> None:
 
 
 def test_transcribe_returns_400_when_alignment_model_not_installed(client):
-    """POST /transcribe with language='ru' and alignment not installed → HTTP 400."""
+    """POST /queue/jobs with language='ru' and alignment not installed → HTTP 400."""
     tc, tmp_path = client
     _install_whisper_and_diarize(tmp_path, "small")
     # Do NOT install alignment model for 'ru'
 
     r = tc.post(
-        "/transcribe",
+        "/queue/jobs",
         json={"audio_path": "/fake/audio.wav", "whisper_model": "small", "language": "ru"},
     )
     assert r.status_code == 400, (
@@ -202,7 +208,7 @@ def test_transcribe_400_alignment_detail_mentions_alignment(client):
     _install_whisper_and_diarize(tmp_path, "small")
 
     r = tc.post(
-        "/transcribe",
+        "/queue/jobs",
         json={"audio_path": "/fake/audio.wav", "whisper_model": "small", "language": "ru"},
     )
     assert r.status_code == 400
@@ -218,7 +224,7 @@ def test_transcribe_400_alignment_detail_mentions_language_code(client):
     _install_whisper_and_diarize(tmp_path, "small")
 
     r = tc.post(
-        "/transcribe",
+        "/queue/jobs",
         json={"audio_path": "/fake/audio.wav", "whisper_model": "small", "language": "ru"},
     )
     assert r.status_code == 400
@@ -228,7 +234,7 @@ def test_transcribe_400_alignment_detail_mentions_language_code(client):
 
 
 def test_transcribe_not_blocked_when_language_is_none(client):
-    """POST /transcribe with language=None (auto-detect) is NOT blocked by the alignment guard."""
+    """POST /queue/jobs with language=None (auto-detect) is NOT blocked by the alignment guard."""
     from unittest.mock import patch, MagicMock
 
     tc, tmp_path = client
@@ -241,9 +247,9 @@ def test_transcribe_not_blocked_when_language_is_none(client):
     mock_transcript.db_id = "test-id"
     mock_controller.run_pipeline.return_value = mock_transcript
 
-    with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, MagicMock())):
+    with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
-            "/transcribe",
+            "/queue/jobs",
             json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"},
             # language key deliberately omitted → None
         )
@@ -255,7 +261,7 @@ def test_transcribe_not_blocked_when_language_is_none(client):
 
 
 def test_transcribe_not_blocked_when_language_is_auto(client):
-    """POST /transcribe with language='auto' is NOT blocked by the alignment guard."""
+    """POST /queue/jobs with language='auto' is NOT blocked by the alignment guard."""
     from unittest.mock import patch, MagicMock
 
     tc, tmp_path = client
@@ -267,9 +273,9 @@ def test_transcribe_not_blocked_when_language_is_auto(client):
     mock_transcript.db_id = "test-id"
     mock_controller.run_pipeline.return_value = mock_transcript
 
-    with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, MagicMock())):
+    with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
-            "/transcribe",
+            "/queue/jobs",
             json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": "auto"},
         )
 
@@ -280,7 +286,7 @@ def test_transcribe_not_blocked_when_language_is_auto(client):
 
 
 def test_transcribe_not_blocked_for_language_not_in_alignment_catalog(client):
-    """POST /transcribe with language='en' (not in ALIGNMENT_CATALOG) is NOT blocked."""
+    """POST /queue/jobs with language='en' (not in ALIGNMENT_CATALOG) is NOT blocked."""
     from unittest.mock import patch, MagicMock
     from app.services.model_service import ALIGNMENT_CATALOG
 
@@ -298,9 +304,9 @@ def test_transcribe_not_blocked_for_language_not_in_alignment_catalog(client):
     mock_transcript.db_id = "test-id"
     mock_controller.run_pipeline.return_value = mock_transcript
 
-    with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, MagicMock())):
+    with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
-            "/transcribe",
+            "/queue/jobs",
             json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": "en"},
         )
 
@@ -311,7 +317,7 @@ def test_transcribe_not_blocked_for_language_not_in_alignment_catalog(client):
 
 
 def test_transcribe_not_blocked_for_fr_not_in_alignment_catalog(client):
-    """POST /transcribe with language='fr' (not in ALIGNMENT_CATALOG) is NOT blocked."""
+    """POST /queue/jobs with language='fr' (not in ALIGNMENT_CATALOG) is NOT blocked."""
     from unittest.mock import patch, MagicMock
     from app.services.model_service import ALIGNMENT_CATALOG
 
@@ -327,9 +333,9 @@ def test_transcribe_not_blocked_for_fr_not_in_alignment_catalog(client):
     mock_transcript.db_id = "test-id"
     mock_controller.run_pipeline.return_value = mock_transcript
 
-    with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, MagicMock())):
+    with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
-            "/transcribe",
+            "/queue/jobs",
             json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": "fr"},
         )
 
@@ -459,9 +465,9 @@ def test_transcribe_guard_passes_when_alignment_model_installed(client):
     mock_transcript.db_id = "test-id"
     mock_controller.run_pipeline.return_value = mock_transcript
 
-    with patch("app.api.routers.transcription.create_controller", return_value=(mock_controller, MagicMock())):
+    with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
-            "/transcribe",
+            "/queue/jobs",
             json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": "ru"},
         )
 
@@ -469,379 +475,4 @@ def test_transcribe_guard_passes_when_alignment_model_installed(client):
         f"Expected 200 when all required models are installed, "
         f"got {r.status_code}: {r.text}"
     )
-    assert "job_id" in r.json()
-
-
-# ---------------------------------------------------------------------------
-# Job lifecycle: GPU teardown and WebSocket disconnects
-# ---------------------------------------------------------------------------
-
-def _wait_job_finished(job_id: str, timeout: float = 5.0) -> None:
-    import time
-    from app.api.routers import transcription
-    deadline = time.monotonic() + timeout
-    while job_id in transcription._cancel_events and time.monotonic() < deadline:
-        time.sleep(0.02)
-    assert job_id not in transcription._cancel_events, "job did not finish"
-
-
-@contextmanager
-def _running_job(tc, tmp_path, controller):
-    """Start a job with `controller` and wait for it to finish on exit.
-
-    The job thread calls create_controller() some time after POST returns,
-    so the patch must stay active until the job has finished.
-    """
-    from unittest.mock import MagicMock
-    _install_whisper_and_diarize(tmp_path)
-    with patch("app.api.routers.transcription.create_controller", return_value=(controller, MagicMock())):
-        r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
-        assert r.status_code == 200, r.text
-        job_id = r.json()["job_id"]
-        yield job_id
-        _wait_job_finished(job_id)
-
-
-def test_models_released_when_pipeline_fails(client):
-    from unittest.mock import MagicMock
-    tc, tmp_path = client
-    controller = MagicMock()
-    controller.run_pipeline.side_effect = RuntimeError("CUDA out of memory")
-
-    with patch("torch.cuda.empty_cache") as empty_cache:
-        with _running_job(tc, tmp_path, controller):
-            pass
-
-    assert controller.transcription_service.model is None
-    assert controller.embedding_service.inference is None
-    empty_cache.assert_called()
-
-
-def test_models_released_when_job_cancelled_mid_pipeline(client):
-    import threading
-    from unittest.mock import MagicMock
-    from app.api.routers import transcription
-    tc, tmp_path = client
-    job_ids = []
-    job_known = threading.Event()
-
-    def run_pipeline(audio_path, on_progress, language=None):
-        job_known.wait(5)
-        transcription._cancel_events[job_ids[0]].set()  # user clicks × mid-run
-        on_progress("Transcribing audio…")              # raises _JobCancelled
-
-    controller = MagicMock()
-    controller.run_pipeline.side_effect = run_pipeline
-    with patch("torch.cuda.empty_cache") as empty_cache:
-        with _running_job(tc, tmp_path, controller) as job_id:
-            job_ids.append(job_id)
-            job_known.set()
-
-    assert controller.transcription_service.model is None
-    empty_cache.assert_called()
-
-
-def test_websocket_disconnect_does_not_cancel_job():
-    """A dropped progress socket (renderer reload, transient error) must leave
-    the job running and its queue available for a reconnect."""
-    import asyncio
-    import threading
-    from fastapi import WebSocketDisconnect
-    from app.api.routers import transcription
-
-    class _DisconnectedSocket:
-        async def accept(self): pass
-        async def close(self): pass
-        async def send_json(self, data): raise WebSocketDisconnect()
-
-    job_id = "test-disconnect-job"
-    cancel = threading.Event()
-
-    async def _run():
-        q = asyncio.Queue()
-        q.put_nowait({"type": "progress", "step": "Transcribing audio…"})
-        transcription._jobs[job_id] = q
-        transcription._cancel_events[job_id] = cancel
-        await transcription.ws_progress(_DisconnectedSocket(), job_id)
-
-    try:
-        asyncio.run(_run())
-        assert not cancel.is_set(), "closing the progress WebSocket must not cancel the job"
-        assert job_id in transcription._jobs, "queue must stay registered so a client can reconnect"
-    finally:
-        transcription._jobs.pop(job_id, None)
-        transcription._cancel_events.pop(job_id, None)
-
-
-# ---------------------------------------------------------------------------
-# Imported audio is copied into the app's recordings dir
-# ---------------------------------------------------------------------------
-
-def _recordings(tmp_path: Path) -> Path:
-    return tmp_path / "data" / "recordings"
-
-
-def _imports(tmp_path: Path) -> list[Path]:
-    d = _recordings(tmp_path)
-    return sorted(d.glob("sonorus-import-*")) if d.exists() else []
-
-
-def _pipeline_recording_path(seen: list, transcript=None):
-    from unittest.mock import MagicMock
-    t = transcript or MagicMock()
-
-    def run_pipeline(audio_path, on_progress, language=None):
-        seen.append(audio_path)
-        t.audio_path = audio_path
-        return t
-    return run_pipeline, t
-
-
-def test_import_runs_pipeline_on_a_copy_in_recordings(client):
-    from unittest.mock import MagicMock
-    tc, tmp_path = client
-    seen = []
-    controller = MagicMock()
-    controller.run_pipeline.side_effect, transcript = _pipeline_recording_path(seen)
-
-    with _running_job(tc, tmp_path, controller):
-        pass
-
-    original = tmp_path / "audio.wav"
-    assert original.exists(), "the imported original must be kept"
-    [copy] = _imports(tmp_path)
-    assert seen == [str(copy)]
-    assert transcript.audio_path == str(copy)
-    assert copy.read_bytes() == original.read_bytes()
-
-
-def test_import_is_copied_before_the_job_starts(client):
-    """The copy exists as soon as POST returns, even while the job is still
-    queued behind another one (the original may vanish in the meantime)."""
-    import threading
-    from concurrent.futures import ThreadPoolExecutor
-    from unittest.mock import MagicMock
-    tc, tmp_path = client
-    _install_whisper_and_diarize(tmp_path)
-    busy = ThreadPoolExecutor(max_workers=1)
-    release = threading.Event()
-    busy.submit(release.wait, 5)  # another job occupies the only worker
-    controller = MagicMock()
-    try:
-        with patch("app.api.routers.transcription._executor", busy), \
-             patch("app.api.routers.transcription.create_controller", return_value=(controller, MagicMock())):
-            r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
-            assert r.status_code == 200, r.text
-            assert len(_imports(tmp_path)) == 1
-            controller.run_pipeline.assert_not_called()
-            release.set()
-            _wait_job_finished(r.json()["job_id"])
-    finally:
-        release.set()
-        busy.shutdown(wait=True)
-
-
-def test_import_without_title_is_titled_after_the_original_file(client):
-    from unittest.mock import MagicMock
-    tc, tmp_path = client
-    controller = MagicMock()
-    controller.run_pipeline.side_effect, transcript = _pipeline_recording_path([])
-
-    with _running_job(tc, tmp_path, controller):
-        pass
-
-    assert transcript.title == "audio"
-
-
-def test_import_with_title_keeps_it(client):
-    from unittest.mock import MagicMock
-    tc, tmp_path = client
-    _install_whisper_and_diarize(tmp_path)
-    controller = MagicMock()
-    controller.run_pipeline.side_effect, transcript = _pipeline_recording_path([])
-
-    with patch("app.api.routers.transcription.create_controller", return_value=(controller, MagicMock())):
-        r = tc.post("/transcribe", json={
-            "audio_path": _make_audio(tmp_path), "whisper_model": "small", "title": "Weekly sync",
-        })
-        assert r.status_code == 200, r.text
-        _wait_job_finished(r.json()["job_id"])
-
-    assert transcript.title == "Weekly sync"
-
-
-def test_live_recording_is_not_copied(client):
-    from unittest.mock import MagicMock
-    tc, tmp_path = client
-    _install_whisper_and_diarize(tmp_path)
-    rec = _recordings(tmp_path) / "sonorus-rec-1.wav"
-    rec.parent.mkdir(parents=True)
-    rec.write_bytes(b"RIFF\x00\x00\x00\x00WAVEfmt ")
-    seen = []
-    controller = MagicMock()
-    controller.run_pipeline.side_effect, _ = _pipeline_recording_path(seen)
-
-    with patch("app.api.routers.transcription.create_controller", return_value=(controller, MagicMock())):
-        r = tc.post("/transcribe", json={"audio_path": str(rec), "whisper_model": "small"})
-        assert r.status_code == 200, r.text
-        _wait_job_finished(r.json()["job_id"])
-
-    assert seen == [str(rec)]
-    assert [p.name for p in _recordings(tmp_path).iterdir()] == ["sonorus-rec-1.wav"]
-
-
-def test_import_copy_removed_when_pipeline_fails(client):
-    from unittest.mock import MagicMock
-    tc, tmp_path = client
-    controller = MagicMock()
-    controller.run_pipeline.side_effect = RuntimeError("CUDA out of memory")
-
-    with _running_job(tc, tmp_path, controller):
-        pass
-
-    assert _imports(tmp_path) == []
-    assert (tmp_path / "audio.wav").exists()
-
-
-def test_import_copy_removed_when_job_cancelled(client):
-    import threading
-    from unittest.mock import MagicMock
-    from app.api.routers import transcription
-    tc, tmp_path = client
-    job_ids = []
-    job_known = threading.Event()
-
-    def run_pipeline(audio_path, on_progress, language=None):
-        job_known.wait(5)
-        transcription._cancel_events[job_ids[0]].set()
-        on_progress("Transcribing audio…")
-
-    controller = MagicMock()
-    controller.run_pipeline.side_effect = run_pipeline
-    with _running_job(tc, tmp_path, controller) as job_id:
-        job_ids.append(job_id)
-        job_known.set()
-
-    assert _imports(tmp_path) == []
-
-
-def test_live_recording_kept_when_pipeline_fails(client):
-    from unittest.mock import MagicMock
-    tc, tmp_path = client
-    _install_whisper_and_diarize(tmp_path)
-    rec = _recordings(tmp_path) / "sonorus-rec-1.wav"
-    rec.parent.mkdir(parents=True)
-    rec.write_bytes(b"x")
-    controller = MagicMock()
-    controller.run_pipeline.side_effect = RuntimeError("boom")
-
-    with patch("app.api.routers.transcription.create_controller", return_value=(controller, MagicMock())):
-        r = tc.post("/transcribe", json={"audio_path": str(rec), "whisper_model": "small"})
-        _wait_job_finished(r.json()["job_id"])
-
-    assert rec.exists(), "a live recording is the only copy — never delete it on failure"
-
-
-def test_import_copy_failure_returns_400_and_starts_no_job(client):
-    from app.api.routers import transcription
-    tc, tmp_path = client
-    _install_whisper_and_diarize(tmp_path)
-    jobs_before = set(transcription._jobs)
-
-    with patch("app.services.audio_store.shutil.copy2", side_effect=OSError(28, "No space left on device")):
-        r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
-
-    assert r.status_code == 400
-    assert "copy" in r.json()["detail"].lower()
-    assert set(transcription._jobs) == jobs_before
-    assert _imports(tmp_path) == []
-
-
-def test_archive_service_is_gone():
-    import importlib.util
-    assert importlib.util.find_spec("app.services.archive_service") is None
-
-
-# ---------------------------------------------------------------------------
-# Pipeline in a child process (production mode; conftest turns it off)
-# ---------------------------------------------------------------------------
-
-@contextmanager
-def _subprocess_job(tc, tmp_path, runner, **body):
-    """Start a job with the child-process runner replaced by `runner`."""
-    from app.services import pipeline_process
-    _install_whisper_and_diarize(tmp_path)
-    with patch.object(pipeline_process, "RUN_PIPELINE_IN_SUBPROCESS", True), \
-         patch("app.api.routers.transcription.run_pipeline_process", side_effect=runner) as run, \
-         patch("app.api.routers.transcription.create_controller") as create:
-        r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", **body})
-        assert r.status_code == 200, r.text
-        _wait_job_finished(r.json()["job_id"])
-        yield run, create
-
-
-def test_subprocess_job_runs_the_copy_and_saves_the_transcript(client):
-    from app.models.segment import Segment
-    from app.models.transcript import Transcript
-    tc, tmp_path = client
-    seen = {}
-
-    def runner(args, on_progress, cancel_event):
-        seen.update(args)
-        on_progress("Transcribing audio…")
-        return Transcript(segments=[Segment(0.0, 1.0, "hello", "SPEAKER_00")],
-                          audio_path=args["audio_path"], language="en")
-
-    with _subprocess_job(tc, tmp_path, runner, language="en") as (run, create):
-        pass
-
-    create.assert_not_called()  # no ML models are loaded in the backend process
-    [copy] = _imports(tmp_path)
-    assert seen == {"audio_path": str(copy), "whisper_model": "small", "language": "en",
-                    "db_path": str(tmp_path / "memory.db")}
-    storage = TranscriptStorageService(db_path=str(tmp_path / "transcripts.db"))
-    [item] = storage.list_all()
-    saved = storage.load(item["id"])
-    assert saved.title == "audio"
-    assert saved.audio_path == str(copy)
-    assert [s.text for s in saved.segments] == ["hello"]
-
-
-def test_subprocess_job_cancelled_discards_the_import_copy(client):
-    from app.services.pipeline_process import PipelineCancelled
-    tc, tmp_path = client
-
-    def runner(args, on_progress, cancel_event):
-        raise PipelineCancelled()
-
-    with _subprocess_job(tc, tmp_path, runner):
-        pass
-
-    assert _imports(tmp_path) == []
-    assert TranscriptStorageService(db_path=str(tmp_path / "transcripts.db")).list_all() == []
-
-
-def test_delete_stops_a_subprocess_job(client):
-    """DELETE /transcribe/{id} sets the event the runner watches."""
-    import threading
-    from app.api.routers import transcription
-    from app.services.pipeline_process import PipelineCancelled
-    tc, tmp_path = client
-    started = threading.Event()
-
-    def runner(args, on_progress, cancel_event):
-        started.set()
-        if not cancel_event.wait(5):
-            raise AssertionError("cancel never reached the runner")
-        raise PipelineCancelled()
-
-    from app.services import pipeline_process
-    _install_whisper_and_diarize(tmp_path)
-    with patch.object(pipeline_process, "RUN_PIPELINE_IN_SUBPROCESS", True), \
-         patch("app.api.routers.transcription.run_pipeline_process", side_effect=runner):
-        r = tc.post("/transcribe", json={"audio_path": _make_audio(tmp_path), "whisper_model": "small"})
-        job_id = r.json()["job_id"]
-        assert started.wait(5)
-        assert tc.delete(f"/transcribe/{job_id}").status_code == 200
-        _wait_job_finished(job_id)
-    assert _imports(tmp_path) == []
+    assert r.json()["status"] == "waiting"

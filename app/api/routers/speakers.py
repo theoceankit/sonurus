@@ -6,8 +6,9 @@ from app.services.commit_service import CommitService
 from app.services.speaker_memory_service import SpeakerMemoryService, PALETTE_SIZE
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.voice_sample import pick_voice_sample
-from app.api.dependencies import get_audio_capture_service, get_memory_service, get_storage_service
-from app.api.routers import transcription
+from app.api.dependencies import (
+    get_audio_capture_service, get_memory_service, get_storage_service, get_transcription_queue,
+)
 from app.api.schemas import (
     SpeakerResponse, RenameRequest, SpeakerUpdateRequest,
     SpeakerDeleteResponse, SpeakerTranscriptItem, SpeakerSampleResponse,
@@ -84,10 +85,12 @@ def delete_speaker(
     memory: SpeakerMemoryService = Depends(get_memory_service),
     storage: TranscriptStorageService = Depends(get_storage_service),
     capture=Depends(get_audio_capture_service),
+    queue=Depends(get_transcription_queue),
 ):
     # A running pipeline job would write the speaker's profile back when it
     # commits; wait for it (and for a capture that feeds the next job).
-    if transcription._jobs:
+    # Queued jobs are fine: they resolve speakers when they run.
+    if queue.is_running():
         raise HTTPException(status_code=409, detail="A transcription is in progress")
     if capture.has_active_jobs():
         raise HTTPException(status_code=409, detail="A recording is in progress")

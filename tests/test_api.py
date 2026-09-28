@@ -1,6 +1,6 @@
 """
 API tests — REST endpoints for transcripts and speakers.
-Transcription WebSocket (/transcribe + /ws) is not tested here
+The transcription queue (/queue, /ws/queue) is tested in test_queue_api.py
 because it runs the ML pipeline.
 """
 import uuid as uuid_module
@@ -63,56 +63,6 @@ def _saved_id(client) -> int:
     storage = app.dependency_overrides[get_storage_service]()
     t = _make_transcript()
     return storage.save(t)
-
-
-# ── Cancel transcription ─────────────────────────────────────────────────────
-
-def test_cancel_transcribe_unknown_job_returns_404(client):
-    """DELETE /transcribe/{job_id} returns 404 when the job_id is unknown."""
-    r = client.delete("/transcribe/nonexistent-job-id")
-    assert r.status_code == 404, (
-        f"Expected 404 for unknown job_id, got {r.status_code}: {r.text}"
-    )
-
-
-def test_cancel_transcribe_unknown_job_body(client):
-    """DELETE /transcribe/{job_id} 404 body contains cancelled=False."""
-    r = client.delete("/transcribe/nonexistent-job-id")
-    assert r.status_code == 404
-    body = r.json()
-    assert body.get("cancelled") is False, (
-        f"Expected {{\"cancelled\": false}} for unknown job_id, got {body}"
-    )
-
-
-def test_cancel_transcribe_active_job_returns_200(client):
-    """DELETE /transcribe/{job_id} returns 200 and cancelled=True for an active job.
-
-    We inject a cancel event directly into the router's internal dict
-    to simulate a running job — avoids launching real ML pipeline.
-    """
-    import uuid as _uuid
-    from app.api.routers import transcription as _tr_router
-
-    job_id = str(_uuid.uuid4())
-    import threading
-    cancel_event = threading.Event()
-    _tr_router._cancel_events[job_id] = cancel_event
-
-    try:
-        r = client.delete(f"/transcribe/{job_id}")
-        assert r.status_code == 200, (
-            f"Expected 200 for active job, got {r.status_code}: {r.text}"
-        )
-        body = r.json()
-        assert body.get("cancelled") is True, (
-            f"Expected {{\"cancelled\": true}}, got {body}"
-        )
-        assert cancel_event.is_set(), (
-            "cancel_event must be set after DELETE /transcribe/{job_id}"
-        )
-    finally:
-        _tr_router._cancel_events.pop(job_id, None)
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
@@ -1001,11 +951,22 @@ def test_reset_works_when_data_dirs_do_not_exist(reset_env):
     assert client.post("/data/reset").status_code == 200
 
 
-def test_reset_returns_409_while_transcription_job_runs(reset_env, monkeypatch):
-    from app.api.routers import transcription
+class _BusyQueue:
+    """A queue whose job is running right now."""
+
+    def is_running(self):
+        return True
+
+    def hold(self):
+        from app.services.transcription_queue import QueueBusy
+        raise QueueBusy()
+
+
+def test_reset_returns_409_while_transcription_job_runs(reset_env):
+    from app.api.dependencies import get_transcription_queue
     client, *_ = reset_env
     _setup_two_transcripts()
-    monkeypatch.setitem(transcription._jobs, "job-1", None)
+    app.dependency_overrides[get_transcription_queue] = lambda: _BusyQueue()
 
     r = client.post("/data/reset")
 
@@ -1239,11 +1200,11 @@ def test_delete_unknown_speaker_returns_404(reset_env):
     assert client.delete(f"/speakers/{_ALICE}").status_code == 404
 
 
-def test_delete_speaker_returns_409_while_transcription_runs(reset_env, monkeypatch):
-    from app.api.routers import transcription
+def test_delete_speaker_returns_409_while_transcription_runs(reset_env):
+    from app.api.dependencies import get_transcription_queue
     client, *_ = reset_env
     _speakers_fixture()
-    monkeypatch.setitem(transcription._jobs, "job-1", None)
+    app.dependency_overrides[get_transcription_queue] = lambda: _BusyQueue()
     assert client.delete(f"/speakers/{_ALICE}").status_code == 409
     assert _ALICE in _speaker_rows(client)
 
@@ -1503,32 +1464,39 @@ def test_delete_transcript_removes_its_imported_copy(client, recordings_dir, tmp
 
 
 def test_startup_removes_orphan_import_copies(tmp_path, monkeypatch):
-    """Copies left by a job the backend never finished are removed at startup;
-    referenced copies and live recordings stay."""
+    """Import copies nothing references are removed at startup; copies of
+    transcripts and of queued jobs, and live recordings, stay."""
     import app.config as config
     import app.api.main as main_module
 
     recordings = tmp_path / "data" / "recordings"
     recordings.mkdir(parents=True)
     kept = recordings / "sonorus-import-kept.wav"
+    queued = recordings / "sonorus-import-queued.wav"
     orphan = recordings / "sonorus-import-orphan.wav"
     live = recordings / "sonorus-rec-1.wav"
-    for f in (kept, orphan, live):
+    for f in (kept, queued, orphan, live):
         f.write_bytes(b"x")
     storage = TranscriptStorageService(db_path=str(tmp_path / "t.db"))
     storage.save(_make_transcript(audio_path=str(kept)))
+    from app.services.job_store import JobStore
+    from app.services.transcription_queue import TranscriptionQueue
+    queue = TranscriptionQueue(JobStore(db_path=str(tmp_path / "jobs.db")), run_job=None,
+                               recordings_dir=recordings)
+    queue.add(audio_path=str(queued), title="q", whisper_model="small", language=None)
 
     monkeypatch.setattr(config, "RECORDINGS_DIR", recordings)
     monkeypatch.setattr(main_module, "get_storage_service", lambda: storage)
     monkeypatch.setattr(main_module, "get_memory_service",
                         lambda: SpeakerMemoryService(db_path=str(tmp_path / "m.db")))
-    # Lifespan exit shuts the job executors down — keep them for later tests.
-    monkeypatch.setattr(main_module.transcription, "shutdown_executor", lambda: None)
+    monkeypatch.setattr(main_module, "get_transcription_queue", lambda: queue)
+    # Lifespan exit shuts the download executor down — keep it for later tests.
     monkeypatch.setattr(main_module.models, "shutdown_executor", lambda: None)
 
     with TestClient(app):
         pass
 
     assert kept.exists()
+    assert queued.exists()
     assert live.exists()
     assert not orphan.exists()
