@@ -66,78 +66,106 @@ Stops the capture process and returns the path to the recorded WAV file. Optiona
 
 ---
 
-## Transcription
+## Transcription queue
 
-### `POST /transcribe`
+Transcription jobs are persisted in the database and run one at a time by the queue ([Transcription Queue](../services/TranscriptionQueue.md)). The queue as a whole is **running** or **paused**; pausing stops the running job at once and it runs again from the start later. After a backend restart the queue is always paused. Each job's pipeline runs in a child process ([Pipeline Process](../services/PipelineProcess.md)).
 
-Starts the ML pipeline in a background thread. Returns a `job_id` immediately.
+### Job
 
 ```json
-// Request
+{
+  "id": "d63f61eb-d5f6-40e2-a866-edb3aa1f96bb",
+  "audio_path": "/data/recordings/sonorus-import-….wav",  // the app's copy
+  "title": "Weekly sync",
+  "whisper_model": "large-v3",
+  "language": null,               // null = auto-detect
+  "status": "waiting",            // "waiting" | "running" | "failed"
+  "error": null,                  // message of the last failure
+  "error_code": null,             // "alignment_model_missing" or null
+  "error_language": null,         // language of a missing alignment model
+  "created_at": "2026-09-28T13:00:17.512300"
+}
+```
+
+A finished job leaves the queue (it is a transcript now, see `job_done` below). A failed job moves to the end of the queue and is skipped until it is retried.
+
+### Snapshot — `GET /queue`
+
+```json
+{
+  "type": "snapshot",
+  "paused": true,
+  "paused_by_recording": false,   // the pause came from a live recording
+  "recording": false,
+  "start_mode": "auto",           // "auto" | "manual"
+  "running_job_id": null,
+  "step": null,                   // progress step of the running job
+  "jobs": [ /* Job, in queue order */ ]
+}
+```
+
+The control endpoints below return the snapshot after the change.
+
+| Endpoint | Effect |
+|---|---|
+| `POST /queue/start` | Runs the queue |
+| `POST /queue/pause` | Pauses it; the running job stops at once and goes back to `waiting` |
+| `POST /queue/recording/start` | A live recording started: if the queue runs, it pauses (`paused_by_recording`) |
+| `POST /queue/recording/stop` | Call after queuing the new recording. The queue resumes only in `auto` mode and only if the recording paused it |
+| `PUT /queue/settings` `{"start_mode": "manual"}` | `auto`: a running queue waits for new jobs when it runs out. `manual`: it pauses itself when nothing is left. Stored; `422` for other values |
+| `PUT /queue/order` `{"job_ids": [...]}` | New order; must list every job exactly once, else `400` |
+
+### `POST /queue/jobs`
+
+Adds a job at the end of the queue and returns it (`status: "waiting"`). In `auto` mode a running queue picks it up; a paused queue stays paused.
+
+```json
 {
   "audio_path": "/absolute/path/to/file.wav",
   "whisper_model": "large-v3",   // optional — omit to use WHISPER_MODEL from config
-  "language": "ru",              // optional — omit or null for auto-detection
+  "language": "ru",              // optional — omit, null or "auto" for auto-detection
   "title": "Weekly sync"         // optional — defaults to the audio file name without extension
 }
-
-// Response 200
-{ "job_id": "d63f61eb-d5f6-40e2-a866-edb3aa1f96bb" }
 ```
 
-**Pre-flight guards** — return `400` before starting the job:
+**Guards** — `400`, nothing is queued:
 
 | Condition | Detail |
 |---|---|
 | Whisper model not installed | `"Whisper model 'large-v3' is not installed. Download it in Settings."` |
 | Diarization model not installed | `"Diarization model is not installed. Download it in Settings."` |
 | Explicit language in `ALIGNMENT_CATALOG` and alignment model not installed | `"Alignment model for language 'ru' is not installed. Download it in Settings."` |
+| File missing / not readable | `"audio_path not found: …"` / `"audio_path not readable: …"` |
+| Copy failed (e.g. no disk space) | `"Could not copy audio file: …"` |
 
-**Audio copy** — an imported file (anything outside `$SONORUS_DATA_DIR/recordings/`) is copied to `recordings/sonorus-import-<uuid>.<ext>` before the job is queued, and the transcript references the copy; the original is never touched. A live recording is used as it is. If the copy fails (e.g. no disk space) the request returns `400` (`"Could not copy audio file: …"`) and no job starts. A cancelled or failed job deletes its copy. See [Audio Store](../services/AudioStore.md).
+**Audio copy** — an imported file (anything outside `$SONORUS_DATA_DIR/recordings/`) is copied to `recordings/sonorus-import-<uuid>.<ext>` before the job is queued; the job and later the transcript reference the copy, and the original is never touched. A live recording is used as it is. See [Audio Store](../services/AudioStore.md).
 
-When `language` is `null` (auto-detect), the guard for alignment models cannot fire before the job starts. If the detected language requires an alignment model that is not installed, the pipeline raises `AlignmentModelMissingError` and the WS emits a structured error event (see below).
+With auto-detection the alignment guard cannot fire up front. If the detected language needs an alignment model that is not installed, the job fails with `error_code: "alignment_model_missing"` and `error_language`.
 
-### `WS /ws/{job_id}`
+### `PATCH /queue/jobs/{id}`
 
-WebSocket that streams pipeline progress. Connect immediately after `POST /transcribe`.
+Changes `title`, `whisper_model` and/or `language` — only the fields sent (`language: null` or `"auto"` = auto-detect). Allowed for waiting and failed jobs. `404` unknown job, `409` for the running job, `400` if the new Whisper or alignment model is not installed, `422` for a blank title or one over 200 characters.
 
-Closing or losing the socket does **not** cancel the job (cancellation is explicit via `DELETE /transcribe/{job_id}`). The job's event queue stays registered until the job ends, so a client can reconnect and continue receiving events; events consumed by the previous connection are not replayed.
+### `DELETE /queue/jobs/{id}`
 
-The pipeline runs in a child process ([Pipeline Process](../services/PipelineProcess.md)); its GPU memory is freed when it exits, after every job — done, error or cancelled.
+Deletes the job **and its audio** — the live recording, or the copy of an imported file (the user's original stays). A running job is stopped first. `{"deleted": true}`, or `404` for an unknown job.
+
+### `POST /queue/jobs/{id}/retry`
+
+A failed job becomes `waiting` again at the end of the queue, its error cleared. `404` unknown job, `409` if the job has not failed.
+
+### `WS /ws/queue`
+
+Sends the current snapshot on connect, then a snapshot after every change and these events:
 
 ```json
-// Lifecycle events — sent before any progress
-{ "type": "queued" }    // job registered; executor has not started it yet
-{ "type": "started" }   // executor picked up the job; pipeline is now running
-
-// Progress events
-{ "type": "progress", "step": "Loading models…" }
-{ "type": "progress", "step": "Transcribing audio…" }
-{ "type": "progress", "step": "Identifying speakers…" }
-{ "type": "progress", "step": "Building transcript…" }
-{ "type": "progress", "step": "Saving to database…" }
-
-// Terminal events
-{ "type": "done",  "transcript_id": 42 }
-{ "type": "cancelled" }
-{ "type": "error", "message": "CUDA out of memory" }
-
-// Structured error — alignment model missing after auto-detect
-// The frontend should offer a download prompt for the given language.
-{ "type": "error", "error_code": "alignment_model_missing", "language": "ru" }
-
-// Keep-alive (sent every 10s when pipeline is silent — ignore on client)
-{ "type": "heartbeat" }
+{ "type": "job_done",   "job_id": "…", "title": "Weekly sync", "transcript_id": 42 }
+{ "type": "job_failed", "job_id": "…", "title": "Weekly sync",
+  "error": "CUDA out of memory", "error_code": null, "error_language": null }
+{ "type": "heartbeat" }   // every 10 s while nothing changes — ignore
 ```
 
-`queued` is emitted synchronously when the job is registered — before the executor starts it. When multiple jobs are submitted simultaneously, all receive `queued` immediately and each gets `started` in turn as the single-threaded executor picks them up. The server sends heartbeats every 10 seconds so the connection stays alive during long model loads.
-
-### `DELETE /transcribe/{job_id}`
-
-Cancels a transcription job. Sets a `threading.Event`: a queued job never starts; a running job's child process is terminated within a fraction of a second, on any step. The WS receives a `cancelled` event and nothing is saved.
-
-- `200 {"cancelled": true}` — cancel signal sent
-- `404 {"cancelled": false}` — job not found (already finished or invalid ID)
+The running job's progress is the snapshot's `step`: `Loading models…`, `Transcribing audio…`, `Identifying speakers…`, `Building transcript…`, `Saving to database…`. Closing the socket changes nothing in the queue.
 
 ---
 
@@ -381,7 +409,7 @@ Deletes a speaker through `CommitService.delete_speaker()`: every segment assign
 { "segments": 12, "transcripts": 3 }
 ```
 
-Returns the number of segments and transcripts that became unassigned, `404` for an unknown id, and `409` while a transcription job or an audio capture is running (the pipeline job holds its own memory snapshot and would write the profile back when it commits).
+Returns the number of segments and transcripts that became unassigned, `404` for an unknown id, and `409` while a transcription job or an audio capture is running (the running job holds its own memory snapshot and would write the profile back when it commits). Queued jobs do not block it: they resolve speakers when they run.
 
 ### `GET /speakers/{id}/sample`
 
@@ -413,7 +441,8 @@ Deletes all user data and returns the backend to an empty library:
 
 - every transcription and segment (`transcriptions`, `segments`);
 - every speaker, **named ones included** — `speaker_embeddings`, `speaker_names`, `speaker_meta`;
-- the contents of `$SONORUS_DATA_DIR/recordings/` (live recordings and copies of imported files).
+- the contents of `$SONORUS_DATA_DIR/recordings/` (live recordings and copies of imported files);
+- every job in the transcription queue.
 
 The API memory singleton is emptied too, including its pending dirty sets, so a later `save()` cannot write old speakers back. Schema/version tables (`_meta`, `_ts_schema_version`), downloaded models and `settings.json` are kept. The user's original imported files outside the data directory are never deleted; symlinks inside the cleared directories are removed as links without touching their targets.
 
@@ -421,7 +450,7 @@ The API memory singleton is emptied too, including its pending dirty sets, so a 
 { "transcripts": 2, "speakers": 3, "files": 5 }
 ```
 
-Returns `409` while a transcription job (`POST /transcribe`) or an audio capture (`POST /audio/capture/start`) is running: the pipeline job holds its own memory snapshot and would write its transcript and speakers back after the reset.
+Returns `409` while a transcription job is running (pause the queue first) or an audio capture (`POST /audio/capture/start`) is running: the running job holds its own memory snapshot and would write its transcript and speakers back after the reset. The queue does not start a job while the reset runs.
 
 ---
 
@@ -437,7 +466,7 @@ Returns `409` while a transcription job (`POST /transcribe`) or an audio capture
 
 ## Dependency injection
 
-All routers use FastAPI `Depends` with `lru_cache` singletons from `app/api/dependencies.py`. Both services are initialized sequentially at startup via FastAPI `lifespan` before any requests are accepted.
+All routers use FastAPI `Depends` with `lru_cache` singletons from `app/api/dependencies.py`. The services and the transcription queue are created at startup via FastAPI `lifespan` before any requests are accepted; the lifespan also starts the queue's worker and stops it on shutdown (a running job goes back to `waiting`).
 
 ```python
 # tests override the singletons
@@ -447,4 +476,4 @@ app.dependency_overrides[get_storage_service] = lambda: TranscriptStorageService
 app.dependency_overrides[get_memory_service]  = lambda: SpeakerMemoryService(db_path=str(tmp / "mem.db"))
 ```
 
-See `tests/` for the full test suite (379 tests total).
+`tests/conftest.py` also replaces `get_transcription_queue` in every test with a paused queue on a temporary database, so no test touches the real `DB_PATH`. See [Testing](../testing/overview.md).

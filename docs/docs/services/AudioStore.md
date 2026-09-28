@@ -35,6 +35,10 @@ Copies `src` to `recordings_dir/sonorus-import-<uuid><ext>` (`shutil.copy2`, a s
 
 Deletes an import copy. Live recordings and files outside `recordings_dir` are left alone.
 
+### `discard_owned_audio(path, recordings_dir)`
+
+Deletes any audio file inside `recordings_dir` — a live recording or an import copy — when its queued job is deleted. Files outside `recordings_dir` (the user's originals) are left alone; a symlink is removed as a link, its target is kept.
+
 ### `remove_orphan_imports(recordings_dir, referenced) → int`
 
 Deletes `sonorus-import-*` files whose path is not in `referenced`. Live recordings are never removed — an unreferenced one is still the only copy of that recording. Returns the number of files removed.
@@ -45,9 +49,10 @@ Deletes `sonorus-import-*` files whose path is not in `referenced`. Live recordi
 
 | Moment | What happens |
 |---|---|
-| `POST /transcribe` | `import_audio()` runs before the job is queued, so the copy exists even if the original disappears while the job waits. A copy error returns `400` and no job starts. |
-| Job saved | `transcriptions.audio_file` is the copy's path. |
-| Job cancelled or failed before saving | `discard_import()` removes the copy. |
-| Backend startup | `remove_orphan_imports()` with `TranscriptStorageService.audio_files()` removes copies left by a job that never finished. |
+| `POST /queue/jobs` | `import_audio()` runs before the job is queued, so the copy exists even if the original disappears while the job waits. A copy error returns `400` and no job is queued. |
+| Job paused, interrupted or failed | The copy stays: the job runs again later or is retried. |
+| Job saved | `transcriptions.audio_file` is the copy's path; the job leaves the queue. |
+| `DELETE /queue/jobs/{id}` | `discard_owned_audio()` removes the job's audio — the copy or the live recording. |
+| Backend startup | `remove_orphan_imports()` with the audio of all transcripts and all queued jobs removes copies nothing references (e.g. the backend stopped between copying and queuing). |
 | `DELETE /transcripts/{id}` | The copy is removed like a live recording (`_delete_owned_recording`). |
-| `POST /data/reset` | `recordings/` is emptied. |
+| `POST /data/reset` | `recordings/` is emptied and the queue cleared. |

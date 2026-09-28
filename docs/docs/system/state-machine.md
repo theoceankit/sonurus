@@ -31,7 +31,7 @@ stateDiagram-v2
 
 ## 2. ML Pipeline
 
-Jobs from `POST /transcribe` run one at a time on a `ThreadPoolExecutor` thread, which runs the pipeline in a child process ([Pipeline Process](../services/PipelineProcess.md)) and saves the result itself. Any unhandled exception at any step is caught and returned as an error event over the WebSocket. A cancel stops the child at once, on any step.
+Jobs from `POST /queue/jobs` are persisted and run one at a time by the queue's worker thread ([Transcription Queue](../services/TranscriptionQueue.md)), which runs the pipeline in a child process ([Pipeline Process](../services/PipelineProcess.md)) and saves the result itself. An exception at any step fails the job: it moves to the end of the queue with its error and a `job_failed` event goes out over `WS /ws/queue`. Pausing the queue stops the child at once, on any step; the job then waits and later runs again from the start.
 
 ```mermaid
 stateDiagram-v2
