@@ -64,6 +64,21 @@ Stops the capture process and returns the path to the recorded WAV file. Optiona
 
 - `404` — job not found (already stopped or invalid ID)
 
+### `POST /audio/recordings`
+
+Stores a live recording made in the renderer (the `MediaRecorder` blob). The body is the raw audio; `Content-Type` picks the format: `audio/webm` (parameters such as `;codecs=opus` are ignored) or `audio/wav` / `audio/x-wav` / `audio/wave`. The file is written to `$SONORUS_DATA_DIR/recordings/sonorus-rec-<uuid>.<ext>` — the backend is the only writer of that directory, so a recording always lands where the backend looks for it, whichever data dir Electron uses. It appears under its final name only once complete.
+
+```json
+// Response 201
+{ "file_path": "<data-dir>/recordings/sonorus-rec-5b0c….webm" }
+```
+
+- `415` — unsupported or missing `Content-Type`
+- `400` — empty recording
+- `500` — the file could not be written
+
+The returned path is passed on as `mic_path` to `POST /audio/capture/stop/{job_id}` or queued directly with `POST /queue/jobs` (a file already in `recordings/` is not copied).
+
 ---
 
 ## Transcription queue

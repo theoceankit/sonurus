@@ -291,10 +291,8 @@ const app = {
       title: settings.title, model: settings.model, language: settings.language,
     })
 
-    const saveBrowserChunks = async () => {
-      const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' })
-      return window.electronAPI.saveRecording(await blob.arrayBuffer(), 'webm')
-    }
+    const saveBrowserChunks = () =>
+      uploadRecording(new Blob(chunks, { type: 'audio/webm;codecs=opus' }))
 
     try {
       if (captureJobId && recorder) {
