@@ -50,7 +50,7 @@ POST /audio/capture/stop/{job_id}  { mic_path?: "..." }
     and the mic file (only if it lives inside the recordings dir)
   → returns final WAV path
 
-POST /transcribe  { audio_path: "<returned path>" }
+POST /queue/jobs  { audio_path: "<returned path>" }
 ```
 
 `has_active_jobs()` reports whether any capture is still running; `POST /data/reset` returns `409` while it is `True`, so a reset never races with a file being written into the recordings directory.
