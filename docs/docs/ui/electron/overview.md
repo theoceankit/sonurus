@@ -125,7 +125,7 @@ Default values are defined in `DEFAULT_SETTINGS` in `main.js` (used when `settin
 The last two sections of the Settings screen are destructive and use the same two-step confirmation (`Reset…` / `Delete…` → `Cancel` + a red confirm button):
 
 - **Reset to defaults** writes `DEFAULT_APP_SETTINGS` back to `settings.json` via `defaultSettingsPatch()` (`utils.js`), keeping `hfToken`, re-applies the zoom and re-renders the page. Transcripts, models and recordings are not touched.
-- **Delete all data** calls `POST /data/reset`, then clears `_activeTranscriptId`, reloads the sidebar (transcripts and the Speakers list) and shows a toast built by `formatDataResetSummary()`. The trigger button is disabled (with the reason from `dataResetBlockReason()` as its tooltip) while a background transcription job or a live recording is running; the backend enforces the same rule with `409`. Models, preferences and imported audio files are kept.
+- **Delete all data** calls `POST /data/reset`, then clears `_activeTranscriptId`, reloads the sidebar (transcripts and the Speakers list) and shows a toast built by `formatDataResetSummary()`. The trigger button is disabled (with the reason from `dataResetBlockReason()` as its tooltip) while a background transcription job or a live recording is running; the backend enforces the same rule with `409`. Models, preferences and the user's original imported files are kept (the app's copies in `recordings/` are removed).
 
 `hfToken` is part of `appSettings` in the renderer (Settings → API Keys edits it, and it is sent as `hf_token` with model download requests). `main.js` reads it once at startup to set `HF_TOKEN` for the backend process, so a changed token reaches the transcription pipeline only after an app restart.
 
@@ -189,7 +189,7 @@ The editor title (`.focus-title`) is editable: a click, or Enter while it has fo
 
 ## Deleting a transcript
 
-Hovering a transcript in the sidebar (Transcripts tab) replaces its time with a trash icon (`.rec-item-delete`, a `span role="button"` because the item itself is a `<button>`). Clicking it opens `openConfirmDialog()` (`components.js`) with the text from `deleteTranscriptPrompt()` (`utils.js`); Escape or a backdrop click cancels. On confirm, `app._deleteTranscript()` calls `DELETE /transcripts/{id}` (a `404` counts as already deleted), removes the item via `withoutRecording()`, goes home if that transcript was open (`_activeTranscriptId`), reloads the sidebar and shows a toast. The backend also deletes the app's own live recording for that transcript; imported audio files are kept.
+Hovering a transcript in the sidebar (Transcripts tab) replaces its time with a trash icon (`.rec-item-delete`, a `span role="button"` because the item itself is a `<button>`). Clicking it opens `openConfirmDialog()` (`components.js`) with the text from `deleteTranscriptPrompt()` (`utils.js`); Escape or a backdrop click cancels. On confirm, `app._deleteTranscript()` calls `DELETE /transcripts/{id}` (a `404` counts as already deleted), removes the item via `withoutRecording()`, goes home if that transcript was open (`_activeTranscriptId`), reloads the sidebar and shows a toast. The backend also deletes the app-owned audio for that transcript (live recording or copy of an imported file); the user's original imported file is kept.
 
 ---
 
@@ -232,11 +232,11 @@ Transcription runs entirely in the background — the main panel is never replac
 
 **Flow:**
 
-1. File imported or recording stopped → `POST /transcribe` → `app._addJob(job_id, body)`
+1. File imported or recording stopped → `POST /transcribe` (an imported file is first copied into `recordings/`, see [Audio Store](../../services/AudioStore.md)) → `app._addJob(job_id, body)`
 2. A job card appears in the **sidebar queue section** (above the recordings list) showing title, spinner, and current step text
 3. Multiple jobs can be queued; the backend processes them serially (`ThreadPoolExecutor(max_workers=1)`)
 4. On completion: toast notification (`✓ filename`) + sidebar refreshes; no auto-navigation
-5. On `alignment_model_missing` error: `renderAlignmentModal()` opens as an overlay — user downloads the model and clicks Retry
+5. On `alignment_model_missing` error: `renderAlignmentModal()` opens as an overlay — user downloads the model and clicks Retry (the request is re-sent with the original path, so the file is copied again)
 
 **Job states in the sidebar card:**
 
