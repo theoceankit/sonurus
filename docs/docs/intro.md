@@ -53,6 +53,8 @@ copy imported audio → transcribe → extract_all → resolve → build → att
 | 7 | `CommitService.commit()` | Aggregates embeddings by final speaker, updates `speaker_memory.db` |
 | 8 | `TranscriptStorageService.save()` | Persists transcript and segments to SQLite |
 
+Every import and live recording becomes a job in the **transcription queue** ([Transcription Queue](services/TranscriptionQueue.md)): jobs are persisted and run one at a time in the background, and the queue can be paused, reordered and retried. Steps 1–5 run in a child process that is stopped at once when the queue pauses ([Pipeline Process](services/PipelineProcess.md)); saving and speaker commits happen in the backend.
+
 ---
 
 ## Speaker identification
@@ -79,6 +81,7 @@ Stored in `speaker_memory.db` (SQLite, location: `$SONORUS_DATA_DIR`):
 | `speaker_names` | Display names by label (`display`, …) |
 | `transcriptions` | One row per pipeline run |
 | `segments` | All transcript segments |
+| `transcription_jobs`, `transcription_queue_settings` | The transcription queue and its start mode |
 
 ---
 
