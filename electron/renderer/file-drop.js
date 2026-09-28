@@ -13,20 +13,15 @@ function initFileDrop({ getState, onDrop }) {
         stroke="currentColor" stroke-width="3" stroke-dasharray="18,10" stroke-linecap="round"/>
     </svg>
     ${icon('import', 28)}
-    <span class="fd-overlay-label"></span>`
+    <span class="fd-overlay-label">Drop audio files to transcribe</span>`
   document.body.appendChild(overlay)
-  const label = overlay.querySelector('.fd-overlay-label')
 
   let depth = 0
   const hasFiles = e => Array.from(e.dataTransfer?.types || []).includes('Files')
   const decide = (files = []) => dropDecision({ ...getState(), files })
 
   function show() {
-    const { action } = decide()
-    if (action === 'ignore') return
-    const blocked = action === 'blocked'
-    label.textContent = blocked ? 'Stop recording to import files' : 'Drop audio files to transcribe'
-    overlay.classList.toggle('fd-overlay--blocked', blocked)
+    if (decide().action === 'ignore') return
     const r = document.getElementById('main-panel').getBoundingClientRect()
     Object.assign(overlay.style, {
       top: `${r.top}px`, left: `${r.left}px`, width: `${r.width}px`, height: `${r.height}px`,
