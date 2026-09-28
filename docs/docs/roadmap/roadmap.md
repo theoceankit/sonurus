@@ -108,10 +108,37 @@ A **Speakers** tab in the sidebar lists every speaker (named, unnamed, segment-o
 **Done.** Import goes through the native file dialog or drag-and-drop (window or `new-recording-modal.js`), so a file is always selected; dropped files are filtered by extension (`isSupportedAudio()`, same list as the dialog filter); `POST /transcribe` returns `400` if `audio_path` does not exist or is not readable.
 
 ### ✅ Drop files to transcribe
-**Done.** Audio files dropped on the home view or the editor are queued right away with the model and language from Settings; several files are queued in drop order. Settings and Speakers ignore drops; during a live recording the drop is refused. See [Electron UI → Dropping files to transcribe](../ui/electron/overview.md#dropping-files-to-transcribe).
+**Done.** Audio files dropped on the home view or the editor are queued right away with the model and language from Settings; several files are queued in drop order. Settings and Speakers ignore drops; during a live recording the drop is refused (until the [controllable transcription queue](#controllable-transcription-queue) lands). See [Electron UI → Dropping files to transcribe](../ui/electron/overview.md#dropping-files-to-transcribe).
 
-### Pause the transcription queue
-**Pending.** Today a drop (and the New Recording modal) is refused while a live recording runs, so transcription never competes with the recording for the CPU/GPU. Target: the queue can be paused — automatically while recording, or by the user — and files can still be added; jobs wait and start when the queue resumes. Needs a server-side pause (the `ThreadPoolExecutor(max_workers=1)` worker starts a job as soon as it is queued, and `POST /transcribe` has no recording guard), a paused state for queued cards, and lifting the renderer's recording block in `dropDecision()`.
+### Controllable transcription queue
+**Pending — requirements agreed, technical design not started.** Transcription can fail, the machine may be needed for other work, and a new recording should not compete with an older transcription. The user controls when the queue runs, can collect recordings and imports first and transcribe them later, and can retry failed jobs without importing again. A paused or interrupted job always starts over — no partial progress is kept.
+
+**Queue**
+- The queue as a whole is either **running** or **paused**; Pause and Start apply to the whole queue.
+- Pausing interrupts the running job; it runs again from the start when the queue resumes.
+- Jobs are reordered by drag and drop.
+- The queue (jobs, order, parameters, errors) survives an app restart. After a restart the queue is always paused and waits for a manual Start; the job that was running is run again from the start.
+
+**Start mode (Settings)**
+- **Automatic:** adding a job starts the queue unless the user paused it.
+- **Manual:** adding a job only appends it; the queue does not start by itself.
+
+**Live recording**
+- Starting a recording always pauses the queue and interrupts the running job.
+- While recording, drops and imports are allowed; the files are appended to the queue (lifts today's recording block in `dropDecision()`).
+- When the recording stops, it is appended to the queue. The queue resumes by itself only in automatic mode and only if the recording was what paused it; a pause set by the user stays.
+
+**Jobs**
+- Title, model and language can be edited on every job except the running one.
+- A failed job moves to the end of the queue, marked with its error; the queue goes on with the others and skips it. **Retry** turns it back into a regular waiting job at the end of the queue.
+- `×` on a job card deletes the job after a confirmation, together with its audio: the live recording, or for an import the copy in `recordings/` (the user's original file is kept). There is no separate cancel — Pause covers it.
+- Completion and errors are reported with toasts (see *System notifications* below).
+
+### System notifications
+**Pending.** Report finished and failed transcriptions with OS notifications as well as toasts, so long queues can run while the window is hidden.
+
+### Re-transcribe an existing transcript
+**Pending.** Run a finished transcript again, e.g. with another model or language. Replaces the existing transcript, so it must be decided what happens to the user's speaker corrections and title. Separate from retrying a failed job in the queue.
 
 ### ✅ Background transcription queue
 **Done.** Transcription no longer takes over the main panel. Jobs run in the background and are shown as cards in a queue section at the top of the sidebar. Multiple files can be queued while the user continues browsing or editing other transcripts. The backend already serialised jobs via `ThreadPoolExecutor(max_workers=1)`; the frontend now tracks them in `app._activeJobs`. On completion: toast + sidebar refresh. `alignment_model_missing` errors surface as a modal with inline download + retry (`alignment-modal.js`).
