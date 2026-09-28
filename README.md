@@ -134,6 +134,8 @@ copy audio → transcribe → extract embeddings → resolve speakers → build 
           → [user review] → commit → save
 ```
 
+**Transcription queue:** imports and recordings are queued and transcribed one at a time in the background. The queue can be paused and resumed (a paused job starts over), reordered by drag and drop, and failed jobs retried; a live recording pauses it. It survives app restarts. Settings → *Start transcription* chooses whether new files start on their own or wait for Start.
+
 **Speaker memory:** each speaker is stored as a UUID with a voice embedding in `speaker_memory.db`. On each new session, known speakers are matched by cosine similarity (threshold 0.75). Corrections made by the user feed back into the embeddings on commit, improving future recognition.
 
 ---
