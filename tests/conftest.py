@@ -51,6 +51,11 @@ if not _is_importable("torch"):
 import app.services.model_service as _model_service  # noqa: E402
 _model_service.RUN_DOWNLOADS_IN_SUBPROCESS = False
 
+# The transcription pipeline runs in a child process in production. Tests
+# patch create_controller in this process, which only works in-process.
+import app.services.pipeline_process as _pipeline_process  # noqa: E402
+_pipeline_process.RUN_PIPELINE_IN_SUBPROCESS = False
+
 # No test may touch the network. Several API tests start a download without
 # patching it; the download runs in a background thread that outlives the
 # test (and any per-test patch), so the stubs are installed for the whole

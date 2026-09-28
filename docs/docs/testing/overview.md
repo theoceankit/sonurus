@@ -19,13 +19,13 @@ node --test 'tests/renderer/*.test.js'
 
 ### No network in tests
 
-`tests/conftest.py` replaces `huggingface_hub.snapshot_download` (no-op) and `huggingface_hub.model_info` (raises `OSError`, so download size falls back to the catalog estimate) for the whole session. Download jobs run in background threads that outlive a test's own `patch()`, so a per-test stub is not enough. `ModelService.RUN_DOWNLOADS_IN_SUBPROCESS` is also set to `False`, so tests can patch `snapshot_download` in-process.
+`tests/conftest.py` replaces `huggingface_hub.snapshot_download` (no-op) and `huggingface_hub.model_info` (raises `OSError`, so download size falls back to the catalog estimate) for the whole session. Download jobs run in background threads that outlive a test's own `patch()`, so a per-test stub is not enough. `ModelService.RUN_DOWNLOADS_IN_SUBPROCESS` is also set to `False`, so tests can patch `snapshot_download` in-process, and `pipeline_process.RUN_PIPELINE_IN_SUBPROCESS` to `False`, so API tests can patch `create_controller`.
 
 ### CI environment
 
 The Tests workflow (`.github/workflows/tests.yml`) installs only `requirements-test.txt` — no `torch`, `huggingface_hub`, WhisperX or PyAnnote. `tests/conftest.py` replaces those modules with `MagicMock` stubs in `sys.modules` when they are not importable. A local `.venv` has the real libraries, so two classes of failure show up only in CI:
 
-- **Spawned child processes do not get the stubs.** A `multiprocessing` child re-imports the module that defines its target function. Worker stand-ins for `_run_download(..., in_subprocess=True)` therefore live in `tests/download_workers.py`, which imports no app code.
+- **Spawned child processes do not get the stubs.** A `multiprocessing` child re-imports the module that defines its target function. Worker stand-ins for `_run_download(..., in_subprocess=True)` and `run_pipeline_process(..., worker=…)` therefore live in `tests/download_workers.py` and `tests/pipeline_workers.py`, which import no app code.
 - **Slower runners expose timing races.** A background job thread may reach a patched call after the `POST` that started it has returned, so a patch must stay active until the job finishes (see `_running_job` in `test_transcription_guard.py`).
 
 To reproduce CI locally, run the suite in a separate venv with only the test requirements:
@@ -44,7 +44,7 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 
 ## Current coverage
 
-**520 Python unit and API tests** across **20 files** — no ML models are loaded — plus **76 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
+**535 Python unit and API tests** across **21 files** — no ML models are loaded — plus **76 renderer tests** (`tests/renderer/*.test.js`, `node:test`).
 
 | File | Tests | What it covers |
 |---|---|---|
@@ -57,7 +57,8 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `test_diarization_model.py` | 25 | `DIARIZATION_CATALOG`, `is_installed()`, `download_model()`, `delete_model()`, API routes for diarize model |
 | `test_speaker_color.py` | 25 | `speaker_meta` color persistence, least-used palette assignment, schema v3 migration |
 | `test_models_api.py` | 22 | `GET /models`, `POST /models/{id}/download`, `DELETE /models/{id}`, WS progress stream |
-| `test_transcription_guard.py` | 31 | `POST /transcribe` 400 guard when Whisper / diarization / alignment model not installed; imported audio copied into `recordings/` before the job queues (live recordings not copied), default title = original file name, copy removed on cancel / failure (live recording kept), 400 when the copy fails |
+| `test_transcription_guard.py` | 34 | `POST /transcribe` 400 guard when Whisper / diarization / alignment model not installed; imported audio copied into `recordings/` before the job queues (live recordings not copied), default title = original file name, copy removed on cancel / failure (live recording kept), 400 when the copy fails; child-process mode: no models loaded in the backend, the result is saved by the backend, cancel reaches the runner |
+| `test_pipeline_process.py` | 12 | `run_pipeline_process()`: progress relayed, result returned, cancel stops the child at once (also mid-step and before start), `on_progress` errors stop it, child errors / missing alignment model / crash mapped to exceptions; the real worker with a fake pipe; `Transcript` with embeddings survives pickling |
 | `test_transcript_builder.py` | 21 | `TranscriptBuilder.build()` (WhisperX output → Transcript, UUID for unmatched `SPEAKER_XX`, `UNKNOWN` → unassigned) and `attach_embeddings()` (time-overlap matching) |
 | `test_download_progress.py` | 19 | WS byte-level progress stream, polling loop, `done`/`error` events |
 | `test_audio_store.py` | 11 | `import_audio()` (unique copy, extension, live recording kept, symlink followed, no partial copy on error), `is_import_copy()`, `discard_import()`, `remove_orphan_imports()` |
@@ -87,6 +88,7 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 tests/
 ├── conftest.py                        # ML library stubs, no-network downloads
 ├── download_workers.py                # App-free stand-ins for subprocess download workers
+├── pipeline_workers.py                # App-free stand-ins for the pipeline child process
 ├── renderer/                          # node:test renderer tests + load-renderer.js
 ├── test_alignment_model.py
 ├── test_api.py                        # Full API integration
@@ -101,6 +103,7 @@ tests/
 ├── test_model_cancel.py
 ├── test_models_api.py
 ├── test_model_service.py
+├── test_pipeline_process.py
 ├── test_speaker_color.py
 ├── test_speaker_memory_service.py
 ├── test_transcribe_schema.py
