@@ -543,6 +543,13 @@
   text-overflow: ellipsis;
 }
 
+/* Drag to reorder. The insertion line is a shadow: it takes no space, so no
+   card moves while dragging. */
+.job-item[draggable="true"] { cursor: grab; }
+.job-item--dragging { opacity: 0.45; }
+.job-item--drop-before { box-shadow: 0 -3px 0 -1px var(--accent); }
+.job-item--drop-after  { box-shadow: 0 3px 0 -1px var(--accent); }
+
 .job-item--error {
   border-color: var(--red-bd);
   background: var(--red-bg);
