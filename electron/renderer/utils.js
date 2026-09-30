@@ -105,21 +105,53 @@ function fmtTime(sec) {
 }
 
 // ── Avatar ──────────────────────────────────────────────────────────────────────
-function makeAvatar(spkId, displayName, size = 24, knownMap = {}) {
-  const el = document.createElement('div')
-  el.className = 'spk-avatar'
-  el.style.width = el.style.height = size + 'px'
-  el.style.fontSize = Math.round(size * 0.38) + 'px'
+// Every speaker avatar in the UI comes from here (docs: ui/electron/components/speaker-avatar).
+// Size is a preset; its circle and font live in CSS (.spk-avatar--<size>).
+const AVATAR_SIZES = ['xs', 'sm', 'md', 'lg']
 
-  if (isUnrecognized(spkId, knownMap)) {
-    el.classList.add('spk-avatar--unknown')
-    el.textContent = '?'
-  } else {
-    const p = speakerPalette(spkId, knownMap)
-    el.style.background = p.color
-    el.textContent = speakerInitials(displayName)
-  }
+function _avatarElement(size) {
+  if (!AVATAR_SIZES.includes(size)) throw new Error(`Unknown avatar size: ${size}`)
+  const el = document.createElement('div')
+  el.className = `spk-avatar spk-avatar--${size}`
   return el
+}
+
+function setAvatarName(el, name, color) {
+  const trimmed = name.trim()
+  el.textContent = trimmed ? speakerInitials(trimmed) : ''
+  el.style.background = color
+}
+
+// Avatar for a name that has no speaker id yet (New speaker preview).
+function makeNameAvatar(name, color, size = 'md') {
+  const el = _avatarElement(size)
+  setAvatarName(el, name, color)
+  return el
+}
+
+function makeAvatar(spkId, displayName, size = 'md', knownMap = {}) {
+  if (!isUnrecognized(spkId, knownMap)) {
+    return makeNameAvatar(displayName, speakerPalette(spkId, knownMap).color, size)
+  }
+  const el = _avatarElement(size)
+  el.classList.add('spk-avatar--unknown')
+  el.textContent = '?'
+  return el
+}
+
+// Overlapping avatars; the first one is on top. The ring color comes from
+// --avatar-ring set by the container.
+function makeAvatarStack(spkIds, size, knownMap, { max = spkIds.length, nameOf = id => id, titles = false } = {}) {
+  const stack = document.createElement('div')
+  stack.className = 'spk-avatar-stack'
+  const shown = spkIds.slice(0, max)
+  shown.forEach((spkId, i) => {
+    const av = makeAvatar(spkId, nameOf(spkId), size, knownMap)
+    av.style.zIndex = shown.length - i
+    if (titles) av.title = nameOf(spkId)
+    stack.appendChild(av)
+  })
+  return stack
 }
 
 // ── Settings / data reset ───────────────────────────────────────────────────────

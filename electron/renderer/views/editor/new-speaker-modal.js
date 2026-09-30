@@ -40,8 +40,7 @@ function openNewSpeakerModal({ initialName = '', knownSpeakers = [], fromName = 
 
   const nameRow = document.createElement('div')
   nameRow.className = 'ns-name-row'
-  const av = document.createElement('div')
-  av.className = 'ns-av'
+  const av = makeNameAvatar('', SPEAKER_PALETTE[colorIndex].color, 'md')
   const input = document.createElement('input')
   input.id = 'ns-name'
   input.className = 'st-text-input ns-name-input'
@@ -127,8 +126,7 @@ function openNewSpeakerModal({ initialName = '', knownSpeakers = [], fromName = 
   let busy = false
   function refresh() {
     const name = input.value.trim()
-    av.style.background = SPEAKER_PALETTE[colorIndex].color
-    av.textContent = name ? speakerInitials(name) : ''
+    setAvatarName(av, name, SPEAKER_PALETTE[colorIndex].color)
     swatchBtns.forEach((sw, i) => sw.classList.toggle('spk-swatch--active', i === colorIndex))
     scopeBtns.forEach(b => b.classList.toggle('ns-scope-btn--active', b.dataset.scope === scope))
     hint.textContent = hasSpeakerNamed(knownSpeakers, name) ? `Another speaker is also named “${name}”.` : ''

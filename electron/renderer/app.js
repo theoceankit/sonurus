@@ -701,27 +701,9 @@ const app = {
       spacer.style.flex = '1'
       metaEl.appendChild(spacer)
 
-      const stack = document.createElement('div')
-      stack.className = 'rec-avatars'
-      const ringColor = isActive ? '#0A84FF' : 'var(--sidebar-bg)'
-
-      speakers.forEach(spkId => {
-        const av = document.createElement('div')
-        av.className = 'rec-avatar'
-        av.style.boxShadow = `0 0 0 1.5px ${ringColor}`
-
-        if (isUnrecognized(spkId, this._knownSpeakers)) {
-          av.style.background = 'color-mix(in srgb, black 10%, var(--sidebar-bg))'
-          av.style.color = 'rgba(0,0,0,0.45)'
-          av.textContent = '?'
-        } else {
-          const p = speakerPalette(spkId, this._knownSpeakers)
-          av.style.background = p.color
-          av.textContent = speakerInitials(this._knownSpeakers[spkId]?.name || spkId)
-        }
-        stack.appendChild(av)
-      })
-      metaEl.appendChild(stack)
+      metaEl.appendChild(makeAvatarStack(speakers, 'xs', this._knownSpeakers, {
+        nameOf: spkId => this._knownSpeakers[spkId]?.name || spkId,
+      }))
     }
 
     btn.appendChild(metaEl)

@@ -204,22 +204,7 @@ function renderEditorView(transcriptId, meta = null) {
     const uniqueSpkIds = [...new Set(transcript.segments.map(s => effectiveSpeaker(s)))]
       .filter(id => id !== UNASSIGNED_ID)
     if (uniqueSpkIds.length > 0) {
-      const avatarGroup = document.createElement('div')
-      avatarGroup.className = 'focus-avatar-group'
-      uniqueSpkIds.slice(0, 5).forEach(spkId => {
-        const name = displayName(spkId)
-        const known = !isUnrecognized(spkId, knownMap)
-        const av = document.createElement('div')
-        av.className = 'focus-header-av' + (known ? '' : ' focus-header-av--unknown')
-        if (known) {
-          const p = speakerPalette(spkId, knownMap)
-          av.style.background = p.color
-        }
-        av.textContent = known ? speakerInitials(name) : '?'
-        av.title = name
-        avatarGroup.appendChild(av)
-      })
-      metaRow.appendChild(avatarGroup)
+      metaRow.appendChild(makeAvatarStack(uniqueSpkIds, 'sm', knownMap, { max: 5, nameOf: displayName, titles: true }))
     }
 
     const metaText = document.createElement('span')
