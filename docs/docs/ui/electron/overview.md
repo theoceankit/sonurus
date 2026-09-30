@@ -53,7 +53,7 @@ electron/
     index.html         — App shell: left sidebar + main panel
     setup.html         — First-run setup screen (shown during pip install)
     icons.js           — icon(name, size), hydrateIcons: renders files from assets/icons/
-    utils.js           — API_BASE, WS_BASE, speaker helpers, fmtTime, makeAvatar
+    utils.js           — API_BASE, WS_BASE, speaker helpers, fmtTime, speaker avatars (makeAvatar, makeAvatarStack)
     components.js      — makeDropdown (shared UI component)
     data.js            — LANGUAGES (static), MODELS (fallback), ALIGNMENT_MODELS (source of truth)
     file-drop.js       — initFileDrop: window drag-and-drop of audio files + drop overlay
@@ -228,6 +228,8 @@ The sidebar header has two tabs, **Transcripts** and **Speakers** (`.sb-tab`), e
 
 After a change the sidebar is reloaded so transcript avatars and the editor pick up new names and colors.
 
+Every speaker avatar (sidebar, editor, Speakers section, New speaker dialog) is one component with four size presets: [Speaker avatar](./components/speaker-avatar.md).
+
 ### Assigning a speaker in the editor
 
 The speaker picker (`speaker-picker.js`) opens from a segment's speaker name (assigns that segment only) or from a right-panel card's **Assign speaker** (assigns every segment of that speaker in the transcript). Its search filters the named speakers; clicking one or pressing Enter assigns it. The request is built by `speakerAssignRequest()` (`utils.js`): `PATCH /transcripts/{id}/segments/{start}/speaker` for one segment, `POST /transcripts/{id}/reassign` for all.
@@ -323,7 +325,7 @@ A live recording does not block drops: it pauses the queue, so dropped files wai
 ## Icons
 
 Every UI icon is a file in `electron/assets/icons/`, rendered by `icons.js` as a CSS mask over
-`currentColor`. Usage, file rules and where each icon is used: [Icons](./icons.md).
+`currentColor`. Usage, file rules and where each icon is used: [Icons](./components/icons.md).
 
 ---
 
