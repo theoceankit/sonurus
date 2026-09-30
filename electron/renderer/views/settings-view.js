@@ -2,8 +2,7 @@
 // LANGUAGES and MODELS are loaded from data.js
 
 // TODO(not implemented): export format and include-* / duplicate options are
-// UI only — the titlebar export always copies plain text. See roadmap
-// "UI without business logic".
+// UI only — the titlebar export always copies plain text.
 const ST_EXPORT_FORMATS = [
   { id: 'txt',  label: 'Plain text', ext: '.txt',  desc: 'No formatting, raw transcript' },
   { id: 'md',   label: 'Markdown',   ext: '.md',   desc: 'Speakers as headers, timestamps inline' },

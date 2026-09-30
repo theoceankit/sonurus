@@ -8,32 +8,6 @@ All open issues in one place.
 
 ---
 
-### Segment rows shift by 6 px when a speaker changes
-
-**Severity:** cosmetic — does not affect data.
-
-**Symptom:** after changing a segment's speaker in the editor, rows on screen jump up or down by 6 px. The scroll position itself is kept (`preserveScroll()` in `reload()`).
-
-**Cause:** the first row of each speaker turn gets `.seg-row--speaker-break` (`margin-top: 6px`, `editor.css`), so row heights depend on who speaks. Changing one segment's speaker usually adds or removes a break above it, below it, or both, and the list height changes. Scroll can hold only one point still, so compensating it does not help: holding the edited row still (tried, not merged) moves every other visible row by 6 px instead.
-
-**Pending fix:** make speaker-dependent styling layout-neutral. Drop the margin and draw the speaker break as a 1 px divider that does not take space (`.seg-row::after` with `position: absolute; top: 0`, or an inset `box-shadow`). Then a speaker change only recolors and relabels rows. Verify in Electron that every visible row keeps its position when a break appears and when it disappears.
-
----
-
-### model.safetensors downloads during first transcription
-
-**Severity:** minor — does not affect correctness; adds ~1.26 GB download on first use of a language.
-
-**Symptom:** after downloading an alignment model via Settings or the in-app popup, the first transcription for that language still shows a background download of `model.safetensors` in the server logs. The transcription completes successfully.
-
-**Cause:** the HuggingFace `Transformers` library (`from_pretrained`) downloads both weight formats the first time a model is loaded: `pytorch_model.bin` (PyTorch) and `model.safetensors` (SafeTensors). Our `snapshot_download` fetches the full repo snapshot, but Transformers still checks for the safetensors file independently and fetches it if absent.
-
-**Impact:** only affects the **first** transcription per language after a fresh alignment model install. On subsequent transcriptions both files are present and no download occurs. The file is written to the correct location (`.models/alignment/`).
-
-**Pending fix:** pre-fetch both formats explicitly during `download_model()`, or suppress the safetensors download via `TRANSFORMERS_OFFLINE=1` after the initial install.
-
----
-
 ### torchcodec warning on macOS
 
 **Severity:** cosmetic — does not affect functionality.
@@ -51,7 +25,7 @@ UserWarning: torchcodec is not installed correctly so built-in audio decoding wi
 
 **Suppression:** the warning is hidden when `VERBOSE=false` (default) via `suppress_ml_noise("startup")` in `app/warnings.py`, called from `app/api/main.py` at import time.
 
-**Permanent fix (optional):** set `DYLD_LIBRARY_PATH=/opt/homebrew/lib` before starting the server. This lets `torchcodec` find the FFmpeg dylibs and eliminates the warning at the source.
+**Workaround (optional):** set `DYLD_LIBRARY_PATH=/opt/homebrew/lib` before starting the server. This lets `torchcodec` find the FFmpeg dylibs and eliminates the warning at the source.
 
 ---
 
@@ -67,7 +41,6 @@ UserWarning: torchcodec is not installed correctly so built-in audio decoding wi
 
 **Workaround:** manually reinstall PyTorch with CUDA support after the app's first-run setup. See [Setup → GPU acceleration](./environment/setup.md#gpu-acceleration).
 
-**Pending fix:** detect available CUDA version during first-run setup and install the appropriate torch build automatically.
 
 ---
 
@@ -103,4 +76,4 @@ After integration, the Sonorus icon appears correctly in the taskbar, app switch
 - macOS: right-click the `.app` → Open → Open (once per install).
 - Windows: click "More info" → "Run anyway".
 
-**Permanent fix:** requires Apple Developer Program membership ($99/yr) for macOS notarization and an EV code-signing certificate ($300+/yr) for Windows SmartScreen reputation.
+**Note:** removing the warnings requires signed and notarized builds, which are not set up yet.

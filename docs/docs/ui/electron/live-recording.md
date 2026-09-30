@@ -1,31 +1,16 @@
 ---
-sidebar_position: 4
+sidebar_position: 3
 ---
 
 # Live Recording
 
-Implementation notes for the live meeting recording feature.
+How live recording works: sources, capture per platform, and the files involved. The renderer side of the flow (titlebar button, `_liveSession`, stop cases) is in [Electron UI → Live recording lifecycle](./overview.md#live-recording-lifecycle).
 
 ## Overview
 
-The user clicks **+** in the sidebar, chooses audio sources in the New Recording modal, and starts recording. Recording runs **in the background** — the app remains fully navigable. A **Record button** with a live timer appears in the titlebar. Clicking it stops the recording and immediately starts transcription.
+The user clicks **+** in the sidebar, chooses audio sources in the New Recording modal, and starts recording. Recording runs **in the background** — the app remains fully navigable. A **Record button** with a live timer appears in the titlebar. Clicking it stops the recording and adds it to the transcription queue.
 
-**Architecture:** mic capture stays in the renderer (WebM via `MediaRecorder`); system audio capture goes through the Python `AudioCaptureService` backend. The two tracks are merged server-side with `ffmpeg amix`.
-
----
-
-## Implementation status
-
-| Phase | Status |
-|---|---|
-| Phase 1 — Electron plumbing (permissions, IPC `save-recording`) | ✅ Done |
-| Phase 2 — Real audio device enumeration in Settings | ✅ Done |
-| Phase 3 — Live recording view (ready / recording / review states) | ✅ Done |
-| Phase 4 — Wire into existing UI | ✅ Done |
-| Phase 5 — System audio via backend (`AudioCaptureService`) | ✅ Done |
-| Phase 6 — Background recording UX (titlebar timer, no dedicated view) | ✅ Done |
-
-354 tests passing (11 audio capture tests + 343 existing).
+**Architecture:** mic capture stays in the renderer (WebM via `MediaRecorder`); system audio capture goes through the Python `AudioCaptureService` backend. On macOS and Linux the two tracks are merged server-side with `ffmpeg amix`; on Windows system audio comes from WASAPI loopback and is mixed in the renderer.
 
 ---
 
@@ -58,7 +43,7 @@ POST /audio/capture/stop/{job_id}  { mic_path: "..." }
   → sends SIGINT to capture process
   → merges with mic via ffmpeg amix=inputs=2:duration=shortest
   → returns { file_path: merged.wav }
-POST /transcribe  { audio_path: merged_path }
+POST /queue/jobs  { audio_path: merged_path }
 ```
 
 **Flow (Windows):**
