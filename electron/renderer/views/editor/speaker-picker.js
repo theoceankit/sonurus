@@ -117,11 +117,7 @@ function showSpeakerPicker(anchorEl, currentSpkId, knownSpeakers, transcriptId, 
       if (s.id === currentSpkId) row.classList.add('spk-picker-item--current')
       if (i === focusIdx) row.classList.add('spk-picker-item--focused')
 
-      const av = document.createElement('div')
-      av.className = 'spk-picker-av'
-      const p = speakerPalette(s.id, _pickerKnownMap)
-      av.style.background = p.color
-      av.textContent = speakerInitials(s.name)
+      const av = makeAvatar(s.id, s.name, 'sm', _pickerKnownMap)
 
       const nm = document.createElement('span')
       nm.className = 'spk-picker-item-name'

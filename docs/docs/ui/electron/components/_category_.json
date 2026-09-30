@@ -1,0 +1,8 @@
+{
+  "label": "Components",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "An element that repeats across the UI (an icon, a speaker avatar, …) is one component with named variants, not a copy per place. Each component has its own page here: API, variants, where it is used, and the test that keeps it that way."
+  }
+}

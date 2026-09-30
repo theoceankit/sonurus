@@ -97,42 +97,6 @@
   gap: 8px;
 }
 
-.focus-avatar-group {
-  display: flex;
-  align-items: center;
-}
-.focus-avatar-group .focus-header-av + .focus-header-av { margin-left: -5px; }
-.focus-avatar-group .focus-header-av:nth-child(1) { z-index: 5; }
-.focus-avatar-group .focus-header-av:nth-child(2) { z-index: 4; }
-.focus-avatar-group .focus-header-av:nth-child(3) { z-index: 3; }
-.focus-avatar-group .focus-header-av:nth-child(4) { z-index: 2; }
-.focus-avatar-group .focus-header-av:nth-child(5) { z-index: 1; }
-
-.focus-header-av {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 8px;
-  line-height: 1;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-  position: relative;
-  box-shadow: 0 0 0 1.5px var(--panel-bg);
-  letter-spacing: -0.01em;
-  padding-top: 1px;
-  user-select: none;
-}
-
-.focus-header-av--unknown {
-  background: color-mix(in srgb, black 6%, var(--panel-bg)) !important;
-  color: var(--ink-dim);
-  border: 0.5px solid rgba(0,0,0,0.14);
-}
-
 .focus-meta-text {
   font-size: 12px;
   color: var(--ink-dim);
@@ -390,20 +354,6 @@
   min-width: 0;
 }
 
-.seg-spk-av {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 7px;
-  font-weight: 700;
-  color: #fff;
-  user-select: none;
-}
-
 .seg-spk-chevron {
   color: var(--ink-dim);
   opacity: 0;
@@ -656,6 +606,7 @@
   background: #fff;
 }
 
+/* ── Speaker avatar (makeAvatar / makeAvatarStack in utils.js) ─────────────── */
 .spk-avatar {
   border-radius: 50%;
   display: inline-flex;
@@ -664,15 +615,28 @@
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
+  position: relative;
   letter-spacing: -0.01em;
-}
-
-.spk-avatar--unknown {
-  background: rgba(0,0,0,0.05);
-  color: var(--ink-dim);
-  border: 1px solid rgba(0,0,0,0.12);
   user-select: none;
 }
+.spk-avatar--xs { width: 16px; height: 16px; font-size: 7px; }
+.spk-avatar--sm { width: 20px; height: 20px; font-size: 9px; }
+.spk-avatar--md { width: 28px; height: 28px; font-size: 11px; }
+.spk-avatar--lg { width: 52px; height: 52px; font-size: 20px; }
+
+/* Opaque, so a "?" in a stack does not show the avatar under it */
+.spk-avatar--unknown {
+  background: color-mix(in srgb, black 7%, #fff);
+  color: var(--ink-dim);
+}
+
+/* Overlapping avatars; the container sets --avatar-ring to its background */
+.spk-avatar-stack {
+  display: flex;
+  align-items: center;
+}
+.spk-avatar-stack .spk-avatar { box-shadow: 0 0 0 1.5px var(--avatar-ring, var(--panel-bg)); }
+.spk-avatar-stack .spk-avatar + .spk-avatar { margin-left: -5px; }
 
 .spk-card-top {
   display: flex;
@@ -961,20 +925,6 @@
 .spk-picker-item--focused { background: rgba(0,0,0,0.05); }
 .spk-picker-item--current { background: var(--accent-bg); }
 .spk-picker-item--current.spk-picker-item--focused { background: rgba(10,132,255,0.15); }
-
-.spk-picker-av {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9.5px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-  user-select: none;
-}
 
 .spk-picker-item-name {
   flex: 1;
