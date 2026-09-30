@@ -50,6 +50,7 @@ function renderEditorView(transcriptId, meta = null) {
   const audio = new Audio()
   audio.preload = 'metadata'
   audio.volume = 0.8
+  let playheadShown = false  // set by the first timeupdate; until then no row is marked playing
   let playerAbortCtrl = null
   let rightPanelEl = null
 
@@ -238,22 +239,17 @@ function renderEditorView(transcriptId, meta = null) {
       el:    r,
     }))
     let _activeIdx = -1
-    audio.addEventListener('timeupdate', () => {
-      const t = audio.currentTime
-      let lo = 0, hi = segRowIndex.length - 1, found = -1
-      while (lo <= hi) {
-        const mid = (lo + hi) >> 1
-        const s = segRowIndex[mid]
-        if (s.end <= t)       lo = mid + 1
-        else if (s.start > t) hi = mid - 1
-        else                  { found = mid; break }
-      }
+    function showPlayhead() {
+      const found = activeSegmentIndex(segRowIndex, audio.currentTime)
       if (found !== _activeIdx) {
         if (_activeIdx >= 0) segRowIndex[_activeIdx].el.classList.remove('seg-row--playing')
         if (found >= 0)      segRowIndex[found].el.classList.add('seg-row--playing')
         _activeIdx = found
       }
-    }, { signal: playerAbortCtrl.signal })
+    }
+    audio.addEventListener('timeupdate', () => { playheadShown = true; showPlayhead() }, { signal: playerAbortCtrl.signal })
+    // A rebuilt list starts without the indicator, and a paused audio sends no timeupdate
+    if (playheadShown) showPlayhead()
 
     // ── Selection toolbar ─────────────────────────────────────────────────────
     segList.dataset.stream = 'true'
