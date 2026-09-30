@@ -1,8 +1,8 @@
 // ── Static data ────────────────────────────────────────────────────────────────
 // LANGUAGES and MODELS are loaded from data.js
 
-// TODO(not implemented): export format and include-* / duplicate options are
-// UI only — the titlebar export always copies plain text.
+// The Export section is UI only (the titlebar copy is always plain text), so its
+// card is marked unimplemented (not-implemented.js).
 const ST_EXPORT_FORMATS = [
   { id: 'txt',  label: 'Plain text', ext: '.txt',  desc: 'No formatting, raw transcript' },
   { id: 'md',   label: 'Markdown',   ext: '.md',   desc: 'Speakers as headers, timestamps inline' },
@@ -491,7 +491,8 @@ function makeAlignmentModelRow(model, state, onDownload, onDelete) {
 function buildInterfaceSection(state) {
   const langOpts = LANGUAGES.filter(l => l.code !== 'auto').map(l => ({ value: l.code, ...l }))
 
-  const langDrop = makeLangDropdown(langOpts, state.uiLang, v => { state.uiLang = v })
+  const langDrop = markNotImplemented(
+    makeLangDropdown(langOpts, state.uiLang, v => { state.uiLang = v }), 'settings.app-language')
 
   const slider = makeSlider(state.scale, 50, 200, 5, [
     { value: 50, label: '50%' }, { value: 100, label: '100%' },
@@ -725,7 +726,7 @@ function buildExportSection(state) {
   dupRow.appendChild(dupToggle)
   dupRow.appendChild(dupLbl)
 
-  return makeSectionCard([
+  return markNotImplemented(makeSectionCard([
     makeSectionHeader(
       icon('export', 18),
       'Export', 'Default format and destination for exports.'
@@ -733,7 +734,7 @@ function buildExportSection(state) {
     makeFieldRow('Default format', 'Used when exporting without selecting a format.', tilesWrap),
     makeFieldRow('Duplicate on export', 'Keeps the original and writes a copy.', dupRow),
     makeFieldRow('Include in export', 'Toggles affect every export format.', togglesWrap, true),
-  ])
+  ]), 'settings.export')
 }
 
 function buildAudioSection(state) {
@@ -777,10 +778,11 @@ function buildAudioSection(state) {
     }, renderDevOpt)
     micDrop.style.width = '260px'
 
-    const micToggle = makeToggle(state.recordingUseMic, v => {
+    // recordingUseMic is never read: the New recording modal's source picker decides.
+    const micToggle = markNotImplemented(makeToggle(state.recordingUseMic, v => {
       state.recordingUseMic = v
       saveSettings({ recordingUseMic: v })
-    })
+    }), 'settings.include-mic')
 
     // System audio: on macOS/Linux fetch sources from backend (bypasses Chromium restrictions).
     // On Windows use browser devices (WASAPI loopback is handled by Electron's setDisplayMediaRequestHandler).
