@@ -2,6 +2,8 @@
 // Shown when the user clicks Record or +. Collects audio source, devices,
 // model/language, and toggles before starting a live recording or importing
 // an audio file. While a recording runs (`recording`) it only imports.
+// Model and language start from the defaults in Settings; a choice made here
+// applies to this recording or import only and is not saved.
 
 function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   // ── State ──────────────────────────────────────────────────────────────────
@@ -190,7 +192,7 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
       }))
     return makeDropdown(
       opts, modelValue,
-      v => { modelValue = v; saveSettings({ transcribeModel: v }) },
+      v => { modelValue = v },
       (opt) => { const s = document.createElement('span'); s.textContent = opt.label; return s }
     )
   }
@@ -216,7 +218,7 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   langFieldLabel.textContent = 'Language'
   const langDropdown = makeDropdown(
     langOptions, langValue,
-    v => { langValue = v; saveSettings({ transcribeLang: v }) },
+    v => { langValue = v },
     (opt) => {
       const s = document.createElement('span')
       s.textContent = opt.label
