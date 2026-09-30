@@ -53,7 +53,7 @@ electron/
     index.html         — App shell: left sidebar + main panel
     setup.html         — First-run setup screen (shown during pip install)
     icons.js           — icon(name, size), hydrateIcons: renders files from assets/icons/
-    utils.js           — API_BASE, WS_BASE, speaker helpers, fmtTime, makeAvatar
+    utils.js           — API_BASE, WS_BASE, speaker helpers, fmtTime, speaker avatars (makeAvatar, makeAvatarStack)
     components.js      — makeDropdown (shared UI component)
     data.js            — LANGUAGES (static), MODELS (fallback), ALIGNMENT_MODELS (source of truth)
     file-drop.js       — initFileDrop: window drag-and-drop of audio files + drop overlay
@@ -227,6 +227,8 @@ The sidebar header has two tabs, **Transcripts** and **Speakers** (`.sb-tab`), e
 - **Delete** — **Delete speaker…** opens `openConfirmDialog()` with `deleteSpeakerPrompt()` (it says how many segments in how many transcripts become Unassigned) and calls `DELETE /speakers/{id}`. Like *Delete all data*, the button is disabled with the `dataResetBlockReason()` tooltip while a transcription job or live recording runs; the backend answers `409` in that case too.
 
 After a change the sidebar is reloaded so transcript avatars and the editor pick up new names and colors.
+
+Every speaker avatar (sidebar, editor, Speakers section, New speaker dialog) is one component with four size presets: [Speaker avatar](./components/speaker-avatar.md).
 
 ### Assigning a speaker in the editor
 
