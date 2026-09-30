@@ -608,9 +608,8 @@ const app = {
     }).catch(() => { if (autoOpen) { this.showHome(); this.openNewRecordingModal() } })
   },
 
-  // TODO(not implemented): the API has no `source` field and no marks yet, so
-  // "Notes" is always empty and "Marked" shows everything. The titlebar search
-  // (#tb-search-btn) has no handler.
+  // "Notes" and "Marked" are marked unimplemented (not-implemented.js): the API
+  // has no `source` field and no marks yet.
   _applyFilter(items) {
     if (this._filter === 'recordings') return items.filter(r => r.source !== 'note')
     if (this._filter === 'notes')      return items.filter(r => r.source === 'note')
@@ -883,6 +882,7 @@ const app = {
   // ── Init ────────────────────────────────────────────────────────────────────
 
   init() {
+    installNotImplementedGuard(document)
     loadSettings().then(() => this._loadSidebar({ autoOpen: true }))
     this._connectQueue()
 
@@ -913,6 +913,8 @@ const app = {
       })
 
     // ── Filter chips ──────────────────────────────────────────────────────────
+    markNotImplemented(document.querySelector('#sb-filter [data-filter="notes"]'), 'sidebar.filter-notes')
+    markNotImplemented(document.querySelector('#sb-filter [data-filter="marked"]'), 'sidebar.filter-marked')
     document.getElementById('sb-filter')
       .addEventListener('click', e => {
         const btn = e.target.closest('.sb-filter-btn')
@@ -923,10 +925,12 @@ const app = {
     document.getElementById('tb-back')
       .addEventListener('click', () => { if (this._currentView !== 'import') this.showHome() })
 
+    markNotImplemented(document.getElementById('tb-search-btn'), 'titlebar.search')
+
     // ── Titlebar — export / share ──────────────────────────────────────────────
     const exportBtn = document.getElementById('tb-export')
     attachSegTooltip(exportBtn, 'below')
-    // TODO(not implemented): ignores Settings → Export (format, include-* options)
+    // Plain text only; Settings → Export is marked unimplemented.
     exportBtn.addEventListener('click', () => {
       const rows = document.querySelectorAll('.seg-row')
       if (!rows.length) return
@@ -944,9 +948,7 @@ const app = {
 
     const shareBtn = document.getElementById('tb-share')
     attachSegTooltip(shareBtn, 'below')
-    shareBtn.addEventListener('click', () => window.showToast?.('Share is not available yet'))
-
-
+    markNotImplemented(shareBtn, 'titlebar.share')
 
     // ── Titlebar — record ──────────────────────────────────────────────────────
     document.getElementById('tb-record')

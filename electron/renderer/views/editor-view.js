@@ -69,7 +69,7 @@ function renderEditorView(transcriptId, meta = null) {
     const addBtn = document.createElement('button')
     addBtn.className = 'focus-tag focus-tag--add'
     addBtn.textContent = '+ tag'
-    addBtn.addEventListener('click', () => window.showToast?.('Tags coming in a future update'))
+    markNotImplemented(addBtn, 'editor.add-tag')
     row.appendChild(addBtn)
 
     return row
@@ -282,11 +282,7 @@ function renderEditorView(transcriptId, meta = null) {
       {
         label: 'Highlight',
         icon: icon('highlight', 13),
-        action() {
-          hideSelToolbar()
-          window.showToast?.('Highlights coming in a future update')
-          window.getSelection()?.removeAllRanges()
-        }
+        notImplemented: 'editor.highlight',
       },
     ]
 
@@ -300,7 +296,8 @@ function renderEditorView(transcriptId, meta = null) {
       btn.className = 'sel-action-btn'
       btn.innerHTML = item.icon + `<span>${item.label}</span>`
       btn.addEventListener('mousedown', e => e.preventDefault())
-      btn.addEventListener('click', item.action)
+      if (item.action) btn.addEventListener('click', item.action)
+      markNotImplemented(btn, item.notImplemented)
       selToolbar.appendChild(btn)
     })
 

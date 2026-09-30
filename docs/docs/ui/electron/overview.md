@@ -54,6 +54,7 @@ electron/
     setup.html         — First-run setup screen (shown during pip install)
     icons.js           — icon(name, size), hydrateIcons: renders files from assets/icons/
     utils.js           — API_BASE, WS_BASE, speaker helpers, fmtTime, speaker avatars (makeAvatar, makeAvatarStack)
+    not-implemented.js — registry + marking of controls whose feature does not exist yet (see Components)
     components.js      — makeDropdown (shared UI component)
     data.js            — LANGUAGES (static), MODELS (fallback), ALIGNMENT_MODELS (source of truth)
     file-drop.js       — initFileDrop: window drag-and-drop of audio files + drop overlay
@@ -123,6 +124,8 @@ Settings are stored in `app.getPath('userData')/settings.json`. The main process
 
 Default values are defined in `DEFAULT_SETTINGS` in `main.js` (used when `settings.json` is missing) and in `DEFAULT_APP_SETTINGS` in `app.js`. The renderer starts `appSettings` as a copy of `DEFAULT_APP_SETTINGS` and merges saved values on top via `Object.assign(appSettings, saved)`.
 
+Settings → **Export**, Interface → **App language** and Audio devices → **Include microphone** have no effect yet and are marked as [unimplemented controls](components/not-implemented.md).
+
 The last two sections of the Settings screen are destructive and use the same two-step confirmation (`Reset…` / `Delete…` → `Cancel` + a red confirm button):
 
 - **Reset to defaults** writes `DEFAULT_APP_SETTINGS` back to `settings.json` via `defaultSettingsPatch()` (`utils.js`), keeping `hfToken`, re-applies the zoom and re-renders the page. Transcripts, models and recordings are not touched.
@@ -160,7 +163,7 @@ Each segment row shows its actions on hover (`views/editor/segment-row.js`):
 |---|---|
 | Play | Seeks the editor audio to the segment start and plays |
 | Edit | Inline `contenteditable`; ⌘/Ctrl+Enter, the ✓ button or moving focus away saves (`PATCH /transcripts/{id}/segments/{start}/text`), Escape or ✕ cancels; unchanged or empty text is not sent |
-| Bookmark | Not implemented — shows a toast |
+| Bookmark | Not implemented — marked (see [Unimplemented controls](components/not-implemented.md)) |
 | Copy | Copies the segment text to the clipboard |
 | Delete | `DELETE /transcripts/{id}/segments/{start}`; the row fades out and the editor reloads |
 

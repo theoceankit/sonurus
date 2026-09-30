@@ -111,7 +111,7 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
 
   const editBtn = makeActionBtn('Edit segment', icon('edit', 12))
 
-  const bookmarkBtn = makeActionBtn('Save for later', icon('bookmark', 14))
+  const bookmarkBtn = markNotImplemented(makeActionBtn('Save for later', icon('bookmark', 14)), 'segment.bookmark')
 
   const copyBtn = makeActionBtn('Copy segment', icon('copy', 14))
 
@@ -119,7 +119,6 @@ function makeSegmentRow(seg, transcriptId, displayName, onReload, knownMap = {},
 
   playBtn.addEventListener('click', () => { if (audio) { audio.currentTime = seg.start; audio.play() } })
   editBtn.addEventListener('click', () => enterEditMode())
-  bookmarkBtn.addEventListener('click', () => window.showToast?.('Bookmarks coming in a future update'))
   copyBtn.addEventListener('click', () =>
     navigator.clipboard.writeText(seg.text)
       .then(() => window.showToast?.('Copied to clipboard'))

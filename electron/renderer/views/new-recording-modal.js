@@ -11,8 +11,8 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   let sysDeviceId   = appSettings.recordingSystemDevice || null
   let modelValue    = appSettings.transcribeModel       || 'large-v3'
   let langValue     = appSettings.transcribeLang        || 'auto'
-  // TODO(not implemented): `diarize` and `saveAudio` are persisted but not yet
-  // sent to the backend.
+  // `diarize` and `saveAudio` are persisted but not sent to the backend; both
+  // toggles are marked unimplemented (not-implemented.js).
   let diarize       = appSettings.recordingDiarize !== false
   let saveAudio     = appSettings.recordingSaveAudio    !== false
 
@@ -236,8 +236,8 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   togglesRow.className = 'nr-toggles'
 
   const TOGGLES = [
-    { label: 'Diarize speakers', get: () => diarize,   set: v => { diarize = v } },
-    { label: 'Save audio file',  get: () => saveAudio, set: v => { saveAudio = v } },
+    { label: 'Diarize speakers', get: () => diarize,   set: v => { diarize = v },   notImplemented: 'recording.diarize' },
+    { label: 'Save audio file',  get: () => saveAudio, set: v => { saveAudio = v }, notImplemented: 'recording.save-audio' },
   ]
 
   TOGGLES.forEach(t => {
@@ -253,6 +253,7 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
     }
     refresh()
     btn.addEventListener('click', () => { t.set(!t.get()); refresh() })
+    markNotImplemented(btn, t.notImplemented)
     togglesRow.appendChild(btn)
   })
   body.appendChild(togglesRow)
