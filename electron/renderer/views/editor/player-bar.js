@@ -14,6 +14,10 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
   const I_NEXT_SPK = icon('next-speaker', 17)
   const I_VOLUME   = icon('volume', 16)
 
+  // The audio element outlives the player bar (rebuilt after every edit), so every
+  // control starts from its current state, not defaults: its events do not fire again.
+  const clock = playerClock(audio)
+
   function makeBtn(html, cls = '') {
     const btn = document.createElement('button')
     btn.className = 'player-btn' + (cls ? ' ' + cls : '')
@@ -23,7 +27,7 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
 
   const prevSpkBtn = makeBtn(I_PREV_SPK)
   const prev15Btn  = makeBtn(I_PREV_15)
-  const playBtn    = makeBtn(I_PLAY, 'player-btn--play')
+  const playBtn    = makeBtn(clock.playing ? I_PAUSE : I_PLAY, 'player-btn--play')
   const next15Btn  = makeBtn(I_NEXT_15)
   const nextSpkBtn = makeBtn(I_NEXT_SPK)
 
@@ -34,7 +38,7 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
   // ── Elapsed ────────────────────────────────────────────────────────────────
   const elapsed = document.createElement('span')
   elapsed.className = 'player-time'
-  elapsed.textContent = '00:00'
+  elapsed.textContent = clock.elapsed
 
   // ── Waveform ───────────────────────────────────────────────────────────────
   const _km = buildKnownMap(knownSpeakers)
@@ -44,11 +48,9 @@ function makePlayerBar(transcript, audio, signal, knownSpeakers = []) {
   const total = document.createElement('span')
   total.className = 'player-time'
   total.style.textAlign = 'right'
-  total.textContent = '00:00'
+  total.textContent = clock.total
 
   // ── Speed ─────────────────────────────────────────────────────────────────
-  // The audio element outlives the player bar (rebuilt after every edit), so
-  // speed and volume controls start from its current state, not defaults.
   const SPEEDS = [1, 1.2, 1.5, 2]
   let speedIdx = Math.max(0, SPEEDS.indexOf(audio.playbackRate))
   const speedBtn = document.createElement('button')

@@ -167,6 +167,8 @@ Each segment row shows its actions on hover (`views/editor/segment-row.js`):
 | Copy | Copies the segment text to the clipboard |
 | Delete | `DELETE /transcripts/{id}/segments/{start}`; the row fades out and the editor reloads |
 
+Assigning a speaker or deleting a segment reloads the editor: `reload()` rebuilds the whole view and keeps the scroll position (`preserveScroll()`). So that no row moves, a segment row's layout does not depend on its speaker — there is no extra gap where the speaker changes, and the speaker name is one line of fixed height (a long name ends with …). The editor's `Audio` element survives the rebuild; the new player bar takes its time, duration and play state from it (`playerClock()`), and the playing row is marked again at once (`activeSegmentIndex()`) once playback or a seek has marked one.
+
 ---
 
 ## Live recording lifecycle
