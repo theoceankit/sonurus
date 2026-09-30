@@ -14,6 +14,8 @@ FastAPI server (`app/api/main.py`) — start with:
 
 Interactive docs available at `http://localhost:8000/docs`.
 
+The API version (`info.version` in `/openapi.json`) is the product version, resolved by `app/version.py`: `SONORUS_VERSION` (set by Electron from `package.json` when it starts the backend) → the `version` field of the repo's `package.json` (a backend started by hand) → `unknown`.
+
 ---
 
 ## Audio Capture
