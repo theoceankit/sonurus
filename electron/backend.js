@@ -232,6 +232,7 @@ async function startBackend(hfToken = '', onProgress = null) {
     LOG_FILE: path.join(userData, 'sonorus.log'),
     PYTHONUNBUFFERED: '1',
     VERBOSE: 'false',
+    SONORUS_VERSION: app.getVersion(),
   }
 
   if (isPackagedMode()) {
