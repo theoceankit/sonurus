@@ -54,3 +54,11 @@ body {
 }
 button { font-family: inherit; cursor: pointer; border: none; background: none; }
 
+
+/* ── Unimplemented control (not-implemented.js) ─────────────────────────────
+   Dimmed but clickable: a click shows "Not available yet". The help cursor
+   tells it apart from a disabled control (default cursor, no reaction).
+   !important: component rules set cursor: pointer on the control and its parts. */
+.not-implemented { opacity: 0.45; }
+.not-implemented,
+.not-implemented * { cursor: help !important; }

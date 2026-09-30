@@ -71,6 +71,11 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
   tabBar.appendChild(seg)
 
   const TABS = ['Speakers', 'Chapters', 'Notes', 'Activity']
+  const UNIMPLEMENTED_TABS = {
+    Chapters: 'editor.tab-chapters',
+    Notes:    'editor.tab-notes',
+    Activity: 'editor.tab-activity',
+  }
   let activeTab = 'Speakers'
 
   const content = document.createElement('div')
@@ -88,13 +93,8 @@ function makeRightPanel(transcript, knownSpeakers, transcriptId, onReload, audio
     const btn = document.createElement('button')
     btn.className = 'right-tab-btn' + (label === activeTab ? ' right-tab-btn--active' : '')
     btn.textContent = label
-    btn.addEventListener('click', () => {
-      if (label !== 'Speakers') {
-        window.showToast?.(`${label} is not available yet`)
-        return
-      }
-      setTab(label)
-    })
+    btn.addEventListener('click', () => setTab(label))
+    markNotImplemented(btn, UNIMPLEMENTED_TABS[label])
     seg.appendChild(btn)
   })
 
