@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Logging
 
-Structured logging for the application pipeline, database operations, and speaker memory. On by default for both the API server and CLI — can be silenced or changed via environment variables.
+Structured logging for the application pipeline, database operations, and speaker memory. On by default for the API server — can be silenced or changed via environment variables.
 
 ---
 
