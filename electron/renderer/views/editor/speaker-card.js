@@ -25,7 +25,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
     const top = document.createElement('div')
     top.className = 'spk-card-top'
 
-    const avatar = makeAvatar(spkId, displayName, 28, _knownMap)
+    const avatar = makeAvatar(spkId, displayName, 'md', _knownMap)
 
     const info = document.createElement('div')
     info.className = 'spk-card-info'
@@ -142,7 +142,7 @@ function makeSpeakerCard(spkId, displayName, segCount, totalSec, transcriptDurSe
   const top = document.createElement('div')
   top.className = 'spk-card-top'
 
-  const avatar = makeAvatar(spkId, displayName, 28, _knownMap)
+  const avatar = makeAvatar(spkId, displayName, 'md', _knownMap)
   const info = document.createElement('div')
   info.className = 'spk-card-info'
 

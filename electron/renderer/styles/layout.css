@@ -374,28 +374,8 @@
   font-size: 11px;
 }
 
-.rec-avatars {
-  display: flex;
-  align-items: center;
-  margin-left: auto;
-}
-
-.rec-avatar {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  font-size: 7px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  position: relative;
-}
-.rec-avatar + .rec-avatar { margin-left: -5px; }
-.rec-avatars .rec-avatar:nth-child(1) { z-index: 3; }
-.rec-avatars .rec-avatar:nth-child(2) { z-index: 2; }
-.rec-avatars .rec-avatar:nth-child(3) { z-index: 1; }
+.rec-item { --avatar-ring: var(--sidebar-bg); }
+.rec-item--active { --avatar-ring: #0A84FF; }
 
 /* ── Sidebar footer ────────────────────────────────────────────────────────── */
 

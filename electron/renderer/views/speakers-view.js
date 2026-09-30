@@ -33,7 +33,7 @@ function makeSpeakerListItem(row, { active = false, duplicate = false, onClick }
   meta.textContent = speakerStatsLine(row)
 
   info.append(nameRow, meta)
-  btn.append(_speakerAvatar(row, 28), info)
+  btn.append(_speakerAvatar(row, 'md'), info)
   btn.addEventListener('click', onClick)
   return btn
 }
@@ -127,7 +127,7 @@ function renderSpeakerDetail(row, ctx) {
 
   const top = document.createElement('div')
   top.className = 'spk-page-top'
-  top.appendChild(_speakerAvatar(row, 52))
+  top.appendChild(_speakerAvatar(row, 'lg'))
 
   const titleBox = document.createElement('div')
   titleBox.className = 'spk-page-title-box'
