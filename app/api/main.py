@@ -16,6 +16,7 @@ from app.logger import setup_logging
 from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data
 from app.api.dependencies import get_memory_service, get_storage_service, get_transcription_queue
 from app.services.audio_store import remove_orphan_imports
+from app.version import get_version
 import app.config as config
 
 setup_logging(default_level="info")
@@ -35,7 +36,7 @@ async def lifespan(app: FastAPI):
     models.shutdown_executor()
 
 
-app = FastAPI(title="Sonorus API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Sonorus API", version=get_version(), lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

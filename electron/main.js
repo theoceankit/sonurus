@@ -94,6 +94,7 @@ ipcMain.handle('open-file', async () => {
 })
 
 ipcMain.handle('get-platform', () => process.platform)
+ipcMain.handle('get-app-version', () => app.getVersion())
 
 ipcMain.handle('write-clipboard', (_e, text) => { clipboard.writeText(text) })
 
