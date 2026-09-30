@@ -174,6 +174,12 @@ function formatDataResetSummary({ transcripts, speakers, files }) {
   return `Deleted ${n(transcripts, 'transcript')}, ${n(speakers, 'speaker')} and ${n(files, 'file')}.`
 }
 
+// Version line at the bottom of Settings; the version comes from package.json.
+function formatAppVersion(version) {
+  const v = typeof version === 'string' ? version.trim() : ''
+  return v && v !== 'unknown' ? `Sonorus ${v}` : 'Sonorus'
+}
+
 // ── Sidebar: delete transcript ──────────────────────────────────────────────────
 function withoutRecording(items, id) {
   return items.filter(r => r.id !== id)

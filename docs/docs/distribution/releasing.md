@@ -35,6 +35,12 @@ Update `package.json`:
 { "version": "0.2.0" }
 ```
 
+`package.json` is the only place the product version is written. From there it reaches:
+
+- the build — electron-builder uses it for the app version and artifact names;
+- the app — the line "Sonorus 0.2.0" at the bottom of Settings (`app.getVersion()`);
+- the API — Electron starts the backend with `SONORUS_VERSION`, reported as `info.version` in `/openapi.json`.
+
 Commit:
 ```bash
 git add package.json

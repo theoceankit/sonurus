@@ -962,6 +962,14 @@ function renderSettingsView() {
     content.appendChild(anchor)
   })
 
+  const version = document.createElement('div')
+  version.className = 'st-version'
+  version.textContent = formatAppVersion()
+  window.electronAPI.getAppVersion()
+    .then(v => { version.textContent = formatAppVersion(v) })
+    .catch(() => {})
+  content.appendChild(version)
+
   root.appendChild(content)
   root._cleanup = () => Object.values(state.activeDownload || {}).forEach(d => d.ws?.close())
   return root

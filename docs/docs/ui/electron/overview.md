@@ -94,6 +94,7 @@ electron/
 | `writeClipboard(text)` | Write text to the system clipboard |
 | `onSetupProgress(callback)` | Subscribe to first-run setup progress events |
 | `getPlatform()` | Returns `process.platform` (`'win32'`, `'darwin'`, `'linux'`) |
+| `getAppVersion()` | Returns `app.getVersion()` — the `version` field of `package.json` |
 | `startSetup()` | Signal main process that the renderer is ready to begin setup |
 | `completeSetup()` | Signal main process that setup is complete — opens the main window |
 
@@ -126,6 +127,8 @@ The last two sections of the Settings screen are destructive and use the same tw
 
 - **Reset to defaults** writes `DEFAULT_APP_SETTINGS` back to `settings.json` via `defaultSettingsPatch()` (`utils.js`), keeping `hfToken`, re-applies the zoom and re-renders the page. Transcripts, models and recordings are not touched.
 - **Delete all data** calls `POST /data/reset`, then clears `_activeTranscriptId`, reloads the sidebar (transcripts and the Speakers list) and shows a toast built by `formatDataResetSummary()`. The trigger button is disabled (with the reason from `dataResetBlockReason()` as its tooltip) while a background transcription job or a live recording is running; the backend enforces the same rule with `409`. Models, preferences and the user's original imported files are kept (the app's copies in `recordings/` are removed).
+
+Below the last section a muted line shows the product version, "Sonorus 0.2.0" (`.st-version`, text from `formatAppVersion()` in `utils.js` with `electronAPI.getAppVersion()`; just "Sonorus" if the version is unknown). It can be selected and copied.
 
 `hfToken` is part of `appSettings` in the renderer (Settings → API Keys edits it, and it is sent as `hf_token` with model download requests). `main.js` reads it once at startup to set `HF_TOKEN` for the backend process, so a changed token reaches the transcription pipeline only after an app restart.
 
