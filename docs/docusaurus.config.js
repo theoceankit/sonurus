@@ -113,7 +113,7 @@ const config = {
             items: [
               { label: 'GitHub', href: 'https://github.com/theoceankit/sonurus' },
               { label: 'Known Issues', to: '/known-issues' },
-              { label: 'Roadmap', to: '/roadmap' },
+              { label: 'Product Vision', to: '/roadmap/vision' },
             ],
           },
         ],
