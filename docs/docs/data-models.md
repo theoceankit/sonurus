@@ -62,7 +62,7 @@ Three fields form a hierarchy — the first non-null value always wins:
 speaker_final  →  speaker_resolved  →  speaker_raw
 ```
 
-This priority is applied everywhere: in `CommitService`, `TranscriptStorageService`, the CLI view, and the controller.
+This priority is applied everywhere: in `CommitService`, `TranscriptStorageService`, the Electron editor, and the controller.
 
 ### `embedding` field
 
@@ -81,7 +81,7 @@ TranscriptBuilder.build()
 TranscriptBuilder.attach_embeddings()
     → segment.embedding populated where possible
 
-user review (CLI / Electron editor)
+user review (Electron editor)
     → user sets speaker_final on corrected segments
 
 CommitService.commit()
