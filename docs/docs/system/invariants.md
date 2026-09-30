@@ -83,7 +83,7 @@ It must never use the aggregated embeddings produced by `EmbeddingService.extrac
 
 **Dirty tracking:** `SpeakerMemoryService.save()` only writes to `speaker_embeddings` for speakers marked dirty by `update_embedding()`, and only writes `speaker_names` rows for names changed by `set_name()` on that instance. This prevents a long-lived instance with stale in-memory state (the API singleton or a pipeline job) from overwriting embeddings or names written by another instance.
 
-**Target state:** The principle stays. Further improvement: store multiple embedding vectors per speaker and use clustering instead of a single averaged vector, which would better handle voice variation across sessions.
+**Target state:** The principle stays.
 
 ---
 
@@ -113,4 +113,4 @@ During `resolve()`, each known speaker may be matched to at most one new `SPEAKE
 
 **In code:** `app/services/speaker_memory_service.py` — `resolve()` maintains `assigned_new` and `assigned_known` sets; any candidate where either side is already taken is skipped.
 
-**Target state:** The one-to-one exclusivity invariant stays. Replace the greedy algorithm with the Hungarian algorithm (optimal assignment) to guarantee the globally best matching — not just the locally best. The greedy approach produces correct results for 2–5 speakers but can make suboptimal choices when similarity scores are close and there are many candidates.
+**Target state:** The principle stays. Greedy assignment is correct for the usual 2–5 speakers but is not globally optimal when similarity scores are close and there are many candidates.
