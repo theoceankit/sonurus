@@ -224,13 +224,11 @@ function renderEditorView(transcriptId, meta = null) {
     const segList = document.createElement('div')
     segList.className = 'seg-list quiet-scroll'
 
-    let prevSpkId = null
-    transcript.segments.forEach((seg, i) => {
+    // A row's layout must not depend on its speaker: a speaker change rebuilds the
+    // list, and rows above the viewport growing or shrinking would move the ones in it.
+    transcript.segments.forEach(seg => {
       const spkId = effectiveSpeaker(seg)
-      const row = makeSegmentRow(seg, transcriptId, displayName(spkId), reload, knownMap, knownSpeakers, audio)
-      if (i > 0 && spkId !== prevSpkId) row.classList.add('seg-row--speaker-break')
-      prevSpkId = spkId
-      segList.appendChild(row)
+      segList.appendChild(makeSegmentRow(seg, transcriptId, displayName(spkId), reload, knownMap, knownSpeakers, audio))
     })
 
     // Wire playing indicator — binary-search index for O(log N) timeupdate

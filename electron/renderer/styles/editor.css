@@ -299,7 +299,6 @@
 .seg-row--playing { border-left-color: var(--accent); }
 .seg-row--editing::before,
 .seg-row--editing:hover::before { background: var(--accent-bg-3); }
-.seg-row--speaker-break { margin-top: 6px; }
 
 .seg-time {
   font-family: var(--mono);
@@ -364,14 +363,22 @@
 }
 .seg-row:hover .seg-spk-chevron { opacity: 0.6; }
 
+/* One line of fixed height whatever the name: a row must keep its height when its
+   speaker changes. line-height = the xs avatar; fallback fonts (CJK, Thai, …) would
+   make the line taller. overflow-y stays visible, so tall marks are not cut off. */
 .seg-speaker-name {
   font-size: 12.5px;
   font-weight: 600;
+  line-height: 16px;
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
   letter-spacing: -0.005em;
+  min-width: 0;
+  white-space: nowrap;
+  overflow-x: clip;
+  text-overflow: ellipsis;
 }
 
 .seg-text {
