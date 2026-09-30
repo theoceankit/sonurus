@@ -409,3 +409,27 @@ function preserveScroll(container, selectors) {
     if (el) el.scrollTop = top
   })
 }
+
+// What the player bar shows for the audio element. The element outlives the rebuilt
+// bar, and its events (durationchange, play) do not fire again for the new one.
+function playerClock(audio) {
+  return {
+    elapsed: fmtTime(audio.currentTime || 0),
+    total: isFinite(audio.duration) ? fmtTime(audio.duration) : '00:00',
+    playing: !audio.paused,
+  }
+}
+
+// Index of the segment playing at time t (start ≤ t < end) in segments sorted by
+// start, or -1. Binary search: runs on every timeupdate.
+function activeSegmentIndex(segments, t) {
+  let lo = 0, hi = segments.length - 1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    const s = segments[mid]
+    if (s.end <= t)       lo = mid + 1
+    else if (s.start > t) hi = mid - 1
+    else                  return mid
+  }
+  return -1
+}
