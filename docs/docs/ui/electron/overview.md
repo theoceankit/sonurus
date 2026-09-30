@@ -323,7 +323,7 @@ A live recording does not block drops: it pauses the queue, so dropped files wai
 ## Icons
 
 Every UI icon is a file in `electron/assets/icons/`, rendered by `icons.js` as a CSS mask over
-`currentColor`. Usage, file rules and where each icon is used: [Icons](./icons.md).
+`currentColor`. Usage, file rules and where each icon is used: [Icons](./components/icons.md).
 
 ---
 
