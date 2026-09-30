@@ -610,7 +610,7 @@ const app = {
 
   // TODO(not implemented): the API has no `source` field and no marks yet, so
   // "Notes" is always empty and "Marked" shows everything. The titlebar search
-  // (#tb-search-btn) has no handler. See roadmap "UI without business logic".
+  // (#tb-search-btn) has no handler.
   _applyFilter(items) {
     if (this._filter === 'recordings') return items.filter(r => r.source !== 'note')
     if (this._filter === 'notes')      return items.filter(r => r.source === 'note')

@@ -132,9 +132,9 @@ const DOC_CARDS = [
         <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" />
       </svg>
     ),
-    title: 'Roadmap',
-    desc: 'Planned features and architectural improvements, organised by area.',
-    to: '/roadmap',
+    title: 'Product Vision',
+    desc: 'The target feature set of the product as a whole.',
+    to: '/roadmap/vision',
   },
   {
     icon: (
@@ -144,7 +144,7 @@ const DOC_CARDS = [
       </svg>
     ),
     title: 'Known Issues',
-    desc: 'Open bugs with severity ratings and planned fix descriptions.',
+    desc: 'Known limitations of the current version and how to work around them.',
     to: '/known-issues',
     wide: true,
   },
@@ -391,7 +391,7 @@ export default function Home() {
             <span className={styles.eyebrow}>Documentation</span>
             <h2 className={styles.hSec}>Everything you need to build with Sonorus</h2>
             <p className={styles.subSec}>
-              Architecture deep-dives, API reference, invariants, and the full roadmap —
+              Architecture deep-dives, API reference, invariants, and the product vision —
               all in one place.
             </p>
           </div>

@@ -131,6 +131,14 @@ The last two sections of the Settings screen are destructive and use the same tw
 
 ---
 
+## Model management
+
+Settings → **ML Models** lists the Whisper models and the diarization models; Settings → **Alignment Models** lists the per-language wav2vec2 models. Install status comes from `GET /models` when the page opens. Each row downloads (`POST /models/{id}/download`, with `hf_token` from `appSettings`), shows progress from `WS /ws/models/{job_id}`, can cancel a running download (`DELETE /models/{id}/download/{job_id}`) and deletes an installed model (`DELETE /models/{id}`). Picking an installed Whisper model saves it as `transcribeModel` in `settings.json`; new jobs (imports, drops, recordings) use it with `transcribeLang`.
+
+`POST /queue/jobs` refuses a job whose Whisper, diarization or (explicit-language) alignment model is not installed. With auto-detected language a missing alignment model fails the job with `alignment_model_missing`, handled by `alignment-modal.js` (see [Transcription queue](#transcription-queue)). See [API → Models](../../api/endpoints.md) for the catalog.
+
+---
+
 ## Audio playback
 
 The transcript editor creates a single persistent `Audio` element per editor session. Its `src` is set to `fileUrl(transcript.audio_path)` (`utils.js`) — a `file://` URL built from the filesystem path returned by the API, with every path segment percent-encoded so spaces, non-ASCII characters, `#` and `?` survive, and Windows drive letters handled. The encoded form is stable under browser URL normalisation, so the `audio.src !== audioSrc` check does not reset playback on every editor rebuild. This works because the renderer page is loaded via `file://`, so `file:` is covered by the `default-src 'self'` CSP directive (explicitly enumerated as `media-src 'self' file:` in `index.html`).
@@ -139,9 +147,25 @@ The audio element survives editor rebuilds (triggered by speaker rename, segment
 
 ---
 
+## Transcript editor
+
+The titlebar **Back** button returns to the home view (`app.showHome()`); it is disabled on the home view itself.
+
+Each segment row shows its actions on hover (`views/editor/segment-row.js`):
+
+| Action | Behaviour |
+|---|---|
+| Play | Seeks the editor audio to the segment start and plays |
+| Edit | Inline `contenteditable`; ⌘/Ctrl+Enter, the ✓ button or moving focus away saves (`PATCH /transcripts/{id}/segments/{start}/text`), Escape or ✕ cancels; unchanged or empty text is not sent |
+| Bookmark | Not implemented — shows a toast |
+| Copy | Copies the segment text to the clipboard |
+| Delete | `DELETE /transcripts/{id}/segments/{start}`; the row fades out and the editor reloads |
+
+---
+
 ## Live recording lifecycle
 
-Recording runs entirely in the background — no dedicated recording view. The flow is:
+Recording runs entirely in the background — no dedicated recording view. Capture per platform, sources and the backend side are described in [Live Recording](./live-recording.md). The flow is:
 
 1. User clicks **+** → `new-recording-modal.js` opens (source picker, model/language)
 2. "Start recording" → modal closes; `app._startLiveRecording(settings)` runs. It first sends `POST /queue/recording/start`: the queue pauses and a running transcription stops at once, so the recording gets the CPU/GPU
