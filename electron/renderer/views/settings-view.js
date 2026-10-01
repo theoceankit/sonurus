@@ -527,7 +527,10 @@ function makeStartModeDropdown() {
 
 function buildModelsSection(state, rerender) {
   const langOpts = LANGUAGES.map(l => ({ value: l.code, ...l }))
-  const langDrop = makeLangDropdown(langOpts, state.transcribeLang, v => { state.transcribeLang = v })
+  const langDrop = makeLangDropdown(langOpts, state.transcribeLang, v => {
+    state.transcribeLang = v
+    saveSettings({ transcribeLang: v })
+  })
 
   const modelRows = document.createElement('div')
   modelRows.className = 'st-model-list'
