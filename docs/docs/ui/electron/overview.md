@@ -87,7 +87,7 @@ electron/
 
 | Method | Description |
 |---|---|
-| `openFile()` | Native file-open dialog (audio/video filter) |
+| `openFiles()` | Native file-open dialog (audio/video filter, several files); resolves to the picked paths, `[]` when cancelled |
 | `getFilePath(file)` | Resolve a dropped `File` object to a filesystem path |
 | `readSettings()` | Read `settings.json` from `app.getPath('userData')` |
 | `writeSettings(data)` | Write `settings.json` to `app.getPath('userData')` |
@@ -290,7 +290,7 @@ The backend owns the queue ([Transcription Queue](../../services/TranscriptionQu
 - **Order:** drag a card onto another (`app._attachJobDrag()`); the upper / lower half of the target decides before / after (`dropPlace()`), `reorderJobIds()` builds the new order and `PUT /queue/order` stores it. The insertion line is a shadow, so no card moves while dragging. Snapshots that arrive during a drag are kept and drawn at `dragend`, because rebuilding the cards would end the drag. Only drags carrying a job id (`application/x-sonorus-job`) are handled; file drops stay with `file-drop.js`.
 - Queue calls go through `app._queueRequest()`: an error becomes a toast.
 
-**Adding jobs:** `app._importFiles(paths, options)` posts `importRequest()` (`POST /queue/jobs`) one file at a time; the card appears with the next snapshot. Used by the New Recording modal, window drops and a stopped recording.
+**Adding jobs:** `app._importFiles(entries, options)` posts `importRequest()` (`POST /queue/jobs`) one file at a time, in order; the card appears with the next snapshot. An entry is a path (titled by `options.title`) or `{ filePath, title }`. Used by the New Recording modal, window drops and a stopped recording.
 
 **Start mode:** Settings → ML Models → **Start transcription** (`Automatically` / `Manually`), stored by the backend (`PUT /queue/settings`), not in `settings.json`.
 
@@ -310,10 +310,11 @@ Audio files dropped on the window go straight to the transcription queue — no 
 
 A live recording does not block drops: it pauses the queue, so dropped files wait at the end of it.
 
-- Supported types are `SUPPORTED_AUDIO_EXTENSIONS` (`utils.js`, same list as the file dialog filter in `main.js`), checked by `isSupportedAudio()`. Other files are skipped with a toast ("Skipped N unsupported files"); the New Recording modal rejects them too.
-- Several files are sent one `POST /queue/jobs` at a time by `app._importFiles()` (shared with the modal), in drop order. Each request waits while the backend copies the file into `recordings/`, so a toast ("Importing N files…") is shown right away.
+- Supported types are `SUPPORTED_AUDIO_EXTENSIONS` (`utils.js`, same list as the file dialog filter in `main.js`), checked by `isSupportedAudio()`. Other files are skipped with a toast ("Skipped N unsupported files"); the New Recording modal skips them the same way (`skippedFilesToast()`).
+- Several files are sent one `POST /queue/jobs` at a time by `app._importFiles()` (shared with the modal), in drop order. Each request waits while the backend copies the file into `recordings/`, so a toast ("Importing N files…", `importStartToast()`) is shown right away.
 - Model and language come from `appSettings.transcribeModel` / `transcribeLang` (`importRequest()`); the title is left `null`, so the backend uses the file name without its extension (the job card shows the same).
 - A drop that a drop zone below already handled (`defaultPrevented`, i.e. the modal) is skipped, otherwise the modal — already closed by then — would be imported twice.
+- The **New Recording modal** imports several files too: dropped on it, or picked in its file dialog (`openFiles()`). `modalImportItems()` (`utils.js`) keeps the supported files in order and sets the titles: one file keeps a title typed in the modal; the untouched default title, a blank one or several files leave it `null`, so each job gets its file name. The modal's model and language apply to every file; with no supported file the modal stays open.
 - `dragover` / `drop` with files are always cancelled, in every view: an unhandled file drop makes Electron open the file in the window.
 
 ---
