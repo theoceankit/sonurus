@@ -14,8 +14,7 @@ function setup(settings = {}) {
   const dropdowns = []
   const saved = []
   const appSettings = { transcribeModel: 'medium', transcribeLang: 'de', ...settings }
-  const ctx = loadRenderer(['data.js', 'views/settings-view.js', 'views/new-recording-modal.js'], {
-    API_BASE: 'http://api',
+  const ctx = loadRenderer(['utils.js', 'data.js', 'views/settings-view.js', 'views/new-recording-modal.js'], {
     appSettings,
     app: { _queue: null },
     document: {
@@ -24,15 +23,13 @@ function setup(settings = {}) {
       removeEventListener() {},
     },
     window: {
-      electronAPI: { getPlatform: pending, openFile: async () => '/audio/call.wav' },
+      electronAPI: { getPlatform: pending, openFiles: async () => ['/audio/call.wav'] },
     },
     navigator: {},
     fetch: pending,
     setTimeout,
     icon: () => '',
     markNotImplemented() {},
-    listSystemAudioSources: pending,
-    isSupportedAudio: () => true,
     saveSettings: patch => { saved.push(patch); Object.assign(appSettings, patch) },
     makeDropdown: (options, value, onChange) => {
       const dropdown = { values: options.map(o => o.value), value, onChange }
@@ -110,7 +107,7 @@ test('Modal: an import uses the model and language chosen in the modal', async (
   await flush()
 
   assert.equal(calls.import.length, 1)
-  assert.equal(calls.import[0].filePath, '/audio/call.wav')
+  assert.equal(calls.import[0].items[0].filePath, '/audio/call.wav')
   assert.equal(calls.import[0].model, 'small')
   assert.equal(calls.import[0].language, 'ru')
   assert.deepEqual(s.saved, [])

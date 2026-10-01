@@ -4,7 +4,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron')
 contextBridge.exposeInMainWorld('electronAPI', {
   getPlatform:     () => ipcRenderer.invoke('get-platform'),
   getAppVersion:   () => ipcRenderer.invoke('get-app-version'),
-  openFile:        () => ipcRenderer.invoke('open-file'),
+  openFiles:       () => ipcRenderer.invoke('open-files'),
   getFilePath:     (file) => webUtils.getPathForFile(file),
   readSettings:    () => ipcRenderer.invoke('read-settings'),
   writeSettings:   (data) => ipcRenderer.invoke('write-settings', data),
