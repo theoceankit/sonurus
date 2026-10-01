@@ -91,6 +91,19 @@ test('no inline SVG icons left in the renderer', () => {
   assert.deepEqual(found, [])
 })
 
+test('no renderer script declares a local named icon', () => {
+  // A local `icon` hides the global icon() in its scope; a call there throws,
+  // and inside a promise chain the error can be swallowed silently.
+  const found = []
+  for (const file of rendererSources().filter(f => f.endsWith('.js'))) {
+    const lines = fs.readFileSync(file, 'utf8').split('\n')
+    lines.forEach((line, i) => {
+      if (/\b(?:const|let|var)\s+icon\b/.test(line)) found.push(`${path.relative(RENDERER_DIR, file)}:${i + 1}`)
+    })
+  }
+  assert.deepEqual(found, [])
+})
+
 test('renderer scripts parse after icon substitutions', () => {
   const vm = require('node:vm')
   for (const file of rendererSources().filter(f => f.endsWith('.js'))) {

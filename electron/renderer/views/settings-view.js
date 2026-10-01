@@ -63,9 +63,9 @@ function makeSectionHeader(iconHtml, label, sub) {
   const wrap = document.createElement('div')
   wrap.className = 'st-section-header'
 
-  const icon = document.createElement('div')
-  icon.className = 'st-section-icon'
-  icon.innerHTML = iconHtml
+  const iconEl = document.createElement('div')
+  iconEl.className = 'st-section-icon'
+  iconEl.innerHTML = iconHtml
 
   const text = document.createElement('div')
   const t = document.createElement('div')
@@ -77,7 +77,7 @@ function makeSectionHeader(iconHtml, label, sub) {
   text.appendChild(t)
   text.appendChild(s)
 
-  wrap.appendChild(icon)
+  wrap.appendChild(iconEl)
   wrap.appendChild(text)
   return wrap
 }
@@ -391,9 +391,9 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
     row.classList.toggle('st-model-row--selected', isSelected)
     row.innerHTML = ''
 
-    const icon = document.createElement('div')
-    icon.className = 'st-model-icon' + (isSelected ? ' st-model-icon--selected' : '')
-    icon.innerHTML = isDiarization
+    const iconEl = document.createElement('div')
+    iconEl.className = 'st-model-icon' + (isSelected ? ' st-model-icon--selected' : '')
+    iconEl.innerHTML = isDiarization
       ? icon('speakers', 17)
       : icon('waveform', 17)
 
@@ -415,7 +415,7 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
     info.appendChild(nameRow)
     info.appendChild(meta)
 
-    row.appendChild(icon)
+    row.appendChild(iconEl)
     row.appendChild(info)
     row.appendChild(_makeStatusBadge(installed, downloading))
     row.appendChild(_makeModelActions(model.id, state, {
@@ -449,10 +449,10 @@ function makeAlignmentModelRow(model, state, onDownload, onDelete) {
 
     row.innerHTML = ''
 
-    const icon = document.createElement('div')
-    icon.className = 'st-model-icon'
-    icon.style.cssText = 'display:flex;align-items:center;justify-content:center;font-size:19px'
-    icon.textContent = flag
+    const iconEl = document.createElement('div')
+    iconEl.className = 'st-model-icon'
+    iconEl.style.cssText = 'display:flex;align-items:center;justify-content:center;font-size:19px'
+    iconEl.textContent = flag
 
     const info = document.createElement('div')
     info.className = 'st-model-info'
@@ -475,7 +475,7 @@ function makeAlignmentModelRow(model, state, onDownload, onDelete) {
     info.appendChild(nameRow)
     info.appendChild(meta)
 
-    row.appendChild(icon)
+    row.appendChild(iconEl)
     row.appendChild(info)
     row.appendChild(_makeStatusBadge(installed, downloading))
     row.appendChild(_makeModelActions(model.id, state, { onDownload, onDelete, rerenderRows: update }))
