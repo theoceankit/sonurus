@@ -13,6 +13,9 @@ no inline SVG icons.
   square 14 px box.
 - **Static HTML** (`index.html`, `setup.html`): `<span data-icon="search" data-size="13"></span>`;
   `icons.js` fills these in when it loads, keeping any inline style of the placeholder (e.g. a color).
+- `icon` is a global function, so never name a local variable `icon` (use e.g. `iconEl` for the
+  element that holds one): a call to `icon()` in that scope throws, and inside a promise chain the
+  error can be swallowed silently — an empty Settings model list was caused this way.
 
 ## Rendering
 
@@ -38,7 +41,8 @@ allows inline styles only.
 - `width` / `height` on the root are optional and ignored by the UI.
 
 `tests/renderer/icons.test.js` fails when a name used in the renderer has no file, when a file breaks
-the naming or root-element rules, or when inline SVG icons return.
+the naming or root-element rules, when inline SVG icons return, or when a script declares a local
+`icon`.
 
 ## Where each icon is used
 
