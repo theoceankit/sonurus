@@ -24,7 +24,7 @@ function setup(settings = {}) {
       removeEventListener() {},
     },
     window: {
-      electronAPI: { getPlatform: pending, openFile: async () => '/audio/call.wav' },
+      electronAPI: { getPlatform: pending, openFiles: async () => ['/audio/call.wav'] },
     },
     navigator: {},
     fetch: pending,
@@ -110,7 +110,7 @@ test('Modal: an import uses the model and language chosen in the modal', async (
   await flush()
 
   assert.equal(calls.import.length, 1)
-  assert.equal(calls.import[0].filePath, '/audio/call.wav')
+  assert.equal(calls.import[0].items[0].filePath, '/audio/call.wav')
   assert.equal(calls.import[0].model, 'small')
   assert.equal(calls.import[0].language, 'ru')
   assert.deepEqual(s.saved, [])
