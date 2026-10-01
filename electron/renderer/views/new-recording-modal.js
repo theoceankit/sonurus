@@ -1,7 +1,8 @@
 // ── New Recording Modal ──────────────────────────────────────────────────────
 // Shown when the user clicks Record or +. Collects audio source, devices,
 // model/language, and toggles before starting a live recording or importing
-// an audio file. While a recording runs (`recording`) it only imports.
+// audio files (dropped on it or picked in the file dialog, several at once).
+// While a recording runs (`recording`) it only imports.
 // Model and language start from the defaults in Settings; a choice made here
 // applies to this recording or import only and is not saved.
 
@@ -270,17 +271,22 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   importBtn.innerHTML = `
     ${icon('import', 13)}Import audio file`
   importBtn.addEventListener('click', () => {
-    window.electronAPI.openFile().then(filePath => {
-      if (!filePath) return
-      close()
-      onImport({
-        filePath,
-        title: titleInput.value.trim() || null,
-        model: modelValue,
-        language: langValue,
-      })
+    window.electronAPI.openFiles().then(paths => {
+      if (paths?.length) importPaths(paths)
     })
   })
+
+  // Several files are queued in order; see modalImportItems() for titles.
+  function importPaths(paths) {
+    const { items, skipped } = modalImportItems(paths, {
+      title: titleInput.value,
+      titleIsDefault: titleInput.hasAttribute('data-default'),
+    })
+    if (skipped) window.showToast?.(skippedFilesToast(skipped))
+    if (!items.length) return
+    close()
+    onImport({ items, model: modelValue, language: langValue })
+  }
 
   const startBtn = document.createElement('button')
   startBtn.className = 'nr-start-btn'
@@ -385,7 +391,7 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
         stroke="#0A84FF" stroke-width="3" stroke-dasharray="18,10" stroke-linecap="round"/>
     </svg>
     ${icon('import', 28)}
-    <span>Drop audio file to transcribe</span>`
+    <span>Drop audio files to transcribe</span>`
   modal.appendChild(dropOverlay)
 
   let dragCounter = 0
@@ -404,19 +410,10 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
     e.preventDefault()
     dragCounter = 0
     dropOverlay.classList.remove('nr-drop-overlay--active')
-    const file = e.dataTransfer.files[0]
-    if (!file) return
-    if (!isSupportedAudio(file.name)) {
-      window.showToast?.(`Unsupported file type: ${file.name}`)
-      return
-    }
-    const filePath = window.electronAPI.getFilePath(file)
-    if (!filePath) return
-    const title = titleInput.hasAttribute('data-default')
-      ? file.name.replace(/\.[^.]+$/, '')
-      : titleInput.value.trim() || null
-    close()
-    onImport({ filePath, title, model: modelValue, language: langValue })
+    const paths = Array.from(e.dataTransfer.files)
+      .map(file => window.electronAPI.getFilePath(file))
+      .filter(Boolean)
+    if (paths.length) importPaths(paths)
   })
 
   // ── Init ───────────────────────────────────────────────────────────────────

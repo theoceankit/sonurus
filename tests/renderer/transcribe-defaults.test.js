@@ -14,8 +14,7 @@ function setup(settings = {}) {
   const dropdowns = []
   const saved = []
   const appSettings = { transcribeModel: 'medium', transcribeLang: 'de', ...settings }
-  const ctx = loadRenderer(['data.js', 'views/settings-view.js', 'views/new-recording-modal.js'], {
-    API_BASE: 'http://api',
+  const ctx = loadRenderer(['utils.js', 'data.js', 'views/settings-view.js', 'views/new-recording-modal.js'], {
     appSettings,
     app: { _queue: null },
     document: {
@@ -31,8 +30,6 @@ function setup(settings = {}) {
     setTimeout,
     icon: () => '',
     markNotImplemented() {},
-    listSystemAudioSources: pending,
-    isSupportedAudio: () => true,
     saveSettings: patch => { saved.push(patch); Object.assign(appSettings, patch) },
     makeDropdown: (options, value, onChange) => {
       const dropdown = { values: options.map(o => o.value), value, onChange }
