@@ -83,14 +83,14 @@ ipcMain.handle('write-settings', (_e, data) => {
   fs.writeFileSync(p, JSON.stringify(data, null, 2), 'utf8')
 })
 
-ipcMain.handle('open-file', async () => {
+ipcMain.handle('open-files', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
-    properties: ['openFile'],
+    properties: ['openFile', 'multiSelections'],
     filters: [
       { name: 'Audio / Video', extensions: ['wav', 'mp3', 'm4a', 'flac', 'ogg', 'mp4', 'mkv', 'webm'] },
     ],
   })
-  return canceled ? null : filePaths[0]
+  return canceled ? [] : filePaths
 })
 
 ipcMain.handle('get-platform', () => process.platform)

@@ -227,6 +227,27 @@ function dropDecision({ view, modalOpen, files }) {
   return { action: 'import', files: supported, skipped: files.length - supported.length }
 }
 
+// Files dropped on the New Recording modal or picked in its file dialog →
+// queue items. One file keeps the modal title unless it is the untouched
+// default; several files, like a blank title, get no title, so the backend
+// uses each file name.
+function modalImportItems(paths, { title = '', titleIsDefault = false } = {}) {
+  const supported = paths.filter(p => isSupportedAudio(fileBaseName(p)))
+  const typed = titleIsDefault ? null : (title || '').trim() || null
+  return {
+    items: supported.map(filePath => ({ filePath, title: supported.length === 1 ? typed : null })),
+    skipped: paths.length - supported.length,
+  }
+}
+
+function importStartToast(paths) {
+  return paths.length === 1 ? `Importing ${fileBaseName(paths[0])}…` : `Importing ${paths.length} files…`
+}
+
+function skippedFilesToast(count) {
+  return `Skipped ${count} unsupported file${count === 1 ? '' : 's'}`
+}
+
 // Adds a job to the transcription queue. No title → the backend uses the
 // file name.
 function importRequest(filePath, { model, language, title = null }) {

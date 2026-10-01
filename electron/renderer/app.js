@@ -86,8 +86,10 @@ const app = {
       // While recording, the modal only imports (the queue waits for the recording).
       recording: !!this._liveSession,
       onStart: settings => this._startLiveRecording(settings),
-      onImport: ({ filePath, title, model, language }) =>
-        this._importFiles([filePath], { title, model, language }),
+      onImport: ({ items, model, language }) => {
+        if (items.length > 1) window.showToast?.(importStartToast(items.map(item => item.filePath)))
+        this._importFiles(items, { model, language })
+      },
     })
     document.body.appendChild(overlay)
   },
@@ -97,9 +99,11 @@ const app = {
   // Adds files to the transcription queue, one request at a time: the backend
   // copies each file into recordings/ before it answers, and the queue keeps
   // the order the files came in. The queue section updates from WS /ws/queue.
-  async _importFiles(paths, options) {
-    for (const filePath of paths) {
-      const { url, method, body } = importRequest(filePath, options)
+  // An entry is a path (titled by options.title) or { filePath, title }.
+  async _importFiles(entries, options) {
+    for (const entry of entries) {
+      const { filePath, title } = typeof entry === 'string' ? { filePath: entry, title: options.title } : entry
+      const { url, method, body } = importRequest(filePath, { ...options, title })
       try {
         const r = await fetch(url, {
           method,
@@ -126,9 +130,9 @@ const app = {
   _onFileDrop(decision) {
     if (decision.action !== 'import') return
     const { files, skipped } = decision
-    if (skipped) window.showToast?.(`Skipped ${skipped} unsupported file${skipped === 1 ? '' : 's'}`)
+    if (skipped) window.showToast?.(skippedFilesToast(skipped))
     if (!files.length) return
-    window.showToast?.(files.length === 1 ? `Importing ${files[0].name}…` : `Importing ${files.length} files…`)
+    window.showToast?.(importStartToast(files.map(file => file.path)))
     this._importFiles(files.map(file => file.path), {
       model: appSettings.transcribeModel || 'large-v3',
       language: appSettings.transcribeLang || 'auto',
