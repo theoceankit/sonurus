@@ -12,7 +12,6 @@ const NOT_IMPLEMENTED_TOAST = 'Not available yet'
 
 const NOT_IMPLEMENTED = new Set([
   'recording.diarize',      // New recording modal → "Diarize speakers" toggle
-  'recording.save-audio',   // New recording modal → "Save audio file" toggle
   'settings.export',        // Settings → Export (format, duplicate, include-*)
   'settings.app-language',  // Settings → Interface → App language
   'settings.include-mic',   // Settings → Audio devices → Include microphone
