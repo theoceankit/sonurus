@@ -14,10 +14,9 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   let sysDeviceId   = appSettings.recordingSystemDevice || null
   let modelValue    = appSettings.transcribeModel       || 'large-v3'
   let langValue     = appSettings.transcribeLang        || 'auto'
-  // `diarize` and `saveAudio` are persisted but not sent to the backend; both
-  // toggles are marked unimplemented (not-implemented.js).
+  // `diarize` is persisted but not sent to the backend; its toggle is marked
+  // unimplemented (not-implemented.js).
   let diarize       = appSettings.recordingDiarize !== false
-  let saveAudio     = appSettings.recordingSaveAudio    !== false
 
   // ── Overlay + card ─────────────────────────────────────────────────────────
 
@@ -240,7 +239,6 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
 
   const TOGGLES = [
     { label: 'Diarize speakers', get: () => diarize,   set: v => { diarize = v },   notImplemented: 'recording.diarize' },
-    { label: 'Save audio file',  get: () => saveAudio, set: v => { saveAudio = v }, notImplemented: 'recording.save-audio' },
   ]
 
   TOGGLES.forEach(t => {
@@ -304,14 +302,12 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
       model  : modelValue,
       language: langValue,
       diarize,
-      saveAudio,
     }
     saveSettings({
       recordingAudioSource  : audioSource,
       recordingMicDevice    : settings.micDeviceId,
       recordingSystemDevice : settings.systemDeviceId,
       recordingDiarize      : diarize,
-      recordingSaveAudio    : saveAudio,
     })
     close()
     onStart(settings)
