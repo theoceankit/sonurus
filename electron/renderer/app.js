@@ -10,7 +10,6 @@ const DEFAULT_APP_SETTINGS = Object.freeze({
   recordingUseMic: true,
   recordingAudioSource: 'both',
   recordingDiarize: true,
-  recordingSaveAudio: true,
   hfToken: '',
 })
 
