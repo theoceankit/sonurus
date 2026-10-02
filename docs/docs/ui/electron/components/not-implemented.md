@@ -40,7 +40,6 @@ events of its own is not covered and needs its handler skipped explicitly.
 | Id | Control | Marked in |
 |---|---|---|
 | `recording.diarize` | New recording modal → **Diarize speakers** toggle | `new-recording-modal.js` |
-| `recording.save-audio` | New recording modal → **Save audio file** toggle | `new-recording-modal.js` |
 | `settings.export` | Settings → **Export**, the whole section (format, duplicate, include toggles) | `settings-view.js` |
 | `settings.app-language` | Settings → Interface → **App language** | `settings-view.js` |
 | `settings.include-mic` | Settings → Audio devices → **Include microphone** | `settings-view.js` |
@@ -55,8 +54,10 @@ events of its own is not covered and needs its handler skipped explicitly.
 | `editor.highlight` | Editor selection toolbar → **Highlight** | `editor-view.js` |
 | `segment.bookmark` | Segment row → **Bookmark** | `editor/segment-row.js` |
 
-Values these controls already wrote to `settings.json` (`recordingDiarize`, `recordingSaveAudio`,
-`recordingUseMic`, `exportFormat`) are kept as they are.
+Values these controls already wrote to `settings.json` (`recordingDiarize`, `recordingUseMic`,
+`exportFormat`) are kept as they are. The New Recording modal had a **Save audio file** toggle too; it
+was removed rather than implemented, because a recording is always kept (the editor player, voice
+samples and Retry need it). A `recordingSaveAudio` value left in `settings.json` is ignored.
 
 ## When a feature lands
 
