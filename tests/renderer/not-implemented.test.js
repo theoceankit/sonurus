@@ -17,7 +17,6 @@ const TOAST = vm.runInContext('NOT_IMPLEMENTED_TOAST', ctx)
 // implements one removes its id here, in the registry and at the call site.
 const EXPECTED_IDS = [
   'recording.diarize',
-  'recording.save-audio',
   'settings.export',
   'settings.app-language',
   'settings.include-mic',
