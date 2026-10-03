@@ -54,8 +54,10 @@ electron/
     setup.html         — First-run setup screen (shown during pip install)
     icons.js           — icon(name, size), hydrateIcons: renders files from assets/icons/
     utils.js           — API_BASE, WS_BASE, speaker helpers, fmtTime, speaker avatars (makeAvatar, makeAvatarStack)
+    transcription-model.js — default Whisper model: syncTranscribeModel, noModelMessage, dropImportOptions
+    model-downloads.js — model downloads owned by the app (start, cancel, progress, subscribe)
     not-implemented.js — registry + marking of controls whose feature does not exist yet (see Components)
-    components.js      — makeDropdown (shared UI component)
+    components.js      — makeDropdown (shared UI component; options can be disabled), openConfirmDialog
     data.js            — LANGUAGES (static), MODELS (fallback), ALIGNMENT_MODELS (source of truth)
     file-drop.js       — initFileDrop: window drag-and-drop of audio files + drop overlay
     app.js             — appSettings, loadSettings/saveSettings, view router, sidebar
@@ -66,7 +68,7 @@ electron/
       editor.css       — Transcript editor styles
       settings.css     — Settings screen styles
       speakers.css     — Sidebar section tabs, speaker list, speaker page
-      views.css        — Toasts, misc shared view styles
+      views.css        — Toasts (#toast-stack above every other layer, modals included), misc shared view styles
       modal.css        — Modal overlay styles
     views/
       new-recording-modal.js  — Recording setup modal (source picker, model/language, toggles)
@@ -139,7 +141,19 @@ Below the last section a muted line shows the product version, "Sonorus 0.2.0" (
 
 ## Model management
 
-Settings → **ML Models** lists the Whisper models and the diarization models; Settings → **Alignment Models** lists the per-language wav2vec2 models. Install status comes from `GET /models` when the page opens. Each row downloads (`POST /models/{id}/download`, with `hf_token` from `appSettings`), shows progress from `WS /ws/models/{job_id}`, can cancel a running download (`DELETE /models/{id}/download/{job_id}`) and deletes an installed model (`DELETE /models/{id}`). Picking an installed Whisper model saves it as `transcribeModel` in `settings.json`, and the **Transcription language** dropdown saves `transcribeLang`. These are the defaults for new jobs: window drops use them as is, and the New Recording modal starts from them. A model or language picked in the modal applies to that recording or import only and is not saved; the defaults change only in Settings.
+Settings → **ML Models** lists the Whisper models and the diarization models; Settings → **Alignment Models** lists the per-language wav2vec2 models. Install status comes from `GET /models`. Each row downloads (`POST /models/{id}/download`, with `hf_token` from `appSettings`), shows progress from `WS /ws/models/{job_id}`, can cancel a running download (`DELETE /models/{id}/download/{job_id}`) and deletes an installed model (`DELETE /models/{id}`).
+
+Downloads belong to the app, not to the Settings page (`model-downloads.js`): leaving Settings keeps the WebSocket open, and coming back shows the running download with its progress (`GET /models` does not report running downloads). A download started before an app restart is not followed; its model shows up as installed once it is finished.
+
+**Default model.** There is no built-in default: until a Whisper model is installed, `transcribeModel` in `settings.json` is `null`. Picking an installed model with **Use** saves it as `transcribeModel` and appends it to `transcribeModelHistory` (the last five defaults). A saved model that is not installed counts as no model: no row shows **In use** and it is never used for a job. `syncTranscribeModel()` (`transcription-model.js`) re-resolves the default every time `GET /models` is fetched — at app start, when Settings or the New Recording modal opens, on a window drop, after a finished download and after a delete:
+
+- the default is kept while it is installed;
+- otherwise it becomes the latest model from the history that is still installed, else the most accurate installed model (catalog order), else `null`;
+- when the effective default changes (installed before vs. now), a toast says which model is now the default, or that no model is installed. So the first downloaded model becomes the default by itself, and deleting the default switches back to the previous one.
+
+New jobs need a default model and the diarization model. Without one of them Settings shows a hint above the model list, the New Recording modal turns off **Start recording** and **Import** with a notice linking to Settings, and a window drop queues nothing (toast with **Open Settings**, `dropImportOptions()`).
+
+The **Transcription language** dropdown saves `transcribeLang`. Model and language are the defaults for new jobs: window drops use them as is, and the New Recording modal starts from them. A model or language picked in the modal applies to that recording or import only and is not saved; the defaults change only in Settings.
 
 `POST /queue/jobs` refuses a job whose Whisper, diarization or (explicit-language) alignment model is not installed. With auto-detected language a missing alignment model fails the job with `alignment_model_missing`, handled by `alignment-modal.js` (see [Transcription queue](#transcription-queue)). See [API → Models](../../api/endpoints.md) for the catalog.
 
@@ -312,9 +326,10 @@ A live recording does not block drops: it pauses the queue, so dropped files wai
 
 - Supported types are `SUPPORTED_AUDIO_EXTENSIONS` (`utils.js`, same list as the file dialog filter in `main.js`), checked by `isSupportedAudio()`. Other files are skipped with a toast ("Skipped N unsupported files"); the New Recording modal skips them the same way (`skippedFilesToast()`).
 - Several files are sent one `POST /queue/jobs` at a time by `app._importFiles()` (shared with the modal), in drop order. Each request waits while the backend copies the file into `recordings/`, so a toast ("Importing N files…", `importStartToast()`) is shown right away.
-- Model and language come from `appSettings.transcribeModel` / `transcribeLang` (`importRequest()`); the title is left `null`, so the backend uses the file name without its extension (the job card shows the same).
+- Model and language are the defaults (`dropImportOptions()`: the default model after `syncTranscribeModel()`, and `transcribeLang`), sent by `importRequest()`; the title is left `null`, so the backend uses the file name without its extension (the job card shows the same). Without a default model or the diarization model nothing is queued and a toast offers **Open Settings** (see [Model management](#model-management)).
 - A drop that a drop zone below already handled (`defaultPrevented`, i.e. the modal) is skipped, otherwise the modal — already closed by then — would be imported twice.
 - The **New Recording modal** imports several files too: dropped on it, or picked in its file dialog (`openFiles()`). `modalImportItems()` (`utils.js`) keeps the supported files in order and sets the titles: one file keeps a title typed in the modal; the untouched default title, a blank one or several files leave it `null`, so each job gets its file name. The modal's model and language apply to every file; with no supported file the modal stays open.
+- The modal opens with the last known `GET /models` answer and refreshes it in the background ("Checking models…" until the backend has answered once). Whisper models that are not downloaded are disabled options ("Not installed"). Without a default model or the diarization model **Start recording** and **Import** are off, a drop on the modal queues nothing, and a notice links to Settings.
 - `dragover` / `drop` with files are always cancelled, in every view: an unhandled file drop makes Electron open the file in the window.
 
 ---
