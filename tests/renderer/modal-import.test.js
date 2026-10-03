@@ -4,6 +4,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { loadRenderer } = require('./load-renderer')
 const { fakeElement } = require('./fake-dom')
+const { models, seedModels } = require('./models-fixture')
 
 const plain = v => JSON.parse(JSON.stringify(v))
 const pending = () => new Promise(() => {})
@@ -48,7 +49,7 @@ function openModal({ dialogPaths = [] } = {}) {
   const toasts = []
   const calls = []
   let closed = 0
-  const ctx = loadRenderer(['utils.js', 'data.js', 'views/new-recording-modal.js'], {
+  const ctx = loadRenderer(['utils.js', 'data.js', 'transcription-model.js', 'views/new-recording-modal.js'], {
     appSettings: { transcribeModel: 'large-v3', transcribeLang: 'ru' },
     document: {
       createElement: () => fakeElement(created),
@@ -71,6 +72,7 @@ function openModal({ dialogPaths = [] } = {}) {
     saveSettings() {},
     makeDropdown: () => fakeElement(created),
   })
+  seedModels(ctx, models())
   ctx.renderNewRecordingModal({ onStart() {}, onImport: args => calls.push(plain(args)) })
   const el = cls => created.find(e => e.className === cls)
   const drop = files => el('nr-modal').fire('drop', {
