@@ -51,7 +51,7 @@ def delete_model(model_id: str, queue=Depends(get_transcription_queue)):
     try:
         _make_service().delete_model(model_id)
     except FileNotFoundError:
-        return JSONResponse({"detail": f"Model '{model_id}' is not installed"}, status_code=404)
+        return JSONResponse({"detail": f'Model "{model_id}" is not installed'}, status_code=404)
     except ValueError:
         return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=422)
     return {"deleted": model_id}

@@ -149,9 +149,9 @@ Adds a job at the end of the queue and returns it (`status: "waiting"`). In `aut
 
 | Condition | Detail |
 |---|---|
-| Whisper model not installed | `"Whisper model 'large-v3' is not installed. Download it in Settings."` |
+| Whisper model not installed | `"Whisper model \"large-v3\" is not installed. Download it in Settings."` |
 | Diarization model not installed | `"Diarization model is not installed. Download it in Settings."` |
-| Explicit language in `ALIGNMENT_CATALOG` and alignment model not installed | `"Alignment model for language 'ru' is not installed. Download it in Settings."` |
+| Explicit language in `ALIGNMENT_CATALOG` and alignment model not installed | `"Alignment model for language \"ru\" is not installed. Download it in Settings."` |
 | File missing / not readable | `"audio_path not found: …"` / `"audio_path not readable: …"` |
 | Copy failed (e.g. no disk space) | `"Could not copy audio file: …"` |
 

@@ -17,7 +17,7 @@ from app.api.schemas import (
 )
 from app.config import WHISPER_MODEL
 from app.services.audio_store import discard_import, import_audio
-from app.services.model_service import ALIGNMENT_CATALOG, ModelService
+from app.services.model_service import ALIGNMENT_CATALOG, ModelNotInstalledError, ModelService
 from app.services.transcription_queue import (
     JobNotFailed, JobNotFound, JobRunning, TranscriptionQueue,
 )
@@ -38,17 +38,16 @@ def _require_models(whisper_model: str | None = None, language: str | None = Non
     if whisper_model is not None and not ms.is_installed(whisper_model):
         raise HTTPException(
             status_code=400,
-            detail=f"Whisper model '{whisper_model}' is not installed. Download it in Settings.",
+            detail=str(ModelNotInstalledError("whisper_model_missing", whisper_model)),
         )
     if check_diarize and not ms.is_installed("diarize"):
-        raise HTTPException(status_code=400,
-                            detail="Diarization model is not installed. Download it in Settings.")
+        raise HTTPException(status_code=400, detail=str(ModelNotInstalledError("diarization_model_missing", "diarize")))
     # With auto-detect the language is only known mid-pipeline; a missing
     # alignment model then fails the job with error_code alignment_model_missing.
     if language in ALIGNMENT_CATALOG and not ms.is_installed(language):
         raise HTTPException(
             status_code=400,
-            detail=f"Alignment model for language '{language}' is not installed. Download it in Settings.",
+            detail=f'Alignment model for language "{language}" is not installed. Download it in Settings.',
         )
 
 
