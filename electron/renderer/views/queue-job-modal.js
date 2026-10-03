@@ -44,20 +44,21 @@ function openJobEditModal({ job, onSubmit }) {
   input.maxLength = TITLE_MAX_LENGTH
   input.value = job.title
 
-  // Model: static list first, live install status once fetched
+  // Model: models not downloaded are disabled ("Not installed"); the job's
+  // own model stays visible even if it was deleted, until another is picked.
   let model = job.whisper_model
   const modelWrap = document.createElement('div')
   modelWrap.className = 'nr-field-dropdown-wrap'
-  // The static MODELS list knows nothing about the disk: mark only live data.
-  function buildModelDropdown(models, live = false) {
-    const opts = models
-      .filter(m => m.kind === 'whisper')
-      .map(m => ({ value: m.id, label: live && !m.installed ? `${m.name} · not installed` : m.name }))
-    if (!opts.some(o => o.value === model)) opts.push({ value: model, label: model })
-    modelWrap.replaceChildren(makeDropdown(opts, model, v => { model = v; clearError() }))
+  function buildModelDropdown(state) {
+    const opts = state
+      ? state.models.filter(m => m.kind === 'whisper')
+        .map(m => ({ value: m.id, label: m.name, disabled: !m.installed }))
+      : []
+    if (!opts.some(o => o.value === model)) opts.push({ value: model, label: model, disabled: !!state })
+    modelWrap.replaceChildren(makeDropdown(opts, model, v => { model = v; clearError() }, renderModelOption))
   }
-  buildModelDropdown(MODELS)
-  fetch(`${API_BASE}/models`).then(r => r.json()).then(m => buildModelDropdown(m, true)).catch(() => {})
+  buildModelDropdown(modelState())
+  syncTranscribeModel().then(state => { if (state) buildModelDropdown(state) })
 
   // Language: 'auto' = detect
   let language = job.language || 'auto'
