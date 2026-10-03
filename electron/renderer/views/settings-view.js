@@ -248,12 +248,25 @@ function _applyModelStatus(state) {
   })
 }
 
-// After a delete the default model is re-resolved (a toast says what it is now).
+// A model queued jobs need is deleted only after a confirmation; one the running
+// transcription needs cannot be deleted (button off, backend 409). After a
+// delete the default model is re-resolved (a toast says what it is now).
 function _makeDeleteHandler(state) {
-  return function onDelete(id) {
-    fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' })
-      .then(r => { if (r.ok) return syncTranscribeModel().then(() => state.refreshModels?.()) })
+  function remove(id) {
+    return fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' })
+      .then(async r => {
+        if (r.ok) return syncTranscribeModel().then(() => state.refreshModels?.())
+        const data = await r.json().catch(() => ({}))
+        window.showToast?.(data.detail || `Server error ${r.status}`, 'error')
+      })
       .catch(() => {})
+  }
+  return function onDelete(id) {
+    const model = modelState()?.models.find(m => m.id === id) || { id, name: id, kind: 'unknown' }
+    if (modelInUseByRunningJob(model, app._queue)) return
+    const prompt = modelDeletePrompt(model, queuedJobsUsingModel(model, app._queue))
+    if (prompt) openConfirmDialog({ ...prompt, confirmLabel: 'Delete', onConfirm: () => remove(id) })
+    else remove(id)
   }
 }
 
@@ -291,7 +304,8 @@ function _makeStatusBadge(installed, downloading) {
   return el
 }
 
-function _makeModelActions(modelId, state, { onDownload, onDelete, onSelect = null }) {
+// `deleteBlocked`: why the model cannot be deleted now ('' if it can).
+function _makeModelActions(modelId, state, { onDownload, onDelete, onSelect = null, deleteBlocked = '' }) {
   const actions = document.createElement('div')
   actions.className = 'st-model-actions'
   actions.addEventListener('click', e => e.stopPropagation())
@@ -324,9 +338,10 @@ function _makeModelActions(modelId, state, { onDownload, onDelete, onSelect = nu
   if (installed) {
     const delBtn = document.createElement('button')
     delBtn.className = 'st-btn st-btn--icon'
-    delBtn.title = 'Remove'
+    delBtn.title = deleteBlocked || 'Remove'
+    delBtn.disabled = !!deleteBlocked
     delBtn.innerHTML = icon('delete', 14)
-    delBtn.addEventListener('click', () => onDelete(modelId))
+    delBtn.addEventListener('click', () => { if (!delBtn.disabled) onDelete(modelId) })
     actions.appendChild(delBtn)
   }
   return actions
@@ -378,6 +393,7 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
     row.appendChild(_makeStatusBadge(installed, downloading))
     row.appendChild(_makeModelActions(model.id, state, {
       onDownload, onDelete, onSelect: isDiarization ? null : onSelect,
+      deleteBlocked: modelInUseByRunningJob(model, app._queue) ? 'In use by the running transcription' : '',
     }))
 
     row.style.cursor = (installed && !isDiarization) ? 'pointer' : 'default'
@@ -931,5 +947,6 @@ function renderSettingsView() {
   state.refreshModels()
   syncTranscribeModel().then(() => state.refreshModels())
   root._cleanup = subscribeModelDownloads(() => state.refreshModels())
+  root._onQueue = () => state.refreshModels()   // delete buttons follow the running job
   return root
 }

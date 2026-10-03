@@ -26,6 +26,7 @@ from pathlib import Path
 from app.logger import get_logger
 from app.services.audio_store import discard_owned_audio
 from app.services.job_store import JobStore
+from app.services.model_service import ModelNotInstalledError
 from app.services.pipeline_process import PipelineCancelled, PipelineInterrupted
 from app.services.transcription_service import AlignmentModelMissingError
 
@@ -142,6 +143,8 @@ class TranscriptionQueue:
             outcome = ("cancelled",)
         except AlignmentModelMissingError as exc:
             outcome = ("failed", str(exc), "alignment_model_missing", exc.language)
+        except ModelNotInstalledError as exc:
+            outcome = ("failed", str(exc), exc.code, None)
         except Exception as exc:
             if self._stopping:
                 # The backend is shutting down; the child may have died from
@@ -304,6 +307,15 @@ class TranscriptionQueue:
     def is_running(self) -> bool:
         with self._cond:
             return self._running_id is not None
+
+    def running_job(self) -> dict | None:
+        with self._cond:
+            return self._store.get(self._running_id) if self._running_id else None
+
+    def get(self, job_id: str) -> dict:
+        """The job; JobNotFound if there is none."""
+        with self._cond:
+            return self._require(job_id)
 
     @contextmanager
     def hold(self):

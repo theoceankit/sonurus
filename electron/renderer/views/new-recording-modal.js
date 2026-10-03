@@ -205,20 +205,7 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
     modelWrap.replaceChildren(makeDropdown(
       opts, modelValue,
       v => { modelValue = v; modelPicked = true },
-      (opt, isTrigger) => {
-        const s = document.createElement('span')
-        s.textContent = opt.label
-        if (opt.disabled && !isTrigger) {
-          const note = document.createElement('span')
-          note.className = 'st-dropdown-item-note'
-          note.textContent = 'Not installed'
-          const row = document.createElement('span')
-          row.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%'
-          row.append(s, note)
-          return row
-        }
-        return s
-      }
+      renderModelOption
     ))
   }
 
