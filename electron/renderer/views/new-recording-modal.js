@@ -214,17 +214,22 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   const langFieldLabel = document.createElement('div')
   langFieldLabel.className = 'nr-field-label'
   langFieldLabel.textContent = 'Language'
-  const langDropdown = makeDropdown(
-    langOptions, langValue,
-    v => { langValue = v },
-    (opt) => {
-      const s = document.createElement('span')
-      s.textContent = opt.label
-      return s
-    }
-  )
+  // Languages whose alignment model is not installed are disabled options; the
+  // default one stays shown (and blocks Start / Import) until another is picked.
+  const langWrap = document.createElement('div')
+  langWrap.className = 'nr-field-dropdown-wrap'
+  function renderLangField() {
+    const opts = langOptions.map(l => ({
+      ...l, disabled: !!(models && missingAlignmentModel(l.value, models.models)),
+    }))
+    langWrap.replaceChildren(makeDropdown(
+      opts, langValue,
+      v => { langValue = v; renderModels() },
+      renderModelOption
+    ))
+  }
   langField.appendChild(langFieldLabel)
-  langField.appendChild(langDropdown)
+  langField.appendChild(langWrap)
 
   settingsRow.appendChild(modelField)
   settingsRow.appendChild(langField)
@@ -239,6 +244,8 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   function renderNotice() {
     const text = models && !models.model ? 'No transcription model installed.'
       : models && !models.diarizeInstalled ? 'Diarization model not installed.'
+      : models && missingAlignmentModel(langValue, models.models)
+        ? `Alignment model for ${languageLabel(langValue)} is not installed.`
       : null
     notice.style.display = text ? '' : 'none'
     if (!text) return
@@ -296,13 +303,13 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
 
   // Start and Import need the default model and the diarization model.
   function canRun() {
-    return !!(models && models.model && models.diarizeInstalled)
+    return !!models && !jobBlockMessage(models, langValue)
   }
 
   // Several files are queued in order; see modalImportItems() for titles.
   function importPaths(paths) {
     if (!canRun()) {
-      const message = models ? noModelMessage(models) : 'Checking models…'
+      const message = models ? jobBlockMessage(models, langValue) : 'Checking models…'
       window.showToast?.(message, { actionLabel: 'Open Settings', action: () => { close(); app.showSettings() } })
       return
     }
@@ -346,8 +353,9 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
 
   function renderModels() {
     renderModelField()
+    renderLangField()
     renderNotice()
-    const blocked = canRun() ? '' : models ? noModelMessage(models) : 'Checking models…'
+    const blocked = canRun() ? '' : models ? jobBlockMessage(models, langValue) : 'Checking models…'
     importBtn.disabled = !!blocked
     importBtn.title = blocked
     startBtn.disabled = recording || !!blocked
