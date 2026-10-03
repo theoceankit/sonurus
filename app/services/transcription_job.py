@@ -2,9 +2,11 @@
 production), then saving the transcript and committing speakers here."""
 import os
 
+import app.config as config
 from app.logger import get_logger
 from app.services import pipeline_process
 from app.services.commit_service import CommitService
+from app.services.model_service import ModelService, require_job_models
 from app.services.pipeline_process import PipelineCancelled, run_pipeline_process
 from app.services.service_factory import create_controller
 from app.services.speaker_memory_service import SpeakerMemoryService
@@ -37,6 +39,12 @@ def make_job_runner(storage: TranscriptStorageService, memory_db_path: str, on_s
     reloads its cached speaker memory)."""
 
     def run_job(job: dict, on_progress, cancel_event) -> int:
+        # Before any ML import or child process: a job never runs with (and so
+        # never downloads) a model that is not installed.
+        require_job_models(
+            ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR),
+            job["whisper_model"],
+        )
         on_progress("Loading models…")
         if pipeline_process.RUN_PIPELINE_IN_SUBPROCESS:
             transcript = run_pipeline_process(

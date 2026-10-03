@@ -157,6 +157,10 @@ async def delete_job(job_id: str, queue: TranscriptionQueue = Depends(get_transc
 @router.post("/queue/jobs/{job_id}/retry", response_model=QueueJob)
 def retry_job(job_id: str, queue: TranscriptionQueue = Depends(get_transcription_queue)):
     try:
+        job = queue.get(job_id)
+        if job["status"] == "failed":
+            # A retry that would fail again at once is refused, like add / edit.
+            _require_models(job["whisper_model"], job["language"], check_diarize=True)
         return queue.retry(job_id)
     except JobNotFound:
         raise HTTPException(status_code=404, detail="Job not found")
