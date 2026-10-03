@@ -257,7 +257,7 @@ Removes the model's HuggingFace cache directory from disk.
 
 - `200 {"deleted": "large-v3"}` — success
 - `404` — model is not installed
-- `409 {"detail": "In use by the running transcription"}` — the running job uses it (its Whisper model, or the diarization model)
+- `409 {"detail": "In use by the running transcription"}` — the running job uses it (its Whisper model, the diarization model, or the alignment model of its explicit language)
 - `422` — unknown `model_id`
 
 ---
