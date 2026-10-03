@@ -11,6 +11,9 @@ const CATALOG = [
   { id: 'large-v3', name: 'Whisper Large v3', kind: 'whisper',     size: '1.55 GB' },
   { id: 'diarize',  name: 'Diarization · v2', kind: 'diarization', size: '130 MB' },
   { id: 'ru',       name: 'Russian',          kind: 'alignment',   size: '1.26 GB' },
+  { id: 'uk',       name: 'Ukrainian',        kind: 'alignment',   size: '1.26 GB' },
+  { id: 'zh',       name: 'Chinese',          kind: 'alignment',   size: '1.26 GB' },
+  { id: 'ja',       name: 'Japanese',         kind: 'alignment',   size: '1.26 GB' },
 ]
 
 const ALL = CATALOG.map(m => m.id)

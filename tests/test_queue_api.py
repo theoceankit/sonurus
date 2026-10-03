@@ -349,3 +349,29 @@ def test_a_model_the_running_job_uses_cannot_be_deleted(api):
     runner.release("Team Meeting")
     wait_for(lambda: queue.snapshot()["running_job_id"] is None)
     assert tc.delete("/models/small").status_code == 200
+
+
+def test_the_alignment_model_of_the_running_job_cannot_be_deleted(api):
+    tc, queue, runner, tmp_path = api
+    _install(config.ALIGNMENT_MODELS_DIR, ALIGNMENT_CATALOG["ru"]["hf_repo"])
+    _install(config.ALIGNMENT_MODELS_DIR, ALIGNMENT_CATALOG["ja"]["hf_repo"])
+    runner.hold("Team Meeting")
+    _post(tc, tmp_path, language="ru")
+    tc.post("/queue/start")
+    wait_for(lambda: queue.snapshot()["running_job_id"] is not None)
+
+    r = tc.delete("/models/ru")
+    assert r.status_code == 409 and r.json()["detail"] == "In use by the running transcription"
+    assert tc.delete("/models/ja").status_code == 200
+    runner.release("Team Meeting")
+
+
+def test_an_auto_detect_job_does_not_hold_an_alignment_model(api):
+    tc, queue, runner, tmp_path = api
+    _install(config.ALIGNMENT_MODELS_DIR, ALIGNMENT_CATALOG["ru"]["hf_repo"])
+    runner.hold("Team Meeting")
+    _post(tc, tmp_path)                       # language auto → null
+    tc.post("/queue/start")
+    wait_for(lambda: queue.snapshot()["running_job_id"] is not None)
+    assert tc.delete("/models/ru").status_code == 200
+    runner.release("Team Meeting")
