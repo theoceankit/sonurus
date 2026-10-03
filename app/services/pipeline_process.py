@@ -46,6 +46,10 @@ _INTERRUPT_EXIT_CODES = {-s for s in (getattr(signal, n, None) for n in ("SIGTER
 
 def _pipeline_worker(args: dict, conn) -> None:
     """Child-process entry point."""
+    # Models come from the local cache only: a missing one is an error, never
+    # a download in the middle of a job (downloads run from Settings). Set
+    # before the ML libraries are imported — huggingface_hub reads it then.
+    os.environ["HF_HUB_OFFLINE"] = "1"
     try:
         quiet = os.getenv("VERBOSE", "false").lower() != "true"
         if quiet:

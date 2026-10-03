@@ -417,3 +417,28 @@ class ModelService:
 
         else:
             raise ValueError(f"Unknown model_id: {model_id!r}")
+
+
+class ModelNotInstalledError(RuntimeError):
+    """A job's Whisper model or the diarization model is not installed.
+    `code` is the job's error_code: whisper_model_missing or
+    diarization_model_missing."""
+
+    def __init__(self, code: str, model_id: str):
+        self.code = code
+        self.model_id = model_id
+        if code == "whisper_model_missing":
+            message = f'Whisper model "{model_id}" is not installed. Download it in Settings.'
+        else:
+            message = "Diarization model is not installed. Download it in Settings."
+        super().__init__(message)
+
+
+def require_job_models(service: ModelService, whisper_model: str) -> None:
+    """Raise ModelNotInstalledError unless a job's models are installed. Runs
+    before the pipeline, so a job never starts with (or downloads) a missing
+    model."""
+    if not service.is_installed(whisper_model):
+        raise ModelNotInstalledError("whisper_model_missing", whisper_model)
+    if not service.is_installed("diarize"):
+        raise ModelNotInstalledError("diarization_model_missing", "diarize")
