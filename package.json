@@ -1,6 +1,6 @@
 {
   "name": "sonorus",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Sonorus - local AI transcription with speaker identification",
   "main": "electron/main.js",
   "scripts": {
