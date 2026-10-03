@@ -299,7 +299,7 @@ The backend owns the queue ([Transcription Queue](../../services/TranscriptionQu
 |---|---|---|---|
 | Running | Spinner | The snapshot's `step` (`Loading models…`, `Transcribing audio…`, …) | × |
 | Waiting | Empty circle | `Waiting`, or `Waiting · queue paused` | Edit, × |
-| Failed | Red `!`, red card | First line of the error (full text in the tooltip); a missing alignment, Whisper or diarization model is named | Edit, Retry (`retry` icon), × |
+| Failed | Red `!`, red card | First line of the error (full text in the tooltip); a missing alignment, Whisper or diarization model is named — the Whisper model the job failed on (from the error), even if Edit picked another one since | Edit, Retry (`retry` icon), × |
 
 - **×** opens `openConfirmDialog()` with `deleteJobPrompt()`: an import says the app's copy goes and the original is kept; a live recording says it is deleted for good. Confirm → `DELETE /queue/jobs/{id}` (a running job is stopped first).
 - **Edit** (`edit` icon, every job except the running one — `canEditJob()`) opens `openJobEditModal()` (`views/queue-job-modal.js`): title, Whisper model (models not downloaded are disabled options, "Not installed"; the job's own model stays shown even if deleted, until another is picked) and language (`Detect automatically` = null). `jobEditPatch()` sends only the changed fields (`PATCH /queue/jobs/{id}`); a blank title or one over 200 characters is refused in the dialog, and a server error (e.g. the model is not installed, or the job started meanwhile → 409) keeps the dialog open with the message.
