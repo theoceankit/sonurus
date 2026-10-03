@@ -313,7 +313,7 @@ def test_retry_refuses_a_job_whose_model_is_not_installed(api):
 
     r = tc.post(f"/queue/jobs/{job['id']}/retry")
     assert r.status_code == 400
-    assert r.json()["detail"] == "Whisper model 'small' is not installed. Download it in Settings."
+    assert r.json()["detail"] == 'Whisper model "small" is not installed. Download it in Settings.'
     assert queue.snapshot()["jobs"][0]["status"] == "failed"
 
 
