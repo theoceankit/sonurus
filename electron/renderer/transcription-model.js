@@ -64,6 +64,35 @@ function noModelMessage(state) {
   return null
 }
 
+// The alignment model a language needs (catalog row) when it is not installed;
+// null for a language with none in the catalog (en, es, de, fr, Detect).
+function missingAlignmentModel(lang, models) {
+  const row = models.find(m => m.kind === 'alignment' && m.id === lang)
+  return row && !row.installed ? row : null
+}
+
+// A model by id: its GET /models row with the name and size of the static
+// catalog (data.js) — alignment rows from the backend carry neither.
+function catalogModel(id) {
+  const known = [...MODELS, ...ALIGNMENT_MODELS].find(m => m.id === id) || { id, name: id, kind: 'unknown' }
+  return { ...known, ...modelState()?.models.find(m => m.id === id) }
+}
+
+function languageLabel(lang) {
+  return LANGUAGES.find(l => l.code === lang)?.label || lang
+}
+
+// Why a job in `language` cannot start, or null: Whisper model, diarization
+// model, then the language's alignment model.
+function jobBlockMessage(state, language) {
+  const missing = noModelMessage(state)
+  if (missing) return missing
+  if (missingAlignmentModel(language, state.models)) {
+    return `Alignment model for ${languageLabel(language)} is not installed — download it in Settings`
+  }
+  return null
+}
+
 // The same for the hint above Settings → ML Models.
 function settingsModelHint(state) {
   if (!state.model) return 'No model selected — download a Whisper model to transcribe'
@@ -118,12 +147,13 @@ async function dropImportOptions() {
     window.showToast?.('Could not reach the transcription service', 'error')
     return null
   }
-  const message = noModelMessage(state)
+  const language = appSettings.transcribeLang || 'auto'
+  const message = jobBlockMessage(state, language)
   if (message) {
     window.showToast?.(message, { actionLabel: 'Open Settings', action: () => app.showSettings() })
     return null
   }
-  return { model: state.model, language: appSettings.transcribeLang || 'auto' }
+  return { model: state.model, language }
 }
 
 // Option of a Whisper model dropdown (New Recording modal, queue job modal):
@@ -144,10 +174,13 @@ function renderModelOption(opt, isTrigger) {
 
 // ── Deleting a model the queue needs ─────────────────────────────────────────
 // `model` is a GET /models row; `snapshot` the last WS /ws/queue snapshot.
-// Every job needs the diarization model; a Whisper model only its own jobs.
+// Every job needs the diarization model; a Whisper model only its own jobs; an
+// alignment model the jobs in its language (not auto-detect: unknown yet).
 
 function _jobNeedsModel(job, model) {
-  return model.kind === 'diarization' || (model.kind === 'whisper' && job.whisper_model === model.id)
+  if (model.kind === 'diarization') return true
+  if (model.kind === 'whisper') return job.whisper_model === model.id
+  return model.kind === 'alignment' && job.language === model.id
 }
 
 // How many waiting or failed jobs need `model`.

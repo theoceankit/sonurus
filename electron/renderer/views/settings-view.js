@@ -255,14 +255,22 @@ function _makeDeleteHandler(state) {
   function remove(id) {
     return fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' })
       .then(async r => {
-        if (r.ok) return syncTranscribeModel().then(() => state.refreshModels?.())
+        if (r.ok) {
+          // The default language cannot be transcribed without its model.
+          if (appSettings.transcribeLang === id) {
+            await saveSettings({ transcribeLang: 'auto' })
+            state.transcribeLang = 'auto'
+            window.showToast?.('Default language changed to Detect automatically')
+          }
+          return syncTranscribeModel().then(() => state.refreshModels?.())
+        }
         const data = await r.json().catch(() => ({}))
         window.showToast?.(data.detail || `Server error ${r.status}`, 'error')
       })
       .catch(() => {})
   }
   return function onDelete(id) {
-    const model = modelState()?.models.find(m => m.id === id) || { id, name: id, kind: 'unknown' }
+    const model = catalogModel(id)
     if (modelInUseByRunningJob(model, app._queue)) return
     const prompt = modelDeletePrompt(model, queuedJobsUsingModel(model, app._queue))
     if (prompt) openConfirmDialog({ ...prompt, confirmLabel: 'Delete', onConfirm: () => remove(id) })
@@ -452,7 +460,10 @@ function makeAlignmentModelRow(model, state, onDownload, onDelete) {
     row.appendChild(iconEl)
     row.appendChild(info)
     row.appendChild(_makeStatusBadge(installed, downloading))
-    row.appendChild(_makeModelActions(model.id, state, { onDownload, onDelete }))
+    row.appendChild(_makeModelActions(model.id, state, {
+      onDownload, onDelete,
+      deleteBlocked: modelInUseByRunningJob(model, app._queue) ? 'In use by the running transcription' : '',
+    }))
   }
 
   update()
@@ -500,11 +511,51 @@ function makeStartModeDropdown() {
 }
 
 function buildModelsSection(state, rerender) {
+  // Transcription language, with a warning (and the download) while its
+  // alignment model is not installed. Rebuilt when the language changes
+  // elsewhere (its model deleted → Detect).
   const langOpts = LANGUAGES.map(l => ({ value: l.code, ...l }))
-  const langDrop = makeLangDropdown(langOpts, state.transcribeLang, v => {
-    state.transcribeLang = v
-    saveSettings({ transcribeLang: v })
-  })
+  const langControl = document.createElement('div')
+  langControl.className = 'st-lang-control'
+  let shownLang = null
+  const langWarning = document.createElement('div')
+  langWarning.className = 'st-lang-warning'
+  langWarning.style.display = 'none'
+
+  function renderLanguage() {
+    if (shownLang !== state.transcribeLang) {
+      shownLang = state.transcribeLang
+      langControl.replaceChildren(makeLangDropdown(langOpts, state.transcribeLang, v => {
+        state.transcribeLang = v
+        shownLang = v
+        saveSettings({ transcribeLang: v })
+        renderLanguage()
+      }), langWarning)
+    }
+    const current = modelState()
+    const missing = current && missingAlignmentModel(state.transcribeLang, current.models)
+    langWarning.style.display = missing ? '' : 'none'
+    if (!missing) return
+    const text = document.createElement('span')
+    text.className = 'st-lang-warning-text'
+    text.textContent = `Alignment model for ${languageLabel(state.transcribeLang)} is not installed`
+    const download = modelDownload(missing.id)
+    const action = document.createElement('button')
+    action.className = 'st-btn st-btn--sm ' + (download ? 'st-btn--ghost' : 'st-btn--primary')
+    if (download) {
+      text.textContent += ` — downloading… ${Math.round(download.pct)}%`
+      action.textContent = 'Cancel'
+      action.addEventListener('click', () => cancelModelDownload(missing.id))
+    } else {
+      action.textContent = `Download (${catalogModel(missing.id).size})`
+      action.addEventListener('click', () => startModelDownload(missing.id))
+    }
+    const alert = document.createElement('span')
+    alert.innerHTML = icon('alert', 14)
+    langWarning.replaceChildren(alert, text, action)
+  }
+  renderLanguage()
+  _addModelsRefresher(state, renderLanguage)
 
   const modelRows = document.createElement('div')
   modelRows.className = 'st-model-list'
@@ -559,7 +610,7 @@ function buildModelsSection(state, rerender) {
       icon('models', 18),
       'ML Models', 'Whisper transcription · diarization · language.'
     ),
-    makeFieldRow('Transcription language', 'Whisper auto-detects when set to "Detect".', langDrop),
+    makeFieldRow('Transcription language', 'Whisper auto-detects when set to "Detect".', langControl),
     makeFieldRow('Start transcription',
       'Automatically: new recordings and imports are transcribed right away. Manually: they wait until you press Start in the queue.',
       makeStartModeDropdown()),
