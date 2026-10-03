@@ -49,10 +49,21 @@ test('modelDeletePrompt: texts; none without queued jobs', () => {
 
 test('jobStatusText: a missing Whisper or diarization model', () => {
   const q = { paused: false }
-  assert.equal(pure.jobStatusText({ status: 'failed', error_code: 'whisper_model_missing', whisper_model: 'small', error: 'x' }, q),
+  const error = 'Whisper model "small" is not installed. Download it in Settings.'
+  assert.equal(pure.jobStatusText({ status: 'failed', error_code: 'whisper_model_missing', whisper_model: 'small', error }, q),
     'Whisper model "small" is not installed')
   assert.equal(pure.jobStatusText({ status: 'failed', error_code: 'diarization_model_missing', whisper_model: 'small', error: 'x' }, q),
     'Diarization model is not installed')
+})
+
+test('jobStatusText: names the model the job failed on, not the one picked since', () => {
+  // Editing a failed job changes its model but keeps the error until Retry.
+  const q = { paused: false }
+  const error = 'Whisper model "small" is not installed. Download it in Settings.'
+  assert.equal(pure.jobStatusText({ status: 'failed', error_code: 'whisper_model_missing', whisper_model: 'large-v3', error }, q),
+    'Whisper model "small" is not installed')
+  assert.equal(pure.jobStatusText({ status: 'failed', error_code: 'whisper_model_missing', whisper_model: 'large-v3', error: '' }, q),
+    'Whisper model is not installed')
 })
 
 // ── Settings → delete ──────────────────────────────────────────────────────────
