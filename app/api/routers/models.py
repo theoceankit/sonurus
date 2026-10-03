@@ -5,10 +5,11 @@ import uuid
 from asyncio import CancelledError
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 import app.config as config
+from app.api.dependencies import get_transcription_queue
 from app.api.schemas import DownloadRequest
 from app.services.model_service import ModelService, WHISPER_CATALOG, DIARIZATION_CATALOG, ALIGNMENT_CATALOG
 from app.logger import get_logger
@@ -41,11 +42,16 @@ def list_models():
 
 
 @router.delete("/models/{model_id}")
-def delete_model(model_id: str):
+def delete_model(model_id: str, queue=Depends(get_transcription_queue)):
+    running = queue.running_job()
+    # The running job has loaded these files; it may still need them (e.g. the
+    # diarization model late in the pipeline).
+    if running and model_id in (running["whisper_model"], "diarize"):
+        return JSONResponse({"detail": "In use by the running transcription"}, status_code=409)
     try:
         _make_service().delete_model(model_id)
     except FileNotFoundError:
-        return JSONResponse({"detail": f"Model '{model_id}' is not installed"}, status_code=404)
+        return JSONResponse({"detail": f'Model "{model_id}" is not installed'}, status_code=404)
     except ValueError:
         return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=422)
     return {"deleted": model_id}

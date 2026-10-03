@@ -7,8 +7,9 @@ const { loadRenderer } = require('./load-renderer')
 const { fakeElement } = require('./fake-dom')
 
 const iconCalls = []
-const ctx = loadRenderer(['data.js', 'views/settings-view.js'], {
+const ctx = loadRenderer(['data.js', 'transcription-model.js', 'views/settings-view.js'], {
   API_BASE: 'http://api',
+  app: { _queue: null },
   document: { createElement: () => fakeElement() },
   icon: (name, size) => { iconCalls.push(name); return `<span data-icon="${name}" data-size="${size}"></span>` },
 })

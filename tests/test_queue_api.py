@@ -297,3 +297,55 @@ def test_data_reset_is_409_while_a_job_runs_and_clears_a_paused_queue(api):
     assert r.status_code == 200, r.text
     assert queue.snapshot()["jobs"] == [] and _imports(tmp_path) == []
     runner.release("a")
+
+
+# ── Missing models: retry, deleting a model a job uses ─────────────────────────
+
+def test_retry_refuses_a_job_whose_model_is_not_installed(api):
+    tc, queue, runner, tmp_path = api
+    runner.outcomes["Team Meeting"] = RuntimeError("boom")
+    job = _post(tc, tmp_path)
+    tc.post("/queue/start")
+    wait_for(lambda: queue.snapshot()["jobs"][0]["status"] == "failed")
+    tc.post("/queue/pause")
+    import shutil
+    shutil.rmtree(config.WHISPER_MODELS_DIR / ("models--" + WHISPER_CATALOG["small"]["hf_repo"].replace("/", "--")))
+
+    r = tc.post(f"/queue/jobs/{job['id']}/retry")
+    assert r.status_code == 400
+    assert r.json()["detail"] == 'Whisper model "small" is not installed. Download it in Settings.'
+    assert queue.snapshot()["jobs"][0]["status"] == "failed"
+
+
+def test_retry_refuses_a_job_without_the_diarization_model(api):
+    tc, queue, runner, tmp_path = api
+    runner.outcomes["Team Meeting"] = RuntimeError("boom")
+    job = _post(tc, tmp_path)
+    tc.post("/queue/start")
+    wait_for(lambda: queue.snapshot()["jobs"][0]["status"] == "failed")
+    tc.post("/queue/pause")
+    import shutil
+    shutil.rmtree(config.HF_MODELS_DIR)
+
+    r = tc.post(f"/queue/jobs/{job['id']}/retry")
+    assert r.status_code == 400
+    assert "Diarization model is not installed" in r.json()["detail"]
+
+
+def test_a_model_the_running_job_uses_cannot_be_deleted(api):
+    tc, queue, runner, tmp_path = api
+    _install(config.WHISPER_MODELS_DIR, WHISPER_CATALOG["base"]["hf_repo"])
+    runner.hold("Team Meeting")
+    _post(tc, tmp_path)
+    tc.post("/queue/start")
+    wait_for(lambda: queue.snapshot()["running_job_id"] is not None)
+
+    for model_id in ("small", "diarize"):
+        r = tc.delete(f"/models/{model_id}")
+        assert r.status_code == 409, model_id
+        assert r.json()["detail"] == "In use by the running transcription"
+    assert tc.delete("/models/base").status_code == 200   # not the running job's model
+
+    runner.release("Team Meeting")
+    wait_for(lambda: queue.snapshot()["running_job_id"] is None)
+    assert tc.delete("/models/small").status_code == 200

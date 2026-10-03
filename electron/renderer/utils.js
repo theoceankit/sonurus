@@ -286,6 +286,10 @@ function jobStatusText(job, snapshot) {
   if (job.status === 'failed') {
     if (job.error_code === 'alignment_model_missing')
       return `Alignment model for "${job.error_language}" is not installed`
+    if (job.error_code === 'whisper_model_missing')
+      return `Whisper model "${job.whisper_model}" is not installed`
+    if (job.error_code === 'diarization_model_missing')
+      return 'Diarization model is not installed'
     return (job.error || '').split('\n')[0].trim() || 'Failed'
   }
   return snapshot.paused ? 'Waiting · queue paused' : 'Waiting'

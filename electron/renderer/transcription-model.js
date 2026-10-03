@@ -125,3 +125,46 @@ async function dropImportOptions() {
   }
   return { model: state.model, language: appSettings.transcribeLang || 'auto' }
 }
+
+// Option of a Whisper model dropdown (New Recording modal, queue job modal):
+// the name, plus "Not installed" in the list for a disabled (not downloaded)
+// model. Pass as makeDropdown's renderOption.
+function renderModelOption(opt, isTrigger) {
+  const name = document.createElement('span')
+  name.textContent = opt.label
+  if (!opt.disabled || isTrigger) return name
+  const note = document.createElement('span')
+  note.className = 'st-dropdown-item-note'
+  note.textContent = 'Not installed'
+  const row = document.createElement('span')
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%'
+  row.append(name, note)
+  return row
+}
+
+// ── Deleting a model the queue needs ─────────────────────────────────────────
+// `model` is a GET /models row; `snapshot` the last WS /ws/queue snapshot.
+// Every job needs the diarization model; a Whisper model only its own jobs.
+
+function _jobNeedsModel(job, model) {
+  return model.kind === 'diarization' || (model.kind === 'whisper' && job.whisper_model === model.id)
+}
+
+// How many waiting or failed jobs need `model`.
+function queuedJobsUsingModel(model, snapshot) {
+  if (!snapshot) return 0
+  return snapshot.jobs.filter(j => (j.status === 'waiting' || j.status === 'failed') && _jobNeedsModel(j, model)).length
+}
+
+// The running transcription needs `model` (the backend refuses the delete).
+function modelInUseByRunningJob(model, snapshot) {
+  const running = snapshot?.jobs.find(j => j.id === snapshot.running_job_id)
+  return !!running && _jobNeedsModel(running, model)
+}
+
+// Confirmation before deleting a model `count` queued jobs need, or null.
+function modelDeletePrompt(model, count) {
+  if (!count) return null
+  const jobs = count === 1 ? '1 job in the queue uses' : `${count} jobs in the queue use`
+  return { title: `Delete ${model.name}?`, body: `${jobs} ${model.name}. Delete anyway?` }
+}

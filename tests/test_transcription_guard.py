@@ -476,3 +476,23 @@ def test_transcribe_guard_passes_when_alignment_model_installed(client):
         f"got {r.status_code}: {r.text}"
     )
     assert r.json()["status"] == "waiting"
+
+
+# ---------------------------------------------------------------------------
+# One wording for a missing model everywhere: the id in double quotes, as the
+# job error (whisper_model_missing) and the queue card show it.
+# ---------------------------------------------------------------------------
+
+def test_missing_model_texts_quote_the_id_like_the_job_error(client):
+    from app.services.model_service import ModelNotInstalledError
+    from app.services.transcription_service import AlignmentModelMissingError
+    tc, tmp_path = client
+    r = tc.post("/queue/jobs", json={"audio_path": "/fake/audio.wav", "whisper_model": "small"})
+    assert r.json()["detail"] == str(ModelNotInstalledError("whisper_model_missing", "small"))
+
+    _install_whisper_and_diarize(tmp_path, "small")
+    r = tc.post("/queue/jobs", json={"audio_path": "/fake/audio.wav", "whisper_model": "small", "language": "ru"})
+    assert r.json()["detail"] == 'Alignment model for language "ru" is not installed. Download it in Settings.'
+    assert str(AlignmentModelMissingError("ru")).startswith('Alignment model for language "ru" is not installed.')
+
+    assert tc.delete("/models/base").json()["detail"] == 'Model "base" is not installed'
