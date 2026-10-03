@@ -17,7 +17,7 @@ class AlignmentModelMissingError(Exception):
     def __init__(self, language: str) -> None:
         self.language = language
         super().__init__(
-            f"Alignment model for language '{language}' is not installed. "
+            f'Alignment model for language "{language}" is not installed. '
             "Download it in Settings → Alignment Models."
         )
 
