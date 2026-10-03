@@ -7,6 +7,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { loadRenderer } = require('./load-renderer')
 const { fakeElement } = require('./fake-dom')
+const { models, seedModels } = require('./models-fixture')
 
 const RENDERER_DIR = path.join(__dirname, '..', '..', 'electron', 'renderer')
 const plain = v => JSON.parse(JSON.stringify(v))
@@ -16,7 +17,7 @@ function openModal(appSettings = {}) {
   const created = []
   const started = []
   const saved = []
-  const ctx = loadRenderer(['utils.js', 'data.js', 'views/new-recording-modal.js'], {
+  const ctx = loadRenderer(['utils.js', 'data.js', 'transcription-model.js', 'views/new-recording-modal.js'], {
     appSettings: { transcribeModel: 'large-v3', transcribeLang: 'ru', ...appSettings },
     document: {
       createElement: () => fakeElement(created),
@@ -35,6 +36,7 @@ function openModal(appSettings = {}) {
     saveSettings: patch => saved.push(plain(patch)),
     makeDropdown: () => fakeElement(created),
   })
+  seedModels(ctx, models())
   ctx.renderNewRecordingModal({ onStart: s => started.push(plain(s)), onImport() {} })
   const toggles = created.filter(e => e.className === 'nr-toggle')
   const start = () => created.find(e => e.className === 'nr-start-btn').fire('click')

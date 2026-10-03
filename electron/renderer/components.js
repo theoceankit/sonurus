@@ -1,5 +1,6 @@
 // ── Dropdown ────────────────────────────────────────────────────────────────────
-// Generic dropdown used in new-recording-modal and settings-view.
+// Generic dropdown used in new-recording-modal and settings-view. An option
+// with `disabled: true` is shown dimmed and cannot be picked.
 
 function makeDropdown(options, value, onChange, renderOption) {
   const wrap = document.createElement('div')
@@ -35,6 +36,8 @@ function makeDropdown(options, value, onChange, renderOption) {
     options.forEach(opt => {
       const item = document.createElement('button')
       item.className = 'st-dropdown-item' + (opt.value === current ? ' st-dropdown-item--active' : '')
+        + (opt.disabled ? ' st-dropdown-item--disabled' : '')
+      if (opt.disabled) item.disabled = true
       if (renderOption) {
         item.appendChild(renderOption(opt, false))
       } else {
@@ -47,6 +50,7 @@ function makeDropdown(options, value, onChange, renderOption) {
         item.appendChild(check)
       }
       item.addEventListener('click', () => {
+        if (opt.disabled) return
         onChange(opt.value)
         setVal(opt.value)
         buildList(opt.value)

@@ -245,6 +245,44 @@
 
 .nr-field--disabled { opacity: 0.38; pointer-events: none; }
 
+/* Model field while the models are unknown or missing (no dropdown). */
+.nr-model-empty {
+  height: 36px;
+  padding: 0 12.5px;
+  border-radius: 9px;
+  border: 0.5px solid rgba(0,0,0,0.14);
+  background: rgba(0,0,0,0.03);
+  display: flex;
+  align-items: center;
+  font-size: 13.5px;
+  color: var(--ink-dim);
+}
+
+/* Why Start / Import are off, with a way to Settings. */
+.nr-model-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border-radius: 9px;
+  background: rgba(240,165,0,0.10);
+  border: 0.5px solid rgba(240,165,0,0.35);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.nr-model-notice-link {
+  margin-left: auto;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.nr-model-notice-link:hover { text-decoration: underline; }
+
 .nr-toggles {
   display: flex;
   align-items: center;
@@ -394,6 +432,7 @@
   transition: background 0.08s, color 0.08s;
 }
 .nr-import-btn:hover { background: rgba(0,0,0,0.05); color: var(--ink); }
+.nr-import-btn:disabled { opacity: 0.45; cursor: default; background: none; color: var(--ink-dim); }
 
 .nr-start-btn {
   display: inline-flex;

@@ -16,7 +16,7 @@ const ST_EXPORT_FORMATS = [
 function makeSettings() {
   const modelStatus = {}
   ALIGNMENT_MODELS.forEach(m => { modelStatus[m.id] = 'available' })
-  return {
+  const state = {
     transcribeLang: appSettings.transcribeLang,
     transcribeModel: appSettings.transcribeModel,
     scale: appSettings.scale,
@@ -31,9 +31,22 @@ function makeSettings() {
     incBookmarks: false,
     incAudio: false,
     modelStatus,
-    activeDownload: {},
     modelProgress: {},
   }
+  state.refreshModels = () => _refreshModels(state)
+  return state
+}
+
+// Model rows and the default model follow the last GET /models answer and the
+// running downloads; each section adds a refresher.
+function _addModelsRefresher(state, refresh) {
+  (state.refreshers ||= []).push(refresh)
+}
+
+function _refreshModels(state) {
+  _applyModelStatus(state)
+  state.transcribeModel = modelState()?.model ?? null
+  state.refreshers?.forEach(refresh => refresh())
 }
 
 // ── Primitives ─────────────────────────────────────────────────────────────────
@@ -220,66 +233,27 @@ function makeSlider(value, min, max, step, marks, onChange, onCommit) {
 
 // ── Shared download/delete handlers ───────────────────────────────────────────
 
-function _makeDownloadHandler(state, rerenderRows) {
-  return function onDownload(id) {
-    state.modelStatus[id] = 'downloading'
-    if (!state.modelProgress) state.modelProgress = {}
-    state.modelProgress[id] = 0
-    rerenderRows()
-
-    fetch(`${API_BASE}/models/${id}/download`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hf_token: state.hfToken || null }),
-    })
-      .then(r => r.json())
-      .then(({ job_id }) => {
-        const ws = new WebSocket(`${WS_BASE}/ws/models/${job_id}`)
-        if (!state.activeDownload) state.activeDownload = {}
-        state.activeDownload[id] = { job_id, ws }
-
-        ws.onmessage = ({ data }) => {
-          const ev = JSON.parse(data)
-          if (ev.type === 'progress') {
-            state.modelProgress[id] = ev.pct ?? 0
-            rerenderRows()
-          } else if (ev.type === 'done') {
-            state.modelStatus[id] = 'installed'
-            state.modelProgress[id] = 100
-            delete state.activeDownload[id]
-            rerenderRows()
-            ws.close()
-          } else if (ev.type === 'cancelled' || ev.type === 'error') {
-            state.modelStatus[id] = 'available'
-            state.modelProgress[id] = 0
-            delete state.activeDownload[id]
-            rerenderRows()
-            ws.close()
-          }
-        }
-        ws.onerror = () => {
-          state.modelStatus[id] = 'available'
-          delete state.activeDownload?.[id]
-          rerenderRows()
-        }
-      })
-      .catch(() => {
-        state.modelStatus[id] = 'available'
-        rerenderRows()
-      })
-  }
+// Status of every catalog row: installed per the last GET /models answer,
+// downloading per model-downloads.js (GET /models does not report those).
+function _applyModelStatus(state) {
+  modelState()?.models.forEach(m => {
+    state.modelStatus[m.id] = m.installed ? 'installed' : 'available'
+  })
+  Object.keys(state.modelStatus).forEach(id => {
+    const download = modelDownload(id)
+    if (download) {
+      state.modelStatus[id] = 'downloading'
+      state.modelProgress[id] = download.pct
+    }
+  })
 }
 
-function _makeDeleteHandler(state, rerenderRows, onSuccess = null) {
+// After a delete the default model is re-resolved (a toast says what it is now).
+function _makeDeleteHandler(state) {
   return function onDelete(id) {
     fetch(`${API_BASE}/models/${id}`, { method: 'DELETE' })
-      .then(r => {
-        if (r.ok) {
-          state.modelStatus[id] = 'available'
-          if (onSuccess) onSuccess(id)
-          rerenderRows()
-        }
-      })
+      .then(r => { if (r.ok) return syncTranscribeModel().then(() => state.refreshModels?.()) })
+      .catch(() => {})
   }
 }
 
@@ -317,7 +291,7 @@ function _makeStatusBadge(installed, downloading) {
   return el
 }
 
-function _makeModelActions(modelId, state, { onDownload, onDelete, onSelect = null, rerenderRows = null }) {
+function _makeModelActions(modelId, state, { onDownload, onDelete, onSelect = null }) {
   const actions = document.createElement('div')
   actions.className = 'st-model-actions'
   actions.addEventListener('click', e => e.stopPropagation())
@@ -337,23 +311,7 @@ function _makeModelActions(modelId, state, { onDownload, onDelete, onSelect = nu
     const cancelBtn = document.createElement('button')
     cancelBtn.className = 'st-btn st-btn--ghost st-btn--sm'
     cancelBtn.textContent = 'Cancel'
-    cancelBtn.addEventListener('click', () => {
-      const active = state.activeDownload?.[modelId]
-      if (active) {
-        fetch(`${API_BASE}/models/${modelId}/download/${active.job_id}`, { method: 'DELETE' })
-          .finally(() => {
-            active.ws.close()
-            state.modelStatus[modelId] = 'available'
-            state.modelProgress[modelId] = 0
-            delete state.activeDownload[modelId]
-            rerenderRows?.()
-          })
-      } else {
-        state.modelStatus[modelId] = 'available'
-        state.modelProgress[modelId] = 0
-        rerenderRows?.()
-      }
-    })
+    cancelBtn.addEventListener('click', () => cancelModelDownload(modelId))
     actions.appendChild(cancelBtn)
   }
   if (installed && onSelect && state.transcribeModel !== modelId) {
@@ -386,7 +344,7 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
     const status = state.modelStatus[model.id]
     const installed = status === 'installed'
     const downloading = status === 'downloading'
-    const isSelected = !isDiarization && state.transcribeModel === model.id
+    const isSelected = !isDiarization && installed && state.transcribeModel === model.id
 
     row.classList.toggle('st-model-row--selected', isSelected)
     row.innerHTML = ''
@@ -419,7 +377,7 @@ function makeModelRow(model, state, onSelect, onDownload, onDelete) {
     row.appendChild(info)
     row.appendChild(_makeStatusBadge(installed, downloading))
     row.appendChild(_makeModelActions(model.id, state, {
-      onDownload, onDelete, onSelect: isDiarization ? null : onSelect, rerenderRows: update,
+      onDownload, onDelete, onSelect: isDiarization ? null : onSelect,
     }))
 
     row.style.cursor = (installed && !isDiarization) ? 'pointer' : 'default'
@@ -478,7 +436,7 @@ function makeAlignmentModelRow(model, state, onDownload, onDelete) {
     row.appendChild(iconEl)
     row.appendChild(info)
     row.appendChild(_makeStatusBadge(installed, downloading))
-    row.appendChild(_makeModelActions(model.id, state, { onDownload, onDelete, rerenderRows: update }))
+    row.appendChild(_makeModelActions(model.id, state, { onDownload, onDelete }))
   }
 
   update()
@@ -539,31 +497,36 @@ function buildModelsSection(state, rerender) {
     modelRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
   }
 
+  // Shown while new jobs cannot start: no default model or no diarization.
+  const hint = document.createElement('div')
+  hint.className = 'st-models-hint'
+  hint.style.display = 'none'
+
   function onSelect(id) {
+    selectTranscribeModel(id)
     state.transcribeModel = id
-    saveSettings({ transcribeModel: id })
     rerenderRows()
   }
 
-  const onDownload = _makeDownloadHandler(state, rerenderRows)
-  const onDelete   = _makeDeleteHandler(state, rerenderRows, id => {
-    if (state.transcribeModel === id) {
-      state.transcribeModel = 'small'
-      saveSettings({ transcribeModel: 'small' })
-    }
-  })
+  const onDelete = _makeDeleteHandler(state)
 
-  // Fetch full catalog + install status from API; render rows when ready.
-  fetch(`${API_BASE}/models`)
-    .then(r => r.json())
-    .then(models => {
-      const whisperAndDiarize = models.filter(m => m.kind !== 'alignment')
-      whisperAndDiarize.forEach(m => {
-        state.modelStatus[m.id] = m.installed ? 'installed' : 'available'
-        modelRows.appendChild(makeModelRow(m, state, onSelect, onDownload, onDelete))
-      })
-    })
-    .catch(() => { /* server not running — rows remain empty */ })
+  // Rows come from the GET /models catalog (built once it is known).
+  let rowsBuilt = false
+  _addModelsRefresher(state, () => {
+    const current = modelState()
+    if (!current) return
+    if (rowsBuilt) {
+      rerenderRows()
+    } else {
+      current.models
+        .filter(m => m.kind !== 'alignment')
+        .forEach(m => modelRows.appendChild(makeModelRow(m, state, onSelect, startModelDownload, onDelete)))
+      rowsBuilt = true
+    }
+    const text = settingsModelHint(current)
+    hint.innerHTML = text ? `${icon('alert', 14)}<span>${text}</span>` : ''
+    hint.style.display = text ? '' : 'none'
+  })
 
   const footer = document.createElement('div')
   footer.className = 'st-models-footer'
@@ -571,6 +534,7 @@ function buildModelsSection(state, rerender) {
     Models stored in <code class="st-code">.models/</code>`
 
   const modelControl = document.createElement('div')
+  modelControl.appendChild(hint)
   modelControl.appendChild(modelRows)
   modelControl.appendChild(footer)
 
@@ -595,25 +559,12 @@ function buildAlignmentSection(state) {
     alignRows.querySelectorAll('.st-model-row').forEach(r => r._update && r._update())
   }
 
-  const onDownload = _makeDownloadHandler(state, rerenderRows)
-  const onDelete   = _makeDeleteHandler(state, rerenderRows)
+  const onDelete = _makeDeleteHandler(state)
 
   ALIGNMENT_MODELS.forEach(m => {
-    alignRows.appendChild(makeAlignmentModelRow(m, state, onDownload, onDelete))
+    alignRows.appendChild(makeAlignmentModelRow(m, state, startModelDownload, onDelete))
   })
-
-  // Load real install status from API
-  fetch(`${API_BASE}/models`)
-    .then(r => r.json())
-    .then(models => {
-      models.forEach(({ id, installed }) => {
-        if (id in state.modelStatus) {
-          state.modelStatus[id] = installed ? 'installed' : 'available'
-        }
-      })
-      rerenderRows()
-    })
-    .catch(() => { /* server not running — keep defaults */ })
+  _addModelsRefresher(state, rerenderRows)
 
   const footer = document.createElement('div')
   footer.className = 'st-models-footer'
@@ -976,6 +927,9 @@ function renderSettingsView() {
   content.appendChild(version)
 
   root.appendChild(content)
-  root._cleanup = () => Object.values(state.activeDownload || {}).forEach(d => d.ws?.close())
+  // Downloads go on after leaving Settings (model-downloads.js); only stop listening.
+  state.refreshModels()
+  syncTranscribeModel().then(() => state.refreshModels())
+  root._cleanup = subscribeModelDownloads(() => state.refreshModels())
   return root
 }

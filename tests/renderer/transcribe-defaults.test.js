@@ -5,6 +5,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { loadRenderer } = require('./load-renderer')
 const { fakeElement } = require('./fake-dom')
+const { models, seedModels } = require('./models-fixture')
 
 const pending = () => new Promise(() => {})
 const flush = () => new Promise(resolve => setImmediate(resolve))
@@ -14,7 +15,7 @@ function setup(settings = {}) {
   const dropdowns = []
   const saved = []
   const appSettings = { transcribeModel: 'medium', transcribeLang: 'de', ...settings }
-  const ctx = loadRenderer(['utils.js', 'data.js', 'views/settings-view.js', 'views/new-recording-modal.js'], {
+  const ctx = loadRenderer(['utils.js', 'data.js', 'transcription-model.js', 'views/settings-view.js', 'views/new-recording-modal.js'], {
     appSettings,
     app: { _queue: null },
     document: {
@@ -37,6 +38,7 @@ function setup(settings = {}) {
       return fakeElement(created)
     },
   })
+  seedModels(ctx, models())
   const find = (list, v) => list.find(d => d.values.includes(v))
   return {
     ctx, appSettings, saved, created,
