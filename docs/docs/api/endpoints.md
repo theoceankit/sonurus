@@ -98,7 +98,7 @@ Transcription jobs are persisted in the database and run one at a time by the qu
   "language": null,               // null = auto-detect
   "status": "waiting",            // "waiting" | "running" | "failed"
   "error": null,                  // message of the last failure
-  "error_code": null,             // "alignment_model_missing" or null
+  "error_code": null,             // "alignment_model_missing", "whisper_model_missing", "diarization_model_missing" or null
   "error_language": null,         // language of a missing alignment model
   "created_at": "2026-09-28T13:00:17.512300"
 }
@@ -159,6 +159,8 @@ Adds a job at the end of the queue and returns it (`status: "waiting"`). In `aut
 
 With auto-detection the alignment guard cannot fire up front. If the detected language needs an alignment model that is not installed, the job fails with `error_code: "alignment_model_missing"` and `error_language`.
 
+A job never downloads a model. Before it starts, the worker checks that its Whisper model and the diarization model are installed (they may have been deleted after the job was queued); if not, the job fails at once with `error_code: "whisper_model_missing"` (`"Whisper model \"small\" is not installed. Download it in Settings."`) or `"diarization_model_missing"`. The pipeline child runs with `HF_HUB_OFFLINE=1`, so models load from the local cache only.
+
 ### `PATCH /queue/jobs/{id}`
 
 Changes `title`, `whisper_model` and/or `language` — only the fields sent (`language: null` or `"auto"` = auto-detect). Allowed for waiting and failed jobs. `404` unknown job, `409` for the running job, `400` if the new Whisper or alignment model is not installed, `422` for a blank title or one over 200 characters.
@@ -169,7 +171,7 @@ Deletes the job **and its audio** — the live recording, or the copy of an impo
 
 ### `POST /queue/jobs/{id}/retry`
 
-A failed job becomes `waiting` again at the end of the queue, its error cleared. `404` unknown job, `409` if the job has not failed.
+A failed job becomes `waiting` again at the end of the queue, its error cleared. `404` unknown job, `409` if the job has not failed, `400` if its Whisper, diarization or (explicit-language) alignment model is not installed (same texts as `POST /queue/jobs`; the job stays failed).
 
 ### `WS /ws/queue`
 
@@ -255,6 +257,7 @@ Removes the model's HuggingFace cache directory from disk.
 
 - `200 {"deleted": "large-v3"}` — success
 - `404` — model is not installed
+- `409 {"detail": "In use by the running transcription"}` — the running job uses it (its Whisper model, or the diarization model)
 - `422` — unknown `model_id`
 
 ---
