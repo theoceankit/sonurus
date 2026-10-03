@@ -434,11 +434,28 @@ class ModelNotInstalledError(RuntimeError):
         super().__init__(message)
 
 
-def require_job_models(service: ModelService, whisper_model: str) -> None:
-    """Raise ModelNotInstalledError unless a job's models are installed. Runs
-    before the pipeline, so a job never starts with (or downloads) a missing
-    model."""
+class AlignmentModelMissingError(Exception):
+    """The alignment model a language needs is not installed. Raised before a
+    job starts (its explicit language) and inside transcribe() (the detected
+    one). Carries the ISO language code so the caller can surface a targeted
+    download prompt."""
+
+    def __init__(self, language: str) -> None:
+        self.language = language
+        super().__init__(
+            f'Alignment model for language "{language}" is not installed. '
+            "Download it in Settings → Alignment Models."
+        )
+
+
+def require_job_models(service: ModelService, whisper_model: str, language: str | None = None) -> None:
+    """Raise ModelNotInstalledError / AlignmentModelMissingError unless a job's
+    models are installed. Runs before the pipeline, so a job never starts with
+    (or downloads) a missing model, nor transcribes only to fail at alignment.
+    The alignment model is known only for an explicit language in the catalog."""
     if not service.is_installed(whisper_model):
         raise ModelNotInstalledError("whisper_model_missing", whisper_model)
     if not service.is_installed("diarize"):
         raise ModelNotInstalledError("diarization_model_missing", "diarize")
+    if language in ALIGNMENT_CATALOG and not service.is_installed(language):
+        raise AlignmentModelMissingError(language)

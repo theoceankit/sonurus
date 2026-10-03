@@ -43,7 +43,7 @@ def make_job_runner(storage: TranscriptStorageService, memory_db_path: str, on_s
         # never downloads) a model that is not installed.
         require_job_models(
             ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR),
-            job["whisper_model"],
+            job["whisper_model"], job["language"],
         )
         on_progress("Loading models…")
         if pipeline_process.RUN_PIPELINE_IN_SUBPROCESS:
