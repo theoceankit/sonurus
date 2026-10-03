@@ -159,7 +159,7 @@ Adds a job at the end of the queue and returns it (`status: "waiting"`). In `aut
 
 With auto-detection the alignment guard cannot fire up front. If the detected language needs an alignment model that is not installed, the job fails with `error_code: "alignment_model_missing"` and `error_language`.
 
-A job never downloads a model. Before it starts, the worker checks that its Whisper model and the diarization model are installed (they may have been deleted after the job was queued); if not, the job fails at once with `error_code: "whisper_model_missing"` (`"Whisper model \"small\" is not installed. Download it in Settings."`) or `"diarization_model_missing"`. The pipeline child runs with `HF_HUB_OFFLINE=1`, so models load from the local cache only.
+A job never downloads a model. Before it starts, the worker checks that its Whisper model, the diarization model and the alignment model of its explicit language are installed (they may have been deleted after the job was queued); if not, the job fails at once — before any transcription — with `error_code: "whisper_model_missing"` (`"Whisper model \"small\" is not installed. Download it in Settings."`), `"diarization_model_missing"` or `"alignment_model_missing"` (with `error_language`). With auto-detect the language, and so its alignment model, is known only mid-pipeline. The pipeline child runs with `HF_HUB_OFFLINE=1`, so models load from the local cache only.
 
 ### `PATCH /queue/jobs/{id}`
 
