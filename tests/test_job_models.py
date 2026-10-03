@@ -1,6 +1,7 @@
-"""A job never downloads models: its Whisper model and the diarization model
-must be installed before it starts (structured failure otherwise), and the
-pipeline child loads models from the local cache only (HF_HUB_OFFLINE)."""
+"""A job never downloads models: its Whisper model, the diarization model and
+the alignment model of its explicit language must be installed before it
+starts (structured failure otherwise), and the pipeline child loads models
+from the local cache only (HF_HUB_OFFLINE)."""
 import os
 import threading
 from pathlib import Path
@@ -9,7 +10,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.services.model_service import (
-    DIARIZATION_CATALOG, WHISPER_CATALOG, ModelNotInstalledError, ModelService, require_job_models,
+    ALIGNMENT_CATALOG, DIARIZATION_CATALOG, WHISPER_CATALOG, AlignmentModelMissingError,
+    ModelNotInstalledError, ModelService, require_job_models,
 )
 from app.services.pipeline_process import _pipeline_worker
 from app.services.transcription_job import make_job_runner
@@ -32,6 +34,8 @@ def models(tmp_path):
             if model_id == "diarize":
                 for repo in DIARIZATION_CATALOG["diarize"]["hf_repos"]:
                     _install(tmp_path / "hf", repo)
+            elif model_id in ALIGNMENT_CATALOG:
+                _install(tmp_path / "alignment", ALIGNMENT_CATALOG[model_id]["hf_repo"])
             else:
                 _install(tmp_path / "whisper", WHISPER_CATALOG[model_id]["hf_repo"])
     return service, install
@@ -62,6 +66,41 @@ def test_all_models_installed(models):
     require_job_models(service, "small")
 
 
+def test_a_missing_alignment_model_of_the_job_language(models):
+    service, install = models
+    install("small", "diarize")
+    with pytest.raises(AlignmentModelMissingError) as exc:
+        require_job_models(service, "small", "ru")
+    assert exc.value.language == "ru"
+
+
+def test_the_whisper_and_diarization_models_are_reported_before_alignment(models):
+    service, install = models
+    install("small")
+    with pytest.raises(ModelNotInstalledError) as exc:
+        require_job_models(service, "small", "ru")
+    assert exc.value.code == "diarization_model_missing"
+
+
+@pytest.mark.parametrize("language", [None, "auto", "en", "it"])
+def test_no_alignment_check_without_a_catalog_model(models, language):
+    # Auto-detect is only known mid-pipeline; en/es/de/fr/it have no catalog model.
+    service, install = models
+    install("small", "diarize")
+    require_job_models(service, "small", language)
+
+
+def test_an_installed_alignment_model(models):
+    service, install = models
+    install("small", "diarize", "ru")
+    require_job_models(service, "small", "ru")
+
+
+def test_the_error_is_the_one_the_pipeline_raises():
+    from app.services.transcription_service import AlignmentModelMissingError as FromService
+    assert FromService is AlignmentModelMissingError
+
+
 # ── run_job checks before the pipeline ─────────────────────────────────────────
 
 JOB = {"id": "j1", "audio_path": "/rec/a.wav", "title": "Sync", "whisper_model": "small", "language": None}
@@ -75,7 +114,23 @@ def test_run_job_checks_the_models_before_the_pipeline(tmp_path):
          patch("app.services.transcription_job.run_pipeline_process") as child:
         with pytest.raises(ModelNotInstalledError):
             run(JOB, lambda step: None, threading.Event())
-    assert check.call_args.args[1] == "small"
+    assert check.call_args.args[1:] == ("small", None)
+    create.assert_not_called()
+    child.assert_not_called()
+
+
+def test_run_job_fails_on_the_alignment_model_before_the_pipeline(tmp_path, models):
+    # The queue turns AlignmentModelMissingError into alignment_model_missing
+    # (test_transcription_queue); here it comes before any transcription.
+    service, install = models
+    install("small", "diarize")
+    run = make_job_runner(storage=MagicMock(), memory_db_path=str(tmp_path / "m.db"), on_saved=lambda: None)
+    with patch("app.services.transcription_job.ModelService", return_value=service), \
+         patch("app.services.transcription_job.create_controller") as create, \
+         patch("app.services.transcription_job.run_pipeline_process") as child:
+        with pytest.raises(AlignmentModelMissingError) as exc:
+            run({**JOB, "language": "ru"}, lambda step: None, threading.Event())
+    assert exc.value.language == "ru"
     create.assert_not_called()
     child.assert_not_called()
 
