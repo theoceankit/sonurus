@@ -25,7 +25,8 @@ Accessible via the gear icon in the Electron app. Settings are read and written 
 |---|---|---|
 | HuggingFace token | `hfToken` | Required for PyAnnote diarization |
 | Transcription language | `transcribeLang` | Whisper language code, or `"auto"` |
-| Whisper model | `transcribeModel` | Model ID (e.g. `"small"`, `"large-v3"`) |
+| Whisper model | `transcribeModel` | Default model ID (e.g. `"small"`, `"large-v3"`); `null` until a Whisper model is installed — there is no built-in default |
+| Previous Whisper models | `transcribeModelHistory` | The last five default models, oldest first; a deleted default falls back to the latest one still installed |
 | Interface scale | `scale` | Zoom factor in percent |
 | Export format | `exportFormat` | `"txt"`, `"md"`, `"srt"`, `"vtt"`, `"json"` |
 
