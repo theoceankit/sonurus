@@ -4,7 +4,9 @@
 // audio files (dropped on it or picked in the file dialog, several at once).
 // While a recording runs (`recording`) it only imports.
 // Model and language start from the defaults in Settings; a choice made here
-// applies to this recording or import only and is not saved.
+// applies to this recording or import only and is not saved. Without a default
+// model or the diarization model (transcription-model.js) Start and Import are
+// off and a notice links to Settings; models not downloaded cannot be picked.
 
 function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   // ── State ──────────────────────────────────────────────────────────────────
@@ -12,7 +14,9 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   let audioSource   = appSettings.recordingAudioSource || 'both'
   let micDeviceId   = appSettings.recordingMicDevice   || null
   let sysDeviceId   = appSettings.recordingSystemDevice || null
-  let modelValue    = appSettings.transcribeModel       || 'large-v3'
+  let models        = modelState()                     // null until GET /models answered
+  let modelValue    = models?.model ?? null
+  let modelPicked   = false                              // chosen here, not the default
   let langValue     = appSettings.transcribeLang        || 'auto'
   // `diarize` is persisted but not sent to the backend; its toggle is marked
   // unimplemented (not-implemented.js).
@@ -182,34 +186,41 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   modelFieldLabel.className = 'nr-field-label'
   modelFieldLabel.textContent = 'Model'
 
-  // Build dropdown from static list first; replace with live data once fetched.
-  function buildModelDropdown(models) {
-    const opts = models
-      .filter(m => m.kind === 'whisper')
-      .map(m => ({
-        value: m.id, label: m.name,
-        sub: m.installed ? `${m.size} · Installed` : `${m.size} · ${m.speed}`,
-      }))
-    return makeDropdown(
-      opts, modelValue,
-      v => { modelValue = v },
-      (opt) => { const s = document.createElement('span'); s.textContent = opt.label; return s }
-    )
-  }
-
-  let modelDropdown = buildModelDropdown(MODELS)
+  const modelWrap = document.createElement('div')
+  modelWrap.className = 'nr-field-dropdown-wrap'
   modelField.appendChild(modelFieldLabel)
-  modelField.appendChild(modelDropdown)
+  modelField.appendChild(modelWrap)
 
-  // Async: update dropdown with live install status from the server.
-  fetch(`${API_BASE}/models`)
-    .then(r => r.json())
-    .then(liveModels => {
-      const updated = buildModelDropdown(liveModels)
-      modelDropdown.replaceWith(updated)
-      modelDropdown = updated
-    })
-    .catch(() => { /* keep static dropdown on network error */ })
+  function renderModelField() {
+    if (!models || !models.model) {
+      const empty = document.createElement('div')
+      empty.className = 'nr-model-empty'
+      empty.textContent = models ? 'No model installed' : 'Checking models…'
+      modelWrap.replaceChildren(empty)
+      return
+    }
+    const opts = models.models
+      .filter(m => m.kind === 'whisper')
+      .map(m => ({ value: m.id, label: m.name, disabled: !m.installed }))
+    modelWrap.replaceChildren(makeDropdown(
+      opts, modelValue,
+      v => { modelValue = v; modelPicked = true },
+      (opt, isTrigger) => {
+        const s = document.createElement('span')
+        s.textContent = opt.label
+        if (opt.disabled && !isTrigger) {
+          const note = document.createElement('span')
+          note.className = 'st-dropdown-item-note'
+          note.textContent = 'Not installed'
+          const row = document.createElement('span')
+          row.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%'
+          row.append(s, note)
+          return row
+        }
+        return s
+      }
+    ))
+  }
 
   const langField = document.createElement('div')
   langField.className = 'nr-field'
@@ -231,6 +242,27 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   settingsRow.appendChild(modelField)
   settingsRow.appendChild(langField)
   body.appendChild(settingsRow)
+
+  // Shown when new jobs cannot start (no default model / no diarization).
+  const notice = document.createElement('div')
+  notice.className = 'nr-model-notice'
+  notice.style.display = 'none'
+  body.appendChild(notice)
+
+  function renderNotice() {
+    const text = models && !models.model ? 'No transcription model installed.'
+      : models && !models.diarizeInstalled ? 'Diarization model not installed.'
+      : null
+    notice.style.display = text ? '' : 'none'
+    if (!text) return
+    const label = document.createElement('span')
+    label.textContent = text
+    const link = document.createElement('button')
+    link.className = 'nr-model-notice-link'
+    link.textContent = 'Download in Settings'
+    link.addEventListener('click', () => { close(); app.showSettings() })
+    notice.replaceChildren(label, link)
+  }
 
   // ── Toggles ────────────────────────────────────────────────────────────────
 
@@ -269,13 +301,24 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   importBtn.innerHTML = `
     ${icon('import', 13)}Import audio file`
   importBtn.addEventListener('click', () => {
+    if (importBtn.disabled) return
     window.electronAPI.openFiles().then(paths => {
       if (paths?.length) importPaths(paths)
     })
   })
 
+  // Start and Import need the default model and the diarization model.
+  function canRun() {
+    return !!(models && models.model && models.diarizeInstalled)
+  }
+
   // Several files are queued in order; see modalImportItems() for titles.
   function importPaths(paths) {
+    if (!canRun()) {
+      const message = models ? noModelMessage(models) : 'Checking models…'
+      window.showToast?.(message, { actionLabel: 'Open Settings', action: () => { close(); app.showSettings() } })
+      return
+    }
     const { items, skipped } = modalImportItems(paths, {
       title: titleInput.value,
       titleIsDefault: titleInput.hasAttribute('data-default'),
@@ -289,11 +332,8 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   const startBtn = document.createElement('button')
   startBtn.className = 'nr-start-btn'
   startBtn.textContent = 'Start recording'
-  if (recording) {
-    startBtn.disabled = true
-    startBtn.title = 'A recording is already in progress'
-  }
   startBtn.addEventListener('click', () => {
+    if (startBtn.disabled) return
     const settings = {
       audioSource,
       micDeviceId   : micDeviceId === '__default__' ? null : micDeviceId,
@@ -316,6 +356,27 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
   footer.appendChild(importBtn)
   footer.appendChild(startBtn)
   modal.appendChild(footer)
+
+  function renderModels() {
+    renderModelField()
+    renderNotice()
+    const blocked = canRun() ? '' : models ? noModelMessage(models) : 'Checking models…'
+    importBtn.disabled = !!blocked
+    importBtn.title = blocked
+    startBtn.disabled = recording || !!blocked
+    startBtn.title = recording ? 'A recording is already in progress' : blocked
+  }
+
+  // From the last known catalog at once, then from a fresh GET /models (which
+  // also re-resolves the default). A model picked here stays if still installed.
+  renderModels()
+  syncTranscribeModel().then(fresh => {
+    if (!fresh) return
+    const picked = modelPicked && installedWhisperModels(fresh.models).includes(modelValue)
+    models = fresh
+    if (!picked) { modelValue = fresh.model; modelPicked = false }
+    renderModels()
+  })
 
   // ── Populate device dropdowns async ────────────────────────────────────────
 

@@ -3,7 +3,8 @@
 const DEFAULT_APP_SETTINGS = Object.freeze({
   scale: 100,
   transcribeLang: 'auto',
-  transcribeModel: 'small',
+  transcribeModel: null,          // no built-in default: see transcription-model.js
+  transcribeModelHistory: [],
   exportFormat: 'txt',
   recordingMicDevice: null,
   recordingSystemDevice: null,
@@ -126,16 +127,16 @@ const app = {
     }
   },
 
-  _onFileDrop(decision) {
+  async _onFileDrop(decision) {
     if (decision.action !== 'import') return
     const { files, skipped } = decision
     if (skipped) window.showToast?.(skippedFilesToast(skipped))
     if (!files.length) return
+    // Nothing is queued without the default model and the diarization model.
+    const options = await dropImportOptions()
+    if (!options) return
     window.showToast?.(importStartToast(files.map(file => file.path)))
-    this._importFiles(files.map(file => file.path), {
-      model: appSettings.transcribeModel || 'large-v3',
-      language: appSettings.transcribeLang || 'auto',
-    })
+    this._importFiles(files.map(file => file.path), options)
   },
 
   showEditor(transcriptId) {
@@ -174,7 +175,7 @@ const app = {
       micDeviceId    = null,
       systemDeviceId = null,
       title          = '',
-      model          = appSettings.transcribeModel || 'large-v3',
+      model          = appSettings.transcribeModel,
       language       = appSettings.transcribeLang  || 'auto',
     } = settings
 
@@ -886,7 +887,10 @@ const app = {
 
   init() {
     installNotImplementedGuard(document)
-    loadSettings().then(() => this._loadSidebar({ autoOpen: true }))
+    loadSettings().then(() => {
+      syncTranscribeModel()   // fills the model catalog the New Recording modal opens with
+      this._loadSidebar({ autoOpen: true })
+    })
     this._connectQueue()
 
     initFileDrop({

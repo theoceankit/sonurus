@@ -91,6 +91,10 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 | `tests/renderer/file-drop-events.test.js` | 6 | `initFileDrop()` with stub `window` / `document`: overlay show / hide, a drop already handled by the modal is not imported again, non-file drags untouched, drop effect per view |
 | `tests/renderer/settings-models.test.js` | 5 | Settings rows build without errors (fake DOM): `makeModelRow()` for Whisper (installed / not) and diarization, `makeAlignmentModelRow()`, `makeSectionHeader()` |
 | `tests/renderer/icons.test.js` | 8 | `icon()` / `hydrateIcons()` markup; every icon name used in the renderer has a file in `electron/assets/icons/`; files are kebab-case with `xmlns` + `viewBox`; no inline SVG icons; no local variable named `icon`; renderer scripts still parse |
+| `tests/renderer/default-model.test.js` | 32 | Default transcription model: `resolveTranscribeModel()` (kept, previous from the history, most accurate installed, none), `pushModelHistory()`, `noModelMessage()` / `settingsModelHint()`; `syncTranscribeModel()` on a stub `fetch` (first download, deleted default, last model deleted, saved but not installed, backend down), `selectTranscribeModel()`, `dropImportOptions()`; the New Recording modal (checking / no model / no diarization: Start and Import off, notice, modal drop refused; disabled options; fresh catalog; a model picked in the modal is kept); Settings (hint, **In use** only when installed, Use saves history); no hard-coded default model. Catalog from `models-fixture.js` |
+| `tests/renderer/model-downloads.test.js` | 6 | `model-downloads.js` with a stub `WebSocket`: start (token, job WS, progress to subscribers), done re-resolves the default with its toast, error / cancelled, cancel (also before the backend answered), leaving Settings keeps the download and coming back shows its progress |
+| `tests/renderer/dropdown.test.js` | 2 | `makeDropdown()`: a disabled option is marked and cannot be picked; other options work as before |
+| `tests/renderer/toast-layer.test.js` | 1 | `#toast-stack` has the highest `z-index` in `styles/*.css`, so toasts stay above modals and overlays |
 
 ---
 

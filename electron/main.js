@@ -57,7 +57,8 @@ const getSettingsPath = () => path.join(app.getPath('userData'), 'settings.json'
 const DEFAULT_SETTINGS = {
   scale: 100,
   transcribeLang: 'auto',
-  transcribeModel: 'small',
+  transcribeModel: null,
+  transcribeModelHistory: [],
   exportFormat: 'txt',
   recordingMicDevice: null,
   recordingSystemDevice: null,
