@@ -74,11 +74,13 @@
 
 /* ── Toast ────────────────────────────────────────────────────────────────── */
 
+/* Above every other layer (modals, overlays, popovers): a toast shown while a
+   modal is open must not sit under its blurred backdrop. */
 #toast-stack {
   position: fixed;
   right: 20px;
   bottom: 84px;
-  z-index: 200;
+  z-index: 10000;
   display: flex;
   flex-direction: column;
   gap: 8px;
