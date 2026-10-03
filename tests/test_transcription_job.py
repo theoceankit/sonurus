@@ -20,6 +20,13 @@ def _transcript(audio_path="/rec/sonorus-import-1.wav"):
                       audio_path=audio_path, language="en")
 
 
+@pytest.fixture(autouse=True)
+def models_installed():
+    """The pre-run model check (test_job_models.py) passes: no models on disk here."""
+    with patch("app.services.transcription_job.require_job_models"):
+        yield
+
+
 @pytest.fixture
 def storage(tmp_path):
     return TranscriptStorageService(db_path=str(tmp_path / "db.sqlite"))
