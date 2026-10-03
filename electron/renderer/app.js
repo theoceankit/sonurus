@@ -377,6 +377,7 @@ const app = {
       this._queue = event
       // Rebuilding the cards would end a drag; dragend renders the latest.
       if (!this._queueDrag) this._renderJobQueue()
+      document.getElementById('main-panel').firstElementChild?._onQueue?.()
     } else if (event.type === 'job_done') {
       this.invalidateSidebar()
       this._loadSidebar()
