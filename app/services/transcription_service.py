@@ -3,23 +3,11 @@ import torch
 from pathlib import Path
 
 from app.config import MODELS_DIR, WHISPER_MODEL, WHISPER_BATCH_SIZE, WHISPER_COMPUTE_TYPE_CUDA, WHISPER_COMPUTE_TYPE_CPU
-from app.services.model_service import ALIGNMENT_CATALOG
+# AlignmentModelMissingError is imported from here by the queue and the pipeline child.
+from app.services.model_service import ALIGNMENT_CATALOG, AlignmentModelMissingError  # noqa: F401
 from app.logger import get_logger
 
 log = get_logger("TranscriptionService")
-
-
-class AlignmentModelMissingError(Exception):
-    """Raised inside transcribe() when the detected language needs an alignment
-    model that is not installed on disk.  Carries the ISO language code so the
-    caller can surface a targeted download prompt."""
-
-    def __init__(self, language: str) -> None:
-        self.language = language
-        super().__init__(
-            f'Alignment model for language "{language}" is not installed. '
-            "Download it in Settings → Alignment Models."
-        )
 
 
 class TranscriptionService:
