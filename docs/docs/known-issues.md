@@ -44,6 +44,32 @@ UserWarning: torchcodec is not installed correctly so built-in audio decoding wi
 
 ---
 
+### Linux packaged app cannot record system audio
+
+**Severity:** functional — live recording with system audio fails in the AppImage.
+
+**Symptom:** recording "System audio" or "Both" stops with "Recording error: No audio was captured…"; the log shows `Unknown input format: 'pulse'`. Microphone-only recording works.
+
+**Cause:** on Linux the backend records system audio with `ffmpeg -f pulse`. The packaged app puts its bundled `ffmpeg` (from `ffmpeg-static`) first on `PATH`, and that build has no PulseAudio input. The microphone is recorded by the renderer, without ffmpeg.
+
+**Impact:** Linux packaged app only. Dev mode uses the system `ffmpeg`, which usually supports PulseAudio.
+
+**Workaround:** record system audio from dev mode (`npm start`), or record with another tool and import the file.
+
+---
+
+### Dev mode and the packaged app share data
+
+**Severity:** data mix-up on developer machines — does not affect users without a source checkout.
+
+**Symptom:** the packaged app shows transcripts, speakers and models from dev mode (`npm start`), and the other way round.
+
+**Cause:** Electron names the data directory after the app: `productName` in the app's `package.json`, otherwise `name`. `productName` is set only under `build` (read by electron-builder), so both modes use `sonorus` (`~/.config/sonorus`, `~/Library/Application Support/sonorus`, `%APPDATA%\sonorus`). Separately, the app reuses any backend that already answers on port 8000, so a running dev backend serves the packaged app too.
+
+**Workaround:** do not run both at once, and start a packaged build with its own data directory: `--user-data-dir=<dir>` (see the [Build and install](./build-and-install/linux.md#where-things-are) page of your OS).
+
+---
+
 ### AppImage taskbar icon shows generic icon on GNOME
 
 **Severity:** cosmetic — does not affect functionality.
@@ -73,7 +99,7 @@ After integration, the Sonorus icon appears correctly in the taskbar, app switch
 **Cause:** current releases are not code-signed. macOS Gatekeeper and Windows SmartScreen flag unsigned apps from unknown publishers.
 
 **Workaround:**
-- macOS: right-click the `.app` → Open → Open (once per install).
+- macOS: System Settings → Privacy & Security → **Open Anyway** (older macOS: right-click the `.app` → Open → Open), once per installed version. A `.dmg` built locally is not blocked.
 - Windows: click "More info" → "Run anyway".
 
 **Note:** removing the warnings requires signed and notarized builds, which are not set up yet.
