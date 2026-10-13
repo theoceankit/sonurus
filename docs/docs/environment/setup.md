@@ -12,22 +12,15 @@ Download the appropriate installer from [GitHub Releases](https://github.com/the
 
 | Platform | File | Notes |
 |---|---|---|
-| macOS Apple Silicon | `Sonorus-x.x.x-arm64.dmg` | Drag to `/Applications` |
-| macOS Intel | `Sonorus-x.x.x-x64.dmg` | Drag to `/Applications` |
+| macOS Apple Silicon | `Sonorus-x.x.x-arm64.dmg` | Drag to `/Applications`; macOS 14 or later |
 | Windows | `Sonorus Setup x.x.x.exe` | Standard NSIS installer |
 | Linux | `Sonorus-x.x.x.AppImage` | `chmod +x` then run; [FUSE required](#linux-appimage) |
 
 ### First run
 
-On first launch Sonorus shows a **Setup** screen and installs ML dependencies (~500 MB, one-time, requires internet). This takes a few minutes. All packages are stored in:
-
-| Platform | Path |
-|---|---|
-| macOS | `~/Library/Application Support/Sonorus/python-packages/` |
-| Windows | `%APPDATA%\Sonorus\python-packages\` |
-| Linux | `~/.config/Sonorus/python-packages/` |
-
-After setup completes the app opens normally. Subsequent launches skip this step.
+The installer already contains Python and every library the app needs: Sonorus opens straight to the
+main screen, with no setup step and no internet connection required. Transcription models are
+downloaded on demand in **Settings → Models**; once downloaded, transcription works offline.
 
 ### HuggingFace token
 
@@ -69,16 +62,13 @@ yay -S appimagelauncher
 
 ## GPU acceleration
 
-The packaged app installs **CPU-only PyTorch** by default. This works on all platforms but is significantly slower than GPU inference.
+The packaged app ships **CPU-only PyTorch** and runs on the CPU on every platform. GPU acceleration is
+not available in the packaged app; the bundled libraries live inside the installed app and are not
+meant to be modified.
 
-To use an NVIDIA GPU, reinstall PyTorch with CUDA support after the initial setup. From the app's `python-packages/` directory:
-```bash
-# Example for CUDA 12.8 — adjust index URL for your CUDA version
-~/.config/Sonorus/python-packages/../.venv/bin/pip install \
-  torch==2.8.0 torchaudio==2.8.0 \
-  --index-url https://download.pytorch.org/whl/cu128 \
-  --target ~/.config/Sonorus/python-packages
-```
+For GPU inference today, run Sonorus from source with a CUDA build of PyTorch (see
+[Developer setup](#developer-setup)) — the backend picks `cuda` automatically when
+`torch.cuda.is_available()`.
 
 macOS does not support CUDA. Apple Silicon can use MPS, but WhisperX/ctranslate2 do not currently support it — CPU is the only option on Mac.
 
@@ -140,14 +130,12 @@ VERBOSE=false
 .venv/bin/python -m pytest tests/ -v
 ```
 
-### Testing the packaged setup flow
+### Testing a packaged build
+
+Build an installer for the current platform (see [Packaging](../distribution/packaging.md)) and run it
+with an isolated data directory, e.g. on Linux:
 
 ```bash
-# Forces the first-run setup screen in dev mode
-SONORUS_TEST_SETUP=1 npm start
-```
-
-Installs into `~/.config/sonorus/python-packages/`. Reset with:
-```bash
-rm -rf ~/.config/sonorus/python-packages
+npm run build:linux
+./dist/Sonorus-*.AppImage --user-data-dir=/tmp/sonorus-test
 ```
