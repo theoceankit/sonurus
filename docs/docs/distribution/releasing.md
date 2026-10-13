@@ -61,22 +61,24 @@ The tag push triggers `.github/workflows/build.yml`.
 
 ## GitHub Actions workflow
 
-Triggered by any tag matching `v*`.
+Triggered by any tag matching `v*`. It can also be started by hand from any branch (`workflow_dispatch`):
+the installers are then uploaded as workflow artifacts and no release is created.
 
 | Job | Runner | Output |
 |---|---|---|
-| `build-mac` (arm64) | `macos-latest` | `Sonorus-x.x.x-arm64.dmg`, `...-arm64-mac.zip` |
-| `build-mac` (x64) | `macos-13` | `Sonorus-x.x.x-x64.dmg`, `...-x64-mac.zip` |
+| `build-mac` (arm64) | `macos-latest` | `Sonorus-x.x.x-arm64.dmg` |
 | `build-win` | `windows-latest` | `Sonorus Setup x.x.x.exe` |
 | `build-linux` | `ubuntu-latest` | `Sonorus-x.x.x.AppImage` |
-| `release` | `ubuntu-latest` | Draft GitHub Release with all artifacts |
+| `release` (tags only) | `ubuntu-latest` | Draft GitHub Release with all artifacts |
 
 Each build job:
 1. `npm ci` — installs the exact versions pinned in `package-lock.json`
-2. `node scripts/bundle-backend.js` — downloads Python standalone + copies `app/`
+2. `node scripts/bundle-backend.js` — Python standalone + every library from `locks/` + `app/`, precompiled
+   (pip downloads are cached between runs, keyed by the lock files)
 3. `npx electron-builder --<platform> --<arch> --publish never`
+4. `node scripts/check-installer-size.js dist` — fails above 1900 MiB (see [Packaging → Installer size](./packaging.md#installer-size))
 
-Total duration: ~20–30 minutes.
+Build jobs time out after 60 minutes.
 
 ### 4. Publish the draft
 

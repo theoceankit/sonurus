@@ -11,7 +11,7 @@ no inline SVG icons.
 
 - **JS:** `icon('delete', 14)` (`electron/renderer/icons.js`) returns a `<span class="icon">` with a
   square 14 px box.
-- **Static HTML** (`index.html`, `setup.html`): `<span data-icon="search" data-size="13"></span>`;
+- **Static HTML** (`index.html`): `<span data-icon="search" data-size="13"></span>`;
   `icons.js` fills these in when it loads, keeping any inline style of the placeholder (e.g. a color).
 - `icon` is a global function, so never name a local variable `icon` (use e.g. `iconEl` for the
   element that holds one): a call to `icon()` in that scope throws, and inside a promise chain the
@@ -21,8 +21,7 @@ no inline SVG icons.
 
 The file is a CSS mask (`mask: url(...) center / contain`) over `background-color: currentColor`,
 so an icon takes the text color of its parent and the colors inside the file are ignored.
-Icons are therefore single-color. Styles are inline, not in a stylesheet: the CSP of `setup.html`
-allows inline styles only.
+Icons are therefore single-color. Styles are inline, so `icons.js` needs no stylesheet of its own.
 
 ## Replacing and adding an icon
 
@@ -56,7 +55,7 @@ the naming or root-element rules, when inline SVG icons return, or when a script
 | `arrow-right` | Setup: Install & Launch / Continue buttons |
 | `assign-speaker` | Speaker card: assign an unrecognized speaker |
 | `bookmark` | Segment row: Save for later |
-| `check` | Checkmarks: dropdowns, speaker picker, toggles, confirm edit / suggestion, "Installed", setup steps |
+| `check` | Checkmarks: dropdowns, speaker picker, toggles, confirm edit / suggestion, "Installed" |
 | `chevron-down` | Dropdowns, speaker chip in a segment row |
 | `chevron-right` | Setup: log toggle (rotated when open) |
 | `close` | Close / cancel / reject / clear |
@@ -71,7 +70,7 @@ the naming or root-element rules, when inline SVG icons return, or when a script
 | `import` | New recording modal: import a file, drop overlays (modal and window) |
 | `inspector` | Titlebar: toggle the right panel |
 | `interface` | Settings: "Interface" section |
-| `microphone` | Microphone source, "Audio devices" section, setup permission |
+| `microphone` | Microphone source, "Audio devices" section |
 | `microphone-and-system` | New recording modal: "Both" source |
 | `models` | Settings: "ML Models" section |
 | `next-speaker` | Player: next speaker |
@@ -87,6 +86,6 @@ the naming or root-element rules, when inline SVG icons return, or when a script
 | `settings` | Titlebar: Settings |
 | `share` | Titlebar: Share |
 | `speakers` | Settings: diarization model |
-| `system-audio` | New recording modal: system audio source, setup permission |
+| `system-audio` | New recording modal: system audio source |
 | `volume` | Player: volume |
 | `waveform` | Settings: Whisper model |
