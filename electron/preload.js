@@ -9,8 +9,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readSettings:    () => ipcRenderer.invoke('read-settings'),
   writeSettings:   (data) => ipcRenderer.invoke('write-settings', data),
   setZoom:         (factor) => ipcRenderer.invoke('set-zoom', factor),
-  writeClipboard:    (text) => ipcRenderer.invoke('write-clipboard', text),
-  onSetupProgress:   (cb) => ipcRenderer.on('setup-progress', (_e, data) => cb(data)),
-  startSetup:        () => ipcRenderer.send('start-setup'),
-  completeSetup:     () => ipcRenderer.send('setup-complete'),
+  writeClipboard:  (text) => ipcRenderer.invoke('write-clipboard', text),
 })
