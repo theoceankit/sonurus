@@ -8,15 +8,15 @@ sidebar_position: 1
 
 ## End-user installation (packaged app)
 
-Download the appropriate installer from [GitHub Releases](https://github.com/theoceankit/sonurus/releases).
+Download the installer from [GitHub Releases](https://github.com/theoceankit/sonurus/releases), or
+build it yourself. Building, installing, first launch, data locations and uninstalling are described
+per operating system in **Build and install**:
 
-| Platform | File | Notes |
+| Platform | File | Guide |
 |---|---|---|
-| macOS Apple Silicon | `Sonorus-x.x.x-arm64.dmg` | Drag to `/Applications`; macOS 14 or later |
-| Windows | `Sonorus Setup x.x.x.exe` | Standard NSIS installer |
-| Linux | `Sonorus-x.x.x.AppImage` | `chmod +x` then run; [FUSE required](#linux-appimage) |
-
-### First run
+| Linux x64 | `Sonorus-x.x.x.AppImage` | [Linux](../build-and-install/linux.md) |
+| macOS Apple Silicon, 14+ | `Sonorus-x.x.x-arm64.dmg` | [macOS](../build-and-install/macos.md) |
+| Windows x64 | `Sonorus Setup x.x.x.exe` | [Windows](../build-and-install/windows.md) |
 
 The installer already contains Python and every library the app needs: Sonorus opens straight to the
 main screen, with no setup step and no internet connection required. Transcription models are
@@ -31,32 +31,6 @@ Speaker diarization requires a free HuggingFace token with access to PyAnnote mo
 3. In Sonorus: **Settings → API Keys → HuggingFace token**.
 
 Without a token, transcription will fail at the diarization step.
-
-### macOS Gatekeeper
-
-Builds from GitHub Releases are not code-signed. On first open:
-> "Sonorus cannot be opened because it is from an unidentified developer."
-
-**Fix:** right-click the `.app` → Open → Open.
-
-### Windows SmartScreen
-
-On first run, Windows may show:
-> "Windows protected your PC"
-
-**Fix:** click "More info" → "Run anyway".
-
-### Linux AppImage
-
-AppImages require FUSE. On Arch-based distros:
-```bash
-sudo pacman -S fuse2
-```
-
-For automatic desktop integration (taskbar icon, `.desktop` file):
-```bash
-yay -S appimagelauncher
-```
 
 ---
 
