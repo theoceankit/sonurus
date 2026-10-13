@@ -1,0 +1,8 @@
+{
+  "label": "Build and install",
+  "position": 1.5,
+  "link": {
+    "type": "generated-index",
+    "description": "Building Sonorus from source and installing, running and removing the app — one page per operating system."
+  }
+}
