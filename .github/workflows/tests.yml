@@ -34,3 +34,6 @@ jobs:
 
       - name: Run renderer tests
         run: node --test 'tests/renderer/*.test.js'
+
+      - name: Run build tests
+        run: node --test 'tests/build/*.test.js'

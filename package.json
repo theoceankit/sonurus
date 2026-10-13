@@ -24,7 +24,8 @@
         "from": "backend-dist/",
         "to": "backend/",
         "filter": [
-          "**/*"
+          "**/*",
+          "!*.tar.gz"
         ]
       },
       {

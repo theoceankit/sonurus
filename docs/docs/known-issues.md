@@ -35,11 +35,11 @@ UserWarning: torchcodec is not installed correctly so built-in audio decoding wi
 
 **Symptom:** in the packaged (installed) app, transcription takes much longer than in dev mode with a CUDA GPU.
 
-**Cause:** `requirements.packaged.txt` installs `torch+cpu` from `download.pytorch.org/whl/cpu`. This is the safe default that works on all hardware, but forgoes CUDA acceleration.
+**Cause:** the installers ship `torch+cpu` (`requirements.packaged.txt`, `locks/`). This works on all hardware, but forgoes CUDA acceleration; the packaged app has no way to switch to a CUDA build.
 
 **Impact:** all platforms. macOS is CPU-only regardless (no CUDA support). Windows and Linux users with NVIDIA GPUs are affected.
 
-**Workaround:** manually reinstall PyTorch with CUDA support after the app's first-run setup. See [Setup → GPU acceleration](./environment/setup.md#gpu-acceleration).
+**Workaround:** for GPU inference, run Sonorus from source with a CUDA build of PyTorch. See [Setup → GPU acceleration](./environment/setup.md#gpu-acceleration).
 
 
 ---

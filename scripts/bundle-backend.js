@@ -1,38 +1,49 @@
 #!/usr/bin/env node
 'use strict'
 
-// Downloads python-build-standalone for the current platform and assembles
-// backend-dist/ so electron-builder can include it as extraResources.
+// Assembles backend-dist/ so electron-builder can include it as extraResources:
+// python-build-standalone with every backend library installed from the
+// platform's lock file (locks/packaged-<platform>-<arch>.txt), app/ sources,
+// all Python code precompiled, and ffmpeg. The packaged app installs nothing.
 //
 // Run before building:  node scripts/bundle-backend.js
 // Or via npm:           npm run bundle-backend
 //
-// Python and its tarball are cached in backend-dist/ and reused on
-// subsequent runs. Pass --force to re-extract Python (e.g. after a
-// version bump).
+// The Python tarball is cached in backend-dist/; python-dist/ is re-extracted
+// on every run so libraries from an older lock never linger. Lock files are
+// regenerated with scripts/lock-backend.js.
 
-const fs          = require('fs')
-const path        = require('path')
-const tar         = require('tar')
-const ffmpegSrc   = require('ffmpeg-static')
+const fs            = require('fs')
+const path          = require('path')
+const { spawnSync } = require('child_process')
 
 const PYTHON_VERSION = '3.12.10'
 const RELEASE_DATE   = '20250517'
 
+// Platforms the installers are built for (.github/workflows/build.yml).
 const FILENAME = {
   'darwin-arm64': `cpython-${PYTHON_VERSION}+${RELEASE_DATE}-aarch64-apple-darwin-install_only.tar.gz`,
-  'darwin-x64':   `cpython-${PYTHON_VERSION}+${RELEASE_DATE}-x86_64-apple-darwin-install_only.tar.gz`,
   'win32-x64':    `cpython-${PYTHON_VERSION}+${RELEASE_DATE}-x86_64-pc-windows-msvc-install_only.tar.gz`,
   'linux-x64':    `cpython-${PYTHON_VERSION}+${RELEASE_DATE}-x86_64-unknown-linux-gnu-install_only.tar.gz`,
-  'linux-arm64':  `cpython-${PYTHON_VERSION}+${RELEASE_DATE}-aarch64-unknown-linux-gnu-install_only.tar.gz`,
 }
+const BUILD_TARGETS = Object.keys(FILENAME)
 
 const BASE_URL = `https://github.com/indygreg/python-build-standalone/releases/download/${RELEASE_DATE}/`
 
 const ROOT    = path.resolve(__dirname, '..')
 const DEST    = path.join(ROOT, 'backend-dist')
 const PY_DIST = path.join(DEST, 'python-dist')
-const FORCE   = process.argv.includes('--force')
+
+function lockPath(key) {
+  return path.join(ROOT, 'locks', `packaged-${key}.txt`)
+}
+
+// Layout of an extracted python-build-standalone install_only archive.
+function pythonLayout(pyDist, platform = process.platform) {
+  return platform === 'win32'
+    ? { exe: path.join(pyDist, 'python.exe'),      lib: path.join(pyDist, 'Lib') }
+    : { exe: path.join(pyDist, 'bin', 'python3'),  lib: path.join(pyDist, 'lib', `python${PYTHON_VERSION.split('.').slice(0, 2).join('.')}`) }
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -54,20 +65,34 @@ function copyDir(src, dst, exclude = []) {
   }
 }
 
+function run(cmd, args) {
+  const res = spawnSync(cmd, args, { stdio: 'inherit' })
+  if (res.error) throw res.error
+  return res.status
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
+  const tar       = require('tar')
+  const ffmpegSrc = require('ffmpeg-static')
+
   const key      = `${process.platform}-${process.arch}`
   const filename = FILENAME[key]
   if (!filename) {
     console.error(`Unsupported platform: ${key}`)
-    console.error(`Supported: ${Object.keys(FILENAME).join(', ')}`)
+    console.error(`Supported: ${BUILD_TARGETS.join(', ')}`)
+    process.exit(1)
+  }
+  const lock = lockPath(key)
+  if (!fs.existsSync(lock)) {
+    console.error(`No lock file for ${key}: ${path.relative(ROOT, lock)} (run node scripts/lock-backend.js)`)
     process.exit(1)
   }
 
   fs.mkdirSync(DEST, { recursive: true })
 
-  // ── Python interpreter (cached) ───────────────────────────────────────────
+  // ── Python interpreter (tarball cached, always re-extracted) ─────────────
   const tarball = path.join(DEST, filename)
 
   if (!fs.existsSync(tarball)) {
@@ -78,30 +103,42 @@ async function main() {
     console.log('Tarball cached, skipping download.')
   }
 
-  if (FORCE || !fs.existsSync(PY_DIST)) {
-    console.log('Extracting Python…')
-    if (fs.existsSync(PY_DIST)) fs.rmSync(PY_DIST, { recursive: true })
-    fs.mkdirSync(PY_DIST, { recursive: true })
-    await tar.x({ file: tarball, cwd: PY_DIST, strip: 1 })
-  } else {
-    console.log('python-dist cached, skipping extraction.')
-  }
+  console.log('Extracting Python…')
+  fs.rmSync(PY_DIST, { recursive: true, force: true })
+  fs.mkdirSync(PY_DIST, { recursive: true })
+  await tar.x({ file: tarball, cwd: PY_DIST, strip: 1 })
+
+  const { exe, lib } = pythonLayout(PY_DIST)
+
+  // ── Libraries from the lock file ─────────────────────────────────────────
+  console.log(`Installing libraries from ${path.relative(ROOT, lock)}…`)
+  const pipStatus = run(exe, [
+    '-m', 'pip', 'install',
+    '--no-deps', '--require-hashes', '--only-binary=:all:',
+    '--no-compile', '--no-warn-script-location', '--disable-pip-version-check',
+    '-r', lock,
+  ])
+  if (pipStatus !== 0) throw new Error(`pip install exited with code ${pipStatus}`)
 
   // ── App source (always refreshed) ────────────────────────────────────────
   console.log('Copying app source…')
+  fs.rmSync(path.join(DEST, 'app'), { recursive: true, force: true })
   copyDir(path.join(ROOT, 'app'), path.join(DEST, 'app'), ['__pycache__'])
 
-  // macOS PyPI wheels are already CPU-only (no CUDA). The +cpu suffix and
-  // the PyTorch whl extra-index-url only exist for Linux/Windows builds.
-  let reqContent = fs.readFileSync(path.join(ROOT, 'requirements.packaged.txt'), 'utf8')
-  if (process.platform === 'darwin') {
-    reqContent = reqContent
-      .split('\n')
-      .filter(line => !line.startsWith('--extra-index-url'))
-      .map(line => line.replace(/\+cpu\b/g, ''))
-      .join('\n')
+  // ── Precompile ───────────────────────────────────────────────────────────
+  // unchecked-hash .pyc are never revalidated against source mtimes, so they
+  // are used as is inside the read-only AppImage / .app and after NSIS copies
+  // the files. Libraries and app/ must compile cleanly; the stdlib carries a
+  // few files that never compile (e.g. Tix demo scripts), so only warn there.
+  console.log('Precompiling Python code…')
+  const compile = dirs => run(exe, ['-m', 'compileall', '-q', '-j', '0', '--invalidation-mode', 'unchecked-hash', ...dirs])
+  const sitePackages = path.join(lib, 'site-packages')
+  if (compile([sitePackages, path.join(DEST, 'app')]) !== 0) {
+    throw new Error('compileall failed for site-packages or app/')
   }
-  fs.writeFileSync(path.join(DEST, 'requirements.txt'), reqContent)
+  if (compile(['-x', '[\\\\/]site-packages[\\\\/]', lib]) !== 0) {
+    console.warn('Some standard library files did not compile (ignored).')
+  }
 
   // ── ffmpeg binary ─────────────────────────────────────────────────────────
   console.log('Copying ffmpeg…')
@@ -114,4 +151,8 @@ async function main() {
   console.log('backend-dist ready.')
 }
 
-main().catch(err => { console.error(err.message); process.exit(1) })
+module.exports = { BUILD_TARGETS, lockPath, pythonLayout }
+
+if (require.main === module) {
+  main().catch(err => { console.error(err.message); process.exit(1) })
+}

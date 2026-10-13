@@ -49,6 +49,7 @@ node_modules/
 # Build output
 dist/
 backend-dist/
+.pip-cache/
 
 # Compiled macOS system audio capture binary (built via npm run build:capture)
 electron/resources/mac/sonorus-capture

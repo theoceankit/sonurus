@@ -28,7 +28,8 @@ def _listed_files():
 def _test_files_on_disk():
     python = {p.name for p in TESTS_DIR.glob("test_*.py")}
     renderer = {f"tests/renderer/{p.name}" for p in (TESTS_DIR / "renderer").glob("*.test.js")}
-    return python | renderer
+    build = {f"tests/build/{p.name}" for p in (TESTS_DIR / "build").glob("*.test.js")}
+    return python | renderer | build
 
 
 def test_every_test_file_has_a_row():
