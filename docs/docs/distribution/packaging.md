@@ -4,7 +4,8 @@ sidebar_position: 1
 
 # Packaging
 
-How Sonorus is assembled into distributable installers.
+How Sonorus is assembled into distributable installers. Step-by-step building and installing per
+operating system: [Build and install](../build-and-install/linux.md) (Linux, macOS, Windows).
 
 ---
 
