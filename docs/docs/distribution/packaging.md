@@ -133,22 +133,33 @@ electron-builder and fails when an installer exceeds **1900 MiB**.
 
 ## Icons
 
+The app icon has two masters, both 1024×1024 PNG with the S logo on a light plate. They differ only in the
+plate size, because the platforms reserve different margins:
+
+| Master | Plate | Used for |
+|---|---|---|
+| `electron/assets/icon-macos.png` | 824×824, margin 100 (Apple icon grid; the margin holds the shadow) | `build/icons/icon.icns` |
+| `electron/assets/icon.png` | 896×896, margin 64, 8 px above centre (room for the shadow) | `build/icons/icon.ico`, Linux AppImage, window icon (`electron/main.js`) |
+
+A macOS icon without the full plate is shrunk by macOS 26 and placed on a grey plate, so the macOS master keeps
+the Apple grid exactly. Windows and Linux have no such grid; with the macOS margins the icon would look smaller
+than its neighbours.
+
 | File | Purpose |
 |---|---|
-| `electron/assets/icon.png` | App icon with background (1024×1024) — dock, taskbar, `.icns`, `.ico`, Linux AppImage |
-| `electron/assets/logo.png` | Transparent S logo (1024×1024) — titlebar and favicon inside the app |
-| `build/icons/icon.icns` | macOS (generated from `icon.png`) |
-| `build/icons/icon.ico` | Windows (generated from `icon.png`) |
+| `electron/assets/logo.png` | Transparent S logo (1024×1024) — titlebar and favicon inside the app, and the source of both masters |
+| `build/icons/icon.icns` | macOS, 16–1024 px (generated) |
+| `build/icons/icon.ico` | Windows, 16–256 px (generated) |
 
-Icons are generated from `icon.png` using the `png2icons` npm package. Regenerate:
+Linux takes `icon.png` as is: electron-builder makes the hicolor size set from it.
+
+The masters are drawn in the design file (page "Logo") and exported at 1×. After replacing a master, rebuild
+the installer icons and commit them:
 ```bash
-node -e "
-const p=require('png2icons'),fs=require('fs');
-const i=fs.readFileSync('electron/assets/icon.png');
-fs.writeFileSync('build/icons/icon.icns',p.createICNS(i,p.BILINEAR,0));
-fs.writeFileSync('build/icons/icon.ico',p.createICO(i,p.BILINEAR,0,true));
-"
+node scripts/build-icons.js
 ```
+The script uses the `png2icons` npm package. `tests/build/app-icons.test.js` checks the plate geometry of both
+masters and that `icon.icns` and `icon.ico` were built from them.
 
 ---
 

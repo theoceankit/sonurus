@@ -48,7 +48,9 @@ electron/
   backend.js           — Backend process spawn, health check
   preload.js           — contextBridge: exposes electronAPI.*
   assets/
-    icon.png           — 512×512 source icon
+    icon.png           — app icon master for Windows and Linux, 1024×1024 (see Packaging → Icons)
+    icon-macos.png     — app icon master for macOS, 1024×1024
+    logo.png           — transparent S logo: titlebar, favicon
     icons/             — every UI icon as <name>.svg (see Icons page)
   renderer/
     index.html         — App shell: left sidebar + main panel
