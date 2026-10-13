@@ -2,7 +2,7 @@
 // Every UI icon is a file: electron/assets/icons/<name>.svg (see docs: ui/electron/icons.md).
 // The file is drawn as a CSS mask filled with currentColor, so an icon takes the
 // text color of its parent and the colors inside the SVG file are ignored.
-// Styles are inline: setup.html's CSP allows inline styles but no stylesheets.
+// Styles are inline, so the module needs no stylesheet of its own.
 const ICONS_DIR = '../assets/icons'
 
 function iconUrl(name) {

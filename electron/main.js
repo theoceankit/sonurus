@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard, desktopCapturer } = require('electron')
 const path = require('path')
 const fs = require('fs')
-const { startBackend, stopBackend, needsSetup } = require('./backend')
+const { startBackend, stopBackend } = require('./backend')
 
 // macOS routes Cmd+C/V/X/A through the app's Edit menu — without it,
 // paste doesn't work in any text field. Windows/Linux handle it at OS level.
@@ -19,13 +19,12 @@ if (process.platform === 'darwin') {
 
 let mainWin = null
 
-function createWindow(setupMode = false) {
+function createWindow() {
   mainWin = new BrowserWindow({
-    width:     setupMode ? 1000 : 1200,
-    height:    setupMode ?  680 :  800,
-    minWidth:  setupMode ? 1000 :  900,
-    minHeight: setupMode ?  680 :  600,
-    resizable: !setupMode,
+    width:     1200,
+    height:    800,
+    minWidth:  900,
+    minHeight: 600,
     backgroundColor: '#FFFFFF',
     icon: path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: {
@@ -36,11 +35,9 @@ function createWindow(setupMode = false) {
     },
   })
 
-  const page = setupMode ? 'setup.html' : 'index.html'
-  mainWin.loadFile(path.join(__dirname, 'renderer', page))
+  mainWin.loadFile(path.join(__dirname, 'renderer', 'index.html'))
 
-  // Pages never navigate themselves (setup.html → index.html is loadFile()
-  // from here, which does not emit will-navigate). Blocks e.g. a file dropped
+  // The page never navigates itself. Blocks e.g. a file dropped
   // outside a drop zone from replacing the app with that file.
   mainWin.webContents.on('will-navigate', e => e.preventDefault())
 
@@ -121,23 +118,9 @@ app.whenReady().then(async () => {
     hfToken = saved.hfToken || ''
   } catch { /* settings not yet created */ }
 
-  const setupMode = needsSetup()
-
-  // Setup mode: open window first, wait for user to click "Start Installation",
-  // then run pip install + backend. Normal mode: start backend first so
-  // index.html loads with a ready API.
-  if (setupMode) createWindow(true)
-
-  const onProgress = data => {
-    if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('setup-progress', data)
-  }
-
-  if (setupMode) {
-    await new Promise(resolve => ipcMain.once('start-setup', resolve))
-  }
-
+  // Start the backend first so index.html loads with a ready API.
   try {
-    await startBackend(hfToken, setupMode ? onProgress : null)
+    await startBackend(hfToken)
   } catch (err) {
     dialog.showErrorBox('Sonorus — backend error',
       `Failed to start the backend:\n${err.message}\n\nCheck ${app.getPath('userData')}/sonorus.log for details.`)
@@ -145,15 +128,7 @@ app.whenReady().then(async () => {
     return
   }
 
-  if (setupMode) {
-    // Signal renderer that installation is complete → show permissions screen
-    onProgress({ type: 'phase', phase: 'done' })
-    // Wait for user to finish the permissions step before switching to app
-    await new Promise(resolve => ipcMain.once('setup-complete', resolve))
-    mainWin.loadFile(path.join(__dirname, 'renderer', 'index.html'))
-  } else {
-    createWindow(false)
-  }
+  createWindow()
 })
 
 app.on('will-quit', () => stopBackend())
