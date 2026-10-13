@@ -29,12 +29,14 @@ To start the backend manually (e.g. for isolated API testing):
 `electron/backend.js` manages the server process:
 
 1. `checkHealth()` — polls `GET /health`. If already responding, skips spawn.
-2. First-run (packaged only): runs `pip install -r requirements.txt --target $userData/python-packages/`.
-3. Spawns `uvicorn` with env: `HF_TOKEN`, `SONORUS_DATA_DIR`, `LOG_FILE`, `PYTHONPATH` (packaged).
-4. `waitForReady()` — polls `/health` up to 60s before opening the window.
-5. `stopBackend()` — kills the process on `will-quit`.
+2. Spawns `uvicorn` with the bundled interpreter (packaged: `resources/backend/python-dist`, which
+   already contains every library — see [Packaging](../../distribution/packaging.md); dev: `.venv`) and env
+   `HF_TOKEN`, `SONORUS_DATA_DIR`, `LOG_FILE`, `SONORUS_VERSION`; packaged builds also put the bundled
+   `ffmpeg` first on `PATH`.
+3. `waitForReady()` — polls `/health` up to 60s, logs `[backend] ready in N ms`, then `main.js` opens the window.
+4. `stopBackend()` — kills the process on `will-quit`.
 
-`SONORUS_TEST_SETUP=1 npm start` forces first-run setup mode in dev.
+There is no first-run setup: every launch, packaged or dev, goes straight to `index.html`.
 
 ---
 
@@ -43,15 +45,13 @@ To start the backend manually (e.g. for isolated API testing):
 ```
 electron/
   main.js              — BrowserWindow, IPC handlers, backend lifecycle orchestration
-  backend.js           — Backend process spawn, health check, first-run pip install
+  backend.js           — Backend process spawn, health check
   preload.js           — contextBridge: exposes electronAPI.*
-  screenshot-setup.js  — DEV-ONLY screenshot utility (never packaged)
   assets/
     icon.png           — 512×512 source icon
     icons/             — every UI icon as <name>.svg (see Icons page)
   renderer/
     index.html         — App shell: left sidebar + main panel
-    setup.html         — First-run setup screen (shown during pip install)
     icons.js           — icon(name, size), hydrateIcons: renders files from assets/icons/
     utils.js           — API_BASE, WS_BASE, speaker helpers, fmtTime, speaker avatars (makeAvatar, makeAvatarStack)
     transcription-model.js — default Whisper model: syncTranscribeModel, noModelMessage, dropImportOptions
@@ -95,28 +95,8 @@ electron/
 | `writeSettings(data)` | Write `settings.json` to `app.getPath('userData')` |
 | `setZoom(factor)` | Call `webContents.setZoomFactor(factor)` |
 | `writeClipboard(text)` | Write text to the system clipboard |
-| `onSetupProgress(callback)` | Subscribe to first-run setup progress events |
 | `getPlatform()` | Returns `process.platform` (`'win32'`, `'darwin'`, `'linux'`) |
 | `getAppVersion()` | Returns `app.getVersion()` — the `version` field of `package.json` |
-| `startSetup()` | Signal main process that the renderer is ready to begin setup |
-| `completeSetup()` | Signal main process that setup is complete — opens the main window |
-
-### Setup progress events
-
-During first-run setup, `main.js` forwards events from `backend.js` to the renderer via `ipcRenderer.on('setup-progress', ...)`. The `setup.html` page uses `onSetupProgress` to update the stage indicator, progress bar, and log.
-
-`backend.js` parses pip stdout/stderr via `makeProgressTracker()` and emits three event types:
-
-| `type` | Additional fields | Meaning |
-|---|---|---|
-| `phase` | `phase: 'resolving' \| 'downloading' \| 'installing' \| 'starting'` | Install stage changed |
-| `progress` | `phase`, `downloadedMB`, `totalMB`, `speedMBps?`, `etaSeconds?`, `currentPackage?`, `currentPackageMB?` | Download progress update |
-| `log` | `line: string` | Raw pip output line |
-
-Phase transitions are detected by parsing pip output patterns:
-- `Downloading *.whl (X MB)` or `Using cached *.whl (X MB)` → `downloading`
-- `Installing collected packages:` → `installing`
-- After pip exits successfully → `starting` (emitted by `startBackend`)
 
 ---
 
@@ -336,18 +316,6 @@ A live recording does not block drops: it pauses the queue, so dropped files wai
 
 ---
 
-## First-run setup screens
-
-`setup.html` shows a 3-step setup flow on the first launch of a packaged build (or when `SONORUS_TEST_SETUP=1` is set):
-
-1. **Welcome** — intro screen, "Get started" button calls `electronAPI.startSetup()`
-2. **Installing** — phase/progress/log events from `backend.js` update the stepper and progress bar
-3. **Permissions** — mic and screen-recording grant buttons
-
-**Note:** the Permissions screen is currently a UI mock. Clicking "Grant" marks the button green but does not trigger actual system permission requests. Both "Continue" and "Skip" dispatch `electronAPI.completeSetup()` and are equivalent.
-
----
-
 ## Icons
 
 Every UI icon is a file in `electron/assets/icons/`, rendered by `icons.js` as a CSS mask over
@@ -361,4 +329,4 @@ Every UI icon is a file in `electron/assets/icons/`, rendered by `icons.js` as a
 - Only `electronAPI.*` methods are exposed to the renderer
 - CORS in FastAPI is restricted to `null`, `127.0.0.1`, `localhost`
 - Media permissions granted only for `permission === 'media'` (microphone)
-- `will-navigate` is cancelled for the main window: pages never navigate themselves (`setup.html` → `index.html` is `loadFile()` from `main.js`)
+- `will-navigate` is cancelled for the main window: the page never navigates itself

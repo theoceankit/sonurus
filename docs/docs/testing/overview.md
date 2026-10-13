@@ -15,6 +15,9 @@ pytest tests/test_commit_service.py -v
 
 # Renderer unit tests (Node >= 22, no dependencies)
 node --test 'tests/renderer/*.test.js'
+
+# Build tests: packaged dependencies and installer checks (Node >= 22)
+node --test 'tests/build/*.test.js'
 ```
 
 ### No network in tests
@@ -40,11 +43,15 @@ python3.12 -m venv /tmp/ci-venv
 
 Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-renderer.js` evaluates them in a `node:vm` context, so their top-level function declarations (e.g. `fileUrl()` from `utils.js`) can be tested with `node:test` without a browser. Pass stubs for browser globals via the second argument of `loadRenderer(files, globals)`. Views that build DOM (modals, Settings rows, the queue job modal) run against the permissive fake DOM in `tests/renderer/fake-dom.js`; `tests/renderer/models-fixture.js` provides a `GET /models` catalog. Layout and visual behaviour are verified manually in the running app.
 
+### Build tests
+
+`tests/build/` checks the packaging inputs without building anything: the per-platform lock files in `locks/` (see [Packaging](../distribution/packaging.md#python-packages-lock-files)), the installer size check and the absence of a first-run setup in the Electron main process. Installers themselves are verified by building and running them.
+
 ---
 
 ## Current coverage
 
-One row per test file: Python unit and API tests (`tests/test_*.py`, no ML models are loaded) and renderer tests (`tests/renderer/*.test.js`, `node:test`). Test counts are not kept here — run the suites for them. `test_testing_docs.py` fails when a test file has no row or a row names a file that does not exist.
+One row per test file: Python unit and API tests (`tests/test_*.py`, no ML models are loaded), renderer tests (`tests/renderer/*.test.js`, `node:test`) and build tests (`tests/build/*.test.js`, `node:test`). Test counts are not kept here — run the suites for them. `test_testing_docs.py` fails when a test file has no row or a row names a file that does not exist.
 
 | File | What it covers |
 |---|---|
@@ -98,6 +105,7 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 | `tests/renderer/file-drop-events.test.js` | `initFileDrop()` with stub `window` / `document`: overlay show / hide, a drop already handled by the modal is not imported again, non-file drags untouched, drop effect per view |
 | `tests/renderer/settings-models.test.js` | Settings rows build without errors (fake DOM): `makeModelRow()` for Whisper (installed / not) and diarization, `makeAlignmentModelRow()`, `makeSectionHeader()` |
 | `tests/renderer/icons.test.js` | `icon()` / `hydrateIcons()` markup; every icon name used in the renderer has a file in `electron/assets/icons/`; files are kebab-case with `xmlns` + `viewBox`; no inline SVG icons; no local variable named `icon`; renderer scripts still parse |
+| `tests/build/packaged-deps.test.js` | Lock files for every build platform (`BUILD_TARGETS`): every package pinned with a hash, direct dependencies match `requirements.packaged.txt` (no `+cpu` on macOS), no CUDA packages, PyTorch CPU index named; `oversized()` installer size check; the cached Python tarball is filtered out of the installers; no pip / `python-packages` in `backend.js`, no setup screen, IPC or preload API |
 | `tests/renderer/default-model.test.js` | Default transcription model: `resolveTranscribeModel()` (kept, previous from the history, most accurate installed, none), `pushModelHistory()`, `noModelMessage()` / `settingsModelHint()`; `syncTranscribeModel()` on a stub `fetch` (first download, deleted default, last model deleted, saved but not installed, backend down), `selectTranscribeModel()`, `dropImportOptions()`; the New Recording modal (checking / no model / no diarization: Start and Import off, notice, modal drop refused; disabled options; fresh catalog; a model picked in the modal is kept); Settings (hint, **In use** only when installed, Use saves history); no hard-coded default model. Catalog from `models-fixture.js` |
 | `tests/renderer/model-delete.test.js` | Deleting a model the queue needs: `queuedJobsUsingModel()`, `modelInUseByRunningJob()`, `modelDeletePrompt()`; Settings (confirmation with the job count, Cancel deletes nothing, no jobs → delete at once, button off while the running job uses the model, 409 toast); `jobStatusText()` for a missing Whisper / diarization model (names the model the job failed on, not an edited one); queue job modal (models not downloaded disabled, the job's deleted model stays shown) |
 | `tests/renderer/default-language.test.js` | Default language without its alignment model: `missingAlignmentModel()`, `jobBlockMessage()` (Whisper → diarization → language), queued / running jobs counted by language; window drop refused with a toast; New Recording modal (languages without a model disabled, default language blocks Start / Import and drops, Detect unblocks); Settings (warning with Download, none when not needed or installed, deleting the default language's model resets it to Detect, confirmation / disabled delete for alignment models) |
