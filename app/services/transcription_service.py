@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.config import MODELS_DIR, WHISPER_MODEL, WHISPER_BATCH_SIZE, WHISPER_COMPUTE_TYPE_CUDA, WHISPER_COMPUTE_TYPE_CPU
 # AlignmentModelMissingError is imported from here by the queue and the pipeline child.
-from app.services.model_service import ALIGNMENT_CATALOG, AlignmentModelMissingError  # noqa: F401
+from app.services.model_service import ALIGNMENT_CATALOG, AlignmentModelMissingError, ModelService  # noqa: F401
 from app.logger import get_logger
 
 log = get_logger("TranscriptionService")
@@ -36,12 +36,13 @@ class TranscriptionService:
 
         # Guard: when the language was auto-detected (language=None), the HTTP
         # pre-flight in the router cannot check it in advance.  Check here
-        # before load_align_model silently downloads the model.
+        # before load_align_model silently downloads the model — with the same
+        # check as Settings and the pre-flight, so an interrupted download
+        # (refs/main already written) counts as missing.
         detected_lang = result.get("language")
         if detected_lang and detected_lang in ALIGNMENT_CATALOG:
-            hf_repo = ALIGNMENT_CATALOG[detected_lang]["hf_repo"].replace("/", "--")
-            refs_main = self.models_dir / "alignment" / f"models--{hf_repo}" / "refs" / "main"
-            if not refs_main.exists():
+            models = ModelService(self.models_dir / "whisper", alignment_models_dir=self.models_dir / "alignment")
+            if not models.is_installed(detected_lang):
                 raise AlignmentModelMissingError(detected_lang)
 
         log.info(f"Aligning (language={result['language']})...")

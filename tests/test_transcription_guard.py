@@ -451,6 +451,40 @@ def test_alignment_model_missing_error_carries_language(tmp_path):
     assert exc_info.value.language == "ru"
 
 
+@pytest.mark.parametrize("leftover", ["download_marker", "incomplete_blob"])
+def test_transcription_service_raises_alignment_error_when_download_incomplete(tmp_path, leftover):
+    """huggingface_hub writes refs/main before any file, so an interrupted download
+    leaves refs/main behind. The detected-language guard must treat it as missing,
+    exactly like Settings and the pre-start check (ModelService.is_installed)."""
+    from unittest.mock import patch, MagicMock
+    from app.services.transcription_service import TranscriptionService, AlignmentModelMissingError
+    from app.services.model_service import ALIGNMENT_CATALOG, ModelService
+
+    hf_repo = ALIGNMENT_CATALOG["ru"]["hf_repo"].replace("/", "--")
+    repo = tmp_path / "alignment" / f"models--{hf_repo}"
+    (repo / "refs").mkdir(parents=True)
+    (repo / "refs" / "main").write_text("abc123")
+    if leftover == "download_marker":
+        (repo / ".sonorus-downloading").write_text("")
+    else:
+        (repo / "blobs").mkdir()
+        (repo / "blobs" / "abc.incomplete").write_bytes(b"partial")
+    assert ModelService(tmp_path / "whisper").is_installed("ru") is False
+
+    with patch("app.services.transcription_service.whisperx") as mock_wx:
+        mock_model = MagicMock()
+        mock_wx.load_model.return_value = mock_model
+        mock_wx.load_audio.return_value = MagicMock()
+        mock_model.transcribe.return_value = {"language": "ru", "segments": []}
+
+        svc = TranscriptionService(device="cpu", models_dir=tmp_path)
+        with pytest.raises(AlignmentModelMissingError) as exc_info:
+            svc.transcribe("/fake/audio.wav", language=None)
+
+    assert exc_info.value.language == "ru"
+    mock_wx.load_align_model.assert_not_called()
+
+
 def test_transcribe_guard_passes_when_alignment_model_installed(client):
     """When whisper, diarize, and alignment model are all installed, guard passes."""
     from unittest.mock import patch, MagicMock
