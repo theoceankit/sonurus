@@ -46,6 +46,9 @@ Assembles `backend-dist/` for the current platform:
 
 1. Downloads `python-build-standalone` (cached in `backend-dist/`) and extracts it into `python-dist/` —
    from scratch on every run, so libraries of an older lock never linger.
+   On Windows it then copies the Microsoft Visual C++ 2015–2022 runtime (`msvcp140*.dll`,
+   `vcruntime140*.dll`, `concrt140.dll`, `vcomp140.dll`) from the build machine's `System32` next to
+   `python.exe`, see [Visual C++ runtime](#visual-c-runtime-windows).
 2. Installs every library from the platform's lock file into the interpreter's own `site-packages`:
    `pip install --no-deps --require-hashes --only-binary=:all: -r locks/packaged-<platform>-<arch>.txt`.
    Nothing is resolved at build time — the lock is installed exactly.
@@ -70,6 +73,20 @@ Build platforms (one lock file each):
 | `linux-x64` | Linux 64-bit (`.AppImage`) |
 
 The cached Python tarball stays out of the installers (`!*.tar.gz` filter in `package.json`).
+
+#### Visual C++ runtime (Windows)
+
+The Windows wheels (PyTorch, CTranslate2, ONNX Runtime, …) link against the Microsoft Visual C++
+2015–2022 runtime. The Python archive carries only `vcruntime140.dll` and `vcruntime140_1.dll`, and a
+clean Windows has no `msvcp140.dll`: without it `torch\lib\c10.dll` fails to load
+(`[WinError 126]`) and every transcription fails. The build therefore ships the runtime app-locally —
+the DLLs in `python-dist\` are found by the loader as the application directory of `python.exe` — so
+users install no `vc_redist`. The two `vcruntime140*.dll` of the archive are replaced as well, so the
+C runtime is never older than the C++ library.
+
+The build machine needs the runtime installed (GitHub's Windows runners have it); without it
+`bundle-backend.js` stops and names the missing DLLs. Install it with
+[`vc_redist.x64.exe`](https://aka.ms/vs/17/release/vc_redist.x64.exe).
 
 ### 2. Native binary: `sonorus-capture` (macOS only)
 

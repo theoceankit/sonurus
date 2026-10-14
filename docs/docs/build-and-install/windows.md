@@ -16,6 +16,7 @@ Build the installer from source, install the app, and remove it again. Installer
 |---|---|
 | System | Windows 10 or 11, x64 |
 | Build tools | Git and Node.js 22.12+ with `npm`, e.g. `winget install Git.Git OpenJS.NodeJS.LTS` |
+| Visual C++ runtime | Microsoft Visual C++ 2015–2022 Redistributable (x64), [`vc_redist.x64.exe`](https://aka.ms/vs/17/release/vc_redist.x64.exe) — the build copies it into the installer ([Packaging](../distribution/packaging.md#visual-c-runtime-windows)), so the installed app does not need it |
 | Disk | ~10 GB free for the build |
 | Network | needed to build (Node packages, Python, Python libraries); the built app starts offline |
 
