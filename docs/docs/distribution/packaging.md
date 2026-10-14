@@ -57,6 +57,8 @@ Assembles `backend-dist/` for the current platform:
    are never revalidated against source timestamps, so they are used as is inside the read-only
    AppImage / `.app` and after the NSIS installer copies the files.
 5. Copies the `ffmpeg` binary.
+6. Copies the platform's GPU manifest (`locks/gpu-<platform>-<arch>.json`) to
+   `backend-dist/gpu-manifest.json` — Linux and Windows only, see [GPU manifests](#gpu-manifests).
 
 ```bash
 node scripts/bundle-backend.js
@@ -134,10 +136,33 @@ node scripts/lock-backend.js   # needs uv on PATH, or UV=/path/to/uv
 
 The script runs `uv pip compile` once per build platform (`--python-platform`, `--generate-hashes`).
 `tests/build/` checks that the locks exist for every build platform, pin every package with a hash,
-match `requirements.packaged.txt` and contain no CUDA packages.
+match `requirements.packaged.txt` and contain no CUDA packages, and that the GPU manifests match the
+bundled `torch`.
 
-GPU acceleration is not available in the packaged app — see
-[Setup → GPU acceleration](../environment/setup.md#gpu-acceleration).
+### GPU manifests
+
+The installers stay CPU-only. GPU acceleration on Linux and Windows is meant as an optional download
+inside the app (the CUDA build of PyTorch), described per platform by `locks/gpu-<platform>-<arch>.json`
+(`GPU_TARGETS`: `linux-x64`, `win32-x64`; macOS has no CUDA). `scripts/lock-backend.js` writes them
+together with the locks:
+
+1. Switches `requirements.packaged.txt` to the cu128 builds (`+cpu` → `+cu128`, index `whl/cu128`).
+2. Resolves it with `uv pip compile --format pylock.toml`, every package except the CUDA family
+   (`torch`, `torchaudio`, `torchvision`, `torchcodec`, `triton`, `nvidia-*`) constrained to the
+   version in the CPU lock. Without the constraints unrelated packages (e.g. `starlette`) drift to newer
+   versions.
+3. Keeps only the packages that differ from the CPU lock — on Linux the torch family, `triton` and the
+   `nvidia-*-cu12` libraries (≈ 3.9 GB); on Windows `torch`, `torchaudio`, `torchvision`, with the CUDA
+   libraries inside the `torch` wheel (≈ 3.5 GB). A package outside the CUDA family fails the script.
+4. Writes each package's wheel for the platform: `name`, `version`, `url`, `sha256`, `size` (from the
+   lock, else a `HEAD` request).
+
+The manifest also carries `torch` (`2.8.0+cu128`), `base_torch` (the bundled version without the
+local tag), `cuda` (`12.8`), `min_driver` (`570`, the oldest NVIDIA driver for CUDA 12.8),
+`min_compute_capability` (`7.0`, the oldest GPU the cu128 wheels support) and `total_size`.
+
+The packaged app does not offer the GPU download yet — see
+[Setup → GPU acceleration](../environment/setup.md#gpu-acceleration) for GPU inference from source.
 
 ---
 
