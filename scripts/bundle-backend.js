@@ -4,7 +4,8 @@
 // Assembles backend-dist/ so electron-builder can include it as extraResources:
 // python-build-standalone with every backend library installed from the
 // platform's lock file (locks/packaged-<platform>-<arch>.txt), app/ sources,
-// all Python code precompiled, and ffmpeg. The packaged app installs nothing.
+// all Python code precompiled, ffmpeg, and the GPU download manifest
+// (Linux, Windows). The packaged app installs nothing by itself.
 //
 // Run before building:  node scripts/bundle-backend.js
 // Or via npm:           npm run bundle-backend
@@ -28,6 +29,10 @@ const FILENAME = {
 }
 const BUILD_TARGETS = Object.keys(FILENAME)
 
+// Platforms with an optional in-app GPU download (the CUDA build of PyTorch);
+// macOS has no CUDA. The manifests are written by scripts/lock-backend.js.
+const GPU_TARGETS = ['linux-x64', 'win32-x64']
+
 const BASE_URL = `https://github.com/indygreg/python-build-standalone/releases/download/${RELEASE_DATE}/`
 
 const ROOT    = path.resolve(__dirname, '..')
@@ -36,6 +41,18 @@ const PY_DIST = path.join(DEST, 'python-dist')
 
 function lockPath(key) {
   return path.join(ROOT, 'locks', `packaged-${key}.txt`)
+}
+
+function gpuManifestPath(key) {
+  return path.join(ROOT, 'locks', `gpu-${key}.json`)
+}
+
+// backend-dist/gpu-manifest.json: what the app downloads for GPU acceleration.
+// Absent on platforms without one, so a stale copy from another build is removed.
+function copyGpuManifest(key, dest) {
+  const out = path.join(dest, 'gpu-manifest.json')
+  if (GPU_TARGETS.includes(key)) fs.copyFileSync(gpuManifestPath(key), out)
+  else fs.rmSync(out, { force: true })
 }
 
 // Microsoft Visual C++ 2015–2022 runtime (x64), which the Windows wheels
@@ -176,10 +193,16 @@ async function main() {
   fs.copyFileSync(ffmpegSrc, ffmpegDst)
   fs.chmodSync(ffmpegDst, 0o755)
 
+  // ── GPU manifest ─────────────────────────────────────────────────────────
+  copyGpuManifest(key, DEST)
+
   console.log('backend-dist ready.')
 }
 
-module.exports = { BUILD_TARGETS, VC_RUNTIME_DLLS, copyVcRuntime, lockPath, pythonLayout }
+module.exports = {
+  BUILD_TARGETS, GPU_TARGETS, VC_RUNTIME_DLLS,
+  copyGpuManifest, copyVcRuntime, gpuManifestPath, lockPath, pythonLayout,
+}
 
 if (require.main === module) {
   main().catch(err => { console.error(err.message); process.exit(1) })
