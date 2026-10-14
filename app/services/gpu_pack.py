@@ -18,6 +18,7 @@ PYTHONPATH. Files under <gpu_dir>:
 """
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -103,11 +104,25 @@ def _stream(url: str):
 
 
 def _install(wheels: list[Path], target: Path, cancel_event) -> None:
-    """pip-install the downloaded wheels (no index, no dependencies) into target."""
+    """pip-install the downloaded wheels (no index, no dependencies) into target.
+
+    pip --target unpacks into a temp dir first and moves from there: it gets
+    one next to target, on the disk whose free space was checked (the system
+    temp dir is often a small tmpfs)."""
+    temp = target.parent / "tmp"
+    temp.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "TMPDIR": str(temp), "TEMP": str(temp), "TMP": str(temp)}
+    try:
+        _run_pip(target, wheels, env, cancel_event)
+    finally:
+        shutil.rmtree(temp, ignore_errors=True)
+
+
+def _run_pip(target: Path, wheels: list[Path], env: dict, cancel_event) -> None:
     cmd = [sys.executable, "-m", "pip", "install", "--no-deps", "--no-index", "--no-compile",
            "--disable-pip-version-check", "--no-warn-script-location", "--target", str(target),
            *map(str, wheels)]
-    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, env=env)
     while proc.poll() is None:
         if cancel_event.wait(0.2):
             proc.terminate()
