@@ -213,11 +213,7 @@ const app = {
           })
           if (!resp.ok) {
             const data = await resp.json().catch(() => ({}))
-            const msg = data.detail || 'Failed to start system audio capture.'
-            const isPerm = /permission|denied|SCStream|TCC|Screen Recording/i.test(msg)
-            throw new Error(isPerm
-              ? 'Screen Recording access is required. Open System Settings → Privacy & Security → Screen Recording and enable Sonorus, then try again.'
-              : msg)
+            throw new Error(captureStartError(platform, data.detail))
           }
           captureJobId = (await resp.json()).job_id
         } else if (systemDeviceId === '__desktop__') {

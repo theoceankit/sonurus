@@ -44,20 +44,6 @@ UserWarning: torchcodec is not installed correctly so built-in audio decoding wi
 
 ---
 
-### Linux packaged app cannot record system audio
-
-**Severity:** functional — live recording with system audio fails in the AppImage.
-
-**Symptom:** recording "System audio" or "Both" stops with "Recording error: No audio was captured…"; the log shows `Unknown input format: 'pulse'`. Microphone-only recording works.
-
-**Cause:** on Linux the backend records system audio with `ffmpeg -f pulse`. The packaged app puts its bundled `ffmpeg` (from `ffmpeg-static`) first on `PATH`, and that build has no PulseAudio input. The microphone is recorded by the renderer, without ffmpeg.
-
-**Impact:** Linux packaged app only. Dev mode uses the system `ffmpeg`, which usually supports PulseAudio.
-
-**Workaround:** record system audio from dev mode (`npm start`), or record with another tool and import the file.
-
----
-
 ### Dev mode and the packaged app share data
 
 **Severity:** data mix-up on developer machines — does not affect users without a source checkout.
