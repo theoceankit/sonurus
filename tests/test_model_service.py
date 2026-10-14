@@ -374,3 +374,36 @@ def test_run_download_reports_worker_crash():
     from app.services.model_service import _run_download
     with pytest.raises(RuntimeError, match="exited unexpectedly"):
         _run_download({}, cancel_event=threading.Event(), worker=download_workers.crashing_worker, in_subprocess=True)
+
+
+# ---------------------------------------------------------------------------
+# Windows: huggingface_hub caches "symlinks supported" = True before it has
+# tested them, so parallel download threads call os.symlink and fail with
+# WinError 1314 for a user without the symlink privilege. The answer must be
+# settled for the repo folder before snapshot_download starts its threads.
+# ---------------------------------------------------------------------------
+
+def test_snapshot_checks_symlink_support_before_download(tmp_path):
+    from unittest.mock import patch
+    from app.services.model_service import _snapshot
+
+    calls = []
+    with patch("app.services.model_service.huggingface_hub.file_download.are_symlinks_supported",
+               side_effect=lambda path: calls.append(("check", Path(path)))), \
+         patch("app.services.model_service.huggingface_hub.snapshot_download",
+               side_effect=lambda repo, **kw: calls.append(("download", repo))):
+        _snapshot({"repo_id": "jonatasgrosman/wav2vec2-large-xlsr-53-russian", "cache_dir": str(tmp_path)})
+
+    repo_folder = tmp_path / "models--jonatasgrosman--wav2vec2-large-xlsr-53-russian"
+    assert calls == [("check", repo_folder), ("download", "jonatasgrosman/wav2vec2-large-xlsr-53-russian")]
+
+
+def test_snapshot_does_not_change_download_kwargs(tmp_path):
+    from unittest.mock import patch
+    from app.services.model_service import _snapshot
+
+    kwargs = {"repo_id": "pyannote/embedding", "cache_dir": str(tmp_path), "allow_patterns": ["*.bin"]}
+    with patch("app.services.model_service.huggingface_hub.snapshot_download") as download:
+        _snapshot(kwargs)
+    download.assert_called_once_with("pyannote/embedding", cache_dir=str(tmp_path), allow_patterns=["*.bin"])
+    assert kwargs["repo_id"] == "pyannote/embedding"
