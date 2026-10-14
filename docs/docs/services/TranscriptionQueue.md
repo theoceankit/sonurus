@@ -35,6 +35,8 @@ One daemon thread (`start_worker()` / `stop_worker()`, called by the API lifespa
 
 `stop_worker()` stops the running job; it stays in the queue as `waiting`.
 
+`prepare_restart()` is called before the app restarts the backend (`POST /gpu/restart`): from then on the worker starts no job. It returns `False` while a job runs (the job is not interrupted) and `True` once nothing runs; then it stores `resume_after_restart` (the time, or empty if the queue was paused). The next queue reads and clears it: a mark younger than 5 minutes brings the queue up **running** although jobs are waiting; an older one (the app quit instead of restarting) is ignored.
+
 `hold()` keeps the worker from starting a job and raises `QueueBusy` if one is running — `POST /data/reset` clears the queue inside it. `is_running()` is what `DELETE /speakers/{id}` checks: only a running job blocks it, queued ones resolve speakers when they run.
 
 ---
@@ -60,6 +62,6 @@ One daemon thread (`start_worker()` / `stop_worker()`, called by the API lifespa
 Tables in the same database file as transcripts (`DB_PATH`), created by `JobStore` itself:
 
 - `transcription_jobs` (`id` TEXT PK, `position`, `audio_path`, `title`, `whisper_model`, `language`, `status` `waiting`/`running`/`failed`, `error`, `error_code`, `error_language`, `created_at`) — ordered by `position`.
-- `transcription_queue_settings` (`key` PK, `value`) — `start_mode`.
+- `transcription_queue_settings` (`key` PK, `value`) — `start_mode`, `resume_after_restart`.
 
 Whether the queue is paused and which job runs are not stored.

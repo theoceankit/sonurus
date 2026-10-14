@@ -268,6 +268,73 @@ Removes the model's HuggingFace cache directory from disk.
 
 ---
 
+## GPU acceleration
+
+The optional CUDA download of the packaged app (Linux, Windows) — see [GPU Pack](../services/GpuPack.md) for the states, files and the self-check. The Electron app restarts the backend to apply a download or a removal.
+
+### `GET /gpu`
+
+```json
+{
+  "blocked_reason": null,
+  "gpu": { "name": "NVIDIA GeForce RTX 4060", "driver": "615.78.08", "compute_capability": "8.9" },
+  "min_driver": "570",
+  "min_compute_capability": "7.0",
+  "state": "not_installed",
+  "pending": null,
+  "error": null,
+  "download_size": 3920000000,
+  "device": "cpu",
+  "torch": "2.8.0+cpu"
+}
+```
+
+- `blocked_reason` — `null`, or why no download is offered: `unsupported_platform` (macOS), `not_packaged` (development), `no_nvidia`, `driver_too_old`, `gpu_too_old`.
+- `gpu` — the first GPU `nvidia-smi` reports, or `null`.
+- `state` — `not_installed`, `downloading`, `pending_restart` (with `pending`: `install` / `remove`), `active`, `error` (with `error`: the self-check's message), `stale` (installed for another PyTorch version).
+- `device` / `torch` — what the running backend uses (`config.DEVICE`, `torch.__version__`).
+
+### `POST /gpu/download`
+
+Starts the download in a background thread and returns `{"job_id": "..."}`. Allowed in `not_installed`, `error` and `stale`.
+
+- `409 {"detail": "<blocked_reason>"}` — the GPU does not qualify
+- `409 {"detail": "already_downloading"}`
+- `409 {"detail": "installed"}` — `active` or `pending_restart`
+
+### `DELETE /gpu/download/{job_id}`
+
+Cancels the download; nothing of it stays on disk. `404` for an unknown job.
+
+### `WS /ws/gpu/{job_id}`
+
+```json
+{ "type": "progress", "phase": "download", "pct": 47, "downloaded": 1842000000, "total": 3920000000 }
+{ "type": "progress", "phase": "install" }
+{ "type": "heartbeat" }
+{ "type": "done" }
+{ "type": "cancelled" }
+{ "type": "error", "message": "Not enough disk space: 11.8 GB needed, 5.0 GB free" }
+```
+
+The final event is kept until a WebSocket reads it, so a client may connect after a fast download finished.
+
+### `DELETE /gpu/pack`
+
+- `{"result": "removed"}` — a download not yet applied was deleted; nothing to restart
+- `{"result": "restart"}` — the installed pack is removed at the next backend start (`pending_restart`, `pending: "remove"`)
+- `404` — nothing installed; `409` — a download is running
+
+### `POST /gpu/restart`
+
+Asked by the app before it restarts the backend to apply a download or a removal.
+
+- `{"status": "ready"}` — restart now; the queue starts no new job and resumes after the restart if it was running
+- `{"status": "waiting", "reason": "recording" | "model_download" | "gpu_download" | "transcription"}` — ask again later; for `transcription` the running job finishes and no other job starts
+- `409` — nothing to apply (`state` is not `pending_restart`)
+
+---
+
 ## Transcripts
 
 ### `GET /transcripts`
