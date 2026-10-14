@@ -35,3 +35,11 @@ def get_transcription_queue() -> TranscriptionQueue:
     memory = get_memory_service()
     run_job = make_job_runner(storage=get_storage_service(), memory_db_path=DB_PATH, on_saved=memory.reload)
     return TranscriptionQueue(JobStore(db_path=DB_PATH), run_job, recordings_dir=config.RECORDINGS_DIR)
+
+
+from app.services.gpu_pack import GpuPack
+
+
+@lru_cache(maxsize=1)
+def get_gpu_pack() -> GpuPack:
+    return GpuPack(gpu_dir=config.GPU_DIR, manifest_path=config.GPU_MANIFEST)

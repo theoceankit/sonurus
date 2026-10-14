@@ -13,6 +13,11 @@ Start mode (stored):
 A live recording pauses the queue; when it stops, the queue resumes only in
 auto mode and only if the recording was what paused it.
 
+A restart of the backend by the app (GPU acceleration applied or removed) is
+prepared with prepare_restart(): no new job starts from then on, and once
+nothing runs the queue notes whether it was running, so the restarted backend
+picks up where it left off instead of coming up paused.
+
 A failed job moves to the end of the queue and is skipped until retried.
 A finished job leaves the queue — it is a transcript now.
 
@@ -20,6 +25,7 @@ The pipeline itself is `run_job(job, on_progress, cancel_event) -> transcript
 id`; it raises PipelineCancelled once cancel_event is set.
 """
 import threading
+import time
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -33,6 +39,9 @@ from app.services.transcription_service import AlignmentModelMissingError
 log = get_logger("TranscriptionQueue")
 
 START_MODES = ("auto", "manual")
+# A restart prepared longer ago than this was not a restart (the app quit
+# instead): the next start is an ordinary one.
+RESUME_AFTER_RESTART_WINDOW = 300  # seconds
 _EDITABLE = {"title", "whisper_model", "language"}
 
 
@@ -64,6 +73,8 @@ class TranscriptionQueue:
         # Failed jobs don't count: they wait for Retry anyway.
         left_over = any(j["status"] == "waiting" for j in store.list())
         self._paused = left_over or self._start_mode == "manual"
+        if self._resume_after_restart():
+            self._paused = False
         self._paused_by_recording = False
         self._recording = False
         self._running_id: str | None = None
@@ -72,6 +83,7 @@ class TranscriptionQueue:
         self._deleting: set[str] = set()
         self._delete_results: dict[str, bool] = {}
         self._held = 0
+        self._restart_prepared = False
         self._stopping = False
         self._thread: threading.Thread | None = None
         self._subscribers: list = []
@@ -111,7 +123,7 @@ class TranscriptionQueue:
         changed by itself (→ None, True) or the worker stops (→ None, False)."""
         with self._cond:
             while not self._stopping:
-                if not self._paused and not self._held:
+                if not self._paused and not self._held and not self._restart_prepared:
                     job = next((j for j in self._store.list() if j["status"] == "waiting"), None)
                     if job is not None:
                         self._store.update(job["id"], status="running")
@@ -316,6 +328,27 @@ class TranscriptionQueue:
         """The job; JobNotFound if there is none."""
         with self._cond:
             return self._require(job_id)
+
+    def prepare_restart(self) -> bool:
+        """The backend is about to be restarted: start no new job. True once
+        nothing runs (the restart may happen now), False while a job runs."""
+        with self._cond:
+            self._restart_prepared = True
+            if self._running_id is not None:
+                return False
+            resume = not self._paused
+            self._store.set_setting("resume_after_restart", str(time.time()) if resume else "")
+            return True
+
+    def _resume_after_restart(self) -> bool:
+        mark = self._store.get_setting("resume_after_restart", "")
+        if not mark:
+            return False
+        self._store.set_setting("resume_after_restart", "")
+        try:
+            return time.time() - float(mark) < RESUME_AFTER_RESTART_WINDOW
+        except ValueError:
+            return False
 
     @contextmanager
     def hold(self):
