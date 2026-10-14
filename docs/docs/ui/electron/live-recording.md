@@ -31,13 +31,14 @@ Handled by the Python `AudioCaptureService` backend. The renderer calls HTTP —
 | Platform | Backend tool | Notes |
 |---|---|---|
 | macOS | `sonorus-capture` Swift binary (ScreenCaptureKit) | Built with `npm run build:capture`; requires Screen Recording permission |
-| Linux | `ffmpeg -f pulse -i <monitor_source>` | Monitor sources enumerated via `pactl list short sources` |
+| Linux | `parec -d <monitor_source>` (PulseAudio / PipeWire) | Monitor sources enumerated via `pactl list short sources`; without them a single "System audio (default)" source; needs `pulseaudio-utils` (`libpulse` on Arch Linux) |
 | Windows | `setDisplayMediaRequestHandler(audio: 'loopback')` | WASAPI loopback in renderer; no backend needed |
 
 **Flow (macOS / Linux):**
 
 ```
 POST /audio/capture/start   → starts backend process, returns job_id
+                              (400 with the reason if capture cannot run — shown as a toast, recording does not start)
 [user records...]
 POST /audio/capture/stop/{job_id}  { mic_path: "..." }
   → sends SIGINT to capture process
@@ -69,7 +70,7 @@ No backend capture process is started on Windows; `POST /audio/capture/*` is not
 
 | File | Role |
 |---|---|
-| `app/services/audio_capture_service.py` | Platform dispatch, ffmpeg merge |
+| `app/services/audio_capture_service.py` | Platform drivers, ffmpeg merge |
 | `app/api/routers/audio_capture.py` | `/audio/capture/*` endpoints, `POST /audio/recordings` (upload of a renderer recording) |
 | `native/macos/sonorus-capture/main.swift` | Swift SCK binary — build with `npm run build:capture` (requires Xcode Command Line Tools: `xcode-select --install`) |
 | `electron/renderer/app.js` | `_startLiveRecording()`, `_stopLiveRecording()`, `_liveSession` — background recording state |
