@@ -82,7 +82,9 @@ Installation copies about 3 GB of files and can take a few minutes, longer while
    The very first start can take longer while Windows Defender scans the bundled libraries.
 2. **Settings → API Keys**: enter a HuggingFace token (needed to download the diarization model,
    see [Setup → HuggingFace token](../environment/setup.md#huggingface-token)).
-3. **Settings → Models**: download a Whisper model and the diarization model.
+3. **Settings → Models**: download a Whisper model and the diarization model. Downloads need no
+   Developer Mode or administrator rights: without the symlink privilege the model cache stores
+   plain copies of the files instead of symlinks.
 
 After that, transcription works offline. It runs on the CPU — the packaged app has no GPU support
 ([Known issues](../known-issues.md#packaged-app-uses-cpu-only-pytorch)).
