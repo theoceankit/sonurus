@@ -7,6 +7,7 @@ from asyncio import CancelledError
 from pathlib import Path
 
 import huggingface_hub
+from huggingface_hub import file_download as hf_file_download
 
 WHISPER_CATALOG = {
     "tiny":     {"hf_repo": "Systran/faster-whisper-tiny",     "size_bytes": 41_000_000,    "name": "Whisper Tiny",     "size": "39 MB",   "speed": "~10× realtime", "acc": "Low",               "recommended": False, "kind": "whisper"},
@@ -104,7 +105,14 @@ def _is_repo_complete(cache_dir: Path) -> bool:
 
 def _snapshot(kwargs: dict) -> None:
     kwargs = dict(kwargs)
-    huggingface_hub.snapshot_download(kwargs.pop("repo_id"), **kwargs)
+    repo_id = kwargs.pop("repo_id")
+    # huggingface_hub caches "symlinks supported" as True *before* testing them,
+    # so the other download threads read that early True and call os.symlink —
+    # WinError 1314 on Windows without the symlink privilege. Settle the answer
+    # for the repo folder (the key _create_symlink looks up) before the threads start.
+    repo_folder = Path(kwargs["cache_dir"]) / ("models--" + repo_id.replace("/", "--"))
+    hf_file_download.are_symlinks_supported(repo_folder)
+    huggingface_hub.snapshot_download(repo_id, **kwargs)
 
 
 def _snapshot_worker(kwargs: dict, conn) -> None:
