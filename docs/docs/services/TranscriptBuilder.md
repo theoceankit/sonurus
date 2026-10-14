@@ -50,7 +50,7 @@ Segment(
 )
 ```
 
-**Returns:** `Transcript` with status `"draft"`, all `embedding = None`.
+**Returns:** `Transcript` with status `"draft"`, `language` from `result["language"]` (`"unknown"` if absent — transcripts saved before the language was kept), all `embedding = None`.
 
 ---
 

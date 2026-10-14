@@ -84,7 +84,7 @@ Each segment and word in `result` receives a `speaker` label from the diarizatio
 
 | Variable | Type | Used by |
 |---|---|---|
-| `result` | `dict` with `result["segments"]`, `result["language"]` | `TranscriptBuilder.build()` |
+| `result` | `dict` with `result["segments"]`, `result["language"]` (the language Whisper detected or was given; set again after alignment and speaker assignment, which drop it) | `TranscriptBuilder.build()` |
 | `audio` | `np.array` (mono, 16 kHz) | `EmbeddingService.extract_all()` |
 | `diarization` | `DataFrame`: `start`, `end`, `speaker` | `EmbeddingService.extract_all()` |
 
