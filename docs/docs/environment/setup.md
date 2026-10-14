@@ -53,7 +53,7 @@ macOS does not support CUDA. Apple Silicon can use MPS, but WhisperX/ctranslate2
 ### Requirements
 
 - Python 3.12 (via pyenv recommended)
-- Node.js 20+
+- Node.js 22.12+
 - CUDA 12.x (optional, for GPU acceleration)
 - HuggingFace account + token
 
@@ -78,6 +78,9 @@ python3.12 -m venv .venv
 npm ci
 npm start
 ```
+
+`npm ci` does not download the Electron binary: the first `npm start` does (or run `npx install-electron`
+beforehand), so the first start needs the network once.
 
 **macOS only:** live recording requires the `sonorus-capture` binary. Build it once before running:
 

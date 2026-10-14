@@ -15,7 +15,7 @@ Build the installer from source, install the app, and remove it again. Installer
 | | |
 |---|---|
 | System | Windows 10 or 11, x64 |
-| Build tools | Git and Node.js 20+ with `npm`, e.g. `winget install Git.Git OpenJS.NodeJS.LTS` |
+| Build tools | Git and Node.js 22.12+ with `npm`, e.g. `winget install Git.Git OpenJS.NodeJS.LTS` |
 | Disk | ~10 GB free for the build |
 | Network | needed to build (Node packages, Python, Python libraries); the built app starts offline |
 
