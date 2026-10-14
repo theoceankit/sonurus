@@ -251,7 +251,7 @@ test('Modal: no diarization model → the dropdown, a notice, Start and Import o
 
 test('Modal: a drop without the models imports nothing and says why', () => {
   const m = openModal({ catalog: models(['diarize']) })
-  m.el('nr-modal').fire('drop', { preventDefault() {}, dataTransfer: { files: [{ path: '/a/call.wav' }] } })
+  m.el('nr-modal').fire('drop', { preventDefault() {}, dataTransfer: { types: ['Files'], files: [{ path: '/a/call.wav' }] } })
   assert.deepEqual(m.calls.import, [])
   assert.deepEqual(m.toasts.map(t => t.text), ['No transcription model installed — download one in Settings'])
 })

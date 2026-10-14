@@ -75,12 +75,55 @@ function openModal({ dialogPaths = [] } = {}) {
   seedModels(ctx, models())
   ctx.renderNewRecordingModal({ onStart() {}, onImport: args => calls.push(plain(args)) })
   const el = cls => created.find(e => e.className === cls)
-  const drop = files => el('nr-modal').fire('drop', {
-    preventDefault() {},
-    dataTransfer: { files: files.map(p => ({ name: p.split('/').pop(), path: p })) },
-  })
-  return { calls, toasts, el, drop, closed: () => closed }
+  const drag = (type, { files = [], types = ['Files'] } = {}) => {
+    const ev = {
+      defaultPrevented: false,
+      preventDefault() { this.defaultPrevented = true },
+      dataTransfer: { types, files: files.map(p => ({ name: p.split('/').pop(), path: p })) },
+    }
+    el('nr-modal').fire(type, ev)
+    return ev
+  }
+  const drop = files => drag('drop', { files })
+  const overlayClasses = new Set()
+  el('nr-drop-overlay').classList = {
+    add: c => overlayClasses.add(c),
+    remove: c => overlayClasses.delete(c),
+    toggle() {},
+    contains: c => overlayClasses.has(c),
+  }
+  const overlayActive = () => overlayClasses.has('nr-drop-overlay--active')
+  return { calls, toasts, el, drag, drop, overlayActive, closed: () => closed }
 }
+
+test('Modal drag with files: drop zone shown, the drop is taken', () => {
+  const m = openModal()
+  assert.equal(m.drag('dragenter').defaultPrevented, true)
+  assert.equal(m.overlayActive(), true)
+  assert.equal(m.drag('dragover').defaultPrevented, true)
+  const ev = m.drag('drop', { files: ['/a/call.wav'] })
+  assert.equal(ev.defaultPrevented, true)
+  assert.equal(m.overlayActive(), false)
+  assert.equal(m.calls.length, 1)
+})
+
+test('Modal drag without files (text, link): no drop zone, events left alone', () => {
+  const m = openModal()
+  for (const type of ['dragenter', 'dragover', 'drop']) {
+    const ev = m.drag(type, { types: ['text/plain'] })
+    assert.equal(ev.defaultPrevented, false, type)
+    assert.equal(m.overlayActive(), false, type)
+  }
+  m.drag('dragleave', { types: ['text/plain'] })
+  assert.deepEqual(m.calls, [])
+})
+
+test('Modal drag: leaving after a non-file drag does not hide a later file drag', () => {
+  const m = openModal()
+  m.drag('dragleave', { types: ['text/plain'] })
+  m.drag('dragenter')
+  assert.equal(m.overlayActive(), true)
+})
 
 test('Modal drop: every supported file is imported in drop order; unsupported skipped with a toast', () => {
   const m = openModal()
