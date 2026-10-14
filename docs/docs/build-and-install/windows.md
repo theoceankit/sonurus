@@ -20,6 +20,17 @@ Build the installer from source, install the app, and remove it again. Installer
 | Disk | ~10 GB free for the build |
 | Network | needed to build (Node packages, Python, Python libraries); the built app starts offline |
 
+A fresh Windows 10 may have no `winget` yet. Register it once in PowerShell, then open a new
+PowerShell window:
+
+```powershell
+Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe
+```
+
+If `winget` is still not found, update **App Installer** in the Microsoft Store, or install Git from
+[git-scm.com](https://git-scm.com/download/win) and the Node.js LTS installer from
+[nodejs.org](https://nodejs.org) with their default options.
+
 No Python installation is needed: the build downloads its own interpreter
 (python-build-standalone) and installs every library into it from `locks/packaged-win32-x64.txt`.
 
@@ -38,6 +49,14 @@ git clone https://github.com/theoceankit/sonurus.git C:\src\sonorus
 cd C:\src\sonorus
 npm ci
 npm run build:win
+```
+
+If PowerShell stops at `npm` with "running scripts is disabled on this system", its execution policy
+blocks the `npm.ps1` wrapper (the default on a fresh Windows). Either call `npm.cmd ci` and
+`npm.cmd run build:win` instead, or allow local scripts for your user once:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
 `build:win` runs `node scripts/bundle-backend.js` (Python + libraries + `app/`, precompiled — see
