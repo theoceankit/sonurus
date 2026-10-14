@@ -82,6 +82,13 @@ function languageLabel(lang) {
   return LANGUAGES.find(l => l.code === lang)?.label || lang
 }
 
+// The language shown for a saved transcript: its name, or '' when it was not
+// recorded (transcripts saved before the language was kept are 'unknown').
+function transcriptLanguageLabel(lang) {
+  if (!lang || lang === 'auto' || lang.toLowerCase() === 'unknown') return ''
+  return languageLabel(lang)
+}
+
 // Why a job in `language` cannot start, or null: Whisper model, diarization
 // model, then the language's alignment model.
 function jobBlockMessage(state, language) {
