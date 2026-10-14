@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard, desktopCa
 const path = require('path')
 const fs = require('fs')
 const { startBackend, stopBackend } = require('./backend')
+const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 
 // macOS routes Cmd+C/V/X/A through the app's Edit menu — without it,
 // paste doesn't work in any text field. Windows/Linux handle it at OS level.
@@ -50,6 +51,7 @@ function createWindow() {
 }
 
 const getSettingsPath = () => path.join(app.getPath('userData'), 'settings.json')
+const getDialogStatePath = () => path.join(app.getPath('userData'), 'dialog-state.json')
 
 const DEFAULT_SETTINGS = {
   scale: 100,
@@ -83,18 +85,21 @@ ipcMain.handle('write-settings', (_e, data) => {
 
 ipcMain.handle('open-files', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
+    defaultPath: dialogFolder(getDialogStatePath()),
     properties: ['openFile', 'multiSelections'],
     filters: [
       { name: 'Audio / Video', extensions: ['wav', 'mp3', 'm4a', 'flac', 'ogg', 'mp4', 'mkv', 'webm'] },
     ],
   })
-  return canceled ? [] : filePaths
+  if (canceled || !filePaths.length) return []
+  rememberDialogFolder(getDialogStatePath(), filePaths[0])
+  return filePaths
 })
 
 ipcMain.handle('get-platform', () => process.platform)
 ipcMain.handle('get-app-version', () => app.getVersion())
 
-ipcMain.handle('write-clipboard', (_e, text) => { clipboard.writeText(text) })
+ipcMain.handle('write-clipboard', async (_e, text) => { await clipboard.writeText(text) })
 
 app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
