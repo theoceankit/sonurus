@@ -1,0 +1,32 @@
+{
+  "platform": "win32-x64",
+  "torch": "2.8.0+cu128",
+  "base_torch": "2.8.0",
+  "cuda": "12.8",
+  "min_driver": "570",
+  "min_compute_capability": "7.0",
+  "total_size": 3473597893,
+  "packages": [
+    {
+      "name": "torch",
+      "version": "2.8.0+cu128",
+      "url": "https://download-r2.pytorch.org/whl/cu128/torch-2.8.0%2Bcu128-cp312-cp312-win_amd64.whl",
+      "sha256": "0ad925202387f4e7314302a1b4f8860fa824357f9b1466d7992bf276370ebcff",
+      "size": 3461384651
+    },
+    {
+      "name": "torchaudio",
+      "version": "2.8.0+cu128",
+      "url": "https://download-r2.pytorch.org/whl/cu128/torchaudio-2.8.0%2Bcu128-cp312-cp312-win_amd64.whl",
+      "sha256": "cce3a60cd9a97f7360c8f95504ac349311fb7d6b9b826135936764f4de5f782d",
+      "size": 4673203
+    },
+    {
+      "name": "torchvision",
+      "version": "0.23.0+cu128",
+      "url": "https://download-r2.pytorch.org/whl/cu128/torchvision-0.23.0%2Bcu128-cp312-cp312-win_amd64.whl",
+      "sha256": "20fa9c7362a006776630b00b8a01919fedcf504a202b81358d32c5aef39956fe",
+      "size": 7540039
+    }
+  ]
+}
