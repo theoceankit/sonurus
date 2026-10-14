@@ -19,6 +19,7 @@ Build the AppImage from source, install it, and remove it again. Installers from
 | Disk | ~10 GB free for the build (the installed app itself takes ~3 GB on disk) |
 | Network | needed to build (Node packages, Python, Python libraries); the built app starts offline |
 | Running | FUSE 2 for AppImages, e.g. `sudo pacman -S fuse2` (Arch), `sudo apt install libfuse2` (Debian/Ubuntu) |
+| System audio recording | `parec` and `pactl` (PulseAudio or PipeWire with `pipewire-pulse`), usually preinstalled: `sudo pacman -S libpulse` (Arch), `sudo apt install pulseaudio-utils` (Debian/Ubuntu), `sudo dnf install pulseaudio-utils` (Fedora) |
 
 No Python installation is needed: the build downloads its own interpreter
 (python-build-standalone) and installs every library into it from `locks/packaged-linux-x64.txt`.
@@ -81,8 +82,8 @@ EOF
 After that, transcription works offline. It runs on the CPU — the packaged app has no GPU support
 ([Known issues](../known-issues.md#packaged-app-uses-cpu-only-pytorch)).
 
-Live recording of system audio does not work in the AppImage yet; microphone recording does
-([Known issues](../known-issues.md#linux-packaged-app-cannot-record-system-audio)).
+Live recording of system audio uses `parec` from the system (see [Requirements](#requirements));
+without it, starting a recording with system audio shows which package to install.
 
 In a Wayland session Sonorus runs as a native Wayland app (Electron's default), in an X11 session as
 an X11 app. Under XWayland, files dragged from a Wayland file manager (e.g. Nautilus) reach the window
