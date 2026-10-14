@@ -117,7 +117,7 @@ test('Modal: the default language without its model → notice, Start and Import
   assert.equal(m.el('nr-model-notice').style.display, '')
   assert.equal(m.el('nr-start-btn').disabled, true)
   assert.equal(m.el('nr-import-btn').disabled, true)
-  m.el('nr-modal').fire('drop', { preventDefault() {}, dataTransfer: { files: [{ path: '/a/call.wav' }] } })
+  m.el('nr-modal').fire('drop', { preventDefault() {}, dataTransfer: { types: ['Files'], files: [{ path: '/a/call.wav' }] } })
   assert.deepEqual(m.calls.import, [])
   assert.deepEqual(m.toasts, ['Alignment model for Русский is not installed — download it in Settings'])
 })

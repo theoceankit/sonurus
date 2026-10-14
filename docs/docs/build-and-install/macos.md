@@ -15,7 +15,7 @@ Build the `.dmg` from source, install the app, and remove it again. Installers f
 | | |
 |---|---|
 | System | Apple Silicon Mac, macOS 14 or later (the bundled `onnxruntime` has no wheels for older macOS) |
-| Build tools | Xcode Command Line Tools (`xcode-select --install`, for `swiftc`), `git`, Node.js 20+ with `npm` (e.g. `brew install node`) |
+| Build tools | Xcode Command Line Tools (`xcode-select --install`, for `swiftc`), `git`, Node.js 22.12+ with `npm` (e.g. `brew install node`) |
 | Disk | ~10 GB free for the build |
 | Network | needed to build (Node packages, Python, Python libraries); the built app starts offline |
 

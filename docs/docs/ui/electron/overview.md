@@ -46,6 +46,7 @@ There is no first-run setup: every launch, packaged or dev, goes straight to `in
 electron/
   main.js              — BrowserWindow, IPC handlers, backend lifecycle orchestration
   backend.js           — Backend process spawn, health check
+  dialog-folder.js     — Folder the file dialog opens in (last picked file, dialog-state.json)
   preload.js           — contextBridge: exposes electronAPI.*
   assets/
     icon.png           — app icon master for Windows and Linux, 1024×1024 (see Packaging → Icons)
@@ -91,7 +92,7 @@ electron/
 
 | Method | Description |
 |---|---|
-| `openFiles()` | Native file-open dialog (audio/video filter, several files); resolves to the picked paths, `[]` when cancelled |
+| `openFiles()` | Native file-open dialog (audio/video filter, several files); resolves to the picked paths, `[]` when cancelled. Opens in the folder of the last picked file, also after a restart (`dialog-folder.js`, `dialog-state.json` in `userData`; a missing folder → the OS decides). Electron 43+ no longer leaves this to the OS |
 | `getFilePath(file)` | Resolve a dropped `File` object to a filesystem path |
 | `readSettings()` | Read `settings.json` from `app.getPath('userData')` |
 | `writeSettings(data)` | Write `settings.json` to `app.getPath('userData')` |
@@ -315,6 +316,8 @@ A live recording does not block drops: it pauses the queue, so dropped files wai
 - The **New Recording modal** imports several files too: dropped on it, or picked in its file dialog (`openFiles()`). `modalImportItems()` (`utils.js`) keeps the supported files in order and sets the titles: one file keeps a title typed in the modal; the untouched default title, a blank one or several files leave it `null`, so each job gets its file name. The modal's model and language apply to every file; with no supported file the modal stays open.
 - The modal opens with the last known `GET /models` answer and refreshes it in the background ("Checking models…" until the backend has answered once). Whisper models that are not downloaded and languages whose alignment model is not installed are disabled options ("Not installed"); a default language without its model stays selected and blocks Start / Import until another language is picked. Without a default model or the diarization model **Start recording** and **Import** are off, a drop on the modal queues nothing, and a notice links to Settings.
 - `dragover` / `drop` with files are always cancelled, in every view: an unhandled file drop makes Electron open the file in the window.
+- The New Recording modal, like the window, reacts only to drags that carry files: no drop zone for text or links.
+- Linux: drops need the window to run as a native Wayland app in a Wayland session (Electron 38+ default). Under XWayland a file dragged from a Wayland file manager arrives with an empty `dataTransfer` (no `Files`, no paths), so nothing could be queued.
 
 ---
 
