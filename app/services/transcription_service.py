@@ -45,9 +45,9 @@ class TranscriptionService:
             if not models.is_installed(detected_lang):
                 raise AlignmentModelMissingError(detected_lang)
 
-        log.info(f"Aligning (language={result['language']})...")
+        log.info(f"Aligning (language={detected_lang})...")
         align_model, metadata = whisperx.load_align_model(
-            language_code=result["language"],
+            language_code=detected_lang,
             device=self.device,
             model_dir=str(self.models_dir / "alignment"),
         )
@@ -74,6 +74,9 @@ class TranscriptionService:
             diarization,
             result
         )
+        # align() and assign_word_speakers() drop the language — keep the one
+        # Whisper detected (or was given) for the transcript.
+        result["language"] = detected_lang
 
         log.info(f"Done — {len(result['segments'])} segments")
 

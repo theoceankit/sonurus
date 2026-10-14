@@ -211,12 +211,16 @@ function renderEditorView(transcriptId, meta = null) {
     const metaText = document.createElement('span')
     metaText.className = 'focus-meta-text'
     const spkCount = uniqueSpkIds.length
-    const lang = transcript.language
-    const langLabel = (lang && lang !== 'unknown' && lang !== 'Unknown')
-      ? lang.charAt(0).toUpperCase() + lang.slice(1)
-      : ''
-    metaText.textContent = `${spkCount} speaker${spkCount !== 1 ? 's' : ''}` + (langLabel ? `  ·  ${langLabel}` : '')
+    metaText.textContent = `${spkCount} speaker${spkCount !== 1 ? 's' : ''}`
     metaRow.appendChild(metaText)
+
+    const langLabel = transcriptLanguageLabel(transcript.language)
+    if (langLabel) {
+      const metaLang = document.createElement('span')
+      metaLang.className = 'focus-meta-text'
+      metaLang.textContent = langLabel
+      metaRow.appendChild(metaLang)
+    }
 
     topBar.appendChild(metaRow)
     topBar.appendChild(makeTagsRow(transcript))
