@@ -446,19 +446,24 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
     <span>Drop audio files to transcribe</span>`
   modal.appendChild(dropOverlay)
 
+  // Only drags that carry files, as for the window (file-drop.js).
   let dragCounter = 0
+  const hasFiles = e => Array.from(e.dataTransfer?.types || []).includes('Files')
 
   modal.addEventListener('dragenter', e => {
+    if (!hasFiles(e)) return
     e.preventDefault()
     dragCounter++
     if (dragCounter === 1) dropOverlay.classList.add('nr-drop-overlay--active')
   })
-  modal.addEventListener('dragleave', () => {
+  modal.addEventListener('dragleave', e => {
+    if (!hasFiles(e)) return
     dragCounter--
     if (dragCounter === 0) dropOverlay.classList.remove('nr-drop-overlay--active')
   })
-  modal.addEventListener('dragover', e => e.preventDefault())
+  modal.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault() })
   modal.addEventListener('drop', e => {
+    if (!hasFiles(e)) return
     e.preventDefault()
     dragCounter = 0
     dropOverlay.classList.remove('nr-drop-overlay--active')
