@@ -28,6 +28,11 @@ _download_jobs: dict[str, _queue.Queue] = {}
 _cancel_events: dict[str, threading.Event] = {}
 
 
+def active_downloads() -> bool:
+    """A model download is running (the backend must not restart now)."""
+    return bool(_cancel_events)
+
+
 def shutdown_executor():
     _executor.shutdown(wait=False)
 

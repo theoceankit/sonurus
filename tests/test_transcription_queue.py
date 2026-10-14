@@ -597,3 +597,76 @@ def test_a_job_interrupted_from_outside_waits_and_the_queue_pauses(env):
         [("a", "waiting", None), ("b", "waiting", None)]
     assert runner.started == ["a"]
     assert not any(e["type"] == "job_failed" for e in events)
+
+
+# ── Restart of the backend (GPU acceleration applied or removed) ─────────────
+
+def test_prepare_restart_on_an_idle_queue_holds_it_and_resumes_after_the_restart(env):
+    """The backend restarts with jobs waiting; a queue that was running goes on."""
+    make, store, runner, recordings = env
+    q = make(start_paused=False)
+    assert q.prepare_restart() is True
+    _add(q, recordings, "a")
+    time.sleep(0.1)
+    assert runner.started == [], "no job starts once a restart is prepared"
+    q.stop_worker()
+
+    after = make(start_paused=False)
+    assert after.snapshot()["paused"] is False
+    wait_for(lambda: runner.started == ["a"])
+
+
+def test_prepare_restart_while_a_job_runs_waits_for_it_and_starts_no_other(env):
+    make, store, runner, recordings = env
+    q = make()
+    runner.hold("a")
+    _add(q, recordings, "a")
+    _add(q, recordings, "b")
+    q.start()
+    wait_for(lambda: runner.started == ["a"])
+
+    assert q.prepare_restart() is False
+    assert runner.cancelled == [], "the running job is not interrupted"
+    runner.release("a")
+    wait_for(lambda: q.snapshot()["running_job_id"] is None)
+    time.sleep(0.1)
+    assert runner.started == ["a"], "b waits for the restart"
+    assert q.prepare_restart() is True
+    q.stop_worker()
+
+    after = make(start_paused=False)
+    wait_for(lambda: runner.started == ["a", "b"])
+
+
+def test_a_paused_queue_stays_paused_after_the_restart(env):
+    make, store, runner, recordings = env
+    q = make()
+    _add(q, recordings, "a")
+    assert q.prepare_restart() is True
+    q.stop_worker()
+
+    after = make(start_paused=False)
+    assert after.snapshot()["paused"] is True
+    time.sleep(0.1)
+    assert runner.started == []
+
+
+def test_the_resume_after_a_restart_is_used_once(env):
+    make, store, runner, recordings = env
+    q = make(start_paused=False)
+    assert q.prepare_restart() is True
+    q.stop_worker()
+    make(start_paused=False).stop_worker()
+    store.add(audio_path="/rec/a.wav", title="a", whisper_model="small", language=None)
+
+    later = make(start_paused=False)
+    assert later.snapshot()["paused"] is True, "an ordinary start with jobs waiting comes up paused"
+
+
+def test_an_old_resume_mark_is_ignored(env):
+    """The app quit instead of restarting the backend: a later start is an ordinary one."""
+    make, store, runner, recordings = env
+    store.add(audio_path="/rec/a.wav", title="a", whisper_model="small", language=None)
+    store.set_setting("resume_after_restart", str(time.time() - 3600))
+    q = make(start_paused=False)
+    assert q.snapshot()["paused"] is True

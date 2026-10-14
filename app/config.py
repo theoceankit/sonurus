@@ -16,6 +16,12 @@ ALIGNMENT_MODELS_DIR = MODELS_DIR / "alignment"
 # Must not live in the OS temp dir — it is wiped on reboot on many systems.
 RECORDINGS_DIR = _data_dir / "recordings"
 
+# Optional GPU download (packaged app on Linux / Windows, set by Electron):
+# its folder in the app's data dir and the manifest shipped with the build.
+# Unset (dev, macOS) → no download is offered.
+GPU_DIR = Path(os.environ["SONORUS_GPU_DIR"]) if os.getenv("SONORUS_GPU_DIR") else None
+GPU_MANIFEST = Path(os.environ["SONORUS_GPU_MANIFEST"]) if os.getenv("SONORUS_GPU_MANIFEST") else None
+
 # Device
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 
