@@ -120,3 +120,26 @@ test('uploadRecording: backend error → throws its detail', async () => {
   })
   await assert.rejects(uploadRecording({ type: 'audio/webm' }), /The recording is empty/)
 })
+
+// ── captureStartError ───────────────────────────────────────────────────────
+
+const { captureStartError } = loadRenderer(['utils.js'])
+
+test('captureStartError: macOS permission failure becomes the Screen Recording hint', () => {
+  const msg = captureStartError('darwin', 'SCStream failed: TCC permission denied')
+  assert.match(msg, /Screen Recording/)
+})
+
+test('captureStartError: Linux keeps the backend text, even with "denied" in it', () => {
+  const detail = 'System audio capture failed to start: Connection failure: Access denied'
+  assert.equal(captureStartError('linux', detail), detail)
+})
+
+test('captureStartError: other macOS errors pass through', () => {
+  assert.equal(captureStartError('darwin', 'sonorus-capture timed out starting.'),
+    'sonorus-capture timed out starting.')
+})
+
+test('captureStartError: empty detail gets a generic message', () => {
+  assert.equal(captureStartError('linux', ''), 'Failed to start system audio capture.')
+})

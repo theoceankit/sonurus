@@ -85,6 +85,16 @@ async function listSystemAudioSources(platform, audioInputs) {
   }
 }
 
+// User-facing text for a failed POST /audio/capture/start. A macOS permission
+// failure (ScreenCaptureKit / TCC) becomes the Screen Recording hint; on other
+// platforms the backend text already says what is wrong.
+function captureStartError(platform, detail) {
+  const msg = detail || 'Failed to start system audio capture.'
+  if (platform === 'darwin' && /permission|denied|SCStream|TCC|Screen Recording/i.test(msg))
+    return 'Screen Recording access is required. Open System Settings → Privacy & Security → Screen Recording and enable Sonorus, then try again.'
+  return msg
+}
+
 // Uploads a finished live recording; the backend stores it in its own
 // recordings dir (it alone writes there) and returns the file path.
 async function uploadRecording(blob) {
