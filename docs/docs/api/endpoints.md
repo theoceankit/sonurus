@@ -20,7 +20,7 @@ The API version (`info.version` in `/openapi.json`) is the product version, reso
 
 ## Audio Capture
 
-Manages live system audio recording sessions. The backend dispatches to the correct platform tool (`sonorus-capture` on macOS, `ffmpeg -f pulse` on Linux, WASAPI on Windows). Mic + system tracks are merged with `ffmpeg amix` when both are present.
+Manages live system audio recording sessions. The backend dispatches to the correct platform tool (`sonorus-capture` on macOS, `parec` on Linux, WASAPI on Windows). Mic + system tracks are merged with `ffmpeg amix` when both are present.
 
 ### `GET /audio/capture/sources`
 
@@ -30,8 +30,11 @@ Returns available system audio sources for the current platform.
 // macOS
 [{ "id": "sckit", "label": "System audio (ScreenCaptureKit)" }]
 
-// Linux (PulseAudio monitor sources)
+// Linux (PulseAudio / PipeWire monitor sources from pactl)
 [{ "id": "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor", "label": "pci-0000_00_1f.3.analog-stereo (Monitor)" }]
+
+// Linux without pactl or without monitor sources: the default output's monitor
+[{ "id": "@DEFAULT_MONITOR@", "label": "System audio (default)" }]
 
 // Windows — always empty: system audio is captured in the renderer
 // (WASAPI loopback via setDisplayMediaRequestHandler), not by the backend
@@ -52,6 +55,8 @@ Starts a background capture process. Returns a `job_id` immediately.
 
 `source_id` is optional — omit to use the platform default. Ignored on macOS (always ScreenCaptureKit).
 
+- `400` — capture cannot run; `detail` says why and nothing is recorded: macOS helper missing or not ready, Linux `parec` not installed (names the package), the selected Linux source is no longer available, or the capture process exited right after start (its stderr). Windows always returns `400` (capture runs in the renderer).
+
 ### `POST /audio/capture/stop/{job_id}`
 
 Stops the capture process and returns the path to the recorded WAV file. Optionally merges with a microphone recording.
@@ -65,6 +70,7 @@ Stops the capture process and returns the path to the recorded WAV file. Optiona
 ```
 
 - `404` — job not found (already stopped or invalid ID)
+- `400` — nothing was captured; `detail` is platform-specific (the Screen Recording permission hint only on macOS)
 
 ### `POST /audio/recordings`
 

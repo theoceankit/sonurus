@@ -19,13 +19,29 @@ Running capture in a Python subprocess sidesteps these restrictions and keeps al
 
 ---
 
-## Platform dispatch
+## Platform drivers
 
-| Platform | Tool | How it works |
-|---|---|---|
-| macOS | `sonorus-capture` (Swift binary, ScreenCaptureKit) | Spawned as a subprocess; writes WAV to an intermediate temp file; stopped with SIGINT |
-| Linux | `ffmpeg -nostats -loglevel error -f pulse -i <monitor_source>` | PulseAudio monitor source recorded directly; sources enumerated via `pactl list short sources` |
-| Windows | `setDisplayMediaRequestHandler(audio: 'loopback')` in renderer | WASAPI loopback handled in Electron main process; no backend subprocess needed |
+Each OS has a driver class in `audio_capture_service.py` behind one interface: `sources()`, `check(source_id)` (raises `RuntimeError` with a user-facing reason) and `command(source_id, output_path)`. The service picks the driver from `sys.platform` on every call; everything around the capture process (start-up check, stop, mic merge, moving into `recordings/`) is shared.
+
+| Platform | Driver | Tool | How it works |
+|---|---|---|---|
+| macOS | `_MacCapture` | `sonorus-capture` (Swift binary, ScreenCaptureKit) | Spawned as a subprocess; prints `READY` once capturing; writes WAV to an intermediate temp file; stopped with SIGINT |
+| Linux | `_LinuxCapture` | `parec -d <monitor_source> --file-format=wav --rate=48000 --channels=2 --latency-msec=100` | PulseAudio / PipeWire monitor source recorded directly; sources enumerated via `pactl list short sources` |
+| Windows | `_NoBackendCapture` | `setDisplayMediaRequestHandler(audio: 'loopback')` in renderer | WASAPI loopback handled in Electron main process; no backend subprocess — `sources()` is empty and `start_capture()` raises |
+
+### Start errors
+
+`POST /audio/capture/start` returns `400` with the reason when capture cannot run, before any recording starts:
+
+| Case | Detail |
+|---|---|
+| macOS helper missing | `sonorus-capture binary not found; run: npm run build:capture` |
+| macOS helper does not print `READY` within 5 s | `sonorus-capture timed out starting.` / `sonorus-capture failed to start: <stderr>` |
+| Linux: `parec` not on `PATH` | names `parec` and the package to install (`pulseaudio-utils`, `libpulse` on Arch Linux) |
+| Linux: the selected monitor source is not in the `pactl` list | `The selected system audio source is not available: <id>. …` — PipeWire would otherwise silently record the default source |
+| Linux: capture process exits within 0.5 s | `System audio capture failed to start: <stderr>` (e.g. no sound server) |
+
+When the stopped capture file is empty, `stop_capture()` raises the driver's own message: the Screen Recording permission hint on macOS, `No system audio was captured from the selected source.` on Linux. The renderer (`captureStartError()` in `utils.js`) shows the Screen Recording hint only on macOS.
 
 ---
 
@@ -34,7 +50,9 @@ Running capture in a Python subprocess sidesteps these restrictions and keeps al
 ```
 POST /audio/capture/start
   → AudioCaptureService.start_capture(source_id)
+  → driver.check(source_id) — 400 with the reason if capture cannot run
   → spawns platform process (stderr → sonorus-sys-<job_id>.log, never a pipe)
+  → macOS: waits for READY; Linux: a process that exits within 0.5 s → 400 with its stderr
   → stores { process, output_path, log_path } under job_id
   → returns job_id
 
@@ -139,7 +157,7 @@ CMSampleBufferCopyPCMDataIntoAudioBufferList(
 
 ---
 
-## Linux: finding monitor sources
+## Linux: parec and monitor sources
 
 `GET /audio/capture/sources` runs `pactl list short sources` and filters for lines containing `"monitor"`:
 
@@ -148,7 +166,11 @@ $ pactl list short sources
 42  alsa_output.pci-0000_00_1f.3.analog-stereo.monitor  ...
 ```
 
-The monitor source ID is passed to `ffmpeg -f pulse -i <id>`. If no monitor sources are found, the endpoint returns an empty list and the UI shows a "no sources" message.
+The monitor source ID is passed to `parec -d <id>`. If `pactl` is missing, fails, or lists no monitor sources, the endpoint returns one source, `{"id": "@DEFAULT_MONITOR@", "label": "System audio (default)"}` — the monitor of the default output device — so "System audio" is always offered; a missing `parec` is reported when recording starts.
+
+`parec` and `pactl` come from the same package (`pulseaudio-utils`; `libpulse` on Arch Linux) and work with both PulseAudio and PipeWire (`pipewire-pulse`). The bundled `ffmpeg` (`ffmpeg-static`) is built without PulseAudio input, so it is used only for the mic merge and decoding, never for capture.
+
+`--latency-msec=100` keeps `parec`'s buffer small: with its default (about 2 s) the tail of the recording is still buffered when SIGINT arrives and is lost. On SIGINT `parec` closes the file and writes the final WAV header.
 
 ---
 
@@ -171,7 +193,7 @@ ffmpeg -y \
 
 | File | Description |
 |---|---|
-| `app/services/audio_capture_service.py` | Python service — platform dispatch, job management, ffmpeg merge |
+| `app/services/audio_capture_service.py` | Python service — platform drivers, job management, ffmpeg merge |
 | `app/api/routers/audio_capture.py` | FastAPI router — `/audio/capture/*` endpoints |
 | `app/api/dependencies.py` | `get_audio_capture_service()` singleton |
 | `native/macos/sonorus-capture/main.swift` | Swift binary — ScreenCaptureKit capture |
@@ -179,5 +201,5 @@ ffmpeg -y \
 | `build/entitlements.mac.plist` | `com.apple.security.screen-capture` entitlement for signed builds |
 
 :::note[Why stderr is not a pipe]
-The capture process runs for the whole recording. An unread `stderr=PIPE` fills its 64 KB buffer after a few minutes of ffmpeg progress output; ffmpeg then blocks on `write()`, stops capturing, and never exits on SIGINT — `stop_capture()` would hang forever. stderr is therefore redirected to a log file, and ffmpeg is started with `-nostats -loglevel error`.
+The capture process runs for the whole recording. An unread `stderr=PIPE` fills its 64 KB buffer once the process writes enough diagnostics; the process then blocks on `write()`, stops capturing, and never exits on SIGINT — `stop_capture()` would hang forever. stderr is therefore redirected to a log file.
 :::
