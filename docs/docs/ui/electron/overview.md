@@ -214,6 +214,8 @@ Clicking **+** while a session is active opens the modal for imports only: "Star
 
 ## Renaming a transcript
 
+Below the title a meta row shows the speaker avatars, the speaker count and the transcript language as separate items — its name from the language list via `transcriptLanguageLabel()` (`transcription-model.js`), the code itself for a language outside the list, nothing for `unknown`.
+
 The editor title (`.focus-title`) is editable: a click, or Enter while it has focus, swaps it for an input (`.focus-title-input`, text selected). Enter or leaving the field saves, Escape cancels. `titleToSave()` (`utils.js`) skips a blank or unchanged title or one over 200 characters; otherwise `PATCH /transcripts/{id}` is sent via `transcriptTitleRequest()`. The new title is shown at once and the sidebar reloads on success; on an error the old title comes back with a toast. The title is always set with `textContent`.
 
 ---
