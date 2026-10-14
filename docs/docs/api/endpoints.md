@@ -157,7 +157,7 @@ Adds a job at the end of the queue and returns it (`status: "waiting"`). In `aut
 
 **Audio copy** — an imported file (anything outside `$SONORUS_DATA_DIR/recordings/`) is copied to `recordings/sonorus-import-<uuid>.<ext>` before the job is queued; the job and later the transcript reference the copy, and the original is never touched. A live recording is used as it is. See [Audio Store](../services/AudioStore.md).
 
-With auto-detection the alignment guard cannot fire up front. If the detected language needs an alignment model that is not installed, the job fails with `error_code: "alignment_model_missing"` and `error_language`.
+With auto-detection the alignment guard cannot fire up front. If the detected language needs an alignment model that is not installed (by the same check as `GET /models`, so an interrupted download counts as not installed), the job fails with `error_code: "alignment_model_missing"` and `error_language`.
 
 A job never downloads a model. Before it starts, the worker checks that its Whisper model, the diarization model and the alignment model of its explicit language are installed (they may have been deleted after the job was queued); if not, the job fails at once — before any transcription — with `error_code: "whisper_model_missing"` (`"Whisper model \"small\" is not installed. Download it in Settings."`), `"diarization_model_missing"` or `"alignment_model_missing"` (with `error_language`). With auto-detect the language, and so its alignment model, is known only mid-pipeline. The pipeline child runs with `HF_HUB_OFFLINE=1`, so models load from the local cache only.
 
