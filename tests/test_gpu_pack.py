@@ -7,6 +7,7 @@ import json
 import subprocess
 import threading
 from asyncio import CancelledError
+from pathlib import Path
 
 import pytest
 
@@ -421,3 +422,33 @@ def test_remove_a_redownload_over_an_installed_pack_removes_both(make_pack, tmp_
 
 def test_remove_with_nothing_installed(make_pack):
     assert make_pack().remove() is None
+
+
+# ── pip install ───────────────────────────────────────────────────────────────
+
+def test_install_unpacks_on_the_pack_disk_not_in_the_system_temp(tmp_path, monkeypatch):
+    """pip --target builds in a temp dir first; /tmp is often a small tmpfs."""
+    seen = {}
+
+    class FakeProc:
+        returncode = 0
+        stderr = None
+
+        def __init__(self, cmd, **kw):
+            seen["cmd"] = cmd
+            seen["env"] = kw["env"]
+
+        def poll(self):
+            return 0
+
+    monkeypatch.setattr(gp.subprocess, "Popen", FakeProc)
+    target = tmp_path / "incoming" / "pack"
+    wheel = tmp_path / "incoming" / "wheels" / "torch.whl"
+    gp._install([wheel], target, threading.Event())
+
+    assert seen["cmd"][1:4] == ["-m", "pip", "install"]
+    assert "--target" in seen["cmd"] and str(target) in seen["cmd"]
+    temp = seen["env"]["TMPDIR"]
+    assert seen["env"]["TEMP"] == seen["env"]["TMP"] == temp
+    assert Path(temp).parent == tmp_path / "incoming"
+    assert not Path(temp).exists(), "removed after the install"
