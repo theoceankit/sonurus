@@ -86,8 +86,9 @@ Installation copies about 3 GB of files and can take a few minutes, longer while
    Developer Mode or administrator rights: without the symlink privilege the model cache stores
    plain copies of the files instead of symlinks.
 
-After that, transcription works offline. It runs on the CPU — the packaged app has no GPU support
-([Known issues](../known-issues.md#packaged-app-uses-cpu-only-pytorch)).
+After that, transcription works offline on the CPU. With an NVIDIA GPU (driver 570 or newer), **Settings →
+GPU acceleration** downloads the CUDA build of PyTorch once and the app restarts its backend to use it
+([GPU acceleration](../ui/electron/gpu-acceleration.md)).
 
 ---
 
@@ -98,6 +99,7 @@ After that, transcription works offline. It runs on the CPU — the packaged app
 | App (per-user install) | `%LOCALAPPDATA%\Programs\Sonorus\` |
 | Data: models, transcripts, recordings, settings | `%APPDATA%\sonorus\` |
 | Log | `%APPDATA%\sonorus\sonorus.log` |
+| GPU acceleration (CUDA build of PyTorch, if downloaded) | `%APPDATA%\sonorus\gpu\` |
 
 `npm start` (dev mode) uses the same data directory — see
 [Known issues](../known-issues.md#dev-mode-and-the-packaged-app-share-data). To try a build without
@@ -112,9 +114,10 @@ touching existing data, start it with its own directory:
 ## Uninstall
 
 Quit Sonorus, then **Settings → Apps → Installed apps → Sonorus → Uninstall** (or
-"Add or remove programs" on Windows 10). This removes the app, Python and all libraries.
+"Add or remove programs" on Windows 10). This removes the app, Python and all libraries; the GPU
+download lives with the data (below), or remove it alone with **Settings → GPU acceleration → Remove**.
 
-Remove the data as well (models, transcripts, recordings, settings — this cannot be undone), in PowerShell:
+Remove the data as well (models, transcripts, recordings, settings and the GPU download — this cannot be undone), in PowerShell:
 
 ```powershell
 Remove-Item -Recurse -Force "$env:APPDATA\sonorus"
