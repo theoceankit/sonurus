@@ -106,7 +106,7 @@ electron/
 
 ## Settings
 
-Settings are stored in `app.getPath('userData')/settings.json`. The main process reads this file before spawning the backend to extract `hfToken`.
+Settings are stored in `app.getPath('userData')/settings.json` — `sonorus` in the OS app data folder for the installed app, `sonorus-dev` in dev mode, or the `--user-data-dir` given (see [Configuration](../../environment/configuration.md#sonorus_data_dir)). The main process reads this file before spawning the backend to extract `hfToken`.
 
 Default values are defined in `DEFAULT_SETTINGS` in `main.js` (used when `settings.json` is missing) and in `DEFAULT_APP_SETTINGS` in `app.js`. The renderer starts `appSettings` as a copy of `DEFAULT_APP_SETTINGS` and merges saved values on top via `Object.assign(appSettings, saved)`.
 

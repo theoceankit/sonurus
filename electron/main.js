@@ -1,8 +1,18 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard, desktopCapturer } = require('electron')
 const path = require('path')
 const fs = require('fs')
-const { restartBackend, startBackend, stopBackend } = require('./backend')
+const { BackendRefusedError, restartBackend, startBackend, stopBackend } = require('./backend')
+const { devUserDataPath } = require('./backend-identity')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
+
+// Dev mode keeps its data apart from the packaged app (electron/backend-identity.js).
+// Must run before the app is ready: settings, the backend's data dir and logs follow it.
+const devUserData = devUserDataPath({
+  isPackaged: app.isPackaged,
+  hasUserDataSwitch: app.commandLine.hasSwitch('user-data-dir'),
+  appData: app.getPath('appData'),
+})
+if (devUserData) app.setPath('userData', devUserData)
 
 // macOS routes Cmd+C/V/X/A through the app's Edit menu — without it,
 // paste doesn't work in any text field. Windows/Linux handle it at OS level.
@@ -133,8 +143,9 @@ app.whenReady().then(async () => {
   try {
     await startBackend(savedHfToken())
   } catch (err) {
-    dialog.showErrorBox('Sonorus — backend error',
-      `Failed to start the backend:\n${err.message}\n\nCheck ${app.getPath('userData')}/sonorus.log for details.`)
+    dialog.showErrorBox('Sonorus — backend error', err instanceof BackendRefusedError
+      ? err.message
+      : `Failed to start the backend:\n${err.message}\n\nCheck ${app.getPath('userData')}/sonorus.log for details.`)
     app.quit()
     return
   }
