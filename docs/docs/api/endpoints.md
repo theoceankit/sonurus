@@ -30,11 +30,11 @@ Returns available system audio sources for the current platform.
 // macOS
 [{ "id": "sckit", "label": "System audio (ScreenCaptureKit)" }]
 
-// Linux (PulseAudio / PipeWire monitor sources from pactl)
-[{ "id": "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor", "label": "pci-0000_00_1f.3.analog-stereo (Monitor)" }]
-
-// Linux without pactl or without monitor sources: the default output's monitor
-[{ "id": "@DEFAULT_MONITOR@", "label": "System audio (default)" }]
+// Linux: the default output's monitor first, then each output device's monitor
+// named after the device (pactl sink description); without pactl only the first entry
+[{ "id": "@DEFAULT_MONITOR@", "label": "System audio (default)" },
+ { "id": "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor", "label": "Built-in Audio Analog Stereo" },
+ { "id": "bluez_output.58_18_62_38_72_FA.1.monitor", "label": "WH-1000XM5" }]
 
 // Windows: the default output device first, then every active output device by name
 // (empty when the helper is missing or lists nothing)
