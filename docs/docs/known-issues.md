@@ -29,17 +29,15 @@ UserWarning: torchcodec is not installed correctly so built-in audio decoding wi
 
 ---
 
-### Packaged app uses CPU-only PyTorch
+### GPU acceleration on Windows not yet checked on real hardware
 
-**Severity:** performance — transcription is significantly slower without GPU.
+**Severity:** unknown — the Windows path is covered by tests and a VM without a GPU only.
 
-**Symptom:** in the packaged (installed) app, transcription takes much longer than in dev mode with a CUDA GPU.
+**Symptom:** none known. On Linux the download, the self-check and transcription on an NVIDIA GPU were checked on real hardware; on Windows only the section without a GPU (no NVIDIA GPU found) was.
 
-**Cause:** the installers ship `torch+cpu` (`requirements.packaged.txt`, `locks/`). This works on all hardware, but forgoes CUDA acceleration; the packaged app has no way to switch to a CUDA build.
+**Cause:** the Windows CUDA build ships the CUDA libraries inside the `torch` wheel; CTranslate2 (faster-whisper) relies on finding them once PyTorch has loaded them.
 
-**Impact:** all platforms. macOS is CPU-only regardless (no CUDA support). Windows and Linux users with NVIDIA GPUs are affected.
-
-**Workaround:** for GPU inference, run Sonorus from source with a CUDA build of PyTorch. See [Setup → GPU acceleration](./environment/setup.md#gpu-acceleration).
+**Workaround:** if the self-check fails, Settings → GPU acceleration shows "GPU check failed" with the reason and the app keeps transcribing on the CPU; **Remove** frees the space. macOS is CPU-only (no CUDA). See [GPU acceleration](./ui/electron/gpu-acceleration.md).
 
 
 ---

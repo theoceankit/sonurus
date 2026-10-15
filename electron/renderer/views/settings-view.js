@@ -651,6 +651,69 @@ function buildAlignmentSection(state) {
   ])
 }
 
+// GPU acceleration (gpu-acceleration.js). Hidden on macOS (the backend says
+// unsupported_platform). The card's _cleanup stops listening; a download or a
+// pending restart goes on after leaving Settings.
+function buildGpuSection() {
+  const body = document.createElement('div')
+  body.className = 'st-gpu'
+
+  const card = makeSectionCard([
+    makeSectionHeader(icon('models', 18), 'GPU acceleration', 'Faster transcription on an NVIDIA graphics card.'),
+    body,
+  ])
+
+  function render() {
+    const { status, ...ui } = gpuState()
+    const view = gpuSectionView(status, ui)
+    card.style.display = view.hidden ? 'none' : ''
+    if (view.hidden) return
+
+    const head = document.createElement('div')
+    head.className = 'st-gpu-head'
+    const pillTone = { ok: 'ok', error: 'error', amber: 'amber', accent: 'accent' }[view.tone] || 'neutral'
+    head.appendChild(makePill(view.label, pillTone))
+    if (status.gpu) {
+      const gpu = document.createElement('span')
+      gpu.className = 'st-gpu-name'
+      gpu.textContent = `${status.gpu.name}, driver ${status.gpu.driver}`
+      head.appendChild(gpu)
+    }
+    const device = document.createElement('span')
+    device.className = 'st-gpu-device'
+    device.textContent = `Running on ${view.device}`
+    head.appendChild(device)
+
+    const detail = document.createElement('div')
+    detail.className = 'st-gpu-detail'
+    detail.textContent = view.detail
+
+    const actions = document.createElement('div')
+    actions.className = 'st-gpu-actions'
+    view.actions.forEach(a => {
+      const btn = document.createElement('button')
+      btn.className = 'st-btn st-btn--sm ' + (a.primary ? 'st-btn--primary' : 'st-btn--ghost')
+      btn.textContent = a.label
+      btn.addEventListener('click', () => {
+        if (a.id === 'download') startGpuDownload()
+        else if (a.id === 'cancel') cancelGpuDownload()
+        else if (a.id === 'remove') removeGpuPack()
+      })
+      actions.appendChild(btn)
+    })
+
+    const children = [head, detail]
+    if (view.progress) children.push(_makeDownloadBar(view.progress.pct))
+    if (view.actions.length) children.push(actions)
+    body.replaceChildren(...children)
+  }
+
+  render()
+  card._cleanup = subscribeGpu(render)
+  refreshGpuStatus()
+  return card
+}
+
 function buildApiKeysSection(state) {
   const wrap = document.createElement('div')
   wrap.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%'
@@ -971,6 +1034,7 @@ function renderSettingsView() {
     { id: 'interface', build: () => buildInterfaceSection(state) },
     { id: 'models',    build: () => buildModelsSection(state) },
     { id: 'alignment', build: () => buildAlignmentSection(state) },
+    { id: 'gpu',       build: () => buildGpuSection() },
     { id: 'apikeys',   build: () => buildApiKeysSection(state) },
     { id: 'export',    build: () => buildExportSection(state) },
     { id: 'audio',     build: () => buildAudioSection(state) },
@@ -978,10 +1042,13 @@ function renderSettingsView() {
     { id: 'data',      build: () => buildDeleteDataSection() },
   ]
 
+  const cleanups = []
   sections.forEach(s => {
     const anchor = document.createElement('div')
     anchor.dataset.section = s.id
-    anchor.appendChild(s.build())
+    const section = s.build()
+    if (section?._cleanup) cleanups.push(section._cleanup)
+    anchor.appendChild(section)
     content.appendChild(anchor)
   })
 
@@ -997,7 +1064,8 @@ function renderSettingsView() {
   // Downloads go on after leaving Settings (model-downloads.js); only stop listening.
   state.refreshModels()
   syncTranscribeModel().then(() => state.refreshModels())
-  root._cleanup = subscribeModelDownloads(() => state.refreshModels())
+  const stopModels = subscribeModelDownloads(() => state.refreshModels())
+  root._cleanup = () => { stopModels(); cleanups.forEach(stop => stop()) }
   root._onQueue = () => state.refreshModels()   // delete buttons follow the running job
   return root
 }

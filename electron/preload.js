@@ -10,4 +10,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeSettings:   (data) => ipcRenderer.invoke('write-settings', data),
   setZoom:         (factor) => ipcRenderer.invoke('set-zoom', factor),
   writeClipboard:  (text) => ipcRenderer.invoke('write-clipboard', text),
+  restartBackend:  () => ipcRenderer.invoke('restart-backend'),
 })

@@ -141,8 +141,8 @@ bundled `torch`.
 
 ### GPU manifests
 
-The installers stay CPU-only. GPU acceleration on Linux and Windows is meant as an optional download
-inside the app (the CUDA build of PyTorch), described per platform by `locks/gpu-<platform>-<arch>.json`
+The installers stay CPU-only. GPU acceleration on Linux and Windows is an optional download inside
+the app (the CUDA build of PyTorch, [GPU acceleration](../ui/electron/gpu-acceleration.md)), described per platform by `locks/gpu-<platform>-<arch>.json`
 (`GPU_TARGETS`: `linux-x64`, `win32-x64`; macOS has no CUDA). `scripts/lock-backend.js` writes them
 together with the locks:
 
@@ -160,9 +160,6 @@ together with the locks:
 The manifest also carries `torch` (`2.8.0+cu128`), `base_torch` (the bundled version without the
 local tag), `cuda` (`12.8`), `min_driver` (`570`, the oldest NVIDIA driver for CUDA 12.8),
 `min_compute_capability` (`7.0`, the oldest GPU the cu128 wheels support) and `total_size`.
-
-The packaged app does not offer the GPU download yet — see
-[Setup → GPU acceleration](../environment/setup.md#gpu-acceleration) for GPU inference from source.
 
 ---
 
