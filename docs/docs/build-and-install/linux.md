@@ -37,7 +37,7 @@ npm run build:linux
 
 `build:linux` runs `node scripts/bundle-backend.js` (Python + libraries + `app/`, precompiled — see
 [Packaging](../distribution/packaging.md)) and then `electron-builder --linux`. The result is
-`dist/Sonorus-<version>.AppImage` (~1 GB).
+`dist/Sonorus-<version>.AppImage` (~700 MB).
 
 ---
 
