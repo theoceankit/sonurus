@@ -4,6 +4,7 @@ Tests for AudioCaptureService and /audio/capture/* FastAPI router.
 Service tests mock subprocess.Popen so no real process is started.
 API tests inject a stub AudioCaptureService via dependency_overrides.
 """
+import json
 import shutil
 import subprocess
 import uuid as uuid_module
@@ -386,14 +387,60 @@ def test_linux_start_without_parec_fails_with_package_hint(tmp_path):
     assert svc.has_active_jobs() is False
 
 
-def _pactl_result(stdout: str):
+def _pactl_result(stdout: str, returncode: int = 0):
     result = MagicMock()
     result.stdout = stdout
-    result.returncode = 0
+    result.returncode = returncode
     return result
 
 
 _DEFAULT_SOURCE = {"id": "@DEFAULT_MONITOR@", "label": "System audio (default)"}
+
+_SINKS_JSON = json.dumps([
+    {"name": "bluez_output.58_18.1", "description": "WH-1000XM5",
+     "monitor_source": "bluez_output.58_18.1.monitor"},
+    {"name": "alsa_output.pci-0000.hdmi-stereo",
+     "description": "AD107 High Definition Audio Controller Digital Stereo (HDMI)",
+     "monitor_source": "alsa_output.pci-0000.hdmi-stereo.monitor"},
+])
+
+_SOURCES_TEXT = """Source #63
+\tState: SUSPENDED
+\tName: alsa_output.usb-maono.iec958-stereo.monitor
+\tDescription: Monitor of Maono Dynamic Microphone Digital Stereo (IEC958)
+\tDriver: PipeWire
+
+Source #64
+\tState: SUSPENDED
+\tName: alsa_input.usb-maono.analog-stereo
+\tDescription: Maono Dynamic Microphone Analog Stereo
+
+Source #85
+\tName: alsa_output.pci-0000.hdmi-stereo.monitor
+\tDriver: PipeWire
+"""
+
+
+def _fake_pactl(sinks_json=None, sources_text=None, calls=None):
+    """subprocess.run stand-in for pactl: JSON sink list (pactl >= 16) or the
+    text source list; None makes that form fail like an old or broken pactl."""
+    def _run(cmd, **kwargs):
+        if calls is not None:
+            calls.append((cmd, kwargs.get("env")))
+        if cmd[1:] == ["-f", "json", "list", "sinks"]:
+            return _pactl_result(sinks_json, 0) if sinks_json is not None else _pactl_result("", 1)
+        if cmd[1:] == ["list", "sources"]:
+            return _pactl_result(sources_text, 0) if sources_text is not None else _pactl_result("", 1)
+        raise AssertionError(f"unexpected command {cmd}")
+    return _run
+
+
+def _linux_sources(run):
+    AudioCaptureService = _get_service_class()
+    with _with_pactl(), \
+         patch("app.services.audio_capture_service.subprocess.run", side_effect=run), \
+         patch("app.services.audio_capture_service.sys.platform", "linux"):
+        return AudioCaptureService().get_sources()
 
 
 def test_linux_sources_without_pactl_offer_default_monitor():
@@ -415,42 +462,58 @@ def test_linux_sources_when_pactl_fails_offer_default_monitor():
          patch("app.services.audio_capture_service.sys.platform", "linux"):
         sources = AudioCaptureService().get_sources()
     assert sources == [_DEFAULT_SOURCE]
+    assert _linux_sources(_fake_pactl()) == [_DEFAULT_SOURCE]
 
 
 def test_linux_sources_without_monitors_offer_default_monitor():
-    AudioCaptureService = _get_service_class()
-    stdout = "1\talsa_input.usb-mic.analog-stereo\tPipeWire\ts16le 2ch 48000Hz\tSUSPENDED\n"
-    with _with_pactl(), \
-         patch("app.services.audio_capture_service.subprocess.run",
-               return_value=_pactl_result(stdout)), \
-         patch("app.services.audio_capture_service.sys.platform", "linux"):
-        sources = AudioCaptureService().get_sources()
-    assert sources == [_DEFAULT_SOURCE]
+    assert _linux_sources(_fake_pactl(sinks_json="[]")) == [_DEFAULT_SOURCE]
 
 
-def test_linux_sources_list_monitors_from_pactl():
-    AudioCaptureService = _get_service_class()
-    stdout = (
-        "1\talsa_input.usb-mic.analog-stereo\tPipeWire\ts16le 2ch 48000Hz\tSUSPENDED\n"
-        "2\talsa_output.pci-0000.hdmi-stereo.monitor\tPipeWire\ts32le 2ch 48000Hz\tRUNNING\n"
-    )
-    with _with_pactl(), \
-         patch("app.services.audio_capture_service.subprocess.run",
-               return_value=_pactl_result(stdout)), \
-         patch("app.services.audio_capture_service.sys.platform", "linux"):
-        sources = AudioCaptureService().get_sources()
-    assert sources == [{"id": "alsa_output.pci-0000.hdmi-stereo.monitor",
-                        "label": "pci-0000.hdmi-stereo (Monitor)"}]
+def test_linux_sources_name_output_devices_with_default_first():
+    """Like Windows: the default output first, then each output device under
+    its own name (the sink description), alphabetically."""
+    assert _linux_sources(_fake_pactl(sinks_json=_SINKS_JSON)) == [
+        _DEFAULT_SOURCE,
+        {"id": "alsa_output.pci-0000.hdmi-stereo.monitor",
+         "label": "AD107 High Definition Audio Controller Digital Stereo (HDMI)"},
+        {"id": "bluez_output.58_18.1.monitor", "label": "WH-1000XM5"},
+    ]
+
+
+def test_linux_sources_fall_back_to_text_list_without_json():
+    """pactl < 16 has no -f json: descriptions come from the text source list
+    ("Monitor of …"); a monitor without a description keeps its name."""
+    assert _linux_sources(_fake_pactl(sources_text=_SOURCES_TEXT)) == [
+        _DEFAULT_SOURCE,
+        {"id": "alsa_output.usb-maono.iec958-stereo.monitor",
+         "label": "Maono Dynamic Microphone Digital Stereo (IEC958)"},
+        {"id": "alsa_output.pci-0000.hdmi-stereo.monitor", "label": "pci-0000.hdmi-stereo (Monitor)"},
+    ]
+
+
+def test_linux_pactl_runs_with_c_locale():
+    """pactl translates its field names ("Name:", "Description:")."""
+    calls = []
+    _linux_sources(_fake_pactl(sources_text=_SOURCES_TEXT, calls=calls))
+    assert calls, "pactl was not called"
+    for _cmd, env in calls:
+        assert env is not None and env.get("LC_ALL") == "C"
+
+
+def test_linux_sink_without_description_keeps_its_name():
+    sinks = json.dumps([{"name": "alsa_output.x", "description": "",
+                         "monitor_source": "alsa_output.x.monitor"}])
+    assert _linux_sources(_fake_pactl(sinks_json=sinks)) == [
+        _DEFAULT_SOURCE, {"id": "alsa_output.x.monitor", "label": "x (Monitor)"}]
 
 
 def test_linux_start_with_vanished_source_fails(tmp_path):
     """PipeWire silently records the default source when the requested one is
     gone (e.g. Bluetooth headphones switched off): refuse to start instead."""
     AudioCaptureService = _get_service_class()
-    stdout = "2\talsa_output.pci-0000.hdmi-stereo.monitor\tPipeWire\ts32le 2ch 48000Hz\tRUNNING\n"
     with _with_pactl(), \
          patch("app.services.audio_capture_service.subprocess.run",
-               return_value=_pactl_result(stdout)), \
+               side_effect=_fake_pactl(sinks_json=_SINKS_JSON)), \
          patch("app.services.audio_capture_service.subprocess.Popen") as popen, \
          patch("app.services.audio_capture_service.sys.platform", "linux"):
         svc = AudioCaptureService(recordings_dir=tmp_path)
@@ -463,10 +526,9 @@ def test_linux_start_with_vanished_source_fails(tmp_path):
 
 def test_linux_start_with_listed_or_default_source_is_allowed(tmp_path):
     AudioCaptureService = _get_service_class()
-    stdout = "2\talsa_output.pci-0000.hdmi-stereo.monitor\tPipeWire\ts32le 2ch 48000Hz\tRUNNING\n"
     with _with_pactl(), \
          patch("app.services.audio_capture_service.subprocess.run",
-               return_value=_pactl_result(stdout)), \
+               side_effect=_fake_pactl(sinks_json=_SINKS_JSON)), \
          patch("app.services.audio_capture_service.subprocess.Popen",
                side_effect=lambda *a, **k: _make_mock_popen()), \
          patch("app.services.audio_capture_service.sys.platform", "linux"):

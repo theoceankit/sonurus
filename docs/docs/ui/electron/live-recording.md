@@ -31,7 +31,7 @@ Handled by the Python `AudioCaptureService` backend. The renderer calls HTTP —
 | Platform | Backend tool | Notes |
 |---|---|---|
 | macOS | `sonorus-capture` Swift binary (ScreenCaptureKit) | Built with `npm run build:capture`; requires Screen Recording permission |
-| Linux | `parec -d <monitor_source>` (PulseAudio / PipeWire) | Monitor sources enumerated via `pactl list short sources`; without them a single "System audio (default)" source; needs `pulseaudio-utils` (`libpulse` on Arch Linux) |
+| Linux | `parec -d <monitor_source>` (PulseAudio / PipeWire) | "System audio (default)" first, then each output device by its name (`pactl -f json list sinks`); without `pactl` only the default; needs `pulseaudio-utils` (`libpulse` on Arch Linux) |
 | Windows | `sonorus-capture.exe` (C++, WASAPI loopback) | Built with `npm run build:capture:win`; "System audio (default)" plus every active output device; writes silence while nothing plays |
 
 **Flow:**
