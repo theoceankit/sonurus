@@ -868,12 +868,10 @@ function buildAudioSection(state) {
       saveSettings({ recordingUseMic: v })
     }), 'settings.include-mic')
 
-    // System audio: on macOS/Linux fetch sources from backend (bypasses Chromium restrictions).
-    // On Windows use browser devices (WASAPI loopback is handled by Electron's setDisplayMediaRequestHandler).
-    const platform = await window.electronAPI.getPlatform()
+    // System audio sources come from the backend on every OS (it captures them).
     const sysOpts = [
       { value: null, label: 'Disabled' },
-      ...await listSystemAudioSources(platform, inputs),
+      ...await listSystemAudioSources(),
     ]
 
     const sysVal = sysOpts.some(o => o.value === state.recordingSystemDevice) ? state.recordingSystemDevice : null
