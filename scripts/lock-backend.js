@@ -2,8 +2,8 @@
 'use strict'
 
 // Regenerates locks/packaged-<platform>-<arch>.txt from requirements.packaged.txt:
-// every library of the packaged backend (direct and transitive) pinned with
-// hashes, once per installer platform. scripts/bundle-backend.js installs
+// every library of the packaged backend (direct and transitive, minus
+// EXCLUDED_PACKAGES) pinned with hashes, once per installer platform. scripts/bundle-backend.js installs
 // exactly these files, so the same app version always ships the same libraries.
 //
 // For the platforms with GPU acceleration (Linux, Windows) it also writes
@@ -43,6 +43,28 @@ const GPU_BUILD = { tag: 'cu128', cuda: '12.8', minDriver: '570', minComputeCapa
 // pinned to the CPU lock while resolving the GPU set.
 const CUDA_FAMILY = new Set(['torch', 'torchaudio', 'torchvision', 'torchcodec', 'triton'])
 const isCudaPackage = name => CUDA_FAMILY.has(name) || /^nvidia-[a-z0-9-]+$/.test(name)
+
+// Transitive packages left out of the installers: the backend never imports
+// them, and the libraries that do import them fall back when they are missing.
+// uv skips them in every CPU lock (--no-emit-package); their own dependencies
+// are listed here too unless something else needs them.
+// scripts/check-bundled-imports.js proves on each built interpreter that the
+// backend still imports without them.
+const EXCLUDED_PACKAGES = [
+  // whisperx dependency; torch only probes for it (torch.utils._triton) and
+  // needs it for torch.compile on a GPU. Linux only, ~900 MB. The GPU download
+  // still brings its CUDA build.
+  'triton',
+  // whisperx dependency; torchmetrics imports it only if installed. The GPU
+  // download still brings its CUDA build.
+  'torchvision',
+  // pyannote-audio dependency for plots in training code; torchmetrics imports
+  // it only if installed.
+  'matplotlib', 'contourpy', 'cycler', 'fonttools', 'kiwisolver',
+  // pyannote-audio dependency for console progress bars (ProgressHook, training);
+  // lightning imports it only if installed.
+  'rich', 'markdown-it-py', 'mdurl', 'pygments',
+]
 
 // Wheel platform tags per build platform.
 const WHEEL_PLATFORM = {
@@ -133,10 +155,13 @@ async function headSizeOf(url) {
 }
 
 // The GPU manifest of one platform from the resolved CUDA set and the CPU lock.
+// The GPU resolution brings the excluded packages back; those outside the CUDA
+// family stay out of the download as they stay out of the installer.
 async function buildGpuManifest({ key, pylockText, cpuPins, headSize = headSizeOf }) {
   const packages = []
   for (const pkg of parsePylock(pylockText)) {
     if (cpuPins[pkg.name] === pkg.version) continue
+    if (!(pkg.name in cpuPins) && EXCLUDED_PACKAGES.includes(pkg.name) && !isCudaPackage(pkg.name)) continue
     if (!isCudaPackage(pkg.name)) {
       throw new Error(`${pkg.name} ${pkg.version} differs from the CPU lock (${cpuPins[pkg.name] ?? 'absent'})`)
     }
@@ -199,6 +224,7 @@ async function main() {
         '--index-strategy', 'unsafe-best-match',
         '--no-header',
         '--quiet',
+        ...EXCLUDED_PACKAGES.flatMap(name => ['--no-emit-package', name]),
         '--output-file', out,
       ], { cwd: tmp, env })
       if (status !== 0) throw new Error(`uv pip compile failed for ${key}`)
@@ -236,7 +262,7 @@ async function main() {
   console.log('Locks updated.')
 }
 
-module.exports = { buildGpuManifest, gpuConstraints, gpuRequirements, parseLockPins, parsePylock, pickWheel }
+module.exports = { EXCLUDED_PACKAGES, buildGpuManifest, gpuConstraints, gpuRequirements, parseLockPins, parsePylock, pickWheel }
 
 if (require.main === module) {
   main().catch(err => { console.error(err.message); process.exit(1) })

@@ -48,6 +48,8 @@ for (const key of ['linux-x64', 'win32-x64']) {
     for (const name of ['torch', 'torchaudio', 'torchvision']) {
       assert.ok(byName[name], `${name} missing`)
       assert.match(byName[name].version, /\+cu128$/, `${name} must be the cu128 build`)
+      // torchvision is left out of the installer, so it has no bundled version
+      if (name === 'torchvision') continue
       assert.equal(byName[name].version.replace(/\+cu128$/, ''), cpu[name].replace(/\+cpu$/, ''),
         `${name} must match the bundled version`)
     }
@@ -206,6 +208,23 @@ test('buildGpuManifest refuses packages outside the CUDA set', async () => {
   await assert.rejects(
     lock.buildGpuManifest({ key: 'linux-x64', pylockText: PYLOCK, cpuPins: cpu, headSize: async () => 1 }),
     /fonttools 4\.66\.1 differs from the CPU lock/,
+  )
+})
+
+test('buildGpuManifest skips packages left out of the installers', async () => {
+  // fonttools is excluded from the CPU lock, so the GPU resolution brings it back
+  const cpu = { 'torch': '2.8.0+cpu', 'typing-extensions': '4.15.0' }
+  const m = await lock.buildGpuManifest({
+    key: 'linux-x64', pylockText: PYLOCK, cpuPins: cpu, headSize: async () => 1,
+  })
+  assert.deepEqual(m.packages.map(p => p.name), ['nvidia-cudnn-cu12', 'torch'])
+})
+
+test('buildGpuManifest refuses a package missing from the CPU lock that is not excluded', async () => {
+  const cpu = { 'fonttools': '4.66.1', 'torch': '2.8.0+cpu' }
+  await assert.rejects(
+    lock.buildGpuManifest({ key: 'linux-x64', pylockText: PYLOCK, cpuPins: cpu, headSize: async () => 1 }),
+    /typing-extensions 4\.15\.0 differs from the CPU lock \(absent\)/,
   )
 })
 

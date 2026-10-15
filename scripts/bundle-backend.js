@@ -3,8 +3,8 @@
 
 // Assembles backend-dist/ so electron-builder can include it as extraResources:
 // python-build-standalone with every backend library installed from the
-// platform's lock file (locks/packaged-<platform>-<arch>.txt), app/ sources,
-// all Python code precompiled, ffmpeg, and the GPU download manifest
+// platform's lock file (locks/packaged-<platform>-<arch>.txt) minus files the
+// backend never runs (pruneSitePackages), app/ sources, all Python code precompiled, ffmpeg, and the GPU download manifest
 // (Linux, Windows). The packaged app installs nothing by itself.
 //
 // Run before building:  node scripts/bundle-backend.js
@@ -105,6 +105,42 @@ function copyDir(src, dst, exclude = []) {
   }
 }
 
+// Removes what the backend never runs from an installed site-packages: every
+// test suite (directories named tests/test), torch's C++ headers and the test
+// programs torch ships in torch/bin (torch_shm_manager stays). Name patterns
+// only, since torch/bin differs per platform. Returns the bytes removed.
+const TORCH_TEST_PROGRAM = /(^test_|^tutorial_|Test(\.exe)?$|^protoc)/
+
+function pruneSitePackages(sitePackages) {
+  const sizeOf = p => {
+    const st = fs.lstatSync(p)
+    if (!st.isDirectory()) return st.size
+    return fs.readdirSync(p).reduce((sum, name) => sum + sizeOf(path.join(p, name)), 0)
+  }
+  let removed = 0
+  const remove = p => { removed += sizeOf(p); fs.rmSync(p, { recursive: true, force: true }) }
+
+  const torch = path.join(sitePackages, 'torch')
+  if (fs.existsSync(path.join(torch, 'include'))) remove(path.join(torch, 'include'))
+  const torchBin = path.join(torch, 'bin')
+  if (fs.existsSync(torchBin)) {
+    for (const name of fs.readdirSync(torchBin)) {
+      if (TORCH_TEST_PROGRAM.test(name)) remove(path.join(torchBin, name))
+    }
+  }
+
+  const walk = dir => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const p = path.join(dir, entry.name)
+      if (dir !== sitePackages && (entry.name === 'tests' || entry.name === 'test')) remove(p)
+      else walk(p)
+    }
+  }
+  walk(sitePackages)
+  return removed
+}
+
 function run(cmd, args) {
   const res = spawnSync(cmd, args, { stdio: 'inherit' })
   if (res.error) throw res.error
@@ -165,6 +201,11 @@ async function main() {
   ])
   if (pipStatus !== 0) throw new Error(`pip install exited with code ${pipStatus}`)
 
+  const sitePackages = path.join(lib, 'site-packages')
+  console.log('Removing test suites and torch headers…')
+  const prunedMiB = pruneSitePackages(sitePackages) / 1048576
+  console.log(`Removed ${prunedMiB.toFixed(0)} MiB.`)
+
   // ── App source (always refreshed) ────────────────────────────────────────
   console.log('Copying app source…')
   fs.rmSync(path.join(DEST, 'app'), { recursive: true, force: true })
@@ -177,7 +218,6 @@ async function main() {
   // few files that never compile (e.g. Tix demo scripts), so only warn there.
   console.log('Precompiling Python code…')
   const compile = dirs => run(exe, ['-m', 'compileall', '-q', '-j', '0', '--invalidation-mode', 'unchecked-hash', ...dirs])
-  const sitePackages = path.join(lib, 'site-packages')
   if (compile([sitePackages, path.join(DEST, 'app')]) !== 0) {
     throw new Error('compileall failed for site-packages or app/')
   }
@@ -201,7 +241,7 @@ async function main() {
 
 module.exports = {
   BUILD_TARGETS, GPU_TARGETS, VC_RUNTIME_DLLS,
-  copyGpuManifest, copyVcRuntime, gpuManifestPath, lockPath, pythonLayout,
+  copyGpuManifest, copyVcRuntime, gpuManifestPath, lockPath, pruneSitePackages, pythonLayout,
 }
 
 if (require.main === module) {
