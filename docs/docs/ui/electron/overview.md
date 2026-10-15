@@ -186,13 +186,13 @@ Recording runs entirely in the background — no dedicated recording view. Captu
 | `audioSource` | What is recorded |
 |---|---|
 | `mic` | Browser `getUserMedia` mic stream only |
-| `system` | Backend `AudioCaptureService` (macOS/Linux) or WASAPI loopback (Windows) |
-| `both` | Mic + system audio merged in browser via `AudioContext` |
+| `system` | Backend `AudioCaptureService` (every OS: ScreenCaptureKit helper, `parec`, WASAPI helper) |
+| `both` | Mic in the browser (`MediaRecorder`) + system audio from the backend; the backend levels and mixes them at stop |
 
 **State in `app._liveSession`** (null when idle):
 
 ```js
-{ recorder, audioCtx, micStream, sysStream,
+{ recorder, audioCtx, micStream,
   captureJobId, chunks, timerInterval,
   settings: { title, model, language } }
 ```
