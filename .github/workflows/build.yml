@@ -82,6 +82,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-packaged-
 
+      - name: Build system audio helper
+        run: npm run build:capture:win
+
       - name: Bundle Python backend
         run: node scripts/bundle-backend.js
 
