@@ -98,6 +98,7 @@ electron/
 | `writeSettings(data)` | Write `settings.json` to `app.getPath('userData')` |
 | `setZoom(factor)` | Call `webContents.setZoomFactor(factor)` |
 | `writeClipboard(text)` | Write text to the system clipboard |
+| `restartBackend()` | Restart the backend to apply a GPU download or removal (asked by `gpu-acceleration.js` once `POST /gpu/restart` says `ready`); resolves when the new backend is up. See [GPU acceleration](./gpu-acceleration.md) |
 | `getPlatform()` | Returns `process.platform` (`'win32'`, `'darwin'`, `'linux'`) |
 | `getAppVersion()` | Returns `app.getVersion()` — the `version` field of `package.json` |
 

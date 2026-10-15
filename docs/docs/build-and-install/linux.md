@@ -79,8 +79,9 @@ EOF
    see [Setup → HuggingFace token](../environment/setup.md#huggingface-token)).
 3. **Settings → Models**: download a Whisper model and the diarization model.
 
-After that, transcription works offline. It runs on the CPU — the packaged app has no GPU support
-([Known issues](../known-issues.md#packaged-app-uses-cpu-only-pytorch)).
+After that, transcription works offline on the CPU. With an NVIDIA GPU (driver 570 or newer), **Settings →
+GPU acceleration** downloads the CUDA build of PyTorch once and the app restarts its backend to use it
+([GPU acceleration](../ui/electron/gpu-acceleration.md)).
 
 Live recording of system audio uses `parec` from the system (see [Requirements](#requirements));
 without it, starting a recording with system audio shows which package to install.
@@ -99,6 +100,7 @@ start it with `--ozone-platform=x11`.
 | App | `~/Applications/Sonorus.AppImage` |
 | Data: models, transcripts, recordings, settings | `~/.config/sonorus/` |
 | Log | `~/.config/sonorus/sonorus.log` |
+| GPU acceleration (CUDA build of PyTorch, if downloaded) | `~/.config/sonorus/gpu/` |
 
 `npm start` (dev mode) uses the same data directory — see
 [Known issues](../known-issues.md#dev-mode-and-the-packaged-app-share-data). To try a build without
@@ -119,10 +121,12 @@ rm ~/Applications/Sonorus.AppImage
 rm ~/.local/share/applications/sonorus.desktop ~/.local/share/icons/sonorus.png
 ```
 
-Remove the data as well (models, transcripts, recordings, settings — this cannot be undone):
+Remove the data as well (models, transcripts, recordings, settings and the GPU download — this cannot be undone):
 
 ```bash
 rm -rf ~/.config/sonorus
 ```
 
-Nothing else is left behind: Python and all libraries live inside the AppImage.
+Nothing else is left behind: Python and all libraries live inside the AppImage. To free the space of
+GPU acceleration only, use **Settings → GPU acceleration → Remove**, or delete `~/.config/sonorus/gpu/`
+while Sonorus is closed.

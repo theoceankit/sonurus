@@ -36,13 +36,14 @@ Without a token, transcription will fail at the diarization step.
 
 ## GPU acceleration
 
-The packaged app ships **CPU-only PyTorch** and runs on the CPU on every platform. GPU acceleration is
-not available in the packaged app; the bundled libraries live inside the installed app and are not
-meant to be modified.
+The installers ship **CPU-only PyTorch**. On Linux and Windows, **Settings → GPU acceleration**
+downloads the CUDA build once (NVIDIA GPU with compute capability 7.0 or newer, driver 570 or newer)
+and restarts the backend on it — see [GPU acceleration](../ui/electron/gpu-acceleration.md). The
+bundled libraries themselves are never modified.
 
-For GPU inference today, run Sonorus from source with a CUDA build of PyTorch (see
-[Developer setup](#developer-setup)) — the backend picks `cuda` automatically when
-`torch.cuda.is_available()`.
+From source, install a CUDA build of PyTorch (see [Developer setup](#developer-setup)) — the backend
+picks `cuda` automatically when `torch.cuda.is_available()`; the Settings section then only shows the
+device ("Development build").
 
 macOS does not support CUDA. Apple Silicon can use MPS, but WhisperX/ctranslate2 do not currently support it — CPU is the only option on Mac.
 

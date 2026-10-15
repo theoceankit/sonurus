@@ -14,7 +14,7 @@ sidebar_position: 11
 |---|---|
 | Build (`scripts/lock-backend.js`, `scripts/bundle-backend.js`) | `backend-dist/gpu-manifest.json`: the wheels to download, with URL, sha256 and size |
 | Backend (`GpuPack`, `/gpu`) | Detects the GPU, downloads and verifies the wheels, installs them into `incoming/`, marks a removal, tells the app when it may restart the backend |
-| Electron (the backend's owner) | Before every backend start: applies a finished download or a removal, runs the self-check (`python -m app.gpu_probe`), starts the backend with or without the pack on `PYTHONPATH` |
+| Electron (the backend's owner) | Before every backend start: applies a finished download or a removal, runs the self-check (`python -m app.gpu_probe`), starts the backend with or without the pack on `PYTHONPATH` — see [GPU acceleration](../ui/electron/gpu-acceleration.md) |
 
 The backend never replaces or deletes files of the installed pack: they are loaded into its own process (on Windows the DLLs cannot be deleted while it runs).
 
