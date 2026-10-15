@@ -10,7 +10,7 @@ How live recording works: sources, capture per platform, and the files involved.
 
 The user clicks **+** in the sidebar, chooses audio sources in the New Recording modal, and starts recording. Recording runs **in the background** — the app remains fully navigable. A **Record button** with a live timer appears in the titlebar. Clicking it stops the recording and adds it to the transcription queue.
 
-**Architecture:** mic capture stays in the renderer (WebM via `MediaRecorder`); system audio capture goes through the Python `AudioCaptureService` backend. On macOS and Linux the two tracks are merged server-side with `ffmpeg amix`; on Windows system audio comes from WASAPI loopback and is mixed in the renderer.
+**Architecture:** mic capture stays in the renderer (WebM via `MediaRecorder`); system audio capture goes through the Python `AudioCaptureService` backend. On macOS and Linux the system track is loudness-levelled and the two tracks are merged server-side with `ffmpeg` (see [AudioCaptureService](../../services/AudioCaptureService.md#loudness-levelling-and-mic-merge)); on Windows system audio comes from WASAPI loopback and is mixed in the renderer.
 
 ---
 
@@ -42,7 +42,7 @@ POST /audio/capture/start   → starts backend process, returns job_id
 [user records...]
 POST /audio/capture/stop/{job_id}  { mic_path: "..." }
   → sends SIGINT to capture process
-  → merges with mic via ffmpeg amix=inputs=2:duration=shortest
+  → levels each track (ffmpeg dynaudnorm), mixes with mic (amix, no division, limiter)
   → returns { file_path: merged.wav }
 POST /queue/jobs  { audio_path: merged_path }
 ```

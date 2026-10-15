@@ -63,9 +63,10 @@ POST /audio/capture/stop/{job_id}  { mic_path?: "..." }
   → process.wait(timeout=10), kill() if it does not exit
   → reads the log file tail, logs it (logging.warning) and deletes it
   → logs output file size
-  → no mic_path: move the capture file to $SONORUS_DATA_DIR/recordings/sonorus-rec-<job_id>.wav
-  → mic_path: ffmpeg amix merge into the same final path; delete the temp capture file
-    and the mic file (only if it lives inside the recordings dir)
+  → no mic_path: level the loudness of the capture file (ffmpeg dynaudnorm) into
+    $SONORUS_DATA_DIR/recordings/sonorus-rec-<job_id>.wav; delete the temp capture file
+  → mic_path: level both tracks and mix them into the same final path; delete the temp
+    capture file and the mic file (only if it lives inside the recordings dir)
   → returns final WAV path
 
 POST /queue/jobs  { audio_path: "<returned path>" }
@@ -174,18 +175,40 @@ The monitor source ID is passed to `parec -d <id>`. If `pactl` is missing, fails
 
 ---
 
-## Mic + system merge
+## Loudness levelling and mic merge
 
-When both tracks are present, `stop_capture(mic_path=...)` calls:
+Every recording that holds system audio is levelled before it is stored. System audio is often 15–20 dB quieter than the mic, and the participants of a call differ too; with the tracks mixed as is, the voice activity detection joins the recording into one long chunk and Whisper drops the quiet speech even though it is audible in the player.
+
+Each track goes through `dynaudnorm` (`_LEVEL_FILTER` in `audio_capture_service.py`):
+
+| Option | Value | Why |
+|---|---|---|
+| `f` / `g` | 150 ms / 11 frames | ~1.7 s window: follows a change of speaker; a ~15 s window leaves alternating quiet and loud speakers 30 dB apart |
+| `m` | 100 | up to +40 dB; the default (+20 dB) barely closes a 20 dB gap |
+| `t` | 0.001 | frames below −60 dBFS are not boosted: silence stays silent, faint background noise is not raised to hiss |
+| `r` | 0.15 | target RMS (≈ −16 dBFS per frame): tracks match in loudness, not in peaks — call and media audio is already compressed and would sound several dB louder than a peaky mic voice at equal peaks |
+| `p` | 0.9 | peak ceiling |
+
+System audio only (`stop_capture()` without `mic_path`):
+
+```bash
+ffmpeg -y -i <system.wav> -af "<level filter>" <final.wav>
+```
+
+Mic + system (`stop_capture(mic_path=...)`):
 
 ```bash
 ffmpeg -y \
   -i <system.wav> -i <mic.webm> \
-  -filter_complex "amix=inputs=2:duration=shortest" \
+  -filter_complex "[0:a]<level filter>[sys];[1:a]<level filter>[mic];[sys][mic]amix=inputs=2:duration=shortest:normalize=0,alimiter=limit=0.95:level=disabled" \
   <merged.wav>
 ```
 
-`duration=shortest` ensures the merged file ends when the shorter track ends, avoiding silence padding if the two recordings differ slightly in length.
+`normalize=0` sums the tracks instead of dividing each by the number of inputs; `alimiter` keeps the sum from clipping. `duration=shortest` ensures the merged file ends when the shorter track ends, avoiding silence padding if the two recordings differ slightly in length. The result is the same WAV as before (16-bit PCM).
+
+If the levelling run fails (ffmpeg error or ffmpeg not found), a warning is logged and the recording is stored without levelling: the system-only file is moved as captured, the mix is retried with plain `amix=inputs=2:duration=shortest`. Only a failure of that plain mix fails the stop.
+
+Mic-only recordings (renderer `MediaRecorder`, `POST /audio/recordings`) and imported files are not levelled; Chromium's `getUserMedia` already applies automatic gain control to the mic.
 
 ---
 
@@ -193,7 +216,7 @@ ffmpeg -y \
 
 | File | Description |
 |---|---|
-| `app/services/audio_capture_service.py` | Python service — platform drivers, job management, ffmpeg merge |
+| `app/services/audio_capture_service.py` | Python service — platform drivers, job management, loudness levelling and ffmpeg merge |
 | `app/api/routers/audio_capture.py` | FastAPI router — `/audio/capture/*` endpoints |
 | `app/api/dependencies.py` | `get_audio_capture_service()` singleton |
 | `native/macos/sonorus-capture/main.swift` | Swift binary — ScreenCaptureKit capture |
