@@ -17,9 +17,11 @@ Accessible via the gear icon in the Electron app. Settings are read and written 
 
 | Platform | Path |
 |---|---|
-| macOS | `~/Library/Application Support/Sonorus/settings.json` |
-| Windows | `%APPDATA%\Sonorus\settings.json` |
-| Linux | `~/.config/Sonorus/settings.json` |
+| macOS | `~/Library/Application Support/sonorus/settings.json` |
+| Windows | `%APPDATA%\sonorus\settings.json` |
+| Linux | `~/.config/sonorus/settings.json` |
+
+These are the paths of the installed app. Dev mode (`npm start`) uses `sonorus-dev` instead of `sonorus` — see [SONORUS_DATA_DIR](#sonorus_data_dir).
 
 | Setting | Key | Description |
 |---|---|---|
@@ -43,6 +45,7 @@ Used when the backend is started manually (`uvicorn ...`) or set by `electron/ba
 | `VERBOSE` | `false` | If `true`, ML library warnings are printed. Useful for debugging. |
 | `LOG_LEVEL` | `info` | Server log level: `debug`, `info`, `warning`, `error`, `off`. |
 | `LOG_FILE` | — | If set, logs are also written to this file. Set to `$SONORUS_DATA_DIR/sonorus.log` in packaged mode. |
+| `SONORUS_PACKAGED` | — | `1` when the installed app started the backend (set by Electron); reported by `GET /health` as `packaged`. |
 | `DB_PATH` | `$SONORUS_DATA_DIR/speaker_memory.db` | Override the SQLite database path. |
 
 ### SONORUS_DATA_DIR
@@ -62,9 +65,22 @@ $SONORUS_DATA_DIR/
   settings.json       ← App settings (written by Electron)
 ```
 
-In dev mode (`npm start`), `SONORUS_DATA_DIR` is still set by Electron to `app.getPath('userData')`, so models and the database also go to the user data directory — not the project root. Electron takes the app name from `name` in `package.json` (`productName` lives under `build` and only electron-builder reads it), so on Linux the dir is `~/.config/sonorus/` — in dev mode and in the packaged app alike: the two share data (see [Known issues](../known-issues.md#dev-mode-and-the-packaged-app-share-data)).
+Electron sets `SONORUS_DATA_DIR` to `app.getPath('userData')`, in dev mode too, so models and the database go to the user data directory — not the project root. The installed app and dev mode keep their data apart (`electron/backend-identity.js`):
 
-If a backend already answers on port 8000 when the app starts (e.g. one started manually with `uvicorn`), Electron reuses it and its `SONORUS_DATA_DIR` applies instead. Live recordings still end up in that backend's `recordings/`: the UI uploads them (`POST /audio/recordings`) and only the backend writes files there.
+| Mode | Data directory |
+|---|---|
+| Installed app | `sonorus` in the OS app data folder: `~/.config/sonorus`, `~/Library/Application Support/sonorus`, `%APPDATA%\sonorus` |
+| Dev mode (`npm start`) | `sonorus-dev` in the same folder: `~/.config/sonorus-dev`, … |
+| Either, started with `--user-data-dir=<dir>` | `<dir>` |
+
+The installed app's name differs only in case (`Sonorus`), which is the same folder on macOS and Windows, so dev mode sets its own folder before the app is ready. Data of an older dev setup stays in `sonorus`; to keep using it in dev mode, copy it once while nothing runs: `cp -r ~/.config/sonorus ~/.config/sonorus-dev`.
+
+If a backend already answers on port 8000 when the app starts, Electron reuses it only if it is its own — `GET /health` reports the backend's data directory and whether the installed app started it:
+
+- **Installed app** — reuses a backend serving its own data directory (e.g. one that outlived a crash). Any other backend — dev mode, another data directory, an older Sonorus or another program — stops the start with an error dialog naming what holds the port.
+- **Dev mode** — reuses any Sonorus backend that the installed app did not start, e.g. one started manually with `uvicorn`; its `SONORUS_DATA_DIR` then applies. The installed app's backend stops the start with an error dialog.
+
+Live recordings end up in the `recordings/` of the backend in use: the UI uploads them (`POST /audio/recordings`) and only the backend writes files there.
 
 ### .env file (dev only)
 
