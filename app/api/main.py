@@ -56,4 +56,12 @@ app.include_router(gpu.router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    # Whose backend this is: Electron reuses a backend already running on
+    # :8000 only if it serves its data dir (electron/backend-identity.js).
+    return {
+        "status": "ok",
+        "data_dir": str(config.DATA_DIR),
+        "packaged": os.getenv("SONORUS_PACKAGED") == "1",
+        # Lets the app stop its own backend that outlived it (e.g. a crash).
+        "pid": os.getpid(),
+    }

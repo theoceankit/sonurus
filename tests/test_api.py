@@ -70,7 +70,28 @@ def _saved_id(client) -> int:
 def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    assert r.json()["status"] == "ok"
+
+
+def test_health_reports_whose_backend_it_is(client, monkeypatch, tmp_path):
+    # Electron reuses a backend already on :8000 only if it serves the same
+    # data dir (packaged app) or is not the packaged app's (dev).
+    import app.config as config
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    monkeypatch.delenv("SONORUS_PACKAGED", raising=False)
+    import os
+    assert client.get("/health").json() == {
+        "status": "ok", "data_dir": str(tmp_path), "packaged": False, "pid": os.getpid(),
+    }
+
+    monkeypatch.setenv("SONORUS_PACKAGED", "1")
+    assert client.get("/health").json()["packaged"] is True
+
+
+def test_data_dir_is_absolute():
+    import app.config as config
+    assert config.DATA_DIR.is_absolute()
+    assert config.RECORDINGS_DIR == config.DATA_DIR / "recordings"
 
 
 # ── Transcripts list ──────────────────────────────────────────────────────────

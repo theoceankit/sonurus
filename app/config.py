@@ -5,8 +5,9 @@ from pathlib import Path
 # Reduces CUDA memory fragmentation — must be set before any CUDA allocation.
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
-_data_dir = Path(os.getenv("SONORUS_DATA_DIR", "."))
-MODELS_DIR = _data_dir / ".models"
+# Absolute: GET /health reports it, and Electron compares it with its own.
+DATA_DIR = Path(os.getenv("SONORUS_DATA_DIR", ".")).resolve()
+MODELS_DIR = DATA_DIR / ".models"
 WHISPER_MODELS_DIR = MODELS_DIR / "whisper"
 HF_MODELS_DIR = MODELS_DIR / "hf"
 ALIGNMENT_MODELS_DIR = MODELS_DIR / "alignment"
@@ -14,7 +15,7 @@ ALIGNMENT_MODELS_DIR = MODELS_DIR / "alignment"
 # App-owned audio referenced by transcriptions.audio_file: live recordings
 # (sonorus-rec-*) and copies of imported files (sonorus-import-*).
 # Must not live in the OS temp dir — it is wiped on reboot on many systems.
-RECORDINGS_DIR = _data_dir / "recordings"
+RECORDINGS_DIR = DATA_DIR / "recordings"
 
 # Optional GPU download (packaged app on Linux / Windows, set by Electron):
 # its folder in the app's data dir and the manifest shipped with the build.
@@ -48,4 +49,4 @@ EMBEDDING_MIN_DURATION = 1.0
 SPEAKER_SIMILARITY_THRESHOLD = 0.75
 
 # Database
-DB_PATH = os.getenv("DB_PATH", str(_data_dir / "speaker_memory.db"))
+DB_PATH = os.getenv("DB_PATH", str(DATA_DIR / "speaker_memory.db"))
