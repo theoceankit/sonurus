@@ -4,6 +4,7 @@ Tests for AudioCaptureService and /audio/capture/* FastAPI router.
 Service tests mock subprocess.Popen so no real process is started.
 API tests inject a stub AudioCaptureService via dependency_overrides.
 """
+import shutil
 import subprocess
 import uuid as uuid_module
 from pathlib import Path
@@ -166,8 +167,8 @@ def test_stop_capture_unknown_job_raises():
 def test_stop_capture_without_mic_returns_system_file(tmp_path):
     """stop_capture(job_id) without mic_path returns the system audio file path.
 
-    No ffmpeg merge should be performed; the returned path is the capture
-    output moved into the recordings dir.
+    The capture output is levelled by one ffmpeg run (no merge) into the
+    recordings dir.
     """
     AudioCaptureService = _get_service_class()
 
@@ -186,7 +187,10 @@ def test_stop_capture_without_mic_returns_system_file(tmp_path):
 
     assert isinstance(file_path, str), "stop_capture must return a string path"
     assert len(file_path) > 0, "returned path must not be empty"
-    mock_run.assert_not_called()
+    mock_run.assert_called_once()
+    cmd = mock_run.call_args.args[0]
+    assert "amix" not in " ".join(cmd)
+    assert cmd[-1] == file_path
     # SIGINT (or equivalent) must have been sent to the subprocess
     procs[0].send_signal.assert_called_once()
     procs[0].wait.assert_called_with(timeout=10)
@@ -579,6 +583,7 @@ def test_capture_log_lines_do_not_name_the_macos_helper_on_linux(tmp_path, caplo
     AudioCaptureService = _get_service_class()
     with patch("app.services.audio_capture_service.subprocess.Popen",
                side_effect=_fake_capture_popen([])), \
+         patch("app.services.audio_capture_service.subprocess.run", side_effect=_fake_merge_run), \
          patch("app.services.audio_capture_service.sys.platform", "linux"):
         svc = AudioCaptureService(recordings_dir=tmp_path)
         try:
@@ -614,6 +619,7 @@ def test_system_only_recording_is_moved_to_recordings_dir(tmp_path):
     outputs = []
     with patch("app.services.audio_capture_service.subprocess.Popen",
                side_effect=_fake_capture_popen(outputs)), \
+         patch("app.services.audio_capture_service.subprocess.run", side_effect=_fake_merge_run), \
          patch("app.services.audio_capture_service.sys.platform", "linux"):
         job_id = svc.start_capture(source_id="x.monitor")
         final = svc.stop_capture(job_id)
@@ -667,3 +673,233 @@ def test_has_active_jobs_tracks_running_capture(tmp_path):
         assert svc.has_active_jobs() is False
         svc.start_capture()
         assert svc.has_active_jobs() is True
+
+
+# ── Loudness levelling ────────────────────────────────────────────────────────
+#
+# A quiet system track next to a loud mic used to vanish from the transcript:
+# every track that holds system audio is levelled (dynaudnorm) before it is
+# stored, the mix does not divide by the number of inputs, a limiter keeps it
+# from clipping. A failed levelling run falls back to the old behaviour.
+
+def _stop_capture(tmp_path, run, mic_path=None):
+    AudioCaptureService = _get_service_class()
+    rec_dir = tmp_path / "recordings"
+    svc = AudioCaptureService(recordings_dir=rec_dir)
+    outputs = []
+    with patch("app.services.audio_capture_service.subprocess.Popen",
+               side_effect=_fake_capture_popen(outputs)), \
+         patch("app.services.audio_capture_service.subprocess.run", side_effect=run), \
+         patch("app.services.audio_capture_service.sys.platform", "linux"):
+        job_id = svc.start_capture(source_id="x.monitor")
+        final = svc.stop_capture(job_id, mic_path=mic_path)
+    return final, outputs[0], rec_dir
+
+
+def _recording_run(calls, fail_first: int = 0, error=None):
+    """subprocess.run stand-in: records commands; the first `fail_first` calls raise."""
+    def _run(cmd, **kwargs):
+        calls.append(cmd)
+        if len(calls) <= fail_first:
+            raise error or subprocess.CalledProcessError(1, cmd)
+        _fake_merge_run(cmd, **kwargs)
+    return _run
+
+
+@pytest.fixture
+def app_warnings(caplog):
+    """caplog on the app logger (it does not propagate to root)."""
+    import logging
+    app_logger = logging.getLogger("app")
+    app_logger.addHandler(caplog.handler)
+    caplog.set_level(logging.WARNING, logger="app")
+    yield lambda: [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    app_logger.removeHandler(caplog.handler)
+
+
+def _filter_arg(cmd) -> str:
+    for flag in ("-filter_complex", "-af"):
+        if flag in cmd:
+            return cmd[cmd.index(flag) + 1]
+    return ""
+
+
+def test_mix_levels_each_track_and_limits_without_dividing(tmp_path):
+    calls = []
+    mic = tmp_path / "mic.webm"
+    mic.write_bytes(b"webm")
+    final, _, rec_dir = _stop_capture(tmp_path, _recording_run(calls), mic_path=str(mic))
+
+    assert len(calls) == 1
+    graph = _filter_arg(calls[0])
+    assert graph.count("dynaudnorm") == 2, "both tracks are levelled before the mix"
+    assert "amix=inputs=2" in graph
+    assert "duration=shortest" in graph
+    assert "normalize=0" in graph, "the mix must not divide the volume by the number of inputs"
+    assert "alimiter" in graph
+    assert graph.index("dynaudnorm") < graph.index("amix") < graph.index("alimiter")
+    assert calls[0][-1] == final
+    assert Path(final).parent == rec_dir
+    assert Path(final).name.startswith("sonorus-rec-") and final.endswith(".wav")
+
+
+def test_system_only_recording_is_levelled_into_recordings_dir(tmp_path):
+    calls = []
+    final, capture_tmp, rec_dir = _stop_capture(tmp_path, _recording_run(calls))
+
+    assert len(calls) == 1
+    cmd = calls[0]
+    assert "dynaudnorm" in _filter_arg(cmd)
+    assert "amix" not in " ".join(cmd)
+    assert cmd[cmd.index("-i") + 1] == capture_tmp
+    assert cmd[-1] == final
+    assert Path(final).parent == rec_dir and Path(final).is_file()
+    assert not Path(capture_tmp).exists(), "temp capture file must not be left behind"
+
+
+def test_mix_falls_back_to_plain_amix_when_levelling_fails(tmp_path, app_warnings):
+    calls = []
+    mic = tmp_path / "recordings-mic.webm"
+    mic.write_bytes(b"webm")
+    final, capture_tmp, _ = _stop_capture(
+        tmp_path, _recording_run(calls, fail_first=1), mic_path=str(mic))
+
+    assert len(calls) == 2
+    fallback = _filter_arg(calls[1])
+    assert "amix=inputs=2:duration=shortest" in fallback
+    assert "dynaudnorm" not in fallback
+    assert Path(final).is_file()
+    assert not Path(capture_tmp).exists()
+    assert any("level" in m.lower() for m in app_warnings())
+
+
+def test_mix_raises_when_fallback_mix_fails_too(tmp_path):
+    calls = []
+    mic = tmp_path / "mic.webm"
+    mic.write_bytes(b"webm")
+    with pytest.raises(subprocess.CalledProcessError):
+        _stop_capture(tmp_path, _recording_run(calls, fail_first=2), mic_path=str(mic))
+
+
+@pytest.mark.parametrize("error", [
+    subprocess.CalledProcessError(1, "ffmpeg"),
+    FileNotFoundError("ffmpeg"),
+])
+def test_system_only_recording_is_kept_as_is_when_levelling_fails(tmp_path, app_warnings, error):
+    calls = []
+    final, capture_tmp, rec_dir = _stop_capture(
+        tmp_path, _recording_run(calls, fail_first=1, error=error))
+
+    assert len(calls) == 1
+    assert Path(final).parent == rec_dir and Path(final).is_file()
+    assert Path(final).read_bytes().startswith(b"RIFF")
+    assert not Path(capture_tmp).exists()
+    assert any("level" in m.lower() for m in app_warnings())
+
+
+# Real ffmpeg: the filter values are what matters here, so run them on
+# generated signals (speech-like: 1 s tone, 0.5 s pause) and measure.
+
+_FFMPEG = shutil.which("ffmpeg")
+
+
+def _ffmpeg_gen(path, source: str, channels: int = 2):
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", source,
+         "-ar", "48000", "-ac", str(channels), str(path)],
+        check=True,
+    )
+
+
+def _speech_like(path, gain_db: float, freq: int = 440, channels: int = 2, seconds: int = 12):
+    gate = "volume='if(lt(mod(t,1.5),1),1,0)':eval=frame"
+    _ffmpeg_gen(path, f"sine=f={freq}:d={seconds},volume={gain_db}dB,{gate}", channels)
+
+
+def _levels_db(path) -> tuple[float, float]:
+    """(RMS, peak) of a 16-bit WAV in dBFS."""
+    import array, math, wave
+    with wave.open(str(path)) as w:
+        assert w.getsampwidth() == 2
+        samples = array.array("h", w.readframes(w.getnframes()))
+    if not samples:
+        return float("-inf"), float("-inf")
+    rms = math.sqrt(sum(s * s for s in samples) / len(samples)) / 32768
+    peak = max(abs(s) for s in samples) / 32768
+    to_db = lambda v: 20 * math.log10(v) if v > 0 else float("-inf")
+    return to_db(rms), to_db(peak)
+
+
+def _copy_capture_popen(source):
+    """Popen stand-in whose 'recording' is a copy of `source`."""
+    def _popen(cmd, **_kwargs):
+        Path(cmd[-1]).write_bytes(Path(source).read_bytes())
+        return _make_mock_popen()
+    return _popen
+
+
+def _real_stop(tmp_path, system_source, mic_path=None) -> str:
+    AudioCaptureService = _get_service_class()
+    svc = AudioCaptureService(recordings_dir=tmp_path / "recordings")
+    with patch("app.services.audio_capture_service.sys.platform", "linux"):
+        # Only start_capture gets the fake process: the levelling ffmpeg run in
+        # stop_capture goes through subprocess.Popen too and must be real.
+        with patch("app.services.audio_capture_service.subprocess.Popen",
+                   side_effect=_copy_capture_popen(system_source)):
+            job_id = svc.start_capture(source_id="x.monitor")
+        return svc.stop_capture(job_id, mic_path=mic_path)
+
+
+needs_ffmpeg = pytest.mark.skipif(_FFMPEG is None, reason="ffmpeg not installed")
+
+
+@needs_ffmpeg
+def test_real_ffmpeg_quiet_and_loud_tracks_end_up_close(tmp_path):
+    quiet, loud = tmp_path / "quiet.wav", tmp_path / "loud.wav"
+    _speech_like(quiet, -24)   # ≈ −50 dBFS RMS
+    _speech_like(loud, -4)     # ≈ −27 dBFS RMS
+    gap_before = _levels_db(loud)[0] - _levels_db(quiet)[0]
+    assert gap_before > 18
+
+    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir()
+    quiet_rms = _levels_db(_real_stop(tmp_path / "a", quiet))[0]
+    loud_rms = _levels_db(_real_stop(tmp_path / "b", loud))[0]
+    assert abs(loud_rms - quiet_rms) <= 6, (quiet_rms, loud_rms)
+
+
+@needs_ffmpeg
+def test_real_ffmpeg_compressed_and_peaky_tracks_match_in_loudness(tmp_path):
+    """Equal peaks are not equal loudness: compressed call audio (low crest
+    factor) must not end up louder than a peaky mic voice."""
+    gate = "volume='if(lt(mod(t,1.5),1),1,0)':eval=frame"
+    compressed, peaky = tmp_path / "compressed.wav", tmp_path / "peaky.wav"
+    _ffmpeg_gen(compressed, f"sine=f=440:d=12,volume=-20dB,{gate}", 1)
+    _ffmpeg_gen(peaky, f"anoisesrc=d=12:a=0.05:c=white,lowpass=f=3000,{gate}", 1)
+
+    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir()
+    compressed_rms = _levels_db(_real_stop(tmp_path / "a", compressed))[0]
+    peaky_rms = _levels_db(_real_stop(tmp_path / "b", peaky))[0]
+    assert abs(compressed_rms - peaky_rms) <= 2, (compressed_rms, peaky_rms)
+
+
+@needs_ffmpeg
+@pytest.mark.parametrize("source", [
+    "anullsrc=r=48000:cl=stereo:d=8",          # digital silence (nothing playing)
+    "anoisesrc=d=8:a=0.001:c=pink",            # faint background noise, ≈ −77 dBFS
+])
+def test_real_ffmpeg_silence_and_noise_are_not_boosted(tmp_path, source):
+    src = tmp_path / "src.wav"
+    _ffmpeg_gen(src, source)
+    rms, peak = _levels_db(_real_stop(tmp_path, src))
+    assert rms < -60 and peak < -55, (rms, peak)
+
+
+@needs_ffmpeg
+def test_real_ffmpeg_mix_of_two_loud_tracks_does_not_clip(tmp_path):
+    system, mic = tmp_path / "system.wav", tmp_path / "mic.wav"
+    _speech_like(system, 0, freq=440)
+    _speech_like(mic, 0, freq=300, channels=1)
+    final = _real_stop(tmp_path, system, mic_path=str(mic))
+    rms, peak = _levels_db(final)
+    assert peak <= -0.3, peak
+    assert rms > -30, rms
