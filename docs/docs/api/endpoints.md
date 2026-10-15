@@ -20,7 +20,7 @@ The API version (`info.version` in `/openapi.json`) is the product version, reso
 
 ## Audio Capture
 
-Manages live system audio recording sessions. The backend dispatches to the correct platform tool (`sonorus-capture` on macOS, `parec` on Linux, WASAPI on Windows). Mic + system tracks are merged with `ffmpeg amix` when both are present.
+Manages live system audio recording sessions. The backend dispatches to the correct platform tool (`sonorus-capture` on macOS, `parec` on Linux, WASAPI on Windows). Recordings with system audio are loudness-levelled (`ffmpeg dynaudnorm`, each track); mic + system tracks are then mixed with `ffmpeg amix` when both are present.
 
 ### `GET /audio/capture/sources`
 
@@ -59,7 +59,7 @@ Starts a background capture process. Returns a `job_id` immediately.
 
 ### `POST /audio/capture/stop/{job_id}`
 
-Stops the capture process and returns the path to the recorded WAV file. Optionally merges with a microphone recording.
+Stops the capture process and returns the path to the recorded WAV file, loudness-levelled. Optionally merges with a microphone recording (both tracks levelled, then mixed). If levelling fails, the recording is stored without it.
 
 ```json
 // Request (optional)
