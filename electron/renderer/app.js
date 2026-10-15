@@ -188,7 +188,7 @@ const app = {
     await this._queueRecording('start')
 
     let recorder = null, audioCtx = null
-    let micStream = null, sysStream = null
+    let micStream = null
     let captureJobId = null, chunks = []
 
     try {
@@ -200,12 +200,9 @@ const app = {
       }
 
       if (audioSource !== 'mic') {
-        const isBackendCapture = platform !== 'win32'
-          && systemDeviceId
-          && systemDeviceId !== '__default__'
-          && systemDeviceId !== '__desktop__'
-
-        if (isBackendCapture) {
+        // System audio is captured by the backend on every OS; '__default__'
+        // is the "Not available" placeholder when it lists no source.
+        if (systemDeviceId && systemDeviceId !== '__default__') {
           const resp = await fetch(`${API_BASE}/audio/capture/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -216,26 +213,17 @@ const app = {
             throw new Error(captureStartError(platform, data.detail))
           }
           captureJobId = (await resp.json()).job_id
-        } else if (systemDeviceId === '__desktop__') {
-          const displayStream = await navigator.mediaDevices.getDisplayMedia({
-            audio: true, video: { width: 1, height: 1 },
-          })
-          displayStream.getVideoTracks().forEach(t => { t.stop(); displayStream.removeTrack(t) })
-          if (displayStream.getAudioTracks().length === 0)
-            throw new Error('System audio not captured: the screen share returned no audio.')
-          sysStream = displayStream
         }
       }
 
-      if (!micStream && !sysStream && !captureJobId)
+      if (!micStream && !captureJobId)
         throw new Error('No audio source available. Check device permissions.')
 
       audioCtx = new AudioContext()
       const dest = audioCtx.createMediaStreamDestination()
       if (micStream) { const s = audioCtx.createMediaStreamSource(micStream); s.connect(dest) }
-      if (sysStream) { const s = audioCtx.createMediaStreamSource(sysStream); s.connect(dest) }
 
-      if (micStream || sysStream) {
+      if (micStream) {
         chunks = []
         recorder = new MediaRecorder(dest.stream, { mimeType: 'audio/webm;codecs=opus' })
         recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
@@ -243,7 +231,6 @@ const app = {
       }
     } catch (err) {
       micStream?.getTracks().forEach(t => t.stop())
-      sysStream?.getTracks().forEach(t => t.stop())
       audioCtx?.close()
       if (captureJobId) {
         fetch(`${API_BASE}/audio/capture/stop/${captureJobId}`, { method: 'POST' }).catch(() => {})
@@ -267,7 +254,7 @@ const app = {
     if (labelEl) labelEl.textContent = '0:00'
 
     this._liveSession = {
-      recorder, audioCtx, micStream, sysStream,
+      recorder, audioCtx, micStream,
       captureJobId, chunks, timerInterval,
       settings: { title, model, language },
     }
@@ -284,7 +271,7 @@ const app = {
     if (btn) btn.disabled = true
     if (labelEl) labelEl.textContent = 'Stopping…'
 
-    const { recorder, audioCtx, micStream, sysStream, captureJobId, chunks, settings } = session
+    const { recorder, audioCtx, micStream, captureJobId, chunks, settings } = session
 
     // The new recording joins the end of the queue.
     const doTranscribe = filePath => this._importFiles([filePath], {
@@ -318,7 +305,6 @@ const app = {
         }).then(filePath => doTranscribe(filePath))
 
       } else if (captureJobId) {
-        sysStream?.getTracks().forEach(t => t.stop())
         audioCtx?.close()
         const r = await fetch(`${API_BASE}/audio/capture/stop/${captureJobId}`, {
           method: 'POST',
@@ -336,7 +322,6 @@ const app = {
           recorder.onstop = async () => {
             try {
               micStream?.getTracks().forEach(t => t.stop())
-              sysStream?.getTracks().forEach(t => t.stop())
               audioCtx?.close()
               resolve(await saveBrowserChunks())
             } catch (err) { reject(err) }

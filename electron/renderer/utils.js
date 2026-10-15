@@ -66,15 +66,7 @@ function fileBaseName(fsPath) {
 // Windows: captured in the renderer (WASAPI loopback via Electron's display
 // media handler) plus any virtual loopback inputs the browser exposes.
 // macOS/Linux: captured by the backend (GET /audio/capture/sources).
-async function listSystemAudioSources(platform, audioInputs) {
-  if (platform === 'win32') {
-    return [
-      { value: '__desktop__', label: 'System audio (WASAPI)' },
-      ...audioInputs
-        .filter(d => /virtual|loopback|system|output|mix|monitor/i.test(d.label))
-        .map(d => ({ value: d.deviceId, label: d.label })),
-    ]
-  }
+async function listSystemAudioSources() {
   try {
     const r = await fetch(`${API_BASE}/audio/capture/sources`)
     if (!r.ok) return []

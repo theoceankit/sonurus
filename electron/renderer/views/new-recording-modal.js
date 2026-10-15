@@ -377,8 +377,6 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
 
   async function populateDevices() {
     try {
-      const platform = await window.electronAPI.getPlatform()
-
       // Request permission so labels are populated
       await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {})
       const devices = await navigator.mediaDevices.enumerateDevices()
@@ -392,7 +390,7 @@ function renderNewRecordingModal({ onStart, onImport, recording = false }) {
         })),
       ]
 
-      const sysOptions = await listSystemAudioSources(platform, inputs)
+      const sysOptions = await listSystemAudioSources()
 
       if (!sysOptions.length) {
         sysOptions.push({ value: '__default__', label: 'Not available' })
