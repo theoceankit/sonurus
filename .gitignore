@@ -53,6 +53,8 @@ backend-dist/
 
 # Compiled macOS system audio capture binary (built via npm run build:capture)
 electron/resources/mac/sonorus-capture
+# Compiled Windows system audio capture helper (built via npm run build:capture:win)
+electron/resources/win/sonorus-capture.exe
 
 # IDE
 .idea/
