@@ -76,9 +76,10 @@ WhisperX/ctranslate2 do not use Apple's GPU.
 | Data: models, transcripts, recordings, settings | `~/Library/Application Support/sonorus/` |
 | Log | `~/Library/Application Support/sonorus/sonorus.log` |
 
-`npm start` (dev mode) uses the same data directory — see
-[Known issues](../known-issues.md#dev-mode-and-the-packaged-app-share-data). To try a build without
-touching existing data, start it with its own directory:
+`npm start` (dev mode) keeps its data apart, in `~/Library/Application Support/sonorus-dev/`. Sonorus does not start while
+dev mode or another Sonorus with another data directory runs its backend (both use port 8000): an
+error dialog names it — close it first. See [Configuration](../environment/configuration.md#sonorus_data_dir).
+To try a build without touching existing data, start it with its own directory:
 
 ```bash
 /Applications/Sonorus.app/Contents/MacOS/Sonorus --user-data-dir="$HOME/Library/Application Support/sonorus-test"

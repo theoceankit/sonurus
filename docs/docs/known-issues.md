@@ -42,18 +42,6 @@ UserWarning: torchcodec is not installed correctly so built-in audio decoding wi
 
 ---
 
-### Dev mode and the packaged app share data
-
-**Severity:** data mix-up on developer machines — does not affect users without a source checkout.
-
-**Symptom:** the packaged app shows transcripts, speakers and models from dev mode (`npm start`), and the other way round.
-
-**Cause:** Electron names the data directory after the app: `productName` in the app's `package.json`, otherwise `name`. `productName` is set only under `build` (read by electron-builder), so both modes use `sonorus` (`~/.config/sonorus`, `~/Library/Application Support/sonorus`, `%APPDATA%\sonorus`). Separately, the app reuses any backend that already answers on port 8000, so a running dev backend serves the packaged app too.
-
-**Workaround:** do not run both at once, and start a packaged build with its own data directory: `--user-data-dir=<dir>` (see the [Build and install](./build-and-install/linux.md#where-things-are) page of your OS).
-
----
-
 ### AppImage taskbar icon shows generic icon on GNOME
 
 **Severity:** cosmetic — does not affect functionality.

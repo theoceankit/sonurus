@@ -552,8 +552,14 @@ Returns `409` while a transcription job is running (pause the queue first) or an
 ### `GET /health`
 
 ```json
-{ "status": "ok" }
+{ "status": "ok", "data_dir": "/home/user/.config/sonorus", "packaged": true, "pid": 12345 }
 ```
+
+- `data_dir` — the backend's `SONORUS_DATA_DIR`, absolute, symlinks resolved.
+- `packaged` — `true` if the installed app started it (`SONORUS_PACKAGED=1`), `false` for dev mode and a manual `uvicorn`.
+- `pid` — the backend's process id.
+
+Electron reuses a backend already on port 8000 only if it is its own (same `data_dir`; in dev mode any backend with `packaged: false`) and stops such a backend by `pid` when it restarts it — see [Configuration](../environment/configuration.md#sonorus_data_dir).
 
 ---
 
