@@ -45,6 +45,9 @@ jobs:
       - name: Bundle Python backend
         run: node scripts/bundle-backend.js
 
+      - name: Check bundled imports
+        run: node scripts/check-bundled-imports.js
+
       - name: Build Electron app
         run: npx electron-builder --mac --arm64 --publish never
 
@@ -88,6 +91,9 @@ jobs:
       - name: Bundle Python backend
         run: node scripts/bundle-backend.js
 
+      - name: Check bundled imports
+        run: node scripts/check-bundled-imports.js
+
       - name: Build Electron app
         run: npx electron-builder --win --x64 --publish never
 
@@ -125,6 +131,9 @@ jobs:
 
       - name: Bundle Python backend
         run: node scripts/bundle-backend.js
+
+      - name: Check bundled imports
+        run: node scripts/check-bundled-imports.js
 
       - name: Build Electron app
         run: npx electron-builder --linux --x64 --publish never
