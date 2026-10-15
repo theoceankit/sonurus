@@ -101,28 +101,68 @@ class _LinuxCapture:
     DEFAULT_SOURCE = {"id": "@DEFAULT_MONITOR@", "label": "System audio (default)"}
 
     def sources(self) -> list[dict]:
-        return self._monitors() or [self.DEFAULT_SOURCE]
+        # Like Windows: the default output first, then each output device.
+        monitors = sorted(self._monitors() or [], key=lambda m: m["label"].lower())
+        return [dict(self.DEFAULT_SOURCE), *monitors]
 
     def _monitors(self) -> list[dict] | None:
-        """Monitor sources from pactl; None when pactl is missing or fails."""
+        """Monitor sources named after their output device; None when pactl
+        is missing or fails."""
         if not shutil.which("pactl"):
             return None
+        monitors = self._monitors_from_json()
+        return monitors if monitors is not None else self._monitors_from_text()
+
+    @staticmethod
+    def _pactl(*args: str) -> str | None:
+        # pactl translates its field names ("Name:", "Description:").
         try:
             result = subprocess.run(
-                ["pactl", "list", "short", "sources"],
-                capture_output=True, text=True, timeout=5,
+                ["pactl", *args], capture_output=True, text=True, timeout=5,
+                env={**os.environ, "LC_ALL": "C"},
             )
         except (OSError, subprocess.SubprocessError):
             return None
-        sources = []
-        for line in result.stdout.splitlines():
-            parts = line.split("\t")
-            if len(parts) >= 2:
-                name = parts[1]
-                if "monitor" in name.lower():
-                    label = name.replace("alsa_output.", "").replace(".monitor", "")
-                    sources.append({"id": name, "label": f"{label} (Monitor)"})
-        return sources
+        return result.stdout if result.returncode == 0 else None
+
+    def _monitors_from_json(self) -> list[dict] | None:
+        """pactl >= 16: each sink with its description and monitor source."""
+        out = self._pactl("-f", "json", "list", "sinks")
+        if out is None:
+            return None
+        try:
+            sinks = json.loads(out)
+        except ValueError:
+            return None
+        return [
+            {"id": sink["monitor_source"],
+             "label": sink.get("description") or _monitor_label(sink["monitor_source"])}
+            for sink in sinks
+            if isinstance(sink, dict) and sink.get("monitor_source")
+        ]
+
+    def _monitors_from_text(self) -> list[dict] | None:
+        """Older pactl: monitor sources from the text list, "Monitor of <device>"."""
+        out = self._pactl("list", "sources")
+        if out is None:
+            return None
+        monitors, name = [], None
+        for line in out.splitlines():
+            line = line.strip()
+            if line.startswith("Source #"):
+                name = None
+            elif line.startswith("Name:"):
+                name = line[len("Name:"):].strip()
+                if name.endswith(".monitor"):
+                    monitors.append({"id": name, "label": _monitor_label(name)})
+                else:
+                    name = None
+            elif line.startswith("Description:") and name:
+                desc = line[len("Description:"):].strip()
+                desc = desc[len("Monitor of "):] if desc.startswith("Monitor of ") else desc
+                if desc:
+                    monitors[-1]["label"] = desc
+        return monitors
 
     def check(self, source_id: str | None = None) -> None:
         if not shutil.which("parec"):
@@ -393,6 +433,11 @@ class AudioCaptureService:
                 "loudness levelling failed (%s); mixing without it", exc)
             self._run_ffmpeg(["-i", system_path, "-i", mic_path,
                               "-filter_complex", "amix=inputs=2:duration=shortest", merged])
+
+
+def _monitor_label(name: str) -> str:
+    """Fallback label from a monitor source name (no device description)."""
+    return f"{name.removeprefix('alsa_output.').removesuffix('.monitor')} (Monitor)"
 
 
 def _request_stop(job: _CaptureJob) -> None:
