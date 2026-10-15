@@ -186,7 +186,8 @@ Each track goes through `dynaudnorm` (`_LEVEL_FILTER` in `audio_capture_service.
 | `f` / `g` | 150 ms / 11 frames | ~1.7 s window: follows a change of speaker; a ~15 s window leaves alternating quiet and loud speakers 30 dB apart |
 | `m` | 100 | up to +40 dB; the default (+20 dB) barely closes a 20 dB gap |
 | `t` | 0.001 | frames below −60 dBFS are not boosted: silence stays silent, faint background noise is not raised to hiss |
-| `p` | 0.9 | target peak |
+| `r` | 0.15 | target RMS (≈ −16 dBFS per frame): tracks match in loudness, not in peaks — call and media audio is already compressed and would sound several dB louder than a peaky mic voice at equal peaks |
+| `p` | 0.9 | peak ceiling |
 
 System audio only (`stop_capture()` without `mic_path`):
 

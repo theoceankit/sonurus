@@ -868,6 +868,21 @@ def test_real_ffmpeg_quiet_and_loud_tracks_end_up_close(tmp_path):
 
 
 @needs_ffmpeg
+def test_real_ffmpeg_compressed_and_peaky_tracks_match_in_loudness(tmp_path):
+    """Equal peaks are not equal loudness: compressed call audio (low crest
+    factor) must not end up louder than a peaky mic voice."""
+    gate = "volume='if(lt(mod(t,1.5),1),1,0)':eval=frame"
+    compressed, peaky = tmp_path / "compressed.wav", tmp_path / "peaky.wav"
+    _ffmpeg_gen(compressed, f"sine=f=440:d=12,volume=-20dB,{gate}", 1)
+    _ffmpeg_gen(peaky, f"anoisesrc=d=12:a=0.05:c=white,lowpass=f=3000,{gate}", 1)
+
+    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir()
+    compressed_rms = _levels_db(_real_stop(tmp_path / "a", compressed))[0]
+    peaky_rms = _levels_db(_real_stop(tmp_path / "b", peaky))[0]
+    assert abs(compressed_rms - peaky_rms) <= 2, (compressed_rms, peaky_rms)
+
+
+@needs_ffmpeg
 @pytest.mark.parametrize("source", [
     "anullsrc=r=48000:cl=stereo:d=8",          # digital silence (nothing playing)
     "anoisesrc=d=8:a=0.001:c=pink",            # faint background noise, ≈ −77 dBFS

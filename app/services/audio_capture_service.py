@@ -26,9 +26,12 @@ _START_CHECK_SEC = 0.5
 #   m=100       up to +40 dB (the default +20 dB leaves the gap almost as is)
 #   t=0.001     frames below −60 dBFS are not boosted: silence stays silent,
 #               background noise is not raised to audible hiss
-#   p=0.9       target peak
+#   r=0.15      target RMS (≈ −16 dBFS per frame): tracks match in loudness, not
+#               in peaks — call/media audio is already compressed and would
+#               sound several dB louder than a peaky mic voice at equal peaks
+#   p=0.9       peak ceiling
 # The mix sums the tracks (normalize=0) and a limiter keeps the sum from clipping.
-_LEVEL_FILTER = "dynaudnorm=f=150:g=11:p=0.9:m=100:t=0.001"
+_LEVEL_FILTER = "dynaudnorm=f=150:g=11:p=0.9:m=100:t=0.001:r=0.15"
 _LIMITER = "alimiter=limit=0.95:level=disabled"
 
 
