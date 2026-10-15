@@ -3,6 +3,7 @@ const { spawn } = require('child_process')
 const path = require('path')
 const http = require('http')
 const fs   = require('fs')
+const { gpuBackendEnv, gpuSupported, markPackError, prepareGpuStart, runProbe } = require('./gpu-pack')
 
 let proc = null
 
@@ -37,13 +38,43 @@ function checkHealth() {
   })
 }
 
-async function waitForReady(timeoutMs = 60000) {
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+async function waitForReady(child, timeoutMs = 60000) {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`Backend exited during start-up (${child.exitCode ?? child.signalCode})`)
+    }
     if (await checkHealth()) return
-    await new Promise(r => setTimeout(r, 600))
+    await sleep(600)
   }
   throw new Error('Backend did not respond within 60 seconds')
+}
+
+// ── GPU acceleration (electron/gpu-pack.js) ───────────────────────────────────
+
+// → { gpuDir, manifestPath, usePack }, or null where the app offers no GPU download.
+async function prepareGpu() {
+  const manifestPath = app.isPackaged ? path.join(process.resourcesPath, 'backend', 'gpu-manifest.json') : ''
+  if (!gpuSupported({ isPackaged: app.isPackaged, platform: process.platform, manifestPath })) return null
+  const gpuDir = path.join(app.getPath('userData'), 'gpu')
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+    const probe = packDir => runProbe(getPythonExe(), ['-m', 'app.gpu_probe'], {
+      cwd: getWorkDir(),
+      env: { ...process.env, PYTHONPATH: packDir, PYTHONUNBUFFERED: '1' },
+    })
+    const { usePack, applied, probe: result } = await prepareGpuStart({
+      gpuDir, manifest, appVersion: app.getVersion(), probe,
+    })
+    if (applied) console.log(`[backend] GPU pack ${applied}`)
+    if (result) console.log(`[backend] GPU check: ${result.ok ? `ok (${result.device})` : result.error}`)
+    return { gpuDir, manifestPath, usePack }
+  } catch (err) {
+    console.error(`[backend] GPU pack not used: ${err.message}`)
+    return { gpuDir, manifestPath, usePack: false }
+  }
 }
 
 // ── public API ────────────────────────────────────────────────────────────────
@@ -79,22 +110,65 @@ async function startBackend(hfToken = '') {
     }
   }
 
-  proc = spawn(
+  const gpu = await prepareGpu()
+  if (gpu) {
+    delete env.PYTHONPATH
+    Object.assign(env, gpuBackendEnv(gpu))
+  }
+
+  try {
+    await spawnBackend(env)
+  } catch (err) {
+    if (!gpu?.usePack) throw err
+    // The pack broke the start (e.g. a library the check did not load): run
+    // on the CPU from now on; Settings shows why.
+    console.error(`[backend] did not start with GPU acceleration: ${err.message}`)
+    await stopBackendAndWait()
+    markPackError(gpu.gpuDir, `The backend did not start with GPU acceleration: ${err.message}`)
+    delete env.PYTHONPATH
+    await spawnBackend(env)
+  }
+  console.log(`[backend] ready in ${Date.now() - startedAt} ms`)
+}
+
+async function spawnBackend(env) {
+  const child = spawn(
     getPythonExe(),
     ['-m', 'uvicorn', 'app.api.main:app', '--host', '127.0.0.1', '--port', '8000'],
     { cwd: getWorkDir(), env, stdio: ['ignore', 'pipe', 'pipe'] }
   )
+  proc = child
 
-  proc.stdout.on('data', d => process.stdout.write(`[backend] ${d}`))
-  proc.stderr.on('data', d => process.stderr.write(`[backend] ${d}`))
-  proc.on('exit', () => { proc = null })
+  child.stdout.on('data', d => process.stdout.write(`[backend] ${d}`))
+  child.stderr.on('data', d => process.stderr.write(`[backend] ${d}`))
+  child.on('exit', () => { if (proc === child) proc = null })
 
-  await waitForReady()
-  console.log(`[backend] ready in ${Date.now() - startedAt} ms`)
+  await waitForReady(child)
 }
 
 function stopBackend() {
   if (proc) { proc.kill(); proc = null }
 }
 
-module.exports = { startBackend, stopBackend }
+// Stop the backend we started and wait until it is gone and port 8000 is free.
+async function stopBackendAndWait(timeoutMs = 15000) {
+  const child = proc
+  if (child && child.exitCode === null && child.signalCode === null) {
+    const exited = new Promise(resolve => child.once('exit', resolve))
+    child.kill()
+    const killer = setTimeout(() => child.kill('SIGKILL'), timeoutMs)
+    await exited
+    clearTimeout(killer)
+  }
+  proc = null
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline && await checkHealth()) await sleep(300)
+}
+
+// Apply a GPU download or removal: the backend asked for it (POST /gpu/restart).
+async function restartBackend(hfToken = '') {
+  await stopBackendAndWait()
+  await startBackend(hfToken)
+}
+
+module.exports = { restartBackend, startBackend, stopBackend }
