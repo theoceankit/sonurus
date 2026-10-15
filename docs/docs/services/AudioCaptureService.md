@@ -27,7 +27,7 @@ Each OS has a driver class in `audio_capture_service.py` behind one interface: `
 | Platform | Driver | Tool | How it works |
 |---|---|---|---|
 | macOS | `_MacCapture` | `sonorus-capture` (Swift binary, ScreenCaptureKit) | Spawned as a subprocess; prints `READY` once capturing; writes WAV to an intermediate temp file; stopped with SIGINT |
-| Linux | `_LinuxCapture` | `parec -d <monitor_source> --file-format=wav --rate=48000 --channels=2 --latency-msec=100` | PulseAudio / PipeWire monitor source recorded directly; sources enumerated via `pactl list short sources` |
+| Linux | `_LinuxCapture` | `parec -d <monitor_source> --file-format=wav --rate=48000 --channels=2 --latency-msec=100` | PulseAudio / PipeWire monitor source recorded directly; sources: "System audio (default)" first, then each output device's monitor named after the device (`pactl -f json list sinks`) |
 | Windows | `_WindowsCapture` | `sonorus-capture.exe` (C++, WASAPI loopback) | `--list` gives the output devices; spawned with `--device <id> --output <wav>`; prints `READY`; writes silence while nothing plays; stopped with `stop` on stdin (Windows has no SIGINT for a child process) |
 
 ### Start errors
@@ -204,14 +204,15 @@ npm run build:capture:win
 
 ## Linux: parec and monitor sources
 
-`GET /audio/capture/sources` runs `pactl list short sources` and filters for lines containing `"monitor"`:
+`GET /audio/capture/sources` lists `{"id": "@DEFAULT_MONITOR@", "label": "System audio (default)"}` first — the monitor of the default output device when the recording starts, as on Windows — then one source per output device: its monitor source as the id, the device's own name as the label (the sink description, as in the system sound settings):
 
 ```
-$ pactl list short sources
-42  alsa_output.pci-0000_00_1f.3.analog-stereo.monitor  ...
+$ LC_ALL=C pactl -f json list sinks
+[{"name": "bluez_output.58_18_62_38_72_FA.1", "description": "WH-1000XM5",
+  "monitor_source": "bluez_output.58_18_62_38_72_FA.1.monitor", …}, …]
 ```
 
-The monitor source ID is passed to `parec -d <id>`. If `pactl` is missing, fails, or lists no monitor sources, the endpoint returns one source, `{"id": "@DEFAULT_MONITOR@", "label": "System audio (default)"}` — the monitor of the default output device — so "System audio" is always offered; a missing `parec` is reported when recording starts.
+pactl older than 16 has no `-f json`; the descriptions then come from `pactl list sources` (`Description: Monitor of <device>`, prefix dropped). A monitor without a description keeps its name (`<name> (Monitor)`). pactl runs with `LC_ALL=C` because it translates its field names. If `pactl` is missing or fails, only "System audio (default)" is offered; a missing `parec` is reported when recording starts. The monitor source ID is passed to `parec -d <id>`.
 
 `parec` and `pactl` come from the same package (`pulseaudio-utils`; `libpulse` on Arch Linux) and work with both PulseAudio and PipeWire (`pipewire-pulse`). The bundled `ffmpeg` (`ffmpeg-static`) is built without PulseAudio input, so it is used only for the mic merge and decoding, never for capture.
 
