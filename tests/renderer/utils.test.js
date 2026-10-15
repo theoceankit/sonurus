@@ -59,33 +59,41 @@ test('fileBaseName: POSIX and Windows paths', () => {
   assert.equal(fileBaseName(''), '')
 })
 
-test('listSystemAudioSources: Windows uses renderer loopback + virtual inputs', async () => {
+test('listSystemAudioSources: every OS asks the backend (Windows included)', async () => {
+  const urls = []
   const { listSystemAudioSources } = loadRenderer(['utils.js'], {
-    fetch: () => { throw new Error('backend must not be queried on Windows') },
+    fetch: async url => {
+      urls.push(url)
+      return {
+        ok: url.endsWith('/audio/capture/sources'),
+        json: async () => ({ sources: [
+          { id: 'default', label: 'System audio (default)' },
+          { id: '{0.0.0.00000000}.{h}', label: 'Headphones (USB)' },
+        ] }),
+      }
+    },
   })
-  const inputs = [
-    { deviceId: 'mic1', label: 'USB Microphone' },
-    { deviceId: 'vb', label: 'CABLE Output (VB-Audio Virtual Cable)' },
-  ]
-  const opts = await listSystemAudioSources('win32', inputs)
-  assert.deepEqual(plain(opts.map(o => o.value)), ['__desktop__', 'vb'])
+  assert.deepEqual(plain(await listSystemAudioSources()), [
+    { value: 'default', label: 'System audio (default)' },
+    { value: '{0.0.0.00000000}.{h}', label: 'Headphones (USB)' },
+  ])
+  assert.equal(urls.length, 1)
 })
 
-test('listSystemAudioSources: macOS/Linux ask the backend', async () => {
+test('listSystemAudioSources: no renderer-side loopback inputs (Stereo Mix, VB-Cable)', async () => {
   const { listSystemAudioSources } = loadRenderer(['utils.js'], {
-    fetch: async url => ({
-      ok: url.endsWith('/audio/capture/sources'),
-      json: async () => ({ sources: [{ id: 'x.monitor', label: 'Speakers (Monitor)' }] }),
-    }),
+    fetch: async () => ({ ok: true, json: async () => ({ sources: [] }) }),
   })
-  assert.deepEqual(plain(await listSystemAudioSources('linux', [])), [{ value: 'x.monitor', label: 'Speakers (Monitor)' }])
+  // Even if a caller still passes the mic inputs, they never become system sources.
+  const inputs = [{ deviceId: 'vb', label: 'CABLE Output (VB-Audio Virtual Cable)' }]
+  assert.deepEqual(plain(await listSystemAudioSources('win32', inputs)), [])
 })
 
 test('listSystemAudioSources: backend unreachable → empty list', async () => {
   const { listSystemAudioSources } = loadRenderer(['utils.js'], {
     fetch: async () => { throw new Error('ECONNREFUSED') },
   })
-  assert.deepEqual(plain(await listSystemAudioSources('darwin', [])), [])
+  assert.deepEqual(plain(await listSystemAudioSources()), [])
 })
 
 test('buildKnownMap: GET /speakers rows → { id: { name, colorIndex } }', () => {

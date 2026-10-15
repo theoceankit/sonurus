@@ -1,5 +1,7 @@
 import logging
+import json
 import os
+import queue
 import shutil
 import signal
 import subprocess
@@ -18,6 +20,12 @@ _STOP_TIMEOUT_SEC = 10
 # waiting this long at start turns that into a start error instead of an
 # empty recording discovered only when the user presses Stop.
 _START_CHECK_SEC = 0.5
+# How long a helper with a handshake (READY on stdout) may take to start.
+_READY_TIMEOUT_SEC = 5.0
+_REPO_ROOT = Path(__file__).parents[2]
+# Windows: the helper is a console program; without this flag every run of it
+# from the windowless backend flashes a console window. 0 on other OSes.
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 # Loudness levelling of every track that holds system audio. System audio is
 # often 15–20 dB below the mic, and participants of a call differ too; Whisper
@@ -40,12 +48,15 @@ class _CaptureJob:
     process: subprocess.Popen
     output_path: str
     log_path: str
+    stop_via_stdin: bool = False
 
 
 # ── Platform drivers ─────────────────────────────────────────────────────────
 #
 # One driver per OS behind the same small interface: sources(),
-# check(source_id) (raises with a user-facing reason) and command().
+# check(source_id) (raises with a user-facing reason) and command(); the
+# class attributes say how the process starts (handshake: READY on stdout)
+# and stops (stop_via_stdin: "stop" on stdin instead of SIGINT).
 # Everything around the capture process (start-up check, stop, mic merge,
 # moving into recordings/) is shared by AudioCaptureService.
 
@@ -53,6 +64,7 @@ class _MacCapture:
     """ScreenCaptureKit via the bundled sonorus-capture helper."""
 
     handshake = True  # prints READY on stdout once capture runs
+    stop_via_stdin = False
     no_audio_message = (
         "No audio was captured. If using system audio, grant Screen Recording "
         "permission in System Settings → Privacy & Security → Screen Recording."
@@ -84,6 +96,7 @@ class _LinuxCapture:
     """
 
     handshake = False
+    stop_via_stdin = False
     no_audio_message = "No system audio was captured from the selected source."
     DEFAULT_SOURCE = {"id": "@DEFAULT_MONITOR@", "label": "System audio (default)"}
 
@@ -136,20 +149,71 @@ class _LinuxCapture:
                 "--latency-msec=100", output_path]
 
 
-class _NoBackendCapture:
-    """Windows: system audio is captured in the renderer (WASAPI loopback)."""
+class _WindowsCapture:
+    """WASAPI loopback of an output device via the bundled sonorus-capture.exe.
 
-    handshake = False
-    no_audio_message = "No system audio was captured."
+    `--list` prints the active output devices as JSON; `--device <id|default>
+    --output <path>` records, prints READY once capture runs and writes silence
+    while nothing plays, so the track lasts as long as the recording. Windows
+    cannot send SIGINT to a child process: the helper stops on "stop" (or EOF)
+    on stdin.
+    """
+
+    handshake = True
+    stop_via_stdin = True
+    no_audio_message = "No system audio was captured from the selected output device."
+    DEFAULT_SOURCE = {"id": "default", "label": "System audio (default)"}
+
+    def __init__(self, capture_bin: str | None):
+        self._bin = capture_bin
+
+    def _devices(self) -> list[dict] | None:
+        """Active output devices from the helper; None when it cannot list them."""
+        if not self._bin:
+            return None
+        try:
+            result = subprocess.run(
+                [self._bin, "--list"], capture_output=True, text=True,
+                encoding="utf-8", timeout=5, creationflags=_NO_WINDOW,
+            )
+            if result.returncode != 0:
+                return None
+            devices = json.loads(result.stdout)
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return None
+        return [d for d in devices if isinstance(d, dict) and d.get("id")]
 
     def sources(self) -> list[dict]:
-        return []
+        devices = self._devices()
+        if not devices:
+            return []
+        outputs = sorted(({"id": d["id"], "label": d.get("label") or d["id"]} for d in devices),
+                         key=lambda d: d["label"].lower())
+        return [dict(self.DEFAULT_SOURCE), *outputs]
 
     def check(self, source_id: str | None = None) -> None:
-        raise RuntimeError("System audio on Windows is captured in the renderer, not the backend")
+        if not self._bin:
+            raise RuntimeError(
+                "The system audio capture helper (sonorus-capture.exe) was not found; "
+                "run: npm run build:capture:win"
+            )
+        devices = self._devices()
+        if devices is None:
+            return  # listing failed: let the helper report what is wrong
+        if not devices:
+            raise RuntimeError(
+                "No audio output device was found. Connect speakers or headphones and try again."
+            )
+        if source_id and source_id != self.DEFAULT_SOURCE["id"] \
+                and source_id not in {d["id"] for d in devices}:
+            raise RuntimeError(
+                f"The selected system audio source is not available: {source_id}. "
+                "Choose another source and try again."
+            )
 
     def command(self, source_id: str | None, output_path: str) -> list[str]:
-        self.check()
+        return [self._bin, "--device", source_id or self.DEFAULT_SOURCE["id"],
+                "--output", output_path]
 
 
 class AudioCaptureService:
@@ -165,7 +229,10 @@ class AudioCaptureService:
         env = os.getenv("SONORUS_CAPTURE_BIN")
         if env:
             return env
-        fallback = Path(__file__).parents[2] / "electron" / "resources" / "mac" / "sonorus-capture"
+        if sys.platform == "win32":
+            fallback = _REPO_ROOT / "electron" / "resources" / "win" / "sonorus-capture.exe"
+        else:
+            fallback = _REPO_ROOT / "electron" / "resources" / "mac" / "sonorus-capture"
         return str(fallback) if fallback.exists() else None
 
     def _ffmpeg(self) -> str:
@@ -176,7 +243,7 @@ class AudioCaptureService:
         if p == "darwin":
             return _MacCapture(self._capture_bin)
         if p == "win32":
-            return _NoBackendCapture()
+            return _WindowsCapture(self._capture_bin)
         return _LinuxCapture()
 
     # ── Public API ──────────────────────────────────────────────────────────
@@ -197,29 +264,33 @@ class AudioCaptureService:
         cmd = self._build_command(source_id, output_path)
         # stderr goes to a file, never a pipe: the capture process runs for the
         # whole recording and would block once an unread pipe buffer fills up.
-        # stdout is only needed for the READY handshake (macOS helper).
+        # stdout is only needed for the READY handshake, stdin only for a stop
+        # through stdin (Windows).
         with open(log_path, "wb") as log_file:
             process = subprocess.Popen(
                 cmd,
+                stdin=subprocess.PIPE if driver.stop_via_stdin else None,
                 stdout=subprocess.PIPE if driver.handshake else subprocess.DEVNULL,
                 stderr=log_file,
+                creationflags=_NO_WINDOW,
             )
 
         if driver.handshake:
-            import select as _select
-            ready, _, _ = _select.select([process.stdout], [], [], 5.0)
-            if not ready:
+            line = _read_first_line(process.stdout, _READY_TIMEOUT_SEC)
+            if line is None:
                 process.kill()
+                process.wait()
                 stderr = _read_log(log_path)
                 raise RuntimeError(
                     f"sonorus-capture timed out starting.{(' ' + stderr) if stderr else ''}"
                 )
-            line = process.stdout.readline().decode().strip()
             process.stdout.close()
             if line != "READY":
+                process.kill()
+                process.wait()
                 stderr = _read_log(log_path)
                 raise RuntimeError(
-                    f"sonorus-capture failed to start: {stderr or line}"
+                    f"sonorus-capture failed to start: {stderr or line or 'exited before it was ready'}"
                 )
         else:
             try:
@@ -235,7 +306,8 @@ class AudioCaptureService:
                 )
 
         with self._lock:
-            self._jobs[job_id] = _CaptureJob(process=process, output_path=output_path, log_path=log_path)
+            self._jobs[job_id] = _CaptureJob(process=process, output_path=output_path, log_path=log_path,
+                                             stop_via_stdin=driver.stop_via_stdin)
         return job_id
 
     def stop_capture(self, job_id: str, mic_path: str | None = None) -> str:
@@ -245,10 +317,7 @@ class AudioCaptureService:
             job = self._jobs.pop(job_id, None)
         if job is None:
             raise ValueError("Job not found")
-        try:
-            job.process.send_signal(signal.SIGINT)
-        except (ProcessLookupError, OSError):
-            pass
+        _request_stop(job)
         try:
             job.process.wait(timeout=_STOP_TIMEOUT_SEC)
         except subprocess.TimeoutExpired:
@@ -324,6 +393,33 @@ class AudioCaptureService:
                 "loudness levelling failed (%s); mixing without it", exc)
             self._run_ffmpeg(["-i", system_path, "-i", mic_path,
                               "-filter_complex", "amix=inputs=2:duration=shortest", merged])
+
+
+def _request_stop(job: _CaptureJob) -> None:
+    """Ask the capture process to finish its file and exit."""
+    try:
+        if job.stop_via_stdin:
+            job.process.stdin.write(b"stop\n")
+            job.process.stdin.close()
+        else:
+            job.process.send_signal(signal.SIGINT)
+    except (ProcessLookupError, OSError, ValueError):
+        pass  # already gone; wait() below collects it
+
+
+def _read_first_line(stream, timeout: float) -> str | None:
+    """First line of a pipe, or None if none arrives in time.
+
+    select() works only on sockets on Windows, so the line is read on a
+    daemon thread; a stuck read ends when the caller kills the process.
+    """
+    lines: queue.Queue = queue.Queue(maxsize=1)
+    threading.Thread(target=lambda: lines.put(stream.readline()), daemon=True).start()
+    try:
+        raw = lines.get(timeout=timeout)
+    except queue.Empty:
+        return None
+    return (raw.decode(errors="replace") if isinstance(raw, bytes) else str(raw)).strip()
 
 
 def _read_log(path: str, limit: int = 4096) -> str:
