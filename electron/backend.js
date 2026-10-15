@@ -133,11 +133,13 @@ async function startBackend(hfToken = '') {
     env.PATH = `${binDir}${path.delimiter}${env.PATH || process.env.PATH || ''}`
   }
 
-  // macOS: pass path to sonorus-capture binary (ScreenCaptureKit system audio)
-  if (process.platform === 'darwin') {
+  // System audio capture helper: sonorus-capture (ScreenCaptureKit) on macOS,
+  // sonorus-capture.exe (WASAPI loopback) on Windows; Linux uses parec.
+  const helper = { darwin: ['mac', 'sonorus-capture'], win32: ['win', 'sonorus-capture.exe'] }[process.platform]
+  if (helper) {
     const captureBin = app.isPackaged
-      ? path.join(process.resourcesPath, 'mac', 'sonorus-capture')
-      : path.join(__dirname, 'resources', 'mac', 'sonorus-capture')
+      ? path.join(process.resourcesPath, ...helper)
+      : path.join(__dirname, 'resources', ...helper)
     if (fs.existsSync(captureBin)) {
       env.SONORUS_CAPTURE_BIN = captureBin
     }

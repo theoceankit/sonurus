@@ -37,3 +37,11 @@ jobs:
 
       - name: Run build tests
         run: node --test 'tests/build/*.test.js'
+
+      # The Windows system audio helper cannot run here; compiling it with
+      # mingw-w64 still catches build errors on every push.
+      - name: Compile Windows capture helper
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q g++-mingw-w64-x86-64
+          npm run build:capture:win

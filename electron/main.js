@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard, desktopCapturer } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { BackendRefusedError, restartBackend, startBackend, stopBackend } = require('./backend')
@@ -125,19 +125,9 @@ ipcMain.handle('restart-backend', async () => {
 
 app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    callback(permission === 'media' || permission === 'display-capture')
+    // Microphone only: system audio is captured by the backend on every OS.
+    callback(permission === 'media')
   })
-
-  // Windows: intercept getDisplayMedia and provide system audio via WASAPI loopback
-  // (no picker — fully automatic). macOS and Linux do not support system audio
-  // via getDisplayMedia in Electron — Chromium returns video-only (0 audio tracks).
-  if (process.platform === 'win32') {
-    session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
-      desktopCapturer.getSources({ types: ['screen'] }).then(sources => {
-        callback({ video: sources[0], audio: 'loopback' })
-      }).catch(() => callback({}))
-    }, { useSystemPicker: false })
-  }
 
   // Start the backend first so index.html loads with a ready API.
   try {

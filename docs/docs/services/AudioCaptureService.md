@@ -14,6 +14,7 @@ Electron's WebRTC layer (`getDisplayMedia`) cannot capture system audio reliably
 
 - **macOS** — returns a video-only stream; the "Share computer sound" toggle does not appear. ScreenCaptureKit audio requires a native entitlement that Chromium/Electron do not expose.
 - **Linux** — PulseAudio/PipeWire monitor sources do not appear in `enumerateDevices()` inside Electron's sandboxed renderer.
+- **Windows** — Electron's loopback (`setDisplayMediaRequestHandler` with `audio: 'loopback'`) records only the default output device and would need its own mixing path in the renderer; one backend path for all OSes gives every recording the same merge and loudness levelling.
 
 Running capture in a Python subprocess sidesteps these restrictions and keeps all platform logic in one place.
 
@@ -21,13 +22,13 @@ Running capture in a Python subprocess sidesteps these restrictions and keeps al
 
 ## Platform drivers
 
-Each OS has a driver class in `audio_capture_service.py` behind one interface: `sources()`, `check(source_id)` (raises `RuntimeError` with a user-facing reason) and `command(source_id, output_path)`. The service picks the driver from `sys.platform` on every call; everything around the capture process (start-up check, stop, mic merge, moving into `recordings/`) is shared.
+Each OS has a driver class in `audio_capture_service.py` behind one interface: `sources()`, `check(source_id)` (raises `RuntimeError` with a user-facing reason) and `command(source_id, output_path)`; two class attributes say how the process starts and stops — `handshake` (prints `READY` on stdout once capturing) and `stop_via_stdin` (`stop` on stdin instead of SIGINT). The service picks the driver from `sys.platform` on every call; everything around the capture process (start-up check, stop, mic merge, moving into `recordings/`) is shared.
 
 | Platform | Driver | Tool | How it works |
 |---|---|---|---|
 | macOS | `_MacCapture` | `sonorus-capture` (Swift binary, ScreenCaptureKit) | Spawned as a subprocess; prints `READY` once capturing; writes WAV to an intermediate temp file; stopped with SIGINT |
 | Linux | `_LinuxCapture` | `parec -d <monitor_source> --file-format=wav --rate=48000 --channels=2 --latency-msec=100` | PulseAudio / PipeWire monitor source recorded directly; sources enumerated via `pactl list short sources` |
-| Windows | `_NoBackendCapture` | `setDisplayMediaRequestHandler(audio: 'loopback')` in renderer | WASAPI loopback handled in Electron main process; no backend subprocess — `sources()` is empty and `start_capture()` raises |
+| Windows | `_WindowsCapture` | `sonorus-capture.exe` (C++, WASAPI loopback) | `--list` gives the output devices; spawned with `--device <id> --output <wav>`; prints `READY`; writes silence while nothing plays; stopped with `stop` on stdin (Windows has no SIGINT for a child process) |
 
 ### Start errors
 
@@ -40,8 +41,12 @@ Each OS has a driver class in `audio_capture_service.py` behind one interface: `
 | Linux: `parec` not on `PATH` | names `parec` and the package to install (`pulseaudio-utils`, `libpulse` on Arch Linux) |
 | Linux: the selected monitor source is not in the `pactl` list | `The selected system audio source is not available: <id>. …` — PipeWire would otherwise silently record the default source |
 | Linux: capture process exits within 0.5 s | `System audio capture failed to start: <stderr>` (e.g. no sound server) |
+| Windows helper missing | `The system audio capture helper (sonorus-capture.exe) was not found; run: npm run build:capture:win` |
+| Windows: no active output device | `No audio output device was found. …` |
+| Windows: the selected output device is not in the `--list` output | `The selected system audio source is not available: <id>. …` |
+| Windows helper exits or does not print `READY` within 5 s | `sonorus-capture failed to start: <stderr>` (e.g. `ERROR: could not open the output device (0x…)`) / `sonorus-capture timed out starting.` |
 
-When the stopped capture file is empty, `stop_capture()` raises the driver's own message: the Screen Recording permission hint on macOS, `No system audio was captured from the selected source.` on Linux. The renderer (`captureStartError()` in `utils.js`) shows the Screen Recording hint only on macOS.
+When the stopped capture file is empty, `stop_capture()` raises the driver's own message: the Screen Recording permission hint on macOS, `No system audio was captured from the selected source.` on Linux, `No system audio was captured from the selected output device.` on Windows. The renderer (`captureStartError()` in `utils.js`) shows the Screen Recording hint only on macOS.
 
 ---
 
@@ -52,14 +57,17 @@ POST /audio/capture/start
   → AudioCaptureService.start_capture(source_id)
   → driver.check(source_id) — 400 with the reason if capture cannot run
   → spawns platform process (stderr → sonorus-sys-<job_id>.log, never a pipe)
-  → macOS: waits for READY; Linux: a process that exits within 0.5 s → 400 with its stderr
+  → macOS / Windows: waits up to 5 s for READY (first stdout line read on a thread —
+    select() works only on sockets on Windows); Linux: a process that exits within 0.5 s
+    → 400 with its stderr
   → stores { process, output_path, log_path } under job_id
   → returns job_id
 
 [user records...]
 
 POST /audio/capture/stop/{job_id}  { mic_path?: "..." }
-  → sends SIGINT to capture process
+  → macOS / Linux: sends SIGINT to the capture process; Windows: writes "stop" to its
+    stdin and closes it
   → process.wait(timeout=10), kill() if it does not exit
   → reads the log file tail, logs it (logging.warning) and deletes it
   → logs output file size
@@ -158,6 +166,42 @@ CMSampleBufferCopyPCMDataIntoAudioBufferList(
 
 ---
 
+## `sonorus-capture.exe` — Windows WASAPI helper
+
+### Purpose
+
+Records what an output device plays (WASAPI loopback) into a WAV file. Runs as a subprocess of `AudioCaptureService`; source: `native/windows/sonorus-capture/main.cpp` (C++17, Windows APIs only — no third-party libraries).
+
+### Interface
+
+```
+sonorus-capture.exe --list
+  → [{"id": "{0.0.0.00000000}.{…}", "label": "Speakers (Realtek)", "default": true}, …]
+sonorus-capture.exe --device <endpoint id | default> --output <file.wav>
+  → READY on stdout once capture runs; "stop" or EOF on stdin ends it; exit 0
+  → errors before READY: "ERROR: … (0x<HRESULT>)" on stderr, exit 2
+```
+
+`GET /audio/capture/sources` lists `{"id": "default", "label": "System audio (default)"}` first (the default output device when the recording starts), then every active output device by name. The chosen device stays fixed for the whole recording.
+
+### Recording
+
+- **Format:** the device's mix format (usually 32-bit float, 48 kHz) converted to 16-bit PCM WAV at the device's sample rate; more than two channels are folded into stereo.
+- **Real time:** WASAPI delivers no packets while nothing plays. The helper polls every 10 ms, places each packet by its timestamp (`u64QPCPosition`) and fills gaps with silence; with no packets at all it adds silence by the clock (lagging 150 ms behind, so late packets still fit). The file lasts as long as the recording, so the mix with the mic stays in sync.
+- **Lost device** (unplugged, disabled): `WARNING: the output device was lost; recording silence until stop` on stderr (logged by the backend at stop); the recording continues with silence.
+- **Stop:** `stop` on stdin or EOF (also when the backend dies) → silence up to the current moment, final header, exit 0. The WAV header is rewritten every second, so the file stays readable if the helper is killed.
+
+### Building
+
+```bash
+npm run build:capture:win
+# produces: electron/resources/win/sonorus-capture.exe
+```
+
+`scripts/build-capture-win.js` uses MSVC on Windows (`cl` from a Developer prompt, or found with `vswhere`; `/MT`, so the helper needs no VC++ runtime) and mingw-w64 elsewhere (`x86_64-w64-mingw32-g++ -static`; Arch: `mingw-w64-gcc`, Debian/Ubuntu: `g++-mingw-w64-x86-64`). `npm run build:win` and the CI Windows build run it first; the CI test job compiles it with mingw-w64 on every push (it cannot run there). The binary is gitignored.
+
+---
+
 ## Linux: parec and monitor sources
 
 `GET /audio/capture/sources` runs `pactl list short sources` and filters for lines containing `"monitor"`:
@@ -220,7 +264,9 @@ Mic-only recordings (renderer `MediaRecorder`, `POST /audio/recordings`) and imp
 | `app/api/routers/audio_capture.py` | FastAPI router — `/audio/capture/*` endpoints |
 | `app/api/dependencies.py` | `get_audio_capture_service()` singleton |
 | `native/macos/sonorus-capture/main.swift` | Swift binary — ScreenCaptureKit capture |
-| `electron/backend.js` | Sets `SONORUS_CAPTURE_BIN` env var so the server finds the binary |
+| `native/windows/sonorus-capture/main.cpp` | C++ helper — WASAPI loopback capture (Windows) |
+| `scripts/build-capture-win.js` | Builds `sonorus-capture.exe` (MSVC or mingw-w64) |
+| `electron/backend.js` | Sets `SONORUS_CAPTURE_BIN` env var so the server finds the helper (macOS, Windows) |
 | `build/entitlements.mac.plist` | `com.apple.security.screen-capture` entitlement for signed builds |
 
 :::note[Why stderr is not a pipe]

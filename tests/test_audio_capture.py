@@ -563,15 +563,183 @@ def test_macos_driver_runs_capture_helper():
         assert svc.get_sources() == [{"id": "sckit", "label": "System audio (ScreenCaptureKit)"}]
 
 
-def test_windows_has_no_backend_capture():
+# ── Windows: WASAPI loopback helper (sonorus-capture.exe) ─────────────────────
+#
+# The helper is a real child process here (tests/capture_workers.py), so the
+# handshake (READY on stdout, read without select()) and the stop through
+# stdin (Windows has no SIGINT for a child) run on any OS.
+
+_WORKER = Path(__file__).parent / "capture_workers.py"
+_WIN_DEVICES = [
+    {"id": "{0.0.0.00000000}.{speakers}", "label": "Speakers (Realtek)", "default": True},
+    {"id": "{0.0.0.00000000}.{headphones}", "label": "Headphones (USB)", "default": False},
+]
+
+
+@pytest.fixture
+def win_helper(tmp_path, monkeypatch):
+    """An executable fake helper; FAKE_CAPTURE_DEVICES lists two outputs."""
+    import json, sys
+    if sys.platform == "win32":
+        pytest.skip("the fake helper is a POSIX script")
+    helper = tmp_path / "sonorus-capture.exe"
+    helper.write_text(f"#!{sys.executable}\nimport runpy, sys\nsys.argv[0] = {str(_WORKER)!r}\n"
+                      f"runpy.run_path({str(_WORKER)!r}, run_name='__main__')\n")
+    helper.chmod(0o755)
+    monkeypatch.setenv("FAKE_CAPTURE_DEVICES", json.dumps(_WIN_DEVICES))
+    return str(helper)
+
+
+_real_run = subprocess.run
+
+
+def _fake_merge_or_list_run(cmd, **kwargs):
+    """Fake ffmpeg runs, but let the helper's --list reach the real process."""
+    if "--list" in cmd:
+        return _real_run(cmd, **kwargs)
+    return _fake_merge_run(cmd, **kwargs)
+
+
+def _win_service(tmp_path, helper):
+    AudioCaptureService = _get_service_class()
+    return AudioCaptureService(capture_bin=helper, recordings_dir=tmp_path / "recordings")
+
+
+def test_windows_sources_list_default_first_then_outputs_by_name(tmp_path, win_helper):
+    with patch("app.services.audio_capture_service.sys.platform", "win32"):
+        sources = _win_service(tmp_path, win_helper).get_sources()
+    assert sources == [
+        {"id": "default", "label": "System audio (default)"},
+        {"id": "{0.0.0.00000000}.{headphones}", "label": "Headphones (USB)"},
+        {"id": "{0.0.0.00000000}.{speakers}", "label": "Speakers (Realtek)"},
+    ]
+
+
+def test_windows_sources_empty_without_helper_or_when_listing_fails(tmp_path, win_helper, monkeypatch):
     AudioCaptureService = _get_service_class()
     with patch("app.services.audio_capture_service.sys.platform", "win32"), \
+         patch.object(AudioCaptureService, "_find_capture_bin", return_value=None):
+        assert AudioCaptureService(recordings_dir=tmp_path).get_sources() == []
+    monkeypatch.setenv("FAKE_CAPTURE_LIST_FAILS", "1")
+    with patch("app.services.audio_capture_service.sys.platform", "win32"):
+        assert _win_service(tmp_path, win_helper).get_sources() == []
+
+
+def test_windows_command_runs_helper_with_device_and_output(tmp_path, win_helper):
+    with patch("app.services.audio_capture_service.sys.platform", "win32"):
+        svc = _win_service(tmp_path, win_helper)
+        assert svc._build_command(None, "C:/t/out.wav") == [
+            win_helper, "--device", "default", "--output", "C:/t/out.wav"]
+        assert svc._build_command("{0.0.0.00000000}.{headphones}", "C:/t/out.wav")[2] == \
+            "{0.0.0.00000000}.{headphones}"
+
+
+def test_windows_start_without_helper_fails_with_build_hint(tmp_path):
+    AudioCaptureService = _get_service_class()
+    with patch("app.services.audio_capture_service.sys.platform", "win32"), \
+         patch.object(AudioCaptureService, "_find_capture_bin", return_value=None), \
          patch("app.services.audio_capture_service.subprocess.Popen") as popen:
-        svc = AudioCaptureService()
-        assert svc.get_sources() == []
-        with pytest.raises(RuntimeError):
+        svc = AudioCaptureService(recordings_dir=tmp_path)
+        with pytest.raises(RuntimeError) as exc:
             svc.start_capture()
+    assert "build:capture:win" in str(exc.value)
     popen.assert_not_called()
+
+
+def test_windows_start_without_output_devices_fails(tmp_path, win_helper, monkeypatch):
+    monkeypatch.setenv("FAKE_CAPTURE_DEVICES", "[]")
+    with patch("app.services.audio_capture_service.sys.platform", "win32"):
+        svc = _win_service(tmp_path, win_helper)
+        with pytest.raises(RuntimeError) as exc:
+            svc.start_capture()
+    assert "output device" in str(exc.value).lower()
+    assert svc.has_active_jobs() is False
+
+
+def test_windows_start_with_vanished_device_fails(tmp_path, win_helper):
+    with patch("app.services.audio_capture_service.sys.platform", "win32"):
+        svc = _win_service(tmp_path, win_helper)
+        with pytest.raises(RuntimeError) as exc:
+            svc.start_capture(source_id="{0.0.0.00000000}.{gone}")
+    assert "not available" in str(exc.value)
+    assert svc.has_active_jobs() is False
+
+
+def test_windows_helper_failing_before_ready_fails_start(tmp_path, win_helper, monkeypatch):
+    import json
+    monkeypatch.setenv("FAKE_CAPTURE_DEVICES", json.dumps(
+        _WIN_DEVICES + [{"id": "broken", "label": "Broken", "default": False}]))
+    with patch("app.services.audio_capture_service.sys.platform", "win32"):
+        svc = _win_service(tmp_path, win_helper)
+        with pytest.raises(RuntimeError) as exc:
+            svc.start_capture(source_id="broken")
+    assert "could not open the output device" in str(exc.value)
+    assert svc.has_active_jobs() is False
+
+
+def test_windows_capture_stops_through_stdin_without_sigint(tmp_path, win_helper):
+    with patch("app.services.audio_capture_service.sys.platform", "win32"), \
+         patch("app.services.audio_capture_service.subprocess.run", side_effect=_fake_merge_or_list_run):
+        svc = _win_service(tmp_path, win_helper)
+        job_id = svc.start_capture(source_id="{0.0.0.00000000}.{headphones}")
+        process = svc._jobs[job_id].process
+        with patch.object(process, "send_signal", wraps=process.send_signal) as send_signal:
+            final = svc.stop_capture(job_id)
+    send_signal.assert_not_called()
+    assert process.returncode == 0, "the helper must exit on its own after 'stop'"
+    assert Path(final).parent == tmp_path / "recordings" and Path(final).is_file()
+
+
+def test_windows_capture_through_api_records_a_file(tmp_path, win_helper):
+    from app.api.dependencies import get_audio_capture_service
+    with patch("app.services.audio_capture_service.sys.platform", "win32"), \
+         patch("app.services.audio_capture_service.subprocess.run", side_effect=_fake_merge_or_list_run):
+        svc = _win_service(tmp_path, win_helper)
+        app.dependency_overrides[get_audio_capture_service] = lambda: svc
+        try:
+            client = TestClient(app)
+            assert client.get("/audio/capture/sources").json()["sources"][0]["id"] == "default"
+            job_id = client.post("/audio/capture/start", json={}).json()["job_id"]
+            r = client.post(f"/audio/capture/stop/{job_id}", json={})
+        finally:
+            app.dependency_overrides.pop(get_audio_capture_service, None)
+    assert r.status_code == 200, r.text
+    assert Path(r.json()["file_path"]).is_file()
+
+
+def test_macos_and_linux_still_stop_with_sigint(tmp_path):
+    for platform, capture_bin in (("linux", None), ("darwin", "/opt/sonorus-capture")):
+        procs = []
+        def _popen(cmd, **kwargs):
+            proc = _fake_capture_popen([])(cmd, **kwargs)
+            proc.stdout.readline.return_value = b"READY\n"
+            procs.append(proc)
+            return proc
+        AudioCaptureService = _get_service_class()
+        with patch("app.services.audio_capture_service.subprocess.Popen", side_effect=_popen), \
+             patch("app.services.audio_capture_service.subprocess.run", side_effect=_fake_merge_run), \
+             patch("app.services.audio_capture_service.sys.platform", platform):
+            svc = AudioCaptureService(capture_bin=capture_bin, recordings_dir=tmp_path / platform)
+            svc.stop_capture(svc.start_capture())
+        import signal
+        procs[0].send_signal.assert_called_once_with(signal.SIGINT)
+
+
+def test_capture_bin_is_found_per_platform(tmp_path):
+    AudioCaptureService = _get_service_class()
+    root = tmp_path / "repo"
+    (root / "electron" / "resources" / "mac").mkdir(parents=True)
+    (root / "electron" / "resources" / "win").mkdir(parents=True)
+    (root / "electron" / "resources" / "mac" / "sonorus-capture").write_text("")
+    (root / "electron" / "resources" / "win" / "sonorus-capture.exe").write_text("")
+    with patch("app.services.audio_capture_service._REPO_ROOT", root), \
+         patch.dict("os.environ", {}, clear=False):
+        import os
+        os.environ.pop("SONORUS_CAPTURE_BIN", None)
+        with patch("app.services.audio_capture_service.sys.platform", "win32"):
+            assert AudioCaptureService()._capture_bin.endswith(os.path.join("win", "sonorus-capture.exe"))
+        with patch("app.services.audio_capture_service.sys.platform", "darwin"):
+            assert AudioCaptureService()._capture_bin.endswith(os.path.join("mac", "sonorus-capture"))
 
 
 def test_capture_log_lines_do_not_name_the_macos_helper_on_linux(tmp_path, caplog):

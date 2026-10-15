@@ -90,7 +90,7 @@ The build machine needs the runtime installed (GitHub's Windows runners have it)
 `bundle-backend.js` stops and names the missing DLLs. Install it with
 [`vc_redist.x64.exe`](https://aka.ms/vs/17/release/vc_redist.x64.exe).
 
-### 2. Native binary: `sonorus-capture` (macOS only)
+### 2. Native binaries: system audio helpers (macOS, Windows)
 
 macOS system audio capture uses a Swift binary built from `native/macos/sonorus-capture/main.swift` via ScreenCaptureKit. It is compiled with `swiftc` (part of Xcode Command Line Tools):
 
@@ -99,7 +99,15 @@ xcode-select --install   # one-time, if not already installed
 npm run build:capture    # compiles → electron/resources/mac/sonorus-capture
 ```
 
-`npm run build:mac` calls this step automatically. `build:win` and `build:linux` skip it — system audio on those platforms goes through ffmpeg (Linux) or the Electron renderer (Windows) without a native binary.
+`npm run build:mac` calls this step automatically.
+
+Windows system audio uses a C++ WASAPI loopback helper built from `native/windows/sonorus-capture/main.cpp`:
+
+```bash
+npm run build:capture:win   # compiles → electron/resources/win/sonorus-capture.exe
+```
+
+`scripts/build-capture-win.js` uses MSVC on Windows (Visual Studio Build Tools, C++ workload; static C runtime) and mingw-w64 elsewhere. Without any compiler it keeps a helper already in `electron/resources/win/` that is newer than the source, e.g. one cross-compiled on Linux and copied in. `npm run build:win` calls this step automatically. Linux needs no native binary (`parec`). See [AudioCaptureService](../services/AudioCaptureService.md#sonorus-captureexe--windows-wasapi-helper).
 
 ### 3. electron-builder
 
@@ -107,7 +115,7 @@ Packages the Electron app + `backend-dist/` into the final installer:
 
 ```bash
 npm run build:mac    # build:capture → bundle-backend.js → electron-builder
-npm run build:win    # bundle-backend.js → electron-builder (x64)
+npm run build:win    # build:capture:win → bundle-backend.js → electron-builder (x64)
 npm run build:linux  # bundle-backend.js → electron-builder (x64)
 ```
 
