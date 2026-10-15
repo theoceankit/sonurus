@@ -24,7 +24,7 @@ function setup({ settings = {}, installed = [] } = {}) {
     close() { this.closed = true }
     send(ev) { this.onmessage?.({ data: JSON.stringify(ev) }) }
   }
-  env.ctx = loadRenderer(['utils.js', 'data.js', 'transcription-model.js', 'model-downloads.js', 'views/settings-view.js'], {
+  env.ctx = loadRenderer(['utils.js', 'data.js', 'transcription-model.js', 'model-downloads.js', 'gpu-acceleration.js', 'views/settings-view.js'], {
     appSettings,
     app: { _queue: null },
     WebSocket: FakeWebSocket,

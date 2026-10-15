@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard, desktopCapturer } = require('electron')
 const path = require('path')
 const fs = require('fs')
-const { startBackend, stopBackend } = require('./backend')
+const { restartBackend, startBackend, stopBackend } = require('./backend')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 
 // macOS routes Cmd+C/V/X/A through the app's Edit menu — without it,
@@ -101,6 +101,18 @@ ipcMain.handle('get-app-version', () => app.getVersion())
 
 ipcMain.handle('write-clipboard', async (_e, text) => { await clipboard.writeText(text) })
 
+function savedHfToken() {
+  try {
+    return JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8')).hfToken || ''
+  } catch { return '' /* settings not yet created */ }
+}
+
+// GPU acceleration applied or removed: the renderer asks once the backend
+// said it may restart (POST /gpu/restart → ready).
+ipcMain.handle('restart-backend', async () => {
+  await restartBackend(savedHfToken())
+})
+
 app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'media' || permission === 'display-capture')
@@ -117,15 +129,9 @@ app.whenReady().then(async () => {
     }, { useSystemPicker: false })
   }
 
-  let hfToken = ''
-  try {
-    const saved = JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8'))
-    hfToken = saved.hfToken || ''
-  } catch { /* settings not yet created */ }
-
   // Start the backend first so index.html loads with a ready API.
   try {
-    await startBackend(hfToken)
+    await startBackend(savedHfToken())
   } catch (err) {
     dialog.showErrorBox('Sonorus — backend error',
       `Failed to start the backend:\n${err.message}\n\nCheck ${app.getPath('userData')}/sonorus.log for details.`)
