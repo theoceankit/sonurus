@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import signal
@@ -17,6 +18,18 @@ _STOP_TIMEOUT_SEC = 10
 # waiting this long at start turns that into a start error instead of an
 # empty recording discovered only when the user presses Stop.
 _START_CHECK_SEC = 0.5
+
+# Loudness levelling of every track that holds system audio. System audio is
+# often 15–20 dB below the mic, and participants of a call differ too; Whisper
+# then drops the quiet speech. dynaudnorm (per track, before the mix):
+#   f=150:g=11  ~1.7 s window, short enough to follow a change of speaker
+#   m=100       up to +40 dB (the default +20 dB leaves the gap almost as is)
+#   t=0.001     frames below −60 dBFS are not boosted: silence stays silent,
+#               background noise is not raised to audible hiss
+#   p=0.9       target peak
+# The mix sums the tracks (normalize=0) and a limiter keeps the sum from clipping.
+_LEVEL_FILTER = "dynaudnorm=f=150:g=11:p=0.9:m=100:t=0.001"
+_LIMITER = "alimiter=limit=0.95:level=disabled"
 
 
 @dataclass
@@ -223,7 +236,6 @@ class AudioCaptureService:
         return job_id
 
     def stop_capture(self, job_id: str, mic_path: str | None = None) -> str:
-        import logging
         log = logging.getLogger(__name__)
 
         with self._lock:
@@ -256,7 +268,7 @@ class AudioCaptureService:
         self._recordings_dir.mkdir(parents=True, exist_ok=True)
         final = self._recordings_dir / f"sonorus-rec-{job_id}.wav"
         if mic_path is None:
-            shutil.move(job.output_path, final)
+            self._level(job.output_path, str(final))
             return str(final)
         self._merge(job.output_path, mic_path, str(final))
         Path(job.output_path).unlink(missing_ok=True)
@@ -276,16 +288,39 @@ class AudioCaptureService:
         except OSError:
             return False
 
-    def _merge(self, system_path: str, mic_path: str, merged: str) -> None:
+    def _run_ffmpeg(self, args: list[str]) -> None:
         subprocess.run(
-            [self._ffmpeg(), "-y",
-             "-i", system_path, "-i", mic_path,
-             "-filter_complex", "amix=inputs=2:duration=shortest",
-             merged],
+            [self._ffmpeg(), "-y", *args],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+
+    def _level(self, system_path: str, final: str) -> None:
+        """Level a system-only recording into final; keep it as is if ffmpeg fails."""
+        try:
+            self._run_ffmpeg(["-i", system_path, "-af", _LEVEL_FILTER, final])
+        except (subprocess.CalledProcessError, OSError) as exc:
+            logging.getLogger(__name__).warning(
+                "loudness levelling failed (%s); keeping the recording as captured", exc)
+            Path(final).unlink(missing_ok=True)
+            shutil.move(system_path, final)
+        else:
+            Path(system_path).unlink(missing_ok=True)
+
+    def _merge(self, system_path: str, mic_path: str, merged: str) -> None:
+        levelled = (
+            f"[0:a]{_LEVEL_FILTER}[sys];[1:a]{_LEVEL_FILTER}[mic];"
+            f"[sys][mic]amix=inputs=2:duration=shortest:normalize=0,{_LIMITER}"
+        )
+        try:
+            self._run_ffmpeg(["-i", system_path, "-i", mic_path,
+                              "-filter_complex", levelled, merged])
+        except (subprocess.CalledProcessError, OSError) as exc:
+            logging.getLogger(__name__).warning(
+                "loudness levelling failed (%s); mixing without it", exc)
+            self._run_ffmpeg(["-i", system_path, "-i", mic_path,
+                              "-filter_complex", "amix=inputs=2:duration=shortest", merged])
 
 
 def _read_log(path: str, limit: int = 4096) -> str:
