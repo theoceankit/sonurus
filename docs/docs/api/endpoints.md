@@ -20,7 +20,7 @@ The API version (`info.version` in `/openapi.json`) is the product version, reso
 
 ## Audio Capture
 
-Manages live system audio recording sessions. The backend dispatches to the correct platform tool (`sonorus-capture` on macOS, `parec` on Linux, WASAPI on Windows). Recordings with system audio are loudness-levelled (`ffmpeg dynaudnorm`, each track); mic + system tracks are then mixed with `ffmpeg amix` when both are present.
+Manages live system audio recording sessions. The backend dispatches to the correct platform tool (`sonorus-capture` on macOS, `parec` on Linux, `sonorus-capture.exe` — WASAPI loopback — on Windows). Recordings with system audio are loudness-levelled (`ffmpeg dynaudnorm`, each track); mic + system tracks are then mixed with `ffmpeg amix` when both are present.
 
 ### `GET /audio/capture/sources`
 
@@ -36,9 +36,11 @@ Returns available system audio sources for the current platform.
 // Linux without pactl or without monitor sources: the default output's monitor
 [{ "id": "@DEFAULT_MONITOR@", "label": "System audio (default)" }]
 
-// Windows — always empty: system audio is captured in the renderer
-// (WASAPI loopback via setDisplayMediaRequestHandler), not by the backend
-[]
+// Windows: the default output device first, then every active output device by name
+// (empty when the helper is missing or lists nothing)
+[{ "id": "default", "label": "System audio (default)" },
+ { "id": "{0.0.0.00000000}.{a1b2…}", "label": "Headphones (USB Audio)" },
+ { "id": "{0.0.0.00000000}.{c3d4…}", "label": "Speakers (Realtek(R) Audio)" }]
 ```
 
 ### `POST /audio/capture/start`
@@ -55,7 +57,7 @@ Starts a background capture process. Returns a `job_id` immediately.
 
 `source_id` is optional — omit to use the platform default. Ignored on macOS (always ScreenCaptureKit).
 
-- `400` — capture cannot run; `detail` says why and nothing is recorded: macOS helper missing or not ready, Linux `parec` not installed (names the package), the selected Linux source is no longer available, or the capture process exited right after start (its stderr). Windows always returns `400` (capture runs in the renderer).
+- `400` — capture cannot run; `detail` says why and nothing is recorded: macOS helper missing or not ready, Linux `parec` not installed (names the package), the selected Linux source is no longer available, Windows helper missing, no Windows output device or the selected one is gone, or the capture process exited right after start (its stderr).
 
 ### `POST /audio/capture/stop/{job_id}`
 

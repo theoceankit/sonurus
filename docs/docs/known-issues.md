@@ -8,18 +8,6 @@ All open issues in one place.
 
 ---
 
-### Windows: quiet system audio can be missing from the transcript
-
-**Severity:** transcription quality — Windows only, recordings with mic + system audio.
-
-**Symptom:** speech from the system track (e.g. a call played quietly) is audible in the player but missing from the transcript.
-
-**Cause:** on Windows the renderer mixes the mic and system audio (WebAudio) without loudness levelling. On macOS and Linux the backend levels every track that holds system audio before mixing (see [AudioCaptureService](./services/AudioCaptureService.md#loudness-levelling-and-mic-merge)).
-
-**Workaround:** raise the volume of the system audio while recording, or record system audio only.
-
----
-
 ### torchcodec warning on macOS
 
 **Severity:** cosmetic — does not affect functionality.
