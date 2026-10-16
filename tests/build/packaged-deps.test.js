@@ -11,6 +11,7 @@ const path   = require('path')
 
 const ROOT = path.resolve(__dirname, '..', '..')
 const { BUILD_TARGETS, lockPath } = require(path.join(ROOT, 'scripts', 'bundle-backend.js'))
+const { EXCLUDED_PACKAGES } = require(path.join(ROOT, 'scripts', 'lock-backend.js'))
 
 const PYTORCH_CPU_INDEX = 'https://download.pytorch.org/whl/cpu'
 
@@ -85,12 +86,28 @@ for (const key of BUILD_TARGETS) {
     }
   })
 
+  test(`${key} lock leaves out the excluded packages`, () => {
+    const pkgs = parseLock(readLock(key))
+    const shipped = EXCLUDED_PACKAGES.filter(name => pkgs[name])
+    assert.deepEqual(shipped, [], 'regenerate locks: node scripts/lock-backend.js')
+  })
+
   if (!key.startsWith('darwin')) {
     test(`${key} lock names the PyTorch CPU index`, () => {
       assert.ok(readLock(key).includes(`--extra-index-url ${PYTORCH_CPU_INDEX}`))
     })
   }
 }
+
+test('excluded packages are normalized names and never something the backend needs', () => {
+  assert.ok(EXCLUDED_PACKAGES.includes('triton'))
+  for (const name of EXCLUDED_PACKAGES) assert.equal(name, normName(name))
+  // direct dependencies, the GPU download (pip) and libraries imported without a fallback
+  const needed = [
+    ...Object.keys(directDeps()), 'pip', 'nltk', 'optuna', 'opentelemetry-api', 'opentelemetry-sdk', 'sympy', 'networkx',
+  ]
+  assert.deepEqual(EXCLUDED_PACKAGES.filter(name => needed.includes(name)), [])
+})
 
 test('packaged backend start installs nothing', () => {
   const src = fs.readFileSync(path.join(ROOT, 'electron', 'backend.js'), 'utf8')
