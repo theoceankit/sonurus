@@ -52,17 +52,29 @@ Assembles `backend-dist/` for the current platform:
 2. Installs every library from the platform's lock file into the interpreter's own `site-packages`:
    `pip install --no-deps --require-hashes --only-binary=:all: -r locks/packaged-<platform>-<arch>.txt`.
    Nothing is resolved at build time — the lock is installed exactly.
-3. Copies `app/`.
-4. Precompiles all Python code with `compileall --invalidation-mode unchecked-hash`. Such `.pyc` files
+3. Removes what the backend never runs (`pruneSitePackages()`): every directory named `tests` or
+   `test` inside a library, `torch/include` (C++ headers) and the test programs in `torch/bin`
+   (`test_*`, `tutorial_*`, `*Test`, `protoc*`; `torch_shm_manager` stays). Matched by name only,
+   since `torch/bin` differs per platform. About 225 MiB on Linux.
+4. Copies `app/`.
+5. Precompiles all Python code with `compileall --invalidation-mode unchecked-hash`. Such `.pyc` files
    are never revalidated against source timestamps, so they are used as is inside the read-only
    AppImage / `.app` and after the NSIS installer copies the files.
-5. Copies the `ffmpeg` binary.
-6. Copies the platform's GPU manifest (`locks/gpu-<platform>-<arch>.json`) to
+6. Copies the `ffmpeg` binary.
+7. Copies the platform's GPU manifest (`locks/gpu-<platform>-<arch>.json`) to
    `backend-dist/gpu-manifest.json` — Linux and Windows only, see [GPU manifests](#gpu-manifests).
 
 ```bash
 node scripts/bundle-backend.js
+node scripts/check-bundled-imports.js   # the bundled backend still imports (CI runs it after bundling)
 ```
+
+`scripts/check-bundled-imports.js` runs the bundled interpreter, imports the API, the pipeline child
+process and the libraries it runs (`whisperx` with alignment and diarization, `faster_whisper`,
+`pyannote.audio` and its diarization and verification pipelines), and fails when one of them does not
+import or when a package of `EXCLUDED_PACKAGES` is installed. Every CI build job runs it right after
+bundling, before electron-builder. Imports done inside functions (when models load) are not covered —
+a transcription on a built app is.
 
 Python version: **3.12.10** (release 20250517 from `indygreg/python-build-standalone`).
 
@@ -131,8 +143,8 @@ Output goes to `dist/`.
   the PyPI wheels, which are CPU-only)
 - Dev dependencies (`pytest`, etc.) are excluded
 
-`locks/packaged-<platform>-<arch>.txt` pin every library — direct and transitive — with hashes, one
-file per build platform. The same app version therefore always ships the same libraries. The macOS
+`locks/packaged-<platform>-<arch>.txt` pin every library — direct and transitive, except the
+[excluded packages](#excluded-packages) — with hashes, one file per build platform. The same app version therefore always ships the same libraries. The macOS
 lock targets macOS 14 (the oldest macOS with `onnxruntime` wheels), which makes macOS 14 the minimum
 for the packaged app.
 
@@ -142,10 +154,30 @@ To change a dependency, edit `requirements.packaged.txt`, regenerate the locks a
 node scripts/lock-backend.js   # needs uv on PATH, or UV=/path/to/uv
 ```
 
-The script runs `uv pip compile` once per build platform (`--python-platform`, `--generate-hashes`).
+The script runs `uv pip compile` once per build platform (`--python-platform`, `--generate-hashes`,
+`--no-emit-package` for each excluded package).
 `tests/build/` checks that the locks exist for every build platform, pin every package with a hash,
-match `requirements.packaged.txt` and contain no CUDA packages, and that the GPU manifests match the
-bundled `torch`.
+match `requirements.packaged.txt`, contain no CUDA packages and no excluded package, and that the GPU
+manifests match the bundled `torch`.
+
+### Excluded packages
+
+`EXCLUDED_PACKAGES` in `scripts/lock-backend.js` lists transitive dependencies left out of every
+installer. The backend never imports them, and the libraries that do import them fall back when they
+are missing:
+
+| Packages | Required by | Why it can go |
+|---|---|---|
+| `triton` (Linux only, ≈ 900 MB) | whisperx | torch only probes for it (`torch.utils._triton`); it is needed for `torch.compile` on a GPU |
+| `torchvision` | whisperx | torchmetrics imports it only if installed |
+| `matplotlib`, `contourpy`, `cycler`, `fonttools`, `kiwisolver` | pyannote-audio | plots in training code; torchmetrics imports it only if installed |
+| `rich`, `markdown-it-py`, `mdurl`, `pygments` | pyannote-audio | console progress bars (`ProgressHook`, training); lightning imports it only if installed |
+
+Packages that a library imports without a fallback stay, even when the backend does not use them:
+`optuna` (`pyannote.pipeline`), `opentelemetry-*` (pyannote telemetry), `sympy` and `networkx`; `nltk`
+is used by the whisperx alignment. To exclude another package, add it to the list, regenerate the
+locks and check that `scripts/check-bundled-imports.js` passes on a bundle and that a built app
+transcribes.
 
 ### GPU manifests
 
@@ -161,7 +193,9 @@ together with the locks:
    versions.
 3. Keeps only the packages that differ from the CPU lock — on Linux the torch family, `triton` and the
    `nvidia-*-cu12` libraries (≈ 3.9 GB); on Windows `torch`, `torchaudio`, `torchvision`, with the CUDA
-   libraries inside the `torch` wheel (≈ 3.5 GB). A package outside the CUDA family fails the script.
+   libraries inside the `torch` wheel (≈ 3.5 GB). The excluded packages outside the CUDA family come
+   back in this resolution and are skipped; `triton` and `torchvision` belong to the CUDA family and
+   stay in the download. Any other package outside the CUDA family fails the script.
 4. Writes each package's wheel for the platform: `name`, `version`, `url`, `sha256`, `size` (from the
    lock, else a `HEAD` request).
 
@@ -173,7 +207,7 @@ local tag), `cuda` (`12.8`), `min_driver` (`570`, the oldest NVIDIA driver for C
 
 ## Installer size
 
-The bundled libraries make the installers large (Linux AppImage ≈ 1 GB). GitHub Releases refuses
+The bundled libraries make the installers large (Linux AppImage ≈ 700 MiB). GitHub Releases refuses
 assets over 2 GiB, so every CI build job runs `node scripts/check-installer-size.js dist` after
 electron-builder and fails when an installer exceeds **1900 MiB**.
 
