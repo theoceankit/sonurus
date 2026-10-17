@@ -18,6 +18,7 @@ Sonorus.app (or .exe / .AppImage)
   ├── Electron runtime + renderer (index.html, JS, CSS)
   └── resources/backend/           ← extraResources
         ├── python-dist/           ← python-build-standalone + every backend library (CPU)
+        │   └── nltk_data/         ← NLTK punkt_tab sentence data for alignment
         ├── app/                   ← Python source (FastAPI app)
         └── bin/ffmpeg             ← ffmpeg binary (ffmpeg-static)
 ```
@@ -56,17 +57,24 @@ Assembles `backend-dist/` for the current platform:
    `test` inside a library, `torch/include` (C++ headers) and the test programs in `torch/bin`
    (`test_*`, `tutorial_*`, `*Test`, `protoc*`; `torch_shm_manager` stays). Matched by name only,
    since `torch/bin` differs per platform. About 225 MiB on Linux.
-4. Copies `app/`.
-5. Precompiles all Python code with `compileall --invalidation-mode unchecked-hash`. Such `.pyc` files
+4. Installs NLTK's `punkt_tab` sentence data (all 19 languages, ≈ 11 MB) into `python-dist/nltk_data`
+   by running `scripts/fetch_nltk_data.py` with the bundled Python. WhisperX alignment splits
+   sentences with it and would otherwise download it from GitHub into `~/nltk_data` on the first
+   alignment. The archive is pinned to a commit of `nltk/nltk_data`, checked against its sha256 and
+   cached in `backend-dist/` (`*.zip` is left out of the installers). The pipeline process reads NLTK
+   data only from there (`app/nltk_data.py`); a missing file fails the job with a clear error, never a
+   download.
+5. Copies `app/`.
+6. Precompiles all Python code with `compileall --invalidation-mode unchecked-hash`. Such `.pyc` files
    are never revalidated against source timestamps, so they are used as is inside the read-only
    AppImage / `.app` and after the NSIS installer copies the files.
-6. Copies the `ffmpeg` binary.
-7. Copies the platform's GPU manifest (`locks/gpu-<platform>-<arch>.json`) to
+7. Copies the `ffmpeg` binary.
+8. Copies the platform's GPU manifest (`locks/gpu-<platform>-<arch>.json`) to
    `backend-dist/gpu-manifest.json` — Linux and Windows only, see [GPU manifests](#gpu-manifests).
 
 ```bash
 node scripts/bundle-backend.js
-node scripts/check-bundled-imports.js   # the bundled backend still imports (CI runs it after bundling)
+node scripts/check-bundled-imports.js   # the bundled backend still imports, punkt_tab loads (CI runs it after bundling)
 ```
 
 `scripts/check-bundled-imports.js` runs the bundled interpreter, imports the API, the pipeline child
@@ -175,7 +183,7 @@ are missing:
 
 Packages that a library imports without a fallback stay, even when the backend does not use them:
 `optuna` (`pyannote.pipeline`), `opentelemetry-*` (pyannote telemetry), `sympy` and `networkx`; `nltk`
-is used by the whisperx alignment. To exclude another package, add it to the list, regenerate the
+is used by the whisperx alignment (its `punkt_tab` data is bundled, step 4 above). To exclude another package, add it to the list, regenerate the
 locks and check that `scripts/check-bundled-imports.js` passes on a bundle and that a built app
 transcribes.
 
