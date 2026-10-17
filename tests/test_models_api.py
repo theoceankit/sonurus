@@ -1,4 +1,7 @@
 """Tests for the /models API endpoints — GET /models, DELETE, POST /download."""
+import threading
+import time
+from unittest.mock import patch
 import pytest
 from pathlib import Path
 from fastapi.testclient import TestClient
@@ -7,6 +10,7 @@ from app.api.main import app
 from app.api.dependencies import get_memory_service, get_storage_service
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.speaker_memory_service import SpeakerMemoryService
+from app.services.model_service import ModelService
 
 CATALOG_IDS = {"tiny", "base", "small", "medium", "large-v3", "diarize"}
 
@@ -428,3 +432,67 @@ def test_progress_streams_with_two_concurrent_downloads(client):
 
     assert not starved, "WebSocket got no events while two downloads were running"
     assert received and received[0]["type"] == "progress"
+
+
+# ── One download per model ───────────────────────────────────────────────────
+# Two queued jobs failing on the same missing alignment model used to start two
+# downloads into one Hugging Face cache. A second POST while the model is
+# downloading joins the running download instead.
+
+def _blocking_download(started, release, calls):
+    def download_model(self, model_id, cancel_event=None, on_progress=None, hf_token=None):
+        calls.append(model_id)
+        started.set()
+        release.wait(timeout=5)
+    return download_model
+
+
+def _wait(predicate, timeout=5.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(0.01)
+    return False
+
+
+def test_second_post_while_downloading_returns_the_running_job(client):
+    import app.api.routers.models as models_router
+    started, release, calls = threading.Event(), threading.Event(), []
+    with patch.object(ModelService, "download_model", _blocking_download(started, release, calls)):
+        try:
+            first = client.post("/models/ru/download").json()["job_id"]
+            assert started.wait(timeout=5)
+            second = client.post("/models/ru/download").json()["job_id"]
+            assert second == first
+            assert calls == ["ru"]
+        finally:
+            release.set()
+        assert _wait(lambda: not models_router.active_downloads())
+
+
+def test_other_models_still_download_in_parallel(client):
+    import app.api.routers.models as models_router
+    started, release, calls = threading.Event(), threading.Event(), []
+    with patch.object(ModelService, "download_model", _blocking_download(started, release, calls)):
+        try:
+            ru = client.post("/models/ru/download").json()["job_id"]
+            assert started.wait(timeout=5)
+            uk = client.post("/models/uk/download").json()["job_id"]
+            assert ru != uk
+            assert _wait(lambda: sorted(calls) == ["ru", "uk"])
+        finally:
+            release.set()
+        assert _wait(lambda: not models_router.active_downloads())
+
+
+def test_after_a_download_ends_a_new_post_starts_a_new_one(client):
+    import app.api.routers.models as models_router
+    started, release, calls = threading.Event(), threading.Event(), []
+    release.set()  # finishes at once
+    with patch.object(ModelService, "download_model", _blocking_download(started, release, calls)):
+        first = client.post("/models/ru/download").json()["job_id"]
+        assert _wait(lambda: not models_router.active_downloads())
+        second = client.post("/models/ru/download").json()["job_id"]
+        assert second != first
+        assert _wait(lambda: calls == ["ru", "ru"])
