@@ -23,3 +23,15 @@ THIRD_PARTY_TELEMETRY_OFF = {
 }
 
 os.environ.update(THIRD_PARTY_TELEMETRY_OFF)
+
+
+def disable_onnxruntime_telemetry() -> None:
+    """onnxruntime's Windows builds report telemetry events through Windows
+    diagnostic data unless told not to (a no-op on other platforms). It has no
+    environment switch: called in the pipeline process before any model loads
+    (pyannote and faster-whisper run onnxruntime there)."""
+    try:
+        import onnxruntime
+    except ImportError:
+        return
+    onnxruntime.disable_telemetry_events()

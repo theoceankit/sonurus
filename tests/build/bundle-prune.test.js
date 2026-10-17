@@ -96,6 +96,7 @@ test('import check proves the bundled backend has third-party telemetry off', ()
   assert.ok(src.includes('is_metrics_enabled()'), 'pyannote metrics must be checked')
   assert.ok(src.includes('HF_HUB_DISABLE_TELEMETRY'), 'Hugging Face telemetry must be checked')
   assert.ok(src.includes('OTEL_SDK_DISABLED'), 'the OpenTelemetry SDK must be checked')
+  assert.ok(src.includes('app.disable_onnxruntime_telemetry()'), 'the onnxruntime switch must be checked')
 })
 
 test('every installer build checks the bundled imports right after bundling', () => {
