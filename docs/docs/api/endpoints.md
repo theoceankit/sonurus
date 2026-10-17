@@ -232,7 +232,7 @@ Valid `model_id` values:
 - Diarization: `diarize` (downloads `pyannote/speaker-diarization-community-1` + `pyannote/embedding`)
 - Alignment: two-letter language code from `ALIGNMENT_CATALOG` — `ru`, `zh`, `ja`, `ko`, `uk`, `pt`, `ar`, `nl`, `pl`, `hi`, `cs`, `tr`, `hu`, `fi`, `fa`, `el`, `da`, `he`, `vi`, `ur`, `te`, `ca`, `ml`, `no`, `nn`, `sk`, `sl`, `hr`, `ro`, `eu`, `gl`, `ka`, `lv`, `tl`, `sv`
 
-Unknown `model_id` returns `422`.
+Unknown `model_id` returns `422`. One download per model: a `POST` while that model is downloading starts nothing and returns the running download's `job_id` (two downloads would write into the same cache). Its WS stream has one reader — the app keeps one connection per download (`model-downloads.js`).
 
 ```json
 { "job_id": "a1b2c3d4-..." }
