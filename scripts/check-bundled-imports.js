@@ -58,6 +58,8 @@ function checkSource() {
     'from huggingface_hub import constants',
     'if is_metrics_enabled() or os.environ.get("OTEL_SDK_DISABLED") != "true" or not constants.HF_HUB_DISABLE_TELEMETRY:',
     '    sys.exit("third-party telemetry is not switched off")',
+    // The pipeline process calls it; fails if onnxruntime drops the switch.
+    'import app; app.disable_onnxruntime_telemetry()',
     `print("bundled imports ok (${BUNDLED_IMPORTS.length} modules)")`,
   ].join('\n')
 }

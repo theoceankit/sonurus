@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from unittest.mock import MagicMock, patch
 
 import pipeline_workers
 
@@ -121,3 +122,40 @@ def test_hugging_face_telemetry_is_disabled(tmp_path):
         "print(constants.HF_HUB_DISABLE_TELEMETRY)\n"
     )
     assert _python(code, TELEMETRY_ON, tmp_path) == "True"
+
+
+# ── onnxruntime: Windows builds report telemetry events unless told not to ──
+
+def test_onnxruntime_telemetry_events_are_disabled(monkeypatch):
+    import app
+    ort = MagicMock()
+    monkeypatch.setitem(sys.modules, "onnxruntime", ort)
+    app.disable_onnxruntime_telemetry()
+    ort.disable_telemetry_events.assert_called_once_with()
+
+
+def test_missing_onnxruntime_is_not_an_error(monkeypatch):
+    import app
+    monkeypatch.setitem(sys.modules, "onnxruntime", None)  # import raises ImportError
+    app.disable_onnxruntime_telemetry()
+
+
+def test_the_pipeline_child_disables_onnxruntime_telemetry_before_loading_models():
+    from app.services.pipeline_process import _pipeline_worker
+    order = []
+    controller = MagicMock()
+    controller.run_pipeline.return_value = "transcript"
+
+    def create_controller(**kwargs):
+        order.append("models")
+        return controller, MagicMock()
+
+    class Conn:
+        def send(self, msg):
+            pass
+
+    with patch("app.disable_onnxruntime_telemetry", side_effect=lambda: order.append("ort off")), \
+         patch("app.services.service_factory.create_controller", side_effect=create_controller):
+        _pipeline_worker({"audio_path": "/rec/a.wav", "whisper_model": "small",
+                          "language": None, "db_path": "/data/x.db"}, Conn())
+    assert order == ["ort off", "models"]
