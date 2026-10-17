@@ -55,6 +55,8 @@ def _pipeline_worker(args: dict, conn) -> None:
         if quiet:
             from app.warnings import suppress_ml_noise
             suppress_ml_noise("startup")
+        import app
+        app.disable_onnxruntime_telemetry()
         from app.services import service_factory
         if quiet:
             # Again once the ML libraries are loaded: Lightning resets its
