@@ -75,7 +75,7 @@ electron/
       modal.css        — Modal overlay styles
     views/
       new-recording-modal.js  — Recording setup modal (source picker, model/language, toggles)
-      alignment-modal.js      — Alignment model download + retry (shown on alignment_model_missing error)
+      alignment-modal.js      — Alignment model download + retry (one dialog per language, on alignment_model_missing)
       editor-view.js          — Transcript editor entry point
       settings-view.js        — Settings screen
       speakers-view.js        — Speakers section: sidebar list items + speaker page
@@ -274,7 +274,7 @@ The backend owns the queue ([Transcription Queue](../../services/TranscriptionQu
 |---|---|
 | `snapshot` | `app._queue` = snapshot; `_renderJobQueue()` |
 | `job_done` | Sidebar reloads; toast `✓ title`; no auto-navigation |
-| `job_failed` | Toast `Transcription failed: title` — or, for `alignment_model_missing`, `renderAlignmentModal(language, jobId)`: download the model, then **Retry transcription** (`POST /queue/jobs/{id}/retry`) |
+| `job_failed` | Toast `Transcription failed: title` — or, for `alignment_model_missing`, `showAlignmentModal(language)`: one dialog per language (a further failure for that language reuses the open one, after Dismiss the next failure opens it again). The download goes through `model-downloads.js` (one per model; its progress also shows in Settings, and a download started there shows in the dialog). Once the model is installed, **Retry N transcriptions** sends `POST /queue/jobs/{id}/retry` for every job that failed with `alignment_model_missing` for that language, in queue order (`alignmentRetryJobs()`, refreshed on every snapshot); a failed download offers Download again, Cancel stops it and closes the dialog. A model downloaded from Settings retries nothing by itself |
 
 **Sidebar queue section** (`#job-queue`, above the recordings list, hidden while the queue is empty):
 

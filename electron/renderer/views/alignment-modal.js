@@ -1,8 +1,40 @@
 // ── Alignment Model Modal ─────────────────────────────────────────────────────
 // Shown when a background transcription job fails with alignment_model_missing.
 // Lets the user download the required model and retry without navigating away.
+//
+// One dialog per language: further failures for that language reuse the open
+// one (several queued jobs often fail on the same model). The download is the
+// app's (model-downloads.js), so there is one per model, Settings shows it,
+// and a download started in Settings shows here too. Once the model is
+// installed, one button retries every job that failed for it.
 
-function renderAlignmentModal(lang, retryJobId) {
+const _alignmentModals = {}   // language → { refresh, close }
+
+// Failed jobs waiting for this language's alignment model, in queue order.
+function alignmentRetryJobs(lang, snapshot) {
+  return (snapshot?.jobs || []).filter(j =>
+    j.status === 'failed' && j.error_code === 'alignment_model_missing' && j.error_language === lang)
+}
+
+function alignmentRetryLabel(count) {
+  return count === 1 ? 'Retry transcription' : `Retry ${count} transcriptions`
+}
+
+// offer | downloading | ready | failed (the last download of it did not finish).
+function alignmentModalState(lang) {
+  if (modelDownload(lang)) return 'downloading'
+  if (modelState()?.models.some(m => m.kind === 'alignment' && m.id === lang && m.installed)) return 'ready'
+  return _alignmentModals[lang]?.failed ? 'failed' : 'offer'
+}
+
+// Opens the dialog for `lang`, or brings the open one up to date.
+function showAlignmentModal(lang) {
+  const open = _alignmentModals[lang]
+  if (open) {
+    open.refresh()
+    return open.overlay
+  }
+
   const alignModel = ALIGNMENT_MODELS.find(m => m.id === lang) || {}
   const langName   = alignModel.name       || lang
   const langNative = alignModel.nativeName || ''
@@ -14,28 +46,26 @@ function renderAlignmentModal(lang, retryJobId) {
   const box = document.createElement('div')
   box.className = 'am-modal'
 
+  const entry = { overlay, failed: false, refresh, close }
+  let wasDownloading = !!modelDownload(lang)
+
   function onEsc(e) { if (e.key === 'Escape') close() }
   function close() {
     document.removeEventListener('keydown', onEsc)
+    unsubscribe()
+    if (_alignmentModals[lang] === entry) delete _alignmentModals[lang]
     overlay.remove()
   }
   document.addEventListener('keydown', onEsc)
 
   const titleEl = document.createElement('div')
   titleEl.className = 'am-modal__title'
-  titleEl.textContent = 'Alignment model required'
 
   const desc = document.createElement('div')
   desc.className = 'am-modal__desc'
-  desc.innerHTML = [
-    `<strong>${langName}${langNative ? ` · ${langNative}` : ''}</strong>`,
-    langSize ? ` <span class="am-modal__size">${langSize}</span>` : '',
-    `<br>Download it to get word-level timestamps for this language.`,
-  ].join('')
 
   const dlTrack = document.createElement('div')
   dlTrack.className = 'progress-bar-track'
-  dlTrack.style.display = 'none'
   const dlFill = document.createElement('div')
   dlFill.className = 'progress-bar-fill'
   dlFill.style.cssText = 'width:0%;transition:width 0.6s ease'
@@ -43,22 +73,9 @@ function renderAlignmentModal(lang, retryJobId) {
 
   const pctEl = document.createElement('div')
   pctEl.className = 'am-modal__pct'
-  pctEl.style.display = 'none'
 
   const btnRow = document.createElement('div')
   btnRow.className = 'am-modal__buttons'
-
-  const dlBtn = document.createElement('button')
-  dlBtn.className = 'st-btn st-btn--primary'
-  dlBtn.innerHTML = `${icon('download', 11)} Download${langSize ? ' ' + langSize : ''}`
-
-  const dismissBtn = document.createElement('button')
-  dismissBtn.className = 'st-btn st-btn--ghost'
-  dismissBtn.textContent = '← Dismiss'
-  dismissBtn.addEventListener('click', close)
-
-  btnRow.appendChild(dlBtn)
-  btnRow.appendChild(dismissBtn)
 
   box.appendChild(titleEl)
   box.appendChild(desc)
@@ -67,107 +84,91 @@ function renderAlignmentModal(lang, retryJobId) {
   box.appendChild(btnRow)
   overlay.appendChild(box)
 
-  dlBtn.addEventListener('click', () => {
-    dlBtn.disabled      = true
-    dismissBtn.disabled = true
-    dlTrack.style.display = ''
-    pctEl.style.display   = ''
-    titleEl.textContent = `Downloading ${langName} alignment model…`
-    desc.textContent    = 'This may take a few minutes.'
+  function button(cls, html, onClick) {
+    const btn = document.createElement('button')
+    btn.className = `st-btn ${cls}`
+    btn.innerHTML = html
+    btn.addEventListener('click', onClick)
+    btnRow.appendChild(btn)
+    return btn
+  }
 
-    const cancelDlBtn = document.createElement('button')
-    cancelDlBtn.className = 'st-btn st-btn--ghost'
-    cancelDlBtn.textContent = 'Cancel'
+  function showProgress(visible) {
+    dlTrack.style.display = visible ? '' : 'none'
+    pctEl.style.display   = visible ? '' : 'none'
+  }
+
+  function offerDownload() {
+    button('st-btn--primary', `${icon('download', 11)} Download${langSize ? ' ' + langSize : ''}`, () => {
+      entry.failed = false
+      startModelDownload(lang)
+    })
+    button('st-btn--ghost', '← Dismiss', close)
+  }
+
+  function refresh() {
+    const state = alignmentModalState(lang)
     btnRow.innerHTML = ''
-    btnRow.appendChild(cancelDlBtn)
+    showProgress(state === 'downloading')
 
-    fetch(`${API_BASE}/models/${lang}/download`, { method: 'POST' })
-      .then(r => r.json())
-      .then(({ job_id: dlJobId }) => {
-        const dlWs = new WebSocket(`${WS_BASE}/ws/models/${dlJobId}`)
+    if (state === 'downloading') {
+      const pct = modelDownload(lang).pct ?? 0
+      titleEl.textContent = `Downloading ${langName} alignment model…`
+      desc.textContent    = 'This may take a few minutes.'
+      dlFill.style.width  = pct + '%'
+      pctEl.textContent   = Math.round(pct) + '%'
+      const cancelBtn = button('st-btn--ghost', 'Cancel', () => {
+        cancelBtn.disabled = true
+        cancelBtn.textContent = 'Cancelling…'
+        cancelModelDownload(lang).finally(close)
+      })
 
-        cancelDlBtn.addEventListener('click', () => {
-          cancelDlBtn.disabled    = true
-          cancelDlBtn.textContent = 'Cancelling…'
-          fetch(`${API_BASE}/models/${lang}/download/${dlJobId}`, { method: 'DELETE' })
-            .finally(() => { dlWs.close(); close() })
+    } else if (state === 'ready') {
+      const jobs = alignmentRetryJobs(lang, app._queue)
+      titleEl.textContent = '✓ Download complete'
+      desc.textContent    = `${langName} alignment model is ready.`
+      if (jobs.length) {
+        const retryBtn = button('st-btn--primary', `${icon('retry', 11)} ${alignmentRetryLabel(jobs.length)}`, async () => {
+          retryBtn.disabled = true
+          close()
+          // Each failed job goes back to the end of the queue, in queue order.
+          for (const j of jobs) await app._queueRequest(`/queue/jobs/${j.id}/retry`)
         })
+      }
+      button('st-btn--ghost', '← Close', close)
 
-        dlWs.onmessage = ({ data }) => {
-          const ev = JSON.parse(data)
-          if (ev.type === 'heartbeat') return
+    } else if (state === 'failed') {
+      titleEl.textContent = 'Download failed'
+      desc.textContent    = 'Try again or go to Settings → Alignment Models.'
+      offerDownload()
 
-          if (ev.type === 'progress') {
-            const pct = ev.pct ?? 0
-            dlFill.style.width = pct + '%'
-            pctEl.textContent  = Math.round(pct) + '%'
+    } else {
+      titleEl.textContent = 'Alignment model required'
+      desc.innerHTML = [
+        `<strong>${langName}${langNative ? ` · ${langNative}` : ''}</strong>`,
+        langSize ? ` <span class="am-modal__size">${langSize}</span>` : '',
+        `<br>Download it to get word-level timestamps for this language.`,
+      ].join('')
+      offerDownload()
+    }
+  }
 
-          } else if (ev.type === 'done') {
-            dlWs.close()
-            dlTrack.style.display = 'none'
-            pctEl.style.display   = 'none'
-            titleEl.textContent = '✓ Download complete'
-            desc.textContent    = `${langName} alignment model is ready.`
-
-            btnRow.innerHTML = ''
-            if (retryJobId) {
-              const retryBtn = document.createElement('button')
-              retryBtn.className = 'st-btn st-btn--primary'
-              retryBtn.innerHTML = `${icon('retry', 11)} Retry transcription`
-              retryBtn.addEventListener('click', () => {
-                retryBtn.disabled = true
-                close()
-                // The failed job goes back to the end of the queue.
-                app._queueRequest(`/queue/jobs/${retryJobId}/retry`)
-              })
-              btnRow.appendChild(retryBtn)
-            }
-            const closeBtn = document.createElement('button')
-            closeBtn.className = 'st-btn st-btn--ghost'
-            closeBtn.textContent = '← Close'
-            closeBtn.addEventListener('click', close)
-            btnRow.appendChild(closeBtn)
-
-          } else if (ev.type === 'cancelled' || ev.type === 'error') {
-            dlWs.close()
-            dlTrack.style.display = 'none'
-            pctEl.style.display   = 'none'
-            titleEl.textContent = 'Download failed'
-            desc.textContent    = 'Try again or go to Settings → Alignment Models.'
-            btnRow.innerHTML    = ''
-            const closeBtn = document.createElement('button')
-            closeBtn.className = 'st-btn st-btn--ghost'
-            closeBtn.textContent = '← Close'
-            closeBtn.addEventListener('click', close)
-            btnRow.appendChild(closeBtn)
-          }
-        }
-
-        dlWs.onerror = () => {
-          dlTrack.style.display = 'none'
-          pctEl.style.display   = 'none'
-          titleEl.textContent = 'Connection error'
-          desc.textContent    = 'Lost connection to the download service.'
-          btnRow.innerHTML    = ''
-          const closeBtn = document.createElement('button')
-          closeBtn.className = 'st-btn st-btn--ghost'
-          closeBtn.textContent = '← Close'
-          closeBtn.addEventListener('click', close)
-          btnRow.appendChild(closeBtn)
-        }
-      })
-      .catch(() => {
-        dlTrack.style.display = 'none'
-        pctEl.style.display   = 'none'
-        titleEl.textContent = 'Could not start download'
-        desc.textContent    = 'Check that the API server is running.'
-        btnRow.innerHTML    = ''
-        btnRow.appendChild(dlBtn)
-        btnRow.appendChild(dismissBtn)
-        dlBtn.disabled      = false
-        dismissBtn.disabled = false
-      })
+  const unsubscribe = subscribeModelDownloads(id => {
+    if (id !== lang) return
+    const downloading = !!modelDownload(lang)
+    // Ended without installing the model: an error (a cancel closes the dialog).
+    if (wasDownloading && !downloading && alignmentModalState(lang) !== 'ready') entry.failed = true
+    wasDownloading = downloading
+    refresh()
   })
 
+  _alignmentModals[lang] = entry
+  refresh()
+  document.body.appendChild(overlay)
   return overlay
+}
+
+// Queue snapshots change which jobs a ready dialog retries.
+function refreshAlignmentModals() {
+  Object.values(_alignmentModals).forEach(m => m.refresh())
 }
