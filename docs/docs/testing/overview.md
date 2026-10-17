@@ -43,6 +43,10 @@ python3.12 -m venv /tmp/ci-venv
 
 Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-renderer.js` evaluates them in a `node:vm` context, so their top-level function declarations (e.g. `fileUrl()` from `utils.js`) can be tested with `node:test` without a browser. Pass stubs for browser globals via the second argument of `loadRenderer(files, globals)`. Views that build DOM (modals, Settings rows, the queue job modal) run against the permissive fake DOM in `tests/renderer/fake-dom.js`; `tests/renderer/models-fixture.js` provides a `GET /models` catalog. Layout and visual behaviour are verified manually in the running app.
 
+### Quality tests
+
+`tests/quality/` runs the real models on a fixed set of AMI meeting recordings and scores the transcripts; it is skipped unless `SONORUS_QUALITY=1` (and always in CI). See [Quality Tests](quality.md).
+
 ### Build tests
 
 `tests/build/` checks the packaging inputs without building anything: the per-platform lock files and GPU manifests in `locks/`, the pruning of the bundled Python and the bundled import check (see [Packaging](../distribution/packaging.md#python-packages-lock-files)), the installer size check, the absence of a first-run setup in the Electron main process, the Electron version (native Wayland), the Visual C++ runtime copied into the Windows build and the app icons (PNG, ICNS and ICO are read with Node built-ins, since CI has no `node_modules`). Installers themselves are verified by building and running them.
