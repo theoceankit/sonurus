@@ -4,7 +4,8 @@
 // Proves that the bundled backend still imports after the installer left out
 // EXCLUDED_PACKAGES (scripts/lock-backend.js) and the files pruned by
 // scripts/bundle-backend.js: the bundled interpreter imports the backend and
-// the pipeline libraries, and none of the excluded packages is installed.
+// the pipeline libraries, none of the excluded packages is installed, and
+// third-party telemetry is switched off (app/__init__.py).
 // Imports done lazily inside functions (when models load) are not covered;
 // a transcription on a built app covers those.
 //
@@ -51,6 +52,12 @@ function checkSource() {
     '        pass',
     'if found:',
     '    sys.exit("excluded packages are installed: " + ", ".join(found))',
+    // Third-party telemetry is switched off by app/__init__.py (imported above).
+    'import os',
+    'from pyannote.audio.telemetry.metrics import is_metrics_enabled',
+    'from huggingface_hub import constants',
+    'if is_metrics_enabled() or os.environ.get("OTEL_SDK_DISABLED") != "true" or not constants.HF_HUB_DISABLE_TELEMETRY:',
+    '    sys.exit("third-party telemetry is not switched off")',
     `print("bundled imports ok (${BUNDLED_IMPORTS.length} modules)")`,
   ].join('\n')
 }
@@ -73,7 +80,7 @@ if (require.main === module) {
       stdio: 'inherit',
     })
     if (res.error) throw res.error
-    if (res.status !== 0) console.error('::error::the bundled backend does not import')
+    if (res.status !== 0) console.error('::error::the bundled backend check failed')
     process.exitCode = res.status ?? 1
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true })
