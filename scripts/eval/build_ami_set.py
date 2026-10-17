@@ -12,12 +12,19 @@ range requests) plus the manual annotations, and writes per clip:
                   Bluetooth headset, quiet participant, plain mic), then summed
   uneven.wav      clean, with one participant 20 dB down
 
+and with --chromium also call.wav recorded the way the app records the
+microphone (scripts/eval/chromium_capture.js, Electron, real time ~3 min each):
+
+  chromium-default.webm   Chromium's echo cancellation, noise suppression and
+                          auto gain control on (the app's getUserMedia defaults)
+  chromium-raw.webm       the same recording path with all three off
+
 into $SONORUS_EVAL_CACHE/ami (default ~/.cache/sonorus-eval/ami). Clips and
 devices are fixed in tests/quality/ami_manifest.json; downloaded audio is
 checked against the sha256 recorded there (--record-hashes fills them in).
 Needs ffmpeg with libopus on PATH.
 
-    .venv/bin/python scripts/eval/build_ami_set.py
+    .venv/bin/python scripts/eval/build_ami_set.py [--chromium]
 """
 import argparse
 import hashlib
@@ -200,10 +207,26 @@ def build_clip(manifest, clip, zf: zipfile.ZipFile, out: Path, record: bool) -> 
     print(f"{clip['id']}: {meeting} {start}-{end} s, {len(speakers)} speakers → {clip_dir}")
 
 
+def chromium_capture(clip_dir: Path) -> None:
+    electron = ROOT / "node_modules" / ".bin" / ("electron.cmd" if os.name == "nt" else "electron")
+    for mode in ("default", "raw"):
+        out = clip_dir / f"chromium-{mode}.webm"
+        if out.exists():
+            continue
+        part = out.with_suffix(".part.webm")
+        subprocess.run([str(electron), str(ROOT / "scripts" / "eval" / "chromium_capture.js"),
+                        str(clip_dir / "call.wav"), str(part), mode], check=True,
+                       stdout=subprocess.DEVNULL)
+        part.rename(out)
+        print(f"{clip_dir.name}: {out.name}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--record-hashes", action="store_true",
                         help="write missing sha256 values into the manifest instead of failing")
+    parser.add_argument("--chromium", action="store_true",
+                        help="also record call.wav through Chromium's microphone path (needs npm ci)")
     args = parser.parse_args()
     if shutil.which("ffmpeg") is None:
         sys.exit("ffmpeg not found on PATH")
@@ -224,6 +247,9 @@ def main() -> None:
     with zipfile.ZipFile(zip_path) as zf:
         for clip in manifest["clips"]:
             build_clip(manifest, clip, zf, out, args.record_hashes)
+    if args.chromium:
+        for clip in manifest["clips"]:
+            chromium_capture(out / clip["id"])
 
     if args.record_hashes:
         MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")

@@ -26,6 +26,14 @@ def test_normalize_keeps_inner_apostrophes_only():
     assert metrics.normalize("'cause it's the users'") == ["cause", "it's", "the", "users"]
 
 
+def test_normalize_spells_out_numbers_like_the_reference():
+    # Whisper writes digits, AMI transcribes spoken words.
+    assert metrics.normalize("8, 9, 10 and 25% of 1,250") == [
+        "eight", "nine", "ten", "and", "twenty", "five", "percent", "of",
+        "one", "thousand", "two", "hundred", "fifty"]
+    assert metrics.normalize("a 12.5 euro thing") == ["a", "twelve", "point", "five", "euro", "thing"]
+
+
 # ── WER ──────────────────────────────────────────────────────────────────────
 
 def test_wer_counts_substitutions_deletions_insertions():
@@ -190,3 +198,16 @@ def test_speech_gate_opens_around_own_speech_with_fades():
     assert gate[449] == pytest.approx(1.0)      # just before 4.5 s: open (pad)
     assert 0 < gate[450] < 1                    # fade-out from 4.5 s
     assert gate[700] == 0                       # 7.0 s: closed
+
+
+@pytest.mark.parametrize("shift", [0, 480, -320])
+def test_estimate_lag_finds_the_shift_of_a_recording(shift):
+    rng = np.random.default_rng(0)
+    x = rng.standard_normal(16000 * 3)
+    y = np.concatenate([np.zeros(shift), x])[: len(x)] if shift >= 0 else x[-shift:]
+    assert metrics.estimate_lag(x, 0.5 * y, 16000) == pytest.approx(shift / 16000)
+
+
+def test_shift_words_moves_times():
+    words = [metrics.Word("a", 1.0, 1.5, "S1")]
+    assert metrics.shift_words(words, -0.25) == [metrics.Word("a", 0.75, 1.25, "S1")]
