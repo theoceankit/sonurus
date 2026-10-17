@@ -91,6 +91,13 @@ test('import check covers the pipeline and every excluded package', () => {
   for (const name of EXCLUDED_PACKAGES) assert.ok(src.includes(JSON.stringify(name)), name)
 })
 
+test('import check proves the bundled backend has third-party telemetry off', () => {
+  const src = imports.checkSource()
+  assert.ok(src.includes('is_metrics_enabled()'), 'pyannote metrics must be checked')
+  assert.ok(src.includes('HF_HUB_DISABLE_TELEMETRY'), 'Hugging Face telemetry must be checked')
+  assert.ok(src.includes('OTEL_SDK_DISABLED'), 'the OpenTelemetry SDK must be checked')
+})
+
 test('every installer build checks the bundled imports right after bundling', () => {
   const wf = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'build.yml'), 'utf8')
   const bundles = wf.match(/run: node scripts\/bundle-backend\.js\n\s+- name: [^\n]+\n\s+run: node scripts\/check-bundled-imports\.js/g) || []
