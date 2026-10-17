@@ -26,7 +26,8 @@
         "to": "backend/",
         "filter": [
           "**/*",
-          "!*.tar.gz"
+          "!*.tar.gz",
+          "!*.zip"
         ]
       },
       {
