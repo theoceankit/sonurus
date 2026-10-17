@@ -1,0 +1,47 @@
+{
+  "source": "AMI Meeting Corpus, https://groups.inf.ed.ac.uk/ami/corpus/ \u2014 CC BY 4.0",
+  "audio_url": "https://groups.inf.ed.ac.uk/ami/AMICorpusMirror/amicorpus/{meeting}/audio/{meeting}.Headset-{channel}.wav",
+  "annotations_url": "https://groups.inf.ed.ac.uk/ami/AMICorpusAnnotations/ami_public_manual_1.6.2.zip",
+  "annotations_sha256": "b56e5babb2496b8795deeeda7e71178d7fbc9963f94276cf2a3f4b56ebbc9f9d",
+  "clips": [
+    {
+      "id": "es2002b",
+      "meeting": "ES2002b",
+      "start": 1720,
+      "end": 1900
+    },
+    {
+      "id": "es2002c",
+      "meeting": "ES2002c",
+      "start": 1650,
+      "end": 1830
+    },
+    {
+      "id": "es2002d",
+      "meeting": "ES2002d",
+      "start": 110,
+      "end": 290
+    }
+  ],
+  "devices": {
+    "FEE005": "laptop",
+    "MEE006": "bluetooth",
+    "MEE007": "quiet",
+    "MEE008": "plain"
+  },
+  "uneven_quiet_speaker": "MEE008",
+  "pcm_sha256": {
+    "ES2002b.0.1720-1900": "67ae702b35b611ce9e665c02075183bad6ad93053fd9afc8d06bfe56facd552e",
+    "ES2002b.1.1720-1900": "df915e9a6f933fb0f6079997331b27b53e74ea99df782b0a966091e67461a9f2",
+    "ES2002b.2.1720-1900": "5081a67db9af8d3056733014620c130bab33aea061e1a299c08a54cdfb4d39b6",
+    "ES2002b.3.1720-1900": "dab7b09d582c5ae70f4a4c74151dd1c083b764c0dbe18e4e11f85640e7f65aff",
+    "ES2002c.0.1650-1830": "b9761d463d954ffcc7baadbd258dd61a64817c4885972c36d4fae41c1f780777",
+    "ES2002c.1.1650-1830": "2e7920a2f499a83c02ab36e45c086242089e1f579af93facfac2944d58cf793d",
+    "ES2002c.2.1650-1830": "86f3825dcb2f6544894c6ca202fbc7a4f7a482654fbda2af8c5e818e74f51c03",
+    "ES2002c.3.1650-1830": "8bc3905a82f1b7a0254281cab27ec7505a31fb5f542ff38ef5c277eab4e8bde1",
+    "ES2002d.0.110-290": "765464d6a9cf3a9c81c60658d7e659d3eeb82d4b4b920c5abc6bced9d11c1bd1",
+    "ES2002d.1.110-290": "2f48d592fe948830b732b9909d57187d2bd8a854b818ced6e45829b6b0458e7f",
+    "ES2002d.2.110-290": "6a1c3d8864057ec66ecc7cebbcddc67b4ded76bc86a10d8bb8bb47a0eab8a30d",
+    "ES2002d.3.110-290": "de9d74f77ed275092520fa7913bb53940c610d00bc03ee68bfebd9691bb814fb"
+  }
+}
