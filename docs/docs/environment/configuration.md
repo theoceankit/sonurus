@@ -48,6 +48,8 @@ Used when the backend is started manually (`uvicorn ...`) or set by `electron/ba
 | `SONORUS_PACKAGED` | — | `1` when the installed app started the backend (set by Electron); reported by `GET /health` as `packaged`. |
 | `DB_PATH` | `$SONORUS_DATA_DIR/speaker_memory.db` | Override the SQLite database path. |
 
+The backend also sets `PYANNOTE_METRICS_ENABLED`, `OTEL_SDK_DISABLED`, `HF_HUB_DISABLE_TELEMETRY` and `DO_NOT_TRACK` itself, overriding any value you set — third-party telemetry stays off (see [Privacy](../privacy.md)).
+
 ### SONORUS_DATA_DIR
 
 The most important variable for production deployments. All user data resolves relative to it:

@@ -59,3 +59,9 @@ def terminated_worker(args, conn):
     import signal
     conn.send(("progress", "Transcribing audio…"))
     os.kill(os.getpid(), signal.SIGTERM)
+
+
+def env_worker(names, conn):
+    """Sends back the given environment variables as the child sees them."""
+    import os
+    conn.send({name: os.environ.get(name) for name in names})
