@@ -211,3 +211,9 @@ def test_estimate_lag_finds_the_shift_of_a_recording(shift):
 def test_shift_words_moves_times():
     words = [metrics.Word("a", 1.0, 1.5, "S1")]
     assert metrics.shift_words(words, -0.25) == [metrics.Word("a", 0.75, 1.25, "S1")]
+
+
+def test_speaker_recall_is_the_share_of_each_speakers_words_recognised():
+    ref = [_w("a", 0), _w("b", 1), _w("c", 2, "bob"), _w("d", 3, "bob")]
+    hyp = [_w("a", 0), _w("b", 1), _w("c", 2, "S2")]
+    assert metrics.speaker_recall(ref, hyp) == {"ann": 1.0, "bob": 0.5}

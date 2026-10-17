@@ -4,10 +4,17 @@ import time
 from pathlib import Path
 
 ROWS: list[dict] = []   # one per variant, from harness.evaluate()
+DEVICES: dict[str, str] = {}  # speaker → device in call.wav, from the manifest
 NOTES: list[str] = []
 
 
 def add(result: dict, variant) -> None:
+    if not DEVICES:
+        import json
+        from pathlib import Path
+        manifest = json.loads((Path(__file__).parent / "ami_manifest.json").read_text())
+        DEVICES.update({s: d for s, d in manifest["devices"].items()})
+        DEVICES[manifest["uneven_quiet_speaker"]] += ", −20 dB in uneven"
     ROWS.append({**result, "what": variant.what, "base": variant.base})
 
 
@@ -22,14 +29,22 @@ def _pct(x: float) -> str:
 def markdown() -> str:
     lines = ["# Audio quality run", "", time.strftime("%Y-%m-%d %H:%M"), ""]
     lines += [f"- {n}" for n in NOTES] + [""]
-    lines += ["| Variant | Compared with | WER | Speaker words | Missed utterances (3+ words) | Missed short | Recognised | Similarity | What |",
+    lines += ["| Variant | Compared with | WER | Speaker words | Missed utterances (3+ words) | Missed short | Recognised | Similarity (own / other) | What |",
               "|---|---|---|---|---|---|---|---|---|"]
     for r in ROWS:
         lines.append(
             f"| {r['variant']} | {r['base'] or '–'} | {_pct(r['wer'])} | {_pct(r['speaker_acc'])} "
             f"| {r['missed']} / {r['utterances']} | {r['missed_short']} / {r['short']} "
             f"| {r['recognised']} / {r['named_total']} "
-            f"| {r['similarity']:.3f} | {r['what']} |")
+            f"| {r['similarity']:.3f} / {r['other_similarity']:.3f} | {r['what']} |")
+    speakers = sorted({s for r in ROWS for s in r["recall_by_speaker"]})
+    if speakers:
+        lines += ["", "## Words recognised per speaker", "",
+                  "| Variant | " + " | ".join(f"{s} ({DEVICES.get(s, '')})" for s in speakers) + " |",
+                  "|---|" + "---|" * len(speakers)]
+        for r in ROWS:
+            lines.append(f"| {r['variant']} | " + " | ".join(
+                _pct(r["recall_by_speaker"].get(s)) for s in speakers) + " |")
     lines += ["", "## Per clip", "",
               "| Variant | Clip | Lang | WER | sub / del / ins | Speakers (hyp / ref) | Speaker words "
               "| Missed | Missed level, dBFS | Found level (median) | Recognised / wrong / new | Similarity | Lag, ms | Time, s |",
