@@ -43,6 +43,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      spellcheck: false,
     },
   })
 
@@ -124,6 +125,12 @@ ipcMain.handle('restart-backend', async () => {
 })
 
 app.whenReady().then(async () => {
+  // No spell checking: transcripts are in any language, and on Windows and
+  // Linux Chromium downloads its dictionaries from Google at start-up. An
+  // empty language list is what stops the download; macOS uses the system
+  // spell checker (no download, setSpellCheckerLanguages is a no-op there).
+  session.defaultSession.setSpellCheckerEnabled(false)
+  session.defaultSession.setSpellCheckerLanguages([])
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     // Microphone only: system audio is captured by the backend on every OS.
     callback(permission === 'media')
