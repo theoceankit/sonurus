@@ -338,3 +338,4 @@ Every UI icon is a file in `electron/assets/icons/`, rendered by `icons.js` as a
 - CORS in FastAPI is restricted to `null`, `127.0.0.1`, `localhost`
 - Media permissions granted only for `permission === 'media'` (microphone)
 - `will-navigate` is cancelled for the main window: the page never navigates itself
+- Spell checking off (`spellcheck: false`, session spell checker disabled with no languages): Chromium downloads no dictionaries from Google — see [Privacy](../../privacy.md)

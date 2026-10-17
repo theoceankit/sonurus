@@ -33,7 +33,12 @@ with the libraries' own switches:
 | `HF_HUB_DISABLE_TELEMETRY` | `1` | Hugging Face Hub and Transformers usage telemetry, model downloads included |
 | `DO_NOT_TRACK` | `1` | The cross-tool opt-out, honoured by `huggingface_hub` and others |
 
-They are set in `app/__init__.py`, which Python runs before any other backend module — so before
+onnxruntime (loaded with pyannote in the pipeline process) has no environment switch: its
+Windows builds report telemetry events through Windows diagnostic data unless
+`onnxruntime.disable_telemetry_events()` is called, so the pipeline process calls it before any model
+loads (`app.disable_onnxruntime_telemetry()`; a no-op on macOS and Linux).
+
+The variables are set in `app/__init__.py`, which Python runs before any other backend module — so before
 pyannote, WhisperX or Transformers is imported — in the backend and in every child process it starts
 (the pipeline, model downloads), which also inherit them. The values are assigned, not defaulted:
 setting these variables in your environment or in `.env` cannot turn telemetry back on.
@@ -41,4 +46,14 @@ setting these variables in your environment or in `.env` cannot turn telemetry b
 `tests/test_telemetry.py` covers this, and `scripts/check-bundled-imports.js` checks it on the
 bundled backend of every installer build.
 
-The Electron app starts no crash reporter and contains no analytics.
+## Electron app
+
+The app starts no crash reporter, contains no analytics and loads no remote content: the window shows
+local files and talks only to the backend on `127.0.0.1`.
+
+Spell checking is off (`electron/main.js`): `spellcheck: false` in the window, and the session has the
+spell checker disabled and no languages. With a language set, Chromium on Windows and Linux downloads
+Hunspell dictionaries from Google (`redirector.gvt1.com`) at start-up; an empty language list is what
+stops that download. macOS uses the system spell checker and downloads nothing.
+
+`tests/renderer/no-third-party-requests.test.js` covers this.
