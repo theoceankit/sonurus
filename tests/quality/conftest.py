@@ -73,5 +73,15 @@ def pipeline():
     from tests.quality.harness import Pipeline
     started = time.monotonic()
     p = Pipeline(models_dir())
-    report.note(f"models loaded in {time.monotonic() - started:.0f} s from {models_dir()} (device {p.device})")
+    from importlib.metadata import version
+    from app.config import WHISPER_COMPUTE_TYPE_CPU, WHISPER_COMPUTE_TYPE_CUDA, WHISPER_MODEL
+    compute = WHISPER_COMPUTE_TYPE_CUDA if p.device == "cuda" else WHISPER_COMPUTE_TYPE_CPU
+    gpu = ""
+    if p.device == "cuda":
+        import torch
+        gpu = f", {torch.cuda.get_device_name(0)}"
+    report.note(f"Models: Whisper {WHISPER_MODEL} ({compute}, {p.device}{gpu}), pyannote diarization and "
+                f"embeddings, from {models_dir()}; loaded in {time.monotonic() - started:.0f} s")
+    report.note("Versions: " + ", ".join(f"{m} {version(m)}" for m in
+                                       ("whisperx", "faster-whisper", "pyannote.audio", "torch")))
     return p
