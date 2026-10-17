@@ -19,11 +19,33 @@ FILLERS = frozenset({
 })
 
 _TOKEN = re.compile(r"[a-z0-9]+(?:'[a-z0-9]+)*")
+_THOUSANDS = re.compile(r"(?<=\d),(?=\d{3}\b)")
+_DECIMAL = re.compile(r"(\d)\.(\d)")
+
+_ONES = ("zero one two three four five six seven eight nine ten eleven twelve thirteen "
+         "fourteen fifteen sixteen seventeen eighteen nineteen").split()
+_TENS = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
+
+
+def _spell(n: int) -> list[str]:
+    """Spoken English words of 0 ≤ n < 1 000 000, without "and" (AMI style)."""
+    if n < 20:
+        return [_ONES[n]]
+    if n < 100:
+        return [_TENS[n // 10]] + (_spell(n % 10) if n % 10 else [])
+    if n < 1000:
+        return [_ONES[n // 100], "hundred"] + (_spell(n % 100) if n % 100 else [])
+    return _spell(n // 1000) + ["thousand"] + (_spell(n % 1000) if n % 1000 else [])
 
 
 def normalize(text: str) -> list[str]:
-    """Lowercase words without punctuation and fillers; hyphens split words."""
-    words = _TOKEN.findall(text.lower().replace("-", " "))
+    """Lowercase words without punctuation and fillers; hyphens split words;
+    numbers written as digits are spelled out, as the AMI reference has them."""
+    text = _THOUSANDS.sub("", text.lower().replace("%", " percent"))
+    text = _DECIMAL.sub(r"\1 point \2", text.replace("-", " "))
+    words = []
+    for w in _TOKEN.findall(text):
+        words += _spell(int(w)) if w.isdigit() and int(w) < 1_000_000 else [w]
     return [w for w in words if w not in FILLERS]
 
 
@@ -211,3 +233,21 @@ def recognition(hyp_to_ref: dict, hyp_to_known: dict) -> Recognition:
         else:
             wrong += 1
     return Recognition(correct, wrong, new)
+
+
+def estimate_lag(source, recording, sample_rate: int, max_lag: float = 1.0) -> float:
+    """Seconds by which `recording` is late against `source` (negative: it started late
+    and misses the beginning). Cross-correlation of a stretch from the middle."""
+    from scipy.signal import correlate
+
+    m = int(max_lag * sample_rate)
+    src = np.asarray(source, dtype=np.float64)
+    rec = np.asarray(recording, dtype=np.float64)
+    lo = min(m, len(src) // 4)
+    probe = src[lo:lo + min(len(src) - 2 * lo, 10 * sample_rate)]
+    c = correlate(rec[:lo + len(probe) + m], probe, mode="valid", method="fft")
+    return (int(np.argmax(np.abs(c))) - lo) / sample_rate
+
+
+def shift_words(words: list[Word], seconds: float) -> list[Word]:
+    return [Word(w.text, w.start + seconds, w.end + seconds, w.speaker) for w in words]
