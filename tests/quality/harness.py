@@ -173,6 +173,7 @@ def evaluate(pipeline: Pipeline, variant: Variant, work: Path) -> dict:
             "ref_speakers": len(ref_json["speakers"]),
             "hyp_speakers": len({s for s in hyp_to_ref}),
             "speaker_acc": metrics.speaker_accuracy(ref, hyp, hyp_to_ref),
+            "recall_by_speaker": metrics.speaker_recall(ref, hyp),
             "utterances": len(long_utts), "missed": len(missed),
             "short": len(utts) - len(long_utts), "missed_short": len(missed_all) - len(missed),
             "missed_level": [round(level(u), 1) for u in missed],
@@ -192,11 +193,18 @@ def evaluate(pipeline: Pipeline, variant: Variant, work: Path) -> dict:
         else:
             hyp_to_known = {h: memory.get_name(h) for h in hyp_to_ref}
             rec = metrics.recognition(hyp_to_ref, hyp_to_known)
-            sims = {ref_name: metrics.cosine(emb, memory.known_speakers[named[ref_name]])
-                    for ref_name, emb in _speaker_embeddings(transcript, hyp_to_ref).items()
-                    if ref_name in named and named[ref_name] in memory.known_speakers}
+            # Similarity of each person's voice here to their own profile and,
+            # for comparison, the highest one to someone else's profile.
+            profiles = {n: memory.known_speakers[i] for n, i in named.items() if i in memory.known_speakers}
+            own, other = [], []
+            for ref_name, emb in _speaker_embeddings(transcript, hyp_to_ref).items():
+                if ref_name in profiles:
+                    own.append(metrics.cosine(emb, profiles[ref_name]))
+                    other.append(max((metrics.cosine(emb, p) for n, p in profiles.items() if n != ref_name),
+                                     default=float("nan")))
             row.update(recognised=rec.correct, wrong=rec.wrong, new=rec.new,
-                       similarity=float(np.mean(list(sims.values()))) if sims else float("nan"))
+                       similarity=float(np.mean(own)) if own else float("nan"),
+                       other_similarity=float(np.nanmean(other)) if other else float("nan"))
             # as the queue does after every job
             CommitService(memory, storage).commit_recognized_speakers(transcript)
         clips.append(row)
@@ -215,4 +223,9 @@ def evaluate(pipeline: Pipeline, variant: Variant, work: Path) -> dict:
         "recognised": sum(c["recognised"] for c in later),
         "named_total": sum(c["recognised"] + c["wrong"] + c["new"] for c in later),
         "similarity": float(np.nanmean([c["similarity"] for c in later])),
+        "other_similarity": float(np.nanmean([c["other_similarity"] for c in later])),
+        "recall_by_speaker": {
+            spk: float(np.mean([c["recall_by_speaker"][spk] for c in clips if spk in c["recall_by_speaker"]]))
+            for spk in sorted({s for c in clips for s in c["recall_by_speaker"]})
+        },
     }

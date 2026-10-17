@@ -251,3 +251,13 @@ def estimate_lag(source, recording, sample_rate: int, max_lag: float = 1.0) -> f
 
 def shift_words(words: list[Word], seconds: float) -> list[Word]:
     return [Word(w.text, w.start + seconds, w.end + seconds, w.speaker) for w in words]
+
+
+def speaker_recall(ref: list[Word], hyp: list[Word]) -> dict[str, float]:
+    """Per reference speaker: share of their words that are in the transcript (aligned as equal)."""
+    found = {i for op, i, _ in align([w.text for w in ref], [w.text for w in hyp]) if op == "equal"}
+    out = {}
+    for spk in sorted({w.speaker for w in ref}):
+        idx = [k for k, w in enumerate(ref) if w.speaker == spk]
+        out[spk] = sum(k in found for k in idx) / len(idx)
+    return out

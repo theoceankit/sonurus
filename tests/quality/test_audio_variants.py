@@ -13,7 +13,10 @@ from tests.quality import harness, report
 # Allowed degradation against the base variant (absolute).
 WER_TOLERANCE = 0.02
 SPEAKER_ACC_TOLERANCE = 0.05
-RECOGNISED_TOLERANCE = 1  # named speakers recognised in the later clips
+# Cosine similarity of a named speaker's later voice to their profile. The
+# recognised count itself is not checked: with similarities near the
+# matching threshold it moves by two between runs of nearly equal audio.
+SIMILARITY_TOLERANCE = 0.03
 
 _results: dict[str, dict] = {}
 
@@ -42,6 +45,6 @@ def test_variant(pipeline, tmp_path_factory, name):
         problems.append(f"WER {result['wer']:.3f} vs {base['wer']:.3f}")
     if result["speaker_acc"] < base["speaker_acc"] - SPEAKER_ACC_TOLERANCE:
         problems.append(f"speaker words {result['speaker_acc']:.3f} vs {base['speaker_acc']:.3f}")
-    if result["recognised"] < base["recognised"] - RECOGNISED_TOLERANCE:
-        problems.append(f"recognised {result['recognised']} vs {base['recognised']}")
+    if result["similarity"] < base["similarity"] - SIMILARITY_TOLERANCE:
+        problems.append(f"speaker similarity {result['similarity']:.3f} vs {base['similarity']:.3f}")
     assert not problems, f"{name} is worse than {variant.base}: " + "; ".join(problems)
