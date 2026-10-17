@@ -5,7 +5,8 @@
 // EXCLUDED_PACKAGES (scripts/lock-backend.js) and the files pruned by
 // scripts/bundle-backend.js: the bundled interpreter imports the backend and
 // the pipeline libraries, none of the excluded packages is installed, and
-// third-party telemetry is switched off (app/__init__.py).
+// third-party telemetry is switched off (app/__init__.py), and NLTK's punkt_tab
+// data for alignment loads from python-dist/nltk_data.
 // Imports done lazily inside functions (when models load) are not covered;
 // a transcription on a built app covers those.
 //
@@ -60,6 +61,12 @@ function checkSource() {
     '    sys.exit("third-party telemetry is not switched off")',
     // The pipeline process calls it; fails if onnxruntime drops the switch.
     'import app; app.disable_onnxruntime_telemetry()',
+    // Alignment's sentence data loads offline, for every language WhisperX maps.
+    'from app.nltk_data import use_bundled_nltk_data; use_bundled_nltk_data()',
+    'import nltk.data',
+    'from whisperx.utils import PUNKT_LANGUAGES',
+    'for lang in sorted(set(PUNKT_LANGUAGES.values())):',
+    '    nltk.data.load(f"tokenizers/punkt_tab/{lang}.pickle")',
     `print("bundled imports ok (${BUNDLED_IMPORTS.length} modules)")`,
   ].join('\n')
 }

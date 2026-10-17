@@ -57,6 +57,10 @@ def _pipeline_worker(args: dict, conn) -> None:
             suppress_ml_noise("startup")
         import app
         app.disable_onnxruntime_telemetry()
+        # Sentence data for alignment ships with the app: never ~/nltk_data,
+        # never a download.
+        from app import nltk_data
+        nltk_data.use_bundled_nltk_data()
         from app.services import service_factory
         if quiet:
             # Again once the ML libraries are loaded: Lightning resets its

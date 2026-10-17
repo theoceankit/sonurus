@@ -75,6 +75,7 @@ For other configurations see [pytorch.org/get-started/locally](https://pytorch.o
 
 ```bash
 pip install -r requirements.txt
+python scripts/fetch_nltk_data.py   # sentence data for alignment (NLTK punkt_tab), into the venv
 ```
 
 ### 4. Install Electron dependencies

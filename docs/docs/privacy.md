@@ -16,10 +16,11 @@ Sonorus goes online only to download what it needs to run:
 |---|---|---|
 | Model download (Whisper, diarization, alignment) | You start it in Settings → Models, or the alignment model dialog | Hugging Face Hub (`huggingface_hub.snapshot_download`, with your Hugging Face token) |
 | GPU acceleration download | You start it in Settings → GPU acceleration (packaged Linux / Windows) | The wheel URLs of the bundled GPU manifest (`pypi.nvidia.com`, `download-r2.pytorch.org`) |
-| NLTK sentence tokenizer data (`punkt_tab`) | The first alignment, if it is not in `~/nltk_data` yet — downloaded by WhisperX | NLTK data on GitHub |
 
 Transcription itself is offline: the pipeline process runs with `HF_HUB_OFFLINE=1`, so a missing
-model is an error, never a download in the middle of a job.
+model is an error, never a download in the middle of a job. The sentence data alignment needs
+(NLTK `punkt_tab`) ships with the app: the pipeline process reads it only from the app's Python
+(`<python>/nltk_data`) and refuses NLTK downloads, so `~/nltk_data` is neither read nor written.
 
 ## Third-party telemetry
 
