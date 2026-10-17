@@ -4,13 +4,14 @@
 // Assembles backend-dist/ so electron-builder can include it as extraResources:
 // python-build-standalone with every backend library installed from the
 // platform's lock file (locks/packaged-<platform>-<arch>.txt) minus files the
-// backend never runs (pruneSitePackages), app/ sources, all Python code precompiled, ffmpeg, and the GPU download manifest
+// backend never runs (pruneSitePackages), NLTK's punkt_tab sentence data for
+// alignment (scripts/fetch_nltk_data.py), app/ sources, all Python code precompiled, ffmpeg, and the GPU download manifest
 // (Linux, Windows). The packaged app installs nothing by itself.
 //
 // Run before building:  node scripts/bundle-backend.js
 // Or via npm:           npm run bundle-backend
 //
-// The Python tarball is cached in backend-dist/; python-dist/ is re-extracted
+// The Python tarball and the punkt_tab archive are cached in backend-dist/; python-dist/ is re-extracted
 // on every run so libraries from an older lock never linger. Lock files are
 // regenerated with scripts/lock-backend.js.
 
@@ -205,6 +206,11 @@ async function main() {
   console.log('Removing test suites and torch headers…')
   const prunedMiB = pruneSitePackages(sitePackages) / 1048576
   console.log(`Removed ${prunedMiB.toFixed(0)} MiB.`)
+
+  // ── Sentence data for alignment (python-dist/nltk_data, archive cached) ──
+  console.log('Installing NLTK punkt_tab…')
+  const nltkStatus = run(exe, [path.join(ROOT, 'scripts', 'fetch_nltk_data.py'), '--cache', DEST])
+  if (nltkStatus !== 0) throw new Error(`fetch_nltk_data.py exited with code ${nltkStatus}`)
 
   // ── App source (always refreshed) ────────────────────────────────────────
   console.log('Copying app source…')

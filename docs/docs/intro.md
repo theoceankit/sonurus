@@ -98,6 +98,7 @@ Stored in `speaker_memory.db` (SQLite, location: `$SONORUS_DATA_DIR`):
 ```bash
 # Install Python deps (PyTorch separately — see environment/setup.md)
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python scripts/fetch_nltk_data.py   # alignment sentence data
 
 # Start the app (backend starts automatically)
 npm ci && npm start

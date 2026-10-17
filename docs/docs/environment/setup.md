@@ -70,7 +70,13 @@ python3.12 -m venv .venv
 
 # Install remaining dependencies
 .venv/bin/pip install -r requirements.txt
+
+# Sentence data for alignment (NLTK punkt_tab) into .venv/nltk_data
+.venv/bin/python scripts/fetch_nltk_data.py
 ```
+
+The app never downloads NLTK data by itself and does not use `~/nltk_data`: without this step a
+transcription fails at alignment with an error that names the missing data.
 
 ### Run in dev mode
 
