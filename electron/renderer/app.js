@@ -359,13 +359,14 @@ const app = {
       // Rebuilding the cards would end a drag; dragend renders the latest.
       if (!this._queueDrag) this._renderJobQueue()
       document.getElementById('main-panel').firstElementChild?._onQueue?.()
+      refreshAlignmentModals()
     } else if (event.type === 'job_done') {
       this.invalidateSidebar()
       this._loadSidebar()
       window.showToast?.(`✓ ${event.title}`)
     } else if (event.type === 'job_failed') {
       if (event.error_code === 'alignment_model_missing') {
-        document.body.appendChild(renderAlignmentModal(event.error_language, event.job_id))
+        showAlignmentModal(event.error_language)
       } else {
         window.showToast?.(`Transcription failed: ${event.title}`, 'error')
       }

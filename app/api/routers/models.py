@@ -26,6 +26,11 @@ _HEARTBEAT_INTERVAL = 15  # seconds between heartbeats when no progress arrives
 _download_jobs: dict[str, _queue.Queue] = {}
 # job_id → threading.Event for cancellation
 _cancel_events: dict[str, threading.Event] = {}
+# model_id → job_id of its running download: one download per model, since two
+# would write into the same cache (e.g. two queued jobs failing on one missing
+# alignment model). A second POST joins the running one.
+_running_downloads: dict[str, str] = {}
+_running_lock = threading.Lock()
 
 
 def active_downloads() -> bool:
@@ -71,11 +76,17 @@ async def download_model(model_id: str, body: DownloadRequest = DownloadRequest(
     except ValueError:
         return JSONResponse({"detail": f"Unknown model '{model_id}'"}, status_code=422)
 
-    job_id = str(uuid.uuid4())
-    q: _queue.Queue = _queue.Queue()
-    cancel_event = threading.Event()
-    _download_jobs[job_id] = q
-    _cancel_events[job_id] = cancel_event
+    with _running_lock:
+        running = _running_downloads.get(model_id)
+        if running is not None:
+            log.info(f"Download already running: {model_id} (job {running})")
+            return {"job_id": running}
+        job_id = str(uuid.uuid4())
+        q: _queue.Queue = _queue.Queue()
+        cancel_event = threading.Event()
+        _download_jobs[job_id] = q
+        _cancel_events[job_id] = cancel_event
+        _running_downloads[model_id] = job_id
     hf_token = body.hf_token or None
 
     def _run():
@@ -95,8 +106,10 @@ async def download_model(model_id: str, body: DownloadRequest = DownloadRequest(
             log.error(f"Download error: {model_id}: {exc}", exc_info=True)
             q.put({"type": "error", "message": str(exc)})
         finally:
-            _download_jobs.pop(job_id, None)
-            _cancel_events.pop(job_id, None)
+            with _running_lock:
+                _download_jobs.pop(job_id, None)
+                _cancel_events.pop(job_id, None)
+                _running_downloads.pop(model_id, None)
 
     loop = asyncio.get_running_loop()
     loop.run_in_executor(_executor, _run)
