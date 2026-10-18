@@ -158,3 +158,9 @@ Full documentation is in `docs/` (Docusaurus). To run locally:
 ```bash
 cd docs && npm ci && npm start
 ```
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). If you work with an AI coding tool, it reads [AGENTS.md](AGENTS.md).

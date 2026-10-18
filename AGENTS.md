@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Instructions for AI coding agents working in this repository. Human contributors: start with
-[README.md](README.md) and the docs site in `docs/` — everything here is also true for you.
+[CONTRIBUTING.md](CONTRIBUTING.md) — everything here is also true for you.
 
 Sonorus is a local desktop app: an Electron UI (vanilla JS, no framework) over a FastAPI backend that
 transcribes audio with WhisperX, diarizes with PyAnnote and remembers speakers across recordings in
