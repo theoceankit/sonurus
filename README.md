@@ -18,10 +18,19 @@ Transcribes audio files using WhisperX, automatically matches speakers against a
 
 ---
 
-## Requirements
+## Install
 
-- Python 3.11+
-- Node.js (for Electron)
+Installers for Linux, macOS (Apple Silicon) and Windows are on the
+[Releases](https://github.com/theoceankit/sonurus/releases) page. They include Python and every
+library the app needs; transcription models are downloaded in **Settings → Models**. Per-platform
+instructions: `docs/docs/build-and-install/`.
+
+---
+
+## Requirements (from source)
+
+- Python 3.12
+- Node.js 22.12+
 - ffmpeg (for audio decoding)
 - A [HuggingFace token](https://huggingface.co/settings/tokens) with access to the gated PyAnnote models
 - CUDA optional (CPU works, slower)
@@ -39,34 +48,25 @@ brew install node ffmpeg
 ### 1. Python environment
 
 ```bash
-python -m venv .venv
+python3.12 -m venv .venv
 ```
 
-Activate the environment — **you need to do this every time you open a new terminal**:
-
-```bash
-# macOS / Linux
-source .venv/bin/activate
-
-# Windows
-.venv\Scripts\activate
-```
-
-Your prompt will show `(.venv)` when the environment is active.
+The commands below call `.venv/bin/...` directly, so the environment does not need to be activated.
+On Windows, use `.venv\Scripts\...` instead.
 
 ### 2. Install PyTorch
 
-PyTorch must be installed before the other packages because the right version depends on your hardware.
+PyTorch must be installed before the other packages because the right build depends on your hardware.
 
 ```bash
-# CUDA 12.x (Linux/Windows GPU)
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+# NVIDIA GPU (Linux/Windows)
+.venv/bin/pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
 
 # CPU only (Linux/Windows)
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+.venv/bin/pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
 
-# macOS (Apple Silicon or Intel) — standard PyPI, no special index needed
-pip install torch torchaudio
+# macOS: standard PyPI, CPU only
+.venv/bin/pip install torch==2.8.0 torchaudio==2.8.0
 ```
 
 For other configurations see [pytorch.org/get-started/locally](https://pytorch.org/get-started/locally/).
@@ -74,56 +74,48 @@ For other configurations see [pytorch.org/get-started/locally](https://pytorch.o
 ### 3. Install remaining dependencies
 
 ```bash
-pip install -r requirements.txt
-python scripts/fetch_nltk_data.py   # sentence data for alignment (NLTK punkt_tab), into the venv
-```
-
-### 4. Install Electron dependencies
-
-```bash
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python scripts/fetch_nltk_data.py   # sentence data for alignment (NLTK punkt_tab), into the venv
 npm ci
 ```
 
-### 5. Configure environment
+On macOS, live recording also needs the system audio helper (requires Xcode Command Line Tools):
 
 ```bash
-cp .env.example .env
+npm run build:capture
 ```
 
-Open `.env` and set your HuggingFace token:
+### 4. HuggingFace access
 
-```
-HF_TOKEN=your_token_here
-```
+Accept the terms of use on each gated PyAnnote model page ("Agree and access repository"):
 
-Get a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens). You also need to accept the terms of use for each gated PyAnnote model — visit each page and click "Accept conditions":
-
-- [pyannote/embedding](https://hf.co/pyannote/embedding)
 - [pyannote/speaker-diarization-community-1](https://hf.co/pyannote/speaker-diarization-community-1)
-- [pyannote/segmentation](https://hf.co/pyannote/segmentation)
+- [pyannote/embedding](https://hf.co/pyannote/embedding)
 
-> The first run downloads model weights (~5 GB) into `.models/`.
-
-**macOS SSL fix:** if NLTK downloads fail with an SSL error during the alignment step, add the following to `.env` (replace the path with the output of `.venv/bin/python -c "import certifi; print(certifi.where())"`):
-
-```
-SSL_CERT_FILE=/path/to/.venv/lib/python3.11/site-packages/certifi/cacert.pem
-REQUESTS_CA_BUNDLE=/path/to/.venv/lib/python3.11/site-packages/certifi/cacert.pem
-```
+Then create a read token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+and enter it in the app under **Settings → API Keys**.
 
 ---
 
 ## Running
 
-### Electron UI
-
 ```bash
-# Terminal 1 — start the backend
-.venv/bin/uvicorn app.api.main:app --port 8000
-
-# Terminal 2 — start the desktop app
 npm start
 ```
+
+This starts the backend as well. A development build keeps its data (database, recordings, models)
+apart from an installed Sonorus: in `~/.config/sonorus-dev` on Linux, in Electron's `userData` folder
+on other platforms. Download a transcription model in **Settings → Models** before the first
+transcription.
+
+To run the backend alone (API work), put the token in `.env` (`cp .env.example .env`, set `HF_TOKEN`)
+and start:
+
+```bash
+.venv/bin/uvicorn app.api.main:app --host 127.0.0.1 --port 8000
+```
+
+It keeps its data in `$SONORUS_DATA_DIR`, or the current directory if that is unset.
 
 ---
 
@@ -145,9 +137,11 @@ copy audio → transcribe → extract embeddings → resolve speakers → build 
 
 ```bash
 .venv/bin/python -m pytest tests/ -v
+node --test 'tests/renderer/*.test.js'
+node --test 'tests/build/*.test.js'
 ```
 
-Tests do not require ML models or audio files.
+Tests do not require ML models or audio files. See [CONTRIBUTING.md](CONTRIBUTING.md#tests).
 
 ---
 
@@ -158,3 +152,9 @@ Full documentation is in `docs/` (Docusaurus). To run locally:
 ```bash
 cd docs && npm ci && npm start
 ```
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). If you work with an AI coding tool, it reads [AGENTS.md](AGENTS.md).
