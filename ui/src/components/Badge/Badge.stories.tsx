@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { StateMatrix } from '../../foundations/StateMatrix'
+import { Inline } from '../Inline/Inline'
 import { Badge } from './Badge'
 
 const meta: Meta<typeof Badge> = {
@@ -22,11 +23,11 @@ export const Matrix: Story = {
     <StateMatrix
       states={TONES}
       rows={[
-        { label: 'Label', render: t => <span style={onAccent(t)}><Badge tone={tone(t)}>{TEXT[t]}</Badge></span> },
+        { label: 'Label', render: t => <Inline padding={1} style={onAccent(t)}><Badge tone={tone(t)}>{TEXT[t]}</Badge></Inline> },
         {
           label: 'Count',
           skip: ['Accent', 'Success', 'Warning', 'Danger'],
-          render: t => <span style={onAccent(t)}><Badge variant="count" tone={tone(t)}>6</Badge></span>,
+          render: t => <Inline padding={1} style={onAccent(t)}><Badge variant="count" tone={tone(t)}>6</Badge></Inline>,
         },
       ]}
     />

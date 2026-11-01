@@ -7,8 +7,9 @@ import styles from './StateMatrix.module.css'
 const FORCED: Record<string, string> = {
   Hover: 'pseudo-hover-all',
   Pressed: 'pseudo-hover-all pseudo-active-all',
-  Focus: 'pseudo-focus-visible-all pseudo-focus-within-all',
+  Focus: 'pseudo-focus-visible-all',
 }
+const FORCED_ON_FIELDS: Record<string, string> = { ...FORCED, Focus: 'pseudo-focus-within-all' }
 
 export interface MatrixRow<S extends string> {
   label: string
@@ -20,12 +21,14 @@ export interface MatrixRow<S extends string> {
 interface StateMatrixProps<S extends string> {
   states: readonly S[]
   rows: MatrixRow<S>[]
-  // Fields fill their cell, so they need a width to fill.
-  fieldCells?: boolean
+  // Rows that fill their cell need a width to fill.
+  wideCells?: boolean
+  // A field shows focus on its box, not on the buttons inside it.
+  fields?: boolean
 }
 
 // Rows and columns like a board in Penpot, to compare the two side by side.
-export function StateMatrix<S extends string>({ states, rows, fieldCells }: StateMatrixProps<S>) {
+export function StateMatrix<S extends string>({ states, rows, wideCells, fields }: StateMatrixProps<S>) {
   return (
     <div className={styles.matrix} style={{ gridTemplateColumns: `max-content repeat(${states.length}, max-content)` }}>
       <span />
@@ -34,7 +37,7 @@ export function StateMatrix<S extends string>({ states, rows, fieldCells }: Stat
         <Fragment key={row.label}>
           <span className={styles.heading}>{row.label}</span>
           {states.map(state => (
-            <div key={state} className={cx(styles.cell, fieldCells && styles.fieldCell, FORCED[state])}>
+            <div key={state} className={cx(styles.cell, (wideCells || fields) && styles.wideCell, (fields ? FORCED_ON_FIELDS : FORCED)[state])}>
               {!row.skip?.includes(state) && row.render(state)}
             </div>
           ))}

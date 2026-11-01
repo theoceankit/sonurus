@@ -30,7 +30,7 @@ export const Matrix: Story = {
   render: () => (
     <StateMatrix
       states={STATES}
-      fieldCells
+      fields
       rows={[
         row('Placeholder', {}),
         row('Filled', { value: 'Anna Petrova' }),

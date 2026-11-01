@@ -52,5 +52,6 @@
   --state-pressed: var(--color-border-on-inverse);
   border-radius: var(--radius-full);
   background: var(--color-bg-inverse);
+  box-shadow: var(--shadow-sm);
   color: var(--color-text-on-inverse);
 }
