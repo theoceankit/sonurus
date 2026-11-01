@@ -1,0 +1,10 @@
+.label {
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.swatches {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}

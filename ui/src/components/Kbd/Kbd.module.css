@@ -1,0 +1,11 @@
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding-inline: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-fill-hover);
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+  white-space: nowrap;
+}

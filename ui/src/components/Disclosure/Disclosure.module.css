@@ -1,0 +1,31 @@
+.trigger {
+  composes: reset from '../../styles/control.module.css';
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--size-control-sm);
+  outline: none;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+  user-select: none;
+}
+
+.trigger:not(:disabled):hover,
+.trigger:not(:disabled):active {
+  color: var(--color-text-primary);
+}
+
+.trigger:disabled {
+  opacity: var(--opacity-disabled);
+}
+
+/* The ring is wider than it is tall, so an outline with one offset will not do. */
+.trigger:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: calc(var(--space-1) * -1) calc(var(--space-2) * -1);
+  border: var(--border-width-strong) solid var(--color-focus);
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+}

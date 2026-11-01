@@ -1,0 +1,56 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.label {
+  padding-inline: var(--space-1);
+  font: var(--font-caption-strong);
+}
+
+.count {
+  font: var(--font-caption);
+}
+
+.neutral {
+  color: var(--color-text-secondary);
+}
+
+.label.neutral {
+  background: var(--color-fill-hover);
+}
+
+.accent {
+  background: var(--color-accent-bg);
+  box-shadow: inset 0 0 0 var(--border-width-default) var(--color-accent-border);
+  color: var(--color-text-primary);
+}
+
+.success {
+  background: var(--color-success-bg);
+  box-shadow: inset 0 0 0 var(--border-width-default) var(--color-success-border);
+  color: var(--color-success-fg);
+}
+
+.warning {
+  background: var(--color-warning-bg);
+  box-shadow: inset 0 0 0 var(--border-width-default) var(--color-warning-border);
+  color: var(--color-warning-fg);
+}
+
+.danger {
+  background: var(--color-danger-bg);
+  box-shadow: inset 0 0 0 var(--border-width-default) var(--color-danger-border);
+  color: var(--color-danger-fg);
+}
+
+.onAccent {
+  color: var(--color-text-on-accent);
+}
+
+.label.onAccent {
+  box-shadow: inset 0 0 0 var(--border-width-default) var(--color-border-on-inverse);
+}

@@ -1,0 +1,21 @@
+.matrix {
+  display: grid;
+  gap: var(--space-4) var(--space-6);
+  align-items: center;
+  font: var(--font-body);
+  color: var(--color-text-primary);
+}
+
+.heading {
+  font: var(--font-caption);
+  color: var(--color-text-secondary);
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+}
+
+.wideCell {
+  width: 240px;
+}

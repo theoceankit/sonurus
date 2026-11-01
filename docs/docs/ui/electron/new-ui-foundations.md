@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # New UI foundations
 
-What every component of the new UI in `ui/` builds on: tokens, the theme mechanism, the font, icons and two layout components. See them in Storybook under Foundations (`npm --prefix ui run storybook`).
+What every component of the new UI in `ui/` builds on: tokens, the theme mechanism, the font, icons, two layout components and the base controls. See them in Storybook under Foundations and Components (`npm --prefix ui run storybook`).
 
 ## Tokens
 
@@ -83,3 +83,36 @@ A column and a row. Spacing props accept only the steps of the scale: `'half'`, 
 ```
 
 Both take `as`, `align`, `justify`, `className`, `ref` and other props of the element; `Inline` also takes `wrap` and centres its items by default. The Penpot group `layout/` (titlebar, sidebar, inspector and others) is a set of screen components, not these two.
+
+## Base controls
+
+`Button`, `IconButton`, `Avatar`, `AvatarStack`, `Tab`, `Tabs`, `TextField`, `SearchField`, `MenuItem`, `Disclosure`, `ColorSwatch`, `ColorPicker`, `Kbd`, `Badge`, `SectionHeader` and `MetaItem`, in `ui/src/components/`, named after their Penpot components.
+
+Penpot's Type is the `variant` prop, because `type` on a button is the HTML attribute. Pairs that do not exist on the boards, such as an inverse button at medium size, are type errors. `Tabs`, `ColorPicker` and `Disclosure` are built on Radix Primitives, which bring the arrow keys and the tab order; `Tab` works only inside `Tabs`, `ColorSwatch` only inside a radio group. `Button`, `IconButton` and `MenuItem` pass on `ref` and other attributes, so Radix can wrap them with `asChild`.
+
+### States
+
+`ui/src/styles/control.module.css` holds what controls share, taken with `composes`:
+
+- `stateLayer` draws Hover and Pressed as a layer under the content. A control sets `--state-hover` and `--state-pressed` when its layer is not `--color-fill-hover` and `--color-fill-pressed`.
+- `focusRing` draws the ring on `:focus-visible`, two pixels away from the control. `MenuItem`, `Tab` and `Disclosure` draw their own: inside the row, or wider than it is tall.
+- `reset` removes the browser's button styling.
+
+### Stories
+
+Each component with states has a `Matrix` story from `ui/src/foundations/StateMatrix.tsx`: rows and columns like its Penpot board. `storybook-addon-pseudo-states` forces Hover, Pressed and Focus, so the components' CSS has nothing only for Storybook. It forces them on everything inside a cell, so the clear button in a hovered `SearchField` looks hovered too.
+
+### Avatar
+
+Only `Avatar` works out initials; a test in `Avatar.test.tsx` fails if anything else imports them.
+
+- One word gives its first two letters, several give the first letter of the first and of the last word. `xs` shows one letter. An empty name is a circle without letters.
+- A colour is a number from 1 to 6. Which speaker gets which is decided by the data layer.
+- `kind="unknown"` and `kind="unassigned"` are a gray "?".
+- `AvatarStack` puts the first avatar on top and turns speakers past `max` into "+N".
+
+### Escape in SearchField
+
+A first Escape in a filled field clears it and goes no further; in an empty field it goes on, so a dialog around the field can close. Radix layers listen for Escape on the document in the capture phase, before any handler on the field, so the field listens on the window in the same phase while it is filled.
+
+`TextField` has no reaction of its own to Escape: cancelling an edit belongs to the screen.

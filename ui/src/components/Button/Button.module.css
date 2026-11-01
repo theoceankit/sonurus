@@ -1,5 +1,112 @@
 .button {
-  padding: var(--space-1) var(--space-3);
-  font: inherit;
-  cursor: pointer;
+  composes: reset stateLayer focusRing from '../../styles/control.module.css';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-md);
+  font: var(--font-body-strong);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.small {
+  height: var(--size-control-sm);
+  padding-inline: var(--space-2);
+}
+
+.medium {
+  height: var(--size-control-md);
+  padding-inline: var(--space-3);
+}
+
+.primary {
+  background: var(--color-accent-fg);
+  color: var(--color-text-on-accent);
+}
+
+.danger {
+  background: var(--color-danger-solid);
+  color: var(--color-text-on-danger);
+}
+
+.primary:disabled,
+.danger:disabled,
+.inverse:disabled,
+.record:disabled {
+  background: var(--color-fill-disabled);
+  color: var(--color-text-disabled);
+}
+
+.secondary {
+  background: var(--color-fill-hover);
+  color: var(--color-text-primary);
+}
+
+.ghost {
+  color: var(--color-text-primary);
+}
+
+/* A label in a floating bar reads as text, not as a call to action. */
+.toolbar {
+  color: var(--color-text-primary);
+  font: var(--font-body);
+}
+
+.secondary:disabled,
+.ghost:disabled,
+.toolbar:disabled {
+  opacity: var(--opacity-disabled);
+}
+
+.inverse {
+  --state-hover: var(--color-border-on-inverse);
+  --state-pressed: var(--color-border-on-inverse);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-on-inverse);
+  font: var(--font-caption);
+}
+
+.record {
+  --state-hover: var(--color-border-on-inverse);
+  --state-pressed: var(--color-border-on-inverse);
+  gap: var(--space-2);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-on-inverse-muted);
+  font: var(--font-caption);
+}
+
+.dot {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-live);
+}
+
+.timer {
+  color: var(--color-text-on-inverse);
+}
+
+.record:disabled .dot {
+  background: currentColor;
+}
+
+.record:disabled .timer {
+  color: inherit;
+}
+
+.spinner {
+  box-sizing: border-box;
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+  border: var(--border-width-strong) solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--radius-full);
+  animation: spin var(--duration-spin) linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

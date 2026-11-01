@@ -136,6 +136,7 @@ App rules:
 - In the new UI (`ui/`), icons are files in `ui/src/assets/icons/` used through `Icon`, and values come from
   `ui/src/styles/tokens.css`: no raw colours or spacing and no palette tokens in components, a test enforces it
   (`docs/docs/ui/electron/new-ui-foundations.md`). Layout spacing goes through `Stack` and `Inline`.
+  Speaker initials are worked out only by `Avatar`; a test enforces it.
 - A control whose feature does not exist yet is marked with `markNotImplemented()`
   (`electron/renderer/not-implemented.js`) — never hidden and never faked. When the feature lands,
   remove its id and the call.

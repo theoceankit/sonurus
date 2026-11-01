@@ -1,0 +1,7 @@
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}

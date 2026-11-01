@@ -157,6 +157,8 @@
 
   --opacity-disabled: 0.4;
 
+  --duration-spin: 800ms;
+
   --size-control-xs: 20px;
   --size-control-sm: 24px;
   --size-control-md: 28px;
