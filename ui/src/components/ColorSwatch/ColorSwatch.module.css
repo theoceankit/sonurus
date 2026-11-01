@@ -1,0 +1,24 @@
+.colorSwatch {
+  composes: reset stateLayer focusRing from '../../styles/control.module.css';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-full);
+}
+
+.colorSwatch[data-state='checked'] {
+  box-shadow: inset 0 0 0 var(--border-width-strong) var(--color-text-primary);
+}
+
+.colorSwatch:disabled {
+  opacity: var(--opacity-disabled);
+}
+
+.dot {
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+  border-radius: var(--radius-full);
+}
