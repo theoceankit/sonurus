@@ -30,5 +30,8 @@ export default defineConfig({
     // Vitest blanks CSS by default, and that includes ?raw imports, which the
     // tests of the tokens and of raw values read.
     css: { include: [/.+/], modules: { classNameStrategy: 'non-scoped' } },
+    // The tests that walk the sources use import.meta.glob. A cached transform
+    // keeps the old list of files, so they would not see a new file.
+    fsModuleCache: false,
   },
 })
