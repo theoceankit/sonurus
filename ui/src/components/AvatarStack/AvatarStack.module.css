@@ -1,0 +1,40 @@
+.stack {
+  display: inline-flex;
+  align-items: center;
+}
+
+.stack > * {
+  position: relative;
+}
+
+.small > * + * {
+  /* raw-value: small avatars overlap by a quarter of their 20 px */
+  margin-left: -5px;
+}
+
+.xs > * + * {
+  margin-left: calc(var(--space-1) * -1);
+}
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-muted);
+  color: var(--color-text-secondary);
+  user-select: none;
+}
+
+.small .more {
+  width: var(--size-avatar-sm);
+  height: var(--size-avatar-sm);
+  font: var(--font-initials);
+}
+
+.xs .more {
+  width: var(--size-avatar-xs);
+  height: var(--size-avatar-xs);
+  font: var(--font-caption-strong);
+}

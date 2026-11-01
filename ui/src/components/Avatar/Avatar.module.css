@@ -1,0 +1,32 @@
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: var(--radius-full);
+  user-select: none;
+}
+
+.xs {
+  width: var(--size-avatar-xs);
+  height: var(--size-avatar-xs);
+  font: var(--font-caption-strong);
+}
+
+.small {
+  width: var(--size-avatar-sm);
+  height: var(--size-avatar-sm);
+  font: var(--font-initials);
+}
+
+.medium {
+  width: var(--size-avatar-md);
+  height: var(--size-avatar-md);
+  font: var(--font-caption-strong);
+}
+
+.large {
+  width: var(--size-avatar-lg);
+  height: var(--size-avatar-lg);
+  font: var(--font-title-lg);
+}
