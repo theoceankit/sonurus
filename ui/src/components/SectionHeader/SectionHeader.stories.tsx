@@ -1,16 +1,33 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { StateMatrix } from '../../foundations/StateMatrix'
 import { IconButton } from '../IconButton/IconButton'
 import { SectionHeader } from './SectionHeader'
 
 const meta: Meta<typeof SectionHeader> = {
   component: SectionHeader,
   args: { title: 'Section title' },
-  decorators: [Story => <div style={{ width: '284px' }}><Story /></div>],
 }
 export default meta
 
 type Story = StoryObj<typeof SectionHeader>
 
-export const None: Story = {}
-export const Meta_: Story = { name: 'Meta', args: { meta: '13' } }
-export const Action: Story = { args: { action: <IconButton icon="search" label="Search" /> } }
+const TRAILING = ['None', 'Meta', 'Action'] as const
+
+export const Matrix: Story = {
+  render: () => (
+    <StateMatrix
+      states={TRAILING}
+      wideCells
+      rows={[{
+        label: 'Trailing',
+        render: trailing => {
+          if (trailing === 'Meta') return <SectionHeader title="Section title" meta="13" />
+          if (trailing === 'Action') return <SectionHeader title="Section title" action={<IconButton icon="search" label="Search" />} />
+          return <SectionHeader title="Section title" />
+        },
+      }]}
+    />
+  ),
+}
+
+export const Example: Story = {}
