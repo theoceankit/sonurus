@@ -78,8 +78,11 @@ export function createFixtureClient({ scenario = 'default', board = 'review', ov
       ? [segmentAt(transcriptId, assignment.segmentStart)]
       : transcript(transcriptId).segments.filter(s => effectiveSpeaker(s) === assignment.fromSpeakerId)
     const from = new Set(changed.map(effectiveSpeaker))
+    // The backend keeps one speaker per segment: read back, a correction is in
+    // speaker_resolved and speaker_final stays null.
     for (const segment of changed) {
-      segment.speaker_final = speakerId
+      segment.speaker_resolved = speakerId
+      segment.speaker_final = null
       segment.unassigned = false
     }
     const left = new Set(transcript(transcriptId).segments.map(effectiveSpeaker))

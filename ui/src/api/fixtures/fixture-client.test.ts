@@ -134,6 +134,13 @@ describe('changes', () => {
     expect(item?.speakers).not.toContain(unknown1)
   })
 
+  test('a correction reads back as the backend gives it: in speaker_resolved', async () => {
+    const client = createFixtureClient()
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStart: 5, target: { id: anna } })
+    const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
+    expect(segments.find(s => s.start === 5)).toMatchObject({ speaker_resolved: anna, speaker_final: null })
+  })
+
   test('assigning one segment leaves the others', async () => {
     const client = createFixtureClient()
     await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStart: 5, target: { id: anna } })

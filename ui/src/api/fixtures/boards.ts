@@ -26,12 +26,13 @@ export const BOARDS: Record<FixtureBoard, FixtureData> = {
   review: withWeeklySync(all => all, CANDIDATES),
   // Speakers / Done: Unknown speaker 1 turned out to be Mark.
   reviewDone: withWeeklySync(
-    all => all.map(s => (isUnknown1(s) ? { ...s, speaker_final: SPEAKER_IDS.mark } : s)),
+    all => all.map(s => (isUnknown1(s) ? { ...s, speaker_resolved: SPEAKER_IDS.mark } : s)),
     {},
   ),
   // Transcript / Unassigned.
   unassigned: withWeeklySync(
-    all => all.map(s => (isUnknown1(s) ? { ...s, unassigned: true } : s)),
-    CANDIDATES,
+    all => all.map(s => (isUnknown1(s) ? { ...s, speaker_resolved: null, unassigned: true } : s)),
+    // Unassigned segments may mix voices, so they get no candidates.
+    Object.fromEntries(Object.entries(CANDIDATES).filter(([id]) => id !== SPEAKER_IDS.unknown1)),
   ),
 }
