@@ -6,7 +6,7 @@ export function App() {
   return (
     <Inline as="main" gap={2} padding={4}>
       <Icon name="sparkle" />
-      <Button>New UI</Button>
+      <Button variant="primary">New UI</Button>
     </Inline>
   )
 }
