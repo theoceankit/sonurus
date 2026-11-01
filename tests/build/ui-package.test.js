@@ -100,6 +100,15 @@ test('CI runs the type check and the unit tests of the new UI', () => {
   assert.match(workflow, /npm --prefix ui test/)
 })
 
+test('the type generator stays a tool of its own and CI checks its output', () => {
+  const ui = JSON.parse(read('ui', 'package.json'))
+  const tool = JSON.parse(read('ui', 'tools', 'openapi-types', 'package.json'))
+  assert.equal(ui.devDependencies['openapi-typescript'], undefined)
+  assert.equal(ui.dependencies?.['openapi-typescript'], undefined)
+  assert.ok(tool.devDependencies['openapi-typescript'])
+  assert.match(read('.github', 'workflows', 'tests.yml'), /npm --prefix ui\/tools\/openapi-types run check/)
+})
+
 test('the archive check accepts the build alone', () => {
   // The archive lists directories as well as files.
   assert.deepEqual(packagedUiProblems(['/package.json', '/electron/main.js', '/ui', '/ui/dist', '/ui/dist/assets', '/ui/dist/index.html', '/ui/dist/assets/index.js']), [])
@@ -111,6 +120,7 @@ test('the archive check reports a missing build', () => {
 
 test('the archive check reports sources and Storybook', () => {
   for (const file of ['/ui/src/main.tsx', '/ui/package.json', '/ui/.storybook/main.ts', '/ui/node_modules/react/index.js',
+    '/ui/tools/openapi-types/package.json',
     '/ui/dist/Button.stories.js', '/node_modules/storybook/index.js']) {
     assert.deepEqual(packagedUiProblems(['/ui/dist/index.html', file]), [`must not be packaged: ${file}`])
   }
