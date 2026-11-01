@@ -63,7 +63,7 @@ node --test 'tests/renderer/*.test.js'    # renderer
 node --test 'tests/build/*.test.js'       # build and packaging checks
 ```
 
-The new UI in `ui/` has its own suite: `npm --prefix ui ci`, then `npm --prefix ui test` and `npm --prefix ui run typecheck`.
+The new UI in `ui/` has its own suite: `npm --prefix ui ci`, then `npm --prefix ui test` and `npm --prefix ui run typecheck`. Its components take values from the tokens: see `docs/docs/ui/electron/new-ui-foundations.md`.
 
 All suites must pass before a pull request is merged. CI runs them without the ML libraries —
 `tests/conftest.py` replaces them with stubs — so a test that passes in your full `.venv` can still
