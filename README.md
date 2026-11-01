@@ -108,6 +108,19 @@ apart from an installed Sonorus: in `~/.config/sonorus-dev` on Linux, in Electro
 on other platforms. Download a transcription model in **Settings → Models** before the first
 transcription.
 
+### New UI
+
+A rewrite on React lives in `ui/` next to the current interface. It needs Node.js 22.22.2+ and opens
+only when asked for:
+
+```bash
+npm --prefix ui ci              # once
+npm run dev:ui                  # the app with the new UI and hot reload
+npm --prefix ui run storybook   # component catalog at http://localhost:6006
+```
+
+Details: [New UI](docs/docs/ui/electron/overview.md#new-ui).
+
 To run the backend alone (API work), put the token in `.env` (`cp .env.example .env`, set `HF_TOKEN`)
 and start:
 

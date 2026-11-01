@@ -39,6 +39,8 @@ npm --prefix ui test                # Vitest
 npm --prefix ui run typecheck
 ```
 
+Every component lives in `ui/src/components/<Name>/` and has `<Name>.stories.tsx` with a story for each of its states. Storybook finds these files by itself; a component without one is simply absent from it, so a build test checks that the file exists. Whether the stories cover all states is checked by review.
+
 `electron/ui-entry.js` decides what the window loads:
 
 | Switch | Environment | Development | Packaged |

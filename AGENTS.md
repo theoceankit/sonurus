@@ -136,6 +136,8 @@ App rules:
   (`electron/renderer/not-implemented.js`) — never hidden and never faked. When the feature lands,
   remove its id and the call.
 - UI text: no `·` separators, no all-caps labels.
+- Every component in `ui/src/components/<Name>/` has `<Name>.stories.tsx` with a story for each of its
+  states, so it can be seen in Storybook. A build test checks that the file exists.
 
 ## Workflow
 
