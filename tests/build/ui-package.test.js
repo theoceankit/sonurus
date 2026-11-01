@@ -34,6 +34,15 @@ test('Storybook telemetry is off', () => {
   assert.match(JSON.parse(read('ui', 'package.json')).scripts.storybook, /--no-version-updates/)
 })
 
+test('every component has stories', () => {
+  const components = path.join(ROOT, 'ui', 'src', 'components')
+  for (const e of fs.readdirSync(components, { withFileTypes: true })) {
+    if (!e.isDirectory()) continue
+    const stories = path.join(components, e.name, `${e.name}.stories.tsx`)
+    assert.ok(fs.existsSync(stories), `missing ${path.relative(ROOT, stories)}`)
+  }
+})
+
 test('the new UI sources contain no remote content', () => {
   const sources = [path.join(ROOT, 'ui', 'index.html')]
   const walk = dir => {
