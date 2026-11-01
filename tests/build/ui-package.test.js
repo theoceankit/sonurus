@@ -109,6 +109,21 @@ test('the type generator stays a tool of its own and CI checks its output', () =
   assert.match(read('.github', 'workflows', 'tests.yml'), /npm --prefix ui\/tools\/openapi-types run check/)
 })
 
+test('the type of the Electron bridge lists what the preload script exposes', () => {
+  const body = read('electron', 'preload.js').match(/exposeInMainWorld\('electronAPI', \{([\s\S]*?)\n\}\)/)[1]
+  const exposed = [...body.matchAll(/^\s*(\w+):/gm)].map(m => m[1]).sort()
+  const type = read('ui', 'src', 'platform', 'electron-api.ts').match(/type ElectronAPI = \{([\s\S]*?)\n\}/)[1]
+  const declared = [...type.matchAll(/^\s*(\w+):/gm)].map(m => m[1]).sort()
+  assert.ok(exposed.length > 0)
+  assert.deepEqual(declared, exposed)
+})
+
+test('a build that exists carries no fixtures', { skip: !fs.existsSync(path.join(ROOT, 'ui', 'dist', 'assets')) }, () => {
+  for (const file of fs.readdirSync(path.join(ROOT, 'ui', 'dist', 'assets')).filter(f => f.endsWith('.js'))) {
+    assert.doesNotMatch(read('ui', 'dist', 'assets', file), /Weekly product sync|createFixtureClient/, file)
+  }
+})
+
 test('the archive check accepts the build alone', () => {
   // The archive lists directories as well as files.
   assert.deepEqual(packagedUiProblems(['/package.json', '/electron/main.js', '/ui', '/ui/dist', '/ui/dist/assets', '/ui/dist/index.html', '/ui/dist/assets/index.js']), [])
