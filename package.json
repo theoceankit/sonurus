@@ -6,19 +6,21 @@
   "scripts": {
     "start": "electron .",
     "dev:ui": "node scripts/dev-ui.js",
+    "build:ui": "npm --prefix ui run build",
     "bundle-backend": "node scripts/bundle-backend.js",
     "build:capture": "mkdir -p electron/resources/mac && swiftc -O native/macos/sonorus-capture/main.swift -framework ScreenCaptureKit -framework AVFoundation -framework Foundation -o electron/resources/mac/sonorus-capture",
-    "build:mac": "npm run build:capture && node scripts/bundle-backend.js && electron-builder --mac",
+    "build:mac": "npm run build:capture && npm run build:ui && node scripts/bundle-backend.js && electron-builder --mac",
     "build:capture:win": "node scripts/build-capture-win.js",
-    "build:win": "npm run build:capture:win && node scripts/bundle-backend.js && electron-builder --win",
-    "build:linux": "node scripts/bundle-backend.js && electron-builder --linux",
-    "build:all": "npm run build:capture && npm run build:capture:win && node scripts/bundle-backend.js && electron-builder --mac --win --linux"
+    "build:win": "npm run build:capture:win && npm run build:ui && node scripts/bundle-backend.js && electron-builder --win",
+    "build:linux": "npm run build:ui && node scripts/bundle-backend.js && electron-builder --linux",
+    "build:all": "npm run build:capture && npm run build:capture:win && npm run build:ui && node scripts/bundle-backend.js && electron-builder --mac --win --linux"
   },
   "build": {
     "appId": "com.sonorus.app",
     "productName": "Sonorus",
     "files": [
       "electron/**/*",
+      "ui/dist/**/*",
       "package.json"
     ],
     "extraResources": [
