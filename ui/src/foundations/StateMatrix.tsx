@@ -20,10 +20,12 @@ export interface MatrixRow<S extends string> {
 interface StateMatrixProps<S extends string> {
   states: readonly S[]
   rows: MatrixRow<S>[]
+  // Fields fill their cell, so they need a width to fill.
+  fieldCells?: boolean
 }
 
 // Rows and columns like a board in Penpot, to compare the two side by side.
-export function StateMatrix<S extends string>({ states, rows }: StateMatrixProps<S>) {
+export function StateMatrix<S extends string>({ states, rows, fieldCells }: StateMatrixProps<S>) {
   return (
     <div className={styles.matrix} style={{ gridTemplateColumns: `max-content repeat(${states.length}, max-content)` }}>
       <span />
@@ -32,7 +34,7 @@ export function StateMatrix<S extends string>({ states, rows }: StateMatrixProps
         <Fragment key={row.label}>
           <span className={styles.heading}>{row.label}</span>
           {states.map(state => (
-            <div key={state} className={cx(styles.cell, FORCED[state])}>
+            <div key={state} className={cx(styles.cell, fieldCells && styles.fieldCell, FORCED[state])}>
               {!row.skip?.includes(state) && row.render(state)}
             </div>
           ))}
