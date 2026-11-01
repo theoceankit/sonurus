@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -84,6 +84,14 @@ class SpeakerTranscriptItem(BaseModel):
     duration_sec: float
 
 
+class SpeakerSuggestion(BaseModel):
+    """GET /transcripts/{id}/speaker-suggestions: the known speaker closest to
+    an unrecognized one."""
+    speaker_id: str
+    name: str
+    score: float
+
+
 class TranscribeRequest(BaseModel):
     """POST /queue/jobs. language null or "auto" = auto-detect; no title =
     the file name without its extension."""
@@ -115,6 +123,28 @@ class QueueSnapshot(BaseModel):
     running_job_id: str | None
     step: str | None
     jobs: list[QueueJob]
+
+
+class JobDoneEvent(BaseModel):
+    """WS /ws/queue. TranscriptionQueue sends these three as plain dicts;
+    tests hold them to these models."""
+    type: Literal["job_done"]
+    job_id: str
+    title: str
+    transcript_id: int
+
+
+class JobFailedEvent(BaseModel):
+    type: Literal["job_failed"]
+    job_id: str
+    title: str
+    error: str
+    error_code: str | None
+    error_language: str | None
+
+
+class HeartbeatEvent(BaseModel):
+    type: Literal["heartbeat"]
 
 
 class JobUpdateRequest(BaseModel):
@@ -168,6 +198,27 @@ class SegmentTextRequest(BaseModel):
     text: str
 
 
+class TranscriptionModelInfo(BaseModel):
+    """GET /models: a Whisper or diarization model of the catalog."""
+    id: str
+    installed: bool
+    name: str
+    size: str
+    speed: str
+    acc: str
+    recommended: bool
+    kind: Literal["whisper", "diarization"]
+
+
+class AlignmentModelInfo(BaseModel):
+    id: str
+    installed: bool
+    kind: Literal["alignment"]
+
+
+ModelInfo = Annotated[TranscriptionModelInfo | AlignmentModelInfo, Field(discriminator="kind")]
+
+
 class DownloadRequest(BaseModel):
     hf_token: str | None = None
 
@@ -184,3 +235,24 @@ class DataResetResponse(BaseModel):
     transcripts: int
     speakers: int
     files: int
+
+
+class GpuDevice(BaseModel):
+    name: str
+    driver: str
+    compute_capability: str
+
+
+class GpuStatus(BaseModel):
+    blocked_reason: Literal[
+        "unsupported_platform", "not_packaged", "no_nvidia", "driver_too_old", "gpu_too_old",
+    ] | None
+    gpu: GpuDevice | None
+    min_driver: str | None
+    min_compute_capability: str | None
+    state: Literal["not_installed", "downloading", "pending_restart", "active", "error", "stale"]
+    pending: Literal["install", "remove"] | None
+    error: str | None
+    download_size: int | None
+    device: str
+    torch: str | None

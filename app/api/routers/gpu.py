@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 import app.config as config
 from app.api.dependencies import get_audio_capture_service, get_gpu_pack, get_transcription_queue
+from app.api.schemas import GpuStatus
 from app.api.routers import models
 from app.logger import get_logger
 from app.services.gpu_pack import GpuPack
@@ -45,7 +46,7 @@ def _status(pack: GpuPack) -> dict:
     return pack.status(running_torch=_running_torch(), device=config.DEVICE, downloading=_downloading())
 
 
-@router.get("/gpu")
+@router.get("/gpu", response_model=GpuStatus)
 def gpu_status(pack: GpuPack = Depends(get_gpu_pack)):
     return _status(pack)
 

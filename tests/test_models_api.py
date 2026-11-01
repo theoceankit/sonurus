@@ -72,6 +72,20 @@ def test_list_models_returns_200(client):
     assert r.status_code == 200
 
 
+def test_list_models_rows_keep_their_exact_keys(client):
+    """Alignment rows carry no catalog fields, not even as null."""
+    rows = {row["id"]: row for row in client.get("/models").json()}
+    assert rows["ru"] == {"id": "ru", "installed": False, "kind": "alignment"}
+    assert rows["tiny"] == {
+        "id": "tiny", "installed": False, "name": "Whisper Tiny", "size": "39 MB",
+        "speed": "~10× realtime", "acc": "Low", "recommended": False, "kind": "whisper",
+    }
+    assert rows["diarize"] == {
+        "id": "diarize", "installed": False, "name": "Diarization · v2", "size": "130 MB",
+        "speed": "—", "acc": "Speaker separation", "recommended": False, "kind": "diarization",
+    }
+
+
 def test_list_models_returns_array(client):
     """GET /models returns a JSON array."""
     r = client.get("/models")
