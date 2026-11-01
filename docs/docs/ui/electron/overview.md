@@ -26,7 +26,7 @@ To start the backend manually (e.g. for isolated API testing):
 
 ## New UI
 
-A rewrite on React and TypeScript lives in `ui/`, a separate npm package next to the old renderer. It is an empty screen with one `Button` so far. Without a switch the app opens the old UI, in development and in installers; nothing in the interface leads to the new one.
+A rewrite on React and TypeScript lives in `ui/`, a separate npm package next to the old renderer. It is an empty screen with one `Button` so far, on the base described in [New UI foundations](new-ui-foundations.md). Without a switch the app opens the old UI, in development and in installers; nothing in the interface leads to the new one.
 
 ```bash
 npm --prefix ui ci                  # once; needs Node.js 22.22.2+

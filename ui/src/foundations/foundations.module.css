@@ -1,0 +1,82 @@
+.heading {
+  font: var(--font-body-strong);
+}
+
+.name {
+  font: var(--font-caption);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: var(--space-3);
+}
+
+.swatch {
+  height: var(--size-control-lg);
+  border: var(--border-width-default) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 240px 1fr 1fr;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* White with alpha is invisible on a white page. */
+.onInverse {
+  background: var(--color-bg-inverse);
+  border-radius: var(--radius-sm);
+}
+
+.themeCell {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text-primary);
+  background: var(--color-bg-window);
+}
+
+.bar {
+  height: var(--space-3);
+  background: var(--color-accent-fg);
+}
+
+.measureRow {
+  display: grid;
+  grid-template-columns: 240px 64px 1fr;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.square {
+  background: var(--color-bg-muted);
+  border: var(--border-width-default) solid var(--color-border-strong);
+}
+
+.shadowCell {
+  padding: var(--space-8);
+  background: var(--color-bg-sunken);
+}
+
+.shadow {
+  height: 64px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg-raised);
+}
+
+.iconGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
+  gap: var(--space-4);
+}
+
+.iconCell {
+  min-width: 0;
+}
