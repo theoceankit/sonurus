@@ -211,17 +211,13 @@ Returns the full catalog with install status for every model: 5 Whisper + 1 Diar
 
 ```json
 [
-  { "id": "tiny",     "installed": false },
-  { "id": "base",     "installed": false },
-  { "id": "small",    "installed": true  },
-  { "id": "medium",   "installed": false },
-  { "id": "large-v3", "installed": true  },
-  { "id": "diarize",  "installed": true  },
-  { "id": "ru",       "installed": true  },
-  { "id": "zh",       "installed": false },
-  { "id": "ja",       "installed": false }
+  { "id": "large-v3", "installed": true, "name": "Whisper Large v3", "size": "1.55 GB", "speed": "~1× realtime", "acc": "Best", "recommended": true, "kind": "whisper" },
+  { "id": "diarize", "installed": true, "name": "Diarization · v2", "size": "130 MB", "speed": "—", "acc": "Speaker separation", "recommended": false, "kind": "diarization" },
+  { "id": "ru", "installed": false, "kind": "alignment" }
 ]
 ```
+
+Alignment rows have only `id`, `installed` and `kind`.
 
 ### `POST /models/{model_id}/download`
 
@@ -385,6 +381,20 @@ Full transcript with segments.
 `speaker_resolved` and `speaker_final` are always UUID4 strings (a diarization speaker with too little speech for a voice profile still gets its own UUID). Display names are resolved separately via `GET /speakers`.
 
 `unassigned: true` marks a segment whose speaker was deleted (`DELETE /speakers/{id}`): both speaker fields are `null` and its effective speaker is the pseudo-id `UNASSIGNED`, not `speaker_raw`. Assigning a speaker to it (single or bulk) clears the flag.
+
+### `GET /transcripts/{id}/speaker-suggestions`
+
+For each unrecognized speaker in the transcript, the known named speaker with the closest voice. `score` is the cosine similarity, rounded to two digits. Empty when there is nothing to suggest; unassigned segments get no suggestion.
+
+```json
+{
+  "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb": {
+    "speaker_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "name": "Alice",
+    "score": 0.8
+  }
+}
+```
 
 ### `PATCH /transcripts/{id}`
 

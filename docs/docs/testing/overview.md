@@ -39,6 +39,17 @@ python3.12 -m venv /tmp/ci-venv
 /tmp/ci-venv/bin/python -m pytest tests/ -v
 ```
 
+### API schema and types
+
+The new UI's types come from the API schema ([New UI data](../ui/electron/new-ui-data.md)). `tests/test_openapi_schema.py` fails when `ui/src/api/openapi.json` differs from what the code gives, and holds the WebSocket events of the queue to their models. CI then checks that `ui/src/api/schema.gen.ts` matches that file:
+
+```bash
+npm --prefix ui/tools/openapi-types ci
+npm --prefix ui/tools/openapi-types run check
+```
+
+Both pass in the CI environment: the schema is taken with the ML libraries stubbed. `npm run gen:api` regenerates both files.
+
 ### Renderer tests
 
 Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-renderer.js` evaluates them in a `node:vm` context, so their top-level function declarations (e.g. `fileUrl()` from `utils.js`) can be tested with `node:test` without a browser. Pass stubs for browser globals via the second argument of `loadRenderer(files, globals)`. Views that build DOM (modals, Settings rows, the queue job modal) run against the permissive fake DOM in `tests/renderer/fake-dom.js`; `tests/renderer/models-fixture.js` provides a `GET /models` catalog. Layout and visual behaviour are verified manually in the running app.

@@ -31,6 +31,7 @@ A rewrite on React and TypeScript lives in `ui/`, a separate npm package next to
 ```bash
 npm --prefix ui ci                  # once; needs Node.js 22.22.2+
 npm run dev:ui                      # Vite and Electron, hot reload (arguments go to Electron)
+VITE_SONORUS_FIXTURES=1 npm run dev:ui  # the same on fixtures
 npm run build:ui                    # build into ui/dist
 npm start -- --new-ui               # the build in development
 ./dist/Sonorus-*.AppImage --new-ui  # the build in an installed app
@@ -38,6 +39,8 @@ npm --prefix ui run storybook       # http://localhost:6006
 npm --prefix ui test                # Vitest
 npm --prefix ui run typecheck
 ```
+
+Screens get their data through one client, on the backend or on fixtures: see [New UI data](new-ui-data.md).
 
 Every component lives in `ui/src/components/<Name>/` and has `<Name>.stories.tsx` with a story for each of its states. Storybook finds these files by itself; a component without one is simply absent from it, so a build test checks that the file exists. Whether the stories cover all states is checked by review.
 
