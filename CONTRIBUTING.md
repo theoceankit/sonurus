@@ -63,7 +63,9 @@ node --test 'tests/renderer/*.test.js'    # renderer
 node --test 'tests/build/*.test.js'       # build and packaging checks
 ```
 
-All three suites must pass before a pull request is merged. CI runs them without the ML libraries —
+The new UI in `ui/` has its own suite: `npm --prefix ui ci`, then `npm --prefix ui test` and `npm --prefix ui run typecheck`.
+
+All suites must pass before a pull request is merged. CI runs them without the ML libraries —
 `tests/conftest.py` replaces them with stubs — so a test that passes in your full `.venv` can still
 fail there. Run the suite in a venv with only `requirements-test.txt` before you open the pull
 request. Details: [Testing overview](docs/docs/testing/overview.md).
