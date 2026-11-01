@@ -4,6 +4,7 @@ const fs = require('fs')
 const { BackendRefusedError, restartBackend, startBackend, stopBackend } = require('./backend')
 const { devUserDataPath } = require('./backend-identity')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
+const { uiEntry } = require('./ui-entry')
 
 // Dev mode keeps its data apart from the packaged app (electron/backend-identity.js).
 // Must run before the app is ready: settings, the backend's data dir and logs follow it.
@@ -31,6 +32,18 @@ if (process.platform === 'darwin') {
 let mainWin = null
 
 function createWindow() {
+  const entry = uiEntry({
+    isPackaged: app.isPackaged,
+    newUi: app.commandLine.hasSwitch('new-ui'),
+    devUrl: process.env.SONORUS_UI_DEV_URL,
+    electronDir: __dirname,
+  })
+  if (entry.file && !fs.existsSync(entry.file)) {
+    dialog.showErrorBox('Sonorus — UI not built', `${entry.file} does not exist.\n\nRun: npm run build:ui`)
+    app.quit()
+    return
+  }
+
   mainWin = new BrowserWindow({
     width:     1200,
     height:    800,
@@ -47,7 +60,8 @@ function createWindow() {
     },
   })
 
-  mainWin.loadFile(path.join(__dirname, 'renderer', 'index.html'))
+  if (entry.url) mainWin.loadURL(entry.url)
+  else mainWin.loadFile(entry.file)
 
   // The page never navigates itself. Blocks e.g. a file dropped
   // outside a drop zone from replacing the app with that file.
