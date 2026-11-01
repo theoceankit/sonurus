@@ -23,7 +23,6 @@ export const Fonts: Story = {
         <Stack key={name} gap={1}>
           <span className={styles.name}>{name}: {describe(value)}</span>
           <span style={{ font: `var(${name})` }}>The quick brown fox jumps over the lazy dog 0123456789</span>
-          <span style={{ font: `var(${name})` }}>Съешь же ещё этих мягких французских булок</span>
         </Stack>
       ))}
     </Stack>
