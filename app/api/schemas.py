@@ -1,9 +1,15 @@
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class SegmentResponse(BaseModel):
+class ResponseModel(BaseModel):
+    """A field with a default is still always in the response, so the schema
+    the new UI's types come from lists it as required."""
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
+
+class SegmentResponse(ResponseModel):
     start: float
     end: float
     text: str
@@ -23,7 +29,7 @@ class TranscriptListItem(BaseModel):
     duration: str
 
 
-class TranscriptResponse(BaseModel):
+class TranscriptResponse(ResponseModel):
     id: int
     audio_path: str
     language: str
@@ -41,7 +47,7 @@ class TranscriptUpdateRequest(BaseModel):
         return v.strip() if isinstance(v, str) else v
 
 
-class SpeakerResponse(BaseModel):
+class SpeakerResponse(ResponseModel):
     """A speaker in the Speakers section. name is None for unnamed speakers."""
     id: str
     name: str | None
@@ -114,7 +120,7 @@ class QueueJob(BaseModel):
     created_at: str
 
 
-class QueueSnapshot(BaseModel):
+class QueueSnapshot(ResponseModel):
     type: Literal["snapshot"] = "snapshot"
     paused: bool
     paused_by_recording: bool

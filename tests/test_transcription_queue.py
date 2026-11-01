@@ -5,6 +5,7 @@ import time
 
 import pytest
 
+from app.api.schemas import JobDoneEvent, JobFailedEvent, QueueSnapshot
 from app.services.job_store import JobStore
 from app.services.transcription_queue import (
     JobNotFailed, JobNotFound, JobRunning, QueueBusy, TranscriptionQueue,
@@ -256,6 +257,21 @@ def test_a_failed_job_moves_to_the_end_and_the_queue_goes_on(env):
     assert runner.started == ["a", "b", "c"]  # a is not retried by itself
     [ev] = [e for e in events if e["type"] == "job_failed"]
     assert (ev["title"], ev["error"], ev["error_code"]) == ("a", "CUDA out of memory", None)
+
+
+def test_events_match_the_models_the_new_ui_types_come_from(env):
+    make, _, runner, recordings = env
+    q = make()
+    events = []
+    q.subscribe(events.append)
+    runner.outcomes["bad"] = RuntimeError("boom")
+    _add(q, recordings, "good"), _add(q, recordings, "bad")
+    q.start()
+    wait_for(lambda: idle(q) and {e["type"] for e in events} >= {"job_done", "job_failed"})
+    models = {"snapshot": QueueSnapshot, "job_done": JobDoneEvent, "job_failed": JobFailedEvent}
+    for event in events:
+        # Compared whole, so a field the model lacks is caught too.
+        assert models[event["type"]].model_validate(event).model_dump() == event
 
 
 def test_failed_jobs_are_skipped_and_sit_after_waiting_ones(env):
