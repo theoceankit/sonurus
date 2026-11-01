@@ -1,0 +1,39 @@
+.icon {
+  display: block;
+  flex: none;
+}
+
+/* Widths below are in screen pixels, whatever the icon's size. */
+.icon * {
+  vector-effect: non-scaling-stroke;
+}
+
+.size12 {
+  width: var(--size-icon-xs);
+  height: var(--size-icon-xs);
+  stroke-width: 1px;
+}
+
+.size14 {
+  width: var(--size-icon-xs-plus);
+  height: var(--size-icon-xs-plus);
+  stroke-width: 1px;
+}
+
+.size16 {
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+  stroke-width: 1px;
+}
+
+.size20 {
+  width: var(--size-icon-md);
+  height: var(--size-icon-md);
+  stroke-width: 1.25px;
+}
+
+.size24 {
+  width: var(--size-icon-lg);
+  height: var(--size-icon-lg);
+  stroke-width: 1.5px;
+}
