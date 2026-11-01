@@ -22,10 +22,13 @@ export default defineConfig({
   base: './',
   plugins: [react(), devCsp()],
   server: { host: 'localhost', port: DEV_PORT, strictPort: true },
-  build: { modulePreload: { polyfill: false } },
+  // The CSP allows no data: URLs, so fonts stay files however small they are.
+  build: { modulePreload: { polyfill: false }, assetsInlineLimit: 0 },
   test: {
     environment: 'jsdom',
     setupFiles: './src/test-setup.ts',
-    css: { modules: { classNameStrategy: 'non-scoped' } },
+    // Vitest blanks CSS by default, and that includes ?raw imports, which the
+    // tests of the tokens and of raw values read.
+    css: { include: [/.+/], modules: { classNameStrategy: 'non-scoped' } },
   },
 })

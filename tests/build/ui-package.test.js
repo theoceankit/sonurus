@@ -29,6 +29,19 @@ test('the dev server additions apply to the dev server only', () => {
   assert.match(vite, /base: '\.\/'/)
 })
 
+test('fonts stay files: the CSP allows no data: URLs', () => {
+  assert.match(read('ui', 'vite.config.ts'), /assetsInlineLimit: 0/)
+})
+
+test('a build that exists carries Inter as two files with its licence', { skip: !fs.existsSync(path.join(ROOT, 'ui', 'dist')) }, () => {
+  const assets = fs.readdirSync(path.join(ROOT, 'ui', 'dist', 'assets'))
+  assert.equal(assets.filter(f => /^Inter-(Regular|SemiBold)-.*\.woff2$/.test(f)).length, 2)
+  assert.ok(fs.existsSync(path.join(ROOT, 'ui', 'dist', 'licenses', 'Inter-LICENSE.txt')))
+  for (const file of assets.filter(f => /\.(css|js)$/.test(f))) {
+    assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'ui', 'dist', 'assets', file), 'utf8'), /url\(["']?data:font/, file)
+  }
+})
+
 test('Storybook telemetry is off', () => {
   assert.match(read('ui', '.storybook', 'main.ts'), /disableTelemetry: true/)
   assert.match(JSON.parse(read('ui', 'package.json')).scripts.storybook, /--no-version-updates/)
