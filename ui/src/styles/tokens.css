@@ -1,0 +1,399 @@
+/*
+ * Design tokens. Exported once from Penpot and edited by hand from now on:
+ * nothing generates this file. tokens.test.ts keeps both themes in step.
+ *
+ * Components use the semantic colours and the scale; the palette exists only
+ * for the two theme blocks below, and raw-values.test.ts enforces that.
+ */
+
+:root {
+  /* Palette */
+  --gray-0: #FFFFFF;
+  --gray-50: #FBFBFE;
+  --gray-100: #F6F6F9;
+  --gray-200: #E6E6E9;
+  --gray-300: #D0D1D3;
+  --gray-400: #A4A4A7;
+  --gray-500: #868688;
+  --gray-600: #68696B;
+  --gray-700: #4D4D4F;
+  --gray-800: #353537;
+  --gray-900: #242426;
+  --gray-950: #18181A;
+  --gray-1000: #101012;
+
+  --black-a04: rgba(0,0,0,0.04);
+  --black-a06: rgba(0,0,0,0.06);
+  --black-a08: rgba(0,0,0,0.08);
+  --black-a14: rgba(0,0,0,0.14);
+  --black-a22: rgba(0,0,0,0.22);
+  --black-a24: rgba(0,0,0,0.24);
+  --black-a40: rgba(0,0,0,0.40);
+  --black-a50: rgba(0,0,0,0.50);
+  --black-a60: rgba(0,0,0,0.60);
+  --black-a64: rgba(0,0,0,0.64);
+
+  --white-a06: rgba(255,255,255,0.06);
+  --white-a08: rgba(255,255,255,0.08);
+  --white-a10: rgba(255,255,255,0.10);
+  --white-a16: rgba(255,255,255,0.16);
+  --white-a22: rgba(255,255,255,0.22);
+  --white-a72: rgba(255,255,255,0.72);
+
+  --iris-100: #EFF0FF;
+  --iris-200: #DDDDFF;
+  --iris-300: #B7B6F6;
+  --iris-400: #A9A6FA;
+  --iris-500: #8A82EB;
+  --iris-600: #5D4DBE;
+  --iris-700: #584BAF;
+  --iris-800: #392F78;
+  --iris-900: #241E4D;
+  --iris-a08: rgba(93,77,190,0.08);
+  --iris-a12: rgba(93,77,190,0.12);
+  --iris-a20: rgba(93,77,190,0.20);
+  --iris-a24: rgba(93,77,190,0.24);
+  --iris-dark-a16: rgba(169,166,250,0.16);
+  --iris-dark-a24: rgba(169,166,250,0.24);
+  --iris-dark-a34: rgba(169,166,250,0.34);
+  --iris-tint: rgba(240,240,255,0.85);
+
+  --red-100: #FFEBE7;
+  --red-200: #FFD3CC;
+  --red-300: #FFB1A7;
+  --red-400: #FE8C80;
+  --red-500: #F1383E;
+  --red-600: #D12A22;
+  --red-700: #AC1A1C;
+  --red-800: #76080C;
+  --red-900: #4C0707;
+  --red-a10: rgba(209,42,34,0.10);
+  --red-a30: rgba(209,42,34,0.30);
+  --red-dark-a16: rgba(254,140,128,0.16);
+  --red-dark-a34: rgba(254,140,128,0.34);
+
+  --amber-100: #FAF0E4;
+  --amber-200: #F1DEC5;
+  --amber-300: #E4C59C;
+  --amber-400: #E1A035;
+  --amber-500: #BC8734;
+  --amber-600: #A06700;
+  --amber-700: #79520A;
+  --amber-800: #583400;
+  --amber-900: #382100;
+  --amber-a14: rgba(225,160,53,0.14);
+  --amber-a34: rgba(225,160,53,0.34);
+  --amber-dark-a16: rgba(225,160,53,0.16);
+
+  --green-100: #E7F6ED;
+  --green-200: #CCEAD8;
+  --green-300: #A6D8BC;
+  --green-400: #7CC39D;
+  --green-500: #3DB07C;
+  --green-600: #008B59;
+  --green-700: #1B714C;
+  --green-800: #004B2C;
+  --green-900: #00301B;
+  --green-a10: rgba(61,176,124,0.10);
+  --green-a30: rgba(61,176,124,0.30);
+  --green-dark-a16: rgba(61,176,124,0.16);
+  --green-dark-a34: rgba(61,176,124,0.34);
+
+  --blue-200: #C5E7FB;
+  --blue-500: #419BCA;
+  --blue-700: #005477;
+  --blue-800: #0F3A50;
+  --blue-a16: rgba(65,155,202,0.16);
+  --blue-a24: rgba(65,155,202,0.24);
+
+  --teal-200: #C1ECE5;
+  --teal-500: #1DA699;
+  --teal-700: #005C53;
+  --teal-800: #003F39;
+  --teal-a16: rgba(29,166,153,0.16);
+  --teal-a24: rgba(29,166,153,0.24);
+
+  --lilac-200: #EADAF8;
+  --lilac-500: #A57DC3;
+  --lilac-700: #5C3E71;
+  --lilac-800: #3F2C4C;
+  --lilac-a16: rgba(165,125,195,0.16);
+  --lilac-a24: rgba(165,125,195,0.24);
+
+  --tangerine-200: #F9DBC4;
+  --tangerine-500: #C27F46;
+  --tangerine-700: #703F0E;
+  --tangerine-800: #4C2D12;
+  --tangerine-a16: rgba(194,127,70,0.16);
+  --tangerine-a24: rgba(194,127,70,0.24);
+
+  --rose-200: #FBD6E3;
+  --rose-500: #C57394;
+  --rose-700: #72364F;
+  --rose-800: #4D2837;
+  --rose-a16: rgba(197,115,148,0.16);
+  --rose-a24: rgba(197,115,148,0.24);
+
+  /* Scale */
+  --space-half: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-full: 9999px;
+  --radius-panel: 10px;
+  --radius-card: 8px;
+
+  --border-width-default: 1px;
+  --border-width-strong: 2px;
+  --border-width-focus: 1.5px;
+
+  --opacity-disabled: 0.4;
+
+  --size-control-xs: 20px;
+  --size-control-sm: 24px;
+  --size-control-md: 28px;
+  --size-control-lg: 32px;
+
+  --size-icon-xs: 12px;
+  --size-icon-xs-plus: 14px;
+  --size-icon-sm: 16px;
+  --size-icon-md: 20px;
+  --size-icon-lg: 24px;
+
+  --size-avatar-xs: 16px;
+  --size-avatar-sm: 20px;
+  --size-avatar-md: 28px;
+  --size-avatar-lg: 48px;
+
+  /* Type */
+  --type-family-sans: 'Inter', system-ui, sans-serif;
+  --type-weight-regular: 400;
+  --type-weight-semibold: 600;
+  --type-size-caption: 11px;
+  --type-size-body: 13px;
+  --type-size-body-lg: 15px;
+  --type-size-title: 18px;
+  --type-size-title-lg: 22px;
+  --type-size-initials: 9px;
+
+  --font-caption: var(--type-weight-regular) var(--type-size-caption)/1.4545 var(--type-family-sans);
+  --font-caption-strong: var(--type-weight-semibold) var(--type-size-caption)/1.4545 var(--type-family-sans);
+  --font-body: var(--type-weight-regular) var(--type-size-body)/1.5385 var(--type-family-sans);
+  --font-body-strong: var(--type-weight-semibold) var(--type-size-body)/1.5385 var(--type-family-sans);
+  --font-body-lg: var(--type-weight-regular) var(--type-size-body-lg)/1.6 var(--type-family-sans);
+  --font-title: var(--type-weight-semibold) var(--type-size-title)/1.3333 var(--type-family-sans);
+  --font-title-lg: var(--type-weight-semibold) var(--type-size-title-lg)/1.2727 var(--type-family-sans);
+  --font-initials: var(--type-weight-semibold) var(--type-size-initials)/1.3333 var(--type-family-sans);
+}
+
+/*
+ * Any element can carry data-theme, so Storybook can show both themes side by
+ * side. Shadows are here because they use theme colours: on :root alone they
+ * would resolve to the light values everywhere.
+ */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  --color-accent-bg: var(--iris-a12);
+  --color-accent-border: var(--iris-a24);
+  --color-accent-fg: var(--iris-600);
+  --color-accent-on-inverse: var(--iris-300);
+
+  --color-bg-inverse: var(--gray-900);
+  --color-bg-muted: var(--gray-200);
+  --color-bg-raised: var(--gray-0);
+  --color-bg-sidebar: var(--gray-50);
+  --color-bg-sunken: var(--gray-100);
+  --color-bg-window: var(--gray-0);
+
+  --color-border-default: var(--black-a06);
+  --color-border-on-inverse: var(--white-a22);
+  --color-border-strong: var(--black-a14);
+
+  --color-danger-bg: var(--red-a10);
+  --color-danger-border: var(--red-a30);
+  --color-danger-fg: var(--red-600);
+  --color-danger-solid: var(--red-600);
+
+  --color-dropzone-bg: var(--iris-tint);
+
+  --color-fill-disabled: var(--gray-200);
+  --color-fill-hover: var(--black-a04);
+  --color-fill-pressed: var(--black-a08);
+
+  --color-focus: var(--iris-600);
+
+  --color-identify-bg: var(--iris-a08);
+  --color-identify-border: var(--iris-a24);
+  --color-identify-fg: var(--iris-600);
+
+  --color-live: var(--red-500);
+
+  --color-scrim: var(--black-a40);
+
+  --color-selection: var(--iris-a20);
+
+  --color-shadow-medium: var(--black-a14);
+  --color-shadow-soft: var(--black-a06);
+  --color-shadow-strong: var(--black-a22);
+
+  --color-speaker-1-bg: var(--blue-200);
+  --color-speaker-1-fg: var(--blue-700);
+  --color-speaker-1-mid: var(--blue-500);
+  --color-speaker-1-tint: var(--blue-a16);
+
+  --color-speaker-2-bg: var(--teal-200);
+  --color-speaker-2-fg: var(--teal-700);
+  --color-speaker-2-mid: var(--teal-500);
+  --color-speaker-2-tint: var(--teal-a16);
+
+  --color-speaker-3-bg: var(--lilac-200);
+  --color-speaker-3-fg: var(--lilac-700);
+  --color-speaker-3-mid: var(--lilac-500);
+  --color-speaker-3-tint: var(--lilac-a16);
+
+  --color-speaker-4-bg: var(--tangerine-200);
+  --color-speaker-4-fg: var(--tangerine-700);
+  --color-speaker-4-mid: var(--tangerine-500);
+  --color-speaker-4-tint: var(--tangerine-a16);
+
+  --color-speaker-5-bg: var(--rose-200);
+  --color-speaker-5-fg: var(--rose-700);
+  --color-speaker-5-mid: var(--rose-500);
+  --color-speaker-5-tint: var(--rose-a16);
+
+  --color-speaker-6-bg: var(--gray-200);
+  --color-speaker-6-fg: var(--gray-600);
+  --color-speaker-6-mid: var(--gray-400);
+  --color-speaker-6-tint: var(--black-a04);
+
+  --color-success-bg: var(--green-a10);
+  --color-success-border: var(--green-a30);
+  --color-success-fg: var(--green-700);
+  --color-success-solid: var(--green-500);
+
+  --color-text-disabled: var(--gray-400);
+  --color-text-on-accent: var(--gray-0);
+  --color-text-on-danger: var(--gray-0);
+  --color-text-on-inverse: var(--gray-0);
+  --color-text-on-inverse-muted: var(--white-a72);
+  --color-text-placeholder: var(--gray-400);
+  --color-text-primary: var(--gray-900);
+  --color-text-secondary: var(--gray-600);
+
+  --color-warning-bg: var(--amber-a14);
+  --color-warning-border: var(--amber-a34);
+  --color-warning-fg: var(--amber-700);
+
+  --shadow-lg: 0 24px 80px 0 var(--color-shadow-strong), 0 0 0 1px var(--color-border-default);
+  --shadow-md: 0 10px 28px 0 var(--color-shadow-medium), 0 2px 4px 0 var(--color-shadow-soft);
+  --shadow-sm: 0 1px 2px 0 var(--color-shadow-soft);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-accent-bg: var(--iris-dark-a24);
+  --color-accent-border: var(--iris-dark-a34);
+  --color-accent-fg: var(--iris-400);
+  --color-accent-on-inverse: var(--iris-600);
+
+  --color-bg-inverse: var(--gray-100);
+  --color-bg-muted: var(--gray-800);
+  --color-bg-raised: var(--gray-900);
+  --color-bg-sidebar: var(--gray-1000);
+  --color-bg-sunken: var(--gray-1000);
+  --color-bg-window: var(--gray-950);
+
+  --color-border-default: var(--white-a08);
+  --color-border-on-inverse: var(--black-a22);
+  --color-border-strong: var(--white-a16);
+
+  --color-danger-bg: var(--red-dark-a16);
+  --color-danger-border: var(--red-dark-a34);
+  --color-danger-fg: var(--red-400);
+  --color-danger-solid: var(--red-600);
+
+  --color-dropzone-bg: var(--iris-dark-a16);
+
+  --color-fill-disabled: var(--gray-800);
+  --color-fill-hover: var(--white-a06);
+  --color-fill-pressed: var(--white-a10);
+
+  --color-focus: var(--iris-400);
+
+  --color-identify-bg: var(--iris-dark-a16);
+  --color-identify-border: var(--iris-dark-a34);
+  --color-identify-fg: var(--iris-400);
+
+  --color-live: var(--red-500);
+
+  --color-scrim: var(--black-a60);
+
+  --color-selection: var(--iris-dark-a34);
+
+  --color-shadow-medium: var(--black-a40);
+  --color-shadow-soft: var(--black-a24);
+  --color-shadow-strong: var(--black-a50);
+
+  --color-speaker-1-bg: var(--blue-800);
+  --color-speaker-1-fg: var(--blue-200);
+  --color-speaker-1-mid: var(--blue-500);
+  --color-speaker-1-tint: var(--blue-a24);
+
+  --color-speaker-2-bg: var(--teal-800);
+  --color-speaker-2-fg: var(--teal-200);
+  --color-speaker-2-mid: var(--teal-500);
+  --color-speaker-2-tint: var(--teal-a24);
+
+  --color-speaker-3-bg: var(--lilac-800);
+  --color-speaker-3-fg: var(--lilac-200);
+  --color-speaker-3-mid: var(--lilac-500);
+  --color-speaker-3-tint: var(--lilac-a24);
+
+  --color-speaker-4-bg: var(--tangerine-800);
+  --color-speaker-4-fg: var(--tangerine-200);
+  --color-speaker-4-mid: var(--tangerine-500);
+  --color-speaker-4-tint: var(--tangerine-a24);
+
+  --color-speaker-5-bg: var(--rose-800);
+  --color-speaker-5-fg: var(--rose-200);
+  --color-speaker-5-mid: var(--rose-500);
+  --color-speaker-5-tint: var(--rose-a24);
+
+  --color-speaker-6-bg: var(--gray-800);
+  --color-speaker-6-fg: var(--gray-400);
+  --color-speaker-6-mid: var(--gray-500);
+  --color-speaker-6-tint: var(--white-a06);
+
+  --color-success-bg: var(--green-dark-a16);
+  --color-success-border: var(--green-dark-a34);
+  --color-success-fg: var(--green-400);
+  --color-success-solid: var(--green-500);
+
+  --color-text-disabled: var(--gray-500);
+  --color-text-on-accent: var(--gray-950);
+  --color-text-on-danger: var(--gray-0);
+  --color-text-on-inverse: var(--gray-950);
+  --color-text-on-inverse-muted: var(--black-a64);
+  --color-text-placeholder: var(--gray-500);
+  --color-text-primary: var(--gray-100);
+  --color-text-secondary: var(--gray-400);
+
+  --color-warning-bg: var(--amber-dark-a16);
+  --color-warning-border: var(--amber-a34);
+  --color-warning-fg: var(--amber-400);
+
+  --shadow-lg: 0 24px 80px 0 var(--color-shadow-strong), 0 0 0 1px var(--color-border-default);
+  --shadow-md: 0 10px 28px 0 var(--color-shadow-medium), 0 2px 4px 0 var(--color-shadow-soft);
+  --shadow-sm: 0 1px 2px 0 var(--color-shadow-soft);
+}
