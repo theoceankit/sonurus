@@ -1,0 +1,21 @@
+.searchField {
+  width: 100%;
+}
+
+.box {
+  padding-inline: var(--space-2) var(--space-1);
+}
+
+.icon {
+  flex: none;
+  color: var(--color-text-secondary);
+}
+
+/* The design has its own clear button instead of the browser's. */
+.input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.disabled {
+  opacity: var(--opacity-disabled);
+}
