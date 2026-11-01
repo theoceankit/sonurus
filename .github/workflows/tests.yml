@@ -34,6 +34,18 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install new UI dependencies
+        run: npm --prefix ui ci
+
+      - name: Check new UI types
+        run: npm --prefix ui run typecheck
+
+      - name: Run new UI tests
+        run: npm --prefix ui test
+
+      - name: Build new UI
+        run: npm --prefix ui run build
+
       - name: Run renderer tests
         run: node --test 'tests/renderer/*.test.js'
 

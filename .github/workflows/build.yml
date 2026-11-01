@@ -48,8 +48,16 @@ jobs:
       - name: Check bundled imports
         run: node scripts/check-bundled-imports.js
 
+      - name: Build new UI
+        run: |
+          npm --prefix ui ci
+          npm run build:ui
+
       - name: Build Electron app
         run: npx electron-builder --mac --arm64 --publish never
+
+      - name: Check packaged UI
+        run: node scripts/check-packaged-ui.js dist
 
       - name: Check installer size
         run: node scripts/check-installer-size.js dist
@@ -94,8 +102,16 @@ jobs:
       - name: Check bundled imports
         run: node scripts/check-bundled-imports.js
 
+      - name: Build new UI
+        run: |
+          npm --prefix ui ci
+          npm run build:ui
+
       - name: Build Electron app
         run: npx electron-builder --win --x64 --publish never
+
+      - name: Check packaged UI
+        run: node scripts/check-packaged-ui.js dist
 
       - name: Check installer size
         run: node scripts/check-installer-size.js dist
@@ -135,8 +151,16 @@ jobs:
       - name: Check bundled imports
         run: node scripts/check-bundled-imports.js
 
+      - name: Build new UI
+        run: |
+          npm --prefix ui ci
+          npm run build:ui
+
       - name: Build Electron app
         run: npx electron-builder --linux --x64 --publish never
+
+      - name: Check packaged UI
+        run: node scripts/check-packaged-ui.js dist
 
       - name: Check installer size
         run: node scripts/check-installer-size.js dist

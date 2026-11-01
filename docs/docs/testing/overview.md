@@ -47,9 +47,13 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 
 `tests/quality/` runs the real models on a fixed set of AMI meeting recordings and scores the transcripts; it is skipped unless `SONORUS_QUALITY=1` (and always in CI). See [Quality Tests](quality.md).
 
+### New UI tests
+
+`ui/` has its own tests next to the components, on Vitest and Testing Library in jsdom: `npm --prefix ui test`, plus `npm --prefix ui run typecheck`. CI runs both and builds `ui/dist` before the build tests. This needs Node.js 22.22.2+ (jsdom); the other suites work from 22.12.
+
 ### Build tests
 
-`tests/build/` checks the packaging inputs without building anything: the per-platform lock files and GPU manifests in `locks/`, the pruning of the bundled Python and the bundled import check (see [Packaging](../distribution/packaging.md#python-packages-lock-files)), the installer size check, the absence of a first-run setup in the Electron main process, the Electron version (native Wayland), the Visual C++ runtime copied into the Windows build and the app icons (PNG, ICNS and ICO are read with Node built-ins, since CI has no `node_modules`). Installers themselves are verified by building and running them.
+`tests/build/` checks the packaging inputs without building anything: the new UI's window entry, CSP and packaging rules, the per-platform lock files and GPU manifests in `locks/`, the pruning of the bundled Python and the bundled import check (see [Packaging](../distribution/packaging.md#python-packages-lock-files)), the installer size check, the absence of a first-run setup in the Electron main process, the Electron version (native Wayland), the Visual C++ runtime copied into the Windows build and the app icons (PNG, ICNS and ICO are read with Node built-ins, since CI has no `node_modules`). Installers themselves are verified by building and running them.
 
 ---
 
@@ -59,6 +63,9 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 
 | File | What it covers |
 |---|---|
+| `test_cors.py` | `cors_origins()`: the local origins by default, the dev server's on request, never for a packaged backend; preflights for `null` and the dev server |
+| `tests/build/ui-entry.test.js` | What the window loads for each switch, mode and dev URL; a packaged app ignores the URL; `main.js` uses it and keeps its security settings |
+| `tests/build/ui-package.test.js` | New UI: same CSP as the old UI (in the build too, when there is one), dev additions limited to the dev server, Storybook telemetry off, stories for every component, no remote content in sources, only `ui/dist` packaged, build and checks in every build script and CI job, the archive check in `check-packaged-ui.js` |
 | `test_api.py` | End-to-end API routes: transcripts CRUD, speaker rename, delete → speaker recompute, single-segment reassign, live-recording and import-copy cleanup on `DELETE /transcripts/{id}` (originals/escaping/symlinked/shared files kept), orphan import copies removed at startup (copies of transcripts and queued jobs kept), `POST /data/reset` (DB + files, imported files kept, 409 while a job runs), Speakers section (`GET /speakers` with unnamed speakers and statistics, `PATCH` name/color (shared names allowed), `DELETE` → unassigned segments and 409 while a job runs, `GET /speakers/{id}/transcripts`, `GET /speakers/{id}/sample`, reassigning unassigned segments), `color_index` for a speaker created by name, assigning a named speaker without a voice profile, `PATCH /transcripts/{id}` title (trimmed, 404, 422 for blank / over 200 chars), `GET /health` reports `data_dir` (absolute), `packaged` and `pid` |
 | `test_transcript_storage_service.py` | `save()`, `load()`, `update_*` (incl. `update_title()`), `list_all()`, `audio_files()`, `delete_segment()`, `clear()`, `count_by_audio_file()`, `get_embeddings_grouped_by_transcript()`, segment indexes, `load(with_embeddings=False)`, unassigned segments + schema v5 migration, schema v6 (raw labels → UUID / unassigned), `speaker_stats()`, `transcripts_for_speaker()` |
 | `test_speaker_memory_service.py` | `resolve()` purity, `set_name()` / `get_name()`, persistence, `save_names_only()`, `find_by_name()`, UUID migration, `clear()` (DB + in-memory + dirty sets), `speaker_ids()`, `set_color()`, removing name-only speakers |

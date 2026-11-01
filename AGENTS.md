@@ -3,7 +3,7 @@
 Instructions for AI coding agents working in this repository. Human contributors: start with
 [CONTRIBUTING.md](CONTRIBUTING.md) — everything here is also true for you.
 
-Sonorus is a local desktop app: an Electron UI (vanilla JS, no framework) over a FastAPI backend that
+Sonorus is a local desktop app: an Electron UI (vanilla JS, no framework; a React rewrite is growing in `ui/`) over a FastAPI backend that
 transcribes audio with WhisperX, diarizes with PyAnnote and remembers speakers across recordings in
 SQLite. Everything runs on the user's machine; the app makes no network requests besides the ones
 listed in `docs/docs/privacy.md`.
@@ -32,6 +32,13 @@ Unit tests need none of the ML libraries or a token — see [Tests](#tests).
 # Data dir is Electron userData: ~/.config/sonorus-dev in dev, ~/.config/sonorus packaged.
 npm start
 
+# New UI (ui/, own package, Node.js 22.22.2+): install once, then Vite + Electron with hot reload.
+# Packaged builds and `npm start` open it only with --new-ui, from the build in ui/dist.
+npm --prefix ui ci
+npm run dev:ui
+npm run build:ui
+npm --prefix ui run storybook               # http://localhost:6006, telemetry off
+
 # Backend alone. Data dir = $SONORUS_DATA_DIR or the current directory. Never add --reload.
 .venv/bin/uvicorn app.api.main:app --host 127.0.0.1 --port 8000
 
@@ -51,7 +58,9 @@ There is no linter, formatter or type checker. Match the style of the surroundin
 ```bash
 .venv/bin/python -m pytest tests/ -v            # Python; HF Hub network is stubbed in tests/conftest.py
 node --test 'tests/renderer/*.test.js'          # renderer units (node:test, scripts loaded via node:vm)
-node --test 'tests/build/*.test.js'             # lock files, installer size, no first-run setup
+node --test 'tests/build/*.test.js'             # lock files, installer size, no first-run setup, new UI packaging
+npm --prefix ui test                            # new UI units (Vitest, Testing Library)
+npm --prefix ui run typecheck
 SONORUS_QUALITY=1 .venv/bin/python -m pytest tests/quality -v -s   # real models on AMI clips, opt-in
 ```
 
@@ -93,6 +102,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | Config and environment | `app/config.py`, `.env` | `docs/docs/environment/configuration.md` |
 | Electron main process | `electron/main.js`, `backend.js`, `backend-identity.js`, `gpu-pack.js`, `preload.js` | `docs/docs/ui/electron/overview.md` |
 | Renderer | `electron/renderer/app.js`, `views/`, shared helpers in `utils.js` | `docs/docs/ui/electron/` |
+| New UI | `ui/`, what the window loads in `electron/ui-entry.js` | `docs/docs/ui/electron/overview.md` → New UI |
 | Live recording | `app/api/routers/audio_capture.py`, `native/` | `docs/docs/ui/electron/live-recording.md` |
 | Packaging and releases | `scripts/bundle-backend.js`, `locks/`, `build/` | `docs/docs/distribution/` |
 
@@ -126,6 +136,8 @@ App rules:
   (`electron/renderer/not-implemented.js`) — never hidden and never faked. When the feature lands,
   remove its id and the call.
 - UI text: no `·` separators, no all-caps labels.
+- Every component in `ui/src/components/<Name>/` has `<Name>.stories.tsx` with a story for each of its
+  states, so it can be seen in Storybook. A build test checks that the file exists.
 
 ## Workflow
 

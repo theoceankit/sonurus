@@ -54,7 +54,7 @@ macOS does not support CUDA. Apple Silicon can use MPS, but WhisperX/ctranslate2
 ### Requirements
 
 - Python 3.12 (via pyenv recommended)
-- Node.js 22.12+
+- Node.js 22.12+ (22.22.2+ to work on the new UI in `ui/`)
 - CUDA 12.x (optional, for GPU acceleration)
 - HuggingFace account + token
 
@@ -108,6 +108,8 @@ VERBOSE=false
 
 > **Note:** The `.env` file is loaded only when the backend is started manually (`uvicorn ...`). When started via Electron (`npm start`), the token comes from Settings.
 
+The new UI in `ui/` has its own dependencies and commands: [New UI](../ui/electron/overview.md#new-ui).
+
 ### Tests
 
 ```bash
@@ -120,6 +122,7 @@ Build an installer for the current platform (see [Packaging](../distribution/pac
 with an isolated data directory, e.g. on Linux:
 
 ```bash
+npm --prefix ui ci
 npm run build:linux
 ./dist/Sonorus-*.AppImage --user-data-dir=/tmp/sonorus-test
 ```

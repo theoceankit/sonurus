@@ -24,6 +24,39 @@ To start the backend manually (e.g. for isolated API testing):
 
 ---
 
+## New UI
+
+A rewrite on React and TypeScript lives in `ui/`, a separate npm package next to the old renderer. It is an empty screen with one `Button` so far. Without a switch the app opens the old UI, in development and in installers; nothing in the interface leads to the new one.
+
+```bash
+npm --prefix ui ci                  # once; needs Node.js 22.22.2+
+npm run dev:ui                      # Vite and Electron, hot reload (arguments go to Electron)
+npm run build:ui                    # build into ui/dist
+npm start -- --new-ui               # the build in development
+./dist/Sonorus-*.AppImage --new-ui  # the build in an installed app
+npm --prefix ui run storybook       # http://localhost:6006
+npm --prefix ui test                # Vitest
+npm --prefix ui run typecheck
+```
+
+Every component lives in `ui/src/components/<Name>/` and has `<Name>.stories.tsx` with a story for each of its states. Storybook finds these files by itself; a component without one is simply absent from it, so a build test checks that the file exists. Whether the stories cover all states is checked by review.
+
+`electron/ui-entry.js` decides what the window loads:
+
+| Switch | Environment | Development | Packaged |
+|---|---|---|---|
+| none | any | `electron/renderer/index.html` | `electron/renderer/index.html` |
+| `--new-ui` | — | `ui/dist/index.html` | `ui/dist/index.html` |
+| `--new-ui` | `SONORUS_UI_DEV_URL` | that URL | `ui/dist/index.html` |
+
+`--new-ui` without a build stops with an error dialog naming `npm run build:ui`.
+
+The window settings are the same for both UIs. `ui/index.html` carries the same CSP string as the old `index.html`, so the build loads through `file://` under the same rules. Hot reload needs an inline script and the dev server's WebSocket: a plugin in `ui/vite.config.ts` adds `script-src 'self' 'unsafe-inline'` and `ws://localhost:5173` on the dev server only.
+
+The dev server's origin is not one the backend accepts, so `npm run dev:ui` sets `SONORUS_DEV_UI_ORIGIN`. A backend started earlier without it, e.g. with `uvicorn`, refuses requests from the dev page.
+
+---
+
 ## Backend lifecycle
 
 `electron/backend.js` manages the server process:
@@ -47,6 +80,7 @@ electron/
   main.js              — BrowserWindow, IPC handlers, backend lifecycle orchestration
   backend.js           — Backend process spawn, health check
   dialog-folder.js     — Folder the file dialog opens in (last picked file, dialog-state.json)
+  ui-entry.js          — What the window loads: old UI, new UI build or dev server
   preload.js           — contextBridge: exposes electronAPI.*
   assets/
     icon.png           — app icon master for Windows and Linux, 1024×1024 (see Packaging → Icons)
@@ -335,7 +369,7 @@ Every UI icon is a file in `electron/assets/icons/`, rendered by `icons.js` as a
 
 - `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
 - Only `electronAPI.*` methods are exposed to the renderer
-- CORS in FastAPI is restricted to `null`, `127.0.0.1`, `localhost`
+- CORS in FastAPI is restricted to `null`, `127.0.0.1`, `localhost`, plus `SONORUS_DEV_UI_ORIGIN` in development ([New UI](#new-ui))
 - Media permissions granted only for `permission === 'media'` (microphone)
 - `will-navigate` is cancelled for the main window: the page never navigates itself
 - Spell checking off (`spellcheck: false`, session spell checker disabled with no languages): Chromium downloads no dictionaries from Google — see [Privacy](../../privacy.md)

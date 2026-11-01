@@ -36,11 +36,21 @@ async def lifespan(app: FastAPI):
     models.shutdown_executor()
 
 
+def cors_origins(env=os.environ) -> list[str]:
+    origins = ["null", "http://127.0.0.1", "http://localhost"]
+    # npm run dev:ui serves the new UI from the Vite dev server. Never for a
+    # packaged backend: any page on that port could then call it.
+    dev_origin = env.get("SONORUS_DEV_UI_ORIGIN")
+    if dev_origin and env.get("SONORUS_PACKAGED") != "1":
+        origins.append(dev_origin)
+    return origins
+
+
 app = FastAPI(title="Sonorus API", version=get_version(), lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["null", "http://127.0.0.1", "http://localhost"],
+    allow_origins=cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
