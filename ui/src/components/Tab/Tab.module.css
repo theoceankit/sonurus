@@ -1,0 +1,59 @@
+.tab {
+  composes: reset from '../../styles/control.module.css';
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  outline: none;
+  color: var(--color-text-placeholder);
+  font: var(--font-body-strong);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.tab:hover {
+  color: var(--color-text-secondary);
+}
+
+.tab:active {
+  color: var(--color-text-primary);
+}
+
+.tab[data-state='active'] {
+  color: var(--color-text-primary);
+}
+
+.tab:disabled {
+  opacity: var(--opacity-disabled);
+  color: var(--color-text-placeholder);
+}
+
+.tab[data-state='active']:disabled {
+  color: var(--color-text-primary);
+}
+
+.content {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.indicator {
+  height: var(--border-width-strong);
+  border-radius: var(--radius-full);
+}
+
+.tab[data-state='active'] .indicator {
+  background: var(--color-text-primary);
+}
+
+/* The ring is wider than it is tall, so an outline with one offset will not do. */
+.tab:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: calc(var(--space-1) * -1.5) calc(var(--space-2) * -1);
+  border: var(--border-width-strong) solid var(--color-focus);
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+}
