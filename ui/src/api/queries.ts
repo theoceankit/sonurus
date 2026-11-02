@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
-import type { SpeakerAssignment, SpeakerTarget } from './client'
+import type { SpeakerAssignment, SpeakerTarget, SpeakerUndo } from './client'
 import type { QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
@@ -142,9 +142,28 @@ export function useAssignTurnSpeaker() {
   const queries = useQueryClient()
   return useMutation({
     mutationFn: async ({ transcriptId, segmentStarts, target }: { transcriptId: number; segmentStarts: readonly number[]; target: SpeakerTarget }) => {
-      for (const segmentStart of segmentStarts) await api.assignSpeaker({ transcriptId, segmentStart, target })
+      let current = target
+      for (const segmentStart of segmentStarts) {
+        // A new speaker by name for the first segment, and by id for the rest: the
+        // API does not say the id, and a name does not tell speakers apart.
+        const before = 'name' in current ? await api.listSpeakers() : null
+        await api.assignSpeaker({ transcriptId, segmentStart, target: current })
+        if (before) {
+          const created = (await api.listSpeakers()).find(speaker => !before.some(known => known.id === speaker.id))
+          if (created) current = { id: created.id }
+        }
+      }
     },
     onSettled: () => refreshTranscriptsAndSpeakers(queries),
+  })
+}
+
+export function useUndoSpeakerAssignment() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: (undo: SpeakerUndo) => api.undoSpeakerAssignment(undo),
+    onSuccess: () => refreshTranscriptsAndSpeakers(queries),
   })
 }
 

@@ -22,9 +22,12 @@ export const SPEAKER_IDS = {
   kate: 'c1da281e-afce-4afd-b91d-f2dea03f100d',
   unknown1: 'd2eb392f-b0df-4b0e-8a2e-03efb14a100e',
   unknown2: 'e3fc4a30-c1ea-4c1f-9b3f-14fac25b100f',
+  unknown3: 'f40d5b41-d2fb-4d2a-ac4a-25abd36c1011',
+  unknown4: '051e6c52-e30c-4e3b-8d5b-36bce47d1012',
+  unknown5: '162f7d63-f41d-4f4c-9e6c-47cdf58e1013',
 } as const
 
-const { anna, mark, lena, priya, oliver, sofia, olga, daniel, emma, hugo, ines, jonas, kate, unknown1, unknown2 } = SPEAKER_IDS
+const { anna, mark, lena, priya, oliver, sofia, olga, daniel, emma, hugo, ines, jonas, kate, unknown1, unknown2, unknown3, unknown4, unknown5 } = SPEAKER_IDS
 
 const speaker = (id: string, name: string | null, colorIndex: number, transcripts: number): Speaker => ({
   id,
@@ -53,6 +56,9 @@ export const SPEAKERS: Speaker[] = [
   speaker(sofia, 'Sofia Ramos', 1, 3),
   speaker(unknown1, null, 0, 1),
   speaker(unknown2, null, 4, 2),
+  speaker(unknown3, null, 1, 1),
+  speaker(unknown4, null, 2, 1),
+  speaker(unknown5, null, 3, 1),
 ]
 
 const segment = (start: number, end: number, text: string, resolved: string, raw = 'SPEAKER_00'): Segment => ({
@@ -92,6 +98,29 @@ export const weeklySync = (segments: Segment[] = weeklySyncSegments): Transcript
   segments,
 })
 
+export const DESIGN_REVIEW_ID = 2
+
+// Not on a board: a whole review to go through, with what the card has to cope with.
+const designReviewSegments: Segment[] = [
+  segment(0, 6, "Let's look at the new inspector. Does the review card work for everyone?", lena, 'SPEAKER_00'),
+  segment(6, 11, 'It does for me. I would only move the counter closer to the title.', unknown2, 'SPEAKER_01'),
+  segment(11, 40, 'I went through a long meeting with it yesterday, and the part that helped most was hearing a voice before choosing, because names in the list mean little when you have not met everyone, and a short clip tells you more than any percentage.', unknown3, 'SPEAKER_02'),
+  segment(40, 44, 'Then the clip stays. What about speakers with no match?', oliver, 'SPEAKER_03'),
+  segment(44, 49, 'The audio of mine was lost, so there is nothing to listen to.', unknown4, 'SPEAKER_04'),
+  segment(49, 53, 'And nobody has heard me before.', unknown5, 'SPEAKER_05'),
+  segment(53, 57, 'Good, these are the cases to check.', lena, 'SPEAKER_00'),
+  segment(57, 60, 'I will write them down.', unknown2, 'SPEAKER_01'),
+]
+
+export const designReview = (): Transcript => ({
+  id: DESIGN_REVIEW_ID,
+  audio_path: '/fixtures/design-review.wav',
+  language: 'en',
+  status: 'done',
+  title: 'Design review',
+  segments: designReviewSegments,
+})
+
 const listItem = (id: number, title: string, createdAt: string, section: string, duration: string, speakers: string[]): TranscriptListItem => ({
   id,
   title,
@@ -109,7 +138,7 @@ export const FIXTURE_NOW = new Date(2026, 9, 5, 12)
 
 // Newest first, the order of GET /transcripts.
 export const TRANSCRIPTS: TranscriptListItem[] = [
-  listItem(2, 'Design review', '2026-10-05T11:20:00', 'Today', '42 min', [lena, unknown2, oliver, sofia, mark]),
+  listItem(DESIGN_REVIEW_ID, 'Design review', '2026-10-05T11:20:00', 'Today', '1 min', [lena, unknown2, unknown3, oliver, unknown4, unknown5]),
   listItem(3, 'Interview: onboarding feedback', '2026-10-05T09:05:00', 'Today', '28 min', [lena, unknown2, priya, anna, mark]),
   listItem(WEEKLY_SYNC_ID, 'Weekly product sync', '2026-10-04T02:33:00', 'Yesterday', '0 min', [anna, mark, unknown1, oliver, sofia, lena]),
   listItem(4, 'Call with Mark', '2026-10-03T16:40:00', LAST_WEEK, '19 min', [mark, anna, lena, oliver, priya]),
@@ -152,6 +181,27 @@ export const CANDIDATES: SpeakerCandidates = {
   [lena]: {
     candidates: [candidate(lena, 'Lena Kovacs', 0.58, true), candidate(priya, 'Priya Shah', 0.33), candidate(sofia, 'Sofia Ramos', 0.2)],
     clip: clip(29, 31, 'I would like to fix that before the big redesign.'),
+  },
+}
+
+export const DESIGN_REVIEW_CANDIDATES: SpeakerCandidates = {
+  [unknown2]: {
+    candidates: [candidate(sofia, 'Sofia Ramos', 0.68, true), candidate(emma, 'Emma Wilson', 0.34), candidate(priya, 'Priya Shah', 0.21)],
+    clip: clip(6, 11, 'It does for me. I would only move the counter closer to the title.'),
+  },
+  // A voice with one segment gets that segment as its clip, however long.
+  [unknown3]: {
+    candidates: [candidate(daniel, 'Daniel Brooks', 0.44), candidate(hugo, 'Hugo Martin', 0.27)],
+    clip: clip(11, 40, designReviewSegments[2].text),
+  },
+  [unknown4]: {
+    candidates: [candidate(kate, 'Kate Nguyen', 0.73, true), candidate(ines, 'Ines Costa', 0.16)],
+    clip: null,
+  },
+  // Nobody to compare with, the clip is still there.
+  [unknown5]: {
+    candidates: [],
+    clip: clip(49, 53, 'And nobody has heard me before.'),
   },
 }
 

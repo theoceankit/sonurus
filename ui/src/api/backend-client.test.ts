@@ -138,3 +138,8 @@ describe('errors', () => {
     expect(now).toBeLessThanOrEqual(Date.now())
   })
 })
+
+test('undoing an assignment has no route yet and says so', async () => {
+  const client = createBackendClient({ fetch: async () => { throw new Error('no request expected') } })
+  await expect(client.undoSpeakerAssignment({ transcriptId: 1, segmentStarts: [0], speakerId: 'a' })).rejects.toMatchObject({ status: 501 })
+})

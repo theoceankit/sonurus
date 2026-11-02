@@ -1,5 +1,5 @@
-import { ApiError, type ApiClient, type SpeakerAssignment } from '../client'
-import { effectiveSpeaker, type QueueSnapshot, type QueueUpdate, type Speaker } from '../types'
+import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
+import { effectiveSpeaker, UNASSIGNED, type QueueSnapshot, type QueueUpdate, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_NOW, queueSnapshot } from './data'
 import type { EventScript } from './event-scripts'
@@ -75,6 +75,9 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
     return created.id
   }
 
+  // What the review of a speaker had when the speaker was left with no segments.
+  const reviewed = new Map<number, SpeakerCandidates>()
+
   const assign = (assignment: SpeakerAssignment) => {
     const { transcriptId } = assignment
     const speakerId = resolveTarget(assignment.target)
@@ -92,9 +95,25 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
     const left = new Set(transcript(transcriptId).segments.map(effectiveSpeaker))
     const candidates = data.candidates[transcriptId] ?? {}
     // A speaker with no segments left has nothing to review.
-    for (const id of from) if (!left.has(id)) delete candidates[id]
+    for (const id of from) {
+      if (left.has(id) || !candidates[id]) continue
+      reviewed.set(transcriptId, { ...reviewed.get(transcriptId), [id]: candidates[id] })
+      delete candidates[id]
+    }
     const item = listItem(transcriptId)
     if (item) item.speakers = [...left]
+  }
+
+  const undo = ({ transcriptId, segmentStarts, speakerId }: SpeakerUndo) => {
+    for (const start of segmentStarts) {
+      const segment = segmentAt(transcriptId, start)
+      segment.unassigned = speakerId === UNASSIGNED
+      segment.speaker_resolved = speakerId === UNASSIGNED ? null : speakerId
+    }
+    const before = reviewed.get(transcriptId)?.[speakerId]
+    if (before) (data.candidates[transcriptId] ??= {})[speakerId] = before
+    const item = listItem(transcriptId)
+    if (item) item.speakers = [...new Set(transcript(transcriptId).segments.map(effectiveSpeaker))]
   }
 
   const emit = (event: QueueUpdate) => {
@@ -130,6 +149,7 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
       found.segments = found.segments.filter(s => s.start !== start)
     }),
     assignSpeaker: assignment => answer(() => assign(assignment)),
+    undoSpeakerAssignment: request => answer(() => undo(request)),
     getSpeakerCandidates: id => answer(() => {
       transcript(id)
       return data.candidates[id] ?? {}
