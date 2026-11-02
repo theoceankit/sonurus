@@ -5,6 +5,7 @@ const { BackendRefusedError, restartBackend, startBackend, stopBackend } = requi
 const { devUserDataPath } = require('./backend-identity')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 const { uiEntry } = require('./ui-entry')
+const { windowChrome } = require('./window-chrome')
 
 // Dev mode keeps its data apart from the packaged app (electron/backend-identity.js).
 // Must run before the app is ready: settings, the backend's data dir and logs follow it.
@@ -32,9 +33,10 @@ if (process.platform === 'darwin') {
 let mainWin = null
 
 function createWindow() {
+  const newUi = app.commandLine.hasSwitch('new-ui')
   const entry = uiEntry({
     isPackaged: app.isPackaged,
-    newUi: app.commandLine.hasSwitch('new-ui'),
+    newUi,
     devUrl: process.env.SONORUS_UI_DEV_URL,
     electronDir: __dirname,
   })
@@ -51,6 +53,7 @@ function createWindow() {
     minHeight: 600,
     backgroundColor: '#FFFFFF',
     icon: path.join(__dirname, 'assets', 'icon.png'),
+    ...windowChrome({ newUi }),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

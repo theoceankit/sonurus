@@ -177,6 +177,12 @@
 
   --size-menu: 240px;
 
+  --size-titlebar: 40px;
+  --size-search: 480px;
+  --size-panel-side: 300px;
+  --size-player: 64px;
+  --size-status-dot: 6px;
+
   --size-modal-small: 400px;
   --size-modal-medium: 520px;
   --size-modal-large: 760px;
