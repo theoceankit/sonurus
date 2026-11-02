@@ -14,10 +14,11 @@ interface ColorPickerProps {
   label?: string
   'aria-label'?: string
   disabled?: boolean
+  colors?: readonly SpeakerColor[]
 }
 
-// The speaker colour choice: exactly one of six, and arrow keys move the choice.
-export function ColorPicker({ value, onValueChange, label, 'aria-label': ariaLabel, disabled }: ColorPickerProps) {
+// The speaker colour choice: exactly one, and arrow keys move the choice.
+export function ColorPicker({ value, onValueChange, label, 'aria-label': ariaLabel, disabled, colors = SPEAKER_COLORS }: ColorPickerProps) {
   const labelId = useId()
   return (
     <Stack gap={1}>
@@ -31,7 +32,7 @@ export function ColorPicker({ value, onValueChange, label, 'aria-label': ariaLab
         aria-labelledby={label ? labelId : undefined}
         onValueChange={next => onValueChange(Number(next) as SpeakerColor)}
       >
-        {SPEAKER_COLORS.map(color => <ColorSwatch key={color} color={color} label={NAMES[color]} />)}
+        {colors.map(color => <ColorSwatch key={color} color={color} label={NAMES[color]} />)}
       </RadioGroup.Root>
     </Stack>
   )

@@ -91,3 +91,13 @@ test('Optional details opens, and its fields are not there yet', async () => {
   }
   expect((await screen.findAllByText('Not available yet')).length).toBeGreaterThan(0)
 })
+
+test('offers the colours the API keeps: not Gray, which means an unknown speaker', async () => {
+  const { onCreate } = setup({ initialName: 'Zoe' })
+  expect(screen.queryByRole('radio', { name: 'Gray' })).toBeNull()
+  const radios = screen.getAllByRole('radio')
+  expect(radios).toHaveLength(5)
+  await userEvent.click(radios[4])
+  await userEvent.click(create())
+  expect(onCreate).toHaveBeenCalledWith('Zoe', 4)
+})
