@@ -1,0 +1,2797 @@
+{
+  "components": {
+    "schemas": {
+      "AlignmentModelInfo": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "installed": {
+            "title": "Installed",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "alignment",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "installed",
+          "kind"
+        ],
+        "title": "AlignmentModelInfo",
+        "type": "object"
+      },
+      "AudioCaptureStartRequest": {
+        "properties": {
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          }
+        },
+        "title": "AudioCaptureStartRequest",
+        "type": "object"
+      },
+      "AudioCaptureStartResponse": {
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "AudioCaptureStartResponse",
+        "type": "object"
+      },
+      "AudioCaptureStopRequest": {
+        "properties": {
+          "mic_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mic Path"
+          }
+        },
+        "title": "AudioCaptureStopRequest",
+        "type": "object"
+      },
+      "AudioCaptureStopResponse": {
+        "properties": {
+          "file_path": {
+            "title": "File Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_path"
+        ],
+        "title": "AudioCaptureStopResponse",
+        "type": "object"
+      },
+      "AudioSource": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "AudioSource",
+        "type": "object"
+      },
+      "AudioSourcesResponse": {
+        "properties": {
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/AudioSource"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sources"
+        ],
+        "title": "AudioSourcesResponse",
+        "type": "object"
+      },
+      "DataResetResponse": {
+        "properties": {
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "speakers": {
+            "title": "Speakers",
+            "type": "integer"
+          },
+          "transcripts": {
+            "title": "Transcripts",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "transcripts",
+          "speakers",
+          "files"
+        ],
+        "title": "DataResetResponse",
+        "type": "object"
+      },
+      "DownloadRequest": {
+        "properties": {
+          "hf_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hf Token"
+          }
+        },
+        "title": "DownloadRequest",
+        "type": "object"
+      },
+      "GpuDevice": {
+        "properties": {
+          "compute_capability": {
+            "title": "Compute Capability",
+            "type": "string"
+          },
+          "driver": {
+            "title": "Driver",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "driver",
+          "compute_capability"
+        ],
+        "title": "GpuDevice",
+        "type": "object"
+      },
+      "GpuStatus": {
+        "properties": {
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "unsupported_platform",
+                  "not_packaged",
+                  "no_nvidia",
+                  "driver_too_old",
+                  "gpu_too_old"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Reason"
+          },
+          "device": {
+            "title": "Device",
+            "type": "string"
+          },
+          "download_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Size"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "gpu": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GpuDevice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_compute_capability": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Compute Capability"
+          },
+          "min_driver": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Driver"
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "enum": [
+                  "install",
+                  "remove"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending"
+          },
+          "state": {
+            "enum": [
+              "not_installed",
+              "downloading",
+              "pending_restart",
+              "active",
+              "error",
+              "stale"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "torch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Torch"
+          }
+        },
+        "required": [
+          "blocked_reason",
+          "gpu",
+          "min_driver",
+          "min_compute_capability",
+          "state",
+          "pending",
+          "error",
+          "download_size",
+          "device",
+          "torch"
+        ],
+        "title": "GpuStatus",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HeartbeatEvent": {
+        "properties": {
+          "type": {
+            "const": "heartbeat",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "HeartbeatEvent",
+        "type": "object"
+      },
+      "JobDeleted": {
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "deleted"
+        ],
+        "title": "JobDeleted",
+        "type": "object"
+      },
+      "JobDoneEvent": {
+        "description": "WS /ws/queue. TranscriptionQueue sends these three as plain dicts;\ntests hold them to these models.",
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "transcript_id": {
+            "title": "Transcript Id",
+            "type": "integer"
+          },
+          "type": {
+            "const": "job_done",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "job_id",
+          "title",
+          "transcript_id"
+        ],
+        "title": "JobDoneEvent",
+        "type": "object"
+      },
+      "JobFailedEvent": {
+        "properties": {
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Language"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "job_failed",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "job_id",
+          "title",
+          "error",
+          "error_code",
+          "error_language"
+        ],
+        "title": "JobFailedEvent",
+        "type": "object"
+      },
+      "JobUpdateRequest": {
+        "description": "PATCH /queue/jobs/{id}: only the fields sent are changed; language\nnull or \"auto\" = auto-detect.",
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "whisper_model": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whisper Model"
+          }
+        },
+        "title": "JobUpdateRequest",
+        "type": "object"
+      },
+      "QueueJob": {
+        "properties": {
+          "audio_path": {
+            "title": "Audio Path",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Language"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "status": {
+            "enum": [
+              "waiting",
+              "running",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "whisper_model": {
+            "title": "Whisper Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "audio_path",
+          "title",
+          "whisper_model",
+          "language",
+          "status",
+          "error",
+          "error_code",
+          "error_language",
+          "created_at"
+        ],
+        "title": "QueueJob",
+        "type": "object"
+      },
+      "QueueOrderRequest": {
+        "properties": {
+          "job_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Job Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "job_ids"
+        ],
+        "title": "QueueOrderRequest",
+        "type": "object"
+      },
+      "QueueSettingsRequest": {
+        "properties": {
+          "start_mode": {
+            "enum": [
+              "auto",
+              "manual"
+            ],
+            "title": "Start Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_mode"
+        ],
+        "title": "QueueSettingsRequest",
+        "type": "object"
+      },
+      "QueueSnapshot": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/QueueJob"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "paused": {
+            "title": "Paused",
+            "type": "boolean"
+          },
+          "paused_by_recording": {
+            "title": "Paused By Recording",
+            "type": "boolean"
+          },
+          "recording": {
+            "title": "Recording",
+            "type": "boolean"
+          },
+          "running_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running Job Id"
+          },
+          "start_mode": {
+            "enum": [
+              "auto",
+              "manual"
+            ],
+            "title": "Start Mode",
+            "type": "string"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "type": {
+            "const": "snapshot",
+            "default": "snapshot",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "paused",
+          "paused_by_recording",
+          "recording",
+          "start_mode",
+          "running_job_id",
+          "step",
+          "jobs"
+        ],
+        "title": "QueueSnapshot",
+        "type": "object"
+      },
+      "ReassignRequest": {
+        "description": "color_index sets the new speaker's palette color (only with to_speaker_name).",
+        "properties": {
+          "color_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Index"
+          },
+          "from_speaker_id": {
+            "title": "From Speaker Id",
+            "type": "string"
+          },
+          "to_speaker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Speaker Id"
+          },
+          "to_speaker_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Speaker Name"
+          }
+        },
+        "required": [
+          "from_speaker_id"
+        ],
+        "title": "ReassignRequest",
+        "type": "object"
+      },
+      "RecordingUploadResponse": {
+        "properties": {
+          "file_path": {
+            "title": "File Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_path"
+        ],
+        "title": "RecordingUploadResponse",
+        "type": "object"
+      },
+      "RenameRequest": {
+        "properties": {
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "RenameRequest",
+        "type": "object"
+      },
+      "SegmentResponse": {
+        "properties": {
+          "end": {
+            "title": "End",
+            "type": "number"
+          },
+          "speaker_final": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Final"
+          },
+          "speaker_raw": {
+            "title": "Speaker Raw",
+            "type": "string"
+          },
+          "speaker_resolved": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Resolved"
+          },
+          "start": {
+            "title": "Start",
+            "type": "number"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "unassigned": {
+            "default": false,
+            "title": "Unassigned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "text",
+          "speaker_raw",
+          "speaker_resolved",
+          "speaker_final",
+          "unassigned"
+        ],
+        "title": "SegmentResponse",
+        "type": "object"
+      },
+      "SegmentSpeakerRequest": {
+        "description": "Exactly one of: an existing speaker_id, or speaker_name to create a new speaker.\ncolor_index sets the new speaker's palette color (only with speaker_name).",
+        "properties": {
+          "color_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Index"
+          },
+          "speaker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Id"
+          },
+          "speaker_name": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Name"
+          }
+        },
+        "title": "SegmentSpeakerRequest",
+        "type": "object"
+      },
+      "SegmentTextRequest": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "SegmentTextRequest",
+        "type": "object"
+      },
+      "SpeakerDeleteResponse": {
+        "properties": {
+          "segments": {
+            "title": "Segments",
+            "type": "integer"
+          },
+          "transcripts": {
+            "title": "Transcripts",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "segments",
+          "transcripts"
+        ],
+        "title": "SpeakerDeleteResponse",
+        "type": "object"
+      },
+      "SpeakerResponse": {
+        "description": "A speaker in the Speakers section. name is None for unnamed speakers.",
+        "properties": {
+          "color_index": {
+            "title": "Color Index",
+            "type": "integer"
+          },
+          "duration_sec": {
+            "default": 0.0,
+            "title": "Duration Sec",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_seen": {
+            "default": "",
+            "title": "Last Seen",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "segments": {
+            "default": 0,
+            "title": "Segments",
+            "type": "integer"
+          },
+          "transcripts": {
+            "default": 0,
+            "title": "Transcripts",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "color_index",
+          "segments",
+          "transcripts",
+          "duration_sec",
+          "last_seen"
+        ],
+        "title": "SpeakerResponse",
+        "type": "object"
+      },
+      "SpeakerSampleResponse": {
+        "properties": {
+          "audio_path": {
+            "title": "Audio Path",
+            "type": "string"
+          },
+          "end": {
+            "title": "End",
+            "type": "number"
+          },
+          "start": {
+            "title": "Start",
+            "type": "number"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "transcript_id": {
+            "title": "Transcript Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "transcript_id",
+          "audio_path",
+          "start",
+          "end",
+          "text"
+        ],
+        "title": "SpeakerSampleResponse",
+        "type": "object"
+      },
+      "SpeakerSuggestion": {
+        "description": "GET /transcripts/{id}/speaker-suggestions: the known speaker closest to\nan unrecognized one.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "speaker_id": {
+            "title": "Speaker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "speaker_id",
+          "name",
+          "score"
+        ],
+        "title": "SpeakerSuggestion",
+        "type": "object"
+      },
+      "SpeakerTranscriptItem": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "duration_sec": {
+            "title": "Duration Sec",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "segments": {
+            "title": "Segments",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "created_at",
+          "segments",
+          "duration_sec"
+        ],
+        "title": "SpeakerTranscriptItem",
+        "type": "object"
+      },
+      "SpeakerUpdateRequest": {
+        "description": "At least one of name / color_index.",
+        "properties": {
+          "color_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Index"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "SpeakerUpdateRequest",
+        "type": "object"
+      },
+      "TranscribeRequest": {
+        "description": "POST /queue/jobs. language null or \"auto\" = auto-detect; no title =\nthe file name without its extension.",
+        "properties": {
+          "audio_path": {
+            "title": "Audio Path",
+            "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "whisper_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whisper Model"
+          }
+        },
+        "required": [
+          "audio_path"
+        ],
+        "title": "TranscribeRequest",
+        "type": "object"
+      },
+      "TranscriptListItem": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "duration": {
+            "title": "Duration",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          },
+          "speakers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Speakers",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "created_at",
+          "status",
+          "speakers",
+          "section",
+          "duration"
+        ],
+        "title": "TranscriptListItem",
+        "type": "object"
+      },
+      "TranscriptResponse": {
+        "properties": {
+          "audio_path": {
+            "title": "Audio Path",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/SegmentResponse"
+            },
+            "title": "Segments",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "id",
+          "audio_path",
+          "language",
+          "status",
+          "title",
+          "segments"
+        ],
+        "title": "TranscriptResponse",
+        "type": "object"
+      },
+      "TranscriptUpdateRequest": {
+        "properties": {
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "TranscriptUpdateRequest",
+        "type": "object"
+      },
+      "TranscriptionModelInfo": {
+        "description": "GET /models: a Whisper or diarization model of the catalog.",
+        "properties": {
+          "acc": {
+            "title": "Acc",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "installed": {
+            "title": "Installed",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "whisper",
+              "diarization"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "recommended": {
+            "title": "Recommended",
+            "type": "boolean"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
+          },
+          "speed": {
+            "title": "Speed",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "installed",
+          "name",
+          "size",
+          "speed",
+          "acc",
+          "recommended",
+          "kind"
+        ],
+        "title": "TranscriptionModelInfo",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Sonorus API"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/audio/capture/sources": {
+      "get": {
+        "operationId": "get_sources_audio_capture_sources_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioSourcesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Sources"
+      }
+    },
+    "/audio/capture/start": {
+      "post": {
+        "operationId": "start_capture_audio_capture_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AudioCaptureStartRequest",
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioCaptureStartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Capture"
+      }
+    },
+    "/audio/capture/stop/{job_id}": {
+      "post": {
+        "operationId": "stop_capture_audio_capture_stop__job_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AudioCaptureStopRequest",
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioCaptureStopResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stop Capture"
+      }
+    },
+    "/audio/recordings": {
+      "post": {
+        "description": "Store a live recording (raw body, Content-Type audio/webm or audio/wav)\nin RECORDINGS_DIR. The backend is the only writer of that dir, so the UI\nuploads instead of writing a file wherever its own data dir is.",
+        "operationId": "upload_recording_audio_recordings_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Upload Recording"
+      }
+    },
+    "/data/reset": {
+      "post": {
+        "operationId": "reset_data_data_reset_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Reset Data",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/gpu": {
+      "get": {
+        "operationId": "gpu_status_gpu_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Gpu Status",
+        "tags": [
+          "gpu"
+        ]
+      }
+    },
+    "/gpu/download": {
+      "post": {
+        "operationId": "start_download_gpu_download_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start Download",
+        "tags": [
+          "gpu"
+        ]
+      }
+    },
+    "/gpu/download/{job_id}": {
+      "delete": {
+        "operationId": "cancel_download_gpu_download__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Download",
+        "tags": [
+          "gpu"
+        ]
+      }
+    },
+    "/gpu/pack": {
+      "delete": {
+        "operationId": "remove_pack_gpu_pack_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Remove Pack",
+        "tags": [
+          "gpu"
+        ]
+      }
+    },
+    "/gpu/restart": {
+      "post": {
+        "description": "Ready when the app may restart the backend now; otherwise what it waits\nfor. A running transcription finishes first and no new one starts.",
+        "operationId": "request_restart_gpu_restart_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Request Restart",
+        "tags": [
+          "gpu"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/models": {
+      "get": {
+        "operationId": "list_models_models_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "discriminator": {
+                      "mapping": {
+                        "alignment": "#/components/schemas/AlignmentModelInfo",
+                        "diarization": "#/components/schemas/TranscriptionModelInfo",
+                        "whisper": "#/components/schemas/TranscriptionModelInfo"
+                      },
+                      "propertyName": "kind"
+                    },
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/TranscriptionModelInfo"
+                      },
+                      {
+                        "$ref": "#/components/schemas/AlignmentModelInfo"
+                      }
+                    ]
+                  },
+                  "title": "Response List Models Models Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Models",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/models/{model_id}": {
+      "delete": {
+        "operationId": "delete_model_models__model_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "title": "Model Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Model",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/models/{model_id}/download": {
+      "post": {
+        "operationId": "download_model_models__model_id__download_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "title": "Model Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DownloadRequest",
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Model",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/models/{model_id}/download/{job_id}": {
+      "delete": {
+        "operationId": "cancel_download_models__model_id__download__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "title": "Model Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Download",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/queue": {
+      "get": {
+        "operationId": "get_queue_queue_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Queue",
+        "tags": [
+          "transcription"
+        ]
+      }
+    },
+    "/queue/jobs": {
+      "post": {
+        "operationId": "add_job_queue_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranscribeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Job",
+        "tags": [
+          "transcription"
+        ]
+      }
+    },
+    "/queue/jobs/{job_id}": {
+      "delete": {
+        "description": "Delete a job and its audio (a running job is stopped first).",
+        "operationId": "delete_job_queue_jobs__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDeleted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Job",
+        "tags": [
+          "transcription"
+        ]
+      },
+      "patch": {
+        "operationId": "update_job_queue_jobs__job_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Job",
+        "tags": [
+          "transcription"
+        ]
+      }
+    },
+    "/queue/jobs/{job_id}/retry": {
+      "post": {
+        "operationId": "retry_job_queue_jobs__job_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Job",
+        "tags": [
+          "transcription"
+        ]
+      }
+    },
+    "/queue/order": {
+      "put": {
+        "operationId": "reorder_queue_order_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reorder",
+        "tags": [
+          "transcription"
+        ]
+      }
+    },
+    "/queue/pause": {
+      "post": {
+        "operationId": "pause_queue_queue_pause_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pause Queue",
+        "tags": [
+          "transcription"
+        ]
+      }
+    },
+    "/queue/recording/start": {
+      "post": {
+        "description": "A live recording started: the queue pauses and the running job stops.",
+        "operationId": "recording_started_queue_recording_start_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Recording Started",
+        "tags": [
+          "transcription"
+        ]
+      }
+    },
+    "/queue/recording/stop": {
+      "post": {
+        "description": "Call after queuing the new recording (it then goes last).",
+        "operationId": "recording_stopped_queue_recording_stop_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Recording Stopped",
+        "tags": [
+          "transcription"
+        ]
+      }
+    },
+    "/queue/settings": {
+      "put": {
+        "operationId": "update_settings_queue_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Settings",
+        "tags": [
+          "transcription"
+        ]
+      }
+    },
+    "/queue/start": {
+      "post": {
+        "operationId": "start_queue_queue_start_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start Queue",
+        "tags": [
+          "transcription"
+        ]
+      }
+    },
+    "/speakers": {
+      "get": {
+        "description": "Every speaker: with a voice profile, a name, or assigned segments.\nNamed speakers first (by name), then unnamed ones (most recently seen first).",
+        "operationId": "list_speakers_speakers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SpeakerResponse"
+                  },
+                  "title": "Response List Speakers Speakers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Speakers",
+        "tags": [
+          "speakers"
+        ]
+      }
+    },
+    "/speakers/{speaker_id}": {
+      "delete": {
+        "operationId": "delete_speaker_speakers__speaker_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "speaker_id",
+            "required": true,
+            "schema": {
+              "title": "Speaker Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeakerDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Speaker",
+        "tags": [
+          "speakers"
+        ]
+      },
+      "patch": {
+        "operationId": "update_speaker_speakers__speaker_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "speaker_id",
+            "required": true,
+            "schema": {
+              "title": "Speaker Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakerUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeakerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Speaker",
+        "tags": [
+          "speakers"
+        ]
+      }
+    },
+    "/speakers/{speaker_id}/rename": {
+      "post": {
+        "operationId": "rename_speaker_speakers__speaker_id__rename_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "speaker_id",
+            "required": true,
+            "schema": {
+              "title": "Speaker Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Speaker",
+        "tags": [
+          "speakers"
+        ]
+      }
+    },
+    "/speakers/{speaker_id}/sample": {
+      "get": {
+        "description": "A segment to play as the speaker's voice: the one closest to their\nvoice profile whose audio file still exists (optionally within one transcript).",
+        "operationId": "speaker_sample_speakers__speaker_id__sample_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "speaker_id",
+            "required": true,
+            "schema": {
+              "title": "Speaker Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "transcript_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Transcript Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeakerSampleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Speaker Sample",
+        "tags": [
+          "speakers"
+        ]
+      }
+    },
+    "/speakers/{speaker_id}/transcripts": {
+      "get": {
+        "operationId": "speaker_transcripts_speakers__speaker_id__transcripts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "speaker_id",
+            "required": true,
+            "schema": {
+              "title": "Speaker Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SpeakerTranscriptItem"
+                  },
+                  "title": "Response Speaker Transcripts Speakers  Speaker Id  Transcripts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Speaker Transcripts",
+        "tags": [
+          "speakers"
+        ]
+      }
+    },
+    "/transcripts": {
+      "get": {
+        "operationId": "list_transcripts_transcripts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TranscriptListItem"
+                  },
+                  "title": "Response List Transcripts Transcripts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Transcripts",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
+    "/transcripts/{transcript_id}": {
+      "delete": {
+        "operationId": "delete_transcript_transcripts__transcript_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Transcript",
+        "tags": [
+          "transcripts"
+        ]
+      },
+      "get": {
+        "operationId": "get_transcript_transcripts__transcript_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscriptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Transcript",
+        "tags": [
+          "transcripts"
+        ]
+      },
+      "patch": {
+        "description": "Edit transcript metadata (title). Speakers and segments are untouched.",
+        "operationId": "update_transcript_transcripts__transcript_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranscriptUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Transcript",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
+    "/transcripts/{transcript_id}/reassign": {
+      "post": {
+        "operationId": "reassign_speaker_transcripts__transcript_id__reassign_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReassignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reassign Speaker",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
+    "/transcripts/{transcript_id}/segments/{start}": {
+      "delete": {
+        "operationId": "delete_segment_transcripts__transcript_id__segments__start__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "start",
+            "required": true,
+            "schema": {
+              "title": "Start",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Segment",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
+    "/transcripts/{transcript_id}/segments/{start}/speaker": {
+      "patch": {
+        "operationId": "update_segment_speaker_transcripts__transcript_id__segments__start__speaker_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "start",
+            "required": true,
+            "schema": {
+              "title": "Start",
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegmentSpeakerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Segment Speaker",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
+    "/transcripts/{transcript_id}/segments/{start}/text": {
+      "patch": {
+        "operationId": "update_segment_text_transcripts__transcript_id__segments__start__text_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "start",
+            "required": true,
+            "schema": {
+              "title": "Start",
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegmentTextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Segment Text",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
+    "/transcripts/{transcript_id}/speaker-suggestions": {
+      "get": {
+        "description": "For each unrecognized speaker in the transcript, return the best matching known speaker.",
+        "operationId": "get_speaker_suggestions_transcripts__transcript_id__speaker_suggestions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/SpeakerSuggestion"
+                  },
+                  "title": "Response Get Speaker Suggestions Transcripts  Transcript Id  Speaker Suggestions Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Speaker Suggestions",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    }
+  }
+}

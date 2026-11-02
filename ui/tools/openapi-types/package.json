@@ -1,0 +1,14 @@
+{
+  "name": "sonorus-openapi-types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generates ui/src/api/schema.gen.ts. Its own package because openapi-typescript needs TypeScript 5 and the new UI is on 7.",
+  "scripts": {
+    "generate": "openapi-typescript ../../src/api/openapi.json -o ../../src/api/schema.gen.ts",
+    "check": "openapi-typescript ../../src/api/openapi.json -o ../../src/api/schema.gen.ts --check"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  }
+}

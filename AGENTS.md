@@ -39,6 +39,9 @@ npm run dev:ui
 npm run build:ui
 npm --prefix ui run storybook               # http://localhost:6006, telemetry off
 
+# API schema and types of the new UI, after any change to a route or schema (generator: once npm --prefix ui/tools/openapi-types ci)
+npm run gen:api
+
 # Backend alone. Data dir = $SONORUS_DATA_DIR or the current directory. Never add --reload.
 .venv/bin/uvicorn app.api.main:app --host 127.0.0.1 --port 8000
 
@@ -103,6 +106,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | Electron main process | `electron/main.js`, `backend.js`, `backend-identity.js`, `gpu-pack.js`, `preload.js` | `docs/docs/ui/electron/overview.md` |
 | Renderer | `electron/renderer/app.js`, `views/`, shared helpers in `utils.js` | `docs/docs/ui/electron/` |
 | New UI | `ui/`, what the window loads in `electron/ui-entry.js` | `docs/docs/ui/electron/overview.md` → New UI |
+| New UI data: API client, fixtures, generated types | `ui/src/api/`, `ui/src/platform/`, `ui/tools/openapi-types/`, `app/api/openapi_schema.py` | `docs/docs/ui/electron/new-ui-data.md` |
 | New UI tokens, font, icons | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/Icon/` | `docs/docs/ui/electron/new-ui-foundations.md` |
 | Live recording | `app/api/routers/audio_capture.py`, `native/` | `docs/docs/ui/electron/live-recording.md` |
 | Packaging and releases | `scripts/bundle-backend.js`, `locks/`, `build/` | `docs/docs/distribution/` |
@@ -141,6 +145,8 @@ App rules:
   (`electron/renderer/not-implemented.js`) — never hidden and never faked. When the feature lands,
   remove its id and the call.
 - UI text: no `·` separators, no all-caps labels.
+- New UI screens get data only through `useApi()` and the hooks in `ui/src/api/queries.ts`, never `fetch`. A test fails
+  until `npm run gen:api` follows a change to the API.
 - Every component in `ui/src/components/<Name>/` has `<Name>.stories.tsx` with a story for each of its
   states, so it can be seen in Storybook. A build test checks that the file exists.
 

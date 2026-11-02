@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 import app.config as config
 from app.api.dependencies import get_transcription_queue
-from app.api.schemas import DownloadRequest
+from app.api.schemas import DownloadRequest, ModelInfo
 from app.services.model_service import ModelService, WHISPER_CATALOG, DIARIZATION_CATALOG, ALIGNMENT_CATALOG
 from app.logger import get_logger
 
@@ -46,7 +46,7 @@ def _make_service() -> ModelService:
     return ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR)
 
 
-@router.get("/models")
+@router.get("/models", response_model=list[ModelInfo])
 def list_models():
     return _make_service().list_models()
 

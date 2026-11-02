@@ -39,6 +39,17 @@ python3.12 -m venv /tmp/ci-venv
 /tmp/ci-venv/bin/python -m pytest tests/ -v
 ```
 
+### API schema and types
+
+The new UI's types come from the API schema ([New UI data](../ui/electron/new-ui-data.md)). `tests/test_openapi_schema.py` fails when `ui/src/api/openapi.json` differs from what the code gives, and holds the WebSocket events of the queue to their models. CI then checks that `ui/src/api/schema.gen.ts` matches that file:
+
+```bash
+npm --prefix ui/tools/openapi-types ci
+npm --prefix ui/tools/openapi-types run check
+```
+
+Both pass in the CI environment: the schema is taken with the ML libraries stubbed. `npm run gen:api` regenerates both files.
+
 ### Renderer tests
 
 Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-renderer.js` evaluates them in a `node:vm` context, so their top-level function declarations (e.g. `fileUrl()` from `utils.js`) can be tested with `node:test` without a browser. Pass stubs for browser globals via the second argument of `loadRenderer(files, globals)`. Views that build DOM (modals, Settings rows, the queue job modal) run against the permissive fake DOM in `tests/renderer/fake-dom.js`; `tests/renderer/models-fixture.js` provides a `GET /models` catalog. Layout and visual behaviour are verified manually in the running app.
@@ -86,6 +97,7 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 | `test_transcription_job.py` | `make_job_runner()`: save with the job title + commit, cancel after the pipeline saves nothing, models released on failure / cancel, a failed commit keeps the saved transcript, child-process mode (no models in the backend, saved through storage, cancel passed through) |
 | `test_job_models.py` | A job never downloads models: `require_job_models()` (Whisper first, then diarization, then the alignment model of an explicit language), `run_job` checks before the pipeline, the queue fails the job with `whisper_model_missing` / `diarization_model_missing`, the pipeline child sets `HF_HUB_OFFLINE=1` before loading models |
 | `test_pipeline_process.py` | `run_pipeline_process()`: progress relayed, result returned, cancel stops the child at once (also mid-step and before start), `on_progress` errors stop it, child errors / missing alignment model / crash mapped to exceptions, SIGTERM from outside = interruption; group signals do not reach the child, the child exits when the backend dies; the real worker with a fake pipe; `Transcript` with embeddings survives pickling |
+| `test_openapi_schema.py` | The committed API schema matches the code; the queue events are in it |
 | `test_nltk_data.py` | Alignment offline: `scripts/fetch_nltk_data.py` is pinned to a commit + sha256, installs `punkt_tab` under `<prefix>/nltk_data/tokenizers`, refuses a wrong checksum or members outside `punkt_tab/` (nothing installed), replaces old data, reuses a valid cached archive and re-downloads a corrupt one; `use_bundled_nltk_data()` limits NLTK to `<sys.prefix>/nltk_data` and turns downloads into `NltkDataMissingError` naming the data and the fix (missing NLTK is fine); the pipeline child calls it before loading models |
 | `test_telemetry.py` | Third-party telemetry off: `import app` sets `PYANNOTE_METRICS_ENABLED`, `OTEL_SDK_DISABLED`, `HF_HUB_DISABLE_TELEMETRY`, `DO_NOT_TRACK` and overrides the user's values, whichever app module is imported first; the spawned pipeline child inherits them; with the real libraries (skipped in CI) pyannote exports no metrics and `huggingface_hub` sees telemetry disabled; `disable_onnxruntime_telemetry()` calls onnxruntime's switch (missing onnxruntime is fine) and the pipeline child calls it before loading models |
 | `test_transcript_builder.py` | `TranscriptBuilder.build()` (WhisperX output → Transcript, UUID for unmatched `SPEAKER_XX`, `UNKNOWN` → unassigned) and `attach_embeddings()` (time-overlap matching) |

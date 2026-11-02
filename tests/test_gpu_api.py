@@ -97,6 +97,22 @@ def test_status(setup):
     assert body["torch"] == "2.8.0+cpu"
 
 
+def test_status_keeps_its_exact_keys(setup):
+    client, *_ = setup
+    assert client.get("/gpu").json() == {
+        "blocked_reason": None,
+        "gpu": {"name": "NVIDIA GeForce RTX 4060", "driver": "615.78.08", "compute_capability": "8.9"},
+        "min_driver": "570",
+        "min_compute_capability": "7.0",
+        "state": "not_installed",
+        "pending": None,
+        "error": None,
+        "download_size": 3_920_000_000,
+        "device": "cpu",
+        "torch": "2.8.0+cpu",
+    }
+
+
 def test_status_outside_the_packaged_app(monkeypatch):
     app.dependency_overrides[get_gpu_pack] = lambda: GpuPack(
         gpu_dir=None, manifest_path=None, platform="linux", detect=lambda: RTX_4060)
@@ -105,6 +121,7 @@ def test_status_outside_the_packaged_app(monkeypatch):
     finally:
         app.dependency_overrides.pop(get_gpu_pack, None)
     assert body["blocked_reason"] == "not_packaged"
+    assert body["min_driver"] is None and body["download_size"] is None
 
 
 # ── download ──────────────────────────────────────────────────────────────────

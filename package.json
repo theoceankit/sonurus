@@ -7,6 +7,7 @@
     "start": "electron .",
     "dev:ui": "node scripts/dev-ui.js",
     "build:ui": "npm --prefix ui run build",
+    "gen:api": ".venv/bin/python scripts/export_openapi.py && npm --prefix ui/tools/openapi-types run generate",
     "bundle-backend": "node scripts/bundle-backend.js",
     "build:capture": "mkdir -p electron/resources/mac && swiftc -O native/macos/sonorus-capture/main.swift -framework ScreenCaptureKit -framework AVFoundation -framework Foundation -o electron/resources/mac/sonorus-capture",
     "build:mac": "npm run build:capture && npm run build:ui && node scripts/bundle-backend.js && electron-builder --mac",

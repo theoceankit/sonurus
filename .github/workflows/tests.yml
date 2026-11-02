@@ -37,6 +37,12 @@ jobs:
       - name: Install new UI dependencies
         run: npm --prefix ui ci
 
+      # pytest checks the schema against the code, this the types against the schema.
+      - name: Check generated API types
+        run: |
+          npm --prefix ui/tools/openapi-types ci
+          npm --prefix ui/tools/openapi-types run check
+
       - name: Check new UI types
         run: npm --prefix ui run typecheck
 

@@ -15,7 +15,7 @@ from app.api.dependencies import get_memory_service, get_storage_service
 from app.models.segment import UNASSIGNED
 from app.api.schemas import (
     TranscriptListItem, TranscriptResponse, SegmentResponse, TranscriptUpdateRequest,
-    SegmentSpeakerRequest, SegmentTextRequest, ReassignRequest,
+    SegmentSpeakerRequest, SegmentTextRequest, ReassignRequest, SpeakerSuggestion,
 )
 
 router = APIRouter(prefix="/transcripts", tags=["transcripts"])
@@ -126,12 +126,12 @@ def get_transcript(
     )
 
 
-@router.get("/{transcript_id}/speaker-suggestions")
+@router.get("/{transcript_id}/speaker-suggestions", response_model=dict[str, SpeakerSuggestion])
 def get_speaker_suggestions(
     transcript_id: int,
     storage: TranscriptStorageService = Depends(get_storage_service),
     memory: SpeakerMemoryService = Depends(get_memory_service),
-) -> dict:
+):
     """For each unrecognized speaker in the transcript, return the best matching known speaker."""
     try:
         t = storage.load(transcript_id)

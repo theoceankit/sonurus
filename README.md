@@ -116,6 +116,7 @@ only when asked for:
 ```bash
 npm --prefix ui ci              # once
 npm run dev:ui                  # the app with the new UI and hot reload
+VITE_SONORUS_FIXTURES=1 npm run dev:ui  # the same on fixtures, without real data
 npm --prefix ui run storybook   # component catalog at http://localhost:6006
 ```
 

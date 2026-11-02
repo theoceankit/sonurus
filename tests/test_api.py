@@ -1265,6 +1265,24 @@ def test_single_segment_reassign_of_unassigned_segment(reset_env):
     assert seg["unassigned"] is False and seg["speaker_resolved"] == _BOB
 
 
+def test_suggestions_give_the_best_named_speaker_for_each_unrecognized_one(client):
+    first, _ = _speakers_fixture()
+    r = client.get(f"/transcripts/{first}/speaker-suggestions")
+    assert r.status_code == 200
+    # Alice is named, Carol has no embedding: only Bob gets a suggestion.
+    assert r.json() == {_BOB: {"speaker_id": _ALICE, "name": "Alice", "score": 0.0}}
+
+
+def test_suggestions_are_empty_with_no_named_speaker(client):
+    storage = app.dependency_overrides[get_storage_service]()
+    transcript_id = storage.save(Transcript(audio_path="a.wav", segments=[
+        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(0.0, 1.0, 0.0)),
+    ]))
+    r = client.get(f"/transcripts/{transcript_id}/speaker-suggestions")
+    assert r.status_code == 200
+    assert r.json() == {}
+
+
 def test_suggestions_skip_unassigned_segments(reset_env):
     client, *_ = reset_env
     first, _ = _speakers_fixture()
