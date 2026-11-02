@@ -15,12 +15,16 @@ const read = (...parts) => fs.readFileSync(path.join(ROOT, ...parts), 'utf8')
 const pkg  = JSON.parse(read('package.json'))
 const csp  = html => html.match(/http-equiv="Content-Security-Policy"\s+content="([^"]+)"/)[1]
 
-test('the new UI has the same CSP as the old one', () => {
-  assert.equal(csp(read('ui', 'index.html')), csp(read('electron', 'renderer', 'index.html')))
+// The one difference: the new UI plays audio from the backend, the old one from file://.
+const NEW_UI_CSP = csp(read('electron', 'renderer', 'index.html')).replace("media-src 'self' file: blob:", "media-src 'self' http://localhost:8000 blob:")
+
+test('the new UI has the CSP of the old one, with audio from the backend and not from files', () => {
+  assert.equal(csp(read('ui', 'index.html')), NEW_UI_CSP)
+  assert.doesNotMatch(NEW_UI_CSP, /file:/)
 })
 
 test('a build that exists has the same CSP too: the dev server additions stay out', { skip: !fs.existsSync(path.join(ROOT, 'ui', 'dist', 'index.html')) }, () => {
-  assert.equal(csp(read('ui', 'dist', 'index.html')), csp(read('electron', 'renderer', 'index.html')))
+  assert.equal(csp(read('ui', 'dist', 'index.html')), NEW_UI_CSP)
 })
 
 test('the dev server additions apply to the dev server only', () => {
