@@ -41,6 +41,8 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `ApiClient` in `ui/src/api/client.ts` lists what screens can ask of the backend. It covers what the Editor needs; a screen that needs more adds a method to both implementations. Failures are `ApiError` with `status` (`0` when the backend did not answer) and `message`, which is the `detail` of the response or `Server error N`.
 
+`getAudioUrl` is what an audio element plays for a recording, or null when there is nothing to play. On the backend it is a `file://` URL of `audio_path`.
+
 `getSpeakerCandidates` gives, per unrecognized speaker, up to three candidates and a clip of the voice, as `GET /transcripts/{id}/speaker-candidates` answers. A speaker with no candidates is still in the answer, for its clip. The fixtures also give candidates to recognized speakers for the Possible match state in Storybook; the API does not.
 
 `now()` is today for the screens: the current time on the backend client, 5 October 2026 on fixtures, so that sections of the recordings list stay as on the design boards.
@@ -65,9 +67,12 @@ A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/spea
 |---|---|---|
 | `scenario` | `default`, `loading`, `empty`, `error` | `loading` never answers, `empty` has no rows and an idle queue, `error` rejects everything with a 500 |
 | `board` | `review`, `reviewDone`, `unassigned` | The data of the Editor boards; other boards show the same data in another UI state |
+| `noAudio` | `true` | `getAudioUrl` gives null |
 | `overrides` | any methods of `ApiClient` | One method behaving differently, such as a failing save on a loaded screen |
 
 The fixtures have the shape of the API and mirror how it reads back: a corrected speaker is in `speaker_resolved` with `speaker_final` null, and an unassigned segment has neither. What the design shows and the API does not have, such as pinned recordings, folders, chapters or a speaker's handle, is not in them. The exception is candidates, which already have the up to three per speaker with percentages the review card shows.
+
+Audio is made in memory from the segments (`test-audio.ts`): a tone per speaker, in order of appearance, and silence in the pauses, so a jump to the next speaker can be heard. There is no file in the repository and no request, and like all fixtures it is not in a build.
 
 `playEvents(script)` plays queue events on a timer. `EVENT_SCRIPTS` in `event-scripts.ts` has `transcribing`, which ends with a new recording in the list, and `failed`, which leaves the job failed in the queue.
 
