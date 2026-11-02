@@ -84,7 +84,8 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
     })
   }
 
-  const failed = transcripts.isError || speakers.isError
+  // A refresh that fails leaves what was loaded on the screen.
+  const failed = (transcripts.isError && !transcripts.data) || (speakers.isError && !speakers.data)
   const ready = transcripts.data && speakers.data
 
   return (

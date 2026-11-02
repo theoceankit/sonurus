@@ -41,7 +41,7 @@ export function TranscriptPanel({ transcriptId, playback, onShowAllSpeakers, onD
   const speakers = useSpeakers()
 
   if (transcriptId === null) return null
-  if (transcript.isError || speakers.isError) {
+  if ((transcript.isError && !transcript.data) || (speakers.isError && !speakers.data)) {
     return (
       <Stack gap={2} align="start" padding={6}>
         <span className={styles.message}>Could not load this recording</span>

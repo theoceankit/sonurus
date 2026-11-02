@@ -42,7 +42,7 @@ export function InspectorPanel({ transcriptId, playback, open = true, onClose, o
   const candidates = useSpeakerCandidates(transcriptId)
 
   if (transcriptId === null) return <Inspector onClose={onClose} />
-  if (transcript.isError || speakers.isError) {
+  if ((transcript.isError && !transcript.data) || (speakers.isError && !speakers.data)) {
     return (
       <Inspector onClose={onClose}>
         <div className={styles.message}>
