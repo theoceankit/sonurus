@@ -64,4 +64,6 @@
 
 .player {
   grid-area: player;
+  /* The bubble of the playhead stands above the panel. */
+  overflow: visible;
 }

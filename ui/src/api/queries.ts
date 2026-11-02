@@ -20,9 +20,14 @@ export function useTranscripts() {
   return useQuery({ queryKey: queryKeys.transcripts, queryFn: () => api.listTranscripts() })
 }
 
-export function useTranscript(id: number) {
+// With no id nothing is asked for: no recording is open.
+export function useTranscript(id: number | null) {
   const api = useApi()
-  return useQuery({ queryKey: queryKeys.transcript(id), queryFn: () => api.getTranscript(id) })
+  return useQuery({
+    queryKey: queryKeys.transcript(id ?? -1),
+    queryFn: () => api.getTranscript(id!),
+    enabled: id !== null,
+  })
 }
 
 export function useSpeakerCandidates(id: number) {
