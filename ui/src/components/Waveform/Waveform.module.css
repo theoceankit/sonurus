@@ -1,0 +1,30 @@
+.waveform {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.bar {
+  flex: none;
+  border-radius: var(--radius-full);
+}
+
+.large {
+  justify-content: space-between;
+  width: 100%;
+  height: var(--size-waveform-large);
+}
+
+/* Four pixels at the width of the board, 784, and narrower with the waveform. */
+.large .bar {
+  width: calc(100% / 196);
+}
+
+.small {
+  gap: var(--space-half);
+  height: var(--size-waveform-small);
+}
+
+.small .bar {
+  width: var(--space-half);
+}
