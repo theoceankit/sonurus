@@ -19,3 +19,17 @@ body {
   color: var(--color-text-primary);
   background: var(--color-bg-window);
 }
+
+/*
+ * A control whose feature does not exist yet (not-implemented.ts). The help cursor
+ * tells it apart from a disabled control. !important: controls set cursor on
+ * themselves and on their parts.
+ */
+[data-not-implemented] {
+  opacity: var(--opacity-disabled);
+}
+
+[data-not-implemented],
+[data-not-implemented] * {
+  cursor: help !important;
+}
