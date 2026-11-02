@@ -396,6 +396,31 @@ For each unrecognized speaker in the transcript, the known named speaker with th
 }
 ```
 
+Read by the current renderer: every entry is shown as a suggestion, so its form does not change. The new UI uses `speaker-candidates`.
+
+### `GET /transcripts/{id}/speaker-candidates`
+
+For each speaker without a display name in the transcript: the known speakers whose voice is closest, and a clip to hear the voice. Reads speaker memory only. Returns `404` for an unknown id.
+
+```json
+{
+  "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb": {
+    "candidates": [
+      { "speaker_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "name": "Alice", "score": 0.72, "suggested": true },
+      { "speaker_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc", "name": "Carol", "score": 0.21, "suggested": false }
+    ],
+    "clip": { "start": 12.4, "end": 16.1, "text": "That was me." }
+  }
+}
+```
+
+- `candidates`: up to three named speakers with a voice profile, most similar first. Empty when no speaker is named or the voice has no embeddings; the entry is still there.
+- `score`: cosine similarity between the mean of the speaker's segment embeddings in this transcript and the profile, rounded to two digits, not below 0.
+- `suggested`: true only for the first candidate, when its `score` reaches `SPEAKER_SUGGESTION_THRESHOLD` (`app/config.py`).
+- `clip`: a segment of this transcript chosen by `pick_voice_sample()` (see `GET /speakers/{id}/sample`), compared with the speaker's voice in this transcript. `null` when the audio file no longer exists.
+
+Unassigned segments and named speakers get no entry.
+
 ### `PATCH /transcripts/{id}`
 
 ```json

@@ -41,7 +41,7 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `ApiClient` in `ui/src/api/client.ts` lists what screens can ask of the backend. It covers what the Editor needs; a screen that needs more adds a method to both implementations. Failures are `ApiError` with `status` (`0` when the backend did not answer) and `message`, which is the `detail` of the response or `Server error N`.
 
-Speaker candidates are always a list per unrecognized speaker. `GET /transcripts/{id}/speaker-suggestions` gives one candidate today, and `getSpeakerCandidates` wraps it.
+`getSpeakerCandidates` gives, per unrecognized speaker, up to three candidates and a clip of the voice, as `GET /transcripts/{id}/speaker-candidates` answers. A speaker with no candidates is still in the answer, for its clip. The fixtures also give candidates to recognized speakers for the Possible match state in Storybook; the API does not.
 
 ## Queue events
 
