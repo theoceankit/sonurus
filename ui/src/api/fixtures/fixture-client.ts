@@ -1,7 +1,7 @@
 import { ApiError, type ApiClient, type SpeakerAssignment } from '../client'
 import { effectiveSpeaker, type QueueSnapshot, type QueueUpdate, type Speaker } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
-import { queueSnapshot } from './data'
+import { FIXTURE_NOW, queueSnapshot } from './data'
 import type { EventScript } from './event-scripts'
 
 export type FixtureScenario = 'default' | 'loading' | 'empty' | 'error'
@@ -99,6 +99,7 @@ export function createFixtureClient({ scenario = 'default', board = 'review', ov
   }
 
   const client: ApiClient = {
+    now: () => new Date(FIXTURE_NOW),
     listTranscripts: () => answer(() => data.transcripts),
     getTranscript: id => answer(() => transcript(id)),
     updateTranscriptTitle: (id, title) => answer(() => {

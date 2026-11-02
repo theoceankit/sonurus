@@ -55,6 +55,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
   }
 
   return {
+    now: () => new Date(),
     listTranscripts: () => send(http.GET('/transcripts')),
     getTranscript: id => send(http.GET('/transcripts/{transcript_id}', transcript(id))),
     updateTranscriptTitle: (id, title) => send(http.PATCH('/transcripts/{transcript_id}', { ...transcript(id), body: { title } })),
