@@ -175,6 +175,17 @@
   --size-avatar-md: 28px;
   --size-avatar-lg: 48px;
 
+  --size-modal-small: 400px;
+  --size-modal-medium: 520px;
+  --size-modal-large: 760px;
+
+  --size-scroll-fade-md: 40px;
+  --size-scroll-fade-lg: 48px;
+
+  --z-modal: 100;
+  --z-popover: 200;
+  --z-toast: 300;
+
   /* Type */
   --type-family-sans: 'Inter', system-ui, sans-serif;
   --type-weight-regular: 400;
