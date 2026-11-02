@@ -1,0 +1,13 @@
+.tooltip {
+  z-index: var(--z-popover);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-inverse);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text-on-inverse);
+  font: var(--font-caption);
+}
+
+.arrow {
+  fill: var(--color-bg-inverse);
+}

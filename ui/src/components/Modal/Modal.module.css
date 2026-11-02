@@ -1,0 +1,41 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--color-scrim);
+}
+
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100vw - var(--space-8));
+  max-height: calc(100vh - var(--space-8));
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text-primary);
+  transform: translate(-50%, -50%);
+  outline: none;
+}
+
+.small {
+  width: var(--size-modal-small);
+}
+
+.medium {
+  width: var(--size-modal-medium);
+}
+
+.large {
+  width: var(--size-modal-large);
+}
+
+.preview {
+  position: static;
+  z-index: auto;
+  transform: none;
+}

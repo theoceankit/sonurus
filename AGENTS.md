@@ -107,7 +107,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | Renderer | `electron/renderer/app.js`, `views/`, shared helpers in `utils.js` | `docs/docs/ui/electron/` |
 | New UI | `ui/`, what the window loads in `electron/ui-entry.js` | `docs/docs/ui/electron/overview.md` → New UI |
 | New UI data: API client, fixtures, generated types | `ui/src/api/`, `ui/src/platform/`, `ui/tools/openapi-types/`, `app/api/openapi_schema.py` | `docs/docs/ui/electron/new-ui-data.md` |
-| New UI tokens, font, icons | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/Icon/` | `docs/docs/ui/electron/new-ui-foundations.md` |
+| New UI tokens, font, icons, overlays | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/` | `docs/docs/ui/electron/new-ui-foundations.md` |
 | Live recording | `app/api/routers/audio_capture.py`, `native/` | `docs/docs/ui/electron/live-recording.md` |
 | Packaging and releases | `scripts/bundle-backend.js`, `locks/`, `build/` | `docs/docs/distribution/` |
 
@@ -142,8 +142,8 @@ App rules:
   (`docs/docs/ui/electron/new-ui-foundations.md`). Layout spacing goes through `Stack` and `Inline`.
   Speaker initials are worked out only by `Avatar`; a test enforces it.
 - A control whose feature does not exist yet is marked with `markNotImplemented()`
-  (`electron/renderer/not-implemented.js`) — never hidden and never faked. When the feature lands,
-  remove its id and the call.
+  (`electron/renderer/not-implemented.js`; in the new UI `ui/src/not-implemented.ts`, as props on the control)
+  — never hidden and never faked. When the feature lands, remove its id and the call.
 - UI text: no `·` separators, no all-caps labels.
 - New UI screens get data only through `useApi()` and the hooks in `ui/src/api/queries.ts`, never `fetch`. A test fails
   until `npm run gen:api` follows a change to the API.

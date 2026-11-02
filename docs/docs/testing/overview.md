@@ -60,7 +60,7 @@ Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-
 
 ### New UI tests
 
-`ui/` has its own tests next to the components, on Vitest and Testing Library in jsdom: `npm --prefix ui test`, plus `npm --prefix ui run typecheck`. CI runs both and builds `ui/dist` before the build tests. The tests of tokens and raw values walk the sources: see [New UI foundations](../ui/electron/new-ui-foundations.md#raw-values). Vitest blanks CSS by default, including `?raw` imports, so `ui/vite.config.ts` turns that off. This needs Node.js 22.22.2+ (jsdom); the other suites work from 22.12.
+`ui/` has its own tests next to the components, on Vitest and Testing Library in jsdom: `npm --prefix ui test`, plus `npm --prefix ui run typecheck`. CI runs both and builds `ui/dist` before the build tests. The tests of tokens and raw values walk the sources: see [New UI foundations](../ui/electron/new-ui-foundations.md#raw-values). So does `ui/src/not-implemented.test.tsx`, which compares the list of unimplemented controls with the calls: see [Unimplemented controls](../ui/electron/new-ui-foundations.md#unimplemented-controls). Vitest blanks CSS by default, including `?raw` imports, so `ui/vite.config.ts` turns that off. This needs Node.js 22.22.2+ (jsdom); the other suites work from 22.12.
 
 ### Build tests
 
