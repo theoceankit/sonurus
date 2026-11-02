@@ -1,5 +1,5 @@
 import * as RadixMenu from '@radix-ui/react-dropdown-menu'
-import { createContext, useContext, type ComponentPropsWithRef, type ReactElement, type ReactNode } from 'react'
+import { createContext, useContext, type ComponentPropsWithRef, type KeyboardEvent, type PointerEvent, type ReactElement, type ReactNode } from 'react'
 import { cx } from '../../styles/cx'
 import { MenuItem, type MenuItemProps } from '../MenuItem/MenuItem'
 import { SectionHeader } from '../SectionHeader/SectionHeader'
@@ -24,6 +24,12 @@ interface MenuProps {
 
 const OFFSET = 4
 
+// Radix focuses the item under the pointer, and Chromium takes that focus for a
+// keyboard one when nothing had focus before. So the menu remembers the last input,
+// on the element, because this changes with every move of the pointer.
+const pointerInput = (event: PointerEvent<HTMLElement>) => { event.currentTarget.dataset.input = 'pointer' }
+const keyboardInput = (event: KeyboardEvent<HTMLElement>) => { delete event.currentTarget.dataset.input }
+
 // Not modal: a modal menu locks the scroll and shifts the page behind it, and an
 // outside click closes this one all the same.
 export function Menu({ trigger, children, align = 'start', ...props }: MenuProps) {
@@ -31,7 +37,7 @@ export function Menu({ trigger, children, align = 'start', ...props }: MenuProps
     <RadixMenu.Root modal={false} {...props}>
       <RadixMenu.Trigger asChild>{trigger}</RadixMenu.Trigger>
       <RadixMenu.Portal>
-        <RadixMenu.Content asChild align={align} sideOffset={OFFSET}>
+        <RadixMenu.Content asChild align={align} sideOffset={OFFSET} onPointerMove={pointerInput} onKeyDownCapture={keyboardInput}>
           <MenuSurface>{children}</MenuSurface>
         </RadixMenu.Content>
       </RadixMenu.Portal>

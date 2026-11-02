@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { notImplementedProps, NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
@@ -6,6 +6,7 @@ import { OverlayProvider } from '../../OverlayProvider'
 import { Button } from '../Button/Button'
 import { dismissAllToasts } from '../Toast/toast'
 import { Menu, MenuAction, MenuDivider, MenuOption, MenuOptions, MenuSection, MenuSurface } from './Menu'
+import css from './Menu.module.css?raw'
 
 afterEach(() => act(() => dismissAllToasts()))
 
@@ -118,6 +119,19 @@ test('a marked item only shows the toast and leaves the menu open', async () => 
   expect(onSelect).not.toHaveBeenCalled()
   expect(screen.getByRole('menu')).toBeTruthy()
   expect(screen.getAllByText(NOT_IMPLEMENTED_TOAST).some(el => el.closest('li'))).toBe(true)
+})
+
+// Radix focuses the item under the pointer, and Chromium takes that focus for a
+// keyboard one when nothing had focus before, so :focus-visible alone draws the ring.
+test('the focus ring shows only after the keyboard', async () => {
+  actions()
+  await userEvent.click(trigger())
+  const menu = screen.getByRole('menu')
+  fireEvent.pointerMove(item('Copy'))
+  expect(menu.dataset.input).toBe('pointer')
+  expect(css).toMatch(/\.surface\[data-input='pointer'\] :focus-visible \{\s*outline: none;/)
+  fireEvent.keyDown(item('Copy'), { key: 'ArrowUp' })
+  expect(menu.dataset.input).toBeUndefined()
 })
 
 test('the surface stands alone', () => {

@@ -13,6 +13,10 @@
   outline-offset: calc(var(--border-width-default) * -1);
 }
 
+.surface[data-input='pointer'] :focus-visible {
+  outline: none;
+}
+
 .divider {
   height: var(--border-width-default);
   margin-block: var(--space-1);

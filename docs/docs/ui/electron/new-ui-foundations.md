@@ -149,6 +149,8 @@ The topmost layer takes Escape. With a toast on screen over a modal, the first E
 
 Rows are `MenuItem`. A menu is not modal: a modal one locks the scroll and shifts the page behind it, and an outside click closes it all the same. `MenuSurface` is only the panel, for a menu that is not a list of actions, where focus stays in a search field.
 
+Radix focuses the item under the pointer, and Chromium takes that focus for a keyboard one when nothing had focus before. So `Menu` remembers the last input in `data-input`, and the ring shows only after a key.
+
 ### Toolbar
 
 ```tsx
