@@ -4,6 +4,7 @@ import { ApiProvider } from './api/ApiProvider'
 import { createBackendClient } from './api/backend-client'
 import type { ApiClient } from './api/client'
 import { App } from './App'
+import { OverlayProvider } from './OverlayProvider'
 import './styles/index.css'
 
 // VITE_SONORUS_FIXTURES=1 npm run dev:ui shows the screens on fixtures in the
@@ -20,7 +21,9 @@ createClient().then(client => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <ApiProvider client={client}>
-        <App />
+        <OverlayProvider>
+          <App />
+        </OverlayProvider>
       </ApiProvider>
     </StrictMode>,
   )

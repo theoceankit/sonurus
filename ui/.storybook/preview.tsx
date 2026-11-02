@@ -2,6 +2,7 @@ import type { Preview } from '@storybook/react-vite'
 import { useMemo } from 'react'
 import { ApiProvider } from '../src/api/ApiProvider'
 import { createFixtureClient } from '../src/api/fixtures/fixture-client'
+import { OverlayProvider } from '../src/OverlayProvider'
 import { createMockElectronAPI } from '../src/platform/electron-api-mock'
 import '../src/styles/index.css'
 
@@ -25,6 +26,7 @@ const preview: Preview = {
       document.documentElement.dataset.theme = globals.theme
       return <Story />
     },
+    Story => <OverlayProvider><Story /></OverlayProvider>,
     // Fixtures for every story, one client per story; parameters.api picks the
     // scenario or the board (FixtureOptions).
     (Story, { id, parameters }) => {

@@ -1,0 +1,82 @@
+/* An open modal sets pointer-events: none on the body, and a toast must stay clickable over it. */
+.viewport {
+  position: fixed;
+  bottom: calc(var(--space-8) * 3);
+  left: 50%;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: max-content;
+  max-width: calc(100vw - var(--space-8));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  outline: none;
+}
+
+/* !important: Radix sets pointer-events: none inline on a toast that was already open when a modal opened. */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  font: var(--font-body);
+  pointer-events: auto !important;
+}
+
+.default {
+  --toast-text: var(--color-text-on-inverse);
+  --toast-action: var(--color-accent-on-inverse);
+  background: var(--color-bg-inverse);
+  color: var(--toast-text);
+}
+
+.error {
+  --toast-text: var(--color-text-on-danger);
+  --toast-action: var(--color-text-on-danger);
+  background: var(--color-danger-solid);
+  color: var(--toast-text);
+}
+
+.message {
+  min-width: 0;
+}
+
+/* The accent focus ring is lost on red, so it takes the colour of the text. */
+.action,
+.close {
+  composes: reset stateLayer from '../../styles/control.module.css';
+  --state-hover: var(--color-border-on-inverse);
+  --state-pressed: var(--color-border-on-inverse);
+  flex: none;
+  border-radius: var(--radius-md);
+  outline: none;
+}
+
+.action:focus-visible,
+.close:focus-visible {
+  outline: var(--border-width-strong) solid var(--toast-text);
+}
+
+/* The negative margin keeps the text where it is on the board while the hit area grows. */
+.action {
+  margin-inline: calc(var(--space-1) * -1);
+  padding-inline: var(--space-1);
+  color: var(--toast-action);
+  font: var(--font-body-strong);
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-xs);
+  height: var(--size-control-xs);
+  color: var(--toast-text);
+}
