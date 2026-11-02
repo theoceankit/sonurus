@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import {
-  activeSegmentIndex, barTurns, formatClock, nextSpeakerTime, playerClock, previousSpeakerTime, skipTime, timelineDuration, turnAt,
+  activeSegmentIndex, barTurns, formatClock, formatDuration, nextSpeakerTime, playerClock, previousSpeakerTime, skipTime, timelineDuration, turnAt,
   type Turn,
 } from './timeline'
 
@@ -38,6 +38,13 @@ test('activeSegmentIndex: -1 between, before and after segments', () => {
   expect(activeSegmentIndex(SEGS, -1)).toBe(-1)
   expect(activeSegmentIndex(SEGS, 12)).toBe(-1)
   expect(activeSegmentIndex([], 1)).toBe(-1)
+})
+
+test('formatDuration: minutes without a leading zero, from an hour on with hours', () => {
+  expect(formatDuration(4)).toBe('0:04')
+  expect(formatDuration(19.6)).toBe('0:20')
+  expect(formatDuration(3725)).toBe('1:02:05')
+  expect(formatDuration(NaN)).toBe('0:00')
 })
 
 const TURNS = [turn(0, 5, 'anna'), turn(5, 8, 'mark'), turn(8, 10, 'mark'), turn(12, 16, 'anna'), turn(16, 25, 'lena')]

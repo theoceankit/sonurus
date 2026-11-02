@@ -18,6 +18,14 @@ export function formatClock(seconds: number): string {
   return hours ? `${hours}:${clock}` : clock
 }
 
+// A length of time, as in a list of speakers: 0:04, from one hour on 1:02:05.
+export function formatDuration(seconds: number): string {
+  const total = Number.isFinite(seconds) ? Math.max(0, Math.round(seconds)) : 0
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor(total / 60) % 60
+  return hours ? `${hours}:${pad(minutes)}:${pad(total % 60)}` : `${minutes}:${pad(total % 60)}`
+}
+
 // What the player shows for the audio element.
 export function playerClock(audio: { currentTime: number; duration: number; paused: boolean }) {
   return {
