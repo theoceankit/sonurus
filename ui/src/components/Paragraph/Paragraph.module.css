@@ -26,9 +26,9 @@
 
 .bar {
   position: absolute;
-  top: calc(var(--space-half) * 3);
-  bottom: calc(var(--space-half) * 3);
-  left: calc(var(--space-2) + var(--size-avatar-sm) - var(--size-playing-bar));
+  top: var(--space-1);
+  bottom: var(--space-1);
+  left: calc(var(--space-2) + (var(--size-avatar-sm) - var(--size-playing-bar)) / 2);
   width: var(--size-playing-bar);
   border-radius: var(--radius-full);
 }

@@ -48,7 +48,7 @@ export function SearchField({ value, onValueChange, shortcut, error, disabled, c
           onChange={event => onValueChange(event.target.value)}
           {...props}
         />
-        {shortcut && !filled && <Kbd keys={shortcut} />}
+        {shortcut && !filled && <Kbd keys={shortcut} className={styles.shortcut} />}
         {filled && (
           <IconButton
             icon="close"

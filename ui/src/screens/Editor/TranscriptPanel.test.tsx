@@ -398,7 +398,7 @@ describe('selecting text', () => {
     const selection = window.getSelection()!
     const range = document.createRange()
     range.selectNodeContents(node)
-    Range.prototype.getBoundingClientRect = () => ({ left: 10, top: 100, width: 120, height: 20, right: 130, bottom: 120, x: 10, y: 100, toJSON: () => {} })
+    Range.prototype.getClientRects = () => [{ left: 10, top: 100, width: 120, height: 20, right: 130, bottom: 120, x: 10, y: 100, toJSON: () => {} }] as unknown as DOMRectList
     selection.removeAllRanges()
     selection.addRange(range)
     act(() => { fireEvent.mouseUp(document) })
