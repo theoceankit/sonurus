@@ -1,0 +1,36 @@
+.scrollFade {
+  position: absolute;
+  inset-inline: 0;
+  pointer-events: none;
+}
+
+/* The colour is a token, so the fade follows the theme. */
+.top {
+  top: 0;
+  background: linear-gradient(to bottom, var(--scroll-fade-surface), transparent);
+}
+
+.bottom {
+  bottom: 0;
+  background: linear-gradient(to top, var(--scroll-fade-surface), transparent);
+}
+
+.window {
+  --scroll-fade-surface: var(--color-bg-window);
+}
+
+.raised {
+  --scroll-fade-surface: var(--color-bg-raised);
+}
+
+.sunken {
+  --scroll-fade-surface: var(--color-bg-sunken);
+}
+
+.md {
+  height: var(--size-scroll-fade-md);
+}
+
+.lg {
+  height: var(--size-scroll-fade-lg);
+}
