@@ -17,7 +17,7 @@ export default meta
 type Story = StoryObj<typeof EditorScreen>
 
 const nameButton = (canvas: HTMLElement, name: string) =>
-  waitFor(() => [...canvas.querySelectorAll('button')].find(node => node.textContent === name))
+  waitFor(() => [...canvas.querySelectorAll('[data-transcript-scroll] button')].find(node => node.textContent!.trim() === name))
 
 export const ChangeSpeaker: Story = {
   name: 'Change speaker',

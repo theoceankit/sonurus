@@ -22,8 +22,8 @@ describe('board data', () => {
     const client = createFixtureClient()
     const transcripts = await client.listTranscripts()
     const speakers = await client.listSpeakers()
-    expect(transcripts).toHaveLength(17)
-    expect(new Set(transcripts.map(t => t.id)).size).toBe(17)
+    expect(transcripts).toHaveLength(16)
+    expect(new Set(transcripts.map(t => t.id)).size).toBe(16)
     expect(speakers.filter(s => s.name)).toHaveLength(13)
     expect(speakers.some(s => s.name === null)).toBe(true)
   })
@@ -108,7 +108,7 @@ describe('scenarios', () => {
       overrides: { updateSegmentText: () => Promise.reject(new ApiError(409, 'Busy')) },
     })
     await expect(client.updateSegmentText(WEEKLY_SYNC_ID, 0, 'x')).rejects.toMatchObject({ status: 409 })
-    expect(await client.listTranscripts()).toHaveLength(17)
+    expect(await client.listTranscripts()).toHaveLength(16)
   })
 })
 
@@ -133,7 +133,7 @@ describe('changes', () => {
   test('deleting a recording', async () => {
     const client = createFixtureClient()
     await client.deleteTranscript(WEEKLY_SYNC_ID)
-    expect(await client.listTranscripts()).toHaveLength(16)
+    expect(await client.listTranscripts()).toHaveLength(15)
     await expect(client.getTranscript(WEEKLY_SYNC_ID)).rejects.toMatchObject({ status: 404 })
   })
 
@@ -257,7 +257,7 @@ describe('queue events', () => {
     await vi.advanceTimersByTimeAsync(10000)
     expect(events.find(e => e.type === 'job_failed')).toMatchObject({ error_code: 'alignment_model_missing', error_language: 'pt' })
     expect((await client.getQueue()).jobs[0].status).toBe('failed')
-    expect(await client.listTranscripts()).toHaveLength(17)
+    expect(await client.listTranscripts()).toHaveLength(16)
   })
 
   test('stopping a script and unsubscribing end the events', async () => {

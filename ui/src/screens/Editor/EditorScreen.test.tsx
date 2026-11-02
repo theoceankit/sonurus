@@ -43,7 +43,7 @@ test('groups the recordings of the fixtures without a pinned section', async () 
   await screen.findByRole('region', { name: 'This week' })
   expect(screen.queryByRole('region', { name: 'Pinned' })).toBeNull()
   expect(within(screen.getByRole('region', { name: 'This week' })).getAllByRole('button')).toHaveLength(5)
-  expect(within(screen.getByRole('region', { name: 'Earlier' })).getAllByRole('button')).toHaveLength(12)
+  expect(within(screen.getByRole('region', { name: 'Earlier' })).getAllByRole('button')).toHaveLength(11)
 })
 
 test('pinned recordings show when given', async () => {

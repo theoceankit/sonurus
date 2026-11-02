@@ -25,7 +25,7 @@ describe('reading', () => {
   test('loads the rows', async () => {
     const { result } = renderWith(useTranscripts)
     expect(result.current.isPending).toBe(true)
-    await waitFor(() => expect(result.current.data).toHaveLength(17))
+    await waitFor(() => expect(result.current.data).toHaveLength(16))
   })
 
   test('stays pending while the backend does not answer', async () => {
@@ -117,9 +117,9 @@ describe('queue events', () => {
       useQueueEventsSync()
       return useTranscripts()
     }, { wrapper: wrapperFor(client) })
-    await waitFor(() => expect(result.current.data).toHaveLength(17))
+    await waitFor(() => expect(result.current.data).toHaveLength(16))
     act(() => { client.playEvents({ ...EVENT_SCRIPTS.transcribing, steps: EVENT_SCRIPTS.transcribing.steps.map(s => ({ ...s, afterMs: 0 })) }) })
-    await waitFor(() => expect(result.current.data).toHaveLength(18))
+    await waitFor(() => expect(result.current.data).toHaveLength(17))
     expect(result.current.data?.[0].title).toBe('Planning call')
   })
 
