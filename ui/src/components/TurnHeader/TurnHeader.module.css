@@ -1,0 +1,52 @@
+.turnHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2) 0;
+}
+
+/* The layer stands out of the name's box, so the name stays in line with the text. */
+.name {
+  composes: reset stateLayer focusRing from '../../styles/control.module.css';
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  color: var(--color-text-primary);
+  font: var(--font-body-strong);
+  border-radius: var(--radius-md);
+}
+
+.name::before {
+  inset: calc(var(--space-half) * -1) calc(var(--space-1) * -1);
+}
+
+.open::before {
+  background: var(--color-fill-pressed);
+}
+
+/* One line of fixed height whatever the speaker: rows above must not move. */
+.label {
+  overflow-x: clip;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chevron {
+  display: none;
+  color: var(--color-text-secondary);
+}
+
+.name:hover .chevron,
+.name:focus-visible .chevron,
+.open .chevron {
+  display: block;
+}
+
+.time {
+  composes: reset focusRing from '../../styles/control.module.css';
+  flex: none;
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+  border-radius: var(--radius-sm);
+}

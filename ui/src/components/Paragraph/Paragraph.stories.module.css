@@ -1,0 +1,11 @@
+.column {
+  width: var(--size-search);
+}
+
+.matrix {
+  width: max-content;
+}
+
+.matrix > * > div {
+  width: var(--size-search);
+}

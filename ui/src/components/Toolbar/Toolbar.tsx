@@ -15,8 +15,9 @@ export function Toolbar({ label, className, ...props }: ToolbarProps) {
 }
 
 // Wraps one button, usually a Ghost Small IconButton or a Toolbar Button.
-export function ToolbarItem({ children }: { children: ReactElement }) {
-  return <RadixToolbar.Button asChild>{children}</RadixToolbar.Button>
+// Takes what a menu's trigger passes, so a menu can open from the bar.
+export function ToolbarItem({ children, ...props }: { children: ReactElement } & ComponentPropsWithRef<'button'>) {
+  return <RadixToolbar.Button asChild {...props}>{children}</RadixToolbar.Button>
 }
 
 export function ToolbarDivider() {
