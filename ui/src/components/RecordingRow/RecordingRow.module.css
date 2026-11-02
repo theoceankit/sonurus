@@ -1,0 +1,53 @@
+.recordingRow {
+  composes: reset stateLayer from '../../styles/control.module.css';
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: var(--size-control-md);
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font: var(--font-body);
+  text-align: start;
+  user-select: none;
+  outline: none;
+}
+
+/* Rows sit next to each other, so the ring stays inside the row. */
+.recordingRow:focus-visible {
+  outline: var(--border-width-strong) solid var(--color-focus);
+  outline-offset: calc(var(--border-width-strong) * -1);
+}
+
+.selected {
+  background: var(--color-fill-pressed);
+}
+
+.status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+}
+
+.dot {
+  width: var(--size-status-dot);
+  height: var(--size-status-dot);
+  border-radius: var(--radius-full);
+  background: var(--color-identify-fg);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.speakers {
+  flex: none;
+}
