@@ -14,6 +14,7 @@ Element.prototype.hasPointerCapture ??= () => false
 Element.prototype.releasePointerCapture ??= () => {}
 Element.prototype.scrollIntoView ??= () => {}
 Range.prototype.getBoundingClientRect ??= () => new DOMRect()
+Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList
 
 // Nor does it play media or keep blobs.
 HTMLMediaElement.prototype.load = () => {}

@@ -16,6 +16,10 @@
   appearance: none;
 }
 
+.shortcut {
+  margin-inline-end: var(--space-2);
+}
+
 .disabled {
   opacity: var(--opacity-disabled);
 }

@@ -32,6 +32,8 @@ interface SpeakerMenuProps {
 }
 
 const OFFSET = 4
+// The list of names starts under the name, past the padding of the menu.
+const ALIGN_OFFSET = -12
 
 // The focus stays in the search field, and the arrow keys move a highlight over the rows.
 export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onShowAll, onClose, initialQuery = '' }: SpeakerMenuProps) {
@@ -70,6 +72,7 @@ export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onSh
           asChild
           align="start"
           sideOffset={OFFSET}
+          alignOffset={ALIGN_OFFSET}
           collisionPadding={OFFSET}
           aria-label="Change speaker"
           onCloseAutoFocus={event => {

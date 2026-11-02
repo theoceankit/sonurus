@@ -19,8 +19,8 @@ describe('sections', () => {
   test('a match shows its percentage and mark, another speaker their recordings', () => {
     const { sections } = list()
     expect(sections[0].rows[0]).toMatchObject({ name: 'Mark Ellis', score: 0.82, suggested: true })
-    expect(sections[1].rows.find(row => row.id === anna)).toMatchObject({ usage: '14 recordings' })
-    expect(sections[1].rows.find(row => row.name === 'Kate Nguyen')).toMatchObject({ usage: '1 recording' })
+    expect(sections[1].rows.find(row => row.id === anna)).toMatchObject({ usage: '8 recordings' })
+    expect(sections[1].rows.find(row => row.name === 'Kate Reyes')).toMatchObject({ usage: '1 recording' })
   })
 
   test('best voice matches only', () => {

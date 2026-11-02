@@ -56,5 +56,5 @@
 .selectionBar {
   position: absolute;
   z-index: 2;
-  transform: translate(-50%, calc(-100% - var(--space-2)));
+  transform: translate(-50%, calc(-100% - var(--space-3)));
 }

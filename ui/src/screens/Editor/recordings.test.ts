@@ -45,7 +45,7 @@ test('a pinned id that is not in the list is ignored', () => {
 
 test('the fixtures reproduce the board', () => {
   const sections = groupRecordings(TRANSCRIPTS, FIXTURE_NOW, [WEEKLY_SYNC_ID, 2])
-  expect(sections.map(s => [s.title, s.items.length])).toEqual([['Pinned', 2], ['This week', 3], ['Earlier', 12]])
+  expect(sections.map(s => [s.title, s.items.length])).toEqual([['Pinned', 2], ['This week', 3], ['Earlier', 11]])
 })
 
 const speaker = (id: string, name: string | null, color_index = 0) =>

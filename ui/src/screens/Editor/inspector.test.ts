@@ -9,7 +9,7 @@ const SEGMENTS = weeklySync().segments
 describe('speakerRows', () => {
   test('the longest first, with the talk time of the board', () => {
     const rows = speakerRows(SEGMENTS, SPEAKERS)
-    expect(rows.map(row => row.id)).toEqual([anna, mark, unknown1, oliver, lena, sofia])
+    expect(rows.map(row => row.id)).toEqual([anna, mark, unknown1, oliver, sofia, lena])
     expect(rows.map(row => row.time)).toEqual(['0:19', '0:11', '0:09', '0:07', '0:04', '0:03'])
   })
 
@@ -40,13 +40,13 @@ describe('splitRows', () => {
   test('three rows, the rest behind Show more', () => {
     const { visible, hidden } = splitRows(rows, null)
     expect(visible.map(row => row.id)).toEqual([anna, mark, unknown1])
-    expect(hidden.map(row => row.id)).toEqual([oliver, lena, sofia])
+    expect(hidden.map(row => row.id)).toEqual([oliver, sofia, lena])
   })
 
   test('the current speaker stays in sight, in place of the third', () => {
     const { visible, hidden } = splitRows(rows, oliver)
     expect(visible.map(row => row.id)).toEqual([anna, mark, oliver])
-    expect(hidden.map(row => row.id)).toEqual([unknown1, lena, sofia])
+    expect(hidden.map(row => row.id)).toEqual([unknown1, sofia, lena])
   })
 
   test('few rows hide nothing', () => {

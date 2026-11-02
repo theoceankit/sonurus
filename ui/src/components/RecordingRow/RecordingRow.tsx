@@ -19,7 +19,7 @@ export function RecordingRow({ title, speakers = [], needsReview, selected, type
         {needsReview && <span role="img" aria-label="Needs review" className={styles.dot} />}
       </span>
       <span className={styles.title}>{title}</span>
-      {speakers.length > 0 && <AvatarStack speakers={speakers} size="small" max={MAX_AVATARS} className={styles.speakers} />}
+      {speakers.length > 0 && <AvatarStack speakers={speakers.slice(0, MAX_AVATARS)} size="small" className={styles.speakers} />}
     </button>
   )
 }

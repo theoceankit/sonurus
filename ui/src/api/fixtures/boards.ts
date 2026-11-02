@@ -13,10 +13,12 @@ export type FixtureData = {
 // the same data with another UI state.
 export type FixtureBoard = 'review' | 'reviewDone' | 'unassigned' | 'longRecording'
 
+const { anna, mark, oliver, sofia, lena } = SPEAKER_IDS
+
 const isUnknown1 = (segment: Segment) => segment.speaker_resolved === SPEAKER_IDS.unknown1
 
-const withWeeklySync = (segments: (all: Segment[]) => Segment[], candidates: SpeakerCandidates): FixtureData => ({
-  transcripts: TRANSCRIPTS,
+const withWeeklySync = (segments: (all: Segment[]) => Segment[], candidates: SpeakerCandidates, speakers?: string[]): FixtureData => ({
+  transcripts: speakers ? TRANSCRIPTS.map(t => (t.id === WEEKLY_SYNC_ID ? { ...t, speakers } : t)) : TRANSCRIPTS,
   details: [weeklySync(segments(weeklySync().segments)), designReview()],
   speakers: SPEAKERS,
   candidates: { [WEEKLY_SYNC_ID]: candidates, [DESIGN_REVIEW_ID]: DESIGN_REVIEW_CANDIDATES },
@@ -29,12 +31,14 @@ export const BOARDS: Record<FixtureBoard, FixtureData> = {
   reviewDone: withWeeklySync(
     all => all.map(s => (isUnknown1(s) ? { ...s, speaker_resolved: SPEAKER_IDS.mark } : s)),
     {},
+    [mark, anna, oliver, sofia, lena],
   ),
   // Transcript / Unassigned.
   unassigned: withWeeklySync(
     all => all.map(s => (isUnknown1(s) ? { ...s, speaker_resolved: null, unassigned: true } : s)),
     // Unassigned segments may mix voices, so they get no candidates.
     Object.fromEntries(Object.entries(CANDIDATES).filter(([id]) => id !== SPEAKER_IDS.unknown1)),
+    [anna, mark, oliver, lena, sofia],
   ),
   // Not on a board: three hours, to scroll through. Made when asked for.
   get longRecording() {

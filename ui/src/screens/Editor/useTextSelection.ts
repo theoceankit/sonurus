@@ -1,13 +1,21 @@
 import { useEffect, useState, type RefObject } from 'react'
 
 export interface SelectionPoint {
-  // The middle of the selection's top edge, in the content's own coordinates.
+  // The middle of the first selected line's top edge, in the content's own coordinates.
   x: number
   y: number
 }
 
 // Too narrow to be meant.
 const MIN_WIDTH = 4
+
+type Rect = Pick<DOMRect, 'left' | 'top' | 'width'>
+
+export function selectionPoint(lines: ArrayLike<Rect>, base: Pick<DOMRect, 'left' | 'top'>): SelectionPoint | null {
+  const first = Array.from(lines).find(line => line.width > 0)
+  if (!first || first.width < MIN_WIDTH) return null
+  return { x: first.left + first.width / 2 - base.left, y: first.top - base.top }
+}
 
 // Where the text selected in the transcript is, or null. It appears once the press
 // is over, not while the selection is still growing.
@@ -22,10 +30,7 @@ export function useTextSelection(content: RefObject<HTMLElement | null>, blocked
       if (!selection || !node || !anchor || selection.isCollapsed || selection.rangeCount === 0 || blocked()) return setPoint(null)
       const element = anchor.nodeType === Node.ELEMENT_NODE ? anchor as Element : anchor.parentElement
       if (!element?.closest('[data-transcript-list]') || !node.contains(element)) return setPoint(null)
-      const rect = selection.getRangeAt(0).getBoundingClientRect()
-      if (rect.width < MIN_WIDTH) return setPoint(null)
-      const base = node.getBoundingClientRect()
-      setPoint({ x: rect.left + rect.width / 2 - base.left, y: rect.top - base.top })
+      setPoint(selectionPoint(selection.getRangeAt(0).getClientRects(), node.getBoundingClientRect()))
     }
     const clear = () => { if (window.getSelection()?.isCollapsed !== false) setPoint(null) }
 

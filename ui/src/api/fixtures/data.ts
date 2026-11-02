@@ -41,13 +41,13 @@ const speaker = (id: string, name: string | null, colorIndex: number, transcript
 
 // Named first by name, then unnamed: the order of GET /speakers.
 export const SPEAKERS: Speaker[] = [
-  speaker(anna, 'Anna Petrova', 4, 14),
+  speaker(anna, 'Anna Petrova', 4, 8),
   speaker(daniel, 'Daniel Brooks', 3, 4),
   speaker(emma, 'Emma Wilson', 4, 4),
   speaker(hugo, 'Hugo Martin', 0, 2),
   speaker(ines, 'Ines Costa', 1, 2),
   speaker(jonas, 'Jonas Weber', 2, 1),
-  speaker(kate, 'Kate Nguyen', 1, 1),
+  speaker(kate, 'Kate Reyes', 1, 1),
   speaker(lena, 'Lena Kovacs', 3, 11),
   speaker(mark, 'Mark Ellis', 0, 8),
   speaker(olga, 'Olga Larsen', 2, 1),
@@ -74,7 +74,7 @@ const segment = (start: number, end: number, text: string, resolved: string, raw
 export const WEEKLY_SYNC_ID = 1
 
 // Talk time as on the boards: Anna 0:19, Mark 0:11, Unknown speaker 1 0:09,
-// Oliver 0:07, Lena 0:04, Sofia 0:03. Anna's last turn overlaps Sofia.
+// Oliver 0:07, Sofia 0:04, Lena 0:03. Anna's last turn overlaps Sofia.
 const weeklySyncSegments: Segment[] = [
   segment(0, 5, "Okay, let's get started. The main topic today is the release we shipped on Friday.", anna, 'SPEAKER_00'),
   segment(5, 8, 'Right. The queue work landed, and so far nobody has reported a crash.', mark, 'SPEAKER_01'),
@@ -82,10 +82,10 @@ const weeklySyncSegments: Segment[] = [
   segment(10, 16, 'Good. What about the import flow? I saw a couple of complaints about large files.', anna, 'SPEAKER_00'),
   segment(16, 25, 'That was me. Files over two hours took a long time to copy before the job even started.', unknown1, 'SPEAKER_02'),
   segment(27, 29, 'One more thing from design: the editor and the settings page use different button styles.', lena, 'SPEAKER_03'),
-  segment(29, 31, 'I would like to fix that before the big redesign.', lena, 'SPEAKER_03'),
+  segment(29, 30, 'I would like to fix that before the big redesign.', lena, 'SPEAKER_03'),
   segment(31, 38, 'Let me check the numbers and get back to you by Friday.', oliver, 'SPEAKER_04'),
   segment(38, 44, 'Then we can close the import question next week.', mark, 'SPEAKER_01'),
-  segment(44, 47, 'I can pick up the button styles.', sofia, 'SPEAKER_05'),
+  segment(44, 48, 'I can pick up the button styles.', sofia, 'SPEAKER_05'),
   segment(45, 53, "Great, thanks everyone. That's all for today.", anna, 'SPEAKER_00'),
 ]
 
@@ -139,22 +139,21 @@ export const FIXTURE_NOW = new Date(2026, 9, 5, 12)
 // Newest first, the order of GET /transcripts.
 export const TRANSCRIPTS: TranscriptListItem[] = [
   listItem(DESIGN_REVIEW_ID, 'Design review', '2026-10-05T11:20:00', 'Today', '1 min', [lena, unknown2, unknown3, oliver, unknown4, unknown5]),
-  listItem(3, 'Interview: onboarding feedback', '2026-10-05T09:05:00', 'Today', '28 min', [lena, unknown2, priya, anna, mark]),
+  listItem(3, 'Interview: onboarding feedback', '2026-10-05T09:05:00', 'Today', '28 min', [lena, unknown2]),
   listItem(WEEKLY_SYNC_ID, 'Weekly product sync', '2026-10-04T02:33:00', 'Yesterday', '0 min', [anna, mark, unknown1, oliver, sofia, lena]),
-  listItem(4, 'Call with Mark', '2026-10-03T16:40:00', LAST_WEEK, '19 min', [mark, anna, lena, oliver, priya]),
-  listItem(5, 'Customer call, Acme', '2026-10-02T14:00:00', LAST_WEEK, '36 min', [oliver, kate, mark, anna, lena]),
-  listItem(6, 'Silent test recording', '2026-09-26T10:12:00', 'Sep 26, 2026', '2 min', [anna, mark, lena, oliver, priya]),
-  listItem(7, 'Archived partner call', '2026-09-24T15:30:00', 'Sep 24, 2026', '51 min', [oliver, mark, lena, anna, priya]),
-  listItem(8, 'Roadmap planning, Q4', '2026-09-22T11:00:00', 'Sep 22, 2026', '1h 12m', [anna, lena, mark, oliver, priya]),
+  listItem(4, 'Call with Mark', '2026-10-03T16:40:00', LAST_WEEK, '19 min', [mark, anna]),
+  listItem(5, 'Customer call, Acme', '2026-10-02T14:00:00', LAST_WEEK, '36 min', [oliver, kate, mark]),
+  listItem(6, 'Silent test recording', '2026-09-26T10:12:00', 'Sep 26, 2026', '2 min', []),
+  listItem(7, 'Archived partner call', '2026-09-24T15:30:00', 'Sep 24, 2026', '51 min', [oliver, mark]),
+  listItem(8, 'Roadmap planning, Q4', '2026-09-22T11:00:00', 'Sep 22, 2026', '1h 12m', [anna, lena, mark]),
   listItem(9, '1:1 with Lena', '2026-09-21T09:30:00', 'Sep 21, 2026', '24 min', [lena, anna]),
-  listItem(10, 'Sprint retro, September', '2026-09-18T17:00:00', 'Sep 18, 2026', '47 min', [oliver, mark, lena, anna, priya]),
-  listItem(11, 'Hiring sync, design', '2026-09-16T13:15:00', 'Sep 16, 2026', '31 min', [anna, lena, mark, emma, hugo]),
-  listItem(12, 'Investor update draft', '2026-09-15T10:00:00', 'Sep 15, 2026', '18 min', [lena, anna, mark, daniel, ines]),
-  listItem(13, 'Onboarding call, Beta', '2026-09-11T16:20:00', 'Sep 11, 2026', '39 min', [anna, mark, lena, jonas, olga]),
-  listItem(14, 'Team offsite planning', '2026-09-09T12:00:00', 'Sep 09, 2026', '55 min', [oliver, mark, lena, anna, sofia]),
-  listItem(15, 'Support escalation review', '2026-09-07T15:45:00', 'Sep 07, 2026', '22 min', [anna, lena, mark, priya, oliver]),
-  listItem(16, 'Podcast episode 12', '2026-09-03T18:00:00', 'Sep 03, 2026', '1h 04m', [lena, anna, kate, daniel, emma]),
-  listItem(17, 'Quarterly numbers', '2026-09-01T09:00:00', 'Sep 01, 2026', '33 min', [priya, mark, anna, lena, oliver]),
+  listItem(10, 'Sprint retro, September', '2026-09-18T17:00:00', 'Sep 18, 2026', '47 min', [oliver, mark]),
+  listItem(11, 'Hiring sync, design', '2026-09-16T13:15:00', 'Sep 16, 2026', '31 min', [anna, lena, mark]),
+  listItem(12, 'Investor update draft', '2026-09-15T10:00:00', 'Sep 15, 2026', '18 min', [lena, anna]),
+  listItem(13, 'Onboarding call, Beta', '2026-09-11T16:20:00', 'Sep 11, 2026', '39 min', []),
+  listItem(14, 'Team offsite planning', '2026-09-09T12:00:00', 'Sep 09, 2026', '55 min', [oliver, mark]),
+  listItem(15, 'Support escalation review', '2026-09-07T15:45:00', 'Sep 07, 2026', '22 min', [anna, lena, mark]),
+  listItem(16, 'Podcast episode 12', '2026-09-03T18:00:00', 'Sep 03, 2026', '1h 04m', [lena, anna]),
 ]
 
 const candidate = (speakerId: string, name: string, score: number, suggested = false) => (
@@ -175,12 +174,12 @@ export const CANDIDATES: SpeakerCandidates = {
     clip: clip(44, 47, 'I can pick up the button styles.'),
   },
   [oliver]: {
-    candidates: [candidate(oliver, 'Oliver Grant', 0.64, true), candidate(mark, 'Mark Ellis', 0.31), candidate(priya, 'Priya Shah', 0.18)],
-    clip: clip(31, 38, 'Let me check the numbers and get back to you by Friday.'),
+    candidates: [candidate(oliver, 'Oliver Grant', 0.64, true), candidate(mark, 'Mark Ellis', 0.31), candidate(lena, 'Lena Kovacs', 0.18)],
+    clip: clip(31, 35, 'Let me check the numbers and get back to you by Friday.'),
   },
   [lena]: {
     candidates: [candidate(lena, 'Lena Kovacs', 0.58, true), candidate(priya, 'Priya Shah', 0.33), candidate(sofia, 'Sofia Ramos', 0.2)],
-    clip: clip(29, 31, 'I would like to fix that before the big redesign.'),
+    clip: clip(29, 30, 'I would like to fix that before the big redesign.'),
   },
 }
 
@@ -195,7 +194,7 @@ export const DESIGN_REVIEW_CANDIDATES: SpeakerCandidates = {
     clip: clip(11, 40, designReviewSegments[2].text),
   },
   [unknown4]: {
-    candidates: [candidate(kate, 'Kate Nguyen', 0.73, true), candidate(ines, 'Ines Costa', 0.16)],
+    candidates: [candidate(kate, 'Kate Reyes', 0.73, true), candidate(ines, 'Ines Costa', 0.16)],
     clip: null,
   },
   // Nobody to compare with, the clip is still there.
