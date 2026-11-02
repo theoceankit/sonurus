@@ -459,6 +459,46 @@ Exactly one of `speaker_id` (a UUID4 of a known speaker — one with a voice pro
 
 Reassigns only this one segment (unlike `POST /reassign` which is bulk). After updating the DB, immediately recomputes embeddings for both the new speaker (`commit_speaker`) and the previous speaker (`recompute_or_remove`).
 
+### `POST /transcripts/{id}/speaker-assignments`
+
+Gives the listed segments one speaker, all or none. The new UI uses it for a turn, a paragraph and all segments of a voice; `PATCH /segments/{start}/speaker` and `POST /reassign` stay for the old renderer.
+
+```json
+// An existing speaker:
+{ "segment_starts": [12.5, 18.0], "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca" }
+
+// A new speaker (creates a UUID with this display name):
+{ "segment_starts": [12.5, 18.0], "speaker_name": "Carol", "color_index": 2 }
+```
+
+`speaker_id`, `speaker_name` and `color_index` follow the rules of `PATCH /segments/{start}/speaker`. An empty list is `422`. An unknown transcript or a start with no segment is `404`, and then nothing changes and no speaker is created. Returns `200`:
+
+```json
+{ "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca" }
+```
+
+The segments change in one transaction, and their flag `unassigned` clears. Then `commit_speaker` recomputes the new speaker and `recompute_or_remove` each previous one.
+
+### `POST /transcripts/{id}/speaker-assignments/undo`
+
+Puts segments back under the speaker they had before an assignment. A reverse assignment would not do: `POST /reassign` also takes the segments the new speaker had before, and a voice left with no segments is gone from memory.
+
+```json
+{
+  "segment_starts": [12.5, 18.0],
+  "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca",
+  "created_speaker_id": "7f0c2c54-1f5d-4b53-8a0e-6c7b2f0a9d11"
+}
+```
+
+- `speaker_id`: who had the segments, a UUID4 or `"UNASSIGNED"`, otherwise `400`. It need not be in memory, since the assignment may have removed the voice.
+- `created_speaker_id`: optional, the speaker the assignment made.
+- A start with no segment is skipped: it was deleted since the assignment.
+
+`CommitService.undo_assignment()` recomputes `speaker_id`, which brings back a removed voice, and then each speaker who held the segments. A speaker from `created_speaker_id` with no segments left is removed, or the undone voice would stay as their profile and catch the same voice in the next recording. A named speaker left with nothing to compute a voice from keeps the name and color and loses the profile. The color of a voice brought back may differ from the one it had; it shows only once the voice gets a name.
+
+Returns `204`, or `404` for an unknown transcript.
+
 ### `DELETE /transcripts/{id}/segments/{start}`
 
 Deletes one segment, then calls `recompute_or_remove()` for its speaker (same rules as transcript deletion). Returns `204`.

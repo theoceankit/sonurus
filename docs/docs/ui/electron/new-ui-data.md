@@ -45,7 +45,9 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `getSpeakerCandidates` gives, per unrecognized speaker, up to three candidates and a clip of the voice, as `GET /transcripts/{id}/speaker-candidates` answers. A speaker with no candidates is still in the answer, for its clip. The fixtures also give candidates to recognized speakers for the Possible match state in Storybook; the API does not.
 
-`undoSpeakerAssignment({ transcriptId, segmentStarts, speakerId })` puts segments back under the speaker they had before an assignment, and works on fixtures, where it also brings back the candidates and the clip. A reassign the other way would not do: it moves every segment of the new speaker, and a voice left with no segments is gone from speaker memory. The backend has no route for it yet, so the backend client rejects with status 501.
+`assignSpeaker({ transcriptId, segmentStarts, target })` gives segments a speaker in one request, all or none, and answers `{ speakerId }`, so the id of a new speaker comes from the backend.
+
+`undoSpeakerAssignment({ transcriptId, segmentStarts, speakerId, createdSpeakerId })` puts segments back under the speaker they had before an assignment. `createdSpeakerId` names a speaker the assignment made, who goes with nothing left. See `POST /transcripts/{id}/speaker-assignments/undo` in the [API](../../api/endpoints.md).
 
 `now()` is today for the screens: the current time on the backend client, 5 October 2026 on fixtures, so that sections of the recordings list stay as on the design boards.
 
