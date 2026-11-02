@@ -20,3 +20,4 @@ export const Default: Story = { render: () => <Live /> }
 export const ThirdChosen: Story = { args: { value: 3 } }
 export const NoLabel: Story = { args: { label: undefined, 'aria-label': 'Colour' } }
 export const Disabled: Story = { args: { disabled: true } }
+export const SomeColours: Story = { args: { colors: [1, 2, 3, 4, 5] } }

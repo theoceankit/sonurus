@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
-import { ApiError, type SpeakerAssignment, type SpeakerTarget, type SpeakerUndo } from './client'
+import { ApiError, type SpeakerAssignment, type SpeakerUndo } from './client'
 import type { QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
@@ -155,29 +155,6 @@ export function useAssignSpeaker() {
   return useMutation({
     mutationFn: (assignment: SpeakerAssignment) => api.assignSpeaker(assignment),
     onSuccess: () => refreshTranscriptsAndSpeakers(queries),
-  })
-}
-
-// A turn is several segments and the API changes one at a time, so this is the one
-// place that knows how a whole turn gets a new speaker.
-export function useAssignTurnSpeaker() {
-  const api = useApi()
-  const queries = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ transcriptId, segmentStarts, target }: { transcriptId: number; segmentStarts: readonly number[]; target: SpeakerTarget }) => {
-      let current = target
-      for (const segmentStart of segmentStarts) {
-        // A new speaker by name for the first segment, and by id for the rest: the
-        // API does not say the id, and a name does not tell speakers apart.
-        const before = 'name' in current ? await api.listSpeakers() : null
-        await api.assignSpeaker({ transcriptId, segmentStart, target: current })
-        if (before) {
-          const created = (await api.listSpeakers()).find(speaker => !before.some(known => known.id === speaker.id))
-          if (created) current = { id: created.id }
-        }
-      }
-    },
-    onSettled: () => refreshTranscriptsAndSpeakers(queries),
   })
 }
 

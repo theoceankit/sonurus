@@ -76,3 +76,8 @@ test('disabled does not change', async () => {
   await userEvent.click(screen.getByRole('radio', { name: 'Rose' }))
   expect(onValueChange).not.toHaveBeenCalled()
 })
+
+test('offers only the colours it is given', () => {
+  render(<ColorPicker aria-label="Colour" value={1} onValueChange={() => {}} colors={[1, 2]} />)
+  expect(screen.getAllByRole('radio').map(radio => radio.getAttribute('aria-label'))).toEqual(['Blue', 'Teal'])
+})

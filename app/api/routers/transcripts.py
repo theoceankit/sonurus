@@ -17,7 +17,8 @@ from app.models.segment import UNASSIGNED
 from app.api.schemas import (
     TranscriptListItem, TranscriptResponse, SegmentResponse, TranscriptUpdateRequest,
     SegmentSpeakerRequest, SegmentTextRequest, ReassignRequest, SpeakerSuggestion,
-    SpeakerCandidate, UnknownSpeakerCandidates, VoiceClip,
+    SpeakerCandidate, UnknownSpeakerCandidates, VoiceClip, SpeakerAssignmentRequest,
+    SpeakerAssignmentResponse, SpeakerAssignmentUndoRequest,
 )
 from app.services.speaker_candidates import rank_candidates, voice_centroid
 from app.services.voice_sample import pick_voice_sample
@@ -58,6 +59,20 @@ def _create_speaker(memory: SpeakerMemoryService, name: str, color_index: int | 
     if color_index is not None:
         memory.set_color(spk_id, color_index)
     return spk_id
+
+
+def _check_uuid(value: str, field: str) -> None:
+    try:
+        _uuid.UUID(value, version=4)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"{field} must be a valid UUID4")
+
+
+def _check_known_speaker(memory: SpeakerMemoryService, speaker_id: str) -> None:
+    _check_uuid(speaker_id, "speaker_id")
+    # A named speaker may have no voice profile yet (its segments were too short)
+    if speaker_id not in memory.speaker_ids():
+        raise HTTPException(status_code=400, detail="speaker_id not found in known speakers")
 
 
 def _delete_owned_recording(audio_file: str, storage: TranscriptStorageService) -> None:
@@ -283,13 +298,7 @@ def update_segment_speaker(
     if seg is None:
         raise HTTPException(status_code=404, detail="Segment not found")
     if body.speaker_id is not None:
-        try:
-            _uuid.UUID(body.speaker_id, version=4)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="speaker_id must be a valid UUID4")
-        # A named speaker may have no voice profile yet (its segments were too short)
-        if body.speaker_id not in memory.speaker_ids():
-            raise HTTPException(status_code=400, detail="speaker_id not found in known speakers")
+        _check_known_speaker(memory, body.speaker_id)
         to_spk_id = body.speaker_id
     else:
         to_spk_id = _create_speaker(memory, body.speaker_name, body.color_index)
@@ -298,6 +307,66 @@ def update_segment_speaker(
     commit_svc = CommitService(memory, storage)
     commit_svc.commit_speaker(to_spk_id)
     commit_svc.recompute_or_remove(from_spk_id)
+
+
+@router.post("/{transcript_id}/speaker-assignments", response_model=SpeakerAssignmentResponse)
+def assign_speaker(
+    transcript_id: int,
+    body: SpeakerAssignmentRequest,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+    memory: SpeakerMemoryService = Depends(get_memory_service),
+):
+    """Give the listed segments one speaker, all or none. Nothing is created
+    until the request is known to be good."""
+    if (body.speaker_id is None) == (body.speaker_name is None):
+        raise HTTPException(status_code=400, detail="Provide exactly one of speaker_id or speaker_name")
+    _check_new_speaker_color(body.color_index, body.speaker_name is not None)
+    try:
+        t = storage.load(transcript_id, with_embeddings=False)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    by_start = {seg.start: seg for seg in t.segments}
+    if any(start not in by_start for start in body.segment_starts):
+        raise HTTPException(status_code=404, detail="Segment not found")
+    if body.speaker_id is not None:
+        _check_known_speaker(memory, body.speaker_id)
+        to_spk_id = body.speaker_id
+    else:
+        to_spk_id = _create_speaker(memory, body.speaker_name, body.color_index)
+    segments = [by_start[start] for start in body.segment_starts]
+    storage.set_segments_speaker(transcript_id, [(seg.start, seg.end) for seg in segments], to_spk_id)
+    commit_svc = CommitService(memory, storage)
+    commit_svc.commit_speaker(to_spk_id)
+    for from_spk_id in {_effective_speaker(seg) for seg in segments} - {to_spk_id}:
+        commit_svc.recompute_or_remove(from_spk_id)
+    return SpeakerAssignmentResponse(speaker_id=to_spk_id)
+
+
+@router.post("/{transcript_id}/speaker-assignments/undo", status_code=204)
+def undo_speaker_assignment(
+    transcript_id: int,
+    body: SpeakerAssignmentUndoRequest,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+    memory: SpeakerMemoryService = Depends(get_memory_service),
+):
+    """A segment deleted since the assignment has nothing to go back to and is skipped."""
+    if body.speaker_id != UNASSIGNED:
+        _check_uuid(body.speaker_id, "speaker_id")
+    if body.created_speaker_id is not None:
+        _check_uuid(body.created_speaker_id, "created_speaker_id")
+    try:
+        t = storage.load(transcript_id, with_embeddings=False)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    starts = set(body.segment_starts)
+    segments = [seg for seg in t.segments if seg.start in starts]
+    CommitService(memory, storage).undo_assignment(
+        transcript_id,
+        [(seg.start, seg.end) for seg in segments],
+        body.speaker_id,
+        {_effective_speaker(seg) for seg in segments},
+        body.created_speaker_id,
+    )
 
 
 @router.patch("/{transcript_id}/segments/{start}/text", status_code=204)

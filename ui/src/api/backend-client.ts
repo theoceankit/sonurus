@@ -1,5 +1,5 @@
 import createClient from 'openapi-fetch'
-import { ApiError, type ApiClient, type SpeakerAssignment } from './client'
+import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from './client'
 import { connectQueueEvents } from './queue-events'
 import type { paths } from './schema.gen'
 
@@ -38,21 +38,26 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
   const transcript = (transcript_id: number) => ({ params: { path: { transcript_id } } })
   const segment = (transcript_id: number, start: number) => ({ params: { path: { transcript_id, start } } })
 
-  const assignSpeaker = ({ transcriptId, target, ...scope }: SpeakerAssignment) => {
-    const color = 'colorIndex' in target && target.colorIndex != null ? { color_index: target.colorIndex } : {}
-    if ('segmentStart' in scope) {
-      return send(http.PATCH('/transcripts/{transcript_id}/segments/{start}/speaker', {
-        ...segment(transcriptId, scope.segmentStart),
-        body: 'id' in target ? { speaker_id: target.id } : { speaker_name: target.name, ...color },
-      }))
-    }
-    return send(http.POST('/transcripts/{transcript_id}/reassign', {
+  const assignSpeaker = async ({ transcriptId, segmentStarts, target }: SpeakerAssignment) => {
+    const speaker = 'id' in target
+      ? { speaker_id: target.id }
+      : { speaker_name: target.name, ...(target.colorIndex != null ? { color_index: target.colorIndex } : {}) }
+    const { speaker_id: speakerId } = await send(http.POST('/transcripts/{transcript_id}/speaker-assignments', {
       ...transcript(transcriptId),
-      body: 'id' in target
-        ? { from_speaker_id: scope.fromSpeakerId, to_speaker_id: target.id }
-        : { from_speaker_id: scope.fromSpeakerId, to_speaker_name: target.name, ...color },
+      body: { segment_starts: [...segmentStarts], ...speaker },
     }))
+    return { speakerId }
   }
+
+  const undoSpeakerAssignment = ({ transcriptId, segmentStarts, speakerId, createdSpeakerId }: SpeakerUndo) =>
+    send(http.POST('/transcripts/{transcript_id}/speaker-assignments/undo', {
+      ...transcript(transcriptId),
+      body: {
+        segment_starts: [...segmentStarts],
+        speaker_id: speakerId,
+        ...(createdSpeakerId ? { created_speaker_id: createdSpeakerId } : {}),
+      },
+    }))
 
   return {
     now: () => new Date(),
@@ -64,8 +69,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     updateSegmentText: (id, start, text) => send(http.PATCH('/transcripts/{transcript_id}/segments/{start}/text', { ...segment(id, start), body: { text } })),
     deleteSegment: (id, start) => send(http.DELETE('/transcripts/{transcript_id}/segments/{start}', segment(id, start))),
     assignSpeaker,
-    // The backend has no route for it yet.
-    undoSpeakerAssignment: () => Promise.reject(new ApiError(501, 'The backend cannot undo this yet')),
+    undoSpeakerAssignment,
     getSpeakerCandidates: id => send(http.GET('/transcripts/{transcript_id}/speaker-candidates', transcript(id))),
     listSpeakers: () => send(http.GET('/speakers')),
     updateSpeaker: (speaker_id, body) => send(http.PATCH('/speakers/{speaker_id}', { params: { path: { speaker_id } }, body })),

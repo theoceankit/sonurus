@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { markNotImplemented } from '../../not-implemented'
-import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
+import { ASSIGNABLE_SPEAKER_COLORS, speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 import { Avatar } from '../Avatar/Avatar'
 import { ColorPicker } from '../ColorPicker/ColorPicker'
 import { Disclosure } from '../Disclosure/Disclosure'
@@ -78,7 +78,7 @@ export function NewSpeakerModal({
             }}
           />
         </div>
-        <ColorPicker label="Colour" value={color} onValueChange={setColor} />
+        <ColorPicker label="Colour" value={color} onValueChange={setColor} colors={ASSIGNABLE_SPEAKER_COLORS} />
         <Disclosure label="Optional details" defaultExpanded={initialDetailsExpanded}>
           <div className={styles.details}>
             <TextField label="Handle" prefix="@" placeholder="olivia.brown" readOnly {...markNotImplemented('new-speaker.handle')} />

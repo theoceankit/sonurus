@@ -1,12 +1,14 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Profiler, useState, type ReactNode } from 'react'
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { ApiError } from '../../api/client'
 import { SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
+import { effectiveSpeaker } from '../../api/types'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { longSegments } from '../../api/fixtures/long-recording'
+import { dismissAllToasts } from '../../components/Toast/toast'
 import type { Playback, PlaybackState } from '../../media/playback'
 import { OverlayProvider } from '../../OverlayProvider'
 import { TranscriptPanel } from './TranscriptPanel'
@@ -66,6 +68,10 @@ const MARK_SECOND = 'Retry for failed jobs works too, I checked it.'
 
 // Closing a menu gives the focus back a moment later: that must not land in the next test.
 beforeEach(() => new Promise(resolve => setTimeout(resolve)))
+afterEach(() => {
+  dismissAllToasts()
+  vi.unstubAllGlobals()
+})
 
 describe('states', () => {
   test('no recording: an empty panel', () => {
@@ -275,23 +281,29 @@ describe('deleting', () => {
 })
 
 describe('copying', () => {
-  const clipboard = (writeText: (text: string) => Promise<void>) =>
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  // Chromium refuses navigator.clipboard here: the main process allows only the microphone.
+  const clipboard = (writeClipboard: (text: string) => Promise<void>) => {
+    vi.stubGlobal('electronAPI', { writeClipboard })
+    const browser = vi.fn(async () => { throw new Error('denied') })
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: browser }, configurable: true })
+    return browser
+  }
 
-  test('Copy puts the paragraph on the clipboard and says so', async () => {
-    const writeText = vi.fn(async () => {})
+  test('Copy puts the paragraph on the clipboard through the main process and says so', async () => {
+    const writeClipboard = vi.fn(async () => {})
+    const browser = clipboard(writeClipboard)
     setup()
     await userEvent.hover(await text(MARK_SECOND))
-    clipboard(writeText)
     await userEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    expect(writeText).toHaveBeenCalledExactlyOnceWith(MARK_SECOND)
+    expect(writeClipboard).toHaveBeenCalledExactlyOnceWith(MARK_SECOND)
+    expect(browser).not.toHaveBeenCalled()
     await text('Copied')
   })
 
   test('a refused clipboard says so', async () => {
+    clipboard(async () => { throw new Error('denied') })
     setup()
     await userEvent.hover(await text(MARK_SECOND))
-    clipboard(async () => { throw new Error('denied') })
     await userEvent.click(screen.getByRole('button', { name: 'Copy' }))
     await text('Copy failed')
   })
@@ -319,10 +331,7 @@ describe('changing a speaker', () => {
     const assign = vi.spyOn(client, 'assignSpeaker')
     const menu = within(await openTurnMenu())
     await userEvent.click(menu.getByText('Anna Petrova'))
-    expect(assign.mock.calls.map(([call]) => call)).toEqual([
-      { transcriptId: WEEKLY_SYNC_ID, segmentStart: 5, target: { id: SPEAKER_IDS.anna } },
-      { transcriptId: WEEKLY_SYNC_ID, segmentStart: 8, target: { id: SPEAKER_IDS.anna } },
-    ])
+    expect(assign.mock.calls.map(([call]) => call)).toEqual([{ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5, 8], target: { id: SPEAKER_IDS.anna } }])
     expect(screen.queryByRole('dialog')).toBeNull()
     await waitFor(() => expect(screen.getAllByRole('button', { name: 'Mark Ellis' })).toHaveLength(1))
   })
@@ -335,7 +344,7 @@ describe('changing a speaker', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Change speaker' }))
     const menu = within(await screen.findByRole('dialog', { name: 'Change speaker' }))
     await userEvent.click(menu.getByText('Anna Petrova'))
-    expect(assign.mock.calls.map(([call]) => call)).toEqual([{ transcriptId: WEEKLY_SYNC_ID, segmentStart: 8, target: { id: SPEAKER_IDS.anna } }])
+    expect(assign.mock.calls.map(([call]) => call)).toEqual([{ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [8], target: { id: SPEAKER_IDS.anna } }])
   })
 
   test('the current speaker only closes the menu', async () => {
@@ -345,6 +354,39 @@ describe('changing a speaker', () => {
     await userEvent.click(menu.getByRole('option', { selected: true }))
     expect(assign).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  test('Undo gives a turn back to the speaker it had', async () => {
+    const { client } = setup()
+    const menu = within(await openTurnMenu())
+    await userEvent.click(menu.getByText('Anna Petrova'))
+    await text('Assigned to Anna Petrova')
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(async () => {
+      const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
+      expect(segments.filter(s => [5, 8].includes(s.start)).map(effectiveSpeaker)).toEqual([SPEAKER_IDS.mark, SPEAKER_IDS.mark])
+    })
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Mark Ellis' })).toHaveLength(2))
+  })
+
+  test('Undo gives one paragraph back', async () => {
+    const { client } = setup()
+    const undo = vi.spyOn(client, 'undoSpeakerAssignment')
+    await userEvent.hover(await text(MARK_SECOND))
+    await userEvent.click(within(screen.getByRole('toolbar', { name: 'Paragraph' })).getByRole('button', { name: 'More' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Change speaker' }))
+    const menu = within(await screen.findByRole('dialog', { name: 'Change speaker' }))
+    await userEvent.click(menu.getByText('Anna Petrova'))
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(undo).toHaveBeenCalledOnce())
+    expect(undo.mock.calls[0][0]).toEqual({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [8], speakerId: SPEAKER_IDS.mark })
+  })
+
+  test('a failed change says so', async () => {
+    setup({ overrides: { assignSpeaker: () => Promise.reject(new ApiError(500, 'No')) } })
+    const menu = within(await openTurnMenu())
+    await userEvent.click(menu.getByText('Anna Petrova'))
+    await text('Failed to change speaker: No')
   })
 
   test('Show all speakers asks for the list', async () => {
@@ -414,12 +456,12 @@ describe('selecting text', () => {
   })
 
   test('Copy copies the selection and clears it', async () => {
-    const writeText = vi.fn(async () => {})
+    const writeClipboard = vi.fn(async () => {})
+    vi.stubGlobal('electronAPI', { writeClipboard })
     setup()
     select(await text(MARK_SECOND))
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
     await userEvent.click(within(bar()!).getByRole('button', { name: 'Copy' }))
-    expect(writeText).toHaveBeenCalledExactlyOnceWith(MARK_SECOND)
+    expect(writeClipboard).toHaveBeenCalledExactlyOnceWith(MARK_SECOND)
     await text('Copied')
     expect(window.getSelection()!.isCollapsed).toBe(true)
   })

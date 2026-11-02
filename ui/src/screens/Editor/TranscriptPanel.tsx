@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-  useAssignTurnSpeaker, useDeleteSegment, useSpeakers, useTranscript, useTranscripts, useUpdateSegmentText, useUpdateTranscriptTitle,
+  useDeleteSegment, useSpeakers, useTranscript, useTranscripts, useUpdateSegmentText, useUpdateTranscriptTitle,
 } from '../../api/queries'
 import { effectiveSpeaker, type Speaker, type Transcript } from '../../api/types'
 import { Button } from '../../components/Button/Button'
@@ -17,6 +17,7 @@ import {
   buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave,
 } from './transcript'
 import type { RecordingToDelete } from './DeleteRecordingDialog'
+import { useSpeakerChange } from './useSpeakerChange'
 import { TranscriptList, type MenuKey, type TranscriptRows } from './TranscriptList'
 import { useTextSelection } from './useTextSelection'
 import styles from './TranscriptPanel.module.css'
@@ -83,7 +84,7 @@ interface TranscriptViewProps {
 
 async function copyToClipboard(text: string) {
   try {
-    await navigator.clipboard.writeText(text)
+    await window.electronAPI.writeClipboard(text)
     toast({ message: 'Copied' })
   } catch {
     toast({ message: 'Copy failed', type: 'error' })
@@ -96,7 +97,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   const { mutate: rename } = useUpdateTranscriptTitle()
   const { mutate: saveText } = useUpdateSegmentText()
   const { mutate: removeSegment } = useDeleteSegment()
-  const { mutate: assign } = useAssignTurnSpeaker()
+  const { change } = useSpeakerChange()
 
   const playing = useActiveSegment(playback, segments)
   const [editing] = useState(() => createKeyStore<number | null>(null))
@@ -222,8 +223,8 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
             }
           }}
           onSelect={speakerId => {
-            assign({ transcriptId, segmentStarts: menu.segmentStarts, target: { id: speakerId } }, {
-              onError: error => toast({ message: `Failed to change speaker: ${error.message}`, type: 'error' }),
+            change({ transcriptId, fromSpeakerId: menu.currentId, segmentStarts: menu.segmentStarts, target: { id: speakerId } }).catch((error: Error) => {
+              toast({ message: `Failed to change speaker: ${error.message}`, type: 'error' })
             })
             closeMenu()
           }}

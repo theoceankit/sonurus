@@ -7,7 +7,7 @@ import { SPEAKER_IDS, WEEKLY_SYNC_ID } from './fixtures/data'
 import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
-  useAssignSpeaker, useAssignTurnSpeaker, useBackendConnected, useDeleteTranscript, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
+  useAssignSpeaker, useBackendConnected, useDeleteTranscript, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle,
 } from './queries'
 import { effectiveSpeaker, type QueueUpdate } from './types'
@@ -77,7 +77,7 @@ describe('changing', () => {
       assign: useAssignSpeaker(),
     }))
     await waitFor(() => expect(result.current.candidates.data).toHaveProperty(unknown1))
-    await act(() => result.current.assign.mutateAsync({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: unknown1, target: { id: mark } }))
+    await act(() => result.current.assign.mutateAsync({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [16], target: { id: mark } }))
     await waitFor(() => expect(result.current.candidates.data).not.toHaveProperty(unknown1))
     const segment = result.current.transcript.data?.segments.find(s => s.start === 16)
     expect(segment && effectiveSpeaker(segment)).toBe(mark)
@@ -136,25 +136,28 @@ describe('queue events', () => {
 })
 
 describe('assigning a turn', () => {
-  test('a new speaker for a turn of several segments is one speaker', async () => {
-    const { client, result } = renderWith(useAssignTurnSpeaker)
+  test('a new speaker for a turn of several segments is one speaker, and the answer names it', async () => {
+    const { client, result } = renderWith(useAssignSpeaker)
     const before = (await client.listSpeakers()).length
-    await act(() => result.current.mutateAsync({
+    const { speakerId } = await act(() => result.current.mutateAsync({
       transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5, 8], target: { name: 'Olivia Brown', colorIndex: 2 },
     }))
     const speakers = await client.listSpeakers()
     expect(speakers).toHaveLength(before + 1)
     const created = speakers.find(s => s.name === 'Olivia Brown')!
+    expect(created.id).toBe(speakerId)
     expect(created.color_index).toBe(2)
     const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
     expect(segments.filter(s => effectiveSpeaker(s) === created.id).map(s => s.start)).toEqual([5, 8])
   })
 
-  test('an existing speaker asks for no list of speakers', async () => {
+  test('is one request whatever the length of the turn', async () => {
     const client = createFixtureClient()
+    const assign = vi.spyOn(client, 'assignSpeaker')
     const listSpeakers = vi.spyOn(client, 'listSpeakers')
-    const { result } = renderHook(useAssignTurnSpeaker, { wrapper: wrapperFor(client) })
+    const { result } = renderHook(useAssignSpeaker, { wrapper: wrapperFor(client) })
     await act(() => result.current.mutateAsync({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5, 8], target: { id: SPEAKER_IDS.anna } }))
+    expect(assign).toHaveBeenCalledOnce()
     expect(listSpeakers.mock.calls.length).toBe(0)
   })
 })
@@ -164,7 +167,7 @@ describe('undoing an assignment', () => {
     const { client, result } = renderWith(() => ({ undo: useUndoSpeakerAssignment(), candidates: useSpeakerCandidates(WEEKLY_SYNC_ID) }))
     const { unknown1, mark } = SPEAKER_IDS
     await waitFor(() => expect(result.current.candidates.data?.[unknown1]).toBeTruthy())
-    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: unknown1, target: { id: mark } })
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [16], target: { id: mark } })
     await act(() => result.current.undo.mutateAsync({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [16], speakerId: unknown1 }))
     await waitFor(() => expect(result.current.candidates.data?.[unknown1]).toBeTruthy())
   })

@@ -15,7 +15,7 @@ import sqlite3
 import numpy as np
 import pytest
 
-from app.models.segment import Segment
+from app.models.segment import Segment, UNASSIGNED
 from app.models.transcript import Transcript
 from app.services.commit_service import CommitService
 from app.services.speaker_memory_service import SpeakerMemoryService
@@ -749,3 +749,146 @@ def test_unassigned_is_never_committed(tmp_path):
     commit_svc.commit_speaker(UNASSIGNED)
     commit_svc.recompute_or_remove(UNASSIGNED)
     assert UNASSIGNED not in memory.known_speakers
+
+
+# ---------------------------------------------------------------------------
+# undo_assignment — puts segments back after an assignment
+# ---------------------------------------------------------------------------
+
+V1 = [1.0, 0.0, 0.0]
+V2 = [0.0, 1.0, 0.0]
+VOICE = "11111111-1111-4111-8111-111111111111"
+
+
+def _emb(values):
+    return np.array(values, dtype=np.float32)
+
+
+def _saved(storage, *rows):
+    """Each row is (speaker, embedding values or None); segments at 0, 1, 2… seconds."""
+    segments = [
+        Segment(float(i), i + 1.0, "x", "SPEAKER_00", speaker_resolved=spk,
+                embedding=None if values is None else _emb(values))
+        for i, (spk, values) in enumerate(rows)
+    ]
+    return storage.save(Transcript(audio_path="a.wav", language="en", segments=segments))
+
+
+def _assign(storage, commit_svc, db_id, ranges, to_id, from_id):
+    storage.set_segments_speaker(db_id, ranges, to_id)
+    commit_svc.commit_speaker(to_id)
+    commit_svc.recompute_or_remove(from_id)
+
+
+def test_undo_brings_back_a_nameless_voice_removed_by_the_assignment(tmp_path):
+    memory, storage, commit_svc = make_services(tmp_path)
+    alice = memory.create_named_speaker("Alice")
+    _saved(storage, (alice, V2))
+    db_id = _saved(storage, (VOICE, V1), (VOICE, V1))
+    commit_svc.commit_speaker(VOICE)
+    commit_svc.commit_speaker(alice)
+    profile_before = memory.known_speakers[alice].copy()
+    ranges = [(0.0, 1.0), (1.0, 2.0)]
+    _assign(storage, commit_svc, db_id, ranges, alice, VOICE)
+    assert VOICE not in memory.known_speakers
+
+    commit_svc.undo_assignment(db_id, ranges, VOICE, {alice})
+
+    assert np.allclose(memory.known_speakers[VOICE], _emb(V1))
+    assert np.allclose(memory.known_speakers[alice], profile_before)
+    assert {s.speaker_resolved for s in storage.load(db_id, with_embeddings=False).segments} == {VOICE}
+    # And it is on disk, not only in this instance.
+    assert VOICE in SpeakerMemoryService(db_path=str(tmp_path / "app.db")).known_speakers
+
+
+def test_undo_keeps_what_the_speaker_had_before_the_assignment(tmp_path):
+    """A reverse reassign would take these too."""
+    memory, storage, commit_svc = make_services(tmp_path)
+    alice = memory.create_named_speaker("Alice")
+    db_id = _saved(storage, (VOICE, V1), (alice, V1))
+    commit_svc.commit_speaker(alice)
+    _assign(storage, commit_svc, db_id, [(0.0, 1.0)], alice, VOICE)
+
+    commit_svc.undo_assignment(db_id, [(0.0, 1.0)], VOICE, {alice})
+
+    segments = storage.load(db_id, with_embeddings=False).segments
+    assert [s.speaker_resolved for s in segments] == [VOICE, alice]
+    assert alice in memory.known_speakers
+
+
+def test_undo_removes_the_speaker_the_assignment_created(tmp_path):
+    memory, storage, commit_svc = make_services(tmp_path)
+    db_id = _saved(storage, (VOICE, V1))
+    commit_svc.commit_speaker(VOICE)
+    dana = memory.create_named_speaker("Dana")
+    _assign(storage, commit_svc, db_id, [(0.0, 1.0)], dana, VOICE)
+
+    commit_svc.undo_assignment(db_id, [(0.0, 1.0)], VOICE, {dana}, created_speaker_id=dana)
+
+    assert dana not in memory.speaker_ids()
+    fresh = SpeakerMemoryService(db_path=str(tmp_path / "app.db"))
+    assert dana not in fresh.speaker_ids()
+    assert fresh.resolve({"SPEAKER_00": _emb(V1)}) == {"SPEAKER_00": VOICE}
+
+
+def test_undo_keeps_a_created_speaker_who_got_other_segments(tmp_path):
+    memory, storage, commit_svc = make_services(tmp_path)
+    other = "22222222-2222-4222-8222-222222222222"
+    db_id = _saved(storage, (VOICE, V1), (other, V1))
+    dana = memory.create_named_speaker("Dana")
+    _assign(storage, commit_svc, db_id, [(0.0, 1.0)], dana, VOICE)
+    _assign(storage, commit_svc, db_id, [(1.0, 2.0)], dana, other)
+
+    commit_svc.undo_assignment(db_id, [(0.0, 1.0)], VOICE, {dana}, created_speaker_id=dana)
+
+    assert memory.get_name(dana) == "Dana"
+    assert dana in memory.known_speakers
+
+
+def test_undo_keeps_a_created_speaker_whose_other_segments_have_no_embedding(tmp_path):
+    memory, storage, commit_svc = make_services(tmp_path)
+    other = "22222222-2222-4222-8222-222222222222"
+    db_id = _saved(storage, (VOICE, V1), (other, None))
+    dana = memory.create_named_speaker("Dana")
+    _assign(storage, commit_svc, db_id, [(0.0, 1.0)], dana, VOICE)
+    _assign(storage, commit_svc, db_id, [(1.0, 2.0)], dana, other)
+
+    commit_svc.undo_assignment(db_id, [(0.0, 1.0)], VOICE, {dana}, created_speaker_id=dana)
+
+    assert memory.get_name(dana) == "Dana"
+    assert dana not in memory.known_speakers
+
+
+def test_undo_takes_the_voice_out_of_a_named_speaker_with_nothing_left(tmp_path):
+    """Named, with no profile before: the undone voice must not stay as their profile."""
+    memory, storage, commit_svc = make_services(tmp_path)
+    alice = memory.create_named_speaker("Alice")
+    color = memory.known_colors.get(alice)
+    db_id = _saved(storage, (VOICE, V1))
+    _assign(storage, commit_svc, db_id, [(0.0, 1.0)], alice, VOICE)
+    assert alice in memory.known_speakers
+
+    commit_svc.undo_assignment(db_id, [(0.0, 1.0)], VOICE, {alice})
+
+    fresh = SpeakerMemoryService(db_path=str(tmp_path / "app.db"))
+    assert alice not in fresh.known_speakers
+    assert fresh.get_name(alice) == "Alice"
+    assert fresh.known_colors.get(alice) == color
+    assert fresh.resolve({"SPEAKER_00": _emb(V1)}) == {"SPEAKER_00": VOICE}
+
+
+def test_undo_to_unassigned(tmp_path):
+    memory, storage, commit_svc = make_services(tmp_path)
+    alice = memory.create_named_speaker("Alice")
+    db_id = _saved(storage, (VOICE, V1), (alice, V2))
+    commit_svc.commit_speaker(alice)
+    storage.unassign_speaker(VOICE)
+    memory.remove_speaker(VOICE)
+    _assign(storage, commit_svc, db_id, [(0.0, 1.0)], alice, UNASSIGNED)
+
+    commit_svc.undo_assignment(db_id, [(0.0, 1.0)], UNASSIGNED, {alice})
+
+    first = storage.load(db_id, with_embeddings=False).segments[0]
+    assert first.unassigned and first.speaker_resolved is None
+    assert UNASSIGNED not in memory.known_speakers
+    assert np.allclose(memory.known_speakers[alice], _emb(V2))

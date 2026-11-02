@@ -30,11 +30,13 @@ A recording of three hours is about 3600 paragraphs, so the list renders little 
 
 ## Behaviour
 
-- **Changing a speaker.** A click on the name in a turn opens the speaker menu and changes the whole turn. Change speaker under More on a paragraph opens the same menu and changes one segment. Only speakers with a name can be chosen; the list shows the ones of this recording, the longest first, and the search goes over all of them. `useAssignTurnSpeaker()` in `queries.ts` is the one place that knows how several segments change.
+- **Changing a speaker.** A click on the name in a turn opens the speaker menu and changes the whole turn. Change speaker under More on a paragraph opens the same menu and changes one segment. Only speakers with a name can be chosen; the list shows the ones of this recording, the longest first, and the search goes over all of them. A change is one request, and shows a toast with Undo (`useSpeakerChange`). Changing one paragraph makes a turn of its own, so the rows below it move.
 - **Editing a paragraph.** The pencil or a double click. Leaving the field and Ctrl+Enter save, Esc cancels, and empty or unchanged text saves nothing. The text shows at once and goes back with an error toast if the request fails.
 - **Renaming.** A click on the title. Enter and leaving the field save, Esc cancels. An empty title or one longer than 200 characters is not saved.
 - **Deleting the recording.** Delete recording under More in the header, plain or sticky, asks first in `DeleteRecordingDialog`. Once deleted, no recording is open and the sound stops. A failure is a toast and the recording stays open.
 - **Selecting text.** A bar stands above the first selected line once the press is over, and never during an edit.
+- **Copying.** Copy on a paragraph and on the bar writes through `electronAPI.writeClipboard`: the main process allows only the microphone, so `navigator.clipboard` is refused. Copied says it worked.
+- **Deleting a paragraph.** Delete under More acts at once, with no confirmation and no Undo.
 - **Playback.** A click on the time of a turn seeks, and Play on a paragraph seeks and plays. The paragraph playing has a bar in its speaker's colour, from the first time the audio moves. The list does not follow the player.
 - **Keyboard.** The list is one stop of Tab, which lands on the row it was last on or the first in view. Up and Down go over names, times and paragraphs; Enter on a paragraph edits it. A focused paragraph shows its bar, and Tab goes on into it.
 

@@ -223,6 +223,24 @@ class SegmentSpeakerRequest(BaseModel):
         return v.strip() if isinstance(v, str) else v
 
 
+class SpeakerAssignmentRequest(SegmentSpeakerRequest):
+    """The segments that change, all together, by their start."""
+    segment_starts: list[float] = Field(min_length=1)
+
+
+class SpeakerAssignmentResponse(ResponseModel):
+    speaker_id: str
+
+
+class SpeakerAssignmentUndoRequest(BaseModel):
+    """speaker_id is who the segments had: a voice removed by the assignment is not
+    in memory any more, or UNASSIGNED. created_speaker_id is the speaker the
+    assignment made, if it did."""
+    segment_starts: list[float] = Field(min_length=1)
+    speaker_id: str
+    created_speaker_id: str | None = None
+
+
 class SegmentTextRequest(BaseModel):
     text: str
 

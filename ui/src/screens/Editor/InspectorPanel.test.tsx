@@ -208,6 +208,17 @@ describe('review', () => {
     expect(await counter('1 of 1')).toBeTruthy()
   })
 
+  test('Undo of an existing speaker names no one to remove', async () => {
+    const { client } = setup(WEEKLY_SYNC_ID)
+    const undo = vi.spyOn(client, 'undoSpeakerAssignment')
+    await counter('1 of 1')
+    await userEvent.click(within(card()).getByRole('button', { name: /Mark Ellis/ }))
+    await userEvent.click(within(card()).getByRole('button', { name: 'Assign' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(undo).toHaveBeenCalledOnce())
+    expect(undo.mock.calls[0][0]).toEqual({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [16], speakerId: unknown1 })
+  })
+
   test('a failed undo says so', async () => {
     setup(WEEKLY_SYNC_ID, { overrides: { undoSpeakerAssignment: () => Promise.reject(new ApiError(501, 'No')) } })
     await counter('1 of 1')
@@ -334,7 +345,7 @@ describe('speaker windows from the card', () => {
     expect((await screen.findByRole('searchbox', { name: 'Search speakers' }) as HTMLInputElement).value).toBe('Zoe')
   })
 
-  test('Create and assign, then Undo: the voice is back and the new speaker stays', async () => {
+  test('Create and assign, then Undo: the voice is back and the new speaker is gone', async () => {
     const { client } = setup(WEEKLY_SYNC_ID)
     await counter('1 of 1')
     await userEvent.click(within(card()).getByRole('button', { name: 'Add a new speaker' }))
@@ -344,7 +355,7 @@ describe('speaker windows from the card', () => {
     expect(await screen.findByText('Assigned to Olivia Brown')).toBeTruthy()
     await userEvent.click(button('Undo'))
     expect(await counter('1 of 1')).toBeTruthy()
-    expect((await client.listSpeakers()).some(s => s.name === 'Olivia Brown')).toBe(true)
+    expect((await client.listSpeakers()).some(s => s.name === 'Olivia Brown')).toBe(false)
     expect((await client.getTranscript(WEEKLY_SYNC_ID)).segments.some(s => effectiveSpeaker(s) === unknown1)).toBe(true)
   })
 

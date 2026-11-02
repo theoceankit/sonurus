@@ -231,6 +231,10 @@ class SpeakerRepository:
             conn.execute("DELETE FROM speaker_embeddings WHERE id = ?", (spk_id,))
             conn.execute("DELETE FROM speaker_meta WHERE speaker_id = ?", (spk_id,))
 
+    def remove_embedding(self, spk_id: str):
+        with self._connect() as conn:
+            conn.execute("DELETE FROM speaker_embeddings WHERE id = ?", (spk_id,))
+
     def clear(self) -> int:
         """Delete every speaker (embeddings, names, colors). _meta is kept."""
         with self._connect() as conn:
@@ -443,6 +447,14 @@ class SpeakerMemoryService:
         with self._dirty_lock:
             self._dirty.discard(spk_id)
         self._repo.remove(spk_id)
+
+    def remove_embedding(self, spk_id: str):
+        """Forget a speaker's voice and keep their name and color."""
+        self.known_speakers.pop(spk_id, None)
+        self.known_counts.pop(spk_id, None)
+        with self._dirty_lock:
+            self._dirty.discard(spk_id)
+        self._repo.remove_embedding(spk_id)
 
     def clear(self) -> int:
         """Delete all speakers from the database and drop the in-memory state,

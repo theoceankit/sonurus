@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import type { SpeakerTarget } from '../../api/client'
-import { useAssignSpeaker, useBackendConnected, useSpeakerCandidates, useSpeakers, useTranscript, useUndoSpeakerAssignment } from '../../api/queries'
+import { useBackendConnected, useSpeakerCandidates, useSpeakers, useTranscript } from '../../api/queries'
 import { effectiveSpeaker, type Speaker, type SpeakerCandidates, type Transcript } from '../../api/types'
 import { avatarOf } from '../../components/Avatar/Avatar'
 import { AvatarStack } from '../../components/AvatarStack/AvatarStack'
@@ -19,6 +19,7 @@ import { firstSegmentOf, pendingReview, speakerRows, splitRows, talkTotal, type 
 import styles from './InspectorPanel.module.css'
 import { closeReview, openReview, resumeReview, reviewView, selectSpeaker, skipSpeaker } from './review-queue'
 import type { SpeakerRequest } from './SpeakerDialogs'
+import { useSpeakerChange } from './useSpeakerChange'
 
 const MAX_STACK = 3
 
@@ -89,8 +90,7 @@ interface InspectorViewProps extends Omit<InspectorPanelProps, 'transcriptId'> {
 function InspectorView({ transcript, speakers, candidates, playback, open, onClose, onChooseSpeaker, possibleMatches, initialSpeakerId }: InspectorViewProps) {
   const api = useApi()
   const { id: transcriptId, segments } = transcript
-  const assign = useAssignSpeaker()
-  const undo = useUndoSpeakerAssignment()
+  const { change, busy } = useSpeakerChange()
   const clip = useClipPlayback(playback, api.getAudioUrl(transcript), useBackendConnected())
   const clipState = useClipState(clip)
 
@@ -117,29 +117,17 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
     ? picked.candidateId
     : isPossibleMatch ? answer?.candidates.find(candidate => candidate.suggested)?.speaker_id ?? null : null
 
-  const undoAssignment = (speakerId: string, segmentStarts: number[], reviewed: boolean) => {
-    undo.mutate({ transcriptId, segmentStarts, speakerId }, {
-      onSuccess: () => {
-        setConfirmed(ids => ids.filter(id => id !== speakerId))
-        if (reviewed) setReview(state => selectSpeaker(state, speakerId))
-      },
-      onError: error => { toast({ message: `Failed to undo: ${error.message}`, type: 'error' }) },
-    })
-  }
-
   // All segments of a voice. Rejects if it fails: whoever asked says so in its own place.
   const assignVoice = async (speakerId: string, target: SpeakerTarget) => {
     const segmentStarts = segments.filter(segment => effectiveSpeaker(segment) === speakerId).map(segment => segment.start)
     const reviewed = pending.includes(speakerId)
-    await assign.mutateAsync({ transcriptId, fromSpeakerId: speakerId, target })
+    await change({ transcriptId, fromSpeakerId: speakerId, segmentStarts, target }, () => {
+      setConfirmed(ids => ids.filter(id => id !== speakerId))
+      if (reviewed) setReview(state => selectSpeaker(state, speakerId))
+    })
     if (isPossibleMatch && speakerId === currentId) setConfirmed(ids => [...ids, speakerId])
     // An undo brings the card back with nothing chosen, like any other.
     setPicked(null)
-    const name = 'id' in target ? speakers.find(speaker => speaker.id === target.id)?.name : target.name
-    toast({
-      message: `Assigned to ${name}`,
-      action: { label: 'Undo', onClick: () => undoAssignment(speakerId, segmentStarts, reviewed) },
-    })
   }
 
   const assignPicked = () => {
@@ -204,7 +192,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
                 suggested: candidate.suggested,
               }))}
               selectedId={selectedId}
-              busy={assign.isPending}
+              busy={busy}
               onSelect={id => setPicked({ speakerId: current.id, candidateId: id === selectedId ? null : id })}
               onSearch={() => ask(current.id, 'choose', selectedId)}
               onAddNew={() => ask(current.id, 'new')}
