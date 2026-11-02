@@ -66,7 +66,7 @@ function Data() {
       <Stack gap={1}>
         <div className={styles.heading}>Candidates</div>
         <State query={candidates} empty={Object.keys(candidates.data ?? {}).length === 0}>
-          {Object.entries(candidates.data ?? {}).map(([id, list]) => (
+          {Object.entries(candidates.data ?? {}).map(([id, { candidates: list }]) => (
             <span key={id}>{nameOf(id)}: {list.map(c => `${c.name} ${Math.round(c.score * 100)}%`).join(', ')}</span>
           ))}
         </State>

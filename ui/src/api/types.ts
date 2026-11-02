@@ -19,11 +19,12 @@ export type HeartbeatEvent = Schemas['HeartbeatEvent']
 export type QueueEvent = QueueUpdate | HeartbeatEvent
 export type QueueUpdate = QueueSnapshot | JobDoneEvent | JobFailedEvent
 
-// A known speaker that an unrecognized one may be. score is cosine similarity.
-export type SpeakerCandidate = Schemas['SpeakerSuggestion']
+// A known speaker that an unrecognized one may be. score is cosine similarity,
+// suggested marks the first candidate when it is close enough.
+export type SpeakerCandidate = Schemas['SpeakerCandidate']
 
-// By unrecognized speaker id, the closest candidate first.
-export type SpeakerCandidates = Record<string, SpeakerCandidate[]>
+// By unrecognized speaker id: the closest candidates first and a clip of the voice.
+export type SpeakerCandidates = Record<string, Schemas['UnknownSpeakerCandidates']>
 
 export const UNASSIGNED = 'UNASSIGNED'
 

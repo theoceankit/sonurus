@@ -89,10 +89,14 @@ describe('requests', () => {
 })
 
 describe('getSpeakerCandidates', () => {
-  test('the one suggestion of each speaker becomes a list', async () => {
-    const candidate = { speaker_id: 'm', name: 'Mark', score: 0.82 }
-    const { client } = setup(() => json({ u1: candidate }))
-    await expect(client.getSpeakerCandidates(7)).resolves.toEqual({ u1: [candidate] })
+  test('asks the candidates route and gives its answer as it is', async () => {
+    const entry = {
+      candidates: [{ speaker_id: 'm', name: 'Mark', score: 0.82, suggested: true }],
+      clip: { start: 16, end: 20, text: 'That was me.' },
+    }
+    const { client, sent } = setup(() => json({ u1: entry }))
+    await expect(client.getSpeakerCandidates(7)).resolves.toEqual({ u1: entry })
+    expect(sent[0].url).toBe('http://localhost:8000/transcripts/7/speaker-candidates')
   })
 
   test('no suggestions', async () => {

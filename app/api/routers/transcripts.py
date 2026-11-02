@@ -16,7 +16,10 @@ from app.models.segment import UNASSIGNED
 from app.api.schemas import (
     TranscriptListItem, TranscriptResponse, SegmentResponse, TranscriptUpdateRequest,
     SegmentSpeakerRequest, SegmentTextRequest, ReassignRequest, SpeakerSuggestion,
+    SpeakerCandidate, UnknownSpeakerCandidates, VoiceClip,
 )
+from app.services.speaker_candidates import rank_candidates, voice_centroid
+from app.services.voice_sample import pick_voice_sample
 
 router = APIRouter(prefix="/transcripts", tags=["transcripts"])
 
@@ -175,6 +178,42 @@ def get_speaker_suggestions(
             "score": round(float(scores[best_idx]), 2),
         }
 
+    return result
+
+
+@router.get("/{transcript_id}/speaker-candidates", response_model=dict[str, UnknownSpeakerCandidates])
+def get_speaker_candidates(
+    transcript_id: int,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+    memory: SpeakerMemoryService = Depends(get_memory_service),
+):
+    """For each speaker without a name in the transcript: the known speakers
+    with the closest voice and a clip to hear it. Reads speaker memory only."""
+    try:
+        t = storage.load(transcript_id, with_embeddings=False)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Transcript not found")
+
+    names = {
+        spk_id: memory.get_name(spk_id)
+        for spk_id in memory.known_speakers
+        if memory.get_name(spk_id) is not None
+    }
+    profiles = {spk_id: memory.known_speakers[spk_id] for spk_id in names}
+
+    speakers = dict.fromkeys(_effective_speaker(seg) for seg in t.segments)
+    result = {}
+    for spk_id in speakers:
+        # Unassigned segments may mix several voices — nothing to compare.
+        if not spk_id or spk_id == UNASSIGNED or memory.get_name(spk_id) is not None:
+            continue
+        rows = storage.speaker_segments(spk_id, transcript_id)
+        voice = voice_centroid([row["embedding"] for row in rows if row["embedding"] is not None])
+        sample = pick_voice_sample(rows, voice, os.path.isfile)
+        result[spk_id] = UnknownSpeakerCandidates(
+            candidates=[SpeakerCandidate(**c) for c in rank_candidates(voice, profiles, names)] if voice is not None else [],
+            clip=VoiceClip(start=sample["start"], end=sample["end"], text=sample["text"]) if sample else None,
+        )
     return result
 
 

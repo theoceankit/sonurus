@@ -110,6 +110,7 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 | `test_transcribe_schema.py` | `TranscribeRequest` schema validation, optional `whisper_model` and `language` fields |
 | `test_embedding_persistence.py` | Per-segment embedding round-trip through `save()` / `load()` |
 | `test_model_cancel.py` | `cancel_event` in `download_model()`, `DELETE /models/{id}/download/{job_id}`, WS `cancelled` event |
+| `test_speaker_candidates.py` | `rank_candidates()` and `voice_centroid()`: order, limit, rounding, negative similarity, the suggestion threshold |
 | `test_voice_sample.py` | `pick_voice_sample()`: closest to the voice profile, longest fallback, ≥ 2 s preference, missing audio files skipped |
 | `test_embedding_service.py` | `EmbeddingService.extract_all()` single-pass invariant |
 | `test_version.py` | `get_version()`: `SONORUS_VERSION` wins over `package.json`, blank env ignored, missing / broken / version-less `package.json` → `unknown`, the repo's `package.json` by default; OpenAPI `info.version` is the product version |

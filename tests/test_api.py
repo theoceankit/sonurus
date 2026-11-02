@@ -1292,6 +1292,216 @@ def test_suggestions_skip_unassigned_segments(reset_env):
     assert "UNASSIGNED" not in r.json()
 
 
+_DAN = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+_ERIN = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+_FRANK = "ffffffff-ffff-4fff-8fff-ffffffffffff"
+
+
+def _named_profiles(profiles):
+    """profiles: {speaker id: (name, embedding)}."""
+    memory = app.dependency_overrides[get_memory_service]()
+    for spk_id, (name, embedding) in profiles.items():
+        memory.update_embedding(spk_id, embedding)
+        memory.set_name(spk_id, name)
+    memory.save()
+    return memory
+
+
+def _alice_carol_dan():
+    return _named_profiles({
+        _ALICE: ("Alice", _emb(0.6, 0.8, 0.0)),
+        _CAROL: ("Carol", _emb(0.0, 1.0, 0.0)),
+        _DAN: ("Dan", _emb(0.8, 0.6, 0.0)),
+    })
+
+
+def _save_voice(segments, audio_path="a.wav"):
+    storage = app.dependency_overrides[get_storage_service]()
+    return storage.save(Transcript(audio_path=str(audio_path), segments=segments))
+
+
+def test_suggestions_still_answer_as_the_old_renderer_reads_them(client):
+    # speaker-card.js treats every entry as a suggestion and reads these three
+    # fields. A speaker with no voice, or no candidate, must not get an entry.
+    _alice_carol_dan()
+    transcript_id = _save_voice([
+        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+        Segment(2.0, 3.0, "b", "SPEAKER_01", speaker_resolved=_ERIN),
+        Segment(3.0, 4.0, "c", "SPEAKER_02", speaker_resolved=_ALICE, embedding=_emb(0.6, 0.8, 0.0)),
+    ])
+    r = client.get(f"/transcripts/{transcript_id}/speaker-suggestions")
+    assert r.status_code == 200
+    assert r.json() == {_BOB: {"speaker_id": _DAN, "name": "Dan", "score": 0.8}}
+
+
+def test_candidates_are_sorted_and_at_most_three(client):
+    _alice_carol_dan()
+    _named_profiles({_ERIN: ("Erin", _emb(-1.0, 0.0, 0.0))})
+    transcript_id = _save_voice([
+        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+    ])
+    r = client.get(f"/transcripts/{transcript_id}/speaker-candidates")
+    assert r.status_code == 200, r.text
+    assert r.json()[_BOB]["candidates"] == [
+        {"speaker_id": _DAN, "name": "Dan", "score": 0.8, "suggested": True},
+        {"speaker_id": _ALICE, "name": "Alice", "score": 0.6, "suggested": False},
+        {"speaker_id": _CAROL, "name": "Carol", "score": 0.0, "suggested": False},
+    ]
+
+
+def test_candidates_compare_the_voice_of_all_segments_of_the_speaker(client):
+    _named_profiles({_ALICE: ("Alice", _emb(1.0, 1.0, 0.0))})
+    transcript_id = _save_voice([
+        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+        Segment(2.0, 4.0, "b", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(0.0, 1.0, 0.0)),
+    ])
+    candidates = client.get(f"/transcripts/{transcript_id}/speaker-candidates").json()[_BOB]["candidates"]
+    assert candidates[0]["score"] == 1.0
+
+
+def test_candidates_only_for_speakers_without_a_name(client):
+    _alice_carol_dan()
+    transcript_id = _save_voice([
+        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(0.6, 0.8, 0.0)),
+    ])
+    r = client.get(f"/transcripts/{transcript_id}/speaker-candidates")
+    assert r.status_code == 200
+    assert r.json() == {}
+
+
+def test_candidates_treat_a_named_speaker_without_a_voice_as_known(client):
+    memory = app.dependency_overrides[get_memory_service]()
+    memory.set_name(_ALICE, "Alice")
+    memory.save_names_only()
+    transcript_id = _save_voice([Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_ALICE)])
+    assert client.get(f"/transcripts/{transcript_id}/speaker-candidates").json() == {}
+
+
+def test_candidates_never_offer_a_named_speaker_without_a_voice(client):
+    memory = _named_profiles({_ALICE: ("Alice", _emb(1.0, 0.0, 0.0))})
+    memory.set_name(_CAROL, "Carol")
+    memory.save_names_only()
+    transcript_id = _save_voice([
+        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+    ])
+    candidates = client.get(f"/transcripts/{transcript_id}/speaker-candidates").json()[_BOB]["candidates"]
+    assert [c["speaker_id"] for c in candidates] == [_ALICE]
+
+
+def test_candidates_never_offer_a_speaker_without_a_name(client):
+    memory = app.dependency_overrides[get_memory_service]()
+    memory.update_embedding(_CAROL, _emb(1.0, 0.0, 0.0))
+    memory.save()
+    transcript_id = _save_voice([
+        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+    ])
+    assert client.get(f"/transcripts/{transcript_id}/speaker-candidates").json()[_BOB]["candidates"] == []
+
+
+def test_candidates_offer_both_speakers_with_a_shared_name(client):
+    _named_profiles({_ALICE: ("Sam", _emb(1.0, 0.0, 0.0)), _CAROL: ("Sam", _emb(0.8, 0.6, 0.0))})
+    transcript_id = _save_voice([
+        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+    ])
+    candidates = client.get(f"/transcripts/{transcript_id}/speaker-candidates").json()[_BOB]["candidates"]
+    assert [(c["speaker_id"], c["name"]) for c in candidates] == [(_ALICE, "Sam"), (_CAROL, "Sam")]
+
+
+def test_candidates_skip_unassigned_segments(reset_env):
+    client, *_ = reset_env
+    first, _ = _speakers_fixture()
+    client.delete(f"/speakers/{_ALICE}")
+    r = client.get(f"/transcripts/{first}/speaker-candidates")
+    assert r.status_code == 200
+    assert "UNASSIGNED" not in r.json()
+
+
+def test_candidates_404_for_an_unknown_transcript(client):
+    r = client.get("/transcripts/999/speaker-candidates")
+    assert r.status_code == 404
+
+
+def test_candidates_with_no_named_speaker_still_give_the_clip(client, tmp_path):
+    audio = tmp_path / "a.wav"
+    audio.write_bytes(b"x")
+    transcript_id = _save_voice([
+        Segment(1.0, 4.0, "first recording", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+    ], audio)
+    assert client.get(f"/transcripts/{transcript_id}/speaker-candidates").json() == {
+        _BOB: {"candidates": [], "clip": {"start": 1.0, "end": 4.0, "text": "first recording"}},
+    }
+
+
+def test_candidates_clip_of_a_voice_with_no_embeddings_is_the_longest_segment(client, tmp_path):
+    _alice_carol_dan()
+    audio = tmp_path / "a.wav"
+    audio.write_bytes(b"x")
+    transcript_id = _save_voice([
+        Segment(0.0, 2.5, "short", "SPEAKER_00", speaker_resolved=_BOB),
+        Segment(3.0, 7.0, "long", "SPEAKER_00", speaker_resolved=_BOB),
+    ], audio)
+    assert client.get(f"/transcripts/{transcript_id}/speaker-candidates").json() == {
+        _BOB: {"candidates": [], "clip": {"start": 3.0, "end": 7.0, "text": "long"}},
+    }
+
+
+def test_candidates_clip_is_the_segment_closest_to_the_voice(client, tmp_path):
+    audio = tmp_path / "a.wav"
+    audio.write_bytes(b"x")
+    transcript_id = _save_voice([
+        # The longest one holds another voice, the closest one is too short to hear.
+        Segment(0.0, 20.0, "long and mixed", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(0.3, 1.0, 0.0)),
+        Segment(20.0, 21.0, "too short", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+        Segment(21.0, 24.0, "typical", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.2, 0.0)),
+        Segment(24.0, 27.0, "typical too", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.1, 0.0)),
+        Segment(27.0, 30.0, "typical three", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.1, 0.0)),
+    ], audio)
+    clip = client.get(f"/transcripts/{transcript_id}/speaker-candidates").json()[_BOB]["clip"]
+    assert clip["text"].startswith("typical")
+
+
+def test_candidates_clip_comes_from_this_transcript_only(client, tmp_path):
+    audio = tmp_path / "a.wav"
+    audio.write_bytes(b"x")
+    other = _save_voice([
+        Segment(0.0, 30.0, "other recording", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+    ], audio)
+    transcript_id = _save_voice([
+        Segment(0.0, 3.0, "this recording", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+    ], audio)
+    assert other != transcript_id
+    clip = client.get(f"/transcripts/{transcript_id}/speaker-candidates").json()[_BOB]["clip"]
+    assert clip["text"] == "this recording"
+
+
+def test_candidates_clip_is_null_when_the_audio_is_gone(client, tmp_path):
+    _alice_carol_dan()
+    transcript_id = _save_voice([
+        Segment(0.0, 3.0, "a", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+    ], tmp_path / "gone.wav")
+    entry = client.get(f"/transcripts/{transcript_id}/speaker-candidates").json()[_BOB]
+    assert entry["clip"] is None
+    assert len(entry["candidates"]) == 3
+
+
+def test_candidates_do_not_change_speaker_memory(client):
+    import sqlite3
+
+    memory = _alice_carol_dan()
+
+    def stored():
+        with sqlite3.connect(memory.db_path) as conn:
+            return (conn.execute("SELECT id, embedding, count FROM speaker_embeddings ORDER BY id").fetchall(),
+                    conn.execute("SELECT speaker_id, label, name FROM speaker_names ORDER BY speaker_id").fetchall())
+
+    transcript_id = _save_voice([
+        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+    ])
+    before = stored()
+    assert client.get(f"/transcripts/{transcript_id}/speaker-candidates").status_code == 200
+    assert stored() == before
+
+
 # ── GET /speakers/{id}/sample ─────────────────────────────────────────────────
 
 def _sample_fixture(tmp_path):

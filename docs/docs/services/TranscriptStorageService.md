@@ -177,7 +177,7 @@ Transcripts in which the speaker has segments, newest first: `id`, `title`, `cre
 
 ### `speaker_segments(speaker_id, transcript_id=None) → list[dict]`
 
-The speaker's segments with their transcript's `audio_file` and `embedding`, optionally within one transcript — the candidates `pick_voice_sample()` chooses from for `GET /speakers/{id}/sample`.
+The speaker's segments with their transcript's `audio_file` and `embedding`, optionally within one transcript — the candidates `pick_voice_sample()` chooses from for `GET /speakers/{id}/sample` and `GET /transcripts/{id}/speaker-candidates`.
 
 ---
 

@@ -98,6 +98,29 @@ class SpeakerSuggestion(BaseModel):
     score: float
 
 
+class SpeakerCandidate(ResponseModel):
+    """A known speaker that an unknown voice may be. score is cosine similarity,
+    not below 0. Only the first candidate can be suggested."""
+    speaker_id: str
+    name: str
+    score: float
+    suggested: bool
+
+
+class VoiceClip(ResponseModel):
+    """A segment of the transcript's own audio to hear an unknown voice."""
+    start: float
+    end: float
+    text: str
+
+
+class UnknownSpeakerCandidates(ResponseModel):
+    """GET /transcripts/{id}/speaker-candidates, per speaker without a name. clip
+    is null when the audio file is gone."""
+    candidates: list[SpeakerCandidate]
+    clip: VoiceClip | None
+
+
 class TranscribeRequest(BaseModel):
     """POST /queue/jobs. language null or "auto" = auto-detect; no title =
     the file name without its extension."""

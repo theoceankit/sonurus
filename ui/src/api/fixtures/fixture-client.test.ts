@@ -45,12 +45,21 @@ describe('board data', () => {
   test('review: four speakers with candidates sorted by score, as on the card', async () => {
     const candidates = await createFixtureClient().getSpeakerCandidates(WEEKLY_SYNC_ID)
     expect(Object.keys(candidates)).toHaveLength(4)
-    expect(candidates[unknown1].map(c => c.score)).toEqual([0.82, 0.41, 0.12])
-    expect(candidates[oliver].map(c => c.score)).toEqual([0.64, 0.31, 0.18])
-    for (const list of Object.values(candidates)) {
+    expect(candidates[unknown1].candidates.map(c => c.score)).toEqual([0.82, 0.41, 0.12])
+    expect(candidates[oliver].candidates.map(c => c.score)).toEqual([0.64, 0.31, 0.18])
+    for (const { candidates: list } of Object.values(candidates)) {
       expect(list.length).toBeLessThanOrEqual(3)
       expect(list).toEqual([...list].sort((a, b) => b.score - a.score))
     }
+  })
+
+  test('review: only the first candidate is suggested and every speaker has a clip', async () => {
+    const candidates = await createFixtureClient().getSpeakerCandidates(WEEKLY_SYNC_ID)
+    for (const { candidates: list, clip } of Object.values(candidates)) {
+      expect(list.map(c => c.suggested)).toEqual([true, false, false])
+      expect(clip?.end).toBeGreaterThan(clip?.start ?? Infinity)
+    }
+    expect(candidates[unknown1].clip).toMatchObject({ start: 16, end: 20 })
   })
 
   test('reviewDone: the unknown speaker is Mark and nothing is left to review', async () => {
