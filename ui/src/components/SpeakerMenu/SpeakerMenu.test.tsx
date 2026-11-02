@@ -94,3 +94,9 @@ test('the first Esc clears a filled search, the next closes', async () => {
   await userEvent.keyboard('{Escape}')
   expect(onClose).toHaveBeenCalledOnce()
 })
+
+test('a recording with no named speakers says that rather than a failed search', () => {
+  const anchor = document.body.appendChild(document.createElement('button'))
+  render(<OverlayProvider><SpeakerMenu anchor={anchor} allSpeakers={0} rows={() => ({ section: null, rows: [] })} onSelect={vi.fn()} onClose={vi.fn()} /></OverlayProvider>)
+  expect(screen.getByText('No speakers with a name here yet')).toBeTruthy()
+})

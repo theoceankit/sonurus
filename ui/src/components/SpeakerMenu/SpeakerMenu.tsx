@@ -29,13 +29,15 @@ interface SpeakerMenuProps {
   // What marks the row as not there yet, while the list does not exist.
   showAllProps?: HTMLAttributes<HTMLButtonElement>
   onClose: () => void
+  // For a story: the search without typing.
+  initialQuery?: string
 }
 
 const OFFSET = 4
 
 // The focus stays in the search field, and the arrow keys move a highlight over the rows.
-export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onShowAll, showAllProps, onClose }: SpeakerMenuProps) {
-  const [query, setQuery] = useState('')
+export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onShowAll, showAllProps, onClose, initialQuery = '' }: SpeakerMenuProps) {
+  const [query, setQuery] = useState(initialQuery)
   const [active, setActive] = useState(0)
   const list = useRef<HTMLDivElement>(null)
   const showAll = useRef<HTMLButtonElement>(null)
@@ -111,7 +113,9 @@ export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onSh
                   {row.time && <span className={styles.time}>{row.time}</span>}
                 </div>
               ))}
-              {rows.length === 0 && <span className={styles.empty}>No speakers match “{query.trim()}”</span>}
+              {rows.length === 0 && (
+                <span className={styles.empty}>{query.trim() ? `No speakers match “${query.trim()}”` : 'No speakers with a name here yet'}</span>
+              )}
             </div>
             <div className={styles.divider} />
             <MenuItem

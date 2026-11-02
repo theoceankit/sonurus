@@ -14,7 +14,8 @@ export default meta
 
 type Story = StoryObj<typeof Paragraph>
 
-const STATES = ['Default', 'Hover', 'Focus', 'Playing', 'Editing'] as const
+// Editing has its own story: its field takes the focus and would scroll the matrix.
+const STATES = ['Default', 'Hover', 'Focus', 'Playing'] as const
 
 export const Matrix: Story = {
   decorators: [Story => <div className={styles.matrix}><Story /></div>],
@@ -30,7 +31,6 @@ export const Matrix: Story = {
             color={1}
             showActions={state === 'Hover'}
             playing={state === 'Playing'}
-            editing={state === 'Editing'}
           />
         ),
       }]}

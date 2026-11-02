@@ -121,8 +121,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers }: T
     },
     openSegmentMenu: (anchor, segment) => {
       menuKey.set(`segment:${segment.start}`)
-      // The menu of the paragraph is closing and takes the focus back as it goes.
-      requestAnimationFrame(() => setMenu({ anchor, currentId: effectiveSpeaker(segment), segmentStarts: [segment.start] }))
+      setMenu({ anchor, currentId: effectiveSpeaker(segment), segmentStarts: [segment.start] })
     },
   }), [playing, editing, menuKey, playback, transcriptId, saveText, removeSegment])
 

@@ -20,6 +20,8 @@ interface MenuProps {
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
+  // Prevent it when an action leaves the focus somewhere else, such as in another layer.
+  onCloseAutoFocus?: (event: Event) => void
 }
 
 const OFFSET = 4
@@ -32,12 +34,12 @@ const keyboardInput = (event: KeyboardEvent<HTMLElement>) => { delete event.curr
 
 // Not modal: a modal menu locks the scroll and shifts the page behind it, and an
 // outside click closes this one all the same.
-export function Menu({ trigger, children, align = 'start', ...props }: MenuProps) {
+export function Menu({ trigger, children, align = 'start', onCloseAutoFocus, ...props }: MenuProps) {
   return (
     <RadixMenu.Root modal={false} {...props}>
       <RadixMenu.Trigger asChild>{trigger}</RadixMenu.Trigger>
       <RadixMenu.Portal>
-        <RadixMenu.Content asChild align={align} sideOffset={OFFSET} onPointerMove={pointerInput} onKeyDownCapture={keyboardInput}>
+        <RadixMenu.Content asChild align={align} sideOffset={OFFSET} onCloseAutoFocus={onCloseAutoFocus} onPointerMove={pointerInput} onKeyDownCapture={keyboardInput}>
           <MenuSurface>{children}</MenuSurface>
         </RadixMenu.Content>
       </RadixMenu.Portal>

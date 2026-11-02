@@ -182,7 +182,7 @@
   --size-playing-bar: 3px;
   --size-transcript-sticky: 48px;
   /* What a turn off screen counts as until it has been drawn once. */
-  --size-turn-estimate: 120px;
+  --size-turn-estimate: 168px;
 
   --size-titlebar: 40px;
   --size-search: 480px;

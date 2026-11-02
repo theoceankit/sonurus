@@ -91,6 +91,7 @@ To play events, a story takes the client: `useApi() as FixtureClient`. `window.e
 
 ```bash
 VITE_SONORUS_FIXTURES=1 npm run dev:ui
+VITE_SONORUS_FIXTURES=1 VITE_SONORUS_FIXTURE_BOARD=longRecording npm run dev:ui  # another set of fixtures, here three hours of transcript
 ```
 
 This works on the dev server only. A build drops the branch and the fixtures with it, and a build test checks that.

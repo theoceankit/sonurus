@@ -7,5 +7,5 @@
 }
 
 .matrix > * > div {
-  width: var(--size-search);
+  width: var(--size-panel-side);
 }

@@ -16,7 +16,7 @@ const SAME_NAME: SpeakerMenuRow[] = [
   { id: 'b', name: 'Anna Petrova', colorIndex: 0, current: false, usage: '1 transcript, 0:40' },
 ]
 
-function Example({ rows = ROWS, section = 'In this recording' as string | null }) {
+function Example({ rows = ROWS, section = 'In this recording' as string | null, initialQuery = '' }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [open, setOpen] = useState(true)
   return (
@@ -26,6 +26,7 @@ function Example({ rows = ROWS, section = 'In this recording' as string | null }
         <SpeakerMenu
           anchor={anchor}
           allSpeakers={13}
+          initialQuery={initialQuery}
           rows={query => ({
             section: query ? null : section,
             rows: rows.filter(row => row.name.toLowerCase().includes(query.trim().toLowerCase())),
@@ -45,4 +46,5 @@ type Story = StoryObj<typeof SpeakerMenu>
 
 export const Default: Story = { render: () => <Example /> }
 export const SameName: Story = { render: () => <Example rows={SAME_NAME} /> }
-export const NoResults: Story = { render: () => <Example rows={[]} section={null} /> }
+export const NoResults: Story = { render: () => <Example initialQuery="zz" /> }
+export const NoNamedSpeakers: Story = { render: () => <Example rows={[]} section={null} /> }

@@ -36,6 +36,8 @@ export function Paragraph({
   const [focused, setFocused] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const more = useRef<HTMLButtonElement>(null)
+  // The speaker menu takes the focus, and closing this menu must not take it back.
+  const leavingFocus = useRef(false)
 
   // A click focuses the paragraph too, and the bar must not stay after the pointer has left.
   const onFocus = (event: FocusEvent<HTMLDivElement>) => { if (event.target.matches(':focus-visible')) setFocused(true) }
@@ -68,9 +70,16 @@ export function Paragraph({
             align="end"
             open={menuOpen}
             onOpenChange={setMenuOpen}
+            onCloseAutoFocus={event => {
+              if (leavingFocus.current) event.preventDefault()
+              leavingFocus.current = false
+            }}
             trigger={<ToolbarItem ref={more}><IconButton icon="more" label="More" /></ToolbarItem>}
           >
-            <MenuAction icon="reassign-speaker" onSelect={() => onChangeSpeaker?.(more.current!)}>Change speaker</MenuAction>
+            <MenuAction icon="reassign-speaker" onSelect={() => {
+              leavingFocus.current = true
+              onChangeSpeaker?.(more.current!)
+            }}>Change speaker</MenuAction>
             <MenuAction icon="delete" onSelect={onDelete}>Delete</MenuAction>
           </Menu>
         </Toolbar>
