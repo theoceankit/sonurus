@@ -133,6 +133,8 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
     const reviewed = pending.includes(speakerId)
     await assign.mutateAsync({ transcriptId, fromSpeakerId: speakerId, target })
     if (isPossibleMatch && speakerId === currentId) setConfirmed(ids => [...ids, speakerId])
+    // An undo brings the card back with nothing chosen, like any other.
+    setPicked(null)
     const name = 'id' in target ? speakers.find(speaker => speaker.id === target.id)?.name : target.name
     toast({
       message: `Assigned to ${name}`,

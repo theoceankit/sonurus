@@ -194,7 +194,8 @@ describe('review', () => {
     expect(await counter('1 of 4')).toBeTruthy()
     const { segments } = await client.getTranscript(DESIGN_REVIEW_ID)
     expect(segments.filter(s => effectiveSpeaker(s) === SPEAKER_IDS.unknown2).map(s => s.start)).toEqual([6, 57])
-    expect(within(card()).getByRole('button', { name: /Sofia Ramos/ })).toBeTruthy()
+    expect(within(card()).getByRole('button', { name: /Sofia Ramos/ }).getAttribute('aria-pressed')).toBe('false')
+    expect((within(card()).getByRole('button', { name: 'Assign' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   test('Undo after the last assignment brings the review back', async () => {

@@ -3,6 +3,7 @@ import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
 import { Button } from '../Button/Button'
 import { IconButton } from '../IconButton/IconButton'
+import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
 import { Tab } from '../Tab/Tab'
 import { TabPanel, Tabs } from '../Tabs/Tabs'
 import styles from './Inspector.module.css'
@@ -23,6 +24,7 @@ const TITLE = 'Review speakers'
 
 // The right panel: its tabs, and the review docked at the bottom.
 export function Inspector({ children, review = { mode: 'off' }, onClose, className, ...props }: InspectorProps) {
+  const { scrollRef, bottom } = useScrollEdges()
   return (
     <div className={cx(styles.inspector, className)} {...props}>
       <Tabs
@@ -39,7 +41,10 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, classNa
       >
         <IconButton icon="inspector" size="small" label="Close inspector" className={styles.close} onClick={onClose} />
         <TabPanel value="speakers" className={styles.panel}>
-          <div className={styles.scroll}>{children}</div>
+          <div className={styles.scrollArea}>
+            <div ref={scrollRef} className={styles.scroll}>{children}</div>
+            {bottom && <ScrollFade edge="bottom" />}
+          </div>
           {review.mode === 'on' && (
             <section aria-label={TITLE} className={styles.dock}>
               <div className={styles.dockHead}>
