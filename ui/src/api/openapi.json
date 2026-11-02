@@ -863,6 +863,35 @@
         "title": "SegmentTextRequest",
         "type": "object"
       },
+      "SpeakerCandidate": {
+        "description": "A known speaker that an unknown voice may be. score is cosine similarity,\nnot below 0. Only the first candidate can be suggested.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "speaker_id": {
+            "title": "Speaker Id",
+            "type": "string"
+          },
+          "suggested": {
+            "title": "Suggested",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "speaker_id",
+          "name",
+          "score",
+          "suggested"
+        ],
+        "title": "SpeakerCandidate",
+        "type": "object"
+      },
       "SpeakerDeleteResponse": {
         "properties": {
           "segments": {
@@ -1266,6 +1295,34 @@
         "title": "TranscriptionModelInfo",
         "type": "object"
       },
+      "UnknownSpeakerCandidates": {
+        "description": "GET /transcripts/{id}/speaker-candidates, per speaker without a name. clip\nis null when the audio file is gone.",
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/SpeakerCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "clip": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VoiceClip"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "candidates",
+          "clip"
+        ],
+        "title": "UnknownSpeakerCandidates",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1304,6 +1361,30 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VoiceClip": {
+        "description": "A segment of the transcript's own audio to hear an unknown voice.",
+        "properties": {
+          "end": {
+            "title": "End",
+            "type": "number"
+          },
+          "start": {
+            "title": "Start",
+            "type": "number"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "text"
+        ],
+        "title": "VoiceClip",
         "type": "object"
       }
     }
@@ -2741,6 +2822,53 @@
           }
         },
         "summary": "Update Segment Text",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
+    "/transcripts/{transcript_id}/speaker-candidates": {
+      "get": {
+        "description": "For each speaker without a name in the transcript: the known speakers\nwith the closest voice and a clip to hear it. Reads speaker memory only.",
+        "operationId": "get_speaker_candidates_transcripts__transcript_id__speaker_candidates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/UnknownSpeakerCandidates"
+                  },
+                  "title": "Response Get Speaker Candidates Transcripts  Transcript Id  Speaker Candidates Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Speaker Candidates",
         "tags": [
           "transcripts"
         ]

@@ -649,6 +649,27 @@ export interface paths {
         patch: operations["update_segment_text_transcripts__transcript_id__segments__start__text_patch"];
         trace?: never;
     };
+    "/transcripts/{transcript_id}/speaker-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Speaker Candidates
+         * @description For each speaker without a name in the transcript: the known speakers
+         *     with the closest voice and a clip to hear it. Reads speaker memory only.
+         */
+        get: operations["get_speaker_candidates_transcripts__transcript_id__speaker_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transcripts/{transcript_id}/speaker-suggestions": {
         parameters: {
             query?: never;
@@ -959,6 +980,21 @@ export interface components {
             /** Text */
             text: string;
         };
+        /**
+         * SpeakerCandidate
+         * @description A known speaker that an unknown voice may be. score is cosine similarity,
+         *     not below 0. Only the first candidate can be suggested.
+         */
+        SpeakerCandidate: {
+            /** Name */
+            name: string;
+            /** Score */
+            score: number;
+            /** Speaker Id */
+            speaker_id: string;
+            /** Suggested */
+            suggested: boolean;
+        };
         /** SpeakerDeleteResponse */
         SpeakerDeleteResponse: {
             /** Segments */
@@ -1124,6 +1160,16 @@ export interface components {
             /** Speed */
             speed: string;
         };
+        /**
+         * UnknownSpeakerCandidates
+         * @description GET /transcripts/{id}/speaker-candidates, per speaker without a name. clip
+         *     is null when the audio file is gone.
+         */
+        UnknownSpeakerCandidates: {
+            /** Candidates */
+            candidates: components["schemas"]["SpeakerCandidate"][];
+            clip: components["schemas"]["VoiceClip"] | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -1136,6 +1182,18 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * VoiceClip
+         * @description A segment of the transcript's own audio to hear an unknown voice.
+         */
+        VoiceClip: {
+            /** End */
+            end: number;
+            /** Start */
+            start: number;
+            /** Text */
+            text: string;
         };
     };
     responses: never;
@@ -2234,6 +2292,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_speaker_candidates_transcripts__transcript_id__speaker_candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["UnknownSpeakerCandidates"];
+                    };
+                };
             };
             /** @description Validation Error */
             422: {

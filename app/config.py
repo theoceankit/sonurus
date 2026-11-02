@@ -47,6 +47,9 @@ EMBEDDING_MIN_DURATION = 1.0
 
 # SpeakerMemoryService
 SPEAKER_SIMILARITY_THRESHOLD = 0.75
+# Lower than the one above: voices that reach that one are recognized by
+# themselves and never come up for review.
+SPEAKER_SUGGESTION_THRESHOLD = 0.5
 
 # Database
 DB_PATH = os.getenv("DB_PATH", str(DATA_DIR / "speaker_memory.db"))
