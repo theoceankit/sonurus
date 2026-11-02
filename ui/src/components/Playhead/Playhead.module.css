@@ -1,0 +1,58 @@
+/*
+ * A point on the waveform, with everything hung from it. On the board the line ends
+ * 4 px under a waveform 32 tall, the knob covers its top.
+ */
+.playhead {
+  position: absolute;
+  bottom: calc(var(--space-1) * -1);
+  width: 0;
+  pointer-events: none;
+}
+
+.line {
+  position: absolute;
+  bottom: 0;
+  left: calc(var(--border-width-strong) / -2);
+  width: var(--border-width-strong);
+  height: var(--size-playhead);
+  background: var(--color-text-primary);
+}
+
+.hover .line {
+  height: var(--size-playhead-hover);
+  border-bottom-left-radius: var(--radius-full);
+  border-bottom-right-radius: var(--radius-full);
+}
+
+.knob {
+  position: absolute;
+  bottom: calc(var(--size-playhead) - var(--space-1));
+  left: calc(var(--size-playhead-knob) / -2);
+  width: var(--size-playhead-knob);
+  height: var(--size-playhead-knob);
+  border-radius: var(--radius-full);
+  background: var(--color-text-primary);
+}
+
+.bubble {
+  position: absolute;
+  bottom: var(--size-playhead-hover);
+  left: 0;
+  display: flex;
+  gap: var(--space-1);
+  max-width: var(--size-playhead-bubble);
+  padding: var(--space-half) var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-on-inverse);
+  font: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.name {
+  overflow: hidden;
+  color: var(--color-text-on-inverse-muted);
+  text-overflow: ellipsis;
+}
