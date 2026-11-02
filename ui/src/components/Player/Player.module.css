@@ -1,0 +1,70 @@
+.player {
+  height: 100%;
+}
+
+.fixed {
+  flex: none;
+}
+
+/* Digits of one width, or the waveform would shift as the time runs. */
+.current,
+.total {
+  flex: none;
+  font: var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.current {
+  color: var(--color-text-primary);
+}
+
+.total {
+  color: var(--color-text-secondary);
+}
+
+.currentDisabled {
+  composes: current;
+  opacity: var(--opacity-disabled);
+}
+
+.totalDisabled {
+  composes: total;
+  opacity: var(--opacity-disabled);
+}
+
+.track {
+  composes: focusRing from '../../styles/control.module.css';
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--radius-sm);
+  touch-action: none;
+  cursor: pointer;
+}
+
+.trackDisabled {
+  composes: track;
+  opacity: var(--opacity-disabled);
+  cursor: default;
+}
+
+/* Wide enough for 1.5×, so the waveform stays where it is as the speed changes. */
+.speed {
+  flex: none;
+  width: var(--size-player-speed);
+  padding-inline: 0;
+}
+
+.muted {
+  opacity: var(--opacity-disabled);
+}
+
+.volume {
+  z-index: var(--z-popover);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-md);
+  outline: var(--border-width-default) solid var(--color-border-default);
+  outline-offset: calc(var(--border-width-default) * -1);
+}

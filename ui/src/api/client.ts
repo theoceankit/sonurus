@@ -27,6 +27,8 @@ export interface ApiClient {
   now(): Date
   listTranscripts(): Promise<TranscriptListItem[]>
   getTranscript(transcriptId: number): Promise<Transcript>
+  // What an audio element plays for this recording, null when there is nothing to play.
+  getAudioUrl(transcript: Transcript): string | null
   updateTranscriptTitle(transcriptId: number, title: string): Promise<void>
   deleteTranscript(transcriptId: number): Promise<void>
   updateSegmentText(transcriptId: number, segmentStart: number, text: string): Promise<void>

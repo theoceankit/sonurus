@@ -181,6 +181,16 @@
   --size-search: 480px;
   --size-panel-side: 300px;
   --size-player: 64px;
+  --size-player-speed: 44px;
+  --size-waveform-large: 32px;
+  --size-waveform-small: 18px;
+  --size-playhead: 38px;
+  --size-playhead-hover: 42px;
+  --size-playhead-knob: 10px;
+  --size-playhead-bubble: 200px;
+  --size-slider-length: 72px;
+  --size-slider-track: 4px;
+  --size-slider-thumb: 12px;
   --size-status-dot: 6px;
 
   --size-modal-small: 400px;

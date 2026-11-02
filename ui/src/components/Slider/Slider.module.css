@@ -1,0 +1,38 @@
+.slider {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: var(--size-slider-thumb);
+  height: var(--size-slider-length);
+  touch-action: none;
+  cursor: pointer;
+}
+
+.slider[data-disabled] {
+  opacity: var(--opacity-disabled);
+  cursor: default;
+}
+
+.track {
+  position: relative;
+  width: var(--size-slider-track);
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-fill-pressed);
+}
+
+.range {
+  position: absolute;
+  width: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-text-primary);
+}
+
+.thumb {
+  composes: focusRing from '../../styles/control.module.css';
+  display: block;
+  width: var(--size-slider-thumb);
+  height: var(--size-slider-thumb);
+  border-radius: var(--radius-full);
+  background: var(--color-text-primary);
+}

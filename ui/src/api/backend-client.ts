@@ -2,6 +2,7 @@ import createClient from 'openapi-fetch'
 import { ApiError, type ApiClient, type SpeakerAssignment } from './client'
 import { connectQueueEvents } from './queue-events'
 import type { paths } from './schema.gen'
+import { fileUrl } from './file-url'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -58,6 +59,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     now: () => new Date(),
     listTranscripts: () => send(http.GET('/transcripts')),
     getTranscript: id => send(http.GET('/transcripts/{transcript_id}', transcript(id))),
+    getAudioUrl: ({ audio_path }) => (audio_path ? fileUrl(audio_path) : null),
     updateTranscriptTitle: (id, title) => send(http.PATCH('/transcripts/{transcript_id}', { ...transcript(id), body: { title } })),
     deleteTranscript: id => send(http.DELETE('/transcripts/{transcript_id}', transcript(id))),
     updateSegmentText: (id, start, text) => send(http.PATCH('/transcripts/{transcript_id}/segments/{start}/text', { ...segment(id, start), body: { text } })),

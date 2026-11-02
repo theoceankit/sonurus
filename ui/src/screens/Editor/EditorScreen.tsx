@@ -4,6 +4,7 @@ import { useSpeakers, useTranscripts } from '../../api/queries'
 import { Sidebar, type SidebarSection } from '../../components/Sidebar/Sidebar'
 import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { cx } from '../../styles/cx'
+import { EditorPlayer } from './EditorPlayer'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
 import { groupRecordings, needsReview, stackSpeakers } from './recordings'
 import styles from './EditorScreen.module.css'
@@ -83,7 +84,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
         </aside>
         <main aria-label="Transcript" className={cx(styles.panel, styles.center)}>{transcript}</main>
         <section aria-label="Inspector" hidden={!visible.inspector} className={cx(styles.panel, styles.inspector)}>{inspector}</section>
-        <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player}</section>
+        <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player ?? <EditorPlayer transcriptId={selectedId} />}</section>
       </div>
     </div>
   )

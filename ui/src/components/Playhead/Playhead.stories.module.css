@@ -1,0 +1,7 @@
+.track {
+  position: relative;
+  width: 480px;
+  height: var(--size-waveform-large);
+  margin-block: var(--space-8);
+  background: var(--color-fill-hover);
+}

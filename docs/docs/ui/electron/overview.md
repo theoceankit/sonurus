@@ -62,7 +62,7 @@ The dev server's origin is not one the backend accepts, so `npm run dev:ui` sets
 
 With `--new-ui` the window has no system frame (`electron/window-chrome.js`; without the switch it adds nothing, and the old UI keeps its window). The system's window buttons stay and stand over the page, in the colours of the light theme. Which side they are on depends on the system and the desktop, so `Titlebar` reads the free area from `env(titlebar-area-*)` and keeps its controls clear of it. The window is dragged by the free parts of the title bar: the strip has `-webkit-app-region: drag`, its buttons and the search field `no-drag`.
 
-`ui/src/screens/Editor/EditorScreen.tsx` lays out the window: `Titlebar`, `Sidebar`, and the transcript, inspector and player panels, which take their content as props and are empty for now.
+`ui/src/screens/Editor/EditorScreen.tsx` lays out the window: `Titlebar`, `Sidebar`, and the transcript, inspector and player panels. The transcript and the inspector take their content as props and are empty for now; the player panel shows `EditorPlayer` unless given other content ([New UI player](new-ui-player.md)).
 
 | Window width | Side panels |
 |---|---|

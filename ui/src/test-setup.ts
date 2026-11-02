@@ -13,3 +13,9 @@ globalThis.ResizeObserver ??= NoResizeObserver
 Element.prototype.hasPointerCapture ??= () => false
 Element.prototype.releasePointerCapture ??= () => {}
 Element.prototype.scrollIntoView ??= () => {}
+
+// Nor does it play media or keep blobs.
+HTMLMediaElement.prototype.load = () => {}
+HTMLMediaElement.prototype.pause = () => {}
+HTMLMediaElement.prototype.play = async () => {}
+URL.createObjectURL ??= () => 'blob:test'

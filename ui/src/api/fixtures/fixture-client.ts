@@ -3,12 +3,15 @@ import { effectiveSpeaker, type QueueSnapshot, type QueueUpdate, type Speaker } 
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_NOW, queueSnapshot } from './data'
 import type { EventScript } from './event-scripts'
+import { createTestAudioUrl } from './test-audio'
 
 export type FixtureScenario = 'default' | 'loading' | 'empty' | 'error'
 
 export type FixtureOptions = {
   scenario?: FixtureScenario
   board?: FixtureBoard
+  // Recordings with nothing to play.
+  noAudio?: boolean
   // One method behaving differently, e.g. a failing save on a loaded screen.
   overrides?: Partial<ApiClient>
 }
@@ -22,7 +25,8 @@ const EMPTY: FixtureData = { transcripts: [], details: [], speakers: [], candida
 
 // The same interface as the backend client, on data kept in memory. Each client
 // has its own copy, so stories and tests do not see each other's changes.
-export function createFixtureClient({ scenario = 'default', board = 'review', overrides = {} }: FixtureOptions = {}): FixtureClient {
+export function createFixtureClient({ scenario = 'default', board = 'review', noAudio = false, overrides = {} }: FixtureOptions = {}): FixtureClient {
+  const audioUrls = new Map<number, string>()
   const data = structuredClone(scenario === 'empty' ? EMPTY : BOARDS[board])
   let queue: QueueSnapshot = queueSnapshot()
   const listeners = new Set<(event: QueueUpdate) => void>()
@@ -102,6 +106,11 @@ export function createFixtureClient({ scenario = 'default', board = 'review', ov
     now: () => new Date(FIXTURE_NOW),
     listTranscripts: () => answer(() => data.transcripts),
     getTranscript: id => answer(() => transcript(id)),
+    getAudioUrl: ({ id, segments }) => {
+      if (noAudio) return null
+      if (!audioUrls.has(id)) audioUrls.set(id, createTestAudioUrl(segments))
+      return audioUrls.get(id)!
+    },
     updateTranscriptTitle: (id, title) => answer(() => {
       transcript(id).title = title
       const item = listItem(id)
