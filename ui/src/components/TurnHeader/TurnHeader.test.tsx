@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
+import tokens from '../../styles/tokens.css?raw'
 import { TurnHeader } from './TurnHeader'
 import css from './TurnHeader.module.css?raw'
 
@@ -51,4 +52,9 @@ test('a name stays on one line of fixed height', () => {
   expect(rule).toMatch(/overflow-x:\s*clip/)
   expect(rule).toMatch(/text-overflow:\s*ellipsis/)
   expect(css.match(/\.name \{([^}]*)\}/)![1]).toMatch(/font:\s*var\(--font-body-strong\)/)
+})
+
+// Glyphs from a fallback font would make a line of normal height taller.
+test('the font of the name sets its line height', () => {
+  expect(tokens).toMatch(/--font-body-strong:[^;]*\/[\d.]+ /)
 })
