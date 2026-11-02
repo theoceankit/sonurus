@@ -929,6 +929,40 @@
         "title": "SpeakerAssignmentResponse",
         "type": "object"
       },
+      "SpeakerAssignmentUndoRequest": {
+        "description": "speaker_id is who the segments had: a voice removed by the assignment is not\nin memory any more, or UNASSIGNED. created_speaker_id is the speaker the\nassignment made, if it did.",
+        "properties": {
+          "created_speaker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created Speaker Id"
+          },
+          "segment_starts": {
+            "items": {
+              "type": "number"
+            },
+            "minItems": 1,
+            "title": "Segment Starts",
+            "type": "array"
+          },
+          "speaker_id": {
+            "title": "Speaker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "segment_starts",
+          "speaker_id"
+        ],
+        "title": "SpeakerAssignmentUndoRequest",
+        "type": "object"
+      },
       "SpeakerCandidate": {
         "description": "A known speaker that an unknown voice may be. score is cosine similarity,\nnot below 0. Only the first candidate can be suggested.",
         "properties": {
@@ -2983,6 +3017,52 @@
           }
         },
         "summary": "Assign Speaker",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
+    "/transcripts/{transcript_id}/speaker-assignments/undo": {
+      "post": {
+        "description": "A segment deleted since the assignment has nothing to go back to and is skipped.",
+        "operationId": "undo_speaker_assignment_transcripts__transcript_id__speaker_assignments_undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakerAssignmentUndoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo Speaker Assignment",
         "tags": [
           "transcripts"
         ]

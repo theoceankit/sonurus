@@ -691,6 +691,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transcripts/{transcript_id}/speaker-assignments/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo Speaker Assignment
+         * @description A segment deleted since the assignment has nothing to go back to and is skipped.
+         */
+        post: operations["undo_speaker_assignment_transcripts__transcript_id__speaker_assignments_undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transcripts/{transcript_id}/speaker-candidates": {
         parameters: {
             query?: never;
@@ -1038,6 +1058,20 @@ export interface components {
         };
         /** SpeakerAssignmentResponse */
         SpeakerAssignmentResponse: {
+            /** Speaker Id */
+            speaker_id: string;
+        };
+        /**
+         * SpeakerAssignmentUndoRequest
+         * @description speaker_id is who the segments had: a voice removed by the assignment is not
+         *     in memory any more, or UNASSIGNED. created_speaker_id is the speaker the
+         *     assignment made, if it did.
+         */
+        SpeakerAssignmentUndoRequest: {
+            /** Created Speaker Id */
+            created_speaker_id?: string | null;
+            /** Segment Starts */
+            segment_starts: number[];
             /** Speaker Id */
             speaker_id: string;
         };
@@ -2426,6 +2460,39 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SpeakerAssignmentResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_speaker_assignment_transcripts__transcript_id__speaker_assignments_undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeakerAssignmentUndoRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

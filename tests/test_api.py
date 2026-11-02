@@ -1902,3 +1902,70 @@ def test_assign_rejects_a_wrong_request(client, body, status):
 def test_assign_unknown_transcript(client):
     r = client.post("/transcripts/999/speaker-assignments", json={"segment_starts": [0.0], "speaker_name": "Dana"})
     assert r.status_code == 404
+
+
+# ── Undoing an assignment ─────────────────────────────────────────────────────
+
+def test_undo_route_restores_segments_and_a_removed_voice(client):
+    memory = app.dependency_overrides[get_memory_service]()
+    voice = str(uuid_module.uuid4())
+    memory.update_embedding(voice, _voice(1.0, 0.0, 0.0))
+    memory.save()
+    db_id = _recording(client, [voice, voice])
+    created = client.post(f"/transcripts/{db_id}/speaker-assignments", json={
+        "segment_starts": [0.0, 1.0], "speaker_name": "Dana",
+    }).json()["speaker_id"]
+    assert voice not in app.dependency_overrides[get_memory_service]().known_speakers
+
+    r = client.post(f"/transcripts/{db_id}/speaker-assignments/undo", json={
+        "segment_starts": [0.0, 1.0], "speaker_id": voice, "created_speaker_id": created,
+    })
+
+    assert r.status_code == 204
+    assert _speakers_of(client, db_id) == [voice, voice]
+    fresh = app.dependency_overrides[get_memory_service]()
+    assert voice in fresh.known_speakers
+    assert created not in fresh.speaker_ids()
+
+
+def test_undo_route_skips_a_segment_deleted_after_the_assignment(client):
+    voice, alice = str(uuid_module.uuid4()), _named("Alice")
+    db_id = _recording(client, [voice, voice])
+    client.post(f"/transcripts/{db_id}/speaker-assignments", json={"segment_starts": [0.0, 1.0], "speaker_id": alice})
+    client.delete(f"/transcripts/{db_id}/segments/0.0")
+
+    r = client.post(f"/transcripts/{db_id}/speaker-assignments/undo", json={"segment_starts": [0.0, 1.0], "speaker_id": voice})
+
+    assert r.status_code == 204
+    assert _speakers_of(client, db_id) == [voice]
+
+
+def test_undo_route_to_unassigned(client):
+    storage = app.dependency_overrides[get_storage_service]()
+    voice, alice = str(uuid_module.uuid4()), _named("Alice")
+    db_id = _recording(client, [voice])
+    storage.unassign_speaker(voice)
+    client.post(f"/transcripts/{db_id}/speaker-assignments", json={"segment_starts": [0.0], "speaker_id": alice})
+
+    r = client.post(f"/transcripts/{db_id}/speaker-assignments/undo", json={"segment_starts": [0.0], "speaker_id": "UNASSIGNED"})
+
+    assert r.status_code == 204
+    segment = client.get(f"/transcripts/{db_id}").json()["segments"][0]
+    assert segment["unassigned"] is True and segment["speaker_resolved"] is None
+
+
+@pytest.mark.parametrize("body, status", [
+    ({"segment_starts": [], "speaker_id": "UNASSIGNED"}, 422),
+    ({"segment_starts": [0.0], "speaker_id": "SPEAKER_00"}, 400),
+    ({"segment_starts": [0.0], "speaker_id": "UNASSIGNED", "created_speaker_id": "nope"}, 400),
+])
+def test_undo_route_rejects_a_wrong_request(client, body, status):
+    voice = str(uuid_module.uuid4())
+    db_id = _recording(client, [voice])
+    assert client.post(f"/transcripts/{db_id}/speaker-assignments/undo", json=body).status_code == status
+    assert _speakers_of(client, db_id) == [voice]
+
+
+def test_undo_route_unknown_transcript(client):
+    r = client.post("/transcripts/999/speaker-assignments/undo", json={"segment_starts": [0.0], "speaker_id": "UNASSIGNED"})
+    assert r.status_code == 404

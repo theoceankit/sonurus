@@ -87,12 +87,14 @@ class TranscriptStorageService:
         log.info(f"UPDATE segments speaker_id={new_speaker} at [{start:.2f}-{end:.2f}] for transcription={db_id}")
 
     def set_segments_speaker(self, db_id: int, ranges: list[tuple[float, float]], speaker_id: str) -> None:
-        """Give segments, identified by their time ranges, one speaker in one transaction."""
+        """Give segments, identified by their time ranges, one speaker in one transaction.
+        speaker_id may be UNASSIGNED, which is a flag and never a stored id."""
+        stored_id, unassigned = (None, 1) if speaker_id == UNASSIGNED else (speaker_id, 0)
         with self._connect() as conn:
             conn.executemany(
-                "UPDATE segments SET speaker_id = ?, unassigned = 0 "
+                "UPDATE segments SET speaker_id = ?, unassigned = ? "
                 "WHERE transcription_id = ? AND start = ? AND end = ?",
-                [(speaker_id, db_id, start, end) for start, end in ranges],
+                [(stored_id, unassigned, db_id, start, end) for start, end in ranges],
             )
         log.info(f"UPDATE segments speaker_id={speaker_id} for {len(ranges)} segments of transcription={db_id}")
 

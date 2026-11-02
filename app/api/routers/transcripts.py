@@ -18,7 +18,7 @@ from app.api.schemas import (
     TranscriptListItem, TranscriptResponse, SegmentResponse, TranscriptUpdateRequest,
     SegmentSpeakerRequest, SegmentTextRequest, ReassignRequest, SpeakerSuggestion,
     SpeakerCandidate, UnknownSpeakerCandidates, VoiceClip, SpeakerAssignmentRequest,
-    SpeakerAssignmentResponse,
+    SpeakerAssignmentResponse, SpeakerAssignmentUndoRequest,
 )
 from app.services.speaker_candidates import rank_candidates, voice_centroid
 from app.services.voice_sample import pick_voice_sample
@@ -61,11 +61,15 @@ def _create_speaker(memory: SpeakerMemoryService, name: str, color_index: int | 
     return spk_id
 
 
-def _check_known_speaker(memory: SpeakerMemoryService, speaker_id: str) -> None:
+def _check_uuid(value: str, field: str) -> None:
     try:
-        _uuid.UUID(speaker_id, version=4)
+        _uuid.UUID(value, version=4)
     except ValueError:
-        raise HTTPException(status_code=400, detail="speaker_id must be a valid UUID4")
+        raise HTTPException(status_code=400, detail=f"{field} must be a valid UUID4")
+
+
+def _check_known_speaker(memory: SpeakerMemoryService, speaker_id: str) -> None:
+    _check_uuid(speaker_id, "speaker_id")
     # A named speaker may have no voice profile yet (its segments were too short)
     if speaker_id not in memory.speaker_ids():
         raise HTTPException(status_code=400, detail="speaker_id not found in known speakers")
@@ -336,6 +340,33 @@ def assign_speaker(
     for from_spk_id in {_effective_speaker(seg) for seg in segments} - {to_spk_id}:
         commit_svc.recompute_or_remove(from_spk_id)
     return SpeakerAssignmentResponse(speaker_id=to_spk_id)
+
+
+@router.post("/{transcript_id}/speaker-assignments/undo", status_code=204)
+def undo_speaker_assignment(
+    transcript_id: int,
+    body: SpeakerAssignmentUndoRequest,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+    memory: SpeakerMemoryService = Depends(get_memory_service),
+):
+    """A segment deleted since the assignment has nothing to go back to and is skipped."""
+    if body.speaker_id != UNASSIGNED:
+        _check_uuid(body.speaker_id, "speaker_id")
+    if body.created_speaker_id is not None:
+        _check_uuid(body.created_speaker_id, "created_speaker_id")
+    try:
+        t = storage.load(transcript_id, with_embeddings=False)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    starts = set(body.segment_starts)
+    segments = [seg for seg in t.segments if seg.start in starts]
+    CommitService(memory, storage).undo_assignment(
+        transcript_id,
+        [(seg.start, seg.end) for seg in segments],
+        body.speaker_id,
+        {_effective_speaker(seg) for seg in segments},
+        body.created_speaker_id,
+    )
 
 
 @router.patch("/{transcript_id}/segments/{start}/text", status_code=204)

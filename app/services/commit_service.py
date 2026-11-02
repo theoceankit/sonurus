@@ -113,6 +113,30 @@ class CommitService:
         self.memory.update_embedding(speaker_id, avg, count)
         self.memory.save()
 
+    def undo_assignment(self, transcript_id: int, ranges, speaker_id: str, holders, created_speaker_id: str | None = None):
+        """Put segments back under the speaker they had before an assignment, then
+        recompute that speaker and the holders, who have them now.
+
+        created_speaker_id is a speaker the assignment made: with no segments left
+        they go entirely. Otherwise the undone voice would stay as their profile and
+        catch the same voice in the next recording.
+        """
+        self.storage.set_segments_speaker(transcript_id, ranges, speaker_id)
+        self.commit_speaker(speaker_id)
+        for holder in set(holders) - {speaker_id}:
+            self._release(holder, created=holder == created_speaker_id)
+        if created_speaker_id and created_speaker_id not in holders:
+            self._release(created_speaker_id, created=True)
+
+    def _release(self, speaker_id: str, created: bool):
+        if created and not self.storage.speaker_segments(speaker_id):
+            self.memory.remove_speaker(speaker_id)
+            return
+        self.recompute_or_remove(speaker_id)
+        # Named and left with no voice to compute from: what is stored came from the undone one.
+        if speaker_id in self.memory.known_speakers and self._avg_from_db(speaker_id)[0] is None:
+            self.memory.remove_embedding(speaker_id)
+
     def delete_speaker(self, speaker_id: str) -> dict:
         """Delete a speaker: its segments become unassigned (they no longer feed
         any profile), then its profile, names and color are removed.
