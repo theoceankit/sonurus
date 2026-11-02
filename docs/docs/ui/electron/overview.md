@@ -26,7 +26,7 @@ To start the backend manually (e.g. for isolated API testing):
 
 ## New UI
 
-A rewrite on React and TypeScript lives in `ui/`, a separate npm package next to the old renderer. It is an empty screen with one `Button` so far, on the base described in [New UI foundations](new-ui-foundations.md). Without a switch the app opens the old UI, in development and in installers; nothing in the interface leads to the new one.
+A rewrite on React and TypeScript lives in `ui/`, a separate npm package next to the old renderer. It has the shell of the Editor so far, on the base described in [New UI foundations](new-ui-foundations.md). Without a switch the app opens the old UI, in development and in installers; nothing in the interface leads to the new one.
 
 ```bash
 npm --prefix ui ci                  # once; needs Node.js 22.22.2+
@@ -54,9 +54,24 @@ Every component lives in `ui/src/components/<Name>/` and has `<Name>.stories.tsx
 
 `--new-ui` without a build stops with an error dialog naming `npm run build:ui`.
 
-The window settings are the same for both UIs. `ui/index.html` carries the same CSP string as the old `index.html`, so the build loads through `file://` under the same rules. Hot reload needs an inline script and the dev server's WebSocket: a plugin in `ui/vite.config.ts` adds `script-src 'self' 'unsafe-inline'` and `ws://localhost:5173` on the dev server only.
+Security settings are the same for both UIs. `ui/index.html` carries the same CSP string as the old `index.html`, so the build loads through `file://` under the same rules. Hot reload needs an inline script and the dev server's WebSocket: a plugin in `ui/vite.config.ts` adds `script-src 'self' 'unsafe-inline'` and `ws://localhost:5173` on the dev server only.
 
 The dev server's origin is not one the backend accepts, so `npm run dev:ui` sets `SONORUS_DEV_UI_ORIGIN`. A backend started earlier without it, e.g. with `uvicorn`, refuses requests from the dev page.
+
+### Window and Editor shell
+
+With `--new-ui` the window has no system frame (`electron/window-chrome.js`; without the switch it adds nothing, and the old UI keeps its window). The system's window buttons stay and stand over the page, in the colours of the light theme. Which side they are on depends on the system and the desktop, so `Titlebar` reads the free area from `env(titlebar-area-*)` and keeps its controls clear of it. The window is dragged by the free parts of the title bar: the strip has `-webkit-app-region: drag`, its buttons and the search field `no-drag`.
+
+`ui/src/screens/Editor/EditorScreen.tsx` lays out the window: `Titlebar`, `Sidebar`, and the transcript, inspector and player panels, which take their content as props and are empty for now.
+
+| Window width | Side panels |
+|---|---|
+| 1112 and more | Both; the centre takes what is left, at least 480 |
+| Below 1112 | One. The sidebar stays and the inspector goes; opening either one hides the other |
+
+The width is that of the screen, so a story can show any size. A panel the user closed stays closed when the window widens; one hidden for lack of room comes back. While the inspector is hidden, a button next to Settings opens it. What is open is not remembered between runs. The rules are pure functions in `panels.ts`.
+
+`Sidebar` shows the recordings in the sections Pinned, This week and Earlier, worked out on the client in `recordings.ts` rather than taken from `section` of the API: This week is today and the seven calendar days before it, and a section with nothing in it is left out. The API has no pinned recordings yet, so in the app the section does not appear; `EditorScreen` takes them as a prop, and the story Screens / Editor / Board uses it to match the design. A recording shows the Needs review dot when one of its speakers has no name. Rows show three avatars at most. The list has no scrollbar: it would narrow the rows, and the fade at the bottom says there is more.
 
 ---
 

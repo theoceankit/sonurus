@@ -105,7 +105,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | Config and environment | `app/config.py`, `.env` | `docs/docs/environment/configuration.md` |
 | Electron main process | `electron/main.js`, `backend.js`, `backend-identity.js`, `gpu-pack.js`, `preload.js` | `docs/docs/ui/electron/overview.md` |
 | Renderer | `electron/renderer/app.js`, `views/`, shared helpers in `utils.js` | `docs/docs/ui/electron/` |
-| New UI | `ui/`, what the window loads in `electron/ui-entry.js` | `docs/docs/ui/electron/overview.md` → New UI |
+| New UI | `ui/`, screens in `ui/src/screens/`, what the window loads in `electron/ui-entry.js`, its frame in `electron/window-chrome.js` | `docs/docs/ui/electron/overview.md` → New UI |
 | New UI data: API client, fixtures, generated types | `ui/src/api/`, `ui/src/platform/`, `ui/tools/openapi-types/`, `app/api/openapi_schema.py` | `docs/docs/ui/electron/new-ui-data.md` |
 | New UI tokens, font, icons, overlays | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/` | `docs/docs/ui/electron/new-ui-foundations.md` |
 | Live recording | `app/api/routers/audio_capture.py`, `native/` | `docs/docs/ui/electron/live-recording.md` |
