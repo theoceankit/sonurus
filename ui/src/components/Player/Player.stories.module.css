@@ -1,0 +1,13 @@
+.board {
+  width: 1184px;
+  height: var(--size-player);
+  margin-block: var(--space-8);
+  background: var(--color-bg-window);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-panel);
+}
+
+.narrow {
+  composes: board;
+  width: 884px;
+}
