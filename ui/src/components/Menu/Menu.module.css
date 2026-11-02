@@ -1,0 +1,20 @@
+/* The stroke is inside the size on the board, so it takes no room here either. */
+.surface {
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-half);
+  width: var(--size-menu);
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-md);
+  outline: var(--border-width-default) solid var(--color-border-default);
+  outline-offset: calc(var(--border-width-default) * -1);
+}
+
+.divider {
+  height: var(--border-width-default);
+  margin-block: var(--space-1);
+  background: var(--color-border-default);
+}
