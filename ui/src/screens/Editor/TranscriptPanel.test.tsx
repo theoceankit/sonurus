@@ -1,12 +1,14 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Profiler, useState, type ReactNode } from 'react'
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { ApiError } from '../../api/client'
 import { SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
+import { effectiveSpeaker } from '../../api/types'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { longSegments } from '../../api/fixtures/long-recording'
+import { dismissAllToasts } from '../../components/Toast/toast'
 import type { Playback, PlaybackState } from '../../media/playback'
 import { OverlayProvider } from '../../OverlayProvider'
 import { TranscriptPanel } from './TranscriptPanel'
@@ -66,6 +68,7 @@ const MARK_SECOND = 'Retry for failed jobs works too, I checked it.'
 
 // Closing a menu gives the focus back a moment later: that must not land in the next test.
 beforeEach(() => new Promise(resolve => setTimeout(resolve)))
+afterEach(dismissAllToasts)
 
 describe('states', () => {
   test('no recording: an empty panel', () => {
@@ -342,6 +345,39 @@ describe('changing a speaker', () => {
     await userEvent.click(menu.getByRole('option', { selected: true }))
     expect(assign).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  test('Undo gives a turn back to the speaker it had', async () => {
+    const { client } = setup()
+    const menu = within(await openTurnMenu())
+    await userEvent.click(menu.getByText('Anna Petrova'))
+    await text('Assigned to Anna Petrova')
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(async () => {
+      const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
+      expect(segments.filter(s => [5, 8].includes(s.start)).map(effectiveSpeaker)).toEqual([SPEAKER_IDS.mark, SPEAKER_IDS.mark])
+    })
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Mark Ellis' })).toHaveLength(2))
+  })
+
+  test('Undo gives one paragraph back', async () => {
+    const { client } = setup()
+    const undo = vi.spyOn(client, 'undoSpeakerAssignment')
+    await userEvent.hover(await text(MARK_SECOND))
+    await userEvent.click(within(screen.getByRole('toolbar', { name: 'Paragraph' })).getByRole('button', { name: 'More' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Change speaker' }))
+    const menu = within(await screen.findByRole('dialog', { name: 'Change speaker' }))
+    await userEvent.click(menu.getByText('Anna Petrova'))
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(undo).toHaveBeenCalledOnce())
+    expect(undo.mock.calls[0][0]).toEqual({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [8], speakerId: SPEAKER_IDS.mark })
+  })
+
+  test('a failed change says so', async () => {
+    setup({ overrides: { assignSpeaker: () => Promise.reject(new ApiError(500, 'No')) } })
+    const menu = within(await openTurnMenu())
+    await userEvent.click(menu.getByText('Anna Petrova'))
+    await text('Failed to change speaker: No')
   })
 
   test('Show all speakers asks for the list', async () => {

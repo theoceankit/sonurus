@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
-import { useAssignSpeaker, useSpeakers, useTranscripts } from '../../api/queries'
+import { useSpeakers, useTranscripts } from '../../api/queries'
 import { Sidebar, type SidebarSection } from '../../components/Sidebar/Sidebar'
 import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { cx } from '../../styles/cx'
@@ -12,6 +12,7 @@ import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels
 import { groupRecordings, needsReview, stackSpeakers } from './recordings'
 import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
 import { TranscriptPanel, type SpeakerMenuTarget } from './TranscriptPanel'
+import { useSpeakerChange } from './useSpeakerChange'
 import styles from './EditorScreen.module.css'
 
 interface EditorScreenProps {
@@ -54,7 +55,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const playback = givenPlayback ?? ownPlayback
   const [speakerRequest, setSpeakerRequest] = useState<SpeakerRequest | null>(null)
   const [toDelete, setToDelete] = useState<RecordingToDelete | null>(null)
-  const { mutateAsync: assign } = useAssignSpeaker()
+  const { change: changeSpeaker } = useSpeakerChange()
   const { element, width } = useWidth()
   const visible = visiblePanels(panels, width)
   const toggle = (panel: Panel) => setPanels(current => togglePanel(current, panel, width))
@@ -80,7 +81,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
       transcriptId,
       speakerId: currentId,
       start: 'choose',
-      onAssign: async target => { await assign({ transcriptId, segmentStarts, target }) },
+      onAssign: target => changeSpeaker({ transcriptId, fromSpeakerId: currentId, segmentStarts, target }),
     })
   }
 

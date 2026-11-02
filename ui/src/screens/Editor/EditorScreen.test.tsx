@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { ApiError } from '../../api/client'
-import { WEEKLY_SYNC_ID } from '../../api/fixtures/data'
+import { SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
+import { effectiveSpeaker } from '../../api/types'
+import { dismissAllToasts } from '../../components/Toast/toast'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { EVENT_SCRIPTS } from '../../api/fixtures/event-scripts'
 import { useQueueEventsSync } from '../../api/queries'
@@ -11,6 +13,7 @@ import { OverlayProvider } from '../../OverlayProvider'
 import { EditorScreen } from './EditorScreen'
 
 afterEach(() => {
+  dismissAllToasts()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -61,6 +64,58 @@ test('a recording with an unnamed speaker has the dot', async () => {
   expect(within(row).getByRole('img', { name: 'Needs review' })).toBeTruthy()
   const named = screen.getByRole('button', { name: /Call with Mark/ })
   expect(within(named).queryByRole('img', { name: 'Needs review' })).toBeNull()
+})
+
+describe('speakers across the panels', () => {
+  const dot = () => within(within(screen.getByLabelText('Recordings')).getByRole('button', { name: /Weekly product sync/ })).queryByRole('img', { name: 'Needs review' })
+
+  test('the dot goes when the last voice has a name, and Undo brings it back', async () => {
+    setup({ initialSelectedId: WEEKLY_SYNC_ID })
+    const inspector = within(await screen.findByRole('region', { name: 'Inspector' }))
+    await userEvent.click(await inspector.findByRole('button', { name: /Mark Ellis.*\d+%/ }))
+    await userEvent.click(inspector.getByRole('button', { name: 'Assign' }))
+    await waitFor(() => expect(dot()).toBeNull())
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(dot()).toBeTruthy())
+    expect(await inspector.findByText('1 of 1')).toBeTruthy()
+  })
+
+  test('Show all speakers on a turn: a new speaker, then Undo removes them', async () => {
+    const client = createFixtureClient()
+    render(
+      <ApiProvider client={client}>
+        <OverlayProvider><EditorScreen initialSelectedId={WEEKLY_SYNC_ID} /></OverlayProvider>
+      </ApiProvider>,
+    )
+    const transcript = within(await screen.findByRole('main', { name: 'Transcript' }))
+    await userEvent.click((await transcript.findAllByRole('button', { name: 'Mark Ellis' }))[0])
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Change speaker' })).getByText('Show all speakers'))
+    const search = await screen.findByRole('searchbox')
+    await userEvent.type(search, 'Olivia Brown')
+    await userEvent.click(await screen.findByRole('button', { name: /Olivia Brown/ }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Create and assign' }))
+    expect(await screen.findByText('Assigned to Olivia Brown')).toBeTruthy()
+    const created = (await client.listSpeakers()).find(s => s.name === 'Olivia Brown')!
+    const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
+    expect(segments.filter(s => effectiveSpeaker(s) === created.id).map(s => s.start)).toEqual([5, 8])
+
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    await waitFor(async () => expect((await client.listSpeakers()).some(s => s.id === created.id)).toBe(false))
+    const after = (await client.getTranscript(WEEKLY_SYNC_ID)).segments
+    expect(after.filter(s => [5, 8].includes(s.start)).map(effectiveSpeaker)).toEqual([SPEAKER_IDS.mark, SPEAKER_IDS.mark])
+  })
+
+  test('Undo still works after another recording was opened', async () => {
+    setup({ initialSelectedId: WEEKLY_SYNC_ID })
+    const inspector = within(await screen.findByRole('region', { name: 'Inspector' }))
+    await userEvent.click(await inspector.findByRole('button', { name: /Mark Ellis.*\d+%/ }))
+    await userEvent.click(inspector.getByRole('button', { name: 'Assign' }))
+    await waitFor(() => expect(dot()).toBeNull())
+    const undo = await screen.findByRole('button', { name: 'Undo' })
+    await userEvent.click(screen.getByRole('button', { name: /Call with Mark/ }))
+    await userEvent.click(undo)
+    await waitFor(() => expect(dot()).toBeTruthy())
+  })
 })
 
 test('a click selects a recording', async () => {
