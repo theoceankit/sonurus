@@ -581,6 +581,27 @@ export interface paths {
         patch: operations["update_transcript_transcripts__transcript_id__patch"];
         trace?: never;
     };
+    "/transcripts/{transcript_id}/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Transcript Audio
+         * @description The audio file of a recording, with Range requests for seeking. The path
+         *     comes from the database only.
+         */
+        get: operations["get_transcript_audio_transcripts__transcript_id__audio_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transcripts/{transcript_id}/reassign": {
         parameters: {
             query?: never;
@@ -2157,6 +2178,44 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_transcript_audio_transcripts__transcript_id__audio_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/*": unknown;
+                };
+            };
+            /** @description No such transcript, or its audio file is gone */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

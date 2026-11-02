@@ -2630,6 +2630,48 @@
         ]
       }
     },
+    "/transcripts/{transcript_id}/audio": {
+      "get": {
+        "description": "The audio file of a recording, with Range requests for seeking. The path\ncomes from the database only.",
+        "operationId": "get_transcript_audio_transcripts__transcript_id__audio_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "audio/*": {}
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such transcript, or its audio file is gone"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Transcript Audio",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
     "/transcripts/{transcript_id}/reassign": {
       "post": {
         "operationId": "reassign_speaker_transcripts__transcript_id__reassign_post",

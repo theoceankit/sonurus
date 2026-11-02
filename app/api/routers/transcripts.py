@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity as _cos_sim
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 
 import app.config as config
 from app.logger import get_logger
@@ -127,6 +128,26 @@ def get_transcript(
             for s in t.segments
         ],
     )
+
+
+@router.get(
+    "/{transcript_id}/audio",
+    response_class=FileResponse,
+    responses={200: {"content": {"audio/*": {}}}, 404: {"description": "No such transcript, or its audio file is gone"}},
+)
+def get_transcript_audio(
+    transcript_id: int,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """The audio file of a recording, with Range requests for seeking. The path
+    comes from the database only."""
+    try:
+        audio_path = storage.load(transcript_id, with_embeddings=False).audio_path
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    if not audio_path or not os.path.isfile(audio_path):
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    return FileResponse(audio_path)
 
 
 @router.get("/{transcript_id}/speaker-suggestions", response_model=dict[str, SpeakerSuggestion])
