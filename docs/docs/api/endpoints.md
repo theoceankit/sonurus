@@ -382,6 +382,10 @@ Full transcript with segments.
 
 `unassigned: true` marks a segment whose speaker was deleted (`DELETE /speakers/{id}`): both speaker fields are `null` and its effective speaker is the pseudo-id `UNASSIGNED`, not `speaker_raw`. Assigning a speaker to it (single or bulk) clears the flag.
 
+### `GET /transcripts/{id}/audio`
+
+The audio file of a recording, for the new UI's player. Answers `Range` requests with `206`, so an audio element can seek. The path comes from the database only. Returns `404` for an unknown id, or when the recording has no file or its file is gone.
+
 ### `GET /transcripts/{id}/speaker-suggestions`
 
 For each unrecognized speaker in the transcript, the known named speaker with the closest voice. `score` is the cosine similarity, rounded to two digits. Empty when there is nothing to suggest; unassigned segments get no suggestion.

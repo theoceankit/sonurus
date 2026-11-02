@@ -41,7 +41,7 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `ApiClient` in `ui/src/api/client.ts` lists what screens can ask of the backend. It covers what the Editor needs; a screen that needs more adds a method to both implementations. Failures are `ApiError` with `status` (`0` when the backend did not answer) and `message`, which is the `detail` of the response or `Server error N`.
 
-`getAudioUrl` is what an audio element plays for a recording, or null when there is nothing to play. On the backend it is a `file://` URL of `audio_path`.
+`getAudioUrl` is what an audio element plays for a recording, or null when there is nothing to play. On the backend it is `GET /transcripts/{id}/audio`, which answers Range requests. A page on the dev server may not open `file://`, so the route gives both ways of running the app the same source, and the CSP of the new UI allows `http://localhost:8000` for media instead of `file:`.
 
 `getSpeakerCandidates` gives, per unrecognized speaker, up to three candidates and a clip of the voice, as `GET /transcripts/{id}/speaker-candidates` answers. A speaker with no candidates is still in the answer, for its clip. The fixtures also give candidates to recognized speakers for the Possible match state in Storybook; the API does not.
 
@@ -57,9 +57,21 @@ A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/spea
 
 `useQueueEventsSync()`, called once at the root of the app, puts snapshots into the cache behind `useQueue()` and refreshes the recordings and speakers on `job_done`. Its optional callback is for what a screen shows itself, such as a toast on `job_failed`.
 
+## Connection to the backend
+
+The WebSocket is also how the app knows the backend is there. `useBackendConnected()` is false from the moment the connection drops until it opens again, and a first attempt that fails counts as a drop.
+
+- While it is down, `App` shows a toast that stays. What is on the screen stays too, and an action fails with its own toast.
+- When it is back, every query is refreshed, as a job may have finished unheard. That also clears the error of a first load, with no click on Retry.
+- A load of audio that failed is tried again from the same position (`Playback.reload()`). While the backend is down the player does not call the file missing.
+
+Reading a query, screens show an error only when there is no data: a refresh that fails leaves what was loaded.
+
 ## Hooks
 
 `queries.ts` has one hook per read and per change. A change refreshes what it affects. Queries do not retry and do not refetch on window focus: the backend is local, and data changes only through this app and the queue events.
+
+`useDeleteTranscript()` counts a recording already gone as deleted. It takes the recording off the list at once and does not ask for its details again, as the panels still show it until `EditorScreen` closes it.
 
 ## Fixtures
 
@@ -71,6 +83,8 @@ A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/spea
 | `board` | `review`, `reviewDone`, `unassigned` | The data of the Editor boards; other boards show the same data in another UI state |
 | `noAudio` | `true` | `getAudioUrl` gives null |
 | `overrides` | any methods of `ApiClient` | One method behaving differently, such as a failing save on a loaded screen |
+
+`setConnected(false)` on a fixture client loses the connection to the backend, and `setConnected(true)` brings it back.
 
 The fixtures have the shape of the API and mirror how it reads back: a corrected speaker is in `speaker_resolved` with `speaker_final` null, and an unassigned segment has neither. What the design shows and the API does not have, such as pinned recordings, folders, chapters or a speaker's handle, is not in them. The exception is candidates, which already have the up to three per speaker with percentages the review card shows.
 

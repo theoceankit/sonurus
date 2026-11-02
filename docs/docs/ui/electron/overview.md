@@ -56,7 +56,7 @@ The stories under `Redesign/Editor` reproduce the Editor design boards at 1200×
 
 `--new-ui` without a build stops with an error dialog naming `npm run build:ui`.
 
-Security settings are the same for both UIs. `ui/index.html` carries the same CSP string as the old `index.html`, so the build loads through `file://` under the same rules. Hot reload needs an inline script and the dev server's WebSocket: a plugin in `ui/vite.config.ts` adds `script-src 'self' 'unsafe-inline'` and `ws://localhost:5173` on the dev server only.
+Security settings are the same for both UIs. `ui/index.html` carries the CSP string of the old `index.html` with one difference, so the build loads through `file://` under the same rules: media comes from `http://localhost:8000` and not from `file:`. Hot reload needs an inline script and the dev server's WebSocket: a plugin in `ui/vite.config.ts` adds `script-src 'self' 'unsafe-inline'` and `ws://localhost:5173` on the dev server only.
 
 The dev server's origin is not one the backend accepts, so `npm run dev:ui` sets `SONORUS_DEV_UI_ORIGIN`. A backend started earlier without it, e.g. with `uvicorn`, refuses requests from the dev page.
 
