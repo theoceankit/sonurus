@@ -16,9 +16,10 @@ export type LabelledSpeaker =
   | { kind?: 'named'; name: string; color: SpeakerColor }
   | { kind: 'unknown' | 'unassigned'; name: string; color?: SpeakerColor }
 
-export const avatarOf = (speaker: LabelledSpeaker): AvatarSpeaker => (
-  speaker.kind === 'unknown' || speaker.kind === 'unassigned' ? { kind: speaker.kind } : speaker
-)
+export function avatarOf(speaker: LabelledSpeaker): AvatarSpeaker {
+  if (speaker.kind === 'unknown' || speaker.kind === 'unassigned') return { kind: speaker.kind }
+  return { name: speaker.name, color: speaker.color! }
+}
 
 type AvatarProps = Omit<ComponentPropsWithRef<'span'>, 'children' | 'color'> & AvatarSpeaker & { size?: AvatarSize }
 

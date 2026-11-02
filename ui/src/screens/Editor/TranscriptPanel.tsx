@@ -20,11 +20,16 @@ import { TranscriptList, type MenuKey, type TranscriptRows } from './TranscriptL
 import { useTextSelection } from './useTextSelection'
 import styles from './TranscriptPanel.module.css'
 
+export interface SpeakerMenuTarget {
+  currentId: string
+  segmentStarts: readonly number[]
+}
+
 interface TranscriptPanelProps {
   transcriptId: number | null
   playback: Playback
-  // Opens the list of all speakers.
-  onShowAllSpeakers?: () => void
+  // Opens the list of all speakers for this turn or paragraph.
+  onShowAllSpeakers?: (target: SpeakerMenuTarget) => void
 }
 
 // Nothing shows until there is a recording and it has loaded: a flash of a spinner
@@ -69,7 +74,7 @@ interface TranscriptViewProps {
   transcript: Transcript
   speakers: Speaker[]
   playback: Playback
-  onShowAllSpeakers?: () => void
+  onShowAllSpeakers?: (target: SpeakerMenuTarget) => void
 }
 
 async function copyToClipboard(text: string) {
@@ -216,8 +221,10 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers }: T
             })
             closeMenu()
           }}
-          onShowAll={onShowAllSpeakers}
-          showAllProps={onShowAllSpeakers ? undefined : markNotImplemented('transcript.all-speakers')}
+          onShowAll={() => {
+            onShowAllSpeakers?.({ currentId: menu.currentId, segmentStarts: menu.segmentStarts })
+            closeMenu()
+          }}
           onClose={closeMenu}
         />
       )}

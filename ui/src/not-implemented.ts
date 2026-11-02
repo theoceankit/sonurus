@@ -24,7 +24,6 @@ export const NOT_IMPLEMENTED = [
   'titlebar.search',
   'titlebar.settings',
   'titlebar.speakers',
-  'transcript.all-speakers',
   'transcript.export',
   'transcript.highlight',
   'transcript.more',

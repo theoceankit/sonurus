@@ -1,5 +1,5 @@
 import * as Popover from '@radix-ui/react-popover'
-import { useEffect, useRef, useState, type HTMLAttributes, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { cx } from '../../styles/cx'
 import { speakerColor } from '../../styles/speaker-colors'
 import { Avatar } from '../Avatar/Avatar'
@@ -26,8 +26,6 @@ interface SpeakerMenuProps {
   allSpeakers: number
   onSelect: (speakerId: string) => void
   onShowAll?: () => void
-  // What marks the row as not there yet, while the list does not exist.
-  showAllProps?: HTMLAttributes<HTMLButtonElement>
   onClose: () => void
   // For a story: the search without typing.
   initialQuery?: string
@@ -36,7 +34,7 @@ interface SpeakerMenuProps {
 const OFFSET = 4
 
 // The focus stays in the search field, and the arrow keys move a highlight over the rows.
-export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onShowAll, showAllProps, onClose, initialQuery = '' }: SpeakerMenuProps) {
+export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onShowAll, onClose, initialQuery = '' }: SpeakerMenuProps) {
   const [query, setQuery] = useState(initialQuery)
   const [active, setActive] = useState(0)
   const list = useRef<HTMLDivElement>(null)
@@ -126,7 +124,6 @@ export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onSh
               className={cx(active === rows.length && styles.active)}
               onPointerMove={() => setActive(rows.length)}
               onClick={onShowAll}
-              {...showAllProps}
             >
               Show all speakers
             </MenuItem>

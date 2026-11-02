@@ -1,14 +1,16 @@
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
-import { useSpeakers, useTranscripts } from '../../api/queries'
+import { useAssignTurnSpeaker, useSpeakers, useTranscripts } from '../../api/queries'
 import { Sidebar, type SidebarSection } from '../../components/Sidebar/Sidebar'
 import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { cx } from '../../styles/cx'
 import type { Playback } from '../../media/playback'
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
+import { InspectorPanel } from './InspectorPanel'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
 import { groupRecordings, needsReview, stackSpeakers } from './recordings'
-import { TranscriptPanel } from './TranscriptPanel'
+import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
+import { TranscriptPanel, type SpeakerMenuTarget } from './TranscriptPanel'
 import styles from './EditorScreen.module.css'
 
 interface EditorScreenProps {
@@ -20,6 +22,9 @@ interface EditorScreenProps {
   player?: ReactNode
   // For a story: playback standing where the board shows it, with no audio.
   playback?: Playback
+  // For a story: what only a board shows.
+  possibleMatches?: boolean
+  initialSpeakerId?: string
 }
 
 // Wide until measured, and a width from the screen itself rather than the window,
@@ -38,7 +43,7 @@ function useWidth() {
   return { element, width }
 }
 
-export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback }: EditorScreenProps) {
+export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, possibleMatches, initialSpeakerId }: EditorScreenProps) {
   const api = useApi()
   const transcripts = useTranscripts()
   const speakers = useSpeakers()
@@ -46,6 +51,8 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const [panels, setPanels] = useState(INITIAL_PANELS)
   const ownPlayback = useTranscriptPlayback(givenPlayback ? null : selectedId)
   const playback = givenPlayback ?? ownPlayback
+  const [speakerRequest, setSpeakerRequest] = useState<SpeakerRequest | null>(null)
+  const { mutateAsync: assignTurn } = useAssignTurnSpeaker()
   const { element, width } = useWidth()
   const visible = visiblePanels(panels, width)
   const toggle = (panel: Panel) => setPanels(current => togglePanel(current, panel, width))
@@ -63,6 +70,17 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
       })),
     }))
   }, [api, transcripts.data, speakers.data, pinnedIds])
+
+  const showAllSpeakers = ({ currentId, segmentStarts }: SpeakerMenuTarget) => {
+    if (selectedId === null) return
+    const transcriptId = selectedId
+    setSpeakerRequest({
+      transcriptId,
+      speakerId: currentId,
+      start: 'choose',
+      onAssign: target => assignTurn({ transcriptId, segmentStarts, target }),
+    })
+  }
 
   const failed = transcripts.isError || speakers.isError
   const ready = transcripts.data && speakers.data
@@ -88,10 +106,23 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
             }}
           />
         </aside>
-        <main aria-label="Transcript" className={cx(styles.panel, styles.center)}>{transcript ?? <TranscriptPanel transcriptId={selectedId} playback={playback} />}</main>
-        <section aria-label="Inspector" hidden={!visible.inspector} className={cx(styles.panel, styles.inspector)}>{inspector}</section>
+        <main aria-label="Transcript" className={cx(styles.panel, styles.center)}>{transcript ?? <TranscriptPanel transcriptId={selectedId} playback={playback} onShowAllSpeakers={showAllSpeakers} />}</main>
+        <section aria-label="Inspector" hidden={!visible.inspector} className={cx(styles.panel, styles.inspector)}>
+          {inspector ?? (
+            <InspectorPanel
+              transcriptId={selectedId}
+              playback={playback}
+              open={visible.inspector}
+              onClose={() => toggle('inspector')}
+              onChooseSpeaker={setSpeakerRequest}
+              possibleMatches={possibleMatches}
+              initialSpeakerId={initialSpeakerId}
+            />
+          )}
+        </section>
         <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player ?? <EditorPlayer transcriptId={selectedId} playback={playback} />}</section>
       </div>
+      {speakerRequest && <SpeakerDialogs request={speakerRequest} onClose={() => setSpeakerRequest(null)} />}
     </div>
   )
 }

@@ -27,7 +27,7 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, classNa
     <div className={cx(styles.inspector, className)} {...props}>
       <Tabs
         defaultValue="speakers"
-        aria-label="Inspector"
+        aria-label="Inspector tabs"
         className={styles.tabs}
         tabs={(
           <>

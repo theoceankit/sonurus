@@ -30,9 +30,13 @@ export function useTranscript(id: number | null) {
   })
 }
 
-export function useSpeakerCandidates(id: number) {
+export function useSpeakerCandidates(id: number | null) {
   const api = useApi()
-  return useQuery({ queryKey: queryKeys.candidates(id), queryFn: () => api.getSpeakerCandidates(id) })
+  return useQuery({
+    queryKey: queryKeys.candidates(id ?? -1),
+    queryFn: () => api.getSpeakerCandidates(id!),
+    enabled: id !== null,
+  })
 }
 
 export function useSpeakers() {

@@ -350,20 +350,9 @@ describe('changing a speaker', () => {
     const { onShowAllSpeakers } = setup()
     const menu = within(await openTurnMenu())
     await userEvent.click(menu.getByText('Show all speakers'))
-    expect(onShowAllSpeakers).toHaveBeenCalledOnce()
+    expect(onShowAllSpeakers).toHaveBeenCalledWith(expect.objectContaining({ currentId: expect.any(String), segmentStarts: expect.any(Array) }))
   })
 
-  test('without the list Show all speakers is not available yet', async () => {
-    const client = createFixtureClient()
-    const { playback } = fakePlayback()
-    render(<ApiProvider client={client}><OverlayProvider><TranscriptPanel transcriptId={WEEKLY_SYNC_ID} playback={playback} /></OverlayProvider></ApiProvider>)
-    const menu = within(await (async () => {
-      await text(MARK_SECOND)
-      await userEvent.click(screen.getAllByRole('button', { name: 'Mark Ellis' })[0])
-      return screen.getByRole('dialog', { name: 'Change speaker' })
-    })())
-    expect(menu.getByRole('button', { name: /Show all speakers/ }).getAttribute('aria-disabled')).toBe('true')
-  })
 
   test('closing gives the focus back to the name', async () => {
     setup()
