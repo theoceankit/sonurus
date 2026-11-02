@@ -68,7 +68,10 @@ const MARK_SECOND = 'Retry for failed jobs works too, I checked it.'
 
 // Closing a menu gives the focus back a moment later: that must not land in the next test.
 beforeEach(() => new Promise(resolve => setTimeout(resolve)))
-afterEach(dismissAllToasts)
+afterEach(() => {
+  dismissAllToasts()
+  vi.unstubAllGlobals()
+})
 
 describe('states', () => {
   test('no recording: an empty panel', () => {
@@ -278,23 +281,29 @@ describe('deleting', () => {
 })
 
 describe('copying', () => {
-  const clipboard = (writeText: (text: string) => Promise<void>) =>
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  // Chromium refuses navigator.clipboard here: the main process allows only the microphone.
+  const clipboard = (writeClipboard: (text: string) => Promise<void>) => {
+    vi.stubGlobal('electronAPI', { writeClipboard })
+    const browser = vi.fn(async () => { throw new Error('denied') })
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: browser }, configurable: true })
+    return browser
+  }
 
-  test('Copy puts the paragraph on the clipboard and says so', async () => {
-    const writeText = vi.fn(async () => {})
+  test('Copy puts the paragraph on the clipboard through the main process and says so', async () => {
+    const writeClipboard = vi.fn(async () => {})
+    const browser = clipboard(writeClipboard)
     setup()
     await userEvent.hover(await text(MARK_SECOND))
-    clipboard(writeText)
     await userEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    expect(writeText).toHaveBeenCalledExactlyOnceWith(MARK_SECOND)
+    expect(writeClipboard).toHaveBeenCalledExactlyOnceWith(MARK_SECOND)
+    expect(browser).not.toHaveBeenCalled()
     await text('Copied')
   })
 
   test('a refused clipboard says so', async () => {
+    clipboard(async () => { throw new Error('denied') })
     setup()
     await userEvent.hover(await text(MARK_SECOND))
-    clipboard(async () => { throw new Error('denied') })
     await userEvent.click(screen.getByRole('button', { name: 'Copy' }))
     await text('Copy failed')
   })
@@ -447,12 +456,12 @@ describe('selecting text', () => {
   })
 
   test('Copy copies the selection and clears it', async () => {
-    const writeText = vi.fn(async () => {})
+    const writeClipboard = vi.fn(async () => {})
+    vi.stubGlobal('electronAPI', { writeClipboard })
     setup()
     select(await text(MARK_SECOND))
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
     await userEvent.click(within(bar()!).getByRole('button', { name: 'Copy' }))
-    expect(writeText).toHaveBeenCalledExactlyOnceWith(MARK_SECOND)
+    expect(writeClipboard).toHaveBeenCalledExactlyOnceWith(MARK_SECOND)
     await text('Copied')
     expect(window.getSelection()!.isCollapsed).toBe(true)
   })

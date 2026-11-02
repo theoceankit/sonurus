@@ -84,7 +84,7 @@ interface TranscriptViewProps {
 
 async function copyToClipboard(text: string) {
   try {
-    await navigator.clipboard.writeText(text)
+    await window.electronAPI.writeClipboard(text)
     toast({ message: 'Copied' })
   } catch {
     toast({ message: 'Copy failed', type: 'error' })
