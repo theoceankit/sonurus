@@ -44,6 +44,8 @@ Screens get their data through one client, on the backend or on fixtures: see [N
 
 Every component lives in `ui/src/components/<Name>/` and has `<Name>.stories.tsx` with a story for each of its states. Storybook finds these files by itself; a component without one is simply absent from it, so a build test checks that the file exists. Whether the stories cover all states is checked by review.
 
+The stories under `Redesign/Editor` reproduce the Editor design boards at 1200×800 and carry their names, so a story can be compared with its board. A test holds the list of names.
+
 `electron/ui-entry.js` decides what the window loads:
 
 | Switch | Environment | Development | Packaged |
@@ -72,6 +74,8 @@ With `--new-ui` the window has no system frame (`electron/window-chrome.js`; wit
 The width is that of the screen, so a story can show any size. A panel the user closed stays closed when the window widens; one hidden for lack of room comes back. While the inspector is hidden, a button next to Settings opens it. What is open is not remembered between runs. The rules are pure functions in `panels.ts`.
 
 `Sidebar` shows the recordings in the sections Pinned, This week and Earlier, worked out on the client in `recordings.ts` rather than taken from `section` of the API: This week is today and the seven calendar days before it, and a section with nothing in it is left out. The API has no pinned recordings yet, so in the app the section does not appear; `EditorScreen` takes them as a prop, and the story Screens / Editor / Board uses it to match the design. A recording shows the Needs review dot when one of its speakers has no name. Rows show three avatars at most. The list has no scrollbar: it would narrow the rows, and the fade at the bottom says there is more.
+
+A recording row shows at most three avatars, with no count of the others.
 
 ---
 
