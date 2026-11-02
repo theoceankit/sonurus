@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useApi } from '../../api/ApiProvider'
-import { useSpeakers, useTranscript } from '../../api/queries'
+import { useBackendConnected, useSpeakers, useTranscript } from '../../api/queries'
 import { effectiveSpeaker, UNASSIGNED, type Segment, type Speaker } from '../../api/types'
 import { Player } from '../../components/Player/Player'
 import { useAudioPlayback, usePlayback, type Playback } from '../../media/playback'
@@ -26,13 +26,15 @@ export function playerTurns(segments: readonly Segment[], speakers: readonly Spe
 export function useTranscriptPlayback(transcriptId: number | null): Playback {
   const api = useApi()
   const transcript = useTranscript(transcriptId).data
-  return useAudioPlayback(transcriptId !== null && transcript ? api.getAudioUrl(transcript) : null)
+  return useAudioPlayback(transcriptId !== null && transcript ? api.getAudioUrl(transcript) : null, useBackendConnected())
 }
 
 // The player of the open recording.
 export function EditorPlayer({ transcriptId, playback }: { transcriptId: number | null; playback: Playback }) {
+  const api = useApi()
   const transcript = useTranscript(transcriptId).data
   const speakers = useSpeakers().data
+  const connected = useBackendConnected()
   const state = usePlayback(playback)
   const turns = useMemo(
     () => (transcriptId !== null && transcript ? playerTurns(transcript.segments, speakers ?? []) : []),
@@ -44,6 +46,7 @@ export function EditorPlayer({ transcriptId, playback }: { transcriptId: number 
       state={state}
       turns={turns}
       disabled={state.status !== 'ready'}
+      notice={transcriptId !== null && transcript && ((state.status === 'error' && connected) || !api.getAudioUrl(transcript)) ? 'Audio file not found' : undefined}
       onToggle={playback.toggle}
       onSeek={playback.seek}
       onRateChange={playback.setRate}

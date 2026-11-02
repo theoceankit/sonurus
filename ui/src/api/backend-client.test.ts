@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest'
 import { createBackendClient } from './backend-client'
 import { ApiError } from './client'
+import type { Transcript } from './types'
 
 type Sent = { url: string; method: string; body: unknown }
 
@@ -85,6 +86,18 @@ describe('requests', () => {
     const rows = [{ id: 1, title: 'a' }]
     const { client } = setup(() => json(rows))
     await expect(client.listTranscripts()).resolves.toEqual(rows)
+  })
+})
+
+describe('getAudioUrl', () => {
+  const recording = (audio_path: string) => ({ id: 7, audio_path }) as Transcript
+
+  test('the audio route of the recording', () => {
+    expect(setup().client.getAudioUrl(recording('/home/u/Запись #1.wav'))).toBe('http://localhost:8000/transcripts/7/audio')
+  })
+
+  test('a recording with no audio has nothing to play', () => {
+    expect(setup().client.getAudioUrl(recording(''))).toBeNull()
   })
 })
 

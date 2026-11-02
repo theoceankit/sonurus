@@ -15,6 +15,8 @@ export interface Playback {
   getState(): PlaybackState
   subscribe(listener: () => void): () => void
   load(src: string | null): void
+  // After a failed load: tries the same source again and goes back to where it was.
+  reload(): void
   toggle(): void
   seek(seconds: number): void
   setRate(rate: number): void
@@ -30,6 +32,7 @@ const EVENTS = [
 export function createPlayback(audio: HTMLAudioElement = new Audio()): Playback {
   const listeners = new Set<() => void>()
   let status: PlaybackStatus = 'empty'
+  let resumeAt: number | null = null
 
   const read = (): PlaybackState => ({
     currentTime: audio.currentTime,
@@ -51,8 +54,16 @@ export function createPlayback(audio: HTMLAudioElement = new Audio()): Playback 
   }
 
   EVENTS.forEach(type => audio.addEventListener(type, update))
-  audio.addEventListener('loadedmetadata', () => setStatus('ready'))
-  audio.addEventListener('error', () => { if (status !== 'empty') setStatus('error') })
+  audio.addEventListener('loadedmetadata', () => {
+    if (resumeAt !== null) audio.currentTime = resumeAt
+    resumeAt = null
+    setStatus('ready')
+  })
+  audio.addEventListener('error', () => {
+    if (status === 'empty') return
+    resumeAt = state.currentTime
+    setStatus('error')
+  })
 
   return {
     getState: () => state,
@@ -61,6 +72,7 @@ export function createPlayback(audio: HTMLAudioElement = new Audio()): Playback 
       return () => { listeners.delete(listener) }
     },
     load(src) {
+      resumeAt = null
       if (src) {
         audio.src = src
         setStatus('loading')
@@ -71,6 +83,11 @@ export function createPlayback(audio: HTMLAudioElement = new Audio()): Playback 
         audio.load()
         update()
       }
+    },
+    reload() {
+      if (status !== 'error') return
+      audio.load()
+      setStatus('loading')
     },
     toggle() {
       if (audio.paused) audio.play().catch(() => {})
@@ -104,12 +121,16 @@ export function usePlayback(playback: Playback, selector: (state: PlaybackState)
   return useSyncExternalStore(playback.subscribe, () => selector(playback.getState()))
 }
 
-// A playback for one component's lifetime, on the given source.
-export function useAudioPlayback(src: string | null): Playback {
+// A playback for one component's lifetime, on the given source. A load that failed
+// is tried again when the source is reachable again.
+export function useAudioPlayback(src: string | null, reachable = true): Playback {
   const [playback] = useState(() => createPlayback())
   useEffect(() => {
     playback.load(src)
     return () => playback.load(null)
   }, [playback, src])
+  useEffect(() => {
+    if (reachable) playback.reload()
+  }, [playback, reachable])
   return playback
 }

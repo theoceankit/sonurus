@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { TRANSCRIPTS, SPEAKERS, SPEAKER_IDS, FIXTURE_NOW, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import type { Speaker, TranscriptListItem } from '../../api/types'
-import { groupRecordings, stackSpeakers, needsReview } from './recordings'
+import { deleteRecordingPrompt, groupRecordings, stackSpeakers, needsReview } from './recordings'
 
 const item = (id: number, created_at: string, speakers: string[] = []): TranscriptListItem => ({
   id, created_at, speakers, title: `Recording ${id}`, status: 'done', section: '', duration: '',
@@ -74,4 +74,14 @@ test('on the fixtures the colours follow the boards', () => {
   expect(anna).toMatchObject({ name: 'Anna Petrova', color: 5 })
   expect(mark).toMatchObject({ name: 'Mark Ellis', color: 1 })
   expect(unknown).toMatchObject({ kind: 'unknown' })
+})
+
+test('delete prompt: names the recording and says it cannot be undone', () => {
+  const prompt = deleteRecordingPrompt('Weekly sync')
+  expect(prompt.title).toBe('Delete “Weekly sync”?')
+  expect(prompt.body).toMatch(/cannot be undone/i)
+})
+
+test('delete prompt: falls back for an empty title', () => {
+  expect(deleteRecordingPrompt('').title).toBe('Delete this transcript?')
 })

@@ -19,6 +19,8 @@ export type FixtureOptions = {
 export type FixtureClient = ApiClient & {
   // Plays the script from now on. Returns what stops it.
   playEvents(script: EventScript): () => void
+  // Loses the connection to the backend or brings it back.
+  setConnected(connected: boolean): void
 }
 
 const EMPTY: FixtureData = { transcripts: [], details: [], speakers: [], candidates: {} }
@@ -116,6 +118,8 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
     if (item) item.speakers = [...new Set(transcript(transcriptId).segments.map(effectiveSpeaker))]
   }
 
+  const connectionListeners = new Set<(connected: boolean) => void>()
+
   const emit = (event: QueueUpdate) => {
     if (event.type === 'snapshot') queue = event
     for (const listener of listeners) listener(structuredClone(event))
@@ -171,8 +175,9 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
       throw new ApiError(404, 'No audio available for this speaker')
     }),
     getQueue: () => answer(() => queue),
-    subscribeQueueEvents: listener => {
+    subscribeQueueEvents: (listener, onConnection) => {
       listeners.add(listener)
+      if (onConnection) connectionListeners.add(onConnection)
       // A real connection answers later too, never during the subscribe. Stays
       // silent when the scenario says the backend is not there.
       const hello = scenario === 'default' || scenario === 'empty'
@@ -181,6 +186,7 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
       return () => {
         clearTimeout(hello)
         listeners.delete(listener)
+        if (onConnection) connectionListeners.delete(onConnection)
       }
     },
   }
@@ -188,6 +194,7 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
   return {
     ...client,
     ...overrides,
+    setConnected: connected => connectionListeners.forEach(listener => listener(connected)),
     playEvents: script => {
       let timer: ReturnType<typeof setTimeout>
       const play = (index: number) => {

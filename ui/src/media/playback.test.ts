@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { expect, test, vi } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { createPlayback, useAudioPlayback, usePlayback } from './playback'
 
 // jsdom does not play media, so this is the part of the element that the store uses.
@@ -163,4 +163,50 @@ test('useAudioPlayback loads the source and lets go of it on unmount', () => {
   expect(playback.getState().status).toBe('empty')
   expect(load).toHaveBeenCalled()
   vi.restoreAllMocks()
+})
+
+describe('reload', () => {
+  const failed = () => {
+    const audio = new Audio()
+    const playback = createPlayback(audio)
+    playback.load('blob:a.wav')
+    audio.dispatchEvent(new Event('loadedmetadata'))
+    audio.currentTime = 42
+    audio.dispatchEvent(new Event('timeupdate'))
+    audio.dispatchEvent(new Event('error'))
+    return { audio, playback }
+  }
+
+  test('after an error loads again and goes back to where it was', () => {
+    const { audio, playback } = failed()
+    const load = vi.spyOn(audio, 'load')
+    expect(playback.getState().status).toBe('error')
+    playback.reload()
+    expect(load).toHaveBeenCalledOnce()
+    expect(playback.getState().status).toBe('loading')
+    audio.currentTime = 0
+    audio.dispatchEvent(new Event('loadedmetadata'))
+    expect(playback.getState().status).toBe('ready')
+    expect(audio.currentTime).toBe(42)
+  })
+
+  test('does nothing when nothing went wrong', () => {
+    const audio = new Audio()
+    const playback = createPlayback(audio)
+    const load = vi.spyOn(audio, 'load')
+    playback.reload()
+    playback.load('blob:a.wav')
+    audio.dispatchEvent(new Event('loadedmetadata'))
+    load.mockClear()
+    playback.reload()
+    expect(load).not.toHaveBeenCalled()
+  })
+
+  test('another source forgets the old position', () => {
+    const { audio, playback } = failed()
+    playback.load('blob:b.wav')
+    audio.currentTime = 0
+    audio.dispatchEvent(new Event('loadedmetadata'))
+    expect(audio.currentTime).toBe(0)
+  })
 })

@@ -1,11 +1,15 @@
-import { render, screen, waitFor } from '@testing-library/react'
-import { expect, test } from 'vitest'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
+import { useQueueEventsSync } from '../../api/queries'
 import { WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { UNASSIGNED, type Segment, type Speaker } from '../../api/types'
+import { createPlayback } from '../../media/playback'
 import { OverlayProvider } from '../../OverlayProvider'
 import { EditorPlayer, playerTurns, useTranscriptPlayback } from './EditorPlayer'
+
+afterEach(() => vi.unstubAllGlobals())
 
 const segment = (start: number, end: number, changes: Partial<Segment>) => ({
   start, end, text: '', speaker_raw: 'SPEAKER_00', speaker_resolved: null, speaker_final: null, unassigned: false, ...changes,
@@ -52,6 +56,50 @@ test('nothing to play: disabled, and the bars come from the segments', async () 
   const track = setup(WEEKLY_SYNC_ID, { noAudio: true })
   expect((screen.getByRole('button', { name: 'Play' }) as HTMLButtonElement).disabled).toBe(true)
   await waitFor(() => expect((track.firstElementChild!.children[0] as HTMLElement).style.background).toContain('speaker-'))
+})
+
+test('a recording with nothing to play says so', async () => {
+  setup(WEEKLY_SYNC_ID, { noAudio: true })
+  expect(await screen.findByText('Audio file not found')).toBeTruthy()
+})
+
+test('no recording open: nothing is missing', () => {
+  setup(null, { noAudio: true })
+  expect(screen.queryByText('Audio file not found')).toBeNull()
+})
+
+test('audio that fails to load says so: the file is gone', async () => {
+  const audio = new Audio()
+  const playback = createPlayback(audio)
+  render(<ApiProvider client={createFixtureClient()}><OverlayProvider><EditorPlayer transcriptId={WEEKLY_SYNC_ID} playback={playback} /></OverlayProvider></ApiProvider>)
+  playback.load('blob:gone')
+  expect(screen.queryByText('Audio file not found')).toBeNull()
+  act(() => { audio.dispatchEvent(new Event('error')) })
+  expect(await screen.findByText('Audio file not found')).toBeTruthy()
+})
+
+test('while the backend is away a failed load is not called missing, and it loads again when back', async () => {
+  const made: HTMLAudioElement[] = []
+  const RealAudio = Audio
+  vi.stubGlobal('Audio', function FakeAudio() {
+    const audio = new RealAudio()
+    made.push(audio)
+    return audio
+  })
+  const client = createFixtureClient()
+  function Synced() {
+    useQueueEventsSync()
+    return <Wired transcriptId={WEEKLY_SYNC_ID} />
+  }
+  render(<ApiProvider client={client}><OverlayProvider><Synced /></OverlayProvider></ApiProvider>)
+  await waitFor(() => expect(made[0].src).not.toBe(''))
+  const load = vi.spyOn(made[0], 'load')
+  act(() => client.setConnected(false))
+  act(() => { made[0].dispatchEvent(new Event('error')) })
+  await waitFor(() => expect(made[0].getAttribute('src')).toBeTruthy())
+  expect(screen.queryByText('Audio file not found')).toBeNull()
+  act(() => client.setConnected(true))
+  await waitFor(() => expect(load).toHaveBeenCalled())
 })
 
 test('metadata not there yet: disabled until the audio is ready', async () => {

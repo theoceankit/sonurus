@@ -1749,3 +1749,35 @@ def test_startup_removes_orphan_import_copies(tmp_path, monkeypatch):
     assert queued.exists()
     assert live.exists()
     assert not orphan.exists()
+
+
+# ── GET /transcripts/{id}/audio ───────────────────────────────────────────────
+
+def test_audio_returns_the_file_of_the_recording(client, tmp_path):
+    audio = tmp_path / "talk.wav"
+    audio.write_bytes(b"0123456789")
+    res = client.get(f"/transcripts/{_save(audio)}/audio")
+    assert res.status_code == 200
+    assert res.content == b"0123456789"
+    assert res.headers["accept-ranges"] == "bytes"
+
+
+def test_audio_answers_a_range_for_seeking(client, tmp_path):
+    audio = tmp_path / "talk.wav"
+    audio.write_bytes(b"0123456789")
+    res = client.get(f"/transcripts/{_save(audio)}/audio", headers={"Range": "bytes=2-5"})
+    assert res.status_code == 206
+    assert res.content == b"2345"
+    assert res.headers["content-range"] == "bytes 2-5/10"
+
+
+def test_audio_unknown_transcript_is_404(client):
+    assert client.get("/transcripts/999/audio").status_code == 404
+
+
+def test_audio_missing_file_is_404(client, tmp_path):
+    assert client.get(f"/transcripts/{_save(tmp_path / 'gone.wav')}/audio").status_code == 404
+
+
+def test_audio_empty_path_is_404(client):
+    assert client.get(f"/transcripts/{_save('')}/audio").status_code == 404

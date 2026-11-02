@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
-import type { SpeakerAssignment, SpeakerTarget, SpeakerUndo } from './client'
+import { ApiError, type SpeakerAssignment, type SpeakerTarget, type SpeakerUndo } from './client'
 import type { QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
@@ -13,6 +13,7 @@ export const queryKeys = {
   speakers: ['speakers'],
   sample: (speakerId: string, transcriptId?: number) => ['speakers', speakerId, 'sample', transcriptId],
   queue: ['queue'],
+  connected: ['connected'],
 } satisfies Record<string, QueryKey | ((...args: never[]) => QueryKey)>
 
 export function useTranscripts() {
@@ -57,6 +58,11 @@ export function useQueue() {
   return useQuery({ queryKey: queryKeys.queue, queryFn: () => api.getQueue() })
 }
 
+// Whether WS /ws/queue is up, kept by useQueueEventsSync.
+export function useBackendConnected(): boolean {
+  return useQuery({ queryKey: queryKeys.connected, queryFn: () => true, initialData: true, staleTime: Infinity }).data
+}
+
 const refreshTranscripts = (queries: QueryClient) => queries.invalidateQueries({ queryKey: queryKeys.transcripts })
 
 const refreshTranscriptsAndSpeakers = (queries: QueryClient) => Promise.all([
@@ -90,8 +96,21 @@ export function useDeleteTranscript() {
   const api = useApi()
   const queries = useQueryClient()
   return useMutation({
-    mutationFn: (transcriptId: number) => api.deleteTranscript(transcriptId),
-    onSuccess: () => refreshTranscriptsAndSpeakers(queries),
+    mutationFn: async (transcriptId: number) => {
+      try {
+        await api.deleteTranscript(transcriptId)
+      } catch (error) {
+        // Already gone is what was asked for.
+        if (!(error instanceof ApiError && error.status === 404)) throw error
+      }
+    },
+    // Not waiting for the refresh, and not asking for the deleted recording again:
+    // it is still open until the caller closes it, and would only answer 404.
+    onSuccess: (_result, transcriptId) => {
+      queries.setQueryData<TranscriptListItem[]>(queryKeys.transcripts, items => items?.filter(item => item.id !== transcriptId))
+      void queries.invalidateQueries({ queryKey: queryKeys.transcripts, predicate: query => query.queryKey[1] !== transcriptId })
+      void queries.invalidateQueries({ queryKey: queryKeys.speakers })
+    },
   })
 }
 
@@ -193,5 +212,9 @@ export function useQueueEventsSync(onEvent?: (event: QueueUpdate) => void) {
     if (event.type === 'snapshot') queries.setQueryData(queryKeys.queue, event)
     if (event.type === 'job_done') void refreshTranscriptsAndSpeakers(queries)
     latestOnEvent.current?.(event)
+  }, connected => {
+    queries.setQueryData(queryKeys.connected, connected)
+    // A job may have finished while no one was listening.
+    if (connected) void queries.invalidateQueries({ predicate: query => query.queryKey[0] !== queryKeys.connected[0] })
   }), [api, queries])
 }

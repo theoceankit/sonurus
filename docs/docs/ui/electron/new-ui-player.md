@@ -23,7 +23,9 @@ EditorScreen: useTranscriptPlayback() → useAudioPlayback(url) → Playback (ui
 
 ## Components
 
-`Player` only draws and reports: it gets the state and the turns and calls back with what to do. Every state is therefore a story, and `initialCursor` shows the cursor over the waveform without a mouse. `EditorPlayer` connects it to the open recording, on the playback the screen holds, which the transcript follows too. The player is disabled until the audio is `ready`, so with no recording, no audio or audio that failed to load; the bars then take their length from the segments.
+`Player` only draws and reports: it gets the state and the turns and calls back with what to do. Every state is therefore a story, and `initialCursor` shows the cursor over the waveform without a mouse. `EditorPlayer` connects it to the open recording, on the playback the screen holds, which the transcript follows too. The player is disabled until the audio is `ready`, so with no recording, no audio or audio that failed to load; the bars then take their length from the segments. A recording with nothing to play has `Audio file not found` over the bars (the `notice` prop), unless the backend is what is away.
+
+A live recording in WebM has no duration in the file, so the audio element says Infinity. The length is then the end of the last segment, for the bars and the clock alike, and the playhead stops at the end of the waveform if the audio goes on.
 
 `Waveform` has two sizes:
 

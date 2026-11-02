@@ -19,7 +19,7 @@ const { unknown1, oliver } = SPEAKER_IDS
 
 const standing: Playback = (() => {
   const state: PlaybackState = { currentTime: 0, duration: 53, paused: true, rate: 1, volume: 1, status: 'ready' }
-  return { getState: () => state, subscribe: () => () => {}, load() {}, toggle() {}, seek() {}, setRate() {}, setVolume() {} }
+  return { getState: () => state, subscribe: () => () => {}, load() {}, reload() {}, toggle() {}, seek() {}, setRate() {}, setVolume() {} }
 })()
 
 function Host({ id, panel }: { id: number | null; panel: Partial<InspectorPanelProps> }) {

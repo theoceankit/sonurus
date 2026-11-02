@@ -26,7 +26,6 @@ export const NOT_IMPLEMENTED = [
   'titlebar.speakers',
   'transcript.export',
   'transcript.highlight',
-  'transcript.more',
   'transcript.pin',
 ] as const satisfies readonly string[]
 

@@ -5,6 +5,7 @@ import { Sidebar, type SidebarSection } from '../../components/Sidebar/Sidebar'
 import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { cx } from '../../styles/cx'
 import type { Playback } from '../../media/playback'
+import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecordingDialog'
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
 import { InspectorPanel } from './InspectorPanel'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
@@ -52,6 +53,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const ownPlayback = useTranscriptPlayback(givenPlayback ? null : selectedId)
   const playback = givenPlayback ?? ownPlayback
   const [speakerRequest, setSpeakerRequest] = useState<SpeakerRequest | null>(null)
+  const [toDelete, setToDelete] = useState<RecordingToDelete | null>(null)
   const { mutateAsync: assignTurn } = useAssignTurnSpeaker()
   const { element, width } = useWidth()
   const visible = visiblePanels(panels, width)
@@ -82,7 +84,8 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
     })
   }
 
-  const failed = transcripts.isError || speakers.isError
+  // A refresh that fails leaves what was loaded on the screen.
+  const failed = (transcripts.isError && !transcripts.data) || (speakers.isError && !speakers.data)
   const ready = transcripts.data && speakers.data
 
   return (
@@ -106,7 +109,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
             }}
           />
         </aside>
-        <main aria-label="Transcript" className={cx(styles.panel, styles.center)}>{transcript ?? <TranscriptPanel transcriptId={selectedId} playback={playback} onShowAllSpeakers={showAllSpeakers} />}</main>
+        <main aria-label="Transcript" className={cx(styles.panel, styles.center)}>{transcript ?? <TranscriptPanel transcriptId={selectedId} playback={playback} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />}</main>
         <section aria-label="Inspector" hidden={!visible.inspector} className={cx(styles.panel, styles.inspector)}>
           {inspector ?? (
             <InspectorPanel
@@ -123,6 +126,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
         <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player ?? <EditorPlayer transcriptId={selectedId} playback={playback} />}</section>
       </div>
       {speakerRequest && <SpeakerDialogs request={speakerRequest} onClose={() => setSpeakerRequest(null)} />}
+      {toDelete && <DeleteRecordingDialog recording={toDelete} onDeleted={() => setSelectedId(null)} onClose={() => setToDelete(null)} />}
     </div>
   )
 }

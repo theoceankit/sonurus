@@ -40,3 +40,8 @@ export function stackSpeakers(speakerIds: string[], speakers: Speaker[]): StackS
 // A speaker with no name is unrecognized. The API has no such flag on a recording.
 export const needsReview = (speakerIds: string[], speakers: Speaker[]) =>
   speakerIds.some(id => !speakers.find(speaker => speaker.id === id)?.name)
+
+export const deleteRecordingPrompt = (title: string) => ({
+  title: title ? `Delete “${title}”?` : 'Delete this transcript?',
+  body: 'The transcript and its recording made in Sonorus will be deleted. Imported audio files are kept. This cannot be undone.',
+})

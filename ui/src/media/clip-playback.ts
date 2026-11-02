@@ -83,8 +83,8 @@ export function createClipPlayback(main: Playback, audio: Playback): ClipPlaybac
 }
 
 // A clip player for one component's lifetime, on the audio of the open recording.
-export function useClipPlayback(main: Playback, src: string | null): ClipPlayback {
-  const audio = useAudioPlayback(src)
+export function useClipPlayback(main: Playback, src: string | null, reachable = true): ClipPlayback {
+  const audio = useAudioPlayback(src, reachable)
   const [clip, setClip] = useState<ClipPlayback | null>(null)
   useEffect(() => {
     const created = createClipPlayback(main, audio)

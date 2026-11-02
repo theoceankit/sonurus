@@ -30,6 +30,8 @@ export interface PlayerProps {
   state: PlayerState
   turns: readonly Turn[]
   disabled?: boolean
+  // A line over the waveform, such as why there is nothing to play.
+  notice?: string
   onToggle?: () => void
   onSeek?: (seconds: number) => void
   onRateChange?: (rate: number) => void
@@ -43,11 +45,12 @@ function ControlButton({ label, ...props }: IconButtonProps) {
 }
 
 export function Player({
-  state, turns, disabled, onToggle, onSeek, onRateChange, onVolumeChange, initialCursor,
+  state, turns, disabled, notice, onToggle, onSeek, onRateChange, onVolumeChange, initialCursor,
 }: PlayerProps) {
   const { currentTime, rate, volume } = state
-  const { elapsed, total, playing } = playerClock(state)
+  const { elapsed, playing } = playerClock(state)
   const duration = timelineDuration(state.duration, turns)
+  const total = formatClock(duration)
   const track = useRef<HTMLDivElement>(null)
   const [cursor, setCursor] = useState<number | null>(initialCursor?.at ?? null)
   const [dragging, setDragging] = useState(initialCursor?.dragging ?? false)
@@ -90,7 +93,7 @@ export function Player({
     seek(target)
   }
 
-  const share = (seconds: number) => (duration > 0 ? seconds / duration : 0)
+  const share = (seconds: number) => (duration > 0 ? Math.min(1, seconds / duration) : 0)
   const hovered = cursor === null || disabled ? null : turnAt(turns, cursor)
 
   return (
@@ -130,33 +133,36 @@ export function Player({
         />
       </Inline>
       <span className={disabled ? styles.currentDisabled : styles.current}>{elapsed}</span>
-      <div
-        ref={track}
-        className={disabled ? styles.trackDisabled : styles.track}
-        role="slider"
-        tabIndex={disabled ? undefined : 0}
-        aria-label="Position"
-        aria-disabled={disabled}
-        aria-valuemin={0}
-        aria-valuemax={duration}
-        aria-valuenow={currentTime}
-        aria-valuetext={`${elapsed} of ${total}`}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={() => setDragging(false)}
-        onPointerCancel={() => setDragging(false)}
-        onPointerLeave={() => { if (!dragging) setCursor(null) }}
-        onKeyDown={handleKeyDown}
-      >
-        <Waveform
-          progress={share(currentTime)}
-          bars={bars}
-          highlight={hovered && [share(hovered.start), share(hovered.end)]}
-        />
-        {!disabled && !dragging && <Playhead position={share(currentTime)} />}
-        {!disabled && cursor !== null && (
-          <Playhead look="hover" position={share(cursor)} time={formatClock(cursor)} name={hovered?.name} />
-        )}
+      <div className={styles.area}>
+        <div
+          ref={track}
+          className={disabled ? styles.trackDisabled : styles.track}
+          role="slider"
+          tabIndex={disabled ? undefined : 0}
+          aria-label="Position"
+          aria-disabled={disabled}
+          aria-valuemin={0}
+          aria-valuemax={duration}
+          aria-valuenow={currentTime}
+          aria-valuetext={`${elapsed} of ${total}`}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={() => setDragging(false)}
+          onPointerCancel={() => setDragging(false)}
+          onPointerLeave={() => { if (!dragging) setCursor(null) }}
+          onKeyDown={handleKeyDown}
+        >
+          <Waveform
+            progress={share(currentTime)}
+            bars={bars}
+            highlight={hovered && [share(hovered.start), share(hovered.end)]}
+          />
+          {!disabled && !dragging && <Playhead position={share(currentTime)} />}
+          {!disabled && cursor !== null && (
+            <Playhead look="hover" position={share(cursor)} time={formatClock(cursor)} name={hovered?.name} />
+          )}
+        </div>
+        {notice && <span className={styles.notice}>{notice}</span>}
       </div>
       <span className={disabled ? styles.totalDisabled : styles.total}>{total}</span>
       <Tooltip text="Playback speed">

@@ -44,6 +44,7 @@ export interface ApiClient {
   updateSpeaker(speakerId: string, update: SpeakerUpdate): Promise<Speaker>
   getSpeakerSample(speakerId: string, transcriptId?: number): Promise<SpeakerSample>
   getQueue(): Promise<QueueSnapshot>
-  // The listener first gets the current snapshot. Returns the unsubscribe.
-  subscribeQueueEvents(listener: (event: QueueUpdate) => void): () => void
+  // The listener first gets the current snapshot. onConnection is told when the
+  // connection is lost and when it is back. Returns the unsubscribe.
+  subscribeQueueEvents(listener: (event: QueueUpdate) => void, onConnection?: (connected: boolean) => void): () => void
 }

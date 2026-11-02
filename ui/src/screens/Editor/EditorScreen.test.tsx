@@ -1,9 +1,12 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
+import { ApiError } from '../../api/client'
 import { WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
+import { EVENT_SCRIPTS } from '../../api/fixtures/event-scripts'
+import { useQueueEventsSync } from '../../api/queries'
 import { OverlayProvider } from '../../OverlayProvider'
 import { EditorScreen } from './EditorScreen'
 
@@ -132,4 +135,121 @@ test('the panels show what they are given', () => {
   setup({ transcript: 'T', inspector: 'I', player: 'P' })
   expect(screen.getByRole('main', { name: 'Transcript' }).textContent).toBe('T')
   expect(screen.getByRole('region', { name: 'Player' }).textContent).toBe('P')
+})
+
+describe('deleting the open recording', () => {
+  const askToDelete = async () => {
+    await userEvent.click((await screen.findAllByRole('button', { name: 'More' }))[0])
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete recording' }))
+    return screen.findByRole('alertdialog')
+  }
+  const open = async (options: FixtureOptions = {}) => {
+    atWidth(1200)
+    setup({ initialSelectedId: WEEKLY_SYNC_ID }, options)
+    await screen.findByRole('heading', { level: 1 })
+  }
+  const panel = () => screen.getByRole('main', { name: 'Transcript' })
+
+  test('asks first, with the name of the recording', async () => {
+    await open()
+    const title = screen.getByRole('heading', { level: 1 }).textContent!
+    const dialog = await askToDelete()
+    expect(within(dialog).getByText(`Delete “${title}”?`)).toBeTruthy()
+    expect(within(dialog).getByText(/cannot be undone/)).toBeTruthy()
+  })
+
+  test('Cancel leaves everything as it was', async () => {
+    await open()
+    const dialog = await askToDelete()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(within(panel()).getByRole('heading', { level: 1 })).toBeTruthy()
+  })
+
+  test('Delete closes the recording, takes it off the list and says so', async () => {
+    await open()
+    const title = screen.getByRole('heading', { level: 1 }).textContent!
+    const dialog = await askToDelete()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(within(panel()).queryByRole('heading', { level: 1 })).toBeNull())
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(within(screen.getByLabelText('Recordings')).queryByText(title)).toBeNull()
+    expect(await screen.findByText(`Deleted “${title}”.`)).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Play' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  test('a failure says so and the recording stays open', async () => {
+    await open({ overrides: { deleteTranscript: () => Promise.reject(new ApiError(500, 'Server error 500')) } })
+    const dialog = await askToDelete()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByText('Could not delete: Server error 500')).toBeTruthy()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(within(panel()).getByRole('heading', { level: 1 })).toBeTruthy()
+  })
+})
+
+// What rebuilding the old editor took care of by hand: nothing here is rebuilt.
+describe('a refresh in the background', () => {
+  const JOB_DONE = { ...EVENT_SCRIPTS.transcribing, steps: EVENT_SCRIPTS.transcribing.steps.filter(step => step.event.type === 'job_done').map(step => ({ ...step, afterMs: 0 })) }
+
+  function Synced(props: { initialSelectedId: number }) {
+    useQueueEventsSync()
+    return <EditorScreen {...props} />
+  }
+
+  const open = async () => {
+    atWidth(1200)
+    const made: HTMLAudioElement[] = []
+    const RealAudio = Audio
+    vi.stubGlobal('Audio', function FakeAudio() {
+      const audio = new RealAudio()
+      made.push(audio)
+      return audio
+    })
+    const client = createFixtureClient()
+    render(<ApiProvider client={client}><OverlayProvider><Synced initialSelectedId={WEEKLY_SYNC_ID} /></OverlayProvider></ApiProvider>)
+    const heading = await screen.findByRole('heading', { level: 1 })
+    const review = await screen.findByText('Review speakers')
+    const scroll = document.querySelector<HTMLElement>('[data-transcript-scroll]')!
+    const row = screen.getAllByRole('button', { name: /^Go to / })[0]
+    scroll.scrollTop = 840
+    return { client, made, heading, review, scroll, row }
+  }
+
+  const expectUntouched = ({ heading, review, scroll, row }: Awaited<ReturnType<typeof open>>) => {
+    expect(heading.isConnected).toBe(true)
+    expect(review.isConnected).toBe(true)
+    expect(row.isConnected).toBe(true)
+    expect(scroll.isConnected).toBe(true)
+    expect(scroll.scrollTop).toBe(840)
+  }
+
+  test('a job done elsewhere keeps the transcript, its scroll, the review and the audio', async () => {
+    const view = await open()
+    const main = view.made[0]
+    const source = vi.spyOn(main, 'src', 'set')
+    const load = vi.spyOn(main, 'load')
+    const before = screen.getAllByRole('region').length
+    await act(async () => { view.client.playEvents(JOB_DONE) })
+    await waitFor(() => expect(within(screen.getByLabelText('Recordings')).getByText('Planning call')).toBeTruthy())
+    expectUntouched(view)
+    expect(source).not.toHaveBeenCalled()
+    expect(load).not.toHaveBeenCalled()
+    expect(screen.getAllByRole('region').length).toBe(before)
+  })
+
+  test('a refresh that fails keeps what is on the screen', async () => {
+    const view = await open()
+    const failure = new ApiError(0, 'Failed to fetch')
+    for (const method of ['listTranscripts', 'getTranscript', 'listSpeakers', 'getSpeakerCandidates'] as const) {
+      vi.spyOn(view.client, method).mockRejectedValue(failure)
+    }
+    await act(async () => { view.client.playEvents(JOB_DONE) })
+    await waitFor(() => expect(view.client.getTranscript).toHaveBeenCalled())
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)) })
+    expectUntouched(view)
+    expect(screen.queryByText('Could not load this recording')).toBeNull()
+    expect(screen.queryByText('Could not load recordings')).toBeNull()
+    expect(screen.queryByText('Could not load the speakers')).toBeNull()
+  })
 })

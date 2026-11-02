@@ -70,6 +70,8 @@ export const DisabledNoAudio: Story = {
   args: { state: { ...PAUSED, currentTime: 0, duration: NaN }, disabled: true },
 }
 
+export const NoAudioFile: Story = { args: { state: { ...PAUSED, currentTime: 0 }, disabled: true, notice: 'Audio file not found' } }
+
 export const Faster: Story = { args: { state: { ...PAUSED, rate: 1.5 } } }
 
 export const Muted: Story = { args: { state: { ...PAUSED, volume: 0 } } }

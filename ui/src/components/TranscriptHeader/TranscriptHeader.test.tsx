@@ -25,11 +25,19 @@ test('leaves out what it does not know', () => {
   expect(screen.queryByText('English')).toBeNull()
 })
 
-test.each([false, true])('sticky %s: Pin, Export and More are not available yet', sticky => {
+test.each([false, true])('sticky %s: Pin and Export are not available yet', sticky => {
   setup({ sticky })
-  for (const name of ['Pin', 'Export', 'More']) {
+  for (const name of ['Pin', 'Export']) {
     expect(screen.getByRole('button', { name }).getAttribute('aria-disabled')).toBe('true')
   }
+})
+
+test.each([false, true])('sticky %s: More offers to delete the recording', async sticky => {
+  const onDelete = vi.fn()
+  setup({ sticky, onDelete })
+  await userEvent.click(screen.getByRole('button', { name: 'More' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete recording' }))
+  expect(onDelete).toHaveBeenCalledOnce()
 })
 
 test('sticky: the title on one line, no date', () => {
