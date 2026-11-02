@@ -1,15 +1,19 @@
 /*
  * What interactive controls share. A component takes these with `composes` and
  * sets --state-hover and --state-pressed when its layer differs from the default.
+ *
+ * Every selector sits in :where(): composes puts these rules wherever the first
+ * module that uses them loads, and without specificity a component's own rules win
+ * from any place in the cascade.
  */
 
 /* The layer sits under the content and over the control's own background. */
-.stateLayer {
+:where(.stateLayer) {
   position: relative;
   isolation: isolate;
 }
 
-.stateLayer::before {
+:where(.stateLayer)::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -18,25 +22,25 @@
   pointer-events: none;
 }
 
-.stateLayer:not(:disabled, [aria-disabled='true']):hover::before {
+:where(.stateLayer:not(:disabled, [aria-disabled='true']):hover)::before {
   background: var(--state-hover, var(--color-fill-hover));
 }
 
-.stateLayer:not(:disabled, [aria-disabled='true']):active::before {
+:where(.stateLayer:not(:disabled, [aria-disabled='true']):active)::before {
   background: var(--state-pressed, var(--color-fill-pressed));
 }
 
 /* A ring two pixels away from the control, drawn over its neighbours. */
-.focusRing {
+:where(.focusRing) {
   outline: none;
 }
 
-.focusRing:focus-visible {
+:where(.focusRing:focus-visible) {
   outline: var(--border-width-strong) solid var(--color-focus);
   outline-offset: var(--border-width-strong);
 }
 
-.reset {
+:where(.reset) {
   appearance: none;
   border: none;
   background: transparent;
@@ -46,7 +50,7 @@
   cursor: pointer;
 }
 
-.reset:disabled,
-.reset[aria-disabled='true'] {
+:where(.reset:disabled),
+:where(.reset[aria-disabled='true']) {
   cursor: default;
 }

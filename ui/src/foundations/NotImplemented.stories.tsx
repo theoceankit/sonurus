@@ -38,10 +38,12 @@ export const Controls: Story = {
         <TabPanel value="chapters">Must never show</TabPanel>
         <TabPanel value="notes">Notes panel</TabPanel>
       </Tabs>
-      <Menu trigger={<Button>Menu</Button>}>
-        <MenuAction icon="copy">Works</MenuAction>
-        <MenuAction {...notImplementedProps('story.menu-item')} icon="bookmark">Marked</MenuAction>
-      </Menu>
+      <Inline>
+        <Menu trigger={<Button>Menu</Button>}>
+          <MenuAction icon="copy">Works</MenuAction>
+          <MenuAction {...notImplementedProps('story.menu-item')} icon="bookmark">Marked</MenuAction>
+        </Menu>
+      </Inline>
       <div {...notImplementedProps('story.container')}>
         <Inline gap={2}>
           <Button>Inside a marked container</Button>
