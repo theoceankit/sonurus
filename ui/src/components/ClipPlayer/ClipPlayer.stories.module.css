@@ -1,0 +1,5 @@
+.clip {
+  padding: var(--space-2);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-sunken);
+}

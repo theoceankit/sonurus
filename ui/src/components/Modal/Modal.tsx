@@ -44,6 +44,8 @@ function returnPoint() {
 function startingPoint(content: HTMLElement, type: ModalType) {
   const cancel = content.querySelector<HTMLElement>('[data-modal-cancel]')
   if (type === 'danger' && cancel) return cancel
+  const start = content.querySelector<HTMLElement>('[data-modal-start]')
+  if (start) return start
   return firstIn(content, '[data-modal-body]') ?? firstIn(content, '[data-modal-footer]') ?? firstIn(content, '[data-modal-header]')
 }
 

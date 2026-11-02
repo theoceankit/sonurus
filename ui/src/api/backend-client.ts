@@ -65,6 +65,8 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     updateSegmentText: (id, start, text) => send(http.PATCH('/transcripts/{transcript_id}/segments/{start}/text', { ...segment(id, start), body: { text } })),
     deleteSegment: (id, start) => send(http.DELETE('/transcripts/{transcript_id}/segments/{start}', segment(id, start))),
     assignSpeaker,
+    // The backend has no route for it yet.
+    undoSpeakerAssignment: () => Promise.reject(new ApiError(501, 'The backend cannot undo this yet')),
     getSpeakerCandidates: id => send(http.GET('/transcripts/{transcript_id}/speaker-candidates', transcript(id))),
     listSpeakers: () => send(http.GET('/speakers')),
     updateSpeaker: (speaker_id, body) => send(http.PATCH('/speakers/{speaker_id}', { params: { path: { speaker_id } }, body })),

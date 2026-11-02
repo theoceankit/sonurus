@@ -1,0 +1,90 @@
+.inspector {
+  height: 100%;
+  /* The panel's border counts in the board's distances. */
+  padding-block: calc(var(--space-4) - var(--border-width-default));
+  padding-inline: calc(var(--space-2) - var(--border-width-default));
+}
+
+.tabs {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+}
+
+.tabs > [role='tablist'] {
+  flex: none;
+  padding-inline: var(--space-2);
+}
+
+.close {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: var(--space-2);
+}
+
+/* On a low window a long clip does not fit: then the whole panel scrolls. */
+.panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.scrollArea {
+  position: relative;
+  display: flex;
+  flex: 1 0 0;
+  min-height: var(--size-inspector-list-min);
+}
+
+/* No scrollbar to take width from the rows: the fade says there is more. */
+.scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.dock {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block-start: var(--space-4);
+  padding-inline: var(--space-2);
+  border-block-start: var(--border-width-default) solid var(--color-border-default);
+}
+
+.dockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.dockCollapsed {
+  flex-direction: row;
+  align-items: center;
+}
+
+.title {
+  color: var(--color-text-primary);
+  font: var(--font-body-strong);
+}
+
+.counter {
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.spacer {
+  flex: 1;
+}

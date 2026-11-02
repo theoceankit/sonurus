@@ -37,4 +37,4 @@ A recording of three hours is about 3600 paragraphs, so the list renders little 
 - **Playback.** A click on the time of a turn seeks, and Play on a paragraph seeks and plays. The paragraph playing has a bar in its speaker's colour, from the first time the audio moves. The list does not follow the player.
 - **Keyboard.** The list is one stop of Tab, which lands on the row it was last on or the first in view. Up and Down go over names, times and paragraphs; Enter on a paragraph edits it. A focused paragraph shows its bar, and Tab goes on into it.
 
-Pin, Export and More in the header, Highlight and, until the list of all speakers exists, Show all speakers are marked with `markNotImplemented()`.
+Pin, Export and More in the header and Highlight are marked with `markNotImplemented()`. Show all speakers calls `onShowAllSpeakers` with the segments of the turn or paragraph, and `EditorScreen` opens Choose a speaker for them: see [New UI inspector](new-ui-inspector.md).

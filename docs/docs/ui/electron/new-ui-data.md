@@ -45,6 +45,8 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `getSpeakerCandidates` gives, per unrecognized speaker, up to three candidates and a clip of the voice, as `GET /transcripts/{id}/speaker-candidates` answers. A speaker with no candidates is still in the answer, for its clip. The fixtures also give candidates to recognized speakers for the Possible match state in Storybook; the API does not.
 
+`undoSpeakerAssignment({ transcriptId, segmentStarts, speakerId })` puts segments back under the speaker they had before an assignment, and works on fixtures, where it also brings back the candidates and the clip. A reassign the other way would not do: it moves every segment of the new speaker, and a voice left with no segments is gone from speaker memory. The backend has no route for it yet, so the backend client rejects with status 501.
+
 `now()` is today for the screens: the current time on the backend client, 5 October 2026 on fixtures, so that sections of the recordings list stay as on the design boards.
 
 A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/speaker-colors.ts` turns it into a colour of the avatars. The fixtures use the colours of the boards.
@@ -71,6 +73,8 @@ A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/spea
 | `overrides` | any methods of `ApiClient` | One method behaving differently, such as a failing save on a loaded screen |
 
 The fixtures have the shape of the API and mirror how it reads back: a corrected speaker is in `speaker_resolved` with `speaker_final` null, and an unassigned segment has neither. What the design shows and the API does not have, such as pinned recordings, folders, chapters or a speaker's handle, is not in them. The exception is candidates, which already have the up to three per speaker with percentages the review card shows.
+
+Design review (`DESIGN_REVIEW_ID`) is not on a board: it has four voices with no name, among them one with no candidates, one with no clip and one with a clip of 29 seconds, to go through a whole review.
 
 Audio is made in memory from the segments (`test-audio.ts`): a tone per speaker, in order of appearance, and silence in the pauses, so a jump to the next speaker can be heard. There is no file in the repository and no request, and like all fixtures it is not in a build.
 

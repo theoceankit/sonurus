@@ -1,0 +1,3 @@
+.dock {
+  width: calc(var(--size-panel-side) - var(--space-8));
+}

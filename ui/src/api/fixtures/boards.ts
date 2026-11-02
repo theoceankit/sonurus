@@ -1,6 +1,6 @@
 import type { Segment, Speaker, SpeakerCandidates, Transcript, TranscriptListItem } from '../types'
 import { longRecording, LONG_RECORDING_ITEM } from './long-recording'
-import { CANDIDATES, SPEAKER_IDS, SPEAKERS, TRANSCRIPTS, WEEKLY_SYNC_ID, weeklySync } from './data'
+import { CANDIDATES, DESIGN_REVIEW_CANDIDATES, DESIGN_REVIEW_ID, designReview, SPEAKER_IDS, SPEAKERS, TRANSCRIPTS, WEEKLY_SYNC_ID, weeklySync } from './data'
 
 export type FixtureData = {
   transcripts: TranscriptListItem[]
@@ -17,9 +17,9 @@ const isUnknown1 = (segment: Segment) => segment.speaker_resolved === SPEAKER_ID
 
 const withWeeklySync = (segments: (all: Segment[]) => Segment[], candidates: SpeakerCandidates): FixtureData => ({
   transcripts: TRANSCRIPTS,
-  details: [weeklySync(segments(weeklySync().segments))],
+  details: [weeklySync(segments(weeklySync().segments)), designReview()],
   speakers: SPEAKERS,
-  candidates: { [WEEKLY_SYNC_ID]: candidates },
+  candidates: { [WEEKLY_SYNC_ID]: candidates, [DESIGN_REVIEW_ID]: DESIGN_REVIEW_CANDIDATES },
 })
 
 export const BOARDS: Record<FixtureBoard, FixtureData> = {

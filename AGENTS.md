@@ -109,6 +109,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | New UI data: API client, fixtures, generated types | `ui/src/api/`, `ui/src/platform/`, `ui/tools/openapi-types/`, `app/api/openapi_schema.py` | `docs/docs/ui/electron/new-ui-data.md` |
 | New UI player and playback | `ui/src/media/`, `ui/src/components/Player/`, `ui/src/screens/Editor/EditorPlayer.tsx` | `docs/docs/ui/electron/new-ui-player.md` |
 | New UI transcript | `ui/src/screens/Editor/Transcript*.tsx`, `transcript.ts`, `ui/src/media/active-segment.ts`, `ui/src/components/TurnHeader/`, `Paragraph/`, `TranscriptHeader/`, `SpeakerMenu/` | `docs/docs/ui/electron/new-ui-transcript.md` |
+| New UI inspector and speaker review | `ui/src/screens/Editor/InspectorPanel.tsx`, `SpeakerDialogs.tsx`, `review-queue.ts`, `inspector.ts`, `speaker-search.ts`, `new-speaker.ts`, `ui/src/media/clip-playback.ts` | `docs/docs/ui/electron/new-ui-inspector.md` |
 | New UI tokens, font, icons, overlays | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/` | `docs/docs/ui/electron/new-ui-foundations.md` |
 | Live recording | `app/api/routers/audio_capture.py`, `native/` | `docs/docs/ui/electron/live-recording.md` |
 | Packaging and releases | `scripts/bundle-backend.js`, `locks/`, `build/` | `docs/docs/distribution/` |

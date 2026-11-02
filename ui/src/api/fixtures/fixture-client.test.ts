@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiError } from '../client'
 import { effectiveSpeaker, UNASSIGNED, type QueueUpdate, type Segment } from '../types'
 import { BOARDS } from './boards'
-import { SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
+import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
 import { EVENT_SCRIPTS } from './event-scripts'
 import { createFixtureClient } from './fixture-client'
 
@@ -276,5 +276,68 @@ describe('queue events', () => {
     stop()
     await vi.advanceTimersByTimeAsync(10000)
     expect(second).toHaveLength(2)
+  })
+})
+
+describe('undoing an assignment', () => {
+  const starts = (segments: Segment[], id: string) => segments.filter(s => effectiveSpeaker(s) === id).map(s => s.start)
+
+  test('gives the segments back and leaves those the speaker had before', async () => {
+    const client = createFixtureClient()
+    const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
+    const segmentStarts = starts(segments, unknown1)
+    const marks = starts(segments, mark)
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: unknown1, target: { id: mark } })
+    await client.undoSpeakerAssignment({ transcriptId: WEEKLY_SYNC_ID, segmentStarts, speakerId: unknown1 })
+    const after = (await client.getTranscript(WEEKLY_SYNC_ID)).segments
+    expect(starts(after, unknown1)).toEqual(segmentStarts)
+    expect(starts(after, mark)).toEqual(marks)
+  })
+
+  test('brings back the candidates and the clip', async () => {
+    const client = createFixtureClient()
+    const before = await client.getSpeakerCandidates(WEEKLY_SYNC_ID)
+    const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: unknown1, target: { id: mark } })
+    expect((await client.getSpeakerCandidates(WEEKLY_SYNC_ID))[unknown1]).toBeUndefined()
+    await client.undoSpeakerAssignment({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: starts(segments, unknown1), speakerId: unknown1 })
+    expect((await client.getSpeakerCandidates(WEEKLY_SYNC_ID))[unknown1]).toEqual(before[unknown1])
+  })
+
+  test('the list of the recording has the speaker again', async () => {
+    const client = createFixtureClient()
+    const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: unknown1, target: { id: mark } })
+    await client.undoSpeakerAssignment({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: starts(segments, unknown1), speakerId: unknown1 })
+    const item = (await client.listTranscripts()).find(t => t.id === WEEKLY_SYNC_ID)!
+    expect(item.speakers).toContain(unknown1)
+  })
+
+  test('segments of a deleted speaker go back to unassigned', async () => {
+    const client = createFixtureClient({ board: 'unassigned' })
+    const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
+    const segmentStarts = starts(segments, UNASSIGNED)
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: UNASSIGNED, target: { id: mark } })
+    await client.undoSpeakerAssignment({ transcriptId: WEEKLY_SYNC_ID, segmentStarts, speakerId: UNASSIGNED })
+    expect(starts((await client.getTranscript(WEEKLY_SYNC_ID)).segments, UNASSIGNED)).toEqual(segmentStarts)
+  })
+})
+
+describe('the recording for going through a whole review', () => {
+  test('has voices with no name, and every one in the list of the recording', async () => {
+    const client = createFixtureClient()
+    const { segments } = await client.getTranscript(DESIGN_REVIEW_ID)
+    const speakers = await client.listSpeakers()
+    const ids = new Set(segments.map(effectiveSpeaker))
+    expect([...ids].filter(id => !speakers.find(s => s.id === id)?.name).length).toBeGreaterThanOrEqual(3)
+    const item = (await client.listTranscripts()).find(t => t.id === DESIGN_REVIEW_ID)!
+    expect(new Set(item.speakers)).toEqual(ids)
+  })
+
+  test('has the edge cases of the card: no candidates, no clip, a long clip', async () => {
+    const answers = Object.values(await createFixtureClient().getSpeakerCandidates(DESIGN_REVIEW_ID))
+    expect(answers.some(a => a.candidates.length === 0 && a.clip)).toBe(true)
+    expect(answers.some(a => a.candidates.length > 0 && a.clip === null)).toBe(true)
+    expect(answers.some(a => a.clip && a.clip.end - a.clip.start === 29)).toBe(true)
   })
 })

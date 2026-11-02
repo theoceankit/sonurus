@@ -25,6 +25,7 @@
   height: var(--size-waveform-small);
 }
 
+/* As narrow as the bars allow, and wider where the parent gives it room. */
 .small .bar {
-  width: var(--space-half);
+  flex: 1 1 var(--space-half);
 }

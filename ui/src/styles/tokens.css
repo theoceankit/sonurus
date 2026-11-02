@@ -199,10 +199,14 @@
   --size-slider-track: 4px;
   --size-slider-thumb: 12px;
   --size-status-dot: 6px;
+  --size-talk-time-bar: 6px;
+  --size-inspector-list-min: 72px;
 
   --size-modal-small: 400px;
   --size-modal-medium: 520px;
   --size-modal-large: 760px;
+  --size-choose-speaker-rail: 212px;
+  --size-choose-speaker-list: 344px;
 
   --size-scroll-fade-md: 40px;
   --size-scroll-fade-lg: 48px;

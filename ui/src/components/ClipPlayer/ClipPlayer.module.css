@@ -1,0 +1,40 @@
+.clipPlayer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.play {
+  composes: reset stateLayer focusRing from '../../styles/control.module.css';
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-window);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.play:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: default;
+}
+
+.waveform {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.duration {
+  flex: none;
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.up {
+  transform: rotate(180deg);
+}

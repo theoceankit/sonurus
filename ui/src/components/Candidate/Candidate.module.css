@@ -1,0 +1,66 @@
+.candidate {
+  composes: reset stateLayer focusRing from '../../styles/control.module.css';
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--size-control-md);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-card);
+  color: var(--color-text-primary);
+  text-align: start;
+  cursor: pointer;
+}
+
+.active {
+  background: var(--color-fill-hover);
+}
+
+.selected {
+  background: var(--color-identify-bg);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--font-body);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.strong {
+  font: var(--font-body-strong);
+}
+
+.meta {
+  flex: none;
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.mark {
+  display: flex;
+  flex: none;
+  color: var(--color-identify-fg);
+}
+
+.plus {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-avatar-sm);
+  color: var(--color-text-secondary);
+}
+
+.addLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
