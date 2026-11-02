@@ -125,17 +125,31 @@ export const TRANSCRIPTS: TranscriptListItem[] = [
   listItem(17, 'Quarterly numbers', '2026-09-01T09:00:00', 'Sep 01, 2026', '33 min', [priya, mark, anna, lena, oliver]),
 ]
 
-const candidate = (speakerId: string, name: string, score: number) => ({ speaker_id: speakerId, name, score })
+const candidate = (speakerId: string, name: string, score: number, suggested = false) => (
+  { speaker_id: speakerId, name, score, suggested }
+)
+const clip = (start: number, end: number, text: string) => ({ start, end, text })
 
 // Four speakers to review, with the percentages of the review card. The API
-// suggests only for unrecognized speakers and gives one candidate each; three
-// candidates and a possible match on a recognized speaker are what the design
-// asks of the backend, so this is the shape it will have, not what it does now.
+// answers only for speakers without a name; a possible match on a recognized
+// speaker is what the design asks of the backend later, for Storybook until then.
 export const CANDIDATES: SpeakerCandidates = {
-  [unknown1]: [candidate(mark, 'Mark Ellis', 0.82), candidate(lena, 'Lena Kovacs', 0.41), candidate(priya, 'Priya Shah', 0.12)],
-  [sofia]: [candidate(sofia, 'Sofia Ramos', 0.71), candidate(priya, 'Priya Shah', 0.28), candidate(lena, 'Lena Kovacs', 0.15)],
-  [oliver]: [candidate(oliver, 'Oliver Grant', 0.64), candidate(mark, 'Mark Ellis', 0.31), candidate(priya, 'Priya Shah', 0.18)],
-  [lena]: [candidate(lena, 'Lena Kovacs', 0.58), candidate(priya, 'Priya Shah', 0.33), candidate(sofia, 'Sofia Ramos', 0.2)],
+  [unknown1]: {
+    candidates: [candidate(mark, 'Mark Ellis', 0.82, true), candidate(lena, 'Lena Kovacs', 0.41), candidate(priya, 'Priya Shah', 0.12)],
+    clip: clip(16, 20, 'That was me. Files over two hours took a long time to copy.'),
+  },
+  [sofia]: {
+    candidates: [candidate(sofia, 'Sofia Ramos', 0.71, true), candidate(priya, 'Priya Shah', 0.28), candidate(lena, 'Lena Kovacs', 0.15)],
+    clip: clip(44, 47, 'I can pick up the button styles.'),
+  },
+  [oliver]: {
+    candidates: [candidate(oliver, 'Oliver Grant', 0.64, true), candidate(mark, 'Mark Ellis', 0.31), candidate(priya, 'Priya Shah', 0.18)],
+    clip: clip(31, 38, 'Let me check the numbers and get back to you by Friday.'),
+  },
+  [lena]: {
+    candidates: [candidate(lena, 'Lena Kovacs', 0.58, true), candidate(priya, 'Priya Shah', 0.33), candidate(sofia, 'Sofia Ramos', 0.2)],
+    clip: clip(29, 31, 'I would like to fix that before the big redesign.'),
+  },
 }
 
 export const queueSnapshot = (changes: Partial<QueueSnapshot> = {}): QueueSnapshot => ({
