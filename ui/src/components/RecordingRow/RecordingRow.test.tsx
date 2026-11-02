@@ -36,12 +36,12 @@ test('the dot appears only when the recording needs review', () => {
   expect(screen.getByRole('img', { name: 'Needs review' })).toBeTruthy()
 })
 
-test('shows three avatars at most and counts the rest', () => {
+test('shows three avatars at most, with no count of the rest', () => {
   render(<RecordingRow title="A" speakers={speakers} />)
   expect(screen.getByText('AP')).toBeTruthy()
   expect(screen.getByText('LK')).toBeTruthy()
   expect(screen.queryByText('OG')).toBeNull()
-  expect(screen.getByText('+2')).toBeTruthy()
+  expect(screen.queryByText('+2')).toBeNull()
 })
 
 test('a recording without speakers has no stack', () => {
