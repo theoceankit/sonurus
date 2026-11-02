@@ -43,6 +43,10 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `getSpeakerCandidates` gives, per unrecognized speaker, up to three candidates and a clip of the voice, as `GET /transcripts/{id}/speaker-candidates` answers. A speaker with no candidates is still in the answer, for its clip. The fixtures also give candidates to recognized speakers for the Possible match state in Storybook; the API does not.
 
+`now()` is today for the screens: the current time on the backend client, 5 October 2026 on fixtures, so that sections of the recordings list stay as on the design boards.
+
+A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/speaker-colors.ts` turns it into a colour of the avatars. The fixtures use the colours of the boards.
+
 ## Queue events
 
 `subscribeQueueEvents` gives the current snapshot and then every snapshot and job event. `queue-events.ts` connects to `WS /ws/queue`, reconnects two seconds after the connection drops and does not pass heartbeats on.

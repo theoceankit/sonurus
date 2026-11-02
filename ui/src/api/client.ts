@@ -23,6 +23,8 @@ export type SpeakerAssignment = { transcriptId: number; target: SpeakerTarget }
 // Everything a screen knows about the backend. Screens get it through
 // useApi(), so they work the same on fixtures and on the real thing.
 export interface ApiClient {
+  // Today for the screens: the list's sections on fixtures must stay as on the boards.
+  now(): Date
   listTranscripts(): Promise<TranscriptListItem[]>
   getTranscript(transcriptId: number): Promise<Transcript>
   updateTranscriptTitle(transcriptId: number, title: string): Promise<void>

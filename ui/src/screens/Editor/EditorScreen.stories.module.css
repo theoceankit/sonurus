@@ -1,0 +1,14 @@
+.board {
+  width: 1200px;
+  height: 800px;
+}
+
+.minimum {
+  width: 900px;
+  height: 600px;
+}
+
+.boundary {
+  width: 1112px;
+  height: 800px;
+}

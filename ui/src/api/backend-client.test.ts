@@ -130,4 +130,11 @@ describe('errors', () => {
     const client = createBackendClient({ fetch: fetch as typeof globalThis.fetch })
     expect(await failure(client.listTranscripts())).toMatchObject({ status: 0, message: 'Failed to fetch' })
   })
+
+  test('now is the current time', () => {
+    const before = Date.now()
+    const now = createBackendClient().now().getTime()
+    expect(now).toBeGreaterThanOrEqual(before)
+    expect(now).toBeLessThanOrEqual(Date.now())
+  })
 })

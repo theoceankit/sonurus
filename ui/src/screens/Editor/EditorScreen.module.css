@@ -1,0 +1,67 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg-sunken);
+}
+
+.panels {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--size-panel-side) minmax(0, 1fr) var(--size-panel-side);
+  grid-template-rows: minmax(0, 1fr) var(--size-player);
+  grid-template-areas:
+    'sidebar center inspector'
+    'player player player';
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.noSidebar {
+  grid-template-columns: minmax(0, 1fr) var(--size-panel-side);
+  grid-template-areas:
+    'center inspector'
+    'player player';
+}
+
+.noInspector {
+  grid-template-columns: var(--size-panel-side) minmax(0, 1fr);
+  grid-template-areas:
+    'sidebar center'
+    'player player';
+}
+
+.noSidebar.noInspector {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'center'
+    'player';
+}
+
+.panel {
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-bg-window);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+}
+
+.sidebar {
+  grid-area: sidebar;
+  min-height: 0;
+}
+
+.center {
+  grid-area: center;
+}
+
+.inspector {
+  grid-area: inspector;
+}
+
+.player {
+  grid-area: player;
+}

@@ -1,0 +1,48 @@
+/*
+ * Three columns so the search stays in the middle of the window while there is
+ * room. The window buttons take their side from the system: with none, as in
+ * Storybook, the area is the whole width and both insets are zero.
+ */
+.titlebar {
+  --inset-start: var(--titlebar-inset-start, env(titlebar-area-x, 0px));
+  --inset-end: var(--titlebar-inset-end, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)));
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, var(--size-search)) minmax(max-content, 1fr);
+  align-items: center;
+  flex: none;
+  height: var(--size-titlebar);
+  -webkit-app-region: drag;
+}
+
+.titlebar button,
+.search {
+  -webkit-app-region: no-drag;
+}
+
+/* Ends with the sidebar column, however narrow the window or closed the sidebar. */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: calc(var(--size-panel-side) + var(--space-2));
+  margin-right: var(--space-5);
+  padding-left: max(var(--space-4), calc(var(--inset-start) + var(--space-2)));
+  padding-right: var(--space-2);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.search {
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  margin-left: var(--space-3);
+  padding-right: max(var(--space-5), calc(var(--inset-end) + var(--space-2)));
+}

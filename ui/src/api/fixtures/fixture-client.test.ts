@@ -13,6 +13,11 @@ const talkTime = (segments: Segment[], id: string) =>
 afterEach(() => vi.useRealTimers())
 
 describe('board data', () => {
+  test('today is the day of the boards, whatever the clock says', () => {
+    const now = createFixtureClient().now()
+    expect([now.getFullYear(), now.getMonth(), now.getDate()]).toEqual([2026, 9, 5])
+  })
+
   test('has the recordings and the speakers of the boards', async () => {
     const client = createFixtureClient()
     const transcripts = await client.listTranscripts()

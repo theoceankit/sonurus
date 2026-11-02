@@ -38,18 +38,18 @@ const speaker = (id: string, name: string | null, colorIndex: number, transcript
 
 // Named first by name, then unnamed: the order of GET /speakers.
 export const SPEAKERS: Speaker[] = [
-  speaker(anna, 'Anna Petrova', 0, 14),
+  speaker(anna, 'Anna Petrova', 4, 14),
   speaker(daniel, 'Daniel Brooks', 3, 4),
   speaker(emma, 'Emma Wilson', 4, 4),
   speaker(hugo, 'Hugo Martin', 0, 2),
   speaker(ines, 'Ines Costa', 1, 2),
   speaker(jonas, 'Jonas Weber', 2, 1),
-  speaker(kate, 'Kate Nguyen', 3, 1),
-  speaker(lena, 'Lena Kovacs', 2, 11),
-  speaker(mark, 'Mark Ellis', 1, 8),
+  speaker(kate, 'Kate Nguyen', 1, 1),
+  speaker(lena, 'Lena Kovacs', 3, 11),
+  speaker(mark, 'Mark Ellis', 0, 8),
   speaker(olga, 'Olga Larsen', 2, 1),
-  speaker(oliver, 'Oliver Grant', 3, 5),
-  speaker(priya, 'Priya Shah', 4, 6),
+  speaker(oliver, 'Oliver Grant', 2, 5),
+  speaker(priya, 'Priya Shah', 1, 6),
   speaker(sofia, 'Sofia Ramos', 1, 3),
   speaker(unknown1, null, 0, 1),
   speaker(unknown2, null, 4, 2),
@@ -104,7 +104,10 @@ const listItem = (id: number, title: string, createdAt: string, section: string,
 
 const LAST_WEEK = 'Last week'
 
-// Newest first, the order of GET /transcripts. Today is 5 October 2026 here.
+// What now() says on fixtures, so the sections of the list stay as on the boards.
+export const FIXTURE_NOW = new Date(2026, 9, 5, 12)
+
+// Newest first, the order of GET /transcripts.
 export const TRANSCRIPTS: TranscriptListItem[] = [
   listItem(2, 'Design review', '2026-10-05T11:20:00', 'Today', '42 min', [lena, unknown2, oliver, sofia, mark]),
   listItem(3, 'Interview: onboarding feedback', '2026-10-05T09:05:00', 'Today', '28 min', [lena, unknown2, priya, anna, mark]),
