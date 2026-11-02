@@ -68,3 +68,25 @@
   outline: var(--border-width-default) solid var(--color-border-default);
   outline-offset: calc(var(--border-width-default) * -1);
 }
+
+/* Over the waveform, and not dimmed with it. */
+.area {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.notice {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+  white-space: nowrap;
+  pointer-events: none;
+}

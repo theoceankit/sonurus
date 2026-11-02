@@ -27,8 +27,24 @@ test('shows the time and the duration', () => {
 })
 
 test('a duration not known yet shows 00:00', () => {
-  setup({ state: { ...STATE, currentTime: 0, duration: NaN } })
+  setup({ state: { ...STATE, currentTime: 0, duration: NaN }, turns: [] })
   expect(screen.getAllByText('00:00')).toHaveLength(2)
+})
+
+// A live recording in WebM has no length in the file: duration is Infinity.
+test('audio that does not know its length shows the end of the last turn', () => {
+  setup({ state: { ...STATE, duration: Infinity } })
+  expect(screen.getByText('01:40')).toBeTruthy()
+})
+
+test('audio that goes on after the last turn keeps the playhead on the waveform', () => {
+  const { container } = setup({ state: { ...STATE, currentTime: 130, duration: Infinity } })
+  expect(container.innerHTML).not.toContain('130%')
+})
+
+test('a notice shows over the waveform', () => {
+  setup({ disabled: true, notice: 'Audio file not found' })
+  expect(screen.getByText('Audio file not found')).toBeTruthy()
 })
 
 test('the middle button says what it does and toggles', async () => {

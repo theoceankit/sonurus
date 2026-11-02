@@ -31,6 +31,7 @@ export function useTranscriptPlayback(transcriptId: number | null): Playback {
 
 // The player of the open recording.
 export function EditorPlayer({ transcriptId, playback }: { transcriptId: number | null; playback: Playback }) {
+  const api = useApi()
   const transcript = useTranscript(transcriptId).data
   const speakers = useSpeakers().data
   const state = usePlayback(playback)
@@ -44,6 +45,7 @@ export function EditorPlayer({ transcriptId, playback }: { transcriptId: number 
       state={state}
       turns={turns}
       disabled={state.status !== 'ready'}
+      notice={transcriptId !== null && transcript && (state.status === 'error' || !api.getAudioUrl(transcript)) ? 'Audio file not found' : undefined}
       onToggle={playback.toggle}
       onSeek={playback.seek}
       onRateChange={playback.setRate}
