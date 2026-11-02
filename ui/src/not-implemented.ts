@@ -12,6 +12,12 @@ import { toast } from './components/Toast/toast'
 // one of the two is removed).
 
 export const NOT_IMPLEMENTED = [
+  'choose-speaker.invited',
+  'choose-speaker.recently-added',
+  'inspector.chapters',
+  'inspector.notes',
+  'new-speaker.email',
+  'new-speaker.handle',
   'titlebar.back',
   'titlebar.forward',
   'titlebar.new-transcription',

@@ -1,0 +1,27 @@
+.talkTime {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-inline: var(--space-2);
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.bar {
+  display: flex;
+  gap: var(--space-half);
+  height: var(--size-talk-time-bar);
+}
+
+/* A short speaker still shows: the bar takes the rest of its width from the others. */
+.segment {
+  flex-basis: 0;
+  min-width: var(--space-half);
+  border-radius: var(--radius-full);
+}

@@ -1,0 +1,98 @@
+.speakerRow {
+  position: relative;
+  display: flex;
+  height: var(--size-control-md);
+  border-radius: var(--radius-card);
+}
+
+.speakerRow:hover {
+  background: var(--color-fill-hover);
+}
+
+.selected,
+.selected:hover {
+  background: var(--color-fill-pressed);
+}
+
+.main {
+  composes: reset focusRing from '../../styles/control.module.css';
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-card);
+  color: var(--color-text-primary);
+  text-align: start;
+}
+
+button.main {
+  cursor: pointer;
+}
+
+.leading {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-avatar-sm);
+  color: var(--color-text-secondary);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--font-body);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.selectedName {
+  font: var(--font-body-strong);
+}
+
+.time {
+  flex: none;
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.more {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+
+.up {
+  transform: rotate(180deg);
+}
+
+/* The buttons stand where the time is, and a keyboard finds them too. */
+.actions {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-half);
+  opacity: 0;
+}
+
+.speakerRow:hover .actions,
+.speakerRow:focus-within .actions {
+  opacity: 1;
+}
+
+.hasActions:hover .time,
+.hasActions:focus-within .time {
+  visibility: hidden;
+}
+
+.hasActions:hover .name,
+.hasActions:focus-within .name {
+  padding-inline-end: var(--size-control-sm);
+}
