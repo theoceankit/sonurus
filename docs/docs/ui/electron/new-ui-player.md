@@ -8,8 +8,8 @@ The player panel of the Editor in the new UI. Playback is kept apart from the co
 
 ```
 EditorPlayer (ui/src/screens/Editor/) → Player → Waveform, Playhead, VolumeControl → Slider
-     │                                     ↑ state and callbacks in props
-     └ useAudioPlayback(url) → Playback (ui/src/media/playback.ts) → one audio element
+     ↑                                     ↑ state and callbacks in props
+EditorScreen: useTranscriptPlayback() → useAudioPlayback(url) → Playback (ui/src/media/playback.ts) → one audio element
 ```
 
 ## Playback
@@ -23,7 +23,7 @@ EditorPlayer (ui/src/screens/Editor/) → Player → Waveform, Playhead, VolumeC
 
 ## Components
 
-`Player` only draws and reports: it gets the state and the turns and calls back with what to do. Every state is therefore a story, and `initialCursor` shows the cursor over the waveform without a mouse. `EditorPlayer` connects it to the open recording. The player is disabled until the audio is `ready`, so with no recording, no audio or audio that failed to load; the bars then take their length from the segments.
+`Player` only draws and reports: it gets the state and the turns and calls back with what to do. Every state is therefore a story, and `initialCursor` shows the cursor over the waveform without a mouse. `EditorPlayer` connects it to the open recording, on the playback the screen holds, which the transcript follows too. The player is disabled until the audio is `ready`, so with no recording, no audio or audio that failed to load; the bars then take their length from the segments.
 
 `Waveform` has two sizes:
 

@@ -1,0 +1,60 @@
+.panel {
+  position: relative;
+  height: 100%;
+}
+
+.scroll {
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+/* What the bar over a selection is placed in, so it scrolls with the text. */
+.content {
+  position: relative;
+  padding-bottom: var(--space-6);
+}
+
+.message {
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.noSpeech {
+  padding: var(--space-2) var(--space-6);
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-2) var(--space-4) 0;
+}
+
+.list:focus {
+  outline: none;
+}
+
+/* The browser leaves out a turn off screen until it is needed. It remembers each
+   height it has drawn, so the scrollbar settles as the turns get seen. */
+.turn {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto var(--size-turn-estimate);
+}
+
+.sticky {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 1;
+}
+
+.selectionBar {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, calc(-100% - var(--space-2)));
+}

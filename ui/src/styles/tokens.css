@@ -176,6 +176,13 @@
   --size-avatar-lg: 48px;
 
   --size-menu: 240px;
+  --size-speaker-menu: 288px;
+  --size-speaker-list: 240px;
+
+  --size-playing-bar: 3px;
+  --size-transcript-sticky: 48px;
+  /* What a turn off screen counts as until it has been drawn once. */
+  --size-turn-estimate: 168px;
 
   --size-titlebar: 40px;
   --size-search: 480px;

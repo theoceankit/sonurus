@@ -1,4 +1,5 @@
 import type { Segment, Speaker, SpeakerCandidates, Transcript, TranscriptListItem } from '../types'
+import { longRecording, LONG_RECORDING_ITEM } from './long-recording'
 import { CANDIDATES, SPEAKER_IDS, SPEAKERS, TRANSCRIPTS, WEEKLY_SYNC_ID, weeklySync } from './data'
 
 export type FixtureData = {
@@ -10,7 +11,7 @@ export type FixtureData = {
 
 // The states of the Editor data the boards differ by; the other boards show
 // the same data with another UI state.
-export type FixtureBoard = 'review' | 'reviewDone' | 'unassigned'
+export type FixtureBoard = 'review' | 'reviewDone' | 'unassigned' | 'longRecording'
 
 const isUnknown1 = (segment: Segment) => segment.speaker_resolved === SPEAKER_IDS.unknown1
 
@@ -35,4 +36,13 @@ export const BOARDS: Record<FixtureBoard, FixtureData> = {
     // Unassigned segments may mix voices, so they get no candidates.
     Object.fromEntries(Object.entries(CANDIDATES).filter(([id]) => id !== SPEAKER_IDS.unknown1)),
   ),
+  // Not on a board: three hours, to scroll through. Made when asked for.
+  get longRecording() {
+    return {
+      transcripts: [LONG_RECORDING_ITEM, ...TRANSCRIPTS],
+      details: [longRecording(), weeklySync()],
+      speakers: SPEAKERS,
+      candidates: {},
+    }
+  },
 }

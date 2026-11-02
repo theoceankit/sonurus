@@ -1,0 +1,3 @@
+.panel {
+  width: calc(var(--size-search) + var(--space-8) * 2 + var(--space-6));
+}
