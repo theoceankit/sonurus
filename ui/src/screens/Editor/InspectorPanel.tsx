@@ -131,7 +131,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
   const assignVoice = async (speakerId: string, target: SpeakerTarget) => {
     const segmentStarts = segments.filter(segment => effectiveSpeaker(segment) === speakerId).map(segment => segment.start)
     const reviewed = pending.includes(speakerId)
-    await assign.mutateAsync({ transcriptId, fromSpeakerId: speakerId, target })
+    await assign.mutateAsync({ transcriptId, segmentStarts, target })
     if (isPossibleMatch && speakerId === currentId) setConfirmed(ids => [...ids, speakerId])
     // An undo brings the card back with nothing chosen, like any other.
     setPicked(null)

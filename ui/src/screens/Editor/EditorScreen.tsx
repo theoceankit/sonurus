@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
-import { useAssignTurnSpeaker, useSpeakers, useTranscripts } from '../../api/queries'
+import { useAssignSpeaker, useSpeakers, useTranscripts } from '../../api/queries'
 import { Sidebar, type SidebarSection } from '../../components/Sidebar/Sidebar'
 import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { cx } from '../../styles/cx'
@@ -54,7 +54,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const playback = givenPlayback ?? ownPlayback
   const [speakerRequest, setSpeakerRequest] = useState<SpeakerRequest | null>(null)
   const [toDelete, setToDelete] = useState<RecordingToDelete | null>(null)
-  const { mutateAsync: assignTurn } = useAssignTurnSpeaker()
+  const { mutateAsync: assign } = useAssignSpeaker()
   const { element, width } = useWidth()
   const visible = visiblePanels(panels, width)
   const toggle = (panel: Panel) => setPanels(current => togglePanel(current, panel, width))
@@ -80,7 +80,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
       transcriptId,
       speakerId: currentId,
       start: 'choose',
-      onAssign: target => assignTurn({ transcriptId, segmentStarts, target }),
+      onAssign: async target => { await assign({ transcriptId, segmentStarts, target }) },
     })
   }
 

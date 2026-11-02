@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-  useAssignTurnSpeaker, useDeleteSegment, useSpeakers, useTranscript, useTranscripts, useUpdateSegmentText, useUpdateTranscriptTitle,
+  useAssignSpeaker, useDeleteSegment, useSpeakers, useTranscript, useTranscripts, useUpdateSegmentText, useUpdateTranscriptTitle,
 } from '../../api/queries'
 import { effectiveSpeaker, type Speaker, type Transcript } from '../../api/types'
 import { Button } from '../../components/Button/Button'
@@ -96,7 +96,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   const { mutate: rename } = useUpdateTranscriptTitle()
   const { mutate: saveText } = useUpdateSegmentText()
   const { mutate: removeSegment } = useDeleteSegment()
-  const { mutate: assign } = useAssignTurnSpeaker()
+  const { mutate: assign } = useAssignSpeaker()
 
   const playing = useActiveSegment(playback, segments)
   const [editing] = useState(() => createKeyStore<number | null>(null))

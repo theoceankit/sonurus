@@ -16,13 +16,13 @@ export class ApiError extends Error {
 // An existing speaker, or a new one by name.
 export type SpeakerTarget = { id: string } | { name: string; colorIndex?: number }
 
-// One segment, or every segment of a speaker in the transcript.
-export type SpeakerAssignment = { transcriptId: number; target: SpeakerTarget }
-  & ({ segmentStart: number } | { fromSpeakerId: string })
+// The segments that get a speaker, all or none.
+export type SpeakerAssignment = { transcriptId: number; segmentStarts: readonly number[]; target: SpeakerTarget }
 
 // Puts segments back under the speaker they had before an assignment. A reassign
 // the other way would also take the segments the new speaker had before it.
-export type SpeakerUndo = { transcriptId: number; segmentStarts: readonly number[]; speakerId: string }
+// createdSpeakerId: the assignment made this speaker, and with nothing left they go.
+export type SpeakerUndo = { transcriptId: number; segmentStarts: readonly number[]; speakerId: string; createdSpeakerId?: string }
 
 // Everything a screen knows about the backend. Screens get it through
 // useApi(), so they work the same on fixtures and on the real thing.
@@ -37,7 +37,7 @@ export interface ApiClient {
   deleteTranscript(transcriptId: number): Promise<void>
   updateSegmentText(transcriptId: number, segmentStart: number, text: string): Promise<void>
   deleteSegment(transcriptId: number, segmentStart: number): Promise<void>
-  assignSpeaker(assignment: SpeakerAssignment): Promise<void>
+  assignSpeaker(assignment: SpeakerAssignment): Promise<{ speakerId: string }>
   undoSpeakerAssignment(undo: SpeakerUndo): Promise<void>
   getSpeakerCandidates(transcriptId: number): Promise<SpeakerCandidates>
   listSpeakers(): Promise<Speaker[]>

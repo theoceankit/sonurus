@@ -21,39 +21,40 @@ function setup(respond: () => Response = () => new Response(null, { status: 204 
 }
 
 describe('assignSpeaker', () => {
-  test('one segment: PATCH the segment speaker', async () => {
-    const { client, sent } = setup()
-    await client.assignSpeaker({ transcriptId: 7, segmentStart: 1.5, target: { id: 'b' } })
+  test('sends the segments and an existing speaker, and answers the id', async () => {
+    const { client, sent } = setup(() => json({ speaker_id: 'b' }))
+    await expect(client.assignSpeaker({ transcriptId: 7, segmentStarts: [0, 1.5], target: { id: 'b' } })).resolves.toEqual({ speakerId: 'b' })
     expect(sent).toEqual([{
-      url: 'http://localhost:8000/transcripts/7/segments/1.5/speaker',
-      method: 'PATCH',
-      body: { speaker_id: 'b' },
-    }])
-  })
-
-  test('one segment at the very start, for a new speaker with a colour', async () => {
-    const { client, sent } = setup()
-    await client.assignSpeaker({ transcriptId: 7, segmentStart: 0, target: { name: 'Dana', colorIndex: 3 } })
-    expect(sent[0].url).toBe('http://localhost:8000/transcripts/7/segments/0/speaker')
-    expect(sent[0].body).toEqual({ speaker_name: 'Dana', color_index: 3 })
-  })
-
-  test('no segment: POST reassign of every segment of the speaker', async () => {
-    const { client, sent } = setup()
-    await client.assignSpeaker({ transcriptId: 7, fromSpeakerId: 'x', target: { id: 'b' } })
-    expect(sent).toEqual([{
-      url: 'http://localhost:8000/transcripts/7/reassign',
+      url: 'http://localhost:8000/transcripts/7/speaker-assignments',
       method: 'POST',
-      body: { from_speaker_id: 'x', to_speaker_id: 'b' },
+      body: { segment_starts: [0, 1.5], speaker_id: 'b' },
     }])
   })
 
   test('a new speaker keeps colour 0, and has no colour when none was chosen', async () => {
-    const { client, sent } = setup()
-    await client.assignSpeaker({ transcriptId: 7, fromSpeakerId: 'x', target: { name: 'Dana', colorIndex: 0 } })
-    await client.assignSpeaker({ transcriptId: 7, fromSpeakerId: 'x', target: { name: 'Dana' } })
-    expect(sent[0].body).toEqual({ from_speaker_id: 'x', to_speaker_name: 'Dana', color_index: 0 })
-    expect(sent[1].body).toEqual({ from_speaker_id: 'x', to_speaker_name: 'Dana' })
+    const { client, sent } = setup(() => json({ speaker_id: 'n' }))
+    await expect(client.assignSpeaker({ transcriptId: 7, segmentStarts: [0], target: { name: 'Dana', colorIndex: 0 } })).resolves.toEqual({ speakerId: 'n' })
+    await client.assignSpeaker({ transcriptId: 7, segmentStarts: [0], target: { name: 'Dana' } })
+    expect(sent[0].body).toEqual({ segment_starts: [0], speaker_name: 'Dana', color_index: 0 })
+    expect(sent[1].body).toEqual({ segment_starts: [0], speaker_name: 'Dana' })
+  })
+})
+
+describe('undoSpeakerAssignment', () => {
+  test('sends the segments and who had them', async () => {
+    const { client, sent } = setup(() => new Response(null, { status: 204 }))
+    await client.undoSpeakerAssignment({ transcriptId: 7, segmentStarts: [0, 1.5], speakerId: 'a' })
+    expect(sent).toEqual([{
+      url: 'http://localhost:8000/transcripts/7/speaker-assignments/undo',
+      method: 'POST',
+      body: { segment_starts: [0, 1.5], speaker_id: 'a' },
+    }])
+  })
+
+  test('names the speaker the assignment created', async () => {
+    const { client, sent } = setup(() => new Response(null, { status: 204 }))
+    await client.undoSpeakerAssignment({ transcriptId: 7, segmentStarts: [0], speakerId: 'a', createdSpeakerId: 'n' })
+    expect(sent[0].body).toEqual({ segment_starts: [0], speaker_id: 'a', created_speaker_id: 'n' })
   })
 })
 
@@ -152,7 +153,3 @@ describe('errors', () => {
   })
 })
 
-test('undoing an assignment has no route yet and says so', async () => {
-  const client = createBackendClient({ fetch: async () => { throw new Error('no request expected') } })
-  await expect(client.undoSpeakerAssignment({ transcriptId: 1, segmentStarts: [0], speakerId: 'a' })).rejects.toMatchObject({ status: 501 })
-})

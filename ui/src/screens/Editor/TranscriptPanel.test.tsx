@@ -319,10 +319,7 @@ describe('changing a speaker', () => {
     const assign = vi.spyOn(client, 'assignSpeaker')
     const menu = within(await openTurnMenu())
     await userEvent.click(menu.getByText('Anna Petrova'))
-    expect(assign.mock.calls.map(([call]) => call)).toEqual([
-      { transcriptId: WEEKLY_SYNC_ID, segmentStart: 5, target: { id: SPEAKER_IDS.anna } },
-      { transcriptId: WEEKLY_SYNC_ID, segmentStart: 8, target: { id: SPEAKER_IDS.anna } },
-    ])
+    expect(assign.mock.calls.map(([call]) => call)).toEqual([{ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5, 8], target: { id: SPEAKER_IDS.anna } }])
     expect(screen.queryByRole('dialog')).toBeNull()
     await waitFor(() => expect(screen.getAllByRole('button', { name: 'Mark Ellis' })).toHaveLength(1))
   })
@@ -335,7 +332,7 @@ describe('changing a speaker', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Change speaker' }))
     const menu = within(await screen.findByRole('dialog', { name: 'Change speaker' }))
     await userEvent.click(menu.getByText('Anna Petrova'))
-    expect(assign.mock.calls.map(([call]) => call)).toEqual([{ transcriptId: WEEKLY_SYNC_ID, segmentStart: 8, target: { id: SPEAKER_IDS.anna } }])
+    expect(assign.mock.calls.map(([call]) => call)).toEqual([{ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [8], target: { id: SPEAKER_IDS.anna } }])
   })
 
   test('the current speaker only closes the menu', async () => {

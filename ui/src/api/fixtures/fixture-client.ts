@@ -81,11 +81,10 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
   const reviewed = new Map<number, SpeakerCandidates>()
 
   const assign = (assignment: SpeakerAssignment) => {
-    const { transcriptId } = assignment
-    const speakerId = resolveTarget(assignment.target)
-    const changed = 'segmentStart' in assignment
-      ? [segmentAt(transcriptId, assignment.segmentStart)]
-      : transcript(transcriptId).segments.filter(s => effectiveSpeaker(s) === assignment.fromSpeakerId)
+    const { transcriptId, segmentStarts, target } = assignment
+    // All or none: a segment that is not there changes nothing and creates no one.
+    const changed = segmentStarts.map(start => segmentAt(transcriptId, start))
+    const speakerId = resolveTarget(target)
     const from = new Set(changed.map(effectiveSpeaker))
     // The backend keeps one speaker per segment: read back, a correction is in
     // speaker_resolved and speaker_final stays null.
@@ -104,11 +103,12 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
     }
     const item = listItem(transcriptId)
     if (item) item.speakers = [...left]
+    return { speakerId }
   }
 
-  const undo = ({ transcriptId, segmentStarts, speakerId }: SpeakerUndo) => {
-    for (const start of segmentStarts) {
-      const segment = segmentAt(transcriptId, start)
+  const undo = ({ transcriptId, segmentStarts, speakerId, createdSpeakerId }: SpeakerUndo) => {
+    const segments = transcript(transcriptId).segments.filter(segment => segmentStarts.includes(segment.start))
+    for (const segment of segments) {
       segment.unassigned = speakerId === UNASSIGNED
       segment.speaker_resolved = speakerId === UNASSIGNED ? null : speakerId
     }
@@ -116,6 +116,9 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
     if (before) (data.candidates[transcriptId] ??= {})[speakerId] = before
     const item = listItem(transcriptId)
     if (item) item.speakers = [...new Set(transcript(transcriptId).segments.map(effectiveSpeaker))]
+    if (createdSpeakerId && !data.details.some(t => t.segments.some(s => effectiveSpeaker(s) === createdSpeakerId))) {
+      data.speakers = data.speakers.filter(s => s.id !== createdSpeakerId)
+    }
   }
 
   const connectionListeners = new Set<(connected: boolean) => void>()

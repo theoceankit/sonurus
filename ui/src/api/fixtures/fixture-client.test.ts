@@ -4,6 +4,7 @@ import { effectiveSpeaker, UNASSIGNED, type QueueUpdate, type Segment } from '..
 import { BOARDS } from './boards'
 import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
 import { EVENT_SCRIPTS } from './event-scripts'
+import type { ApiClient } from '../client'
 import { createFixtureClient } from './fixture-client'
 
 const { anna, mark, oliver, unknown1 } = SPEAKER_IDS
@@ -11,6 +12,9 @@ const talkTime = (segments: Segment[], id: string) =>
   segments.filter(s => effectiveSpeaker(s) === id).reduce((sum, s) => sum + s.end - s.start, 0)
 
 afterEach(() => vi.useRealTimers())
+
+const startsOf = async (client: ApiClient, id: string) =>
+  (await client.getTranscript(WEEKLY_SYNC_ID)).segments.filter(s => effectiveSpeaker(s) === id).map(s => s.start)
 
 describe('board data', () => {
   test('today is the day of the boards, whatever the clock says', () => {
@@ -139,7 +143,7 @@ describe('changes', () => {
 
   test('assigning all segments of a speaker clears the review of that speaker', async () => {
     const client = createFixtureClient()
-    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: unknown1, target: { id: mark } })
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: await startsOf(client, unknown1), target: { id: mark } })
     const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
     expect(talkTime(segments, mark)).toBe(20)
     expect(talkTime(segments, unknown1)).toBe(0)
@@ -150,14 +154,14 @@ describe('changes', () => {
 
   test('a correction reads back as the backend gives it: in speaker_resolved', async () => {
     const client = createFixtureClient()
-    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStart: 5, target: { id: anna } })
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5], target: { id: anna } })
     const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
     expect(segments.find(s => s.start === 5)).toMatchObject({ speaker_resolved: anna, speaker_final: null })
   })
 
   test('assigning one segment leaves the others', async () => {
     const client = createFixtureClient()
-    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStart: 5, target: { id: anna } })
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5], target: { id: anna } })
     const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
     expect(effectiveSpeaker(segments.find(s => s.start === 5)!)).toBe(anna)
     expect(effectiveSpeaker(segments.find(s => s.start === 8)!)).toBe(mark)
@@ -165,14 +169,14 @@ describe('changes', () => {
 
   test('assigning clears unassigned: the correction wins', async () => {
     const client = createFixtureClient({ board: 'unassigned' })
-    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStart: 16, target: { id: mark } })
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [16], target: { id: mark } })
     const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
     expect(effectiveSpeaker(segments.find(s => s.start === 16)!)).toBe(mark)
   })
 
   test('assigning to a new speaker creates it', async () => {
     const client = createFixtureClient()
-    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: unknown1, target: { name: 'Olivia Brown', colorIndex: 2 } })
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: await startsOf(client, unknown1), target: { name: 'Olivia Brown', colorIndex: 2 } })
     const created = (await client.listSpeakers()).find(s => s.name === 'Olivia Brown')
     expect(created?.color_index).toBe(2)
     const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
@@ -181,7 +185,7 @@ describe('changes', () => {
 
   test('assigning to a speaker that does not exist fails', async () => {
     const client = createFixtureClient()
-    await expect(client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStart: 0, target: { id: 'nobody' } }))
+    await expect(client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [0], target: { id: 'nobody' } }))
       .rejects.toMatchObject({ status: 404 })
   })
 
@@ -280,6 +284,27 @@ describe('queue events', () => {
 })
 
 describe('undoing an assignment', () => {
+  test('a speaker the assignment created goes, unless it got other segments', async () => {
+    const client = createFixtureClient()
+    const first = await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5], target: { name: 'Olivia Brown' } })
+    await client.undoSpeakerAssignment({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5], speakerId: mark, createdSpeakerId: first.speakerId })
+    expect((await client.listSpeakers()).some(s => s.id === first.speakerId)).toBe(false)
+
+    const second = await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5], target: { name: 'Olivia Brown' } })
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [8], target: { id: second.speakerId } })
+    await client.undoSpeakerAssignment({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5], speakerId: mark, createdSpeakerId: second.speakerId })
+    expect((await client.listSpeakers()).some(s => s.id === second.speakerId)).toBe(true)
+  })
+
+  test('a segment deleted since is skipped', async () => {
+    const client = createFixtureClient()
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5, 8], target: { id: anna } })
+    await client.deleteSegment(WEEKLY_SYNC_ID, 5)
+    await client.undoSpeakerAssignment({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5, 8], speakerId: mark })
+    const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
+    expect(effectiveSpeaker(segments.find(s => s.start === 8)!)).toBe(mark)
+  })
+
   const starts = (segments: Segment[], id: string) => segments.filter(s => effectiveSpeaker(s) === id).map(s => s.start)
 
   test('gives the segments back and leaves those the speaker had before', async () => {
@@ -287,7 +312,7 @@ describe('undoing an assignment', () => {
     const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
     const segmentStarts = starts(segments, unknown1)
     const marks = starts(segments, mark)
-    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: unknown1, target: { id: mark } })
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: await startsOf(client, unknown1), target: { id: mark } })
     await client.undoSpeakerAssignment({ transcriptId: WEEKLY_SYNC_ID, segmentStarts, speakerId: unknown1 })
     const after = (await client.getTranscript(WEEKLY_SYNC_ID)).segments
     expect(starts(after, unknown1)).toEqual(segmentStarts)
@@ -298,7 +323,7 @@ describe('undoing an assignment', () => {
     const client = createFixtureClient()
     const before = await client.getSpeakerCandidates(WEEKLY_SYNC_ID)
     const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
-    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: unknown1, target: { id: mark } })
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: await startsOf(client, unknown1), target: { id: mark } })
     expect((await client.getSpeakerCandidates(WEEKLY_SYNC_ID))[unknown1]).toBeUndefined()
     await client.undoSpeakerAssignment({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: starts(segments, unknown1), speakerId: unknown1 })
     expect((await client.getSpeakerCandidates(WEEKLY_SYNC_ID))[unknown1]).toEqual(before[unknown1])
@@ -307,7 +332,7 @@ describe('undoing an assignment', () => {
   test('the list of the recording has the speaker again', async () => {
     const client = createFixtureClient()
     const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
-    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: unknown1, target: { id: mark } })
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: await startsOf(client, unknown1), target: { id: mark } })
     await client.undoSpeakerAssignment({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: starts(segments, unknown1), speakerId: unknown1 })
     const item = (await client.listTranscripts()).find(t => t.id === WEEKLY_SYNC_ID)!
     expect(item.speakers).toContain(unknown1)
@@ -317,7 +342,7 @@ describe('undoing an assignment', () => {
     const client = createFixtureClient({ board: 'unassigned' })
     const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
     const segmentStarts = starts(segments, UNASSIGNED)
-    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, fromSpeakerId: UNASSIGNED, target: { id: mark } })
+    await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: await startsOf(client, UNASSIGNED), target: { id: mark } })
     await client.undoSpeakerAssignment({ transcriptId: WEEKLY_SYNC_ID, segmentStarts, speakerId: UNASSIGNED })
     expect(starts((await client.getTranscript(WEEKLY_SYNC_ID)).segments, UNASSIGNED)).toEqual(segmentStarts)
   })
