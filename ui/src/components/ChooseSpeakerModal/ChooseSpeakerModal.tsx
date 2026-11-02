@@ -88,15 +88,18 @@ export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, o
     }
   }
 
+  const categoryItem = ({ id, label, icon }: typeof CATEGORIES[number]) => (
+    <MenuItem key={id} icon={icon} meta={String(counts[id])} current={category === id} onClick={() => setCategory(id)}>{label}</MenuItem>
+  )
+
   return (
     <Modal size="large" open preview={preview} onOpenChange={open => { if (!open) onClose() }}>
       <ModalHeader title="Choose a speaker" />
       <ModalBody className={styles.body} onKeyDown={onKeyDown}>
         <nav aria-label="Categories" className={styles.rail}>
-          {CATEGORIES.map(({ id, label, icon }) => (
-            <MenuItem key={id} icon={icon} meta={String(counts[id])} current={category === id} onClick={() => setCategory(id)}>{label}</MenuItem>
-          ))}
+          {CATEGORIES.slice(0, 2).map(categoryItem)}
           <MenuItem icon="calendar" {...markNotImplemented('choose-speaker.invited')}>Invited to this meeting</MenuItem>
+          {CATEGORIES.slice(2).map(categoryItem)}
           <MenuItem icon="clock" {...markNotImplemented('choose-speaker.recently-added')}>Recently added</MenuItem>
         </nav>
         <div className={styles.results}>
