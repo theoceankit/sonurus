@@ -1,0 +1,5 @@
+.frame {
+  width: var(--size-panel-side);
+  height: 672px;
+  background: var(--color-bg-sunken);
+}
