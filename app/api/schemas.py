@@ -223,6 +223,15 @@ class SegmentSpeakerRequest(BaseModel):
         return v.strip() if isinstance(v, str) else v
 
 
+class SpeakerAssignmentRequest(SegmentSpeakerRequest):
+    """The segments that change, all together, by their start."""
+    segment_starts: list[float] = Field(min_length=1)
+
+
+class SpeakerAssignmentResponse(ResponseModel):
+    speaker_id: str
+
+
 class SegmentTextRequest(BaseModel):
     text: str
 

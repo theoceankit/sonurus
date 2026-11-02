@@ -670,6 +670,27 @@ export interface paths {
         patch: operations["update_segment_text_transcripts__transcript_id__segments__start__text_patch"];
         trace?: never;
     };
+    "/transcripts/{transcript_id}/speaker-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign Speaker
+         * @description Give the listed segments one speaker, all or none. Nothing is created
+         *     until the request is known to be good.
+         */
+        post: operations["assign_speaker_transcripts__transcript_id__speaker_assignments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transcripts/{transcript_id}/speaker-candidates": {
         parameters: {
             query?: never;
@@ -1000,6 +1021,25 @@ export interface components {
         SegmentTextRequest: {
             /** Text */
             text: string;
+        };
+        /**
+         * SpeakerAssignmentRequest
+         * @description The segments that change, all together, by their start.
+         */
+        SpeakerAssignmentRequest: {
+            /** Color Index */
+            color_index?: number | null;
+            /** Segment Starts */
+            segment_starts: number[];
+            /** Speaker Id */
+            speaker_id?: string | null;
+            /** Speaker Name */
+            speaker_name?: string | null;
+        };
+        /** SpeakerAssignmentResponse */
+        SpeakerAssignmentResponse: {
+            /** Speaker Id */
+            speaker_id: string;
         };
         /**
          * SpeakerCandidate
@@ -2351,6 +2391,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_speaker_transcripts__transcript_id__speaker_assignments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeakerAssignmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeakerAssignmentResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

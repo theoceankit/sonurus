@@ -863,6 +863,72 @@
         "title": "SegmentTextRequest",
         "type": "object"
       },
+      "SpeakerAssignmentRequest": {
+        "description": "The segments that change, all together, by their start.",
+        "properties": {
+          "color_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Index"
+          },
+          "segment_starts": {
+            "items": {
+              "type": "number"
+            },
+            "minItems": 1,
+            "title": "Segment Starts",
+            "type": "array"
+          },
+          "speaker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Id"
+          },
+          "speaker_name": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Name"
+          }
+        },
+        "required": [
+          "segment_starts"
+        ],
+        "title": "SpeakerAssignmentRequest",
+        "type": "object"
+      },
+      "SpeakerAssignmentResponse": {
+        "properties": {
+          "speaker_id": {
+            "title": "Speaker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "speaker_id"
+        ],
+        "title": "SpeakerAssignmentResponse",
+        "type": "object"
+      },
       "SpeakerCandidate": {
         "description": "A known speaker that an unknown voice may be. score is cosine similarity,\nnot below 0. Only the first candidate can be suggested.",
         "properties": {
@@ -2864,6 +2930,59 @@
           }
         },
         "summary": "Update Segment Text",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
+    "/transcripts/{transcript_id}/speaker-assignments": {
+      "post": {
+        "description": "Give the listed segments one speaker, all or none. Nothing is created\nuntil the request is known to be good.",
+        "operationId": "assign_speaker_transcripts__transcript_id__speaker_assignments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakerAssignmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeakerAssignmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Assign Speaker",
         "tags": [
           "transcripts"
         ]
