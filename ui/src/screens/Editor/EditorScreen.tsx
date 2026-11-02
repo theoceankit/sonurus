@@ -4,9 +4,11 @@ import { useSpeakers, useTranscripts } from '../../api/queries'
 import { Sidebar, type SidebarSection } from '../../components/Sidebar/Sidebar'
 import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { cx } from '../../styles/cx'
-import { EditorPlayer } from './EditorPlayer'
+import type { Playback } from '../../media/playback'
+import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
 import { groupRecordings, needsReview, stackSpeakers } from './recordings'
+import { TranscriptPanel } from './TranscriptPanel'
 import styles from './EditorScreen.module.css'
 
 interface EditorScreenProps {
@@ -16,6 +18,8 @@ interface EditorScreenProps {
   transcript?: ReactNode
   inspector?: ReactNode
   player?: ReactNode
+  // For a story: playback standing where the board shows it, with no audio.
+  playback?: Playback
 }
 
 // Wide until measured, and a width from the screen itself rather than the window,
@@ -34,12 +38,14 @@ function useWidth() {
   return { element, width }
 }
 
-export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, inspector, player }: EditorScreenProps) {
+export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback }: EditorScreenProps) {
   const api = useApi()
   const transcripts = useTranscripts()
   const speakers = useSpeakers()
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const [panels, setPanels] = useState(INITIAL_PANELS)
+  const ownPlayback = useTranscriptPlayback(givenPlayback ? null : selectedId)
+  const playback = givenPlayback ?? ownPlayback
   const { element, width } = useWidth()
   const visible = visiblePanels(panels, width)
   const toggle = (panel: Panel) => setPanels(current => togglePanel(current, panel, width))
@@ -82,9 +88,9 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
             }}
           />
         </aside>
-        <main aria-label="Transcript" className={cx(styles.panel, styles.center)}>{transcript}</main>
+        <main aria-label="Transcript" className={cx(styles.panel, styles.center)}>{transcript ?? <TranscriptPanel transcriptId={selectedId} playback={playback} />}</main>
         <section aria-label="Inspector" hidden={!visible.inspector} className={cx(styles.panel, styles.inspector)}>{inspector}</section>
-        <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player ?? <EditorPlayer transcriptId={selectedId} />}</section>
+        <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player ?? <EditorPlayer transcriptId={selectedId} playback={playback} />}</section>
       </div>
     </div>
   )

@@ -1,17 +1,21 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { WEEKLY_SYNC_ID } from '../../api/fixtures/data'
-import { EditorPlayer } from './EditorPlayer'
+import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
 import styles from './EditorPlayer.stories.module.css'
 
-const meta: Meta<typeof EditorPlayer> = {
+function Wired({ transcriptId }: { transcriptId: number | null }) {
+  return <EditorPlayer transcriptId={transcriptId} playback={useTranscriptPlayback(transcriptId)} />
+}
+
+const meta: Meta<typeof Wired> = {
   title: 'Screens/Editor/Player',
-  component: EditorPlayer,
+  component: Wired,
   args: { transcriptId: WEEKLY_SYNC_ID },
   decorators: [Story => <div className={styles.panel}><Story /></div>],
 }
 export default meta
 
-type Story = StoryObj<typeof EditorPlayer>
+type Story = StoryObj<typeof Wired>
 
 // Real sound: every speaker has a tone of their own and pauses are silent.
 export const OnTestAudio: Story = {}

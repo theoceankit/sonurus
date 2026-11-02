@@ -3,7 +3,7 @@ import { useApi } from '../../api/ApiProvider'
 import { useSpeakers, useTranscript } from '../../api/queries'
 import { effectiveSpeaker, UNASSIGNED, type Segment, type Speaker } from '../../api/types'
 import { Player } from '../../components/Player/Player'
-import { useAudioPlayback, usePlayback } from '../../media/playback'
+import { useAudioPlayback, usePlayback, type Playback } from '../../media/playback'
 import type { Turn } from '../../media/timeline'
 import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 
@@ -22,12 +22,17 @@ export function playerTurns(segments: readonly Segment[], speakers: readonly Spe
   })
 }
 
-// The player of the open recording. Speed and volume stay when another one opens.
-export function EditorPlayer({ transcriptId }: { transcriptId: number | null }) {
+// The audio of the open recording. Speed and volume stay when another one opens.
+export function useTranscriptPlayback(transcriptId: number | null): Playback {
   const api = useApi()
   const transcript = useTranscript(transcriptId).data
+  return useAudioPlayback(transcriptId !== null && transcript ? api.getAudioUrl(transcript) : null)
+}
+
+// The player of the open recording.
+export function EditorPlayer({ transcriptId, playback }: { transcriptId: number | null; playback: Playback }) {
+  const transcript = useTranscript(transcriptId).data
   const speakers = useSpeakers().data
-  const playback = useAudioPlayback(transcriptId !== null && transcript ? api.getAudioUrl(transcript) : null)
   const state = usePlayback(playback)
   const turns = useMemo(
     () => (transcriptId !== null && transcript ? playerTurns(transcript.segments, speakers ?? []) : []),

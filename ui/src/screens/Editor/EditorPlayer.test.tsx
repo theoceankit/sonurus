@@ -5,7 +5,7 @@ import { WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { UNASSIGNED, type Segment, type Speaker } from '../../api/types'
 import { OverlayProvider } from '../../OverlayProvider'
-import { EditorPlayer, playerTurns } from './EditorPlayer'
+import { EditorPlayer, playerTurns, useTranscriptPlayback } from './EditorPlayer'
 
 const segment = (start: number, end: number, changes: Partial<Segment>) => ({
   start, end, text: '', speaker_raw: 'SPEAKER_00', speaker_resolved: null, speaker_final: null, unassigned: false, ...changes,
@@ -33,9 +33,13 @@ test('turns: the correction wins, as everywhere', () => {
   expect(turn.name).toBe('Bea')
 })
 
+function Wired({ transcriptId }: { transcriptId: number | null }) {
+  return <EditorPlayer transcriptId={transcriptId} playback={useTranscriptPlayback(transcriptId)} />
+}
+
 const setup = (transcriptId: number | null, options: FixtureOptions = {}) => {
   const client = createFixtureClient(options)
-  render(<ApiProvider client={client}><OverlayProvider><EditorPlayer transcriptId={transcriptId} /></OverlayProvider></ApiProvider>)
+  render(<ApiProvider client={client}><OverlayProvider><Wired transcriptId={transcriptId} /></OverlayProvider></ApiProvider>)
   return screen.getByRole('slider', { name: 'Position' })
 }
 

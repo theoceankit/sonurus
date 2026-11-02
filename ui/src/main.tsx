@@ -8,11 +8,12 @@ import { OverlayProvider } from './OverlayProvider'
 import './styles/index.css'
 
 // VITE_SONORUS_FIXTURES=1 npm run dev:ui shows the screens on fixtures in the
-// app. A build has no DEV, so the branch and the fixtures are left out of it.
+// app, and VITE_SONORUS_FIXTURE_BOARD=longRecording opens another set of them. A
+// build has no DEV, so the branch and the fixtures are left out of it.
 async function createClient(): Promise<ApiClient> {
   if (import.meta.env.DEV && import.meta.env.VITE_SONORUS_FIXTURES) {
     const { createFixtureClient } = await import('./api/fixtures/fixture-client')
-    return createFixtureClient()
+    return createFixtureClient({ board: import.meta.env.VITE_SONORUS_FIXTURE_BOARD })
   }
   return createBackendClient()
 }

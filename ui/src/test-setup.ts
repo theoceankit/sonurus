@@ -13,6 +13,7 @@ globalThis.ResizeObserver ??= NoResizeObserver
 Element.prototype.hasPointerCapture ??= () => false
 Element.prototype.releasePointerCapture ??= () => {}
 Element.prototype.scrollIntoView ??= () => {}
+Range.prototype.getBoundingClientRect ??= () => new DOMRect()
 
 // Nor does it play media or keep blobs.
 HTMLMediaElement.prototype.load = () => {}

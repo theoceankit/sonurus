@@ -26,7 +26,7 @@ interface SpeakerMenuProps {
   allSpeakers: number
   onSelect: (speakerId: string) => void
   onShowAll?: () => void
-  // For a control that is not available yet.
+  // What marks the row as not there yet, while the list does not exist.
   showAllProps?: HTMLAttributes<HTMLButtonElement>
   onClose: () => void
 }
