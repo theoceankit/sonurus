@@ -11,7 +11,14 @@ import { toast } from './components/Toast/toast'
 // lands, remove its id here and the call (not-implemented.test.ts fails if only
 // one of the two is removed).
 
-export const NOT_IMPLEMENTED = [] as const satisfies readonly string[]
+export const NOT_IMPLEMENTED = [
+  'titlebar.back',
+  'titlebar.forward',
+  'titlebar.new-transcription',
+  'titlebar.search',
+  'titlebar.settings',
+  'titlebar.speakers',
+] as const satisfies readonly string[]
 
 export type NotImplementedId = (typeof NOT_IMPLEMENTED)[number]
 

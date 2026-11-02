@@ -1,0 +1,18 @@
+.window {
+  width: 1200px;
+  background: var(--color-bg-sunken);
+}
+
+.narrow {
+  width: 900px;
+}
+
+.buttonsLeft {
+  --titlebar-inset-start: 113px;
+  --titlebar-inset-end: 0px;
+}
+
+.buttonsRight {
+  --titlebar-inset-start: 0px;
+  --titlebar-inset-end: 138px;
+}
