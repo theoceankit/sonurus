@@ -5,6 +5,7 @@ import { connectQueueEvents } from './queue-events'
 class FakeSocket {
   static opened: FakeSocket[] = []
   onmessage: ((event: { data: string }) => void) | null = null
+  onopen: (() => void) | null = null
   onclose: (() => void) | null = null
   closed = false
   readonly url: string
@@ -78,6 +79,36 @@ test('an unsubscribe during the wait cancels the reconnect', () => {
   stop()
   vi.advanceTimersByTime(10000)
   expect(FakeSocket.opened).toHaveLength(1)
+})
+
+test('tells when the connection is lost and when it is back, and nothing at the first opening', () => {
+  const changes: boolean[] = []
+  connectQueueEvents({ url: 'ws://x/ws/queue', onEvent: () => {}, onConnection: c => changes.push(c), WebSocketImpl })
+  last().onopen?.()
+  expect(changes).toEqual([])
+  last().onclose?.()
+  expect(changes).toEqual([false])
+  vi.advanceTimersByTime(2000)
+  last().onclose?.()
+  vi.advanceTimersByTime(2000)
+  expect(changes).toEqual([false])
+  last().onopen?.()
+  expect(changes).toEqual([false, true])
+})
+
+test('a first attempt that fails counts as lost', () => {
+  const changes: boolean[] = []
+  connectQueueEvents({ url: 'ws://x/ws/queue', onEvent: () => {}, onConnection: c => changes.push(c), WebSocketImpl })
+  last().onclose?.()
+  expect(changes).toEqual([false])
+})
+
+test('stopping is not a lost connection', () => {
+  const changes: boolean[] = []
+  const stop = connectQueueEvents({ url: 'ws://x/ws/queue', onEvent: () => {}, onConnection: c => changes.push(c), WebSocketImpl })
+  last().onopen?.()
+  stop()
+  expect(changes).toEqual([])
 })
 
 test('the backend client connects to the queue on its own address', () => {

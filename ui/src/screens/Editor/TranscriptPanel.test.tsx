@@ -38,6 +38,7 @@ function fakePlayback(initial: Partial<PlaybackState> = {}) {
       return () => { listeners.delete(listener) }
     },
     load: vi.fn(),
+    reload: vi.fn(),
     toggle: vi.fn(() => change({ paused: !state.paused })),
     seek: vi.fn((seconds: number) => change({ currentTime: seconds })),
     setRate: vi.fn(),

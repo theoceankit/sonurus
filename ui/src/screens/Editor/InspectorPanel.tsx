@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import type { SpeakerTarget } from '../../api/client'
-import { useAssignSpeaker, useSpeakerCandidates, useSpeakers, useTranscript, useUndoSpeakerAssignment } from '../../api/queries'
+import { useAssignSpeaker, useBackendConnected, useSpeakerCandidates, useSpeakers, useTranscript, useUndoSpeakerAssignment } from '../../api/queries'
 import { effectiveSpeaker, type Speaker, type SpeakerCandidates, type Transcript } from '../../api/types'
 import { avatarOf } from '../../components/Avatar/Avatar'
 import { AvatarStack } from '../../components/AvatarStack/AvatarStack'
@@ -91,7 +91,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
   const { id: transcriptId, segments } = transcript
   const assign = useAssignSpeaker()
   const undo = useUndoSpeakerAssignment()
-  const clip = useClipPlayback(playback, api.getAudioUrl(transcript))
+  const clip = useClipPlayback(playback, api.getAudioUrl(transcript), useBackendConnected())
   const clipState = useClipState(clip)
 
   // A possible match stays one until it is confirmed, whoever it turns out to be.

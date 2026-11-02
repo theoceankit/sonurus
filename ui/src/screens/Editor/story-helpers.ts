@@ -7,6 +7,7 @@ export const standing = (state: Partial<PlaybackState> = {}): Playback => {
     getState: () => current,
     subscribe: () => () => {},
     load: () => {},
+    reload: () => {},
     toggle: () => {},
     seek: () => {},
     setRate: () => {},

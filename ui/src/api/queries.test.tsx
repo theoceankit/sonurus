@@ -7,7 +7,7 @@ import { SPEAKER_IDS, WEEKLY_SYNC_ID } from './fixtures/data'
 import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
-  useAssignSpeaker, useAssignTurnSpeaker, useDeleteTranscript, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
+  useAssignSpeaker, useAssignTurnSpeaker, useBackendConnected, useDeleteTranscript, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle,
 } from './queries'
 import { effectiveSpeaker, type QueueUpdate } from './types'
@@ -205,5 +205,49 @@ describe('deleting a recording', () => {
     await waitFor(() => expect(has(result.current.list.data)).toBe(true))
     await act(async () => { await expect(result.current.remove.mutateAsync(WEEKLY_SYNC_ID)).rejects.toThrow('Server error 500') })
     expect(has(result.current.list.data)).toBe(true)
+  })
+})
+
+describe('the connection to the backend', () => {
+  const setup = () => {
+    const client = createFixtureClient()
+    const view = renderHook(() => {
+      useQueueEventsSync()
+      return { connected: useBackendConnected(), list: useTranscripts() }
+    }, { wrapper: wrapperFor(client) })
+    return { client, ...view }
+  }
+
+  test('counts as there until it is lost, and is there again after', async () => {
+    const { client, result } = setup()
+    expect(result.current.connected).toBe(true)
+    act(() => client.setConnected(false))
+    await waitFor(() => expect(result.current.connected).toBe(false))
+    act(() => client.setConnected(true))
+    await waitFor(() => expect(result.current.connected).toBe(true))
+  })
+
+  test('being back refreshes what was missed', async () => {
+    const { client, result } = setup()
+    await waitFor(() => expect(result.current.list.data).toHaveLength(16))
+    const list = vi.spyOn(client, 'listTranscripts')
+    act(() => client.setConnected(false))
+    expect(list).not.toHaveBeenCalled()
+    act(() => client.setConnected(true))
+    await waitFor(() => expect(list).toHaveBeenCalled())
+  })
+
+  test('being back clears an error of a first load', async () => {
+    const client = createFixtureClient()
+    const list = vi.spyOn(client, 'listTranscripts').mockRejectedValueOnce(new ApiError(0, 'Failed to fetch'))
+    const { result } = renderHook(() => {
+      useQueueEventsSync()
+      return useTranscripts()
+    }, { wrapper: wrapperFor(client) })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    act(() => client.setConnected(false))
+    act(() => client.setConnected(true))
+    await waitFor(() => expect(result.current.data).toHaveLength(16))
+    expect(list).toHaveBeenCalledTimes(2)
   })
 })

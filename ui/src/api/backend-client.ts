@@ -73,9 +73,10 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
       params: { path: { speaker_id }, query: { transcript_id } },
     })),
     getQueue: () => send(http.GET('/queue')),
-    subscribeQueueEvents: listener => connectQueueEvents({
+    subscribeQueueEvents: (listener, onConnection) => connectQueueEvents({
       url: `${baseUrl.replace(/^http/, 'ws')}/ws/queue`,
       onEvent: listener,
+      onConnection,
       WebSocketImpl: options.WebSocketImpl,
     }),
   }

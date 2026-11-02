@@ -13,6 +13,7 @@ export const queryKeys = {
   speakers: ['speakers'],
   sample: (speakerId: string, transcriptId?: number) => ['speakers', speakerId, 'sample', transcriptId],
   queue: ['queue'],
+  connected: ['connected'],
 } satisfies Record<string, QueryKey | ((...args: never[]) => QueryKey)>
 
 export function useTranscripts() {
@@ -55,6 +56,11 @@ export function useSpeakerSample(speakerId: string, transcriptId?: number) {
 export function useQueue() {
   const api = useApi()
   return useQuery({ queryKey: queryKeys.queue, queryFn: () => api.getQueue() })
+}
+
+// Whether WS /ws/queue is up, kept by useQueueEventsSync.
+export function useBackendConnected(): boolean {
+  return useQuery({ queryKey: queryKeys.connected, queryFn: () => true, initialData: true, staleTime: Infinity }).data
 }
 
 const refreshTranscripts = (queries: QueryClient) => queries.invalidateQueries({ queryKey: queryKeys.transcripts })
@@ -206,5 +212,9 @@ export function useQueueEventsSync(onEvent?: (event: QueueUpdate) => void) {
     if (event.type === 'snapshot') queries.setQueryData(queryKeys.queue, event)
     if (event.type === 'job_done') void refreshTranscriptsAndSpeakers(queries)
     latestOnEvent.current?.(event)
+  }, connected => {
+    queries.setQueryData(queryKeys.connected, connected)
+    // A job may have finished while no one was listening.
+    if (connected) void queries.invalidateQueries({ predicate: query => query.queryKey[0] !== queryKeys.connected[0] })
   }), [api, queries])
 }
