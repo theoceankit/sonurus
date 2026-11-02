@@ -1,7 +1,8 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
+import { ApiError } from '../../api/client'
 import { WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { OverlayProvider } from '../../OverlayProvider'
@@ -132,4 +133,55 @@ test('the panels show what they are given', () => {
   setup({ transcript: 'T', inspector: 'I', player: 'P' })
   expect(screen.getByRole('main', { name: 'Transcript' }).textContent).toBe('T')
   expect(screen.getByRole('region', { name: 'Player' }).textContent).toBe('P')
+})
+
+describe('deleting the open recording', () => {
+  const askToDelete = async () => {
+    await userEvent.click((await screen.findAllByRole('button', { name: 'More' }))[0])
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete recording' }))
+    return screen.findByRole('alertdialog')
+  }
+  const open = async (options: FixtureOptions = {}) => {
+    atWidth(1200)
+    setup({ initialSelectedId: WEEKLY_SYNC_ID }, options)
+    await screen.findByRole('heading', { level: 1 })
+  }
+  const panel = () => screen.getByRole('main', { name: 'Transcript' })
+
+  test('asks first, with the name of the recording', async () => {
+    await open()
+    const title = screen.getByRole('heading', { level: 1 }).textContent!
+    const dialog = await askToDelete()
+    expect(within(dialog).getByText(`Delete “${title}”?`)).toBeTruthy()
+    expect(within(dialog).getByText(/cannot be undone/)).toBeTruthy()
+  })
+
+  test('Cancel leaves everything as it was', async () => {
+    await open()
+    const dialog = await askToDelete()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(within(panel()).getByRole('heading', { level: 1 })).toBeTruthy()
+  })
+
+  test('Delete closes the recording, takes it off the list and says so', async () => {
+    await open()
+    const title = screen.getByRole('heading', { level: 1 }).textContent!
+    const dialog = await askToDelete()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(within(panel()).queryByRole('heading', { level: 1 })).toBeNull())
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(within(screen.getByLabelText('Recordings')).queryByText(title)).toBeNull()
+    expect(await screen.findByText(`Deleted “${title}”.`)).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Play' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  test('a failure says so and the recording stays open', async () => {
+    await open({ overrides: { deleteTranscript: () => Promise.reject(new ApiError(500, 'Server error 500')) } })
+    const dialog = await askToDelete()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByText('Could not delete: Server error 500')).toBeTruthy()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(within(panel()).getByRole('heading', { level: 1 })).toBeTruthy()
+  })
 })

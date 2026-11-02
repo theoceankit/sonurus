@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
-import type { SpeakerAssignment, SpeakerTarget, SpeakerUndo } from './client'
+import { ApiError, type SpeakerAssignment, type SpeakerTarget, type SpeakerUndo } from './client'
 import type { QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
@@ -90,8 +90,21 @@ export function useDeleteTranscript() {
   const api = useApi()
   const queries = useQueryClient()
   return useMutation({
-    mutationFn: (transcriptId: number) => api.deleteTranscript(transcriptId),
-    onSuccess: () => refreshTranscriptsAndSpeakers(queries),
+    mutationFn: async (transcriptId: number) => {
+      try {
+        await api.deleteTranscript(transcriptId)
+      } catch (error) {
+        // Already gone is what was asked for.
+        if (!(error instanceof ApiError && error.status === 404)) throw error
+      }
+    },
+    // Not waiting for the refresh, and not asking for the deleted recording again:
+    // it is still open until the caller closes it, and would only answer 404.
+    onSuccess: (_result, transcriptId) => {
+      queries.setQueryData<TranscriptListItem[]>(queryKeys.transcripts, items => items?.filter(item => item.id !== transcriptId))
+      void queries.invalidateQueries({ queryKey: queryKeys.transcripts, predicate: query => query.queryKey[1] !== transcriptId })
+      void queries.invalidateQueries({ queryKey: queryKeys.speakers })
+    },
   })
 }
 

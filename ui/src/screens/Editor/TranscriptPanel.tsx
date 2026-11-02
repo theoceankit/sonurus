@@ -16,6 +16,7 @@ import { markNotImplemented } from '../../not-implemented'
 import {
   buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave,
 } from './transcript'
+import type { RecordingToDelete } from './DeleteRecordingDialog'
 import { TranscriptList, type MenuKey, type TranscriptRows } from './TranscriptList'
 import { useTextSelection } from './useTextSelection'
 import styles from './TranscriptPanel.module.css'
@@ -30,11 +31,12 @@ interface TranscriptPanelProps {
   playback: Playback
   // Opens the list of all speakers for this turn or paragraph.
   onShowAllSpeakers?: (target: SpeakerMenuTarget) => void
+  onDelete?: (recording: RecordingToDelete) => void
 }
 
 // Nothing shows until there is a recording and it has loaded: a flash of a spinner
 // on data from this machine says less than a moment of an empty panel.
-export function TranscriptPanel({ transcriptId, playback, onShowAllSpeakers }: TranscriptPanelProps) {
+export function TranscriptPanel({ transcriptId, playback, onShowAllSpeakers, onDelete }: TranscriptPanelProps) {
   const transcript = useTranscript(transcriptId)
   const speakers = useSpeakers()
 
@@ -64,6 +66,7 @@ export function TranscriptPanel({ transcriptId, playback, onShowAllSpeakers }: T
       speakers={speakers.data}
       playback={playback}
       onShowAllSpeakers={onShowAllSpeakers}
+      onDelete={onDelete}
     />
   )
 }
@@ -75,6 +78,7 @@ interface TranscriptViewProps {
   speakers: Speaker[]
   playback: Playback
   onShowAllSpeakers?: (target: SpeakerMenuTarget) => void
+  onDelete?: (recording: RecordingToDelete) => void
 }
 
 async function copyToClipboard(text: string) {
@@ -86,7 +90,7 @@ async function copyToClipboard(text: string) {
   }
 }
 
-function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers }: TranscriptViewProps) {
+function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onDelete }: TranscriptViewProps) {
   const { id: transcriptId, segments } = transcript
   const listed = useTranscripts().data?.find(item => item.id === transcriptId)
   const { mutate: rename } = useUpdateTranscriptTitle()
@@ -102,6 +106,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers }: T
   const turns = useMemo(() => buildTurns(segments, speakers), [segments, speakers])
   const times = useMemo(() => talkTimes(segments), [segments])
   const title = recordingTitle(transcript, listed?.title)
+  const deleteRecording = () => onDelete?.({ id: transcriptId, title })
 
   const rows = useMemo<TranscriptRows>(() => ({
     playing,
@@ -164,6 +169,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers }: T
               title={title}
               date={formatRecordingDate(listed?.created_at)}
               language={languageLabel(transcript.language)}
+              onDelete={deleteRecording}
               onRename={typed => {
                 const next = titleToSave(typed, title)
                 if (next) rename({ transcriptId, title: next }, { onError: error => toast({ message: `Failed to rename: ${error.message}`, type: 'error' }) })
@@ -200,7 +206,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers }: T
           )}
         </div>
       </div>
-      {stuck && <TranscriptHeader sticky title={title} className={styles.sticky} />}
+      {stuck && <TranscriptHeader sticky title={title} onDelete={deleteRecording} className={styles.sticky} />}
       {bottom && <ScrollFade edge="bottom" />}
       {menu && (
         <SpeakerMenu
