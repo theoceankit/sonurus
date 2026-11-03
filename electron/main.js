@@ -138,8 +138,8 @@ ipcMain.handle('open-files', async () => {
 })
 
 // A modal of the new UI is open or closed: the window buttons dim with its scrim.
-ipcMain.on('window-dimmed', (event, dimmed) => {
-  if (event.sender === mainWin?.webContents) titleBarDimmer?.set(Boolean(dimmed))
+ipcMain.on('window-dimmed', (event, dimmed, startedAt) => {
+  if (event.sender === mainWin?.webContents) titleBarDimmer?.set(Boolean(dimmed), Number(startedAt))
 })
 
 ipcMain.handle('get-platform', () => process.platform)

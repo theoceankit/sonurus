@@ -29,6 +29,8 @@ const DIM = {
   easeOut: [0.4, 0, 1, 1],
 }
 const FRAME_MS = 16
+// The longest the page may have been dimming before the strip heard of it.
+const MAX_LAG_MS = 50
 
 const hex = value => value.toString(16).padStart(2, '0').toUpperCase()
 
@@ -61,19 +63,22 @@ function cubicBezier([x1, y1, x2, y2]) {
 }
 
 // Moves the strip between plain and dimmed. A change halfway starts from where the
-// strip is, so it never jumps.
+// strip is, so it never jumps. The page's scrim starts before the strip hears of it:
+// each frame counts time from when the scrim started.
 function overlayDimmer(apply, { now = () => Date.now(), setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
   let amount = 0
   let target = 0
   let timer = null
 
-  function set(dimmed) {
+  function set(dimmed, startedAt) {
     const next = dimmed ? 1 : 0
     if (next === target) return
     target = next
     if (timer !== null) clearTimer(timer)
+    timer = null
     const from = amount
-    const start = now()
+    const heard = now()
+    const start = Number.isFinite(startedAt) ? Math.min(heard, Math.max(startedAt, heard - MAX_LAG_MS)) : heard
     const duration = dimmed ? DIM.inMs : DIM.outMs
     const ease = cubicBezier(dimmed ? DIM.easeIn : DIM.easeOut)
     const frame = () => {
@@ -82,7 +87,7 @@ function overlayDimmer(apply, { now = () => Date.now(), setTimer = setTimeout, c
       apply(dimmedOverlay(amount))
       timer = progress < 1 ? setTimer(frame, FRAME_MS) : null
     }
-    timer = setTimer(frame, 0)
+    frame()
   }
 
   function stop() {

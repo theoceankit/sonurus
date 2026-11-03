@@ -128,6 +128,34 @@ test('closing halfway goes back from where the strip is, without a jump', () => 
   assert.deepEqual(applied.at(-1), dimmedOverlay(0))
 })
 
+test('the first colour is set at once, not a frame later', () => {
+  const { dimmer, applied, tick } = clock()
+  tick(1000)
+  dimmer.set(true, 1000 - 10)
+  assert.equal(applied.length, 1)
+  assert.deepEqual(applied[0], dimmedOverlay(cubicBezier(DIM.easeIn)(10 / DIM.inMs)))
+})
+
+test('the strip keeps time from when the page started dimming, not from when it heard of it', () => {
+  const { dimmer, applied, tick } = clock()
+  tick(1000)
+  dimmer.set(true, 1000 - 40)
+  assert.deepEqual(applied[0], dimmedOverlay(cubicBezier(DIM.easeIn)(40 / DIM.inMs)))
+})
+
+test('a start time from the future or long ago does not make the strip jump', () => {
+  const late = clock()
+  late.tick(1000)
+  late.dimmer.set(true, 5000)
+  assert.deepEqual(late.applied[0], dimmedOverlay(0))
+  late.tick(16)
+  assert.deepEqual(late.applied[1], dimmedOverlay(cubicBezier(DIM.easeIn)(16 / DIM.inMs)))
+  const early = clock()
+  early.tick(1000)
+  early.dimmer.set(true, 0)
+  assert.ok(early.applied.length === 1 && early.applied[0].color !== dimmedOverlay(1).color)
+})
+
 test('asking for the state the strip is in does nothing', () => {
   const { dimmer, applied, running } = clock()
   dimmer.set(false)
@@ -137,8 +165,8 @@ test('asking for the state the strip is in does nothing', () => {
 
 test('main.js dims the strip only for the window of the new UI', () => {
   const main = fs.readFileSync(path.join(ROOT, 'electron', 'main.js'), 'utf8')
-  assert.match(main, /ipcMain\.on\('window-dimmed'/)
+  assert.match(main, /ipcMain\.on\('window-dimmed', \(event, dimmed, startedAt\) =>/)
   assert.match(main, /if \(newUi && process\.platform !== 'darwin'\) \{\s*titleBarDimmer = overlayDimmer/)
   const preload = fs.readFileSync(path.join(ROOT, 'electron', 'preload.js'), 'utf8')
-  assert.match(preload, /setWindowDimmed:\s*\(dimmed\) => ipcRenderer\.send\('window-dimmed', dimmed\)/)
+  assert.match(preload, /setWindowDimmed:\s*\(dimmed, startedAt\) => ipcRenderer\.send\('window-dimmed', dimmed, startedAt\)/)
 })

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
@@ -293,8 +293,17 @@ test('centred without a transform, so that scale grows from its middle', () => {
 
 describe('the strip of the window buttons', () => {
   const setWindowDimmed = vi.fn()
-  beforeEach(() => vi.stubGlobal('electronAPI', { setWindowDimmed }))
-  afterEach(() => {
+  // The strip hears of a change at the next frame; frames run in order, so one
+  // asked for now comes after every change before it has been said.
+  const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)))
+  beforeEach(async () => {
+    // Windows of the tests above close too.
+    await nextFrame()
+    vi.stubGlobal('electronAPI', { setWindowDimmed })
+  })
+  afterEach(async () => {
+    cleanup()
+    await nextFrame()
     vi.unstubAllGlobals()
     setWindowDimmed.mockClear()
   })
@@ -319,13 +328,13 @@ describe('the strip of the window buttons', () => {
     await waitFor(() => expect(calls()).toEqual([true]))
     await userEvent.click(button('Next'))
     await screen.findByRole('dialog', { name: 'B' })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await nextFrame()
     expect(calls()).toEqual([true])
   })
 
   test('a preview does not dim the window', async () => {
     render(<Modal preview><ModalHeader title="Title" /></Modal>)
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await nextFrame()
     expect(setWindowDimmed).not.toHaveBeenCalled()
   })
 })
