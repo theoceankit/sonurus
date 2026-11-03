@@ -90,7 +90,7 @@ export function Paragraph({
             }}
             trigger={<Tooltip text="More"><ToolbarItem ref={more}><IconButton icon="more" label="More" /></ToolbarItem></Tooltip>}
           >
-            <MenuAction icon="reassign-speaker" onSelect={() => {
+            <MenuAction icon="change-speaker" onSelect={() => {
               leavingFocus.current = true
               onChangeSpeaker?.(more.current!)
             }}>Change speaker</MenuAction>
