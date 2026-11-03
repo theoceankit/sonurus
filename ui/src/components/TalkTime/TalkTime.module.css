@@ -22,7 +22,17 @@
 
 /* A short speaker still shows: the bar takes the rest of its width from the others. */
 .segment {
+  position: relative;
   flex-basis: 0;
   min-width: var(--space-half);
   border-radius: var(--radius-full);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+/* The pointer finds a segment over the gaps and above and below the thin bar, so
+   moving along it never falls between two. */
+.segment::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--space-1) * -1) calc(var(--space-half) / -2);
 }

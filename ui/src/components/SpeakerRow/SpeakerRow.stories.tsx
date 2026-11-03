@@ -36,6 +36,8 @@ export const Matrix: Story = {
         { label: 'Unknown', render: () => <SpeakerRow speaker={UNKNOWN} time="0:09" onSelect={noop} onPlay={noop} onAssign={noop} /> },
         { label: 'Unassigned', render: () => <SpeakerRow speaker={UNASSIGNED} time="0:04" onAssign={noop} /> },
         { label: 'Show more', render: () => <SpeakerRow kind="show-more" count={3} onToggle={noop} stack={<AvatarStack speakers={[...HIDDEN]} />} /> },
+        { label: 'Highlighted', render: () => <SpeakerRow speaker={ANNA} time="0:19" highlighted onPlay={noop} onAssign={noop} /> },
+        { label: 'Show more highlighted', render: () => <SpeakerRow kind="show-more" count={3} highlighted onToggle={noop} stack={<AvatarStack speakers={[...HIDDEN]} />} /> },
         { label: 'Show less', render: () => <SpeakerRow kind="show-more" count={3} expanded onToggle={noop} /> },
       ]}
     />
@@ -51,3 +53,6 @@ export const OnlyShows: Story = { args: { speaker: ANNA, time: '0:19' } }
 export const LongName: Story = { args: { speaker: { name: 'Alexandra Konstantinopolskaya-Vandenberghe of the Very Long Name', color: 3 }, time: '1:02:05', onPlay: noop, onAssign: noop } }
 export const ShowMore: Story = { args: { kind: 'show-more', count: 3, onToggle: noop, stack: <AvatarStack speakers={[...HIDDEN]} /> } }
 export const ShowLess: Story = { args: { kind: 'show-more', count: 3, expanded: true, onToggle: noop } }
+export const Highlighted: Story = { args: { speaker: ANNA, time: '0:19', highlighted: true, onPlay: noop, onAssign: noop } }
+export const SelectedHighlighted: Story = { args: { speaker: UNKNOWN, time: '0:09', selected: true, highlighted: true, onSelect: noop, onPlay: noop, onAssign: noop } }
+export const ShowMoreHighlighted: Story = { args: { kind: 'show-more', count: 3, highlighted: true, onToggle: noop, stack: <AvatarStack speakers={[...HIDDEN]} /> } }

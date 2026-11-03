@@ -8,7 +8,7 @@ import { Inspector } from './Inspector'
 
 const CONTENT = (
   <>
-    <TalkTime total="0:53" segments={[{ id: 'a', name: 'Anna Petrova', color: 5, seconds: 19 }, { id: 'b', name: 'Mark Ellis', color: 1, seconds: 11 }, { id: 'c', name: 'Unknown speaker 1', color: 6, seconds: 9 }]} />
+    <TalkTime total="0:53" segments={[{ id: 'a', name: 'Anna Petrova', color: 5, seconds: 19, time: '0:19' }, { id: 'b', name: 'Mark Ellis', color: 1, seconds: 11, time: '0:11' }, { id: 'c', name: 'Unknown speaker 1', color: 6, seconds: 9, time: '0:09' }]} />
     <Stack>
       <SpeakerRow speaker={{ name: 'Anna Petrova', color: 5 }} time="0:19" />
       <SpeakerRow speaker={{ name: 'Mark Ellis', color: 1 }} time="0:11" />
