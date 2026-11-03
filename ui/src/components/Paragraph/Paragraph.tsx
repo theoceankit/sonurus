@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type ComponentPropsWithRef, type FocusEvent, type KeyboardEvent } from 'react'
+import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
 import type { SpeakerColor } from '../../styles/speaker-colors'
 import { Button } from '../Button/Button'
 import { IconButton } from '../IconButton/IconButton'
 import { Menu, MenuAction } from '../Menu/Menu'
-import { Toolbar, ToolbarItem } from '../Toolbar/Toolbar'
+import { Toolbar, ToolbarAction, ToolbarItem } from '../Toolbar/Toolbar'
+import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './Paragraph.module.css'
 
 const SAVE_KEY = /mac/i.test(navigator.platform) ? '⌘↵' : 'Ctrl+Enter'
@@ -63,9 +65,10 @@ export function Paragraph({
         : <p className={styles.text} data-transcript-text="" onDoubleClick={onEdit}>{text}</p>}
       {!editing && (hovered || focused || menuOpen || showActions) && (
         <Toolbar label="Paragraph" className={styles.actions}>
-          <ToolbarItem><IconButton icon="play" label="Play" onClick={onPlay} /></ToolbarItem>
-          <ToolbarItem><IconButton icon="edit" label="Edit" onClick={onEdit} /></ToolbarItem>
-          <ToolbarItem><IconButton icon="copy" label="Copy" onClick={onCopy} /></ToolbarItem>
+          <ToolbarAction icon="play" label="Play" onClick={onPlay} />
+          <ToolbarAction icon="edit" label="Edit" onClick={onEdit} />
+          <ToolbarAction icon="highlight" label="Highlight" {...markNotImplemented('transcript.segment-highlight')} />
+          <ToolbarAction icon="copy" label="Copy" onClick={onCopy} />
           <Menu
             align="end"
             open={menuOpen}
@@ -74,7 +77,7 @@ export function Paragraph({
               if (leavingFocus.current) event.preventDefault()
               leavingFocus.current = false
             }}
-            trigger={<ToolbarItem ref={more}><IconButton icon="more" label="More" /></ToolbarItem>}
+            trigger={<Tooltip text="More"><ToolbarItem ref={more}><IconButton icon="more" label="More" /></ToolbarItem></Tooltip>}
           >
             <MenuAction icon="reassign-speaker" onSelect={() => {
               leavingFocus.current = true
