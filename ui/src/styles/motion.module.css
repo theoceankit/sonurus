@@ -44,3 +44,50 @@
     scale: var(--motion-to-scale);
   }
 }
+
+/* What opens in place and pushes what is under it. Radix measures it and keeps it until closed. */
+:where(.collapse[data-state='open']) {
+  animation: collapseOpen var(--duration-slow) var(--ease-standard);
+}
+
+:where(.collapse[data-state='closed']) {
+  animation: collapseClose var(--duration-base) var(--ease-standard) forwards;
+}
+
+@keyframes collapseOpen {
+  from {
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+
+  to {
+    height: var(--radix-collapsible-content-height);
+    overflow: hidden;
+  }
+}
+
+@keyframes collapseClose {
+  from {
+    height: var(--radix-collapsible-content-height);
+    overflow: hidden;
+  }
+
+  to {
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+}
+
+/* Nothing travels: the content appears and goes where it stands. */
+@media (prefers-reduced-motion: reduce) {
+  :where(.collapse[data-state='open']) {
+    animation-name: enter;
+  }
+
+  :where(.collapse[data-state='closed']) {
+    animation-name: exit;
+  }
+}
+

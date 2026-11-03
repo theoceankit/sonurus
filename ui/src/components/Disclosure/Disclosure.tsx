@@ -1,5 +1,6 @@
 import * as Collapsible from '@radix-ui/react-collapsible'
 import { useState, type ReactNode } from 'react'
+import { cx } from '../../styles/cx'
 import { Icon } from '../Icon/Icon'
 import styles from './Disclosure.module.css'
 
@@ -31,10 +32,10 @@ export function Disclosure({
       }}
     >
       <Collapsible.Trigger className={styles.trigger}>
-        <Icon name={open ? 'chevron-down' : 'chevron-right'} size={12} />
+        <Icon name="chevron-right" size={12} className={cx(styles.chevron, open && styles.open)} />
         {label}
       </Collapsible.Trigger>
-      <Collapsible.Content>{children}</Collapsible.Content>
+      <Collapsible.Content className={styles.content}>{children}</Collapsible.Content>
     </Collapsible.Root>
   )
 }

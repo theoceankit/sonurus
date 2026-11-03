@@ -18,6 +18,11 @@ test('the focus ring does not move', () => {
   expect(control).not.toMatch(/focus-visible[^}]*transition/)
 })
 
+test('closing in place keeps the content clipped only while it moves', () => {
+  expect(motion).not.toMatch(/\.collapse\) \{[^}]*overflow/)
+  expect(motion).toMatch(/@keyframes collapseOpen[\s\S]*overflow: hidden/)
+})
+
 test('a tooltip shown at once has no animation, a delayed one has', () => {
   const rule = motion.slice(0, motion.indexOf('@keyframes'))
   expect(rule).toContain("delayed-open")

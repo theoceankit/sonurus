@@ -30,3 +30,15 @@
   border-radius: var(--radius-lg);
   pointer-events: none;
 }
+
+.chevron {
+  transition: rotate var(--duration-fast) var(--ease-standard);
+}
+
+.open {
+  rotate: 90deg;
+}
+
+.content {
+  composes: collapse from '../../styles/motion.module.css';
+}

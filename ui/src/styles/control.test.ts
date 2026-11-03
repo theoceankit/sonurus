@@ -9,6 +9,7 @@ test.each([['control', css], ['motion', motion]])('the shared rules of %s have n
   const selectors = source
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '')
+    .replace(/@media[^{]*\{/g, '')
     .split('}')
     .map(rule => rule.split('{')[0].trim())
     .filter(Boolean)

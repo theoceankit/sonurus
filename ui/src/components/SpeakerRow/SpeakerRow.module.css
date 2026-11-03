@@ -69,6 +69,10 @@ button.main {
 }
 
 
+.chevron {
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
 .up {
   transform: rotate(180deg);
 }
