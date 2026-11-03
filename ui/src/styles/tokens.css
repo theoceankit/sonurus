@@ -179,6 +179,7 @@
   --size-avatar-lg: 48px;
 
   --size-menu: 240px;
+  --size-menu-narrow: 96px;
   --size-speaker-menu: 288px;
   --size-speaker-list: 240px;
 
@@ -204,6 +205,7 @@
   --size-status-dot: 6px;
   --size-talk-time-bar: 6px;
   --size-inspector-list-min: 72px;
+  --size-review-clip-text: 120px;
 
   --size-modal-small: 400px;
   --size-modal-medium: 520px;

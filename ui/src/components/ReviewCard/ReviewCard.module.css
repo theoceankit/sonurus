@@ -54,7 +54,9 @@
 }
 
 .text {
+  max-height: var(--size-review-clip-text);
   margin: 0;
+  overflow-y: auto;
   color: var(--color-text-secondary);
   font: var(--font-body);
 }
@@ -97,7 +99,6 @@
   .clip > .text {
     flex: 0 1 auto;
     min-height: 0;
-    overflow-y: auto;
     padding-inline-end: var(--space-2);
   }
 }
