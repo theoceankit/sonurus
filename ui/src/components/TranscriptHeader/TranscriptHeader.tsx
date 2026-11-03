@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type ComponentPropsWithRef } from 'react'
 import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
+import { Icon } from '../Icon/Icon'
 import { IconButton } from '../IconButton/IconButton'
 import { Menu, MenuAction } from '../Menu/Menu'
 import { MetaItem } from '../MetaItem/MetaItem'
+import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './TranscriptHeader.module.css'
 
 type TranscriptHeaderProps = Omit<ComponentPropsWithRef<'header'>, 'title' | 'children'> & {
@@ -50,10 +52,18 @@ export function TranscriptHeader({ title, date, language, sticky, onRename, onDe
 
   return (
     <header className={cx(styles.header, className)} {...props}>
-      <div className={styles.topRow}><Actions onDelete={onDelete} /></div>
+      <div className={styles.topRow}>
+        <button type="button" className={styles.folder} {...markNotImplemented('transcript.folder')}>
+          <Icon name="folder" />
+          No folder
+        </button>
+        <Actions onDelete={onDelete} />
+      </div>
       <div className={styles.titleRow}>
         <h1 className={cx(styles.title, renaming && styles.titleHidden)}>
-          <button ref={button} type="button" className={styles.titleButton} onClick={() => setRenaming(true)}>{title}</button>
+          <Tooltip text="Rename" placement="below">
+            <button ref={button} type="button" className={styles.titleButton} onClick={() => setRenaming(true)}>{title}</button>
+          </Tooltip>
         </h1>
         {renaming && (
           <TitleField

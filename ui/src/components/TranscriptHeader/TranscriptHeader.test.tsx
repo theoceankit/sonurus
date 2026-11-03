@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
 import { TranscriptHeader } from './TranscriptHeader'
+import headerCss from './TranscriptHeader.module.css?raw'
 
 const setup = (props: Partial<Parameters<typeof TranscriptHeader>[0]> = {}) => {
   const onRename = vi.fn()
@@ -12,12 +13,23 @@ const setup = (props: Partial<Parameters<typeof TranscriptHeader>[0]> = {}) => {
 const title = () => screen.getByRole('button', { name: 'Weekly sync' })
 const field = () => screen.getByRole('textbox', { name: 'Transcript title' }) as HTMLInputElement
 
-test('shows the title, the date and the language, and no folder', () => {
+test('shows the title, the date and the language', () => {
   setup()
   expect(screen.getByRole('heading', { name: 'Weekly sync' })).toBeTruthy()
   expect(screen.getByText('4 Oct 2026, 02:33')).toBeTruthy()
   expect(screen.getByText('English')).toBeTruthy()
-  expect(screen.queryByText(/team/i)).toBeNull()
+})
+
+test('the folder is there, and is not there yet', () => {
+  setup()
+  expect(screen.getByRole('button', { name: 'No folder' }).dataset.notImplemented).toBe('transcript.folder')
+})
+
+test('the title says it can be renamed', async () => {
+  setup()
+  await userEvent.hover(title())
+  expect((await screen.findByRole('tooltip')).textContent).toContain('Rename')
+  expect(headerCss).toMatch(/\.titleButton \{\s*composes: reset stateLayer focusRing/)
 })
 
 test('leaves out what it does not know', () => {
