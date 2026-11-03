@@ -16,7 +16,7 @@ interface MenuProps {
   // One element that takes a ref and pointer handlers, usually a button.
   trigger: ReactElement
   children: ReactNode
-  align?: 'start' | 'end'
+  align?: 'start' | 'center' | 'end'
   side?: 'top' | 'bottom'
   // Narrow is for a short list of short values.
   size?: 'default' | 'narrow'

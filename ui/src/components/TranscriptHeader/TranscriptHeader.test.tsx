@@ -25,10 +25,11 @@ test('the folder is there, and is not there yet', () => {
   expect(screen.getByRole('button', { name: 'No folder' }).dataset.notImplemented).toBe('transcript.folder')
 })
 
-test('the title says it can be renamed', async () => {
+test('the title shows it can be pressed with a layer, and no tooltip', async () => {
   setup()
   await userEvent.hover(title())
-  expect((await screen.findByRole('tooltip')).textContent).toContain('Rename')
+  await new Promise(resolve => setTimeout(resolve, 500))
+  expect(screen.queryByRole('tooltip')).toBeNull()
   expect(headerCss).toMatch(/\.titleButton \{\s*composes: reset stateLayer focusRing/)
 })
 

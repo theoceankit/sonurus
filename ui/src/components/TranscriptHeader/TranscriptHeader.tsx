@@ -5,7 +5,6 @@ import { Icon } from '../Icon/Icon'
 import { IconButton } from '../IconButton/IconButton'
 import { Menu, MenuAction } from '../Menu/Menu'
 import { MetaItem } from '../MetaItem/MetaItem'
-import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './TranscriptHeader.module.css'
 
 type TranscriptHeaderProps = Omit<ComponentPropsWithRef<'header'>, 'title' | 'children'> & {
@@ -61,9 +60,7 @@ export function TranscriptHeader({ title, date, language, sticky, onRename, onDe
       </div>
       <div className={styles.titleRow}>
         <h1 className={cx(styles.title, renaming && styles.titleHidden)}>
-          <Tooltip text="Rename" placement="below">
-            <button ref={button} type="button" className={styles.titleButton} onClick={() => setRenaming(true)}>{title}</button>
-          </Tooltip>
+          <button ref={button} type="button" className={styles.titleButton} onClick={() => setRenaming(true)}>{title}</button>
         </h1>
         {renaming && (
           <TitleField

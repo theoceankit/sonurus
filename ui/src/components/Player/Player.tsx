@@ -168,7 +168,7 @@ export function Player({
       <span className={disabled ? styles.totalDisabled : styles.total}>{total}</span>
       <Menu
         side="top"
-        align="end"
+        align="center"
         size="narrow"
         trigger={(
           <Tooltip text="Playback speed">
