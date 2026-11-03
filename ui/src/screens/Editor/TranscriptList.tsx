@@ -51,6 +51,7 @@ const ParagraphRow = memo(function ParagraphRow({ segment, speaker, color }: Par
   return (
     <Paragraph
       ref={root}
+      data-segment-start={start}
       text={text}
       color={color}
       playing={playing}

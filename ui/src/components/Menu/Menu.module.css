@@ -17,6 +17,10 @@
   outline: none;
 }
 
+.narrow {
+  width: var(--size-menu-narrow);
+}
+
 .divider {
   height: var(--border-width-default);
   margin-block: var(--space-1);

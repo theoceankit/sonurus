@@ -4,17 +4,12 @@
   min-height: 0;
 }
 
-/*
- * No scrollbar: it would take its width from the rows, the fade says there is
- * more, and the wheel and the keyboard still scroll.
- */
 .scroll {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   height: 100%;
   overflow-y: auto;
-  scrollbar-width: none;
   padding: var(--space-3) var(--space-2) 0;
 }
 

@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { ReviewCard } from './ReviewCard'
+import reviewCardCss from './ReviewCard.module.css?raw'
+import inspectorCss from '../Inspector/Inspector.module.css?raw'
 
 const UNKNOWN = { kind: 'unknown', name: 'Unknown speaker 1' } as const
 const CANDIDATES = [
@@ -64,4 +66,14 @@ test('no candidates: the search and Add a new speaker stay', () => {
 test('possible match says so', () => {
   card({ speaker: { name: 'Oliver Grant', color: 3 }, possibleMatch: true })
   expect(screen.getByText('Possible match')).toBeTruthy()
+})
+
+test('in the inspector a long clip scrolls inside the card, so the buttons stay where they are', () => {
+  expect(reviewCardCss).toMatch(/@container inspector-panel \(min-height: \d+px\) \{[\s\S]*\.clip \{[^}]*min-height: 0;[\s\S]*\.text \{[^}]*min-height: 0;/)
+  expect(inspectorCss).toMatch(/\.panel \{[^}]*container: inspector-panel \/ size;/)
+  expect(inspectorCss).toMatch(/@container inspector-panel \(min-height: \d+px\) \{\s*\.dock \{\s*flex: 0 1 auto;\s*min-height: 0;/)
+})
+
+test('a long clip keeps to a few lines, so the speakers above stay readable', () => {
+  expect(reviewCardCss).toMatch(/\.text \{[^}]*max-height: var\(--size-review-clip-text\);[^}]*overflow-y: auto;/)
 })

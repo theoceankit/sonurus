@@ -41,7 +41,7 @@ export function TurnHeader({ speaker, time, open, onOpenMenu, onSeek, className,
         <span className={styles.label}>{speaker.name}</span>
         <Icon name="chevron-down" size={12} className={styles.chevron} />
       </button>
-      <button type="button" tabIndex={-1} data-nav="" className={styles.time} aria-label={`Go to ${time}`} onClick={onSeek}>{time}</button>
+      <button type="button" tabIndex={-1} data-nav="" className={styles.time} aria-label={`Go to ${time}`} onClick={onSeek}><span className={styles.timeText}>{time}</span></button>
     </div>
   )
 }

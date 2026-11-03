@@ -78,8 +78,9 @@ test('on the fixtures the colours follow the boards', () => {
 
 test('delete prompt: names the recording and says it cannot be undone', () => {
   const prompt = deleteRecordingPrompt('Weekly sync')
-  expect(prompt.title).toBe('Delete “Weekly sync”?')
-  expect(prompt.body).toMatch(/cannot be undone/i)
+  expect(prompt.title).toBe('Delete "Weekly sync"?')
+  expect(prompt.body).not.toMatch(/cannot be undone/i)
+  expect(prompt.warning).toBe('This cannot be undone.')
 })
 
 test('delete prompt: falls back for an empty title', () => {

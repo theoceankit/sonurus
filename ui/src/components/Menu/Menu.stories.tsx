@@ -66,6 +66,21 @@ export const AlignedToEnd: Story = {
   ),
 }
 
+// A short list of short values, opening upwards, as the speed of the player.
+export const NarrowAbove: Story = {
+  render: () => (
+    <Inline padding={8} paddingY={8}>
+      <Menu side="top" align="end" size="narrow" defaultOpen trigger={<Button size="small">1×</Button>}>
+        <MenuOptions value="1" onValueChange={() => {}}>
+          <MenuOption value="0.5">0.5×</MenuOption>
+          <MenuOption value="1">1×</MenuOption>
+          <MenuOption value="2">2×</MenuOption>
+        </MenuOptions>
+      </Menu>
+    </Inline>
+  ),
+}
+
 export const Surface: Story = {
   render: () => <MenuSurface><span>Any content, such as a search field and a list</span></MenuSurface>,
 }

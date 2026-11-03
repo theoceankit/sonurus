@@ -164,6 +164,9 @@
   --size-control-md: 28px;
   --size-control-lg: 32px;
 
+  --size-scrollbar: 10px;
+  --size-scrollbar-gap: 3px;
+
   --size-icon-xs: 12px;
   --size-icon-xs-plus: 14px;
   --size-icon-sm: 16px;
@@ -176,6 +179,7 @@
   --size-avatar-lg: 48px;
 
   --size-menu: 240px;
+  --size-menu-narrow: 96px;
   --size-speaker-menu: 288px;
   --size-speaker-list: 240px;
 
@@ -201,6 +205,7 @@
   --size-status-dot: 6px;
   --size-talk-time-bar: 6px;
   --size-inspector-list-min: 72px;
+  --size-review-clip-text: 120px;
 
   --size-modal-small: 400px;
   --size-modal-medium: 520px;

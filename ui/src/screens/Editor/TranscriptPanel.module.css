@@ -6,8 +6,6 @@
 .scroll {
   height: 100%;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border-strong) transparent;
 }
 
 /* What the bar over a selection is placed in, so it scrolls with the text. */

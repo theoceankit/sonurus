@@ -111,6 +111,7 @@ Only `Avatar` works out initials; a test in `Avatar.test.tsx` fails if anything 
 - One word gives its first two letters, several give the first letter of the first and of the last word. `xs` shows one letter. An empty name is a circle without letters.
 - A colour is a number from 1 to 6. Which speaker gets which is decided by the data layer.
 - `kind="unknown"` and `kind="unassigned"` are a gray "?".
+- The initials are trimmed to their capitals with `text-box`, so the letters are what is centred, not the line box, which at these sizes leaves them a pixel high. At 20 px the capitals are an odd height, so they stay within half a pixel of the centre.
 - `AvatarStack` puts the first avatar on top and turns speakers past `max` into "+N".
 
 ### Escape in SearchField
@@ -118,6 +119,19 @@ Only `Avatar` works out initials; a test in `Avatar.test.tsx` fails if anything 
 A first Escape in a filled field clears it and goes no further; in an empty field it goes on, so a dialog around the field can close. Radix layers listen for Escape on the document in the capture phase, before any handler on the field, so the field listens on the window in the same phase while it is filled.
 
 `TextField` has no reaction of its own to Escape: cancelling an edit belongs to the screen.
+
+## ScrollBar
+
+The system bar is off everywhere (`base.css`): on Linux it draws arrows, and Chromium does not repaint the parts of a styled one when the pointer comes over the area. `ScrollBar` stands in for it, as the next sibling of the scrolling element, in the same positioned parent:
+
+```tsx
+const { area, scrollRef } = useScrollEdges()
+
+<div ref={scrollRef} className={styles.scrolls}>…</div>
+<ScrollBar area={area} />
+```
+
+It shows while the pointer is over the parent, while the area scrolls and while the thumb is dragged, and takes no width from the area.
 
 ## Overlays
 
@@ -131,7 +145,7 @@ The topmost layer takes Escape. With a toast on screen over a modal, the first E
 
 ### Tooltip
 
-`placement` is `above`, `below` or `none`, which has no arrow and shows above. Without room on the chosen side it takes the other one. A pointer waits 400 ms, the next tooltip within 300 ms shows at once, and keyboard focus shows it at once. The text is a string.
+`placement` is `above`, `below` or `none`, which has no arrow and shows above. Without room on the chosen side it takes the other one. A pointer waits 400 ms, the next tooltip within 300 ms shows at once, and keyboard focus shows it at once. The text is a string. Other props go to the trigger, so a menu can open from a control with a tooltip.
 
 ### Menu
 
@@ -161,7 +175,7 @@ Radix focuses the item under the pointer, and Chromium takes that focus for a ke
 </Toolbar>
 ```
 
-One stop for Tab, arrows move inside it. The screen decides where it stands and when it shows.
+One stop for Tab, arrows move inside it. The screen decides where it stands and when it shows. `ToolbarAction` is a button with only an icon, which names itself in a tooltip: `<ToolbarAction icon="play" label="Play" />`.
 
 ### Toast
 
@@ -209,7 +223,7 @@ Tab stays inside, and Escape, the scrim, Cancel and the close button close. Focu
 <Button {...markNotImplemented('titlebar.share')}>Share</Button>
 ```
 
-The control stays visible and focusable, dimmed with `--opacity-disabled`, with a help cursor and `aria-disabled`. Activating it shows "Not available yet" and reaches none of its handlers, nor those of the controls inside a marked container.
+The control stays visible and focusable, dimmed with `--opacity-disabled`, with the default cursor and `aria-disabled`. Activating it shows "Not available yet" and reaches none of its handlers, nor those of the controls inside a marked container.
 
 The function returns props instead of relying on a global click guard, because Radix does not wait for a click: tabs switch on mousedown and on focus, menus act on pointerup and on the keydown of Enter and Space. Capture handlers stop all of these.
 

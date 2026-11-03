@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Button } from '../Button/Button'
-import { IconButton } from '../IconButton/IconButton'
-import { Toolbar, ToolbarDivider, ToolbarItem } from './Toolbar'
+import { Toolbar, ToolbarAction, ToolbarDivider, ToolbarItem } from './Toolbar'
 
 const meta: Meta<typeof Toolbar> = { component: Toolbar, args: { label: 'Actions' } }
 export default meta
@@ -12,10 +11,10 @@ type Story = StoryObj<typeof Toolbar>
 export const Actions: Story = {
   render: () => (
     <Toolbar label="Paragraph">
-      <ToolbarItem><IconButton icon="play" label="Play" /></ToolbarItem>
-      <ToolbarItem><IconButton icon="edit" label="Edit" /></ToolbarItem>
-      <ToolbarItem><IconButton icon="copy" label="Copy" /></ToolbarItem>
-      <ToolbarItem><IconButton icon="more" label="More" /></ToolbarItem>
+      <ToolbarAction icon="play" label="Play" />
+      <ToolbarAction icon="edit" label="Edit" />
+      <ToolbarAction icon="copy" label="Copy" />
+      <ToolbarAction icon="more" label="More" />
     </Toolbar>
   ),
 }

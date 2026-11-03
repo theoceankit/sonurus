@@ -1,0 +1,33 @@
+/*
+ * The system bar is off everywhere (base.css): Chromium does not repaint its parts
+ * when the pointer comes over the area, and on Linux it draws arrows. This one stands
+ * over the area and takes no width from it.
+ */
+.scrollBar {
+  position: absolute;
+  z-index: 1;
+  width: var(--size-scrollbar);
+  opacity: 0;
+  pointer-events: none;
+}
+
+:hover > .scrollBar,
+.scrollBar[data-scrolling],
+.scrollBar:has(.thumb:active) {
+  opacity: 1;
+}
+
+/* Wider than it looks, so it is easy to catch. */
+.thumb {
+  width: 100%;
+  border: var(--size-scrollbar-gap) solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--color-border-strong) padding-box;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.thumb:hover,
+.thumb:active {
+  background: var(--color-text-secondary) padding-box;
+}

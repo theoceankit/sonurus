@@ -8,6 +8,7 @@ import { ScrollFade, useScrollEdges } from '../../components/ScrollFade/ScrollFa
 import { SpeakerMenu } from '../../components/SpeakerMenu/SpeakerMenu'
 import { Stack } from '../../components/Stack/Stack'
 import { toast } from '../../components/Toast/toast'
+import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { Toolbar, ToolbarDivider, ToolbarItem } from '../../components/Toolbar/Toolbar'
 import { TranscriptHeader } from '../../components/TranscriptHeader/TranscriptHeader'
 import { createKeyStore, useActiveSegment } from '../../media/active-segment'
@@ -17,6 +18,7 @@ import {
   buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave,
 } from './transcript'
 import type { RecordingToDelete } from './DeleteRecordingDialog'
+import { useKeepRowInPlace } from './useKeepRowInPlace'
 import { useSpeakerChange } from './useSpeakerChange'
 import { TranscriptList, type MenuKey, type TranscriptRows } from './TranscriptList'
 import { useTextSelection } from './useTextSelection'
@@ -109,6 +111,9 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   const title = recordingTitle(transcript, listed?.title)
   const deleteRecording = () => onDelete?.({ id: transcriptId, title })
 
+  const { area, scrollRef, bottom } = useScrollEdges()
+  const keepInPlace = useKeepRowInPlace(area, segments)
+
   const rows = useMemo<TranscriptRows>(() => ({
     playing,
     editing,
@@ -128,13 +133,15 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
     }),
     openTurnMenu: (anchor, turn) => {
       menuKey.set(`turn:${turn.start}`)
+      keepInPlace(turn.start)
       setMenu({ anchor, currentId: turn.speaker.id, segmentStarts: turn.segments.map(segment => segment.start) })
     },
     openSegmentMenu: (anchor, segment) => {
       menuKey.set(`segment:${segment.start}`)
+      keepInPlace(segment.start)
       setMenu({ anchor, currentId: effectiveSpeaker(segment), segmentStarts: [segment.start] })
     },
-  }), [playing, editing, menuKey, playback, transcriptId, saveText, removeSegment])
+  }), [playing, editing, menuKey, playback, transcriptId, saveText, removeSegment, keepInPlace])
 
   const closeMenu = () => {
     menuKey.set(null)
@@ -142,7 +149,6 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   }
 
   // Scrolling
-  const { scrollRef, bottom } = useScrollEdges()
   const header = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(false)
   const onScroll = (event: React.UIEvent<HTMLDivElement>) => {
@@ -208,6 +214,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
         </div>
       </div>
       {stuck && <TranscriptHeader sticky title={title} onDelete={deleteRecording} className={styles.sticky} />}
+      <ScrollBar area={area} />
       {bottom && <ScrollFade edge="bottom" />}
       {menu && (
         <SpeakerMenu

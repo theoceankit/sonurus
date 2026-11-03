@@ -44,7 +44,7 @@ Large colours bars by speaker. A speaker without a name and Unassigned are `spea
 - Pressing seeks, and dragging keeps seeking. While dragging, the only playhead is in the hover look.
 - The waveform is a `role="slider"`: the arrow keys move by 5 seconds, Home and End go to the ends.
 - Previous and next speaker go to the start of the neighbouring run of one speaker, and do nothing at the ends. A pause belongs to the run before it.
-- Speed goes round 1, 1.2, 1.5 and 2. The button has a fixed width, wider than on the board, so the waveform stays in place.
+- The speed button opens a list above it: 0.5, 1, 1.2, 1.5 and 2. The button has a fixed width, wider than on the board, so the waveform stays in place.
 - Volume 0 mutes and dims the button. There is no separate mute.
 
 The bubble stands above the panel, so the player panel in `EditorScreen.module.css` does not clip.

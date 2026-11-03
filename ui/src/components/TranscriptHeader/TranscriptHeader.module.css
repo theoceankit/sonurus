@@ -9,8 +9,24 @@
 .topRow {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   height: var(--size-avatar-sm);
+}
+
+.folder {
+  composes: reset stateLayer focusRing from '../../styles/control.module.css';
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+  border-radius: var(--radius-sm);
+  user-select: none;
+}
+
+.folder::before {
+  inset: calc(var(--space-half) * -1) calc(var(--space-1) * -1);
 }
 
 .actions {
@@ -29,13 +45,18 @@
 }
 
 .titleButton {
-  composes: reset focusRing from '../../styles/control.module.css';
+  composes: reset stateLayer focusRing from '../../styles/control.module.css';
   max-width: 100%;
   color: var(--color-text-primary);
   text-align: start;
   overflow-wrap: anywhere;
   border-radius: var(--radius-sm);
   cursor: text;
+}
+
+/* The layer stands out of the title's box, so the title stays in line with the text. */
+.titleButton::before {
+  inset: calc(var(--space-half) * -1) calc(var(--space-2) * -1);
 }
 
 /* One line under the field, which stands in its place. */

@@ -4,6 +4,8 @@ import { expect, test, vi } from 'vitest'
 import type { Turn } from '../../media/timeline'
 import { OverlayProvider } from '../../OverlayProvider'
 import { Player, type PlayerProps } from './Player'
+import playerSource from './Player.tsx?raw'
+import volumeSource from './VolumeControl.tsx?raw'
 
 const turn = (start: number, end: number, speaker: string, color: Turn['color'] = 1): Turn => ({ start, end, speaker, name: speaker, color })
 const TURNS = [turn(0, 20, 'Anna', 5), turn(25, 40, 'Mark', 1), turn(40, 100, 'Lena', 4)]
@@ -86,9 +88,24 @@ test('speaker buttons do nothing at the edges', async () => {
   expect(onSeek).not.toHaveBeenCalled()
 })
 
-test.each([[1, 1.2], [1.2, 1.5], [1.5, 2], [2, 1]])('speed %d goes to %d', async (rate, next) => {
+test('the list of speeds opens centred over its button', () => {
+  expect(playerSource).toMatch(/side="top"\s+align="center"/)
+  expect(playerSource).toMatch(/offset=\{POPUP_OFFSET\}/)
+  expect(volumeSource).toMatch(/sideOffset=\{POPUP_OFFSET\}/)
+})
+
+test('the speed is chosen from a list that marks the current one', async () => {
+  setup({ state: { ...STATE, rate: 1.5 } })
+  await userEvent.click(button('Playback speed 1.5×'))
+  const options = screen.getAllByRole('menuitemradio')
+  expect(options.map(option => option.textContent!.trim())).toEqual(['0.5×', '1×', '1.2×', '1.5×', '2×'])
+  expect(options.map(option => option.getAttribute('aria-checked'))).toEqual(['false', 'false', 'false', 'true', 'false'])
+})
+
+test.each([[1, 0.5], [1, 1.2], [1.2, 2], [2, 1]])('at speed %d choosing %d', async (rate, next) => {
   const { onRateChange } = setup({ state: { ...STATE, rate } })
   await userEvent.click(button(`Playback speed ${rate}×`))
+  await userEvent.click(screen.getByRole('menuitemradio', { name: `${next}×` }))
   expect(onRateChange).toHaveBeenCalledWith(next)
 })
 

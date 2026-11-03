@@ -26,10 +26,14 @@ body {
   background: var(--color-bg-window);
 }
 
+/* ScrollBar stands in for the system bar, which draws arrows on Linux. */
+* {
+  scrollbar-width: none;
+}
+
 /*
- * A control whose feature does not exist yet (not-implemented.ts). The help cursor
- * tells it apart from a disabled control. !important: controls set cursor on
- * themselves and on their parts.
+ * A control whose feature does not exist yet (not-implemented.ts). !important:
+ * controls set cursor on themselves and on their parts.
  */
 [data-not-implemented] {
   opacity: var(--opacity-disabled);
@@ -37,5 +41,5 @@ body {
 
 [data-not-implemented],
 [data-not-implemented] * {
-  cursor: help !important;
+  cursor: default !important;
 }

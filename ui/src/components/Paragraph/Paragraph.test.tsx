@@ -24,6 +24,12 @@ test('shows the text and no bar until the pointer comes', async () => {
   expect(bar()).toBeNull()
 })
 
+test.each(['Play', 'Edit', 'Copy', 'More'])('%s names itself in a tooltip', async name => {
+  setup({ showActions: true })
+  await userEvent.hover(screen.getByRole('button', { name }))
+  expect((await screen.findByRole('tooltip')).textContent).toContain(name)
+})
+
 test('the bar has Play, Edit, Copy and More', async () => {
   const { onPlay, onEdit, onCopy } = setup({ showActions: true })
   await userEvent.click(screen.getByRole('button', { name: 'Play' }))

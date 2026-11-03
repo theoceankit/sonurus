@@ -35,6 +35,8 @@ Assign is off until a candidate is chosen, as it writes to speaker memory. It co
 
 A clip plays from its start to its end on its own audio element (`clip-playback.ts`), so the main player keeps its place. Starting one pauses the other. Another card, another recording or closing the panel stops the clip. With no clip the card has no player, and with no audio its Play button is off.
 
+Show text opens the clip's text inside the card. It takes at most six lines and scrolls beyond them, so the speakers above stay readable. When the card no longer fits over the three rows, the text gets less room, and Skip and Assign stay where they are. In a window lower than about 720 px there is no room for that, so the whole panel scrolls.
+
 Possible match is a recognized speaker to confirm. The backend does not keep a confidence yet, so only stories show it, through the `possibleMatches` prop.
 
 ## Speaker windows

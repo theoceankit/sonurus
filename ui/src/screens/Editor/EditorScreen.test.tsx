@@ -209,8 +209,10 @@ describe('deleting the open recording', () => {
     await open()
     const title = screen.getByRole('heading', { level: 1 }).textContent!
     const dialog = await askToDelete()
-    expect(within(dialog).getByText(`Delete “${title}”?`)).toBeTruthy()
-    expect(within(dialog).getByText(/cannot be undone/)).toBeTruthy()
+    expect(within(dialog).getByText(`Delete "${title}"?`)).toBeTruthy()
+    const body = within(dialog).getByText(/cannot be undone/)
+    expect(body.querySelector('br')).toBeTruthy()
+    expect(dialog.querySelectorAll('[data-modal-header] svg')).toHaveLength(1)
   })
 
   test('Cancel leaves everything as it was', async () => {
@@ -229,7 +231,7 @@ describe('deleting the open recording', () => {
     await waitFor(() => expect(within(panel()).queryByRole('heading', { level: 1 })).toBeNull())
     expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(within(screen.getByLabelText('Recordings')).queryByText(title)).toBeNull()
-    expect(await screen.findByText(`Deleted “${title}”.`)).toBeTruthy()
+    expect(await screen.findByText(`Deleted "${title}".`)).toBeTruthy()
     expect((screen.getByRole('button', { name: 'Play' }) as HTMLButtonElement).disabled).toBe(true)
   })
 

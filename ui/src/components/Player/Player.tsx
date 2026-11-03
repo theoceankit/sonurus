@@ -5,14 +5,15 @@ import {
 import { Button } from '../Button/Button'
 import { IconButton, type IconButtonProps } from '../IconButton/IconButton'
 import { Inline } from '../Inline/Inline'
+import { Menu, MenuOption, MenuOptions } from '../Menu/Menu'
 import { Playhead } from '../Playhead/Playhead'
 import { Tooltip } from '../Tooltip/Tooltip'
 import { WAVEFORM_HEIGHTS } from '../Waveform/bars'
 import { Waveform } from '../Waveform/Waveform'
-import { VolumeControl } from './VolumeControl'
+import { POPUP_OFFSET, VolumeControl } from './VolumeControl'
 import styles from './Player.module.css'
 
-export const PLAYER_SPEEDS = [1, 1.2, 1.5, 2]
+export const PLAYER_SPEEDS = [0.5, 1, 1.2, 1.5, 2]
 
 const SKIP_SECONDS = 15
 const KEY_SECONDS = 5
@@ -165,17 +166,21 @@ export function Player({
         {notice && <span className={styles.notice}>{notice}</span>}
       </div>
       <span className={disabled ? styles.totalDisabled : styles.total}>{total}</span>
-      <Tooltip text="Playback speed">
-        <Button
-          size="small"
-          className={styles.speed}
-          aria-label={`Playback speed ${rate}×`}
-          disabled={disabled}
-          onClick={() => onRateChange?.(PLAYER_SPEEDS[(PLAYER_SPEEDS.indexOf(rate) + 1) % PLAYER_SPEEDS.length])}
-        >
-          {`${rate}×`}
-        </Button>
-      </Tooltip>
+      <Menu
+        side="top"
+        align="center"
+        offset={POPUP_OFFSET}
+        size="narrow"
+        trigger={(
+          <Tooltip text="Playback speed">
+            <Button size="small" className={styles.speed} aria-label={`Playback speed ${rate}×`} disabled={disabled}>{`${rate}×`}</Button>
+          </Tooltip>
+        )}
+      >
+        <MenuOptions value={String(rate)} onValueChange={next => onRateChange?.(Number(next))}>
+          {PLAYER_SPEEDS.map(speed => <MenuOption key={speed} value={String(speed)}>{`${speed}×`}</MenuOption>)}
+        </MenuOptions>
+      </Menu>
       <VolumeControl volume={volume} disabled={disabled} onChange={next => onVolumeChange?.(next)} />
     </Inline>
   )

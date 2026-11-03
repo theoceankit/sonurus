@@ -28,9 +28,9 @@ test('a marked control is visible, marked and still reachable', () => {
   expect(button.disabled).toBe(false)
 })
 
-test('the dimming and the help cursor come from the attribute', () => {
+test('the dimming comes from the attribute, and the cursor stays that of a disabled control', () => {
   expect(baseCss).toMatch(/\[data-not-implemented\] \{\s*opacity: var\(--opacity-disabled\);/)
-  expect(baseCss).toMatch(/\[data-not-implemented\],\s*\[data-not-implemented\] \* \{\s*cursor: help !important;/)
+  expect(baseCss).toMatch(/\[data-not-implemented\],\s*\[data-not-implemented\] \* \{\s*cursor: default !important;/)
 })
 
 test.each([

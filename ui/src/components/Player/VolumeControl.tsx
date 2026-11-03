@@ -13,8 +13,8 @@ interface VolumeControlProps {
   defaultOpen?: boolean
 }
 
-// The distance from the button.
-const OFFSET = 8
+// The distance from the button, the same for the popups of the player.
+export const POPUP_OFFSET = 8
 
 export function VolumeControl({ volume, onChange, disabled, defaultOpen }: VolumeControlProps) {
   return (
@@ -25,7 +25,7 @@ export function VolumeControl({ volume, onChange, disabled, defaultOpen }: Volum
         </Popover.Trigger>
       </Tooltip>
       <Popover.Portal>
-        <Popover.Content side="top" sideOffset={OFFSET} className={styles.volume}>
+        <Popover.Content side="top" sideOffset={POPUP_OFFSET} className={styles.volume}>
           <Slider label="Volume level" value={volume} onChange={onChange} />
         </Popover.Content>
       </Popover.Portal>

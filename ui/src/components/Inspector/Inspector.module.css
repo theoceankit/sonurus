@@ -24,15 +24,15 @@
   inset-inline-end: var(--space-2);
 }
 
-/* On a low window a long clip does not fit: then the whole panel scrolls. */
+/* On a low window the review does not fit: then the whole panel scrolls. */
 .panel {
+  container: inspector-panel / size;
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: var(--space-3);
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: none;
 }
 
 .scrollArea {
@@ -42,7 +42,6 @@
   min-height: var(--size-inspector-list-min);
 }
 
-/* No scrollbar to take width from the rows: the fade says there is more. */
 .scroll {
   display: flex;
   flex: 1;
@@ -50,7 +49,6 @@
   gap: var(--space-3);
   min-width: 0;
   overflow-y: auto;
-  scrollbar-width: none;
 }
 
 .dock {
@@ -63,17 +61,28 @@
   border-block-start: var(--border-width-default) solid var(--color-border-default);
 }
 
+/* With room for the card and a few lines of its clip, the clip scrolls instead
+   (ReviewCard.module.css), so the card's buttons stay where they are. */
+@container inspector-panel (min-height: 520px) {
+  .dock {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+}
+
 .dockHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+  user-select: none;
 }
 
 .dockCollapsed {
   flex-direction: row;
   align-items: center;
   padding-block-end: var(--space-4);
+  user-select: none;
 }
 
 .title {

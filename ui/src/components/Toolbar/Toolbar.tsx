@@ -1,6 +1,8 @@
 import * as RadixToolbar from '@radix-ui/react-toolbar'
 import type { ComponentPropsWithRef, ReactElement } from 'react'
 import { cx } from '../../styles/cx'
+import { IconButton, type IconButtonProps } from '../IconButton/IconButton'
+import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './Toolbar.module.css'
 
 interface ToolbarProps extends Omit<ComponentPropsWithRef<typeof RadixToolbar.Root>, 'asChild' | 'orientation' | 'aria-label'> {
@@ -18,6 +20,15 @@ export function Toolbar({ label, className, ...props }: ToolbarProps) {
 // Takes what a menu's trigger passes, so a menu can open from the bar.
 export function ToolbarItem({ children, ...props }: { children: ReactElement } & ComponentPropsWithRef<'button'>) {
   return <RadixToolbar.Button asChild {...props}>{children}</RadixToolbar.Button>
+}
+
+// A button with only an icon, which names itself in a tooltip.
+export function ToolbarAction({ label, ...props }: IconButtonProps) {
+  return (
+    <Tooltip text={label}>
+      <ToolbarItem><IconButton label={label} {...props} /></ToolbarItem>
+    </Tooltip>
+  )
 }
 
 export function ToolbarDivider() {

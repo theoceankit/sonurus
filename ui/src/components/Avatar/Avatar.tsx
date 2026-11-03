@@ -35,7 +35,7 @@ export function Avatar({ kind = 'named', name, color, size = 'medium', className
       style={{ background: `var(--color-speaker-${palette}-bg)`, color: `var(--color-speaker-${palette}-fg)`, ...style }}
       {...props}
     >
-      {size === 'xs' ? [...initials].slice(0, 1).join('') : initials}
+      <span className={styles.initials} data-initials="">{size === 'xs' ? [...initials].slice(0, 1).join('') : initials}</span>
     </span>
   )
 }

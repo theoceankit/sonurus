@@ -100,10 +100,10 @@ test('typing narrows the list and takes the first result', async () => {
 
 test('no results: says so, offers a new speaker, and Assign is off', async () => {
   const { onNewSpeaker } = setup({ initialQuery: 'Zoe' })
-  expect(screen.getByText('No speakers match “Zoe”')).toBeTruthy()
+  expect(screen.getByText('No speakers match "Zoe"')).toBeTruthy()
   expect(assign().disabled).toBe(true)
   expect(within(screen.getByRole('button', { name: /All speakers/ })).getByText('0')).toBeTruthy()
-  await userEvent.click(screen.getByRole('button', { name: 'Add “Zoe” as a new speaker' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Add "Zoe" as a new speaker' }))
   expect(onNewSpeaker).toHaveBeenCalledWith('Zoe')
 })
 

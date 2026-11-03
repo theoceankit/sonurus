@@ -49,7 +49,7 @@ export function NewSpeakerModal({
     }
   }
 
-  const repeated = trimmed && isNameTaken?.(trimmed) ? `Another speaker is also named “${trimmed}”.` : undefined
+  const repeated = trimmed && isNameTaken?.(trimmed) ? `Another speaker is also named "${trimmed}".` : undefined
 
   return (
     <Modal size="medium" open preview={preview} onOpenChange={open => { if (!open) onClose() }}>

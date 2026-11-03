@@ -64,7 +64,7 @@ test('typing filters and drops the section; nothing found says so', async () => 
   expect(screen.queryByText('In this recording')).toBeNull()
   expect(screen.getAllByRole('option')).toHaveLength(1)
   await userEvent.keyboard('zz')
-  expect(screen.getByText('No speakers match “anzz”')).toBeTruthy()
+  expect(screen.getByText('No speakers match "anzz"')).toBeTruthy()
 })
 
 test('arrows move the highlight, focus stays in the search, Enter chooses', async () => {

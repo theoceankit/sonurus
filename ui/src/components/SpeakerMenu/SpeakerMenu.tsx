@@ -7,6 +7,7 @@ import { MenuSurface } from '../Menu/Menu'
 import { MenuItem } from '../MenuItem/MenuItem'
 import { SearchField } from '../SearchField/SearchField'
 import { SectionHeader } from '../SectionHeader/SectionHeader'
+import { ScrollBar } from '../ScrollBar/ScrollBar'
 import styles from './SpeakerMenu.module.css'
 
 export interface SpeakerMenuRow {
@@ -40,6 +41,7 @@ export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onSh
   const [query, setQuery] = useState(initialQuery)
   const [active, setActive] = useState(0)
   const list = useRef<HTMLDivElement>(null)
+  const [listArea, setListArea] = useState<HTMLElement | null>(null)
   const showAll = useRef<HTMLButtonElement>(null)
   const { section, rows } = rowsFor(query)
 
@@ -94,7 +96,7 @@ export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onSh
               }}
             />
             {section && <SectionHeader title={section} />}
-            <div ref={list} id="speaker-menu-list" role="listbox" aria-label="Speakers" className={styles.list}>
+            <div ref={node => { list.current = node; setListArea(node) }} id="speaker-menu-list" role="listbox" aria-label="Speakers" className={styles.list}>
               {rows.map((row, index) => (
                 <div
                   key={row.id}
@@ -115,9 +117,10 @@ export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onSh
                 </div>
               ))}
               {rows.length === 0 && (
-                <span className={styles.empty}>{query.trim() ? `No speakers match “${query.trim()}”` : 'No speakers with a name here yet'}</span>
+                <span className={styles.empty}>{query.trim() ? `No speakers match "${query.trim()}"` : 'No speakers with a name here yet'}</span>
               )}
             </div>
+            <ScrollBar area={listArea} />
             <div className={styles.divider} />
             <MenuItem
               ref={showAll}
