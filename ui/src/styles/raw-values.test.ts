@@ -56,6 +56,22 @@ describe('findRawValues', () => {
     expect(kinds('.a { white-space: nowrap; }')).toEqual([])
   })
 
+  test.each([
+    ['transition: color 100ms'], ['transition-duration: 0.2s'], ['transition: all var(--duration-fast)'],
+    ['transition-timing-function: ease-out'], ['animation: spin 1s linear'], ['animation-timing-function: cubic-bezier(0, 0, 1, 1)'],
+    ['scale: 0.5'], ['translate: 0 4px'],
+  ])('reports the raw motion in %s', declaration => {
+    expect(kinds(`.a { ${declaration}; }`)).toEqual(['motion'])
+  })
+
+  test.each([
+    ['transition: background-color var(--duration-fast) var(--ease-standard)'], ['animation: spin var(--duration-spin) linear infinite'],
+    ['transition: none'], ['scale: var(--motion-scale)'], ['translate: 0 var(--motion-shift-md)'], ['translate: -50% 0'],
+    ['transition-property: height, opacity'],
+  ])('accepts %s', declaration => {
+    expect(kinds(`.a { ${declaration}; }`)).toEqual([])
+  })
+
   test('reads the last declaration without a semicolon', () => {
     expect(kinds('.a { color: #000 }')).toEqual(['color'])
   })

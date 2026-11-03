@@ -1,0 +1,38 @@
+/*
+ * What appears and goes away, the standard of new-ui-foundations.md. A component
+ * takes .presence with `composes` and sets how long and from where. Radix keeps the
+ * element until the animation of data-state="closed" has ended.
+ *
+ * Every selector sits in :where(), for the reason given in control.module.css.
+ */
+:where(.presence) {
+  --motion-in: var(--duration-slow);
+  --motion-out: var(--duration-base);
+  --motion-from-scale: 1;
+  --motion-from-shift: 0 0;
+  --motion-to-scale: 1;
+}
+
+:where(.presence[data-state='open']),
+:where(.presence[data-state='delayed-open']) {
+  animation: enter var(--motion-in) var(--ease-enter);
+}
+
+:where(.presence[data-state='closed']) {
+  animation: exit var(--motion-out) var(--ease-exit) forwards;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    scale: var(--motion-from-scale);
+    translate: var(--motion-from-shift);
+  }
+}
+
+@keyframes exit {
+  to {
+    opacity: 0;
+    scale: var(--motion-to-scale);
+  }
+}

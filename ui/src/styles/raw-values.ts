@@ -1,4 +1,4 @@
-export type RawValueKind = 'color' | 'length' | 'palette'
+export type RawValueKind = 'color' | 'length' | 'palette' | 'motion'
 
 export interface RawValue {
   line: number
@@ -15,6 +15,10 @@ const COLOR_LITERAL = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|ok
 const NAMED_COLOR = /\b(?:black|white|gray|grey|red|green|blue|orange|yellow|purple|pink|brown)\b/i
 const SPACING_PROPERTY = /^(?:(?:margin|padding|scroll-margin|scroll-padding|inset)(?:-[a-z-]+)?|gap|row-gap|column-gap|top|right|bottom|left)$/
 const LENGTH = /(?<![\w-])-?\d*\.?\d+(?:px|rem|em|vh|vw|vmin|vmax|ch|ex)\b/
+const MOTION_PROPERTY = /^(?:transition|animation)(?:-[a-z-]+)?$/
+const RAW_MOTION = /(?<![\w-])\d*\.?\d+m?s\b|\bcubic-bezier\(|\bsteps\(|\bease(?:-in|-out|-in-out)?\b|(?<![\w-])all\b/
+const OFFSET_PROPERTY = /^(?:scale|translate)$/
+const RAW_OFFSET = /(?<![\w-])-?\d*\.?\d+(?![\d.%])/
 
 const blankKeepingLines = (text: string) => text.replace(/[^\n]/g, ' ')
 
@@ -39,6 +43,8 @@ export function findRawValues(css: string, palette: ReadonlySet<string>): RawVal
     const bare = value.replace(/--[\w-]+/g, '').replace(/url\([^)]*\)/g, '')
     if (COLOR_LITERAL.test(bare) || NAMED_COLOR.test(bare)) report('color')
     if (SPACING_PROPERTY.test(property) && LENGTH.test(bare)) report('length')
+    if (MOTION_PROPERTY.test(property) && RAW_MOTION.test(bare)) report('motion')
+    if (OFFSET_PROPERTY.test(property) && RAW_OFFSET.test(bare.replace(/(?<![\w-])0(?![\d.])/g, ''))) report('motion')
   }
   return found
 }
