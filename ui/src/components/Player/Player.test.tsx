@@ -5,6 +5,7 @@ import type { Turn } from '../../media/timeline'
 import { OverlayProvider } from '../../OverlayProvider'
 import { Player, type PlayerProps } from './Player'
 import playerSource from './Player.tsx?raw'
+import volumeSource from './VolumeControl.tsx?raw'
 
 const turn = (start: number, end: number, speaker: string, color: Turn['color'] = 1): Turn => ({ start, end, speaker, name: speaker, color })
 const TURNS = [turn(0, 20, 'Anna', 5), turn(25, 40, 'Mark', 1), turn(40, 100, 'Lena', 4)]
@@ -89,6 +90,8 @@ test('speaker buttons do nothing at the edges', async () => {
 
 test('the list of speeds opens centred over its button', () => {
   expect(playerSource).toMatch(/side="top"\s+align="center"/)
+  expect(playerSource).toMatch(/offset=\{POPUP_OFFSET\}/)
+  expect(volumeSource).toMatch(/sideOffset=\{POPUP_OFFSET\}/)
 })
 
 test('the speed is chosen from a list that marks the current one', async () => {

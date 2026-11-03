@@ -10,7 +10,7 @@ import { Playhead } from '../Playhead/Playhead'
 import { Tooltip } from '../Tooltip/Tooltip'
 import { WAVEFORM_HEIGHTS } from '../Waveform/bars'
 import { Waveform } from '../Waveform/Waveform'
-import { VolumeControl } from './VolumeControl'
+import { POPUP_OFFSET, VolumeControl } from './VolumeControl'
 import styles from './Player.module.css'
 
 export const PLAYER_SPEEDS = [0.5, 1, 1.2, 1.5, 2]
@@ -169,6 +169,7 @@ export function Player({
       <Menu
         side="top"
         align="center"
+        offset={POPUP_OFFSET}
         size="narrow"
         trigger={(
           <Tooltip text="Playback speed">
