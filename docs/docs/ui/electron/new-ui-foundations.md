@@ -169,7 +169,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | A highlighted speaker: turns, rows, talk time | 100 | 100 | colour only, as hover; the waveform changes at once |
 | Tooltip | 100 | 100 | fade and 2 px; the next within 300 ms and one from the keyboard come at once |
 | Menu, popup | 150 | 100 | fade and scale from where it hangs |
-| Modal and scrim | 200 | 150 | fade and scale; Choose speaker and New speaker turn into each other with neither |
+| Modal and scrim | 200 | 150 | fade and scale; Choose speaker and New speaker turn into each other with neither. The strip of the window buttons dims with the scrim, on the same curves: see [Window and Editor shell](overview.md#window-and-editor-shell) |
 | Toast | 200 | 150 | fade and 8 px up |
 | Panel, on its button | 250 | 250 | the frame moves, the text wraps on every frame, the panel's content fades |
 | What opens in place | 200 | 150 | height and fade: Show N more, Disclosure, the text of a review card |
