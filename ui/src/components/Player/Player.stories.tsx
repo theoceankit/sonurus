@@ -88,4 +88,15 @@ export const OverAnHour: Story = {
   },
 }
 
+// Less than an hour left of a longer recording: the hours stay, so the clock keeps its width.
+export const LastHour: Story = {
+  args: {
+    state: { ...PAUSED, currentTime: 7326, duration: 10925 },
+    turns: [turn(0, 4000, 'Anna Petrova', 5), turn(4000, 10925, 'Mark Ellis', 1)],
+  },
+}
+
+// Played to the end, or past the last turn of audio with no length: nothing left.
+export const AtTheEnd: Story = { args: { state: { ...PAUSED, currentTime: PAUSED.duration } } }
+
 export const Narrow: Story = { parameters: { narrow: true } }

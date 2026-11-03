@@ -6,9 +6,10 @@
   flex: none;
 }
 
-/* Digits of one width, or the waveform would shift as the time runs. */
+/* Digits of one width, or the waveform would shift as the time runs. The time
+   left keeps its hours to the end for the same reason (remainingClock). */
 .current,
-.total {
+.remaining {
   flex: none;
   font: var(--font-body);
   font-variant-numeric: tabular-nums;
@@ -18,7 +19,7 @@
   color: var(--color-text-primary);
 }
 
-.total {
+.remaining {
   color: var(--color-text-secondary);
 }
 
@@ -27,8 +28,8 @@
   opacity: var(--opacity-disabled);
 }
 
-.totalDisabled {
-  composes: total;
+.remainingDisabled {
+  composes: remaining;
   opacity: var(--opacity-disabled);
 }
 

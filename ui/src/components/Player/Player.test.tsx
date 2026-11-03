@@ -22,10 +22,20 @@ function setup(props: Partial<PlayerProps> = {}) {
 
 const button = (name: string) => screen.getByRole('button', { name })
 
-test('shows the time and the duration', () => {
+test('shows the time and the time left', () => {
   setup()
   expect(screen.getByText('00:30')).toBeTruthy()
-  expect(screen.getByText('01:40')).toBeTruthy()
+  expect(screen.getByText('01:10')).toBeTruthy()
+})
+
+test('the slider still tells the whole length', () => {
+  const { track } = setup()
+  expect(track.getAttribute('aria-valuetext')).toBe('00:30 of 01:40')
+})
+
+test('a recording of an hour or more keeps the hours in the time left', () => {
+  setup({ state: { ...STATE, currentTime: 7326, duration: 10925 } })
+  expect(screen.getByText('0:59:59')).toBeTruthy()
 })
 
 test('a duration not known yet shows 00:00', () => {
@@ -34,14 +44,19 @@ test('a duration not known yet shows 00:00', () => {
 })
 
 // A live recording in WebM has no length in the file: duration is Infinity.
-test('audio that does not know its length shows the end of the last turn', () => {
+test('audio that does not know its length counts the time left to the end of the last turn', () => {
   setup({ state: { ...STATE, duration: Infinity } })
-  expect(screen.getByText('01:40')).toBeTruthy()
+  expect(screen.getByText('01:10')).toBeTruthy()
 })
 
 test('audio that goes on after the last turn keeps the playhead on the waveform', () => {
   const { container } = setup({ state: { ...STATE, currentTime: 130, duration: Infinity } })
   expect(container.innerHTML).not.toContain('130%')
+})
+
+test('audio that goes on after the last turn leaves 00:00, not less', () => {
+  setup({ state: { ...STATE, currentTime: 130, duration: Infinity } })
+  expect(screen.getByText('00:00')).toBeTruthy()
 })
 
 test('a notice shows over the waveform', () => {
