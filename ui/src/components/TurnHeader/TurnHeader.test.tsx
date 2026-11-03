@@ -55,6 +55,11 @@ test('a name stays on one line of fixed height', () => {
   expect(css.match(/\.name \{([^}]*)\}/)![1]).toMatch(/font:\s*var\(--font-body-strong\)/)
 })
 
+// A flex item is no narrower than its text unless told, so a long name ran over the time.
+test('a long name shrinks to an ellipsis instead of running over the time', () => {
+  expect(css.match(/\.label \{([^}]*)\}/)![1]).toMatch(/min-width:\s*0/)
+})
+
 // Glyphs from a fallback font would make a line of normal height taller.
 test('the font of the name sets its line height', () => {
   expect(tokens).toMatch(/--font-body-strong:[^;]*\/[\d.]+ /)

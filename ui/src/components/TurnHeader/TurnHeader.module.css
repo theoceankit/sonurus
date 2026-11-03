@@ -29,6 +29,7 @@
 
 /* One line of fixed height whatever the speaker: rows above must not move. */
 .label {
+  min-width: 0;
   overflow-x: clip;
   white-space: nowrap;
   text-overflow: ellipsis;
