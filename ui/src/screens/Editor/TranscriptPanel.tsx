@@ -136,6 +136,12 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
       onError: error => toast({ message: `Failed to delete segment: ${error.message}`, type: 'error' }),
     }),
     openTurnMenu: (anchor, turn) => {
+      // The name that opened the menu closes it again, the way a menu button does.
+      if (menuKey.get() === `turn:${turn.start}`) {
+        menuKey.set(null)
+        setMenu(null)
+        return
+      }
       menuKey.set(`turn:${turn.start}`)
       keepInPlace(turn.start)
       setMenu({ anchor, currentId: turn.speaker.id, segmentStarts: turn.segments.map(segment => segment.start) })

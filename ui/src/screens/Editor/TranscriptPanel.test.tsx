@@ -347,6 +347,23 @@ describe('changing a speaker', () => {
     expect(assign.mock.calls.map(([call]) => call)).toEqual([{ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [8], target: { id: SPEAKER_IDS.anna } }])
   })
 
+  test('a second click on the name closes the menu, without opening it again', async () => {
+    setup()
+    await openTurnMenu()
+    const name = screen.getAllByRole('button', { name: 'Mark Ellis' })[0]
+    const reopened: Node[] = []
+    const watch = new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => {
+      if (node instanceof Element && (node.matches('[role="dialog"]') || node.querySelector('[role="dialog"]'))) reopened.push(node)
+    })))
+    watch.observe(document.body, { childList: true, subtree: true })
+    await userEvent.click(name)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    watch.disconnect()
+    expect(reopened).toEqual([])
+    expect(screen.queryByRole('dialog', { name: 'Change speaker' })).toBeNull()
+    expect(name.getAttribute('aria-expanded')).toBe('false')
+  })
+
   test('the current speaker only closes the menu', async () => {
     const { client } = setup()
     const assign = vi.spyOn(client, 'assignSpeaker')

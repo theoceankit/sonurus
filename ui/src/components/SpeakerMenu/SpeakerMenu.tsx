@@ -81,6 +81,11 @@ export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onSh
           alignOffset={ALIGN_OFFSET}
           collisionPadding={OFFSET}
           aria-label="Change speaker"
+          // A press on the control it opened from is that control's to answer, as on a menu
+          // button: otherwise the menu closes on the press and the click opens it again.
+          onInteractOutside={event => {
+            if (anchor.contains(event.target as Node)) event.preventDefault()
+          }}
           onCloseAutoFocus={event => {
             event.preventDefault()
             anchor.focus()
