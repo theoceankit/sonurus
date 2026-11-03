@@ -37,8 +37,8 @@ type ReviewCardProps = Omit<ComponentPropsWithRef<'section'>, 'children' | 'onSe
   candidates: readonly ReviewCardCandidate[]
   selectedId?: string | null
   onSelect?: (id: string) => void
-  onSearch?: () => void
-  onAddNew?: () => void
+  // The other speakers, and a new one, are in a window of their own.
+  onMore?: () => void
   onSkip?: () => void
   onAssign?: () => void
   onClose?: () => void
@@ -49,7 +49,7 @@ type ReviewCardProps = Omit<ComponentPropsWithRef<'section'>, 'children' | 'onSe
 }
 
 export function ReviewCard({
-  speaker, possibleMatch, clip, candidates, selectedId = null, onSelect, onSearch, onAddNew, onSkip, onAssign, onClose, busy, initialTextExpanded = false, className, ...props
+  speaker, possibleMatch, clip, candidates, selectedId = null, onSelect, onMore, onSkip, onAssign, onClose, busy, initialTextExpanded = false, className, ...props
 }: ReviewCardProps) {
   const [expanded, setExpanded] = useState(initialTextExpanded)
   const [text, setText] = useState<HTMLElement | null>(null)
@@ -83,7 +83,7 @@ export function ReviewCard({
         </div>
       )}
       <div className={styles.answer}>
-        <SectionHeader title="Select speaker" action={<IconButton icon="search" size="small" label="Search speakers" onClick={onSearch} />} />
+        <SectionHeader title="Select speaker" />
         {candidates.map(candidate => (
           <Candidate
             key={candidate.id}
@@ -95,7 +95,7 @@ export function ReviewCard({
             onClick={() => onSelect?.(candidate.id)}
           />
         ))}
-        <Candidate kind="add" onClick={onAddNew}>Add a new speaker</Candidate>
+        <Candidate kind="add" icon="more" onClick={onMore}>More speakers</Candidate>
       </div>
       <div className={styles.actions}>
         <Button variant="secondary" className={styles.action} onClick={onSkip}>Skip</Button>

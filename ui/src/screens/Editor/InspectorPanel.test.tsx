@@ -299,16 +299,16 @@ describe('review', () => {
     await userEvent.click(within(card()).getByRole('button', { name: 'Skip' }))
     await counter('4 of 4')
     expect(within(card()).getByRole('button', { name: 'Play clip' })).toBeTruthy()
-    expect(within(card()).getByRole('button', { name: 'Add a new speaker' })).toBeTruthy()
+    expect(within(card()).getByRole('button', { name: 'More speakers' })).toBeTruthy()
     expect(within(card()).queryAllByRole('button', { pressed: false })).toEqual([])
   })
 })
 
 describe('speaker windows from the card', () => {
-  test('Search: preselects, assigns and goes on', async () => {
+  test('More speakers: preselects, assigns and goes on', async () => {
     setup(WEEKLY_SYNC_ID)
     await counter('1 of 1')
-    await userEvent.click(within(card()).getByRole('button', { name: 'Search speakers' }))
+    await userEvent.click(within(card()).getByRole('button', { name: 'More speakers' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('option', { name: /Mark Ellis/ }).getAttribute('aria-selected')).toBe('true')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Assign' }))
@@ -316,29 +316,38 @@ describe('speaker windows from the card', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
-  test('Search takes what the card chose', async () => {
+  test('More speakers takes what the card chose', async () => {
     setup(WEEKLY_SYNC_ID)
     await counter('1 of 1')
     await userEvent.click(within(card()).getByRole('button', { name: /Lena Kovacs/ }))
-    await userEvent.click(within(card()).getByRole('button', { name: 'Search speakers' }))
+    await userEvent.click(within(card()).getByRole('button', { name: 'More speakers' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('option', { name: /Lena Kovacs/ }).getAttribute('aria-selected')).toBe('true')
   })
 
-  test('Add a new speaker: Back closes, the card stays', async () => {
+  test('closing Choose speaker leaves the card as it was', async () => {
     setup(WEEKLY_SYNC_ID)
     await counter('1 of 1')
-    await userEvent.click(within(card()).getByRole('button', { name: 'Add a new speaker' }))
+    await userEvent.click(within(card()).getByRole('button', { name: 'More speakers' }))
     const dialog = await screen.findByRole('dialog')
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Back' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(screen.getByText('1 of 1')).toBeTruthy()
+  })
+
+  test('New speaker from More speakers: Back returns to Choose speaker', async () => {
+    setup(WEEKLY_SYNC_ID)
+    await counter('1 of 1')
+    await userEvent.click(within(card()).getByRole('button', { name: 'More speakers' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'New speaker' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Back' }))
+    expect(await screen.findByRole('searchbox', { name: 'Search speakers' })).toBeTruthy()
   })
 
   test('from Choose speaker: the name comes along, Back returns with the search', async () => {
     setup(WEEKLY_SYNC_ID)
     await counter('1 of 1')
-    await userEvent.click(within(card()).getByRole('button', { name: 'Search speakers' }))
+    await userEvent.click(within(card()).getByRole('button', { name: 'More speakers' }))
     await userEvent.type(await screen.findByRole('searchbox', { name: 'Search speakers' }), 'Zoe')
     await userEvent.click(screen.getByRole('button', { name: 'Add "Zoe" as a new speaker' }))
     expect((await screen.findByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('Zoe')
@@ -349,7 +358,8 @@ describe('speaker windows from the card', () => {
   test('Create and assign, then Undo: the voice is back and the new speaker is gone', async () => {
     const { client } = setup(WEEKLY_SYNC_ID)
     await counter('1 of 1')
-    await userEvent.click(within(card()).getByRole('button', { name: 'Add a new speaker' }))
+    await userEvent.click(within(card()).getByRole('button', { name: 'More speakers' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'New speaker' }))
     await userEvent.type(await screen.findByRole('textbox', { name: 'Name' }), 'Olivia Brown')
     await userEvent.click(button('Create and assign'))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
@@ -363,7 +373,8 @@ describe('speaker windows from the card', () => {
   test('a failure while creating shows in the window', async () => {
     setup(WEEKLY_SYNC_ID, { overrides: { assignSpeaker: () => Promise.reject(new ApiError(500, 'Server error 500')) } })
     await counter('1 of 1')
-    await userEvent.click(within(card()).getByRole('button', { name: 'Add a new speaker' }))
+    await userEvent.click(within(card()).getByRole('button', { name: 'More speakers' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'New speaker' }))
     await userEvent.type(await screen.findByRole('textbox', { name: 'Name' }), 'Olivia')
     await userEvent.click(button('Create and assign'))
     expect(await within(screen.getByRole('dialog')).findByText('Server error 500')).toBeTruthy()

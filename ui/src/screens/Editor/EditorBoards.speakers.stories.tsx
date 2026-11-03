@@ -60,13 +60,13 @@ export const Done: Story = {
 
 export const ChooseSpeaker: Story = {
   name: 'Choose speaker',
-  play: async () => { (await byLabel('Search speakers')).click() },
+  play: async () => { (await byText('More speakers')).click() },
 }
 
 export const ChooseSpeakerNoResults: Story = {
   name: 'Choose speaker / No results',
   play: async () => {
-    (await byLabel('Search speakers')).click()
+    (await byText('More speakers')).click()
     typeInto(await dialogField(), 'Zoe')
   },
 }
@@ -74,16 +74,8 @@ export const ChooseSpeakerNoResults: Story = {
 export const NewSpeaker: Story = {
   name: 'New speaker',
   play: async () => {
-    (await byText('Add a new speaker')).click()
-    typeInto(await dialogField(), 'Olivia Brown')
-  },
-}
-
-export const NewSpeakerOptionalDetails: Story = {
-  name: 'New speaker / Optional details',
-  play: async () => {
-    (await byText('Add a new speaker')).click()
-    typeInto(await dialogField(), 'Olivia Brown')
-    ;(await byText('Optional details')).click()
+    (await byText('More speakers')).click()
+    ;(await byText('New speaker')).click()
+    typeInto(await waitFor(() => document.querySelector('[role="dialog"] input[placeholder="Speaker name"]')) as HTMLInputElement, 'Olivia Brown')
   },
 }

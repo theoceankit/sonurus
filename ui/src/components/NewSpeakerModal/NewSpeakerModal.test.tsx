@@ -80,10 +80,9 @@ test('Back goes back, it does not close', async () => {
   expect(onClose).not.toHaveBeenCalled()
 })
 
-test('Optional details opens, and its fields are not there yet', async () => {
+test('Handle and Email are in sight, and not there yet', async () => {
   setup()
-  expect(screen.queryByRole('textbox', { name: 'Email' })).toBeNull()
-  await userEvent.click(screen.getByRole('button', { name: 'Optional details' }))
+  expect(screen.queryByRole('button', { name: 'Optional details' })).toBeNull()
   for (const label of ['Handle', 'Email']) {
     const input = screen.getByRole('textbox', { name: label })
     expect(input.getAttribute('aria-disabled')).toBe('true')
