@@ -119,6 +119,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
 
   const rows = useMemo<TranscriptRows>(() => ({
     playing,
+    playback,
     editing,
     menu: menuKey,
     seek: start => playback.seek(start),

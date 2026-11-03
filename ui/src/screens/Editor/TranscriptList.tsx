@@ -3,6 +3,7 @@ import type { Segment } from '../../api/types'
 import { Paragraph } from '../../components/Paragraph/Paragraph'
 import { TurnHeader } from '../../components/TurnHeader/TurnHeader'
 import { useIsKey, type KeyStore } from '../../media/active-segment'
+import type { Playback } from '../../media/playback'
 import { formatClock } from '../../media/timeline'
 import type { SpeakerColor } from '../../styles/speaker-colors'
 import type { TranscriptTurn, TurnSpeaker } from './transcript'
@@ -14,6 +15,7 @@ export type MenuKey = `turn:${number}` | `segment:${number}` | null
 // stores, so one change renders the rows it is about and not the list.
 export interface TranscriptRows {
   playing: KeyStore<number | null>
+  playback: Playback
   editing: KeyStore<number | null>
   menu: KeyStore<MenuKey>
   seek: (start: number) => void
@@ -35,7 +37,7 @@ interface ParagraphRowProps {
 
 const ParagraphRow = memo(function ParagraphRow({ segment, speaker, color }: ParagraphRowProps) {
   const rows = useContext(Rows)!
-  const { start, text } = segment
+  const { start, end, text } = segment
   const playing = useIsKey(rows.playing, start)
   const editing = useIsKey(rows.editing, start)
   const menuOpen = useIsKey(rows.menu, `segment:${start}`)
@@ -55,6 +57,7 @@ const ParagraphRow = memo(function ParagraphRow({ segment, speaker, color }: Par
       text={text}
       color={color}
       playing={playing}
+      timing={playing ? { playback: rows.playback, start, end } : undefined}
       editing={editing}
       showActions={menuOpen}
       onKeyDown={(event: KeyboardEvent) => {

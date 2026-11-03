@@ -31,7 +31,23 @@
   bottom: var(--space-1);
   left: calc(var(--space-2) + (var(--size-avatar-sm) - var(--size-playing-bar)) / 2);
   width: var(--size-playing-bar);
+  overflow: hidden;
   border-radius: var(--radius-full);
+}
+
+.barTrack,
+.barFill {
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+}
+
+.barTrack {
+  opacity: var(--opacity-playing-track);
+}
+
+.barFill {
+  transform-origin: top;
 }
 
 .text {

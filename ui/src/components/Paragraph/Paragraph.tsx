@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ComponentPropsWithRef, type FocusEvent, type KeyboardEvent } from 'react'
+import { usePlayingBar, type SegmentTiming } from '../../media/playing-bar'
 import { cx } from '../../styles/cx'
 import type { SpeakerColor } from '../../styles/speaker-colors'
 import { Button } from '../Button/Button'
@@ -15,6 +16,8 @@ type ParagraphProps = Omit<ComponentPropsWithRef<'div'>, 'children' | 'color' | 
   // The speaker's colour, for the bar of the one playing.
   color: SpeakerColor
   playing?: boolean
+  // What the bar of the one playing runs along. Without it the bar stands whole.
+  timing?: SegmentTiming
   editing?: boolean
   // The bar of actions stays, as for the speaker menu it opened; a story shows it this way.
   showActions?: boolean
@@ -28,10 +31,20 @@ type ParagraphProps = Omit<ComponentPropsWithRef<'div'>, 'children' | 'color' | 
   onCancel?: () => void
 }
 
+function PlayingBar({ color, timing }: { color: SpeakerColor; timing?: SegmentTiming }) {
+  const fill = usePlayingBar<HTMLSpanElement>(timing)
+  return (
+    <span className={styles.bar} data-testid="playing" style={{ color: `var(--color-speaker-${color}-mid)` }}>
+      <span className={styles.barTrack} />
+      <span ref={fill} className={styles.barFill} />
+    </span>
+  )
+}
+
 // One segment of a turn. The bar of actions and the field exist only on the paragraph
 // that needs them, or a long recording would hold thousands of them.
 export function Paragraph({
-  text, color, playing, editing, showActions, onPlay, onEdit, onCopy, onChangeSpeaker, onDelete, onSave, onCancel, className, ...props
+  text, color, playing, timing, editing, showActions, onPlay, onEdit, onCopy, onChangeSpeaker, onDelete, onSave, onCancel, className, ...props
 }: ParagraphProps) {
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
@@ -58,7 +71,7 @@ export function Paragraph({
       {...props}
     >
       <span className={styles.gutter} />
-      {playing && !editing && <span className={styles.bar} data-testid="playing" style={{ background: `var(--color-speaker-${color}-mid)` }} />}
+      {playing && !editing && <PlayingBar color={color} timing={timing} />}
       {editing
         ? <ParagraphField text={text} onSave={onSave} onCancel={onCancel} />
         : <p className={styles.text} data-transcript-text="" onDoubleClick={onEdit}>{text}</p>}
