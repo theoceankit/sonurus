@@ -22,7 +22,7 @@ export default meta
 
 type Story = StoryObj
 
-const MOTION = /^--(duration|ease|motion)-/
+const MOTION = /^--(duration|delay|ease|motion)-/
 
 export const Tokens: Story = {
   render: () => (

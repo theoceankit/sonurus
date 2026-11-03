@@ -6,7 +6,9 @@ import { IconButton } from '../IconButton/IconButton'
 import styles from './SpeakerRow.module.css'
 
 type Common = Omit<ComponentPropsWithRef<'div'>, 'children' | 'onSelect'> & {
-  // Looks hovered, for a speaker under the pointer elsewhere, with no buttons.
+  // Looks hovered, for a speaker under the pointer elsewhere, with no buttons. Once
+  // passed, a speaker row looks hovered and shows its buttons under the pointer only
+  // while it is highlighted, so the highlight may wait for the pointer to stay.
   highlighted?: boolean
 }
 
@@ -61,7 +63,7 @@ export function SpeakerRow(props: SpeakerRowProps) {
   )
   const hasActions = Boolean(onPlay || onAssign)
   return (
-    <div className={cx(styles.speakerRow, selected && styles.selected, hasActions && styles.hasActions, className)} data-highlighted={highlighted ? '' : undefined} {...rest}>
+    <div className={cx(styles.speakerRow, selected && styles.selected, hasActions && styles.hasActions, highlighted !== undefined && styles.followsHighlight, className)} data-highlighted={highlighted ? '' : undefined} {...rest}>
       {onSelect
         ? <button type="button" className={styles.main} aria-current={selected ? 'true' : undefined} onClick={onSelect}>{content}</button>
         : <div className={styles.main}>{content}</div>}

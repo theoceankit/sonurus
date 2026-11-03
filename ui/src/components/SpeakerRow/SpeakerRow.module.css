@@ -7,7 +7,9 @@
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
-.speakerRow:hover,
+/* A row told whether it is highlighted looks hovered with that, which waits for the
+   pointer to stay; a pointer passing over it changes nothing. */
+.speakerRow:not(.followsHighlight):hover,
 .speakerRow[data-highlighted] {
   background: var(--color-fill-hover);
 }
@@ -90,17 +92,20 @@ button.main {
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 
-.speakerRow:hover .actions,
+.speakerRow:not(.followsHighlight):hover .actions,
+.followsHighlight[data-highlighted]:hover .actions,
 .speakerRow:focus-within .actions {
   opacity: 1;
 }
 
-.hasActions:hover .time,
+.hasActions:not(.followsHighlight):hover .time,
+.hasActions.followsHighlight[data-highlighted]:hover .time,
 .hasActions:focus-within .time {
   visibility: hidden;
 }
 
-.hasActions:hover .name,
+.hasActions:not(.followsHighlight):hover .name,
+.hasActions.followsHighlight[data-highlighted]:hover .name,
 .hasActions:focus-within .name {
   padding-inline-end: calc(var(--size-control-sm) * 2 + var(--space-half));
 }
