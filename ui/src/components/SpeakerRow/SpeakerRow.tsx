@@ -76,7 +76,7 @@ export function SpeakerRow(props: SpeakerRowProps) {
               onClick={onPlay}
             />
           )}
-          {onAssign && <IconButton size="xs" icon="reassign-speaker" label={`Assign ${speaker.name}`} onClick={onAssign} />}
+          {onAssign && <IconButton size="xs" icon="change-speaker" label={`Assign ${speaker.name}`} onClick={onAssign} />}
         </span>
       )}
     </div>
