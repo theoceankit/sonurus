@@ -45,6 +45,13 @@
   animation: none;
 }
 
+/* On its way out it no longer stands between the pointer and the window behind it.
+   !important: Radix sets pointer-events inline on both. */
+.scrim[data-state='closed'],
+.modal[data-state='closed'] {
+  pointer-events: none !important;
+}
+
 .skipEnter[data-state='open'] {
   animation: none;
 }
