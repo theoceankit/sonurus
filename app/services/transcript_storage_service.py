@@ -108,6 +108,14 @@ class TranscriptStorageService:
             log.info(f"UPDATE transcriptions title for id={db_id}")
         return bool(updated)
 
+    def mark_opened(self, db_id: int) -> bool:
+        """Mark the transcript as opened by the user. Returns False if it does not exist."""
+        with self._connect() as conn:
+            updated = conn.execute(
+                "UPDATE transcriptions SET opened = 1 WHERE id = ?", (db_id,)
+            ).rowcount
+        return bool(updated)
+
     def update_segment_text(self, db_id: int, start: float, end: float, new_text: str) -> None:
         with self._connect() as conn:
             conn.execute(
@@ -225,6 +233,7 @@ class TranscriptStorageService:
                           t.title,
                           t.created_at,
                           t.status,
+                          t.opened,
                           MAX(s.end)                         AS duration_sec,
                           GROUP_CONCAT(DISTINCT s.speaker_id) AS speaker_ids
                    FROM transcriptions t
@@ -239,7 +248,7 @@ class TranscriptStorageService:
 
         records = []
         for r in rows:
-            db_id, audio_file, title_db, created_at_str, status, duration_sec, speaker_ids_str = r
+            db_id, audio_file, title_db, created_at_str, status, opened, duration_sec, speaker_ids_str = r
 
             created = date.fromisoformat(created_at_str[:10]) if created_at_str else today
             if created == today:
@@ -261,6 +270,7 @@ class TranscriptStorageService:
                 "created_at": created_at_str or "",
                 "section":    section,
                 "status":     status,
+                "opened":     bool(opened),
                 "duration":   duration_str,
                 "speakers":   speaker_ids,
             })

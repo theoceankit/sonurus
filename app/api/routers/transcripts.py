@@ -107,6 +107,7 @@ def list_transcripts(storage: TranscriptStorageService = Depends(get_storage_ser
             title=row["title"],
             created_at=row["created_at"],
             status=row["status"],
+            opened=row["opened"],
             speakers=row.get("speakers", []),
             section=row.get("section", ""),
             duration=row.get("duration", ""),
@@ -261,6 +262,17 @@ def update_transcript(
 ):
     """Edit transcript metadata (title). Speakers and segments are untouched."""
     if not storage.update_title(transcript_id, body.title):
+        raise HTTPException(status_code=404, detail="Transcript not found")
+
+
+@router.post("/{transcript_id}/opened", status_code=204)
+def mark_transcript_opened(
+    transcript_id: int,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """The user opened the transcript. Only this flag changes; GET /transcripts/{id}
+    leaves it alone, so the old renderer and repeated loads do not set it."""
+    if not storage.mark_opened(transcript_id):
         raise HTTPException(status_code=404, detail="Transcript not found")
 
 

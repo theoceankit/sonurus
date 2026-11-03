@@ -1,7 +1,7 @@
 """Transcript DB schema management: creation and versioned migrations."""
 import uuid
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 def init_db(conn) -> None:
@@ -91,6 +91,17 @@ def _run_migrations(conn, current: int) -> None:
     if current < 6:
         _assign_raw_speakers(conn)
         conn.execute("UPDATE _ts_schema_version SET version = 6")
+        current = 6
+    if current < 7:
+        # A transcript the user has not opened yet. Every transcript that exists
+        # when the flag arrives counts as opened, or the whole library would show
+        # as new. The UPDATE runs even if the column is there: a crash after
+        # ALTER TABLE leaves it in place without the version.
+        txn_cols = {r[1] for r in conn.execute("PRAGMA table_info(transcriptions)").fetchall()}
+        if "opened" not in txn_cols:
+            conn.execute("ALTER TABLE transcriptions ADD COLUMN opened INTEGER NOT NULL DEFAULT 0")
+        conn.execute("UPDATE transcriptions SET opened = 1")
+        conn.execute("UPDATE _ts_schema_version SET version = 7")
 
 
 def _assign_raw_speakers(conn) -> None:

@@ -24,6 +24,8 @@ class TranscriptListItem(BaseModel):
     title: str
     created_at: str
     status: str
+    # False until the user opens the transcript: the new UI marks it as new.
+    opened: bool
     speakers: list[str]
     section: str
     duration: str
