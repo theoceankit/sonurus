@@ -139,8 +139,8 @@ export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, o
               ))}
               {rows.length === 0 && typed && (
                 <div className={styles.section}>
-                  <SectionHeader title={`No speakers match “${typed}”`} />
-                  <Candidate kind="add" active onClick={() => onNewSpeaker(typed)}>Add “{typed}” as a new speaker</Candidate>
+                  <SectionHeader title={`No speakers match "${typed}"`} />
+                  <Candidate kind="add" active onClick={() => onNewSpeaker(typed)}>Add &quot;{typed}&quot; as a new speaker</Candidate>
                 </div>
               )}
               {rows.length === 0 && !typed && <SectionHeader title="No speakers here yet" />}

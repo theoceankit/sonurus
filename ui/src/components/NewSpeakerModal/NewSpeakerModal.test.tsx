@@ -58,7 +58,7 @@ test('Enter creates', async () => {
 
 test('a repeated name is allowed and said out loud', async () => {
   const { onCreate } = setup({ initialName: 'Mark Ellis', isNameTaken: (value: string) => value === 'Mark Ellis' })
-  expect(screen.getByText('Another speaker is also named “Mark Ellis”.')).toBeTruthy()
+  expect(screen.getByText('Another speaker is also named "Mark Ellis".')).toBeTruthy()
   await userEvent.click(create())
   expect(onCreate).toHaveBeenCalledOnce()
 })

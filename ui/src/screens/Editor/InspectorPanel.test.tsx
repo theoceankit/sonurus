@@ -339,7 +339,7 @@ describe('speaker windows from the card', () => {
     await counter('1 of 1')
     await userEvent.click(within(card()).getByRole('button', { name: 'Search speakers' }))
     await userEvent.type(await screen.findByRole('searchbox', { name: 'Search speakers' }), 'Zoe')
-    await userEvent.click(screen.getByRole('button', { name: 'Add “Zoe” as a new speaker' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Add "Zoe" as a new speaker' }))
     expect((await screen.findByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('Zoe')
     await userEvent.click(button('Back'))
     expect((await screen.findByRole('searchbox', { name: 'Search speakers' }) as HTMLInputElement).value).toBe('Zoe')

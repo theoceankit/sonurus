@@ -25,7 +25,7 @@ export function DeleteRecordingDialog({ recording: { id, title }, onDeleted, onC
     try {
       await remove(id)
       onDeleted()
-      toast({ message: `Deleted “${title}”.` })
+      toast({ message: `Deleted "${title}".` })
     } catch (error) {
       toast({ message: `Could not delete: ${(error as Error).message}`, type: 'error' })
     }
@@ -34,8 +34,8 @@ export function DeleteRecordingDialog({ recording: { id, title }, onDeleted, onC
 
   return (
     <Modal type="danger" open onOpenChange={next => { if (!next) onClose() }}>
-      <ModalHeader title={prompt.title} icon="alert" />
-      <ModalBody>{prompt.body}</ModalBody>
+      <ModalHeader title={prompt.title} />
+      <ModalBody><div>{prompt.body}<br />{prompt.warning}</div></ModalBody>
       <ModalFooter confirm={{ children: 'Delete', loading: isPending, onClick: () => void confirm() }} />
     </Modal>
   )

@@ -115,7 +115,7 @@ export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onSh
                 </div>
               ))}
               {rows.length === 0 && (
-                <span className={styles.empty}>{query.trim() ? `No speakers match “${query.trim()}”` : 'No speakers with a name here yet'}</span>
+                <span className={styles.empty}>{query.trim() ? `No speakers match "${query.trim()}"` : 'No speakers with a name here yet'}</span>
               )}
             </div>
             <div className={styles.divider} />
