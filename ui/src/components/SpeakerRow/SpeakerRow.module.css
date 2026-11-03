@@ -3,6 +3,7 @@
   display: flex;
   height: var(--size-control-md);
   border-radius: var(--radius-card);
+  user-select: none;
 }
 
 .speakerRow:hover {
@@ -94,5 +95,5 @@ button.main {
 
 .hasActions:hover .name,
 .hasActions:focus-within .name {
-  padding-inline-end: var(--size-control-sm);
+  padding-inline-end: calc(var(--size-control-sm) * 2 + var(--space-half));
 }
