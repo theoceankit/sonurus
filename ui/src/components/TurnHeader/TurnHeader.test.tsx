@@ -4,6 +4,7 @@ import { expect, test, vi } from 'vitest'
 import tokens from '../../styles/tokens.css?raw'
 import { TurnHeader } from './TurnHeader'
 import css from './TurnHeader.module.css?raw'
+import turnHeaderCss from './TurnHeader.module.css?raw'
 
 const NAMED = { kind: 'named', name: 'Mark Ellis', color: 1 } as const
 
@@ -57,4 +58,18 @@ test('a name stays on one line of fixed height', () => {
 // Glyphs from a fallback font would make a line of normal height taller.
 test('the font of the name sets its line height', () => {
   expect(tokens).toMatch(/--font-body-strong:[^;]*\/[\d.]+ /)
+})
+
+test('the arrow keeps its place when hidden, so the time does not move', () => {
+  expect(turnHeaderCss).toMatch(/\.chevron \{[^}]*visibility: hidden;/)
+  expect(turnHeaderCss).not.toMatch(/display: none/)
+})
+
+test('the letters are centred, not their line boxes', () => {
+  expect(turnHeaderCss).toMatch(/\.label \{[^}]*text-box: trim-both cap alphabetic;/)
+  expect(turnHeaderCss).toMatch(/\.timeText \{[^}]*text-box: trim-both cap alphabetic;/)
+})
+
+test('the layer of a paragraph under it keeps away from the avatar', () => {
+  expect(turnHeaderCss).toMatch(/\.turnHeader \{[^}]*padding: var\(--space-1\) var\(--space-2\);/)
 })
