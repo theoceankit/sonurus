@@ -15,7 +15,7 @@ if not _verbose:
 from app.logger import setup_logging
 from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data, gpu
 from app.api.dependencies import get_memory_service, get_storage_service, get_transcription_queue
-from app.services.audio_store import remove_orphan_imports
+from app.services.audio_store import remove_orphan_imports, remove_orphan_levels
 from app.version import get_version
 import app.config as config
 
@@ -30,6 +30,8 @@ async def lifespan(app: FastAPI):
     # Import copies no transcript and no queued job references (e.g. the
     # backend stopped between copying a file and queuing it).
     remove_orphan_imports(config.RECORDINGS_DIR, storage.audio_files() | queue.audio_paths())
+    # Waveform levels go with their audio.
+    remove_orphan_levels(config.RECORDINGS_DIR)
     queue.start_worker()
     yield
     queue.stop_worker()

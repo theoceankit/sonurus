@@ -773,6 +773,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transcripts/{transcript_id}/waveform": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Transcript Waveform
+         * @description Heights for the player's waveform: bars evenly over [start, end) of the
+         *     recording, on the scale of the whole recording. The loudness is worked out
+         *     with ffmpeg on the first request (or after transcription) and cached next to
+         *     the audio.
+         */
+        get: operations["get_transcript_waveform_transcripts__transcript_id__waveform_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1312,6 +1335,15 @@ export interface components {
             start: number;
             /** Text */
             text: string;
+        };
+        /**
+         * WaveformResponse
+         * @description GET /transcripts/{id}/waveform: one height per bar, from 0 (silence) to 1
+         *     (the loud part of the recording).
+         */
+        WaveformResponse: {
+            /** Levels */
+            levels: number[];
         };
     };
     responses: never;
@@ -2620,6 +2652,56 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    get_transcript_waveform_transcripts__transcript_id__waveform_get: {
+        parameters: {
+            query: {
+                bars: number;
+                start?: number;
+                /** @description Seconds; the end of the audio by default */
+                end?: number | null;
+            };
+            header?: never;
+            path: {
+                transcript_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaveformResponse"];
+                };
+            };
+            /** @description No such transcript, or its audio file is gone */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description The audio could not be read */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

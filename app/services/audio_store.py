@@ -18,6 +18,8 @@ log = get_logger("AudioStore")
 IMPORT_PREFIX = "sonorus-import-"
 RECORDING_PREFIX = "sonorus-rec-"
 RECORDING_EXTS = frozenset({"webm", "wav"})
+# The waveform's loudness levels of an audio file (app/services/waveform.py).
+LEVELS_SUFFIX = ".levels"
 
 
 def _in_dir(path: str | Path, directory: str | Path) -> bool:
@@ -78,9 +80,22 @@ def is_import_copy(path: str, recordings_dir: str | Path) -> bool:
     return Path(path).name.startswith(IMPORT_PREFIX) and _in_dir(path, recordings_dir)
 
 
+def levels_path(audio_path: str | Path) -> Path:
+    path = Path(audio_path)
+    return path.with_name(path.name + LEVELS_SUFFIX)
+
+
+def discard_levels(audio_path: str | Path) -> None:
+    """Delete the cached waveform levels of an audio file, if any."""
+    try:
+        levels_path(audio_path).unlink(missing_ok=True)
+    except OSError as e:
+        log.warning(f"Could not delete the waveform of {audio_path}: {e}")
+
+
 def discard_import(path: str, recordings_dir: str | Path) -> None:
-    """Delete an import copy (e.g. after a failed job). Anything else —
-    live recordings, the user's original files — is left alone."""
+    """Delete an import copy (e.g. after a failed job) and its waveform levels.
+    Anything else — live recordings, the user's original files — is left alone."""
     if not is_import_copy(path, recordings_dir):
         return
     try:
@@ -88,12 +103,14 @@ def discard_import(path: str, recordings_dir: str | Path) -> None:
         log.info(f"Discarded import copy {path}")
     except OSError as e:
         log.warning(f"Could not delete import copy {path}: {e}")
+    discard_levels(path)
 
 
 def discard_owned_audio(path: str, recordings_dir: str | Path) -> None:
     """Delete an audio file the app owns — a live recording or an import copy
-    — e.g. when its queued job is deleted. Files outside recordings_dir (the
-    user's originals) are left alone; a symlink is removed, not its target."""
+    — and its waveform levels, e.g. when its queued job is deleted. Files
+    outside recordings_dir (the user's originals) are left alone; a symlink is
+    removed, not its target."""
     if not _in_dir(path, recordings_dir):
         return
     try:
@@ -101,6 +118,7 @@ def discard_owned_audio(path: str, recordings_dir: str | Path) -> None:
         log.info(f"Deleted {path}")
     except OSError as e:
         log.warning(f"Could not delete {path}: {e}")
+    discard_levels(path)
 
 
 def remove_orphan_imports(recordings_dir: str | Path, referenced: set[str]) -> int:
@@ -113,6 +131,8 @@ def remove_orphan_imports(recordings_dir: str | Path, referenced: set[str]) -> i
     keep = {Path(p).resolve() for p in referenced}
     removed = 0
     for f in recordings.glob(f"{IMPORT_PREFIX}*"):
+        if LEVELS_SUFFIX in f.suffixes:
+            continue
         if f.is_file() and f.resolve() not in keep:
             try:
                 f.unlink()
@@ -121,4 +141,24 @@ def remove_orphan_imports(recordings_dir: str | Path, referenced: set[str]) -> i
                 log.warning(f"Could not delete orphan import {f}: {e}")
     if removed:
         log.info(f"Removed {removed} orphan import copies")
+    return removed
+
+
+def remove_orphan_levels(recordings_dir: str | Path) -> int:
+    """Delete cached waveform levels whose audio is gone, and unfinished ones."""
+    recordings = Path(recordings_dir)
+    if not recordings.is_dir():
+        return 0
+    removed = 0
+    for f in recordings.iterdir():
+        unfinished = f.name.endswith(LEVELS_SUFFIX + ".part")
+        orphan = f.name.endswith(LEVELS_SUFFIX) and not (recordings / f.name[: -len(LEVELS_SUFFIX)]).exists()
+        if (unfinished or orphan) and f.is_file():
+            try:
+                f.unlink()
+                removed += 1
+            except OSError as e:
+                log.warning(f"Could not delete {f}: {e}")
+    if removed:
+        log.info(f"Removed {removed} waveform levels without audio")
     return removed

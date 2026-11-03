@@ -11,6 +11,7 @@ from app.services.pipeline_process import PipelineCancelled, run_pipeline_proces
 from app.services.service_factory import create_controller
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.transcript_storage_service import TranscriptStorageService
+from app.services.waveform import ensure_levels
 from app.warnings import suppress_ml_noise
 
 log = get_logger("TranscriptionJob")
@@ -77,6 +78,11 @@ def make_job_runner(storage: TranscriptStorageService, memory_db_path: str, on_s
             CommitService(memory, job_storage).commit_recognized_speakers(transcript)
         except Exception as exc:
             log.error(f"Speaker commit failed for transcript {transcript.db_id}: {exc}")
+        # The player's waveform is ready when the recording is first opened.
+        try:
+            ensure_levels(job["audio_path"], config.RECORDINGS_DIR)
+        except Exception as exc:
+            log.warning(f"Waveform failed for transcript {transcript.db_id}: {exc}")
         on_saved()
         return transcript.db_id
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity as _cos_sim
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
 import app.config as config
@@ -18,10 +18,12 @@ from app.api.schemas import (
     TranscriptListItem, TranscriptResponse, SegmentResponse, TranscriptUpdateRequest,
     SegmentSpeakerRequest, SegmentTextRequest, ReassignRequest, SpeakerSuggestion,
     SpeakerCandidate, UnknownSpeakerCandidates, VoiceClip, SpeakerAssignmentRequest,
-    SpeakerAssignmentResponse, SpeakerAssignmentUndoRequest,
+    SpeakerAssignmentResponse, SpeakerAssignmentUndoRequest, WaveformResponse,
 )
+from app.services.audio_store import discard_levels
 from app.services.speaker_candidates import rank_candidates, voice_centroid
 from app.services.voice_sample import pick_voice_sample
+from app.services.waveform import WINDOWS_PER_SECOND, WaveformError, bar_levels, ensure_levels
 
 router = APIRouter(prefix="/transcripts", tags=["transcripts"])
 
@@ -97,6 +99,7 @@ def _delete_owned_recording(audio_file: str, storage: TranscriptStorageService) 
         pass
     except OSError as e:
         log.warning(f"Could not delete recording {audio_file}: {e}")
+    discard_levels(parent / path.name)
 
 
 @router.get("", response_model=list[TranscriptListItem])
@@ -164,6 +167,45 @@ def get_transcript_audio(
     if not audio_path or not os.path.isfile(audio_path):
         raise HTTPException(status_code=404, detail="Audio file not found")
     return FileResponse(audio_path)
+
+
+@router.get(
+    "/{transcript_id}/waveform",
+    response_model=WaveformResponse,
+    responses={
+        404: {"description": "No such transcript, or its audio file is gone"},
+        500: {"description": "The audio could not be read"},
+    },
+)
+def get_transcript_waveform(
+    transcript_id: int,
+    bars: int = Query(ge=1, le=2000),
+    start: float = Query(0, ge=0),
+    end: float | None = Query(None, gt=0, description="Seconds; the end of the audio by default"),
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """Heights for the player's waveform: bars evenly over [start, end) of the
+    recording, on the scale of the whole recording. The loudness is worked out
+    with ffmpeg on the first request (or after transcription) and cached next to
+    the audio."""
+    if end is not None and end <= start:
+        raise HTTPException(status_code=422, detail="end must be after start")
+    try:
+        audio_path = storage.load(transcript_id, with_embeddings=False).audio_path
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    if not audio_path or not os.path.isfile(audio_path):
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    try:
+        db = ensure_levels(audio_path, config.RECORDINGS_DIR)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    except WaveformError as e:
+        log.warning(f"Waveform of transcript {transcript_id}: {e}")
+        raise HTTPException(status_code=500, detail="Could not read the audio")
+    if end is None:
+        end = max(len(db) / WINDOWS_PER_SECOND, start + 1 / WINDOWS_PER_SECOND)
+    return WaveformResponse(levels=bar_levels(db, bars, start, end))
 
 
 @router.get("/{transcript_id}/speaker-suggestions", response_model=dict[str, SpeakerSuggestion])

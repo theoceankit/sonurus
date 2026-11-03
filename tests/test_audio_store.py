@@ -112,6 +112,16 @@ def test_discard_import_removes_the_copy(tmp_path, recordings):
     assert src.exists()
 
 
+def test_discard_import_removes_the_waveform_levels_too(tmp_path, recordings):
+    copy = import_audio(str(_audio(tmp_path)), recordings)
+    levels = Path(copy + ".levels")
+    levels.write_bytes(b"x")
+
+    discard_import(copy, recordings)
+
+    assert not levels.exists()
+
+
 def test_discard_import_never_touches_live_recordings_or_originals(tmp_path, recordings):
     recordings.mkdir(parents=True)
     rec = recordings / "sonorus-rec-1.wav"
@@ -139,6 +149,18 @@ def test_discard_owned_audio_removes_copies_and_live_recordings(tmp_path, record
 
     assert not rec.exists()
     assert not Path(copy).exists()
+
+
+def test_discard_owned_audio_removes_the_waveform_levels_too(tmp_path, recordings):
+    rec = recordings / "sonorus-rec-1.webm"
+    rec.parent.mkdir(parents=True)
+    rec.write_bytes(b"x")
+    levels = recordings / "sonorus-rec-1.webm.levels"
+    levels.write_bytes(b"x")
+
+    discard_owned_audio(str(rec), recordings)
+
+    assert not levels.exists()
 
 
 def test_discard_owned_audio_never_touches_files_outside_recordings(tmp_path, recordings):
@@ -172,6 +194,16 @@ def test_remove_orphan_imports_keeps_referenced_and_live(tmp_path, recordings):
     assert Path(kept).exists()
     assert not Path(orphan).exists()
     assert live.exists(), "an unreferenced live recording is the only copy — keep it"
+
+
+def test_remove_orphan_imports_leaves_waveform_levels_alone(tmp_path, recordings):
+    kept = import_audio(str(_audio(tmp_path)), recordings)
+    levels = Path(kept + ".levels")
+    levels.write_bytes(b"x")
+
+    assert remove_orphan_imports(recordings, {kept}) == 0
+
+    assert levels.exists()
 
 
 def test_remove_orphan_imports_missing_dir_is_noop(recordings):
