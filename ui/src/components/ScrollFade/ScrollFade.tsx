@@ -39,7 +39,11 @@ export function useScrollEdges() {
     const observeAll = () => {
       resized.disconnect()
       resized.observe(area)
-      for (const child of area.children) resized.observe(child)
+      // And one level down, for content that fits a box and may go past it.
+      for (const child of area.children) {
+        resized.observe(child)
+        for (const grandchild of child.children) resized.observe(grandchild)
+      }
     }
     observeAll()
     const changed = new MutationObserver(() => {

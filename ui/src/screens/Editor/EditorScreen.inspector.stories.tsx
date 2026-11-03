@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { ALL_HANDS_ID } from '../../api/fixtures/all-hands'
 import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { EditorScreen } from './EditorScreen'
 import styles from './EditorScreen.stories.module.css'
@@ -27,3 +28,10 @@ export const Failed: Story = { parameters: { api: { scenario: 'error' } } }
 export const SpeakerHighlighted: Story = { args: { possibleMatches: false, initialHighlight: SPEAKER_IDS.mark } }
 export const UnknownSpeakerHighlighted: Story = { args: { possibleMatches: false, initialHighlight: SPEAKER_IDS.unknown1 } }
 export const HiddenSpeakerHighlighted: Story = { args: { possibleMatches: false, initialHighlight: SPEAKER_IDS.lena } }
+
+// Fifteen speakers in a window to resize by its corner: the rows follow the room.
+export const FifteenSpeakers: Story = {
+  args: { initialSelectedId: ALL_HANDS_ID, possibleMatches: false },
+  parameters: { api: { board: 'speakerCounts' } },
+  decorators: [Story => <div className={styles.resizable}><Story /></div>],
+}

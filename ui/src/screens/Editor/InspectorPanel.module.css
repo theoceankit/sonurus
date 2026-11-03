@@ -7,3 +7,15 @@
   color: var(--color-text-secondary);
   font: var(--font-body);
 }
+
+/* The room under talk time, whatever the rows in it: they fit it (inspector.ts),
+   and opened by hand they go past it and the area scrolls. */
+.rows {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* The gap under a row goes with it as it folds away. */
+.row {
+  padding-block-end: var(--space-half);
+}
