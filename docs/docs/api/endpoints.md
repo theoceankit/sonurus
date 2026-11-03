@@ -347,13 +347,14 @@ Returns all transcripts for the sidebar, newest first.
     "created_at": "2026-05-14T10:30:00",
     "section": "Today",
     "status": "draft",
+    "opened": false,
     "speakers": ["385dbc1d-ec85-4486-9b91-f80b7dfdf1ca"],
     "duration": "14 min"
   }
 ]
 ```
 
-`speakers` is a list of speaker UUIDs (may include unrecognized ones without a display name).
+`speakers` is a list of speaker UUIDs (may include unrecognized ones without a display name). `opened` is false until the user opens the transcript (`POST /transcripts/{id}/opened`); transcripts that existed before the flag count as opened.
 
 ### `GET /transcripts/{id}`
 
@@ -432,6 +433,10 @@ Unassigned segments and named speakers get no entry.
 ```
 
 Renames the transcript. `title` is trimmed and must be 1–200 characters (`422` otherwise). Only transcript metadata changes — segments, speakers and the audio file are untouched. Returns `204`, or `404` for an unknown id. A transcript without a title is listed under its audio file name (`GET /transcripts`).
+
+### `POST /transcripts/{id}/opened`
+
+Marks the transcript as opened by the user. No body. Only this flag changes: speakers, segments and the title are untouched. Calling it again is fine. Returns `204`, or `404` for an unknown id. `GET /transcripts/{id}` does not set it, so loading a transcript for any other reason leaves it new. The new UI calls it once a recording has loaded on the screen; the old renderer does not.
 
 ### `DELETE /transcripts/{id}`
 

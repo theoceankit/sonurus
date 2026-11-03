@@ -22,7 +22,8 @@ CREATE TABLE transcriptions (
     language   TEXT,
     status     TEXT DEFAULT 'draft',
     created_at TEXT,
-    title      TEXT                             -- schema v3
+    title      TEXT,                            -- schema v3
+    opened     INTEGER NOT NULL DEFAULT 0       -- schema v7: 1 once the user has opened it
 )
 
 CREATE TABLE segments (
@@ -94,6 +95,7 @@ Each item:
     "title":    "output",          # filename without extension
     "section":  "Today",           # "Today" | "Yesterday" | "Last week" | "May 01, 2026"
     "status":   "draft",
+    "opened":   False,             # True once the user has opened it
     "duration": "12 min",          # or "1h 5m"
     "speakers": ["spk_abc", "spk_def"]
 }
@@ -124,6 +126,12 @@ TranscriptStorageService().update_segment_speaker(42, 12.4, 17.8, "spk_new")
 ### `update_title(db_id, title) → bool`
 
 Sets `transcriptions.title`. Returns `False` if no transcript has that id. Feeds `PATCH /transcripts/{id}`.
+
+---
+
+### `mark_opened(db_id) → bool`
+
+Sets `transcriptions.opened`. Returns `False` if no transcript has that id. Feeds `POST /transcripts/{id}/opened`; `load()` never sets it.
 
 ---
 
@@ -189,7 +197,7 @@ Returns all non-null embeddings for a speaker across all transcripts, grouped by
 
 ### `_init_db()`
 
-Creates tables if they do not exist and runs the versioned migrations in `app/db/schema.py` (tracked in `_ts_schema_version`): v1 base tables + `status`, v2 `segments.embedding`, v3 `transcriptions.title`, v4 indexes, v5 `segments.unassigned`, v6 UUIDs for stored raw diarization labels (`UNKNOWN` rows become unassigned).
+Creates tables if they do not exist and runs the versioned migrations in `app/db/schema.py` (tracked in `_ts_schema_version`): v1 base tables + `status`, v2 `segments.embedding`, v3 `transcriptions.title`, v4 indexes, v5 `segments.unassigned`, v6 UUIDs for stored raw diarization labels (`UNKNOWN` rows become unassigned), v7 `transcriptions.opened`, set on every transcript that existed before it so that a library does not show as new all at once.
 
 ---
 

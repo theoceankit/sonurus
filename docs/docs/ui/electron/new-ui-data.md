@@ -49,6 +49,8 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `undoSpeakerAssignment({ transcriptId, segmentStarts, speakerId, createdSpeakerId })` puts segments back under the speaker they had before an assignment. `createdSpeakerId` names a speaker the assignment made, who goes with nothing left. See `POST /transcripts/{id}/speaker-assignments/undo` in the [API](../../api/endpoints.md).
 
+`markTranscriptOpened(id)` tells the backend the user has opened a recording, so it is no longer new in the sidebar (`opened` in the list). Loading it with `getTranscript` does not.
+
 `now()` is today for the screens: the current time on the backend client, 5 October 2026 on fixtures, so that sections of the recordings list stay as on the design boards.
 
 A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/speaker-colors.ts` turns it into a colour of the avatars. The fixtures use the colours of the boards.
@@ -73,6 +75,8 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 
 `queries.ts` has one hook per read and per change. A change refreshes what it affects. Queries do not retry and do not refetch on window focus: the backend is local, and data changes only through this app and the queue events.
 
+`useMarkOpened(id, loaded)` is called by `TranscriptPanel`. Once the recording has loaded and the list says it is not opened, it sets `opened` in the list at once and calls `markTranscriptOpened`, then refreshes the list only, not the recording. A failure says nothing: the next list brings the dot back. It asks once per opening, because after a failure the list says not opened again and it would ask forever.
+
 `useDeleteTranscript()` counts a recording already gone as deleted. It takes the recording off the list at once and does not ask for its details again, as the panels still show it until `EditorScreen` closes it.
 
 ## Fixtures
@@ -89,6 +93,8 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 `setConnected(false)` on a fixture client loses the connection to the backend, and `setConnected(true)` brings it back.
 
 The fixtures have the shape of the API and mirror how it reads back: a corrected speaker is in `speaker_resolved` with `speaker_final` null, and an unassigned segment has neither. What the design shows and the API does not have, such as pinned recordings, folders, chapters or a speaker's handle, is not in them. The exception is candidates, which already have the up to three per speaker with percentages the review card shows.
+
+Design review and Interview: onboarding feedback are not opened yet, as is the recording `transcribing` adds; the others are.
 
 Design review (`DESIGN_REVIEW_ID`) is not on a board: it has four voices with no name, among them one with no candidates, one with no clip and one with a clip of 29 seconds, to go through a whole review.
 
