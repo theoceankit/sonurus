@@ -55,5 +55,5 @@ export function useScrollEdges() {
     }
   }, [area, update])
 
-  return { scrollRef, top, bottom }
+  return { area, scrollRef, top, bottom }
 }

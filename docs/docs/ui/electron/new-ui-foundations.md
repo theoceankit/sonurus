@@ -120,6 +120,19 @@ A first Escape in a filled field clears it and goes no further; in an empty fiel
 
 `TextField` has no reaction of its own to Escape: cancelling an edit belongs to the screen.
 
+## ScrollBar
+
+The system bar is off everywhere (`base.css`): on Linux it draws arrows, and Chromium does not repaint the parts of a styled one when the pointer comes over the area. `ScrollBar` stands in for it, as the next sibling of the scrolling element, in the same positioned parent:
+
+```tsx
+const { area, scrollRef } = useScrollEdges()
+
+<div ref={scrollRef} className={styles.scrolls}>…</div>
+<ScrollBar area={area} />
+```
+
+It shows while the pointer is over the parent, while the area scrolls and while the thumb is dragged, and takes no width from the area. The sidebar and the inspector have none on purpose: a fade says there is more.
+
 ## Overlays
 
 `Tooltip`, `Menu`, `Toolbar`, `Toast`, `ScrollFade`, `Modal`, `ModalHeader`, `ModalBody` and `ModalFooter`, in `ui/src/components/`. Tooltips, menus, toolbars, toasts and modals are built on Radix Primitives. `OverlayProvider` wraps the app in `ui/src/main.tsx` and every story in `ui/.storybook/preview.tsx`: it holds the tooltip timing and the one `Toaster`.

@@ -164,6 +164,9 @@
   --size-control-md: 28px;
   --size-control-lg: 32px;
 
+  --size-scrollbar: 10px;
+  --size-scrollbar-gap: 3px;
+
   --size-icon-xs: 12px;
   --size-icon-xs-plus: 14px;
   --size-icon-sm: 16px;

@@ -98,7 +98,6 @@
     flex: 0 1 auto;
     min-height: 0;
     overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-border-strong) transparent;
+    padding-inline-end: var(--space-2);
   }
 }

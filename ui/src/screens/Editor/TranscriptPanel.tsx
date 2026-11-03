@@ -8,6 +8,7 @@ import { ScrollFade, useScrollEdges } from '../../components/ScrollFade/ScrollFa
 import { SpeakerMenu } from '../../components/SpeakerMenu/SpeakerMenu'
 import { Stack } from '../../components/Stack/Stack'
 import { toast } from '../../components/Toast/toast'
+import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { Toolbar, ToolbarDivider, ToolbarItem } from '../../components/Toolbar/Toolbar'
 import { TranscriptHeader } from '../../components/TranscriptHeader/TranscriptHeader'
 import { createKeyStore, useActiveSegment } from '../../media/active-segment'
@@ -142,7 +143,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   }
 
   // Scrolling
-  const { scrollRef, bottom } = useScrollEdges()
+  const { area, scrollRef, bottom } = useScrollEdges()
   const header = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(false)
   const onScroll = (event: React.UIEvent<HTMLDivElement>) => {
@@ -208,6 +209,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
         </div>
       </div>
       {stuck && <TranscriptHeader sticky title={title} onDelete={deleteRecording} className={styles.sticky} />}
+      <ScrollBar area={area} />
       {bottom && <ScrollFade edge="bottom" />}
       {menu && (
         <SpeakerMenu

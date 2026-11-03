@@ -6,6 +6,7 @@ import { Button } from '../Button/Button'
 import { Candidate } from '../Candidate/Candidate'
 import { ClipPlayer } from '../ClipPlayer/ClipPlayer'
 import { IconButton } from '../IconButton/IconButton'
+import { ScrollBar } from '../ScrollBar/ScrollBar'
 import { SectionHeader } from '../SectionHeader/SectionHeader'
 import styles from './ReviewCard.module.css'
 
@@ -50,6 +51,7 @@ export function ReviewCard({
   speaker, possibleMatch, clip, candidates, selectedId = null, onSelect, onSearch, onAddNew, onSkip, onAssign, onClose, busy, initialTextExpanded = false, className, ...props
 }: ReviewCardProps) {
   const [expanded, setExpanded] = useState(initialTextExpanded)
+  const [text, setText] = useState<HTMLElement | null>(null)
   return (
     <section aria-label={`Who is ${speaker.name}?`} className={cx(styles.reviewCard, className)} {...props}>
       <div className={styles.head}>
@@ -71,7 +73,8 @@ export function ReviewCard({
             textExpanded={expanded}
             onToggleText={() => setExpanded(open => !open)}
           />
-          {expanded && <p className={styles.text}>{clip.text}</p>}
+          {expanded && <p ref={setText} className={styles.text}>{clip.text}</p>}
+          {expanded && <ScrollBar area={text} />}
         </div>
       )}
       <div className={styles.answer}>

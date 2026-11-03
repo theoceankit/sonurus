@@ -8,6 +8,7 @@ import { Modal } from '../Modal/Modal'
 import { ModalBody } from '../ModalBody/ModalBody'
 import { ModalFooter } from '../ModalFooter/ModalFooter'
 import { ModalHeader } from '../ModalHeader/ModalHeader'
+import { ScrollBar } from '../ScrollBar/ScrollBar'
 import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
 import { SearchField } from '../SearchField/SearchField'
 import { SectionHeader } from '../SectionHeader/SectionHeader'
@@ -54,7 +55,7 @@ export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, o
   const [category, setCategory] = useState<ChooseSpeakerCategory>('all')
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const scroll = useRef<HTMLDivElement>(null)
-  const { scrollRef, bottom } = useScrollEdges()
+  const { area, scrollRef, bottom } = useScrollEdges()
 
   const { counts, sections } = list(query, category)
   const rows = sections.flatMap(section => section.rows)
@@ -145,6 +146,7 @@ export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, o
               )}
               {rows.length === 0 && !typed && <SectionHeader title="No speakers here yet" />}
             </div>
+            <ScrollBar area={area} />
             {bottom && <ScrollFade edge="bottom" surface="raised" />}
           </div>
         </div>
