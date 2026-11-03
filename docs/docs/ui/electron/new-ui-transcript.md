@@ -35,6 +35,7 @@ A recording of three hours is about 3600 paragraphs, so the list renders little 
 - **Renaming.** A click on the title. Enter and leaving the field save, Esc cancels. An empty title or one longer than 200 characters is not saved.
 - **Deleting the recording.** Delete recording under More in the header, plain or sticky, asks first in `DeleteRecordingDialog`. Once deleted, no recording is open and the sound stops. A failure is a toast and the recording stays open.
 - **Selecting text.** A bar stands above the first selected line once the press is over, and never during an edit.
+- **Staying in place.** A change of speaker can bring a turn header above a paragraph or take one away. The list scrolls by the same amount, so the paragraph whose menu was opened stays where it was on the screen, also after Undo (`useKeepRowInPlace`). Near the very top nothing can scroll, and a row out of sight is left alone.
 - **Copying.** Copy on a paragraph and on the bar writes through `electronAPI.writeClipboard`: the main process allows only the microphone, so `navigator.clipboard` is refused. Copied says it worked.
 - **Deleting a paragraph.** Delete under More acts at once, with no confirmation and no Undo.
 - **Playback.** A click on the time of a turn seeks, and Play on a paragraph seeks and plays. The paragraph playing has a bar in its speaker's colour, from the first time the audio moves. The list does not follow the player.
