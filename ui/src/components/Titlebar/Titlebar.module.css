@@ -47,12 +47,14 @@
   padding-right: max(var(--space-5), calc(var(--inset-end) + var(--space-2)));
 }
 
-/* Comes from the side the inspector leaves to, once the panel is half way out:
-   at once it would be over before the eye gets there. */
+/* Comes from the side the inspector leaves to, on the panel's curve, and settles in
+   the frame the panel does. A fifth of the way held back: at once it would be over
+   before the eye gets there. */
 .appear {
   composes: appear from '../../styles/motion.module.css';
-  --motion-in: var(--duration-slow);
-  --motion-delay: calc(var(--duration-move) / 2);
+  --motion-delay: calc(var(--duration-move) / 5);
+  --motion-in: calc(var(--duration-move) - var(--motion-delay));
   --motion-from-shift: var(--motion-shift-md) 0;
+  animation-timing-function: var(--ease-standard);
 }
 

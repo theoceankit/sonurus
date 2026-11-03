@@ -54,9 +54,9 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, classNa
             {bottom && <ScrollFade edge="bottom" />}
           </div>
           {(shown.card !== undefined || shown.left !== undefined) && (
-            <Reveal open={review.mode !== 'off'} className={styles.dockBox}>
+            <Reveal open={review.mode !== 'off'} travel="long" className={styles.dockBox}>
               <section aria-label={TITLE} className={styles.dock}>
-                <Reveal open={review.mode === 'on'} className={styles.dockPart}>
+                <Reveal open={review.mode === 'on'} travel="long" className={styles.dockPart}>
                   <div className={styles.dockBody}>
                     <div className={styles.dockHead}>
                       <span className={styles.title}>{TITLE}</span>
@@ -65,7 +65,7 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, classNa
                     {shown.card}
                   </div>
                 </Reveal>
-                <Reveal open={review.mode === 'collapsed'} className={styles.dockPart}>
+                <Reveal open={review.mode === 'collapsed'} travel="long" className={styles.dockPart}>
                   <div className={styles.dockRow}>
                     <span className={styles.title}>{TITLE}</span>
                     <span className={styles.counter}>{shown.left} left</span>

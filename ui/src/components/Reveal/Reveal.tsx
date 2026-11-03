@@ -5,6 +5,8 @@ import styles from './Reveal.module.css'
 
 interface RevealProps {
   open: boolean
+  // Long is for a large change of height, which takes the time of a panel both ways.
+  travel?: 'short' | 'long'
   // One element: what is shown. It may be squeezed by the layout, as a card in a low panel.
   children: ReactNode
   className?: string
@@ -16,7 +18,7 @@ const durationOf = (element: HTMLElement, token: string) => parseFloat(getComput
 // measures the content on its own, so content the layout squeezes would grow past its
 // place and jump back. On the way the content keeps the size it has at the end it
 // comes from or goes to, and is cut at the bottom rather than squeezed.
-export function Reveal({ open, children, className }: RevealProps) {
+export function Reveal({ open, travel = 'short', children, className }: RevealProps) {
   const box = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(open)
   const settle = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -56,7 +58,7 @@ export function Reveal({ open, children, className }: RevealProps) {
         content.style.flex = ''
       }
       if (!open) setMounted(false)
-    }, durationOf(element, open ? '--duration-slow' : '--duration-base'))
+    }, durationOf(element, travel === 'long' ? '--duration-move' : open ? '--duration-slow' : '--duration-base'))
     return undefined
   }, [open])
 
@@ -64,7 +66,7 @@ export function Reveal({ open, children, className }: RevealProps) {
 
   if (!mounted) return null
   return (
-    <div ref={box} className={cx(styles.reveal, className)} data-open={open || undefined} inert={!open}>
+    <div ref={box} className={cx(styles.reveal, travel === 'long' && styles.long, className)} data-open={open || undefined} inert={!open}>
       <div className={styles.inner}>{children}</div>
     </div>
   )

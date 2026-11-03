@@ -15,6 +15,12 @@
     opacity var(--duration-slow) var(--ease-enter);
 }
 
+/* As far as a panel goes, as long as a panel takes, both ways. */
+.long,
+.long[data-open] {
+  transition-duration: var(--duration-move);
+}
+
 /* Nothing travels: the content fades where it stands. */
 @media (prefers-reduced-motion: reduce) {
   .reveal,
