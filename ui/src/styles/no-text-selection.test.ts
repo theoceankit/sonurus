@@ -12,7 +12,7 @@ test.each([
   ['SpeakerRow', speakerRow, '.speakerRow'],
   ['TalkTime', talkTime, '.talkTime'],
   ['the head of the review', inspector, '.dockHead'],
-  ['the collapsed review', inspector, '.dockCollapsed'],
+  ['the collapsed review', inspector, '.dockRow'],
 ])('%s cannot be selected', (_name, css, selector) => {
   expect(css).toMatch(new RegExp(`\\${selector} \\{[^}]*user-select: none;`))
 })

@@ -266,7 +266,7 @@ describe('a refresh in the background', () => {
     const client = createFixtureClient()
     render(<ApiProvider client={client}><OverlayProvider><Synced initialSelectedId={WEEKLY_SYNC_ID} /></OverlayProvider></ApiProvider>)
     const heading = await screen.findByRole('heading', { level: 1 })
-    const review = await screen.findByText('Review speakers')
+    const review = await screen.findByRole('region', { name: 'Review speakers' })
     const scroll = document.querySelector<HTMLElement>('[data-transcript-scroll]')!
     const row = screen.getAllByRole('button', { name: /^Go to / })[0]
     scroll.scrollTop = 840

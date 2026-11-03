@@ -71,14 +71,14 @@ describe('speakers', () => {
     setup(WEEKLY_SYNC_ID, { board: 'reviewDone' })
     expect(await screen.findByText('Lena Kovacs')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Show \d more/ })).toBeNull()
-    expect(screen.queryByText('Review speakers')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Review speakers' })).toBeNull()
   })
 
   test('unassigned: last, with only assign', async () => {
     setup(WEEKLY_SYNC_ID, { board: 'unassigned' })
     expect(await screen.findByRole('button', { name: 'Assign Unassigned' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Play Unassigned' })).toBeNull()
-    expect(screen.queryByText('Review speakers')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Review speakers' })).toBeNull()
   })
 
   test('assign on a row opens Choose speaker and moves all its segments', async () => {
@@ -203,7 +203,7 @@ describe('review', () => {
     await counter('1 of 1')
     await userEvent.click(within(card()).getByRole('button', { name: /Mark Ellis/ }))
     await userEvent.click(within(card()).getByRole('button', { name: 'Assign' }))
-    await waitFor(() => expect(screen.queryByText('Review speakers')).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Review speakers' })).toBeNull())
     await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
     expect(await counter('1 of 1')).toBeTruthy()
   })

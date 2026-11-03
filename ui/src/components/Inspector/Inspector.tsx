@@ -1,4 +1,4 @@
-import type { ComponentPropsWithRef, ReactNode } from 'react'
+import { useRef, type ComponentPropsWithRef, type ReactNode } from 'react'
 import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
 import { Button } from '../Button/Button'
@@ -23,9 +23,24 @@ type InspectorProps = Omit<ComponentPropsWithRef<'div'>, 'children'> & {
 
 const TITLE = 'Review speakers'
 
+// Grows to the height the panel gives it, which a measured height would not: the
+// card gives way when the panel is low. Stays mounted, unreachable while closed.
+function Reveal({ open, className, children }: { open: boolean; className?: string; children: ReactNode }) {
+  return (
+    <div className={cx(styles.reveal, className)} data-open={open || undefined} inert={!open}>
+      <div className={styles.revealInner}>{children}</div>
+    </div>
+  )
+}
+
 // The right panel: its tabs, and the review docked at the bottom.
 export function Inspector({ children, review = { mode: 'off' }, onClose, className, ...props }: InspectorProps) {
   const { area, scrollRef, bottom } = useScrollEdges()
+  // What the dock showed last, for its way out after the review has moved on.
+  const last = useRef<{ counter?: string; card?: ReactNode; left?: number; onResume?: () => void }>({})
+  if (review.mode === 'on') last.current = { ...last.current, counter: review.counter, card: review.card }
+  if (review.mode === 'collapsed') last.current = { ...last.current, left: review.left, onResume: review.onResume }
+  const shown = last.current
   return (
     <div className={cx(styles.inspector, className)} {...props}>
       <Tabs
@@ -47,22 +62,28 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, classNa
             <ScrollBar area={area} />
             {bottom && <ScrollFade edge="bottom" />}
           </div>
-          {review.mode === 'on' && (
-            <section aria-label={TITLE} className={styles.dock}>
-              <div className={styles.dockHead}>
-                <span className={styles.title}>{TITLE}</span>
-                <span className={styles.counter}>{review.counter}</span>
-              </div>
-              {review.card}
-            </section>
-          )}
-          {review.mode === 'collapsed' && (
-            <section aria-label={TITLE} className={cx(styles.dock, styles.dockCollapsed)}>
-              <span className={styles.title}>{TITLE}</span>
-              <span className={styles.counter}>{review.left} left</span>
-              <span className={styles.spacer} />
-              <Button variant="secondary" size="small" onClick={review.onResume}>Resume</Button>
-            </section>
+          {(shown.card !== undefined || shown.left !== undefined) && (
+            <Reveal open={review.mode !== 'off'} className={styles.dockBox}>
+              <section aria-label={TITLE} className={styles.dock}>
+                <Reveal open={review.mode === 'on'} className={styles.dockPart}>
+                  <div className={styles.dockBody}>
+                    <div className={styles.dockHead}>
+                      <span className={styles.title}>{TITLE}</span>
+                      <span className={styles.counter}>{shown.counter}</span>
+                    </div>
+                    {shown.card}
+                  </div>
+                </Reveal>
+                <Reveal open={review.mode === 'collapsed'} className={styles.dockPart}>
+                  <div className={styles.dockRow}>
+                    <span className={styles.title}>{TITLE}</span>
+                    <span className={styles.counter}>{shown.left} left</span>
+                    <span className={styles.spacer} />
+                    <Button variant="secondary" size="small" onClick={shown.onResume}>Resume</Button>
+                  </div>
+                </Reveal>
+              </section>
+            </Reveal>
           )}
         </TabPanel>
       </Tabs>

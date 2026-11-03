@@ -71,7 +71,7 @@ test('possible match says so', () => {
 test('in the inspector a long clip scrolls inside the card, so the buttons stay where they are', () => {
   expect(reviewCardCss).toMatch(/@container inspector-panel \(min-height: \d+px\) \{[\s\S]*\.clip \{[^}]*min-height: 0;[\s\S]*\.text \{[^}]*min-height: 0;/)
   expect(inspectorCss).toMatch(/\.panel \{[^}]*container: inspector-panel \/ size;/)
-  expect(inspectorCss).toMatch(/@container inspector-panel \(min-height: \d+px\) \{\s*\.dock \{\s*flex: 0 1 auto;\s*min-height: 0;/)
+  expect(inspectorCss).toMatch(/@container inspector-panel \(min-height: \d+px\) \{\s*\.dockBox,\s*\.dockPart,\s*\.dock,\s*\.dockBody \{\s*flex: 0 1 auto;\s*min-height: 0;/)
 })
 
 test('a long clip keeps to a few lines, so the speakers above stay readable', () => {

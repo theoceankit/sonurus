@@ -51,20 +51,66 @@
   overflow-y: auto;
 }
 
+.reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--duration-base) var(--ease-standard),
+    opacity var(--duration-base) var(--ease-standard),
+    visibility var(--duration-base) linear;
+}
+
+.reveal[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition-duration: var(--duration-slow);
+}
+
+/* Nothing travels: the dock fades where it stands. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    transition-property: opacity, visibility;
+  }
+}
+
+.revealInner {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dockBox,
+.dockPart,
+.dock,
+.dockBody {
+  flex: none;
+}
+
 .dock {
   display: flex;
-  flex: none;
   flex-direction: column;
-  gap: var(--space-2);
   margin-inline: var(--space-2);
   padding-block-start: var(--space-4);
   border-block-start: var(--border-width-default) solid var(--color-border-default);
 }
 
+.dockBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* With room for the card and a few lines of its clip, the clip scrolls instead
    (ReviewCard.module.css), so the card's buttons stay where they are. */
 @container inspector-panel (min-height: 520px) {
-  .dock {
+  .dockBox,
+  .dockPart,
+  .dock,
+  .dockBody {
     flex: 0 1 auto;
     min-height: 0;
   }
@@ -78,9 +124,10 @@
   user-select: none;
 }
 
-.dockCollapsed {
-  flex-direction: row;
+.dockRow {
+  display: flex;
   align-items: center;
+  gap: var(--space-2);
   padding-block-end: var(--space-4);
   user-select: none;
 }
