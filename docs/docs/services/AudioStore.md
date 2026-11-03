@@ -16,6 +16,7 @@ All audio referenced by `transcriptions.audio_file` lives in `RECORDINGS_DIR` (`
 |---|---|
 | `sonorus-rec-<uuid>.wav` / `.webm` | Live recording (capture service or renderer `MediaRecorder`) |
 | `sonorus-import-<uuid>.<ext>` | Copy of an imported file; the extension is kept, lower-cased |
+| `<audio file name>.levels` | The loudness of the audio for the player's waveform ([Waveform](Waveform.md)); goes wherever its audio goes |
 
 The user's original file is never modified or deleted.
 
@@ -39,9 +40,17 @@ Deletes an import copy. Live recordings and files outside `recordings_dir` are l
 
 Deletes any audio file inside `recordings_dir` — a live recording or an import copy — when its queued job is deleted. Files outside `recordings_dir` (the user's originals) are left alone; a symlink is removed as a link, its target is kept.
 
+### `levels_path(audio)`, `discard_levels(audio)`
+
+The path of an audio file's waveform levels, and deleting them. `discard_import()`, `discard_owned_audio()` and deleting a transcript's recording delete the levels too.
+
 ### `remove_orphan_imports(recordings_dir, referenced) → int`
 
-Deletes `sonorus-import-*` files whose path is not in `referenced`. Live recordings are never removed — an unreferenced one is still the only copy of that recording. Returns the number of files removed.
+Deletes `sonorus-import-*` audio files whose path is not in `referenced`; waveform levels are left to `remove_orphan_levels()`. Live recordings are never removed — an unreferenced one is still the only copy of that recording. Returns the number of files removed.
+
+### `remove_orphan_levels(recordings_dir) → int`
+
+Deletes waveform levels whose audio is gone, and unfinished `.levels.part` files. Returns the number of files removed.
 
 ---
 
@@ -51,8 +60,8 @@ Deletes `sonorus-import-*` files whose path is not in `referenced`. Live recordi
 |---|---|
 | `POST /queue/jobs` | `import_audio()` runs before the job is queued, so the copy exists even if the original disappears while the job waits. A copy error returns `400` and no job is queued. |
 | Job paused, interrupted or failed | The copy stays: the job runs again later or is retried. |
-| Job saved | `transcriptions.audio_file` is the copy's path; the job leaves the queue. |
-| `DELETE /queue/jobs/{id}` | `discard_owned_audio()` removes the job's audio — the copy or the live recording. |
-| Backend startup | `remove_orphan_imports()` with the audio of all transcripts and all queued jobs removes copies nothing references (e.g. the backend stopped between copying and queuing). |
-| `DELETE /transcripts/{id}` | The copy is removed like a live recording (`_delete_owned_recording`). |
-| `POST /data/reset` | `recordings/` is emptied and the queue cleared. |
+| Job saved | `transcriptions.audio_file` is the copy's path; the waveform levels are worked out next to it; the job leaves the queue. |
+| `DELETE /queue/jobs/{id}` | `discard_owned_audio()` removes the job's audio — the copy or the live recording — and its levels. |
+| Backend startup | `remove_orphan_imports()` with the audio of all transcripts and all queued jobs removes copies nothing references (e.g. the backend stopped between copying and queuing); `remove_orphan_levels()` then removes levels without audio. |
+| `DELETE /transcripts/{id}` | The copy is removed like a live recording (`_delete_owned_recording`), with its levels. |
+| `POST /data/reset` | `recordings/` is emptied, levels included, and the queue cleared. |
