@@ -2,6 +2,7 @@ import { cx } from '../../styles/cx'
 import type { StackSpeaker } from '../AvatarStack/AvatarStack'
 import { Button } from '../Button/Button'
 import { RecordingRow } from '../RecordingRow/RecordingRow'
+import { ScrollBar } from '../ScrollBar/ScrollBar'
 import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
 import { SectionHeader } from '../SectionHeader/SectionHeader'
 import { Stack } from '../Stack/Stack'
@@ -30,7 +31,7 @@ interface SidebarProps {
 
 // The list of recordings. A section with nothing in it is not passed at all.
 export function Sidebar({ state = 'ready', sections = [], selectedId, onSelect, onRetry, className }: SidebarProps) {
-  const { scrollRef, bottom } = useScrollEdges()
+  const { area, scrollRef, bottom } = useScrollEdges()
   return (
     <div className={cx(styles.sidebar, className)}>
       <div ref={scrollRef} className={styles.scroll}>
@@ -62,6 +63,7 @@ export function Sidebar({ state = 'ready', sections = [], selectedId, onSelect, 
           </section>
         ))}
       </div>
+      <ScrollBar area={area} />
       {bottom && <ScrollFade edge="bottom" surface="sunken" size="lg" />}
     </div>
   )

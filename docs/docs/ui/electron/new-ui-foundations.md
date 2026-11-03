@@ -131,7 +131,7 @@ const { area, scrollRef } = useScrollEdges()
 <ScrollBar area={area} />
 ```
 
-It shows while the pointer is over the parent, while the area scrolls and while the thumb is dragged, and takes no width from the area. The sidebar and the inspector have none on purpose: a fade says there is more.
+It shows while the pointer is over the parent, while the area scrolls and while the thumb is dragged, and takes no width from the area.
 
 ## Overlays
 
