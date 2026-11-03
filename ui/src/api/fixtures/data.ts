@@ -121,11 +121,12 @@ export const designReview = (): Transcript => ({
   segments: designReviewSegments,
 })
 
-const listItem = (id: number, title: string, createdAt: string, section: string, duration: string, speakers: string[]): TranscriptListItem => ({
+const listItem = (id: number, title: string, createdAt: string, section: string, duration: string, speakers: string[], opened = true): TranscriptListItem => ({
   id,
   title,
   created_at: createdAt,
   status: 'done',
+  opened,
   speakers,
   section,
   duration,
@@ -138,8 +139,8 @@ export const FIXTURE_NOW = new Date(2026, 9, 5, 12)
 
 // Newest first, the order of GET /transcripts.
 export const TRANSCRIPTS: TranscriptListItem[] = [
-  listItem(DESIGN_REVIEW_ID, 'Design review', '2026-10-05T11:20:00', 'Today', '1 min', [lena, unknown2, unknown3, oliver, unknown4, unknown5]),
-  listItem(3, 'Interview: onboarding feedback', '2026-10-05T09:05:00', 'Today', '28 min', [lena, unknown2]),
+  listItem(DESIGN_REVIEW_ID, 'Design review', '2026-10-05T11:20:00', 'Today', '1 min', [lena, unknown2, unknown3, oliver, unknown4, unknown5], false),
+  listItem(3, 'Interview: onboarding feedback', '2026-10-05T09:05:00', 'Today', '28 min', [lena, unknown2], false),
   listItem(WEEKLY_SYNC_ID, 'Weekly product sync', '2026-10-04T02:33:00', 'Yesterday', '0 min', [anna, mark, unknown1, oliver, sofia, lena]),
   listItem(4, 'Call with Mark', '2026-10-03T16:40:00', LAST_WEEK, '19 min', [mark, anna]),
   listItem(5, 'Customer call, Acme', '2026-10-02T14:00:00', LAST_WEEK, '36 min', [oliver, kate, mark]),
@@ -232,7 +233,7 @@ export const QUEUE_JOB: QueueJob = {
 // What the job in the event scripts turns into.
 export const PLANNING_CALL_ID = 18
 
-export const PLANNING_CALL_ITEM = listItem(PLANNING_CALL_ID, 'Planning call', '2026-10-05T12:00:00', 'Today', '1 min', [anna, mark])
+export const PLANNING_CALL_ITEM = listItem(PLANNING_CALL_ID, 'Planning call', '2026-10-05T12:00:00', 'Today', '1 min', [anna, mark], false)
 
 export const PLANNING_CALL: Transcript = {
   id: PLANNING_CALL_ID,

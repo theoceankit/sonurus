@@ -124,6 +124,14 @@ describe('changes', () => {
     expect((await client.listTranscripts()).find(t => t.id === WEEKLY_SYNC_ID)?.title).toBe('New')
   })
 
+  test('marking a recording opened shows in the list', async () => {
+    const client = createFixtureClient()
+    expect((await client.listTranscripts()).find(t => t.id === DESIGN_REVIEW_ID)?.opened).toBe(false)
+    await client.markTranscriptOpened(DESIGN_REVIEW_ID)
+    expect((await client.listTranscripts()).find(t => t.id === DESIGN_REVIEW_ID)?.opened).toBe(true)
+    await expect(client.markTranscriptOpened(999)).rejects.toMatchObject({ status: 404 })
+  })
+
   test('segment text and removal', async () => {
     const client = createFixtureClient()
     await client.updateSegmentText(WEEKLY_SYNC_ID, 5, 'Edited')

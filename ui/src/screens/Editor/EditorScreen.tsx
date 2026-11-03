@@ -10,7 +10,7 @@ import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecording
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
 import { InspectorPanel } from './InspectorPanel'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
-import { groupRecordings, needsReview, stackSpeakers } from './recordings'
+import { groupRecordings, stackSpeakers } from './recordings'
 import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
 import { TranscriptPanel, type SpeakerMenuTarget } from './TranscriptPanel'
 import { useSpeakerChange } from './useSpeakerChange'
@@ -88,7 +88,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
         id: item.id,
         title: item.title,
         speakers: stackSpeakers(item.speakers, known),
-        needsReview: needsReview(item.speakers, known),
+        isNew: !item.opened,
       })),
     }))
   }, [api, transcripts.data, speakers.data, pinnedIds])

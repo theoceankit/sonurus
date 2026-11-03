@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { ApiError } from '../../api/client'
-import { SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
+import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { effectiveSpeaker } from '../../api/types'
 import { dismissAllToasts } from '../../components/Toast/toast'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
@@ -58,25 +58,72 @@ test('pinned recordings show when given', async () => {
   expect(within(pinned).getAllByRole('button').map(b => b.textContent)[0]).toMatch(/Weekly product sync/)
 })
 
-test('a recording with an unnamed speaker has the dot', async () => {
-  setup()
-  const row = await screen.findByRole('button', { name: /Weekly product sync/ })
-  expect(within(row).getByRole('img', { name: 'Needs review' })).toBeTruthy()
-  const named = screen.getByRole('button', { name: /Call with Mark/ })
-  expect(within(named).queryByRole('img', { name: 'Needs review' })).toBeNull()
+const sidebarRow = (name: RegExp) => within(screen.getByLabelText('Recordings')).getByRole('button', { name })
+const newDot = (name: RegExp) => within(sidebarRow(name)).queryByRole('img', { name: 'New' })
+
+describe('the dot of a new recording', () => {
+  test('shows on a recording not opened yet, not on one with an unnamed speaker', async () => {
+    setup()
+    await screen.findByRole('region', { name: 'This week' })
+    expect(newDot(/Design review/)).toBeTruthy()
+    expect(newDot(/Weekly product sync/)).toBeNull()
+    expect(within(sidebarRow(/Weekly product sync/)).getByText('?')).toBeTruthy()
+    expect(newDot(/Call with Mark/)).toBeNull()
+  })
+
+  test('goes once the recording has loaded, and stays gone', async () => {
+    const client = createFixtureClient()
+    const opened = vi.spyOn(client, 'markTranscriptOpened')
+    render(
+      <ApiProvider client={client}>
+        <OverlayProvider><EditorScreen /></OverlayProvider>
+      </ApiProvider>,
+    )
+    await userEvent.click(await screen.findByRole('button', { name: /Design review/ }))
+    await waitFor(() => expect(newDot(/Design review/)).toBeNull())
+    expect(opened).toHaveBeenCalledWith(DESIGN_REVIEW_ID)
+    expect((await client.listTranscripts()).find(t => t.id === DESIGN_REVIEW_ID)?.opened).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: /Call with Mark/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Design review/ }))
+    expect(newDot(/Design review/)).toBeNull()
+    expect(opened).toHaveBeenCalledTimes(1)
+  })
+
+  test('stays on a recording that fails to load', async () => {
+    const markTranscriptOpened = vi.fn(() => Promise.resolve())
+    setup({ initialSelectedId: DESIGN_REVIEW_ID }, {
+      overrides: { getTranscript: () => Promise.reject(new ApiError(500, 'Server error 500')), markTranscriptOpened },
+    })
+    expect(await screen.findByText('Could not load this recording')).toBeTruthy()
+    expect(newDot(/Design review/)).toBeTruthy()
+    expect(markTranscriptOpened).not.toHaveBeenCalled()
+  })
+
+  test('a mark that fails shows nothing and is not asked again', async () => {
+    const markTranscriptOpened = vi.fn(() => Promise.reject(new ApiError(500, 'Server error 500')))
+    setup({ initialSelectedId: DESIGN_REVIEW_ID }, { overrides: { markTranscriptOpened } })
+    await screen.findByRole('main', { name: 'Transcript' })
+    await waitFor(() => expect(markTranscriptOpened).toHaveBeenCalledTimes(1))
+    // The list comes back from the fixtures still not opened.
+    await waitFor(() => expect(newDot(/Design review/)).toBeTruthy())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(markTranscriptOpened).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
 })
 
 describe('speakers across the panels', () => {
-  const dot = () => within(within(screen.getByLabelText('Recordings')).getByRole('button', { name: /Weekly product sync/ })).queryByRole('img', { name: 'Needs review' })
+  const unknownInRow = () => within(sidebarRow(/Weekly product sync/)).queryByText('?')
 
-  test('the dot goes when the last voice has a name, and Undo brings it back', async () => {
+  test('the unknown avatar goes when the last voice has a name, and Undo brings it back', async () => {
     setup({ initialSelectedId: WEEKLY_SYNC_ID })
     const inspector = within(await screen.findByRole('region', { name: 'Inspector' }))
     await userEvent.click(await inspector.findByRole('button', { name: /Mark Ellis.*\d+%/ }))
     await userEvent.click(inspector.getByRole('button', { name: 'Assign' }))
-    await waitFor(() => expect(dot()).toBeNull())
+    await waitFor(() => expect(unknownInRow()).toBeNull())
     await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
-    await waitFor(() => expect(dot()).toBeTruthy())
+    await waitFor(() => expect(unknownInRow()).toBeTruthy())
     expect(await inspector.findByText('1 of 1')).toBeTruthy()
   })
 
@@ -110,11 +157,11 @@ describe('speakers across the panels', () => {
     const inspector = within(await screen.findByRole('region', { name: 'Inspector' }))
     await userEvent.click(await inspector.findByRole('button', { name: /Mark Ellis.*\d+%/ }))
     await userEvent.click(inspector.getByRole('button', { name: 'Assign' }))
-    await waitFor(() => expect(dot()).toBeNull())
+    await waitFor(() => expect(unknownInRow()).toBeNull())
     const undo = await screen.findByRole('button', { name: 'Undo' })
     await userEvent.click(screen.getByRole('button', { name: /Call with Mark/ }))
     await userEvent.click(undo)
-    await waitFor(() => expect(dot()).toBeTruthy())
+    await waitFor(() => expect(unknownInRow()).toBeTruthy())
   })
 })
 

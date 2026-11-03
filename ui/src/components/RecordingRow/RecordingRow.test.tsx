@@ -31,9 +31,9 @@ test('says which row is selected', () => {
 
 test('the dot appears only when the recording needs review', () => {
   const { rerender } = render(<RecordingRow title="A" />)
-  expect(screen.queryByRole('img', { name: 'Needs review' })).toBeNull()
-  rerender(<RecordingRow title="A" needsReview />)
-  expect(screen.getByRole('img', { name: 'Needs review' })).toBeTruthy()
+  expect(screen.queryByRole('img', { name: 'New' })).toBeNull()
+  rerender(<RecordingRow title="A" isNew />)
+  expect(screen.getByRole('img', { name: 'New' })).toBeTruthy()
 })
 
 test('shows three avatars at most, with no count of the rest', () => {

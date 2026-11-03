@@ -23,7 +23,7 @@ const MANY: StackSpeaker[] = [...SPEAKERS, { id: 'lena', name: 'Lena Kovacs', co
 
 const STATES = ['Default', 'Hover', 'Focus'] as const
 
-const row = (label: string, props: { needsReview?: boolean; selected?: boolean }) => ({
+const row = (label: string, props: { isNew?: boolean; selected?: boolean }) => ({
   label,
   render: () => <div className={styles.column}><RecordingRow title="Weekly product sync" speakers={SPEAKERS} {...props} /></div>,
 })
@@ -36,8 +36,8 @@ export const Matrix: Story = {
       rows={[
         row('None', {}),
         row('None Selected', { selected: true }),
-        row('Needs review', { needsReview: true }),
-        row('Needs review Selected', { needsReview: true, selected: true }),
+        row('New', { isNew: true }),
+        row('New Selected', { isNew: true, selected: true }),
       ]}
     />
   ),
@@ -51,7 +51,7 @@ export const Contents: Story = {
       <RecordingRow title="No speakers" />
       <RecordingRow title="One speaker" speakers={SPEAKERS.slice(0, 1)} />
       <RecordingRow title="More than three" speakers={MANY} />
-      <RecordingRow title="A title long enough that it has to be cut at the end of the row" speakers={MANY} needsReview />
+      <RecordingRow title="A title long enough that it has to be cut at the end of the row" speakers={MANY} isNew />
     </Stack>
   ),
 }

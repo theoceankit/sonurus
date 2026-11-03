@@ -60,6 +60,7 @@ export const LONG_RECORDING_ITEM: TranscriptListItem = {
   title: 'Long recording, 3 hours',
   created_at: '2026-10-05T09:00:00',
   status: 'done',
+  opened: true,
   speakers: [SPEAKER_IDS.anna, SPEAKER_IDS.mark, SPEAKER_IDS.unknown1, SPEAKER_IDS.oliver, SPEAKER_IDS.lena, SPEAKER_IDS.sofia],
   section: 'Today',
   duration: '180 min',

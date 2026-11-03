@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { Sidebar, type SidebarSection } from './Sidebar'
 
-const recording = (id: number, title: string) => ({ id, title, speakers: [], needsReview: false })
+const recording = (id: number, title: string) => ({ id, title, speakers: [], isNew: false })
 const SECTIONS: SidebarSection[] = [
   { title: 'This week', recordings: [recording(1, 'Design review'), recording(2, 'Call with Mark')] },
   { title: 'Earlier', recordings: [recording(3, 'Quarterly numbers')] },
