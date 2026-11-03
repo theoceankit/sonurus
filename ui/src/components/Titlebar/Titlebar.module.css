@@ -46,3 +46,9 @@
   margin-left: var(--space-3);
   padding-right: max(var(--space-5), calc(var(--inset-end) + var(--space-2)));
 }
+
+/* Comes as the inspector goes, where its button was. */
+.appear {
+  composes: appear from '../../styles/motion.module.css';
+}
+
