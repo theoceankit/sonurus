@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { DESIGN_REVIEW_ID, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
+import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { EditorScreen } from './EditorScreen'
 import styles from './EditorScreen.stories.module.css'
 
@@ -21,3 +21,9 @@ export const NoAudio: Story = { args: { initialSelectedId: DESIGN_REVIEW_ID, pos
 export const NoRecording: Story = { args: { initialSelectedId: null } }
 export const Loading: Story = { parameters: { api: { scenario: 'loading' } } }
 export const Failed: Story = { parameters: { api: { scenario: 'error' } } }
+
+// A speaker as if under the pointer: their turns in the transcript and their bars in
+// the player. Lena is behind Show 3 more, so that lights up instead of her row.
+export const SpeakerHighlighted: Story = { args: { possibleMatches: false, initialHighlight: SPEAKER_IDS.mark } }
+export const UnknownSpeakerHighlighted: Story = { args: { possibleMatches: false, initialHighlight: SPEAKER_IDS.unknown1 } }
+export const HiddenSpeakerHighlighted: Story = { args: { possibleMatches: false, initialHighlight: SPEAKER_IDS.lena } }

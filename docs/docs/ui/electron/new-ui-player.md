@@ -46,5 +46,6 @@ Large colours bars by speaker. A speaker without a name and Unassigned are `spea
 - Previous and next speaker go to the start of the neighbouring run of one speaker, and do nothing at the ends. A pause belongs to the run before it.
 - The speed button opens a list above it: 0.5, 1, 1.2, 1.5 and 2. The button has a fixed width, wider than on the board, so the waveform stays in place.
 - Volume 0 mutes and dims the button. There is no separate mute.
+- A speaker highlighted in the inspector (`highlightedSpeaker`) keeps a colour only on their bars, in the middle tone whatever has played, and the rest look like pauses; the playhead still shows where the audio is. Their bars come from `speakerBars()`, which takes every bar a segment of theirs falls in, so a short speaker on a long recording still has one. This works on a disabled player too.
 
 The bubble stands above the panel, so the player panel in `EditorScreen.module.css` does not clip.

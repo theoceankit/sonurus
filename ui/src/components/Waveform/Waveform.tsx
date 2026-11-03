@@ -17,6 +17,9 @@ type WaveformProps = Omit<ComponentPropsWithRef<'div'>, 'children'> & {
   bars?: readonly WaveformBar[]
   // Large only: the part of the audio to light up as played, from 0 to 1.
   highlight?: readonly [from: number, to: number] | null
+  // Large only: the bars of one speaker, as speakerBars() gives them. These are in
+  // the speaker's middle tone and the rest look like pauses, whatever has played.
+  speakerBars?: readonly WaveformBar[] | null
   // One per bar, from 0 to 1 of the height. Defaults to the decorative ones.
   heights?: readonly number[]
 }
@@ -26,7 +29,7 @@ function largeColor(bar: WaveformBar | undefined, played: boolean) {
   return `var(--color-speaker-${bar}-${played ? 'mid' : 'bg'})`
 }
 
-export function Waveform({ size = 'large', progress, bars, highlight, heights, className, ...props }: WaveformProps) {
+export function Waveform({ size = 'large', progress, bars, highlight, speakerBars, heights, className, ...props }: WaveformProps) {
   const shown = heights ?? WAVEFORM_HEIGHTS[size]
   return (
     <div className={cx(styles.waveform, styles[size], className)} aria-hidden {...props}>
@@ -35,7 +38,7 @@ export function Waveform({ size = 'large', progress, bars, highlight, heights, c
         const played = middle <= progress
         const lit = played || (!!highlight && middle >= highlight[0] && middle < highlight[1])
         const background = size === 'large'
-          ? largeColor(bars?.[i], lit)
+          ? speakerBars ? largeColor(speakerBars[i], true) : largeColor(bars?.[i], lit)
           : `var(--color-${played ? 'text-primary' : 'speaker-6-mid'})`
         return <span key={i} className={styles.bar} style={{ height: `${height * 100}%`, background }} />
       })}

@@ -21,6 +21,12 @@ Rows go by talk time, with Unassigned last, as it is not one person. Talk time i
 
 On hover and focus a row has two buttons in place of the time: Play for the speaker's first segment, and Assign, which opens Choose a speaker for all of the speaker's segments in this recording. Unassigned has only Assign. A click on a speaker who is under review opens the card on them.
 
+### Highlighting a speaker
+
+A row under the pointer or with the focus in it highlights its speaker, and so does a segment of talk time, which also names the speaker and their time in a tooltip. The speaker's turns in the transcript take their tone and only their bars in the player keep a colour (see [New UI transcript](new-ui-transcript.md) and [New UI player](new-ui-player.md)). Here their segment of talk time keeps its colour while the others fade, and their row looks hovered without its buttons. A speaker behind Show N more lights up Show N more, which stays closed. Nothing scrolls, and the review card plays no part: the speaker under review is not highlighted for being so.
+
+`EditorScreen` holds the speaker in one store (`createKeyStore()`) and hands it to the three panels; the screen itself does not listen. A row that goes away under the pointer reports no leaving, so the highlight is cleared when its speaker is gone, when Show N more opens or closes, when the review opens or closes, when the panel closes and with another recording.
+
 ## The review
 
 Who needs a review comes from the segments each time, so an assignment, an undo or a change in the transcript all move the card the same way (`review-queue.ts`):

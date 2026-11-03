@@ -5,7 +5,10 @@ import { Icon } from '../Icon/Icon'
 import { IconButton } from '../IconButton/IconButton'
 import styles from './SpeakerRow.module.css'
 
-type Common = Omit<ComponentPropsWithRef<'div'>, 'children' | 'onSelect'>
+type Common = Omit<ComponentPropsWithRef<'div'>, 'children' | 'onSelect'> & {
+  // Looks hovered, for a speaker under the pointer elsewhere, with no buttons.
+  highlighted?: boolean
+}
 
 type SpeakerProps = Common & {
   kind?: 'speaker'
@@ -34,9 +37,9 @@ export type SpeakerRowProps = SpeakerProps | ShowMoreProps
 
 export function SpeakerRow(props: SpeakerRowProps) {
   if (props.kind === 'show-more') {
-    const { kind: _, count, expanded, onToggle, stack, className, ...rest } = props
+    const { kind: _, count, expanded, onToggle, stack, highlighted, className, ...rest } = props
     return (
-      <div className={cx(styles.speakerRow, className)} {...rest}>
+      <div className={cx(styles.speakerRow, className)} data-highlighted={highlighted ? '' : undefined} {...rest}>
         <button type="button" className={styles.main} aria-expanded={Boolean(expanded)} onClick={onToggle}>
           <span className={styles.leading}>
             <Icon name="chevron-down" size={12} className={cx(styles.chevron, expanded && styles.up)} />
@@ -48,7 +51,7 @@ export function SpeakerRow(props: SpeakerRowProps) {
     )
   }
 
-  const { kind: _, speaker, time, selected, onSelect, onPlay, playing, playDisabled, onAssign, className, ...rest } = props
+  const { kind: _, speaker, time, selected, onSelect, onPlay, playing, playDisabled, onAssign, highlighted, className, ...rest } = props
   const content = (
     <>
       <span className={styles.leading}><Avatar {...avatarOf(speaker)} size="small" /></span>
@@ -58,7 +61,7 @@ export function SpeakerRow(props: SpeakerRowProps) {
   )
   const hasActions = Boolean(onPlay || onAssign)
   return (
-    <div className={cx(styles.speakerRow, selected && styles.selected, hasActions && styles.hasActions, className)} {...rest}>
+    <div className={cx(styles.speakerRow, selected && styles.selected, hasActions && styles.hasActions, className)} data-highlighted={highlighted ? '' : undefined} {...rest}>
       {onSelect
         ? <button type="button" className={styles.main} aria-current={selected ? 'true' : undefined} onClick={onSelect}>{content}</button>
         : <div className={styles.main}>{content}</div>}

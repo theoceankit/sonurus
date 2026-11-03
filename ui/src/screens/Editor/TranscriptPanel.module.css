@@ -43,6 +43,18 @@
   contain-intrinsic-block-size: auto var(--size-turn-estimate);
 }
 
+/* The tone of a speaker under the pointer in the inspector. It sits inside the turn,
+   which the browser leaves out off screen, so a turn out of sight works out no
+   colour and runs no transition. */
+.turnBody {
+  border-radius: var(--radius-md);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.turn[data-highlighted] > .turnBody {
+  background: var(--turn-tint);
+}
+
 .sticky {
   position: absolute;
   top: 0;

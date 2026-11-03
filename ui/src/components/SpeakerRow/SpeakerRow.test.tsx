@@ -69,3 +69,18 @@ test('show more: says how many and toggles', async () => {
   expect(screen.getByRole('button', { name: 'Show less' }).getAttribute('aria-expanded')).toBe('true')
   expect(screen.queryByText('stack')).toBeNull()
 })
+
+test('highlighted: looks hovered, with no buttons, and a selected row stays pressed', () => {
+  const { container, rerender } = render(<SpeakerRow speaker={ANNA} time="0:19" highlighted onPlay={() => {}} onAssign={() => {}} />)
+  expect(container.firstElementChild!.hasAttribute('data-highlighted')).toBe(true)
+  expect(screen.getByText('0:19')).toBeTruthy()
+  rerender(<SpeakerRow speaker={ANNA} time="0:19" onPlay={() => {}} />)
+  expect(container.firstElementChild!.hasAttribute('data-highlighted')).toBe(false)
+  expect(css).toMatch(/\.speakerRow:hover,\s*\.speakerRow\[data-highlighted\] \{\s*background: var\(--color-fill-hover\)/)
+  expect(css.indexOf('[data-highlighted]')).toBeLessThan(css.indexOf('.selected,'))
+})
+
+test('show more: can be highlighted for a speaker it hides', () => {
+  const { container } = render(<SpeakerRow kind="show-more" count={3} highlighted onToggle={() => {}} />)
+  expect(container.firstElementChild!.hasAttribute('data-highlighted')).toBe(true)
+})

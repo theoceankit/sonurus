@@ -66,6 +66,11 @@ export const HoverAtTheEdges: Story = { args: { state: PAUSED, initialCursor: { 
 
 export const Disabled: Story = { args: { state: PAUSED, disabled: true } }
 
+// A speaker under the pointer in the inspector.
+export const SpeakerHighlighted: Story = { args: { state: PAUSED, highlightedSpeaker: 'Mark Ellis' } }
+
+export const DisabledSpeakerHighlighted: Story = { args: { state: PAUSED, disabled: true, highlightedSpeaker: 'Mark Ellis' } }
+
 export const DisabledNoAudio: Story = {
   args: { state: { ...PAUSED, currentTime: 0, duration: NaN }, disabled: true },
 }

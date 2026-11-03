@@ -7,7 +7,8 @@
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
-.speakerRow:hover {
+.speakerRow:hover,
+.speakerRow[data-highlighted] {
   background: var(--color-fill-hover);
 }
 

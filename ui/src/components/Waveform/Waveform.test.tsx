@@ -39,3 +39,10 @@ test('a bar is as high as its share', () => {
   const { container } = render(<Waveform progress={0} heights={[0.5]} />)
   expect(bars(container)[0].style.height).toBe('50%')
 })
+
+test('large: the bars of one speaker are their middle tone and the rest pauses, whatever has played', () => {
+  const { container } = render(<Waveform progress={0.5} bars={[1, 1, 5, 5]} speakerBars={[null, 1, 5, null]} heights={[1, 1, 1, 1]} />)
+  expect(colors(container)).toEqual([
+    'var(--color-border-default)', 'var(--color-speaker-1-mid)', 'var(--color-speaker-5-mid)', 'var(--color-border-default)',
+  ])
+})

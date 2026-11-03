@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentProps, type FocusEvent, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import type { SpeakerTarget } from '../../api/client'
 import { useBackendConnected, useSpeakerCandidates, useSpeakers, useTranscript } from '../../api/queries'
@@ -9,10 +9,11 @@ import { Button } from '../../components/Button/Button'
 import { Collapse } from '../../components/Collapse/Collapse'
 import { Inspector, type InspectorReview } from '../../components/Inspector/Inspector'
 import { ReviewCard } from '../../components/ReviewCard/ReviewCard'
-import { SpeakerRow } from '../../components/SpeakerRow/SpeakerRow'
+import { SpeakerRow, type SpeakerRowProps } from '../../components/SpeakerRow/SpeakerRow'
 import { Stack } from '../../components/Stack/Stack'
 import { TalkTime } from '../../components/TalkTime/TalkTime'
 import { toast } from '../../components/Toast/toast'
+import { createKeyStore, useIsKey, useKey, type KeyStore } from '../../media/active-segment'
 import { useClipPlayback, useClipState } from '../../media/clip-playback'
 import type { Playback } from '../../media/playback'
 import { formatDuration } from '../../media/timeline'
@@ -35,10 +36,13 @@ export interface InspectorPanelProps {
   // yet, and the speaker a board shows.
   possibleMatches?: boolean
   initialSpeakerId?: string
+  // The speaker under the pointer or the keyboard here, for the transcript and the
+  // player to show too.
+  highlight?: KeyStore<string | null>
 }
 
 // Nothing shows until the recording has loaded, as in the transcript.
-export function InspectorPanel({ transcriptId, playback, open = true, onClose, onChooseSpeaker, possibleMatches, initialSpeakerId }: InspectorPanelProps) {
+export function InspectorPanel({ transcriptId, playback, open = true, onClose, onChooseSpeaker, possibleMatches, initialSpeakerId, highlight }: InspectorPanelProps) {
   const transcript = useTranscript(transcriptId)
   const speakers = useSpeakers()
   const candidates = useSpeakerCandidates(transcriptId)
@@ -78,6 +82,7 @@ export function InspectorPanel({ transcriptId, playback, open = true, onClose, o
       onChooseSpeaker={onChooseSpeaker}
       possibleMatches={possibleMatches}
       initialSpeakerId={initialSpeakerId}
+      highlight={highlight}
     />
   )
 }
@@ -88,7 +93,7 @@ interface InspectorViewProps extends Omit<InspectorPanelProps, 'transcriptId'> {
   candidates: SpeakerCandidates
 }
 
-function InspectorView({ transcript, speakers, candidates, playback, open, onClose, onChooseSpeaker, possibleMatches, initialSpeakerId }: InspectorViewProps) {
+function InspectorView({ transcript, speakers, candidates, playback, open, onClose, onChooseSpeaker, possibleMatches, initialSpeakerId, highlight: givenHighlight }: InspectorViewProps) {
   const api = useApi()
   const { id: transcriptId, segments } = transcript
   const { change, busy } = useSpeakerChange()
@@ -110,6 +115,12 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
   const [picked, setPicked] = useState<{ speakerId: string; candidateId: string | null } | null>(null)
 
   useEffect(() => { clip.stop() }, [clip, currentId, mode, open])
+
+  const [ownHighlight] = useState(() => createKeyStore<string | null>(null))
+  const highlight = givenHighlight ?? ownHighlight
+  const { visible, hidden } = splitRows(rows, mode === 'on' ? currentId : null)
+  const collapsible = mode !== 'off' && hidden.length > 0
+  useClearedHighlight(highlight, rows, [showAll, mode, open])
 
   const answer = currentId ? candidates[currentId] : undefined
   const current = rows.find(row => row.id === currentId)
@@ -145,11 +156,17 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
   const renderRow = (row: SpeakerRowData) => {
     const key = `row:${row.id}`
     const first = firstSegmentOf(segments, row.id)
+    const leave = () => { if (highlight.get() === row.id) highlight.set(null) }
     return (
-      <SpeakerRow
+      <HighlightedRow
         key={row.id}
+        highlight={highlight}
         speaker={row}
         time={row.time}
+        onPointerEnter={() => highlight.set(row.id)}
+        onPointerLeave={leave}
+        onFocus={() => highlight.set(row.id)}
+        onBlur={(event: FocusEvent) => { if (!event.currentTarget.contains(event.relatedTarget)) leave() }}
         selected={mode === 'on' && row.id === currentId}
         onSelect={pending.includes(row.id) ? () => setReview(state => selectSpeaker(state, row.id)) : undefined}
         onPlay={row.kind === 'unassigned' || !first ? undefined : () => clip.toggle(key, first.start, first.end)}
@@ -159,9 +176,6 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
       />
     )
   }
-
-  const { visible, hidden } = splitRows(rows, mode === 'on' ? currentId : null)
-  const collapsible = mode !== 'off' && hidden.length > 0
 
   const dock: InspectorReview = mode === 'off'
     ? { mode }
@@ -209,7 +223,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
         ? <span className={styles.message}>No speakers</span>
         : (
           <>
-            <TalkTime total={formatDuration(talkTotal(rows))} segments={rows} />
+            <HighlightedTalkTime highlight={highlight} total={formatDuration(talkTotal(rows))} segments={rows} />
             <Stack gap="half">
               {(collapsible ? visible : rows).map(renderRow)}
               {collapsible && (
@@ -218,8 +232,9 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
                 </Collapse>
               )}
               {collapsible && (
-                <SpeakerRow
-                  kind="show-more"
+                <ShowMoreRow
+                  highlight={highlight}
+                  hiddenIds={showAll ? [] : hidden.map(row => row.id)}
                   count={hidden.length}
                   expanded={showAll}
                   onToggle={() => setShowAll(all => !all)}
@@ -231,4 +246,34 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
         )}
     </Inspector>
   )
+}
+
+// A row that goes away under the pointer reports no leaving: so the highlight goes
+// with the speaker, with a change of what shows, and with the panel itself.
+function useClearedHighlight(highlight: KeyStore<string | null>, rows: readonly SpeakerRowData[], shown: readonly unknown[]) {
+  const last = useRef(shown)
+  useEffect(() => {
+    const id = highlight.get()
+    const changed = shown.some((value, i) => value !== last.current[i])
+    last.current = shown
+    if (id !== null && (changed || !rows.some(row => row.id === id))) highlight.set(null)
+  })
+  useEffect(() => () => highlight.set(null), [highlight])
+}
+
+// The highlight changes as the pointer moves: only what it concerns renders, not the
+// panel with its review card.
+type Highlighting = { highlight: KeyStore<string | null> }
+
+function HighlightedTalkTime({ highlight, ...props }: Highlighting & Omit<ComponentProps<typeof TalkTime>, 'highlightedId' | 'onHighlight'>) {
+  return <TalkTime {...props} highlightedId={useKey(highlight)} onHighlight={id => highlight.set(id)} />
+}
+
+function HighlightedRow({ highlight, ...props }: Highlighting & Extract<SpeakerRowProps, { time: string }> & { speaker: SpeakerRowData }) {
+  return <SpeakerRow {...props} highlighted={useIsKey(highlight, props.speaker.id)} />
+}
+
+function ShowMoreRow({ highlight, hiddenIds, ...props }: Highlighting & { hiddenIds: readonly string[]; count: number; expanded: boolean; onToggle: () => void; stack: ReactNode }) {
+  const highlighted = useSyncExternalStore(highlight.subscribe, () => hiddenIds.includes(highlight.get() ?? ''))
+  return <SpeakerRow kind="show-more" {...props} highlighted={highlighted} />
 }

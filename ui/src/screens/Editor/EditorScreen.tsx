@@ -5,6 +5,7 @@ import { Sidebar, type SidebarSection } from '../../components/Sidebar/Sidebar'
 import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { prefersReducedMotion, useLingering } from '../../presence'
 import { cx } from '../../styles/cx'
+import { createKeyStore } from '../../media/active-segment'
 import type { Playback } from '../../media/playback'
 import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecordingDialog'
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
@@ -28,6 +29,8 @@ interface EditorScreenProps {
   // For a story: what only a board shows.
   possibleMatches?: boolean
   initialSpeakerId?: string
+  // For a story: a speaker standing highlighted, as if under the pointer.
+  initialHighlight?: string
 }
 
 // Wide until measured, and a width from the screen itself rather than the window,
@@ -46,7 +49,7 @@ function useWidth() {
   return { element, width }
 }
 
-export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, possibleMatches, initialSpeakerId }: EditorScreenProps) {
+export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, possibleMatches, initialSpeakerId, initialHighlight }: EditorScreenProps) {
   const api = useApi()
   const transcripts = useTranscripts()
   const speakers = useSpeakers()
@@ -56,6 +59,9 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const playback = givenPlayback ?? ownPlayback
   const [speakerRequest, setSpeakerRequest] = useState<SpeakerRequest | null>(null)
   const [toDelete, setToDelete] = useState<RecordingToDelete | null>(null)
+  // The speaker under the pointer in the inspector, for the transcript and the player.
+  // Only they listen to it: the screen renders nothing when it changes.
+  const [highlight] = useState(() => createKeyStore<string | null>(initialHighlight ?? null))
   const speakerDialog = useLingering(speakerRequest)
   const deleteDialog = useLingering(toDelete)
   const { change: changeSpeaker } = useSpeakerChange()
@@ -107,8 +113,8 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   // Moving a panel asks nothing new of the transcript, and on a long recording it is the
   // most expensive thing to render.
   const center = useMemo(
-    () => transcript ?? <TranscriptPanel transcriptId={selectedId} playback={playback} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />,
-    [transcript, selectedId, playback, showAllSpeakers],
+    () => transcript ?? <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />,
+    [transcript, selectedId, playback, highlight, showAllSpeakers],
   )
 
   // A refresh that fails leaves what was loaded on the screen.
@@ -153,11 +159,12 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
                 onChooseSpeaker={setSpeakerRequest}
                 possibleMatches={possibleMatches}
                 initialSpeakerId={initialSpeakerId}
+                highlight={highlight}
               />
             )}
           </div>
         </section>
-        <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player ?? <EditorPlayer transcriptId={selectedId} playback={playback} />}</section>
+        <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player ?? <EditorPlayer transcriptId={selectedId} playback={playback} highlight={highlight} />}</section>
       </div>
       {speakerDialog.value && (
         <SpeakerDialogs
