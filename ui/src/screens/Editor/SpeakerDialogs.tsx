@@ -18,7 +18,14 @@ export interface SpeakerRequest {
   onAssign: (target: SpeakerTarget) => Promise<void>
 }
 
-export function SpeakerDialogs({ request, onClose }: { request: SpeakerRequest; onClose: () => void }) {
+interface SpeakerDialogsProps {
+  request: SpeakerRequest
+  open?: boolean
+  onClose: () => void
+  onExited?: () => void
+}
+
+export function SpeakerDialogs({ request, open = true, onClose, onExited }: SpeakerDialogsProps) {
   const { transcriptId, speakerId, start, preselected = null, onAssign } = request
   const speakers = useSpeakers().data ?? []
   const transcript = useTranscript(transcriptId).data
@@ -27,6 +34,8 @@ export function SpeakerDialogs({ request, onClose }: { request: SpeakerRequest; 
     start === 'choose' ? { name: 'choose', query: '' } : { name: 'new', speakerName: '' },
   )
   const [busy, setBusy] = useState(false)
+  // One window turning into the other is not a new window.
+  const [swapped, setSwapped] = useState(false)
 
   if (view.name === 'new') {
     return (
@@ -40,9 +49,15 @@ export function SpeakerDialogs({ request, onClose }: { request: SpeakerRequest; 
         }}
         onBack={() => {
           if (start === 'new') onClose()
-          else setView({ name: 'choose', query: view.speakerName })
+          else {
+            setSwapped(true)
+            setView({ name: 'choose', query: view.speakerName })
+          }
         }}
         onClose={onClose}
+        open={open}
+        onExited={onExited}
+        skipEnter={swapped}
       />
     )
   }
@@ -64,8 +79,14 @@ export function SpeakerDialogs({ request, onClose }: { request: SpeakerRequest; 
           toast({ message: `Failed to assign the speaker: ${(error as Error).message}`, type: 'error' })
         }
       }}
-      onNewSpeaker={name => setView({ name: 'new', speakerName: name })}
+      onNewSpeaker={name => {
+        setSwapped(true)
+        setView({ name: 'new', speakerName: name })
+      }}
       onClose={onClose}
+      open={open}
+      onExited={onExited}
+      skipEnter={swapped}
     />
   )
 }

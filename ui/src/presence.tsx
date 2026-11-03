@@ -6,14 +6,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 export function useLingering<T>(value: T | null) {
   const [kept, setKept] = useState<{ value: T; key: number } | null>(null)
   const counter = useRef(0)
-  const clear = useCallback(() => setKept(null), [])
+  const closed = useRef(value === null)
+  closed.current = value === null
+  const drop = useCallback(() => setKept(null), [])
+  // A window can also go because another one takes its place, which is no way out.
+  const exited = useCallback(() => { if (closed.current) setKept(null) }, [])
 
   let current = kept
   if (value !== null && value !== kept?.value) {
     current = { value, key: counter.current++ }
     setKept(current)
   }
-  return { value: current?.value ?? null, key: current?.key ?? 0, open: value !== null, exited: clear }
+  return { value: current?.value ?? null, key: current?.key ?? 0, open: value !== null, exited, drop }
 }
 
 // Stands inside what Radix keeps until its way out has played. StrictMode runs the

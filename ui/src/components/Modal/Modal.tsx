@@ -1,5 +1,6 @@
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
+import { ExitSignal } from '../../presence'
 import { cx } from '../../styles/cx'
 import styles from './Modal.module.css'
 
@@ -14,6 +15,10 @@ interface ModalProps {
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
+  // The way out has played. A window shown for a value of state keeps that value until then.
+  onExited?: () => void
+  // Takes over from another window, with no way in and no second scrim.
+  skipEnter?: boolean
   // ModalHeader, ModalBody, ModalFooter. The body is free, Penpot's slot is this.
   children: ReactNode
   // Draws the window in place, without scrim and focus trap, for a board of variants.
@@ -49,7 +54,7 @@ function startingPoint(content: HTMLElement, type: ModalType) {
   return firstIn(content, '[data-modal-body]') ?? firstIn(content, '[data-modal-footer]') ?? firstIn(content, '[data-modal-header]')
 }
 
-export function Modal({ size = 'small', type = 'default', open, defaultOpen, onOpenChange, children, preview }: ModalProps) {
+export function Modal({ size = 'small', type = 'default', open, defaultOpen, onOpenChange, onExited, skipEnter, children, preview }: ModalProps) {
   const [hasDescription, setHasDescription] = useState(false)
   const content = useRef<HTMLDivElement>(null)
   const returnTo = useRef<HTMLElement | null>(null)
@@ -57,7 +62,7 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
   const window = (
     <RadixDialog.Content
       ref={content}
-      className={cx(styles.modal, styles[size], preview && styles.preview)}
+      className={cx(styles.modal, styles[size], preview && styles.preview, skipEnter && styles.skipEnter)}
       {...(type === 'danger' ? { role: 'alertdialog' } : {})}
       {...(hasDescription ? {} : { 'aria-describedby': undefined })}
       onOpenAutoFocus={event => {
@@ -72,6 +77,7 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
         returnTo.current?.focus()
       }}
     >
+      <ExitSignal onExited={onExited} />
       {children}
     </RadixDialog.Content>
   )
@@ -86,7 +92,7 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
       >
         {preview ? window : (
           <RadixDialog.Portal>
-            <RadixDialog.Overlay className={styles.scrim} />
+            <RadixDialog.Overlay className={cx(styles.scrim, skipEnter && styles.skipEnter)} />
             {window}
           </RadixDialog.Portal>
         )}

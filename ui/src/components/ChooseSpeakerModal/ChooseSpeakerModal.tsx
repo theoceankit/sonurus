@@ -38,6 +38,9 @@ interface ChooseSpeakerModalProps {
   // With what was typed in the search field, for its name.
   onNewSpeaker: (name: string) => void
   onClose: () => void
+  open?: boolean
+  onExited?: () => void
+  skipEnter?: boolean
   busy?: boolean
   // For a story: the search without typing, and the window in place.
   initialQuery?: string
@@ -50,7 +53,7 @@ const CATEGORIES: { id: ChooseSpeakerCategory; label: string; icon: 'speakers' |
   { id: 'recording', label: 'Already in this recording', icon: 'microphone' },
 ]
 
-export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, onNewSpeaker, onClose, busy, initialQuery = '', preview }: ChooseSpeakerModalProps) {
+export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, onNewSpeaker, onClose, open = true, onExited, skipEnter, busy, initialQuery = '', preview }: ChooseSpeakerModalProps) {
   const [query, setQuery] = useState(initialQuery)
   const [category, setCategory] = useState<ChooseSpeakerCategory>('all')
   const [selectedId, setSelectedId] = useState(initialSelectedId)
@@ -94,7 +97,7 @@ export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, o
   )
 
   return (
-    <Modal size="large" open preview={preview} onOpenChange={open => { if (!open) onClose() }}>
+    <Modal size="large" open={open} onExited={onExited} skipEnter={skipEnter} preview={preview} onOpenChange={next => { if (!next) onClose() }}>
       <ModalHeader title="Choose a speaker" />
       <ModalBody className={styles.body} onKeyDown={onKeyDown}>
         <nav aria-label="Categories" className={styles.rail}>

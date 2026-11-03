@@ -245,7 +245,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
             onShowAllSpeakers?.({ currentId: menu.currentId, segmentStarts: menu.segmentStarts })
             closeMenu()
             // A window opens over it, and the focus belongs there at once.
-            lingeringMenu.exited()
+            lingeringMenu.drop()
           }}
           onClose={closeMenu}
         />

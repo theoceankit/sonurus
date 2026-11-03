@@ -3,6 +3,7 @@ import { useApi } from '../../api/ApiProvider'
 import { useSpeakers, useTranscripts } from '../../api/queries'
 import { Sidebar, type SidebarSection } from '../../components/Sidebar/Sidebar'
 import { Titlebar } from '../../components/Titlebar/Titlebar'
+import { useLingering } from '../../presence'
 import { cx } from '../../styles/cx'
 import type { Playback } from '../../media/playback'
 import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecordingDialog'
@@ -55,6 +56,8 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const playback = givenPlayback ?? ownPlayback
   const [speakerRequest, setSpeakerRequest] = useState<SpeakerRequest | null>(null)
   const [toDelete, setToDelete] = useState<RecordingToDelete | null>(null)
+  const speakerDialog = useLingering(speakerRequest)
+  const deleteDialog = useLingering(toDelete)
   const { change: changeSpeaker } = useSpeakerChange()
   const { element, width } = useWidth()
   const visible = visiblePanels(panels, width)
@@ -126,8 +129,25 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
         </section>
         <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player ?? <EditorPlayer transcriptId={selectedId} playback={playback} />}</section>
       </div>
-      {speakerRequest && <SpeakerDialogs request={speakerRequest} onClose={() => setSpeakerRequest(null)} />}
-      {toDelete && <DeleteRecordingDialog recording={toDelete} onDeleted={() => setSelectedId(null)} onClose={() => setToDelete(null)} />}
+      {speakerDialog.value && (
+        <SpeakerDialogs
+          key={speakerDialog.key}
+          request={speakerDialog.value}
+          open={speakerDialog.open}
+          onClose={() => setSpeakerRequest(null)}
+          onExited={speakerDialog.exited}
+        />
+      )}
+      {deleteDialog.value && (
+        <DeleteRecordingDialog
+          key={deleteDialog.key}
+          recording={deleteDialog.value}
+          open={deleteDialog.open}
+          onDeleted={() => setSelectedId(null)}
+          onClose={() => setToDelete(null)}
+          onExited={deleteDialog.exited}
+        />
+      )}
     </div>
   )
 }

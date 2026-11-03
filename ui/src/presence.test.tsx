@@ -15,6 +15,15 @@ test('keeps the last value while the way out plays', () => {
   expect(result.current).toMatchObject({ value: null, open: false })
 })
 
+test('exited does nothing while a value is there, drop takes it away at once', () => {
+  const { result, rerender } = renderHook(({ value }) => useLingering(value), { initialProps: { value: a as typeof a | null } })
+  act(() => result.current.exited())
+  expect(result.current).toMatchObject({ value: a, open: true })
+  rerender({ value: null })
+  act(() => result.current.drop())
+  expect(result.current.value).toBeNull()
+})
+
 test('a new value gets a new key, also during the way out', () => {
   const { result, rerender } = renderHook(({ value }) => useLingering(value), { initialProps: { value: a as typeof a | null } })
   const first = result.current.key

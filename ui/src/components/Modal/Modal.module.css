@@ -1,4 +1,5 @@
 .scrim {
+  composes: presence from '../../styles/motion.module.css';
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
@@ -6,6 +7,9 @@
 }
 
 .modal {
+  composes: presence from '../../styles/motion.module.css';
+  --motion-from-scale: var(--motion-scale);
+  --motion-to-scale: var(--motion-scale);
   position: fixed;
   top: 50%;
   left: 50%;
@@ -38,4 +42,9 @@
   position: static;
   z-index: auto;
   transform: none;
+  animation: none;
+}
+
+.skipEnter[data-state='open'] {
+  animation: none;
 }

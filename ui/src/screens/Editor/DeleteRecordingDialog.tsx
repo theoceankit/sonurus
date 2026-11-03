@@ -13,11 +13,13 @@ export interface RecordingToDelete {
 
 interface DeleteRecordingDialogProps {
   recording: RecordingToDelete
+  open: boolean
   onDeleted: () => void
   onClose: () => void
+  onExited: () => void
 }
 
-export function DeleteRecordingDialog({ recording: { id, title }, onDeleted, onClose }: DeleteRecordingDialogProps) {
+export function DeleteRecordingDialog({ recording: { id, title }, open, onDeleted, onClose, onExited }: DeleteRecordingDialogProps) {
   const { mutateAsync: remove, isPending } = useDeleteTranscript()
   const prompt = deleteRecordingPrompt(title)
 
@@ -33,7 +35,7 @@ export function DeleteRecordingDialog({ recording: { id, title }, onDeleted, onC
   }
 
   return (
-    <Modal type="danger" open onOpenChange={next => { if (!next) onClose() }}>
+    <Modal type="danger" open={open} onExited={onExited} onOpenChange={next => { if (!next) onClose() }}>
       <ModalHeader title={prompt.title} />
       <ModalBody><div>{prompt.body}<br />{prompt.warning}</div></ModalBody>
       <ModalFooter confirm={{ children: 'Delete', loading: isPending, onClick: () => void confirm() }} />
