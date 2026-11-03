@@ -2,6 +2,7 @@ import { useRef, type ComponentPropsWithRef, type ReactNode } from 'react'
 import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
 import { Button } from '../Button/Button'
+import { Reveal } from '../Reveal/Reveal'
 import { IconButton } from '../IconButton/IconButton'
 import { ScrollBar } from '../ScrollBar/ScrollBar'
 import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
@@ -22,16 +23,6 @@ type InspectorProps = Omit<ComponentPropsWithRef<'div'>, 'children'> & {
 }
 
 const TITLE = 'Review speakers'
-
-// Grows to the height the panel gives it, which a measured height would not: the
-// card gives way when the panel is low. Stays mounted, unreachable while closed.
-function Reveal({ open, className, children }: { open: boolean; className?: string; children: ReactNode }) {
-  return (
-    <div className={cx(styles.reveal, className)} data-open={open || undefined} inert={!open}>
-      <div className={styles.revealInner}>{children}</div>
-    </div>
-  )
-}
 
 // The right panel: its tabs, and the review docked at the bottom.
 export function Inspector({ children, review = { mode: 'off' }, onClose, className, ...props }: InspectorProps) {

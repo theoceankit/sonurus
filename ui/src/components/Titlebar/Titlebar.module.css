@@ -47,8 +47,12 @@
   padding-right: max(var(--space-5), calc(var(--inset-end) + var(--space-2)));
 }
 
-/* Comes as the inspector goes, where its button was. */
+/* Comes from the side the inspector leaves to, once the panel is half way out:
+   at once it would be over before the eye gets there. */
 .appear {
   composes: appear from '../../styles/motion.module.css';
+  --motion-in: var(--duration-slow);
+  --motion-delay: calc(var(--duration-move) / 2);
+  --motion-from-shift: var(--motion-shift-md) 0;
 }
 

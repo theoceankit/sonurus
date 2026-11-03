@@ -1,0 +1,31 @@
+.reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--duration-base) var(--ease-standard),
+    opacity var(--duration-base) var(--ease-exit);
+}
+
+.reveal[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--duration-slow) var(--ease-standard),
+    opacity var(--duration-slow) var(--ease-enter);
+}
+
+/* Nothing travels: the content fades where it stands. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal[data-open] {
+    transition-property: opacity;
+  }
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}

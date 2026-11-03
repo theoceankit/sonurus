@@ -51,38 +51,6 @@
   overflow-y: auto;
 }
 
-.reveal {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    grid-template-rows var(--duration-base) var(--ease-standard),
-    opacity var(--duration-base) var(--ease-standard),
-    visibility var(--duration-base) linear;
-}
-
-.reveal[data-open] {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  visibility: visible;
-  transition-duration: var(--duration-slow);
-}
-
-/* Nothing travels: the dock fades where it stands. */
-@media (prefers-reduced-motion: reduce) {
-  .reveal {
-    transition-property: opacity, visibility;
-  }
-}
-
-.revealInner {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .dockBox,
 .dockPart,
 .dock,

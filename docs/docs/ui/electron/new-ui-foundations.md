@@ -172,7 +172,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | Toast | 200 | 150 | fade and 8 px up |
 | Panel, on its button | 250 | 250 | the frame moves, the text wraps on every frame, the panel's content fades |
 | What opens in place | 200 | 150 | height and fade: Show N more, Disclosure, the text of a review card, the review dock |
-| Show inspector | 150 | — | fade and scale as it comes; it goes at once, as the inspector takes its place |
+| Show inspector | 200 | — | from 8 px to the side the inspector leaves to, once the panel is half way out; it goes at once, as the inspector takes its place |
 | Bubble of the player | 100 | 100 | width, when the text has changed it |
 
 Pressed and the focus ring change at once. So do the text and data of the transcript, the playhead and the waveform, scrolling, changing recording, tabs and editing a paragraph.
@@ -181,8 +181,8 @@ Pressed and the focus ring change at once. So do the text and data of the transc
 
 - `ui/src/styles/motion.module.css` holds the rules, taken with `composes`. A component sets `--motion-in`, `--motion-out`, `--motion-from-scale`, `--motion-to-scale` and `--motion-from-shift`. Scale and shift use the `scale` and `translate` properties, which do not fight the `transform` that centres a modal or that Radix positions with.
 - Radix keeps an element until the animation of `data-state="closed"` has ended. What is shown for a value of state needs that value until then: `useLingering()` in `ui/src/presence.tsx` keeps it, and `ExitSignal` inside the element says when it is gone.
-- `Collapse` and `Disclosure` take their height from Radix, with no measuring of their own. Radix measures the content as it would be on its own, so a block that the layout squeezes, such as the review dock in a low inspector, would grow past its place and jump back at the end. The dock moves on grid rows instead (`0fr` to `1fr`), which reach the height the panel gives it, and stays mounted, unreachable while closed.
-- `appear` in `motion.module.css` plays the way in of something that is simply mounted, with no state to play out, as the Show inspector button.
+- `Collapse` and `Disclosure` take their height from Radix, with no measuring of their own. Radix measures the content as it would be on its own, so a block that the layout squeezes, such as the review dock in a low inspector, would grow past its place and jump back at the end. `Reveal` is for such content: it moves on grid rows (`0fr` to `1fr`), which reach the height the layout gives, and on the way the content keeps the size it has at the end it comes from or goes to, cut at the bottom rather than squeezed. The review dock and the text of a review card use it. It keeps its content until the way out is over.
+- `appear` in `motion.module.css` plays the way in of something that is simply mounted, with no state to play out, as the Show inspector button. `--motion-delay` holds it back: that button answers no click of its own, and come at once it would be over before the eye gets there.
 - `EditorScreen` always has three columns, because the number of columns cannot animate, and a closed panel's column has no width. The move is marked with `data-moving` on the element, not in state, so its end renders nothing. The text of the centre wraps again on every frame, as in native apps: on a three-hour recording that is under 2 ms of layout a frame. Wrapping once for the width it is heading for was tried and dropped: the text jumped on the first frame and was cut off by the frame or left a gap beside it. A window being resized follows at once.
 
 ### Long recordings
