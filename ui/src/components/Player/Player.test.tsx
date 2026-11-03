@@ -86,9 +86,18 @@ test('speaker buttons do nothing at the edges', async () => {
   expect(onSeek).not.toHaveBeenCalled()
 })
 
-test.each([[1, 1.2], [1.2, 1.5], [1.5, 2], [2, 1]])('speed %d goes to %d', async (rate, next) => {
+test('the speed is chosen from a list that marks the current one', async () => {
+  setup({ state: { ...STATE, rate: 1.5 } })
+  await userEvent.click(button('Playback speed 1.5×'))
+  const options = screen.getAllByRole('menuitemradio')
+  expect(options.map(option => option.textContent!.trim())).toEqual(['0.5×', '1×', '1.2×', '1.5×', '2×'])
+  expect(options.map(option => option.getAttribute('aria-checked'))).toEqual(['false', 'false', 'false', 'true', 'false'])
+})
+
+test.each([[1, 0.5], [1, 1.2], [1.2, 2], [2, 1]])('at speed %d choosing %d', async (rate, next) => {
   const { onRateChange } = setup({ state: { ...STATE, rate } })
   await userEvent.click(button(`Playback speed ${rate}×`))
+  await userEvent.click(screen.getByRole('menuitemradio', { name: `${next}×` }))
   expect(onRateChange).toHaveBeenCalledWith(next)
 })
 

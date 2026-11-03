@@ -17,6 +17,9 @@ interface MenuProps {
   trigger: ReactElement
   children: ReactNode
   align?: 'start' | 'end'
+  side?: 'top' | 'bottom'
+  // Narrow is for a short list of short values.
+  size?: 'default' | 'narrow'
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
@@ -34,13 +37,13 @@ const keyboardInput = (event: KeyboardEvent<HTMLElement>) => { delete event.curr
 
 // Not modal: a modal menu locks the scroll and shifts the page behind it, and an
 // outside click closes this one all the same.
-export function Menu({ trigger, children, align = 'start', onCloseAutoFocus, ...props }: MenuProps) {
+export function Menu({ trigger, children, align = 'start', side = 'bottom', size = 'default', onCloseAutoFocus, ...props }: MenuProps) {
   return (
     <RadixMenu.Root modal={false} {...props}>
       <RadixMenu.Trigger asChild>{trigger}</RadixMenu.Trigger>
       <RadixMenu.Portal>
-        <RadixMenu.Content asChild align={align} sideOffset={OFFSET} onCloseAutoFocus={onCloseAutoFocus} onPointerMove={pointerInput} onKeyDownCapture={keyboardInput}>
-          <MenuSurface>{children}</MenuSurface>
+        <RadixMenu.Content asChild align={align} side={side} sideOffset={OFFSET} onCloseAutoFocus={onCloseAutoFocus} onPointerMove={pointerInput} onKeyDownCapture={keyboardInput}>
+          <MenuSurface className={size === 'narrow' ? styles.narrow : undefined}>{children}</MenuSurface>
         </RadixMenu.Content>
       </RadixMenu.Portal>
     </RadixMenu.Root>
