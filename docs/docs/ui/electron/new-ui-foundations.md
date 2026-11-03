@@ -155,6 +155,8 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | `--duration-base` | 150 ms | opening a menu, closing a modal or a toast |
 | `--duration-slow` | 200 ms | opening a modal or a toast, what opens in place |
 | `--duration-move` | 250 ms | panels, which travel the furthest |
+| `--delay-hover` | 150 ms | how long the pointer stays on a speaker before it is highlighted |
+| `--delay-hover-skip` | 300 ms | after a highlight, the next one comes at once for this long |
 | `--ease-standard` | `cubic-bezier(0.2, 0, 0, 1)` | what stays on screen: panels, height, width, colour |
 | `--ease-enter` | `cubic-bezier(0.16, 1, 0.3, 1)` | what appears |
 | `--ease-exit` | `cubic-bezier(0.4, 0, 1, 1)` | what leaves the screen |
@@ -166,7 +168,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | Element | Opens | Closes | How |
 |---|---|---|---|
 | Hover | 100 | 100 | colour only |
-| A highlighted speaker: turns, rows, talk time | 100 | 100 | colour only, as hover; the waveform changes at once |
+| A highlighted speaker: turns, rows, talk time | 100 | 100 | colour only, as hover, after `--delay-hover` under the pointer; the waveform changes at once |
 | Tooltip | 100 | 100 | fade and 2 px; the next within 300 ms and one from the keyboard come at once |
 | Menu, popup | 150 | 100 | fade and scale from where it hangs |
 | Modal and scrim | 200 | 150 | fade and scale; Choose speaker and New speaker turn into each other with neither. The strip of the window buttons dims with the scrim, on the same curves: see [Window and Editor shell](overview.md#window-and-editor-shell) |
@@ -184,6 +186,7 @@ Pressed and the focus ring change at once. So do the text and data of the transc
 - `ui/src/styles/motion.module.css` holds the rules, taken with `composes`. A component sets `--motion-in`, `--motion-out`, `--motion-from-scale`, `--motion-to-scale` and `--motion-from-shift`. Scale and shift use the `scale` and `translate` properties, which do not fight the `transform` that centres a modal or that Radix positions with.
 - Radix keeps an element until the animation of `data-state="closed"` has ended. What is shown for a value of state needs that value until then: `useLingering()` in `ui/src/presence.tsx` keeps it, and `ExitSignal` inside the element says when it is gone.
 - `Collapse` and `Disclosure` take their height from Radix, with no measuring of their own. Radix measures the content as it would be on its own, so a block that the layout squeezes, such as the review dock in a low inspector, would grow past its place and jump back at the end. `Reveal` is for such content: it moves on grid rows (`0fr` to `1fr`), which reach the height the layout gives, and on the way the content keeps the size it has at the end it comes from or goes to, cut at the bottom rather than squeezed. The review dock and the text of a review card use it. It keeps its content until the way out is over.
+- Waits that a script keeps, as the delay of a highlighted speaker, come from the same tokens: `ui/src/styles/motion.ts` reads them from `tokens.css`.
 - `appear` in `motion.module.css` plays the way in of something that is simply mounted, with no state to play out, as the Show inspector button. `--motion-delay` holds it back: that button answers no click of its own, and come at once it would be over before the eye gets there. It ends with the panel's move.
 - `EditorScreen` always has three columns, because the number of columns cannot animate, and a closed panel's column has no width. The move is marked with `data-moving` on the element, not in state, so its end renders nothing. The text of the centre wraps again on every frame, as in native apps: on a three-hour recording that is under 2 ms of layout a frame. Wrapping once for the width it is heading for was tried and dropped: the text jumped on the first frame and was cut off by the frame or left a gap beside it. A window being resized follows at once.
 
