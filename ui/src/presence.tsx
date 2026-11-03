@@ -20,6 +20,8 @@ export function useLingering<T>(value: T | null) {
   return { value: current?.value ?? null, key: current?.key ?? 0, open: value !== null, exited, drop }
 }
 
+export const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+
 // Stands inside what Radix keeps until its way out has played. StrictMode runs the
 // cleanup once on mounting too, so the check waits to see whether it came back.
 export function ExitSignal({ onExited }: { onExited?: () => void }) {
