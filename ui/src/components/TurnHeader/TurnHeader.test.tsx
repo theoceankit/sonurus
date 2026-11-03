@@ -29,6 +29,19 @@ test('a click on the name asks for the menu and says where to put it', async () 
   expect(onOpenMenu).toHaveBeenCalledWith(name)
 })
 
+test('a click on the avatar asks for the same menu', async () => {
+  const onOpenMenu = vi.fn()
+  render(<TurnHeader speaker={NAMED} time="00:05" onOpenMenu={onOpenMenu} />)
+  await userEvent.click(screen.getByText('ME'))
+  expect(onOpenMenu).toHaveBeenCalledWith(screen.getByRole('button', { name: 'Mark Ellis' }))
+})
+
+test('the button is named by the speaker, not the initials', () => {
+  render(<TurnHeader speaker={NAMED} time="00:05" />)
+  const button = screen.getByRole('button', { name: 'Mark Ellis' })
+  expect(button.contains(screen.getByText('ME'))).toBe(true)
+})
+
 test('a click on the time seeks', async () => {
   const onSeek = vi.fn()
   render(<TurnHeader speaker={NAMED} time="00:05" onSeek={onSeek} />)
@@ -55,14 +68,21 @@ test('a name stays on one line of fixed height', () => {
   expect(css.match(/\.name \{([^}]*)\}/)![1]).toMatch(/font:\s*var\(--font-body-strong\)/)
 })
 
+// A flex item is no narrower than its text unless told, so a long name ran over the time.
+test('a long name shrinks to an ellipsis instead of running over the time', () => {
+  expect(css.match(/\.label \{([^}]*)\}/)![1]).toMatch(/min-width:\s*0/)
+})
+
 // Glyphs from a fallback font would make a line of normal height taller.
 test('the font of the name sets its line height', () => {
   expect(tokens).toMatch(/--font-body-strong:[^;]*\/[\d.]+ /)
 })
 
-test('the arrow keeps its place when hidden, so the time does not move', () => {
-  expect(turnHeaderCss).toMatch(/\.chevron \{[^}]*visibility: hidden;/)
-  expect(turnHeaderCss).not.toMatch(/display: none/)
+test('no arrow: the time stands 8 px after the name, whatever the state', () => {
+  const { container } = render(<TurnHeader speaker={NAMED} time="00:05" open />)
+  expect(container.querySelector('svg')).toBeNull()
+  expect(turnHeaderCss).toMatch(/\.turnHeader \{[^}]*gap: var\(--space-2\);/)
+  expect(turnHeaderCss).not.toMatch(/\.time \{[^}]*margin/)
 })
 
 test('the letters are centred, not their line boxes', () => {
