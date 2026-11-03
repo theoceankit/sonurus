@@ -64,6 +64,9 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     listTranscripts: () => send(http.GET('/transcripts')),
     getTranscript: id => send(http.GET('/transcripts/{transcript_id}', transcript(id))),
     getAudioUrl: ({ id, audio_path }) => (audio_path ? `${baseUrl}/transcripts/${id}/audio` : null),
+    getWaveform: async (transcript_id, query) => (
+      await send(http.GET('/transcripts/{transcript_id}/waveform', { params: { path: { transcript_id }, query } }))
+    ).levels,
     updateTranscriptTitle: (id, title) => send(http.PATCH('/transcripts/{transcript_id}', { ...transcript(id), body: { title } })),
     markTranscriptOpened: id => send(http.POST('/transcripts/{transcript_id}/opened', transcript(id))),
     deleteTranscript: id => send(http.DELETE('/transcripts/{transcript_id}', transcript(id))),

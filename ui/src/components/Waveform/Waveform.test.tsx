@@ -35,6 +35,14 @@ test('small: played bars are primary text, the rest gray, whatever the speakers'
   expect(colors(container)).toEqual(['var(--color-text-primary)', 'var(--color-speaker-6-mid)'])
 })
 
+test('with no heights the bars are flat and low: nothing is known of the audio yet', () => {
+  for (const size of ['large', 'small'] as const) {
+    const heights = bars(render(<Waveform size={size} progress={0} />).container).map(bar => bar.style.height)
+    expect(new Set(heights).size).toBe(1)
+    expect(parseFloat(heights[0])).toBeLessThan(50)
+  }
+})
+
 test('a bar is as high as its share', () => {
   const { container } = render(<Waveform progress={0} heights={[0.5]} />)
   expect(bars(container)[0].style.height).toBe('50%')

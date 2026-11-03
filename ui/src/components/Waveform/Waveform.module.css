@@ -6,6 +6,7 @@
 
 .bar {
   flex: none;
+  min-height: var(--size-waveform-bar-min);
   border-radius: var(--radius-full);
 }
 

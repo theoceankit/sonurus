@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useApi } from '../../api/ApiProvider'
-import { useBackendConnected, useSpeakers, useTranscript } from '../../api/queries'
+import { useBackendConnected, useSpeakers, useTranscript, useWaveform } from '../../api/queries'
 import { effectiveSpeaker, UNASSIGNED, type Segment, type Speaker } from '../../api/types'
-import { Player } from '../../components/Player/Player'
+import { BAR_COUNT, Player } from '../../components/Player/Player'
 import { createKeyStore, useKey, type KeyStore } from '../../media/active-segment'
 import { useAudioPlayback, usePlayback, type Playback } from '../../media/playback'
-import type { Turn } from '../../media/timeline'
+import { timelineDuration, type Turn } from '../../media/timeline'
 import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 
 const GRAY: SpeakerColor = 6
@@ -50,6 +50,11 @@ export function EditorPlayer({ transcriptId, playback, highlight }: EditorPlayer
     () => (transcriptId !== null && transcript ? playerTurns(transcript.segments, speakers ?? []) : []),
     [transcriptId, transcript, speakers],
   )
+  // Over the same length as the bars' speakers, also for audio that does not
+  // know its length.
+  const levels = useWaveform(transcript ? transcriptId : null, {
+    bars: BAR_COUNT, start: 0, end: timelineDuration(state.duration, turns),
+  }).data
 
   return (
     <Player
@@ -58,6 +63,7 @@ export function EditorPlayer({ transcriptId, playback, highlight }: EditorPlayer
       disabled={state.status !== 'ready'}
       notice={transcriptId !== null && transcript && ((state.status === 'error' && connected) || !api.getAudioUrl(transcript)) ? 'Audio file not found' : undefined}
       highlightedSpeaker={highlightedSpeaker}
+      heights={levels}
       onToggle={playback.toggle}
       onSeek={playback.seek}
       onRateChange={playback.setRate}

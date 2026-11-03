@@ -24,6 +24,9 @@ export type SpeakerAssignment = { transcriptId: number; segmentStarts: readonly 
 // createdSpeakerId: the assignment made this speaker, and with nothing left they go.
 export type SpeakerUndo = { transcriptId: number; segmentStarts: readonly number[]; speakerId: string; createdSpeakerId?: string }
 
+// Bars evenly over a stretch of a recording, in seconds.
+export type WaveformStretch = { bars: number; start: number; end: number }
+
 // Everything a screen knows about the backend. Screens get it through
 // useApi(), so they work the same on fixtures and on the real thing.
 export interface ApiClient {
@@ -33,6 +36,8 @@ export interface ApiClient {
   getTranscript(transcriptId: number): Promise<Transcript>
   // What an audio element plays for this recording, null when there is nothing to play.
   getAudioUrl(transcript: Transcript): string | null
+  // One height from 0 to 1 per bar, on the scale of the whole recording.
+  getWaveform(transcriptId: number, stretch: WaveformStretch): Promise<number[]>
   updateTranscriptTitle(transcriptId: number, title: string): Promise<void>
   // The recording is no longer new. Loading it does not do this.
   markTranscriptOpened(transcriptId: number): Promise<void>

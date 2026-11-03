@@ -8,7 +8,7 @@ import { Inline } from '../Inline/Inline'
 import { Menu, MenuOption, MenuOptions } from '../Menu/Menu'
 import { Playhead } from '../Playhead/Playhead'
 import { Tooltip } from '../Tooltip/Tooltip'
-import { WAVEFORM_HEIGHTS } from '../Waveform/bars'
+import { BAR_COUNT as BAR_COUNTS } from '../Waveform/bars'
 import { Waveform } from '../Waveform/Waveform'
 import { POPUP_OFFSET, VolumeControl } from './VolumeControl'
 import styles from './Player.module.css'
@@ -17,7 +17,7 @@ export const PLAYER_SPEEDS = [0.5, 1, 1.2, 1.5, 2]
 
 const SKIP_SECONDS = 15
 const KEY_SECONDS = 5
-const BAR_COUNT = WAVEFORM_HEIGHTS.large.length
+export const BAR_COUNT = BAR_COUNTS.large
 
 export interface PlayerState {
   currentTime: number
@@ -40,6 +40,9 @@ export interface PlayerProps {
   // The speaker of a row or bar of talk time under the pointer elsewhere: only
   // their bars keep a colour.
   highlightedSpeaker?: string | null
+  // The levels of the audio, one per bar over the length of the waveform. Flat
+  // until they are there.
+  heights?: readonly number[] | null
   // For a story: the cursor over the waveform at this time, pressed or not.
   initialCursor?: { at: number; dragging?: boolean }
 }
@@ -49,7 +52,7 @@ function ControlButton({ label, ...props }: IconButtonProps) {
 }
 
 export function Player({
-  state, turns, disabled, notice, onToggle, onSeek, onRateChange, onVolumeChange, highlightedSpeaker, initialCursor,
+  state, turns, disabled, notice, onToggle, onSeek, onRateChange, onVolumeChange, highlightedSpeaker, heights, initialCursor,
 }: PlayerProps) {
   const { currentTime, rate, volume } = state
   const { elapsed, playing } = playerClock(state)
@@ -166,6 +169,7 @@ export function Player({
             bars={bars}
             highlight={hovered && [share(hovered.start), share(hovered.end)]}
             speakerBars={ownBars}
+            heights={heights ?? undefined}
           />
           {!disabled && !dragging && <Playhead position={share(currentTime)} />}
           {!disabled && cursor !== null && (

@@ -107,3 +107,22 @@ test('metadata not there yet: disabled until the audio is ready', async () => {
   await waitFor(() => expect((track.firstElementChild!.children[0] as HTMLElement).style.background).toContain('speaker-'))
   expect((screen.getByRole('button', { name: 'Play' }) as HTMLButtonElement).disabled).toBe(true)
 })
+
+const heightsOf = (track: HTMLElement) => [...track.firstElementChild!.children].map(bar => (bar as HTMLElement).style.height)
+
+test('the waveform is flat, then takes the levels of the whole length of the recording', async () => {
+  const getWaveform = vi.fn(async (_id: number, { bars }: { bars: number }) => Array.from({ length: bars }, (_, i) => (i % 2) / 2))
+  const track = setup(WEEKLY_SYNC_ID, { overrides: { getWaveform } })
+  expect(new Set(heightsOf(track)).size).toBe(1)
+  await waitFor(() => expect(heightsOf(track)[1]).toBe('50%'))
+  const transcript = await createFixtureClient().getTranscript(WEEKLY_SYNC_ID)
+  expect(getWaveform).toHaveBeenCalledWith(WEEKLY_SYNC_ID, { bars: 120, start: 0, end: transcript.segments.at(-1)!.end })
+})
+
+test('levels that fail to come leave the waveform flat', async () => {
+  const getWaveform = vi.fn(() => Promise.reject(new Error('ffmpeg')))
+  const track = setup(WEEKLY_SYNC_ID, { overrides: { getWaveform } })
+  await waitFor(() => expect(getWaveform).toHaveBeenCalled())
+  await waitFor(() => expect((track.firstElementChild!.children[0] as HTMLElement).style.background).toContain('speaker-'))
+  expect(new Set(heightsOf(track)).size).toBe(1)
+})

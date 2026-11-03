@@ -8,7 +8,7 @@ import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
   useAssignSpeaker, useBackendConnected, useDeleteTranscript, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
-  useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle,
+  useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle, useWaveform,
 } from './queries'
 import { effectiveSpeaker, type QueueUpdate } from './types'
 
@@ -252,5 +252,20 @@ describe('the connection to the backend', () => {
     act(() => client.setConnected(true))
     await waitFor(() => expect(result.current.data).toHaveLength(16))
     expect(list).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('waveform', () => {
+  test('loads the levels of a stretch', async () => {
+    const { result } = renderWith(() => useWaveform(WEEKLY_SYNC_ID, { bars: 4, start: 0, end: 20 }))
+    await waitFor(() => expect(result.current.data).toHaveLength(4))
+  })
+
+  test('asks for nothing with no recording or no length yet', () => {
+    const getWaveform = vi.fn()
+    const options = { overrides: { getWaveform } }
+    renderWith(() => useWaveform(null, { bars: 4, start: 0, end: 20 }), options)
+    renderWith(() => useWaveform(WEEKLY_SYNC_ID, { bars: 4, start: 0, end: 0 }), options)
+    expect(getWaveform).not.toHaveBeenCalled()
   })
 })

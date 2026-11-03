@@ -286,6 +286,18 @@ describe('review', () => {
     expect(await counter('1 of 4')).toBeTruthy()
   })
 
+  test('the clip on the card has the levels of its own stretch', async () => {
+    const getWaveform = vi.fn(async (_id: number, { bars }: { bars: number }) => Array<number>(bars).fill(0.75))
+    setup(DESIGN_REVIEW_ID, { overrides: { getWaveform } })
+    await counter('1 of 4')
+    const clips = Object.values(await createFixtureClient().getSpeakerCandidates(DESIGN_REVIEW_ID))
+      .flatMap(entry => (entry.clip ? [{ bars: 26, start: entry.clip.start, end: entry.clip.end }] : []))
+    await waitFor(() => expect(getWaveform).toHaveBeenCalled())
+    expect(clips).toContainEqual(getWaveform.mock.calls[0][1])
+    const bar = () => within(card()).getByRole('button', { name: 'Play clip' }).nextElementSibling!.children[0] as HTMLElement
+    await waitFor(() => expect(bar().style.height).toBe('75%'))
+  })
+
   test('the edge cases of the card', async () => {
     setup()
     await counter('1 of 4')

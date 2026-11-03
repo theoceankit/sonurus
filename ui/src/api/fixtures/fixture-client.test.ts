@@ -374,3 +374,27 @@ describe('the recording for going through a whole review', () => {
     expect(answers.some(a => a.clip && a.clip.end - a.clip.start === 29)).toBe(true)
   })
 })
+
+describe('waveform', () => {
+  test('one level per bar, from 0 to 1, louder where someone speaks', async () => {
+    const client = createFixtureClient()
+    const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
+    const end = segments.at(-1)!.end
+    const levels = await client.getWaveform(WEEKLY_SYNC_ID, { bars: 120, start: 0, end: end + 60 })
+    expect(levels).toHaveLength(120)
+    expect(levels.every(level => level >= 0 && level <= 1)).toBe(true)
+    expect(levels.at(-1)).toBeLessThan(0.1)
+    expect(Math.max(...levels)).toBeGreaterThan(0.5)
+  })
+
+  test('the same every time', async () => {
+    const range = { bars: 26, start: 10, end: 14 }
+    expect(await createFixtureClient().getWaveform(WEEKLY_SYNC_ID, range))
+      .toEqual(await createFixtureClient().getWaveform(WEEKLY_SYNC_ID, range))
+  })
+
+  test('nothing to play: the audio is not found', async () => {
+    await expect(createFixtureClient({ noAudio: true }).getWaveform(WEEKLY_SYNC_ID, { bars: 2, start: 0, end: 1 }))
+      .rejects.toMatchObject({ status: 404 })
+  })
+})

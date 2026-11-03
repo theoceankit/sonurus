@@ -209,6 +209,8 @@
   --size-player-speed: 44px;
   --size-waveform-large: 32px;
   --size-waveform-small: 18px;
+  /* Silence still shows a bar, so a speaker's colour is never lost. */
+  --size-waveform-bar-min: 3px;
   --size-playhead: 38px;
   --size-playhead-hover: 42px;
   --size-playhead-knob: 10px;

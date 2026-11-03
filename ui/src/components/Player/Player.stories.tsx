@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import type { Turn } from '../../media/timeline'
 import type { SpeakerColor } from '../../styles/speaker-colors'
+import { BOARD_HEIGHTS } from '../Waveform/bars'
 import { Player, type PlayerProps, type PlayerState } from './Player'
 import styles from './Player.stories.module.css'
 
@@ -40,7 +41,7 @@ function Stateful(props: PlayerProps) {
 
 const meta: Meta<typeof Player> = {
   component: Player,
-  args: { state: PLAYING, turns: TURNS },
+  args: { state: PLAYING, turns: TURNS, heights: BOARD_HEIGHTS.large },
   render: args => <Stateful {...args} />,
   decorators: [(Story, { parameters }) => <div className={parameters.narrow ? styles.narrow : styles.board}><Story /></div>],
 }
@@ -76,6 +77,11 @@ export const DisabledNoAudio: Story = {
 }
 
 export const NoAudioFile: Story = { args: { state: { ...PAUSED, currentTime: 0 }, disabled: true, notice: 'Audio file not found' } }
+
+// The levels of the audio are not there yet, or could not be had: flat bars.
+export const LevelsNotReady: Story = { args: { state: PAUSED, heights: null } }
+
+export const LevelsNotReadySpeakerHighlighted: Story = { args: { state: PAUSED, heights: null, highlightedSpeaker: 'Mark Ellis' } }
 
 export const Faster: Story = { args: { state: { ...PAUSED, rate: 1.5 } } }
 
