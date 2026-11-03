@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { parseTokens } from '../../styles/tokens'
 import tokensCss from '../../styles/tokens.css?raw'
-import { dismissAllToasts, toast } from './toast'
+import { dismissAllToasts, dismissToast, removeToast, toast, useToasts } from './toast'
 import { Toaster } from './Toast'
 import css from './Toast.module.css?raw'
 
@@ -108,3 +108,41 @@ test('toasts sit above every other layer and take clicks over a modal', () => {
   expect(css).toMatch(/\.viewport \{[^}]*pointer-events: auto/)
   expect(css).toMatch(/\.toast \{[^}]*pointer-events: auto !important/)
 })
+
+function entries() {
+  const seen = { current: [] as ReturnType<typeof useToasts> }
+  function Probe() {
+    seen.current = useToasts()
+    return null
+  }
+  render(<Probe />)
+  return seen
+}
+
+test('a dismissed toast is kept until its way out has played', () => {
+  const seen = entries()
+  show({ message: 'Saved' })
+  const { id } = seen.current[0]
+  act(() => dismissToast(id))
+  expect(seen.current).toMatchObject([{ id, closing: true }])
+  act(() => removeToast(id))
+  expect(seen.current).toEqual([])
+})
+
+test('a fourth toast sends the oldest on its way out, and one going out does not count', () => {
+  const seen = entries()
+  for (const message of ['1', '2', '3', '4']) show({ message })
+  expect(seen.current.map(entry => [entry.message, !!entry.closing])).toEqual([['1', true], ['2', false], ['3', false], ['4', false]])
+  show({ message: '5' })
+  expect(seen.current.filter(entry => entry.closing).map(entry => entry.message)).toEqual(['1', '2'])
+})
+
+test('a toast has its way out in the DOM and leaves the list when it is over', async () => {
+  const seen = entries()
+  render(<Toaster />)
+  show({ message: 'Saved' })
+  passed(3300)
+  await act(async () => { await Promise.resolve() })
+  expect(seen.current).toEqual([])
+})
+

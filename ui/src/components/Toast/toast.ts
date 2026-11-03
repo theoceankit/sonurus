@@ -12,6 +12,8 @@ export interface ToastOptions {
 
 export interface ToastEntry extends ToastOptions {
   id: number
+  // Playing its way out: it stays on the screen and no longer counts.
+  closing?: boolean
 }
 
 const DURATION = 3200
@@ -27,7 +29,10 @@ const publish = (next: ToastEntry[]) => {
   listeners.forEach(listener => listener())
 }
 
-export const dismissToast = (id: number) => publish(entries.filter(entry => entry.id !== id))
+const closing = (list: ToastEntry[], ids: Set<number>) => list.map(entry => (ids.has(entry.id) ? { ...entry, closing: true } : entry))
+
+export const dismissToast = (id: number) => publish(closing(entries, new Set([id])))
+export const removeToast = (id: number) => publish(entries.filter(entry => entry.id !== id))
 export const dismissAllToasts = () => publish([])
 
 // A plain function, so code outside React can show a toast too. Needs one
@@ -35,7 +40,10 @@ export const dismissAllToasts = () => publish([])
 export function toast(options: ToastOptions): () => void {
   const id = nextId++
   const duration = options.duration ?? (options.action ? DURATION_WITH_ACTION : DURATION)
-  publish([...entries, { ...options, duration, id }].slice(-MAX_VISIBLE))
+  const next = [...entries, { ...options, duration, id }]
+  const showing = next.filter(entry => !entry.closing)
+  const oldest = showing.slice(0, Math.max(0, showing.length - MAX_VISIBLE)).map(entry => entry.id)
+  publish(closing(next, new Set(oldest)))
   return () => dismissToast(id)
 }
 
