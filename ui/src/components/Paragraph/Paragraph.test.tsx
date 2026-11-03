@@ -24,17 +24,10 @@ test('shows the text and no bar until the pointer comes', async () => {
   expect(bar()).toBeNull()
 })
 
-test.each(['Play', 'Edit', 'Highlight', 'Copy', 'More'])('%s names itself in a tooltip', async name => {
+test.each(['Play', 'Edit', 'Copy', 'More'])('%s names itself in a tooltip', async name => {
   setup({ showActions: true })
   await userEvent.hover(screen.getByRole('button', { name }))
   expect((await screen.findByRole('tooltip')).textContent).toContain(name)
-})
-
-test('Highlight comes after Edit and is not there yet', async () => {
-  setup({ showActions: true })
-  const names = screen.getAllByRole('button').map(button => button.getAttribute('aria-label'))
-  expect(names).toEqual(['Play', 'Edit', 'Highlight', 'Copy', 'More'])
-  expect(screen.getByRole('button', { name: 'Highlight' }).dataset.notImplemented).toBe('transcript.segment-highlight')
 })
 
 test('the bar has Play, Edit, Copy and More', async () => {

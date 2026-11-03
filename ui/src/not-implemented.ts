@@ -27,7 +27,6 @@ export const NOT_IMPLEMENTED = [
   'transcript.export',
   'transcript.highlight',
   'transcript.pin',
-  'transcript.segment-highlight',
 ] as const satisfies readonly string[]
 
 export type NotImplementedId = (typeof NOT_IMPLEMENTED)[number]

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ComponentPropsWithRef, type FocusEvent, type KeyboardEvent } from 'react'
-import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
 import type { SpeakerColor } from '../../styles/speaker-colors'
 import { Button } from '../Button/Button'
@@ -67,7 +66,6 @@ export function Paragraph({
         <Toolbar label="Paragraph" className={styles.actions}>
           <ToolbarAction icon="play" label="Play" onClick={onPlay} />
           <ToolbarAction icon="edit" label="Edit" onClick={onEdit} />
-          <ToolbarAction icon="highlight" label="Highlight" {...markNotImplemented('transcript.segment-highlight')} />
           <ToolbarAction icon="copy" label="Copy" onClick={onCopy} />
           <Menu
             align="end"
