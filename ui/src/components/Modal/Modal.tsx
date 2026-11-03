@@ -1,5 +1,6 @@
 import * as RadixDialog from '@radix-ui/react-dialog'
-import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { holdWindowDim } from '../../platform/window-dim'
 import { ExitSignal } from '../../presence'
 import { cx } from '../../styles/cx'
 import styles from './Modal.module.css'
@@ -58,6 +59,11 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
   const [hasDescription, setHasDescription] = useState(false)
   const content = useRef<HTMLDivElement>(null)
   const returnTo = useRef<HTMLElement | null>(null)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen ?? false)
+  const isOpen = !preview && (open ?? uncontrolledOpen)
+
+  // The scrim does not reach the system's window buttons; the window dims them itself.
+  useEffect(() => (isOpen ? holdWindowDim() : undefined), [isOpen])
 
   const window = (
     <RadixDialog.Content
@@ -87,7 +93,10 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
       <RadixDialog.Root
         open={preview ? true : open}
         defaultOpen={defaultOpen}
-        onOpenChange={onOpenChange}
+        onOpenChange={next => {
+          setUncontrolledOpen(next)
+          onOpenChange?.(next)
+        }}
         modal={!preview}
       >
         {preview ? window : (

@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState, type ReactNode } from 'react'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { notImplementedProps } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
 import { Button } from '../Button/Button'
@@ -289,4 +289,43 @@ test('a window taking over from another has no way in, and still a way out', () 
 
 test('centred without a transform, so that scale grows from its middle', () => {
   expect(css).not.toMatch(/\.modal \{[^}]*transform:/)
+})
+
+describe('the strip of the window buttons', () => {
+  const setWindowDimmed = vi.fn()
+  beforeEach(() => vi.stubGlobal('electronAPI', { setWindowDimmed }))
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    setWindowDimmed.mockClear()
+  })
+  const calls = () => setWindowDimmed.mock.calls.map(([dimmed]) => dimmed)
+
+  test('dims while the window is open, from either way of closing', async () => {
+    render(<Example />)
+    await opened()
+    await waitFor(() => expect(calls()).toEqual([true]))
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(calls()).toEqual([true, false]))
+  })
+
+  test('stays dimmed when one window takes over from another', async () => {
+    function Swap() {
+      const [view, setView] = useState<'a' | 'b'>('a')
+      return view === 'a'
+        ? <Modal open><ModalHeader title="A" /><Button onClick={() => setView('b')}>Next</Button></Modal>
+        : <Modal open skipEnter><ModalHeader title="B" /></Modal>
+    }
+    render(<Swap />)
+    await waitFor(() => expect(calls()).toEqual([true]))
+    await userEvent.click(button('Next'))
+    await screen.findByRole('dialog', { name: 'B' })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(calls()).toEqual([true])
+  })
+
+  test('a preview does not dim the window', async () => {
+    render(<Modal preview><ModalHeader title="Title" /></Modal>)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(setWindowDimmed).not.toHaveBeenCalled()
+  })
 })
