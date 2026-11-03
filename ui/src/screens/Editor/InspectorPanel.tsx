@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentProps, type FocusEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentProps, type FocusEvent, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import type { SpeakerTarget } from '../../api/client'
 import { useBackendConnected, useSpeakerCandidates, useSpeakers, useTranscript, useWaveform } from '../../api/queries'
@@ -8,9 +8,9 @@ import { AvatarStack } from '../../components/AvatarStack/AvatarStack'
 import { Button } from '../../components/Button/Button'
 import { Collapse } from '../../components/Collapse/Collapse'
 import { Inspector, type InspectorReview } from '../../components/Inspector/Inspector'
+import { Reveal } from '../../components/Reveal/Reveal'
 import { ReviewCard } from '../../components/ReviewCard/ReviewCard'
 import { SpeakerRow, type SpeakerRowProps } from '../../components/SpeakerRow/SpeakerRow'
-import { Stack } from '../../components/Stack/Stack'
 import { TalkTime } from '../../components/TalkTime/TalkTime'
 import { toast } from '../../components/Toast/toast'
 import { BAR_COUNT } from '../../components/Waveform/bars'
@@ -18,7 +18,7 @@ import { createKeyStore, useIsKey, useKey, type KeyStore } from '../../media/act
 import { useClipPlayback, useClipState } from '../../media/clip-playback'
 import type { Playback } from '../../media/playback'
 import { formatDuration } from '../../media/timeline'
-import { firstSegmentOf, pendingReview, speakerRows, splitRows, talkTotal, type SpeakerRowData } from './inspector'
+import { firstSegmentOf, pendingReview, rowSlots, speakerRows, splitRows, talkTotal, type SpeakerRowData } from './inspector'
 import { createHoverIntent, type HoverIntent } from './hover-intent'
 import styles from './InspectorPanel.module.css'
 import { closeReview, openReview, resumeReview, reviewView, selectSpeaker, skipSpeaker } from './review-queue'
@@ -113,7 +113,15 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
   const [review, setReview] = useState(() => openReview(pending, initialSpeakerId))
   const view = reviewView(review, pending)
   const { currentId, mode } = view
+  // Opened by hand, the list stays open until the room changes.
+  const [rowsBox, setRowsBox] = useState<HTMLElement | null>(null)
+  const slots = useRowSlots(rowsBox)
   const [showAll, setShowAll] = useState(false)
+  const [openedIn, setOpenedIn] = useState(slots)
+  if (openedIn !== slots) {
+    setOpenedIn(slots)
+    setShowAll(false)
+  }
   const [picked, setPicked] = useState<{ speakerId: string; candidateId: string | null } | null>(null)
 
   useEffect(() => { clip.stop() }, [clip, currentId, mode, open])
@@ -122,9 +130,9 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
   const highlight = givenHighlight ?? ownHighlight
   const intent = useMemo(() => createHoverIntent(highlight), [highlight])
   useEffect(() => () => intent.cancel(), [intent])
-  const { visible, hidden } = splitRows(rows, mode === 'on' ? currentId : null)
-  const collapsible = mode !== 'off' && hidden.length > 0
-  useClearedHighlight(highlight, intent, rows, [showAll, mode, open])
+  const { visible, hidden } = splitRows(rows, mode === 'on' ? currentId : null, slots ?? null)
+  const collapsible = hidden.length > 0
+  useClearedHighlight(highlight, intent, rows, [showAll, mode, open, slots])
 
   const answer = currentId ? candidates[currentId] : undefined
   const clipLevels = useWaveform(answer?.clip ? transcriptId : null, {
@@ -224,6 +232,17 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
           ),
         }
 
+  const showMore = collapsible && (
+    <ShowMoreRow
+      highlight={highlight}
+      hiddenIds={showAll ? [] : hidden.map(row => row.id)}
+      count={hidden.length}
+      expanded={showAll}
+      onToggle={() => setShowAll(all => !all)}
+      stack={<AvatarStack speakers={hidden.map(row => ({ id: row.id, ...avatarOf(row) }))} max={MAX_STACK} />}
+    />
+  )
+
   return (
     <Inspector review={dock} onClose={onClose}>
       {rows.length === 0
@@ -231,28 +250,42 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
         : (
           <>
             <HighlightedTalkTime highlight={highlight} intent={intent} total={formatDuration(talkTotal(rows))} segments={rows} />
-            <Stack gap="half">
-              {(collapsible ? visible : rows).map(renderRow)}
-              {collapsible && (
+            <div ref={setRowsBox} className={styles.rows}>
+              {/* Rows fold away and come back as the room changes; the speakers
+                  shown stay where they are when the rest open under them. They
+                  wait for the first measure, so that nothing folds on opening. */}
+              {slots !== undefined && rows.map(row => (
+                <Reveal key={row.id} open={visible.includes(row)}>
+                  <div className={styles.row}>{renderRow(row)}</div>
+                </Reveal>
+              ))}
+              {slots !== undefined && collapsible && (
                 <Collapse open={showAll}>
-                  <Stack gap="half">{hidden.map(renderRow)}</Stack>
+                  {hidden.map(row => <div key={row.id} className={styles.row}>{renderRow(row)}</div>)}
                 </Collapse>
               )}
-              {collapsible && (
-                <ShowMoreRow
-                  highlight={highlight}
-                  hiddenIds={showAll ? [] : hidden.map(row => row.id)}
-                  count={hidden.length}
-                  expanded={showAll}
-                  onToggle={() => setShowAll(all => !all)}
-                  stack={<AvatarStack speakers={hidden.map(row => ({ id: row.id, ...avatarOf(row) }))} max={MAX_STACK} />}
-                />
-              )}
-            </Stack>
+              {slots !== undefined && showMore}
+            </div>
           </>
         )}
     </Inspector>
   )
+}
+
+// How many rows the room under talk time holds. The box takes the room whatever is
+// in it, so what shows does not change what is measured. Measured before the first
+// paint (undefined until then); with no height (not laid out, or hidden) it is not known.
+function useRowSlots(box: HTMLElement | null) {
+  const [slots, setSlots] = useState<number | null | undefined>(undefined)
+  useLayoutEffect(() => {
+    if (!box) return
+    const measure = () => setSlots(box.clientHeight > 0 ? rowSlots(box.clientHeight) : null)
+    measure()
+    const resized = new ResizeObserver(measure)
+    resized.observe(box)
+    return () => resized.disconnect()
+  }, [box])
+  return slots
 }
 
 // A row that goes away under the pointer reports no leaving: so the highlight goes

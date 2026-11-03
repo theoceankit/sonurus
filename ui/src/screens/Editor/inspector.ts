@@ -1,10 +1,15 @@
 import { effectiveSpeaker, UNASSIGNED, type Segment, type Speaker } from '../../api/types'
 import { formatDuration } from '../../media/timeline'
+import { scaleValue } from '../../styles/scale'
 import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 import { talkTimes, unknownSpeakerNames } from './transcript'
 
 const GRAY: SpeakerColor = 6
-const COLLAPSED_ROWS = 3
+// A speaker row and the gap between rows (SpeakerRow, Stack gap="half").
+const ROW = scaleValue('--size-control-md')
+const ROW_GAP = scaleValue('--space-half')
+// More rows than this would be a list to read, not a glance: the rest wait behind Show N more.
+const MAX_ROWS = 8
 
 export interface SpeakerRowData {
   id: string
@@ -33,12 +38,20 @@ export function speakerRows(segments: readonly Segment[], speakers: readonly Spe
 
 export const talkTotal = (rows: readonly SpeakerRowData[]) => rows.reduce((sum, row) => sum + row.seconds, 0)
 
-// What stays in sight while the review takes the room: the current speaker always.
-export function splitRows(rows: readonly SpeakerRowData[], currentId: string | null) {
-  const visible = rows.slice(0, COLLAPSED_ROWS)
-  if (currentId && rows.length > COLLAPSED_ROWS && !visible.some(row => row.id === currentId)) {
-    visible[COLLAPSED_ROWS - 1] = rows.find(row => row.id === currentId) ?? visible[COLLAPSED_ROWS - 1]
-  }
+// How many rows a height holds.
+export const rowSlots = (height: number) => Math.max(0, Math.floor((height + ROW_GAP) / (ROW + ROW_GAP)))
+
+// What stays in sight in the room of `slots` rows: everyone if they fit, eight at
+// most, otherwise the longest, the last place left for Show N more, and one speaker
+// however little room. The speaker under review is always in sight, in the last
+// place if not in their own. With the room not known yet, as if there were plenty.
+export function splitRows(rows: readonly SpeakerRowData[], currentId: string | null, slots: number | null) {
+  const room = slots ?? Infinity
+  if (rows.length <= Math.min(room, MAX_ROWS)) return { visible: [...rows], hidden: [] }
+  const shown = Math.max(1, Math.min(room - 1, MAX_ROWS))
+  const visible = rows.slice(0, shown)
+  const current = currentId ? rows.find(row => row.id === currentId) : undefined
+  if (current && !visible.includes(current)) visible[shown - 1] = current
   return { visible, hidden: rows.filter(row => !visible.includes(row)) }
 }
 

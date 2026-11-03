@@ -1,6 +1,7 @@
 import type { Segment, Speaker, SpeakerCandidates, Transcript, TranscriptListItem } from '../types'
+import { allHands, ALL_HANDS_ITEM } from './all-hands'
 import { longRecording, LONG_RECORDING_ITEM } from './long-recording'
-import { CANDIDATES, DESIGN_REVIEW_CANDIDATES, DESIGN_REVIEW_ID, designReview, SPEAKER_IDS, SPEAKERS, TRANSCRIPTS, WEEKLY_SYNC_ID, weeklySync } from './data'
+import { CANDIDATES, DESIGN_REVIEW_CANDIDATES, DESIGN_REVIEW_ID, designReview, PLANNING_CALL, PLANNING_CALL_ITEM, SPEAKER_IDS, SPEAKERS, TRANSCRIPTS, WEEKLY_SYNC_ID, weeklySync } from './data'
 
 export type FixtureData = {
   transcripts: TranscriptListItem[]
@@ -11,7 +12,7 @@ export type FixtureData = {
 
 // The states of the Editor data the boards differ by; the other boards show
 // the same data with another UI state.
-export type FixtureBoard = 'review' | 'reviewDone' | 'unassigned' | 'longRecording'
+export type FixtureBoard = 'review' | 'reviewDone' | 'unassigned' | 'longRecording' | 'speakerCounts'
 
 const { anna, mark, oliver, sofia, lena } = SPEAKER_IDS
 
@@ -48,5 +49,12 @@ export const BOARDS: Record<FixtureBoard, FixtureData> = {
       speakers: SPEAKERS,
       candidates: {},
     }
+  },
+  // Not on a board: recordings with 2, 6 and 15 speakers, for the room of the rows.
+  speakerCounts: {
+    transcripts: [ALL_HANDS_ITEM, PLANNING_CALL_ITEM, ...TRANSCRIPTS],
+    details: [allHands(), PLANNING_CALL, weeklySync(), designReview()],
+    speakers: SPEAKERS,
+    candidates: { [WEEKLY_SYNC_ID]: CANDIDATES, [DESIGN_REVIEW_ID]: DESIGN_REVIEW_CANDIDATES },
   },
 }

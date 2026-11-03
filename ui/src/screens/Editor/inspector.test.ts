@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { SPEAKERS, SPEAKER_IDS, weeklySync } from '../../api/fixtures/data'
 import { UNASSIGNED, type Segment } from '../../api/types'
-import { firstSegmentOf, pendingReview, speakerRows, splitRows, talkTotal } from './inspector'
+import { firstSegmentOf, pendingReview, rowSlots, speakerRows, splitRows, talkTotal } from './inspector'
 
 const { anna, mark, oliver, sofia, lena, unknown1 } = SPEAKER_IDS
 const SEGMENTS = weeklySync().segments
@@ -37,20 +37,55 @@ test('talkTotal is the sum of the segments', () => {
 describe('splitRows', () => {
   const rows = speakerRows(SEGMENTS, SPEAKERS)
 
-  test('three rows, the rest behind Show more', () => {
-    const { visible, hidden } = splitRows(rows, null)
+  test('as many rows as fit, the last place for Show more', () => {
+    const { visible, hidden } = splitRows(rows, null, 4)
     expect(visible.map(row => row.id)).toEqual([anna, mark, unknown1])
     expect(hidden.map(row => row.id)).toEqual([oliver, sofia, lena])
   })
 
-  test('the current speaker stays in sight, in place of the third', () => {
-    const { visible, hidden } = splitRows(rows, oliver)
-    expect(visible.map(row => row.id)).toEqual([anna, mark, oliver])
-    expect(hidden.map(row => row.id)).toEqual([unknown1, sofia, lena])
+  test('everyone, when everyone fits', () => {
+    expect(splitRows(rows, null, 6).hidden).toEqual([])
+    expect(splitRows(rows, null, 20).visible).toHaveLength(6)
   })
 
-  test('few rows hide nothing', () => {
-    expect(splitRows(rows.slice(0, 3), null).hidden).toEqual([])
+  test('everyone, before the room is known', () => {
+    expect(splitRows(rows, null, null).hidden).toEqual([])
+  })
+
+  test('one speaker at least, however little room', () => {
+    expect(splitRows(rows, null, 1).visible.map(row => row.id)).toEqual([anna])
+    expect(splitRows(rows, null, 0).visible.map(row => row.id)).toEqual([anna])
+  })
+
+  test('the current speaker stays in sight, in the last place', () => {
+    const { visible, hidden } = splitRows(rows, oliver, 4)
+    expect(visible.map(row => row.id)).toEqual([anna, mark, oliver])
+    expect(hidden.map(row => row.id)).toEqual([unknown1, sofia, lena])
+    expect(splitRows(rows, lena, 1).visible.map(row => row.id)).toEqual([lena])
+  })
+
+  test('eight rows at most, however much room', () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({ ...rows[0], id: `speaker-${i}` }))
+    expect(splitRows(many, null, 20).visible).toHaveLength(8)
+    expect(splitRows(many, null, null).visible).toHaveLength(8)
+    expect(splitRows(many.slice(0, 8), null, 20).hidden).toEqual([])
+    expect(splitRows(many, 'speaker-8', 20).visible.at(-1)!.id).toBe('speaker-8')
+  })
+
+  test('the current speaker in sight keeps their place', () => {
+    expect(splitRows(rows, mark, 4).visible.map(row => row.id)).toEqual([anna, mark, unknown1])
+  })
+})
+
+describe('rowSlots', () => {
+  // Rows of 28 px, 2 px apart.
+  test('how many rows a height holds', () => {
+    expect(rowSlots(0)).toBe(0)
+    expect(rowSlots(27)).toBe(0)
+    expect(rowSlots(28)).toBe(1)
+    expect(rowSlots(57)).toBe(1)
+    expect(rowSlots(58)).toBe(2)
+    expect(rowSlots(118)).toBe(4)
   })
 })
 

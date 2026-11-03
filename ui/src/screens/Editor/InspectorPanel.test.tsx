@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { ApiError } from '../../api/client'
+import { ALL_HANDS_ID } from '../../api/fixtures/all-hands'
 import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { dismissAllToasts } from '../../components/Toast/toast'
@@ -16,6 +17,30 @@ import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
 import { effectiveSpeaker } from '../../api/types'
 
 afterEach(dismissAllToasts)
+
+// jsdom lays nothing out: the room for the rows is given by hand, and the panel
+// hears of a change as from its ResizeObserver.
+let resized: (() => void)[] = []
+beforeEach(() => {
+  resized = []
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(callback: () => void) { resized.push(callback) }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  })
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
+
+// Rows are 28 px, 2 px apart: 118 px hold four.
+function room(height: number) {
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(height)
+  act(() => resized.forEach(notify => notify()))
+}
+const shownRows = () => screen.getAllByRole('button', { name: /^Assign .+/ }).map(found => found.getAttribute('aria-label')!.replace('Assign ', ''))
 
 const { unknown1, oliver } = SPEAKER_IDS
 
@@ -60,7 +85,8 @@ describe('speakers', () => {
     expect(screen.getByText('0:19')).toBeTruthy()
   })
 
-  test('while reviewing: three rows and Show more, then all and Show less', async () => {
+  test('as many rows as fit, the last place for Show N more, then all and Show less', async () => {
+    room(118)
     setup(WEEKLY_SYNC_ID)
     const more = await screen.findByRole('button', { name: /Show 3 more/ })
     expect(screen.queryByText('Sofia Ramos')).toBeNull()
@@ -69,10 +95,73 @@ describe('speakers', () => {
     expect(screen.getByText('Sofia Ramos')).toBeTruthy()
   })
 
-  test('review over: everyone shows', async () => {
+  test('with no review too', async () => {
+    room(118)
+    setup(WEEKLY_SYNC_ID, { board: 'reviewDone' })
+    expect(await screen.findByRole('button', { name: /Show 2 more/ })).toBeTruthy()
+    expect(shownRows()).toEqual(['Mark Ellis', 'Anna Petrova', 'Oliver Grant'])
+  })
+
+  test('everyone fits: no Show more', async () => {
+    room(178)
+    setup(WEEKLY_SYNC_ID)
+    expect(await screen.findByRole('button', { name: 'Assign Lena Kovacs' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Show \d more/ })).toBeNull()
+  })
+
+  test('rows follow the room', async () => {
+    room(118)
+    setup(WEEKLY_SYNC_ID)
+    await screen.findByRole('button', { name: /Show 3 more/ })
+    room(148)
+    expect(screen.getByRole('button', { name: /Show 2 more/ })).toBeTruthy()
+    room(58)
+    expect(screen.getByRole('button', { name: /Show 5 more/ })).toBeTruthy()
+    room(178)
+    expect(screen.queryByRole('button', { name: /Show \d more/ })).toBeNull()
+  })
+
+  test('one speaker at least, however little room', async () => {
+    room(20)
+    setup(WEEKLY_SYNC_ID, { board: 'reviewDone' })
+    expect(await screen.findByRole('button', { name: /Show 4 more/ })).toBeTruthy()
+    expect(shownRows()).toEqual(['Mark Ellis'])
+  })
+
+  test('the speaker under review stays in sight, in the last place', async () => {
+    room(58)
+    setup()
+    await counter('1 of 4')
+    const current = within(card()).getByText(/^Unknown speaker/).textContent
+    expect(screen.getAllByRole('button', { name: /^Assign .+/ }).map(found => found.getAttribute('aria-label'))).toEqual([`Assign ${current}`])
+  })
+
+  test('opened by hand, the list closes when the room changes, and not before', async () => {
+    room(118)
+    setup(WEEKLY_SYNC_ID)
+    await userEvent.click(await screen.findByRole('button', { name: /Show 3 more/ }))
+    room(119)
+    expect(screen.getByRole('button', { name: 'Show less' })).toBeTruthy()
+    room(148)
+    expect(screen.getByRole('button', { name: /Show 2 more/ }).getAttribute('aria-expanded')).toBe('false')
+  })
+
+  test('eight speakers at most, however much room', async () => {
+    room(2000)
+    setup(ALL_HANDS_ID, { board: 'speakerCounts' })
+    expect(await screen.findByRole('button', { name: /Show 7 more/ })).toBeTruthy()
+    expect(shownRows()).toHaveLength(8)
+  })
+
+  test('before the room is known, everyone shows', async () => {
+    setup(WEEKLY_SYNC_ID)
+    expect(await screen.findByRole('button', { name: 'Assign Lena Kovacs' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Show \d more/ })).toBeNull()
+  })
+
+  test('review over: no dock', async () => {
     setup(WEEKLY_SYNC_ID, { board: 'reviewDone' })
     expect(await screen.findByText('Lena Kovacs')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /Show \d more/ })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Review speakers' })).toBeNull()
   })
 
@@ -455,6 +544,7 @@ describe('highlighting a speaker', () => {
   })
 
   test('a speaker under Show N more lights up Show N more, which stays closed', async () => {
+    room(118)
     const { highlight } = highlighted()
     const more = await screen.findByRole('button', { name: /Show 3 more/ })
     await userEvent.hover(pieces().at(-1)!)
@@ -489,6 +579,7 @@ describe('highlighting a speaker', () => {
   })
 
   test('Show less under the pointer takes the highlight away', async () => {
+    room(118)
     const { highlight } = highlighted()
     await userEvent.click(await screen.findByRole('button', { name: /Show 3 more/ }))
     await userEvent.hover(rowOf('Sofia Ramos'))

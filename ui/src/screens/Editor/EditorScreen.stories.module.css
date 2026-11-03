@@ -12,3 +12,12 @@
   width: 1112px;
   height: 800px;
 }
+
+.resizable {
+  width: 1200px;
+  height: 800px;
+  min-width: 900px;
+  min-height: 400px;
+  overflow: hidden;
+  resize: both;
+}

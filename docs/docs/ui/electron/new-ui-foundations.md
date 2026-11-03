@@ -174,7 +174,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | Modal and scrim | 200 | 150 | fade and scale; Choose speaker and New speaker turn into each other with neither. The strip of the window buttons dims with the scrim, on the same curves: see [Window and Editor shell](overview.md#window-and-editor-shell) |
 | Toast | 200 | 150 | fade and 8 px up |
 | Panel, on its button | 250 | 250 | the frame moves, the text wraps on every frame, the panel's content fades |
-| What opens in place | 200 | 150 | height and fade: Show N more, Disclosure, the text of a review card |
+| What opens in place | 200 | 150 | height and fade: Show N more, speaker rows that fit or no longer fit, Disclosure, the text of a review card |
 | Review dock: the card, Close review, Resume | 250 | 250 | height and fade, as far and as long as a panel |
 | Show inspector | 200 | — | from 8 px to the side the inspector leaves to, on the panel's curve from a fifth of its way, so that both settle in the same frame; it goes at once, as the inspector takes its place |
 | Bubble of the player | 100 | 100 | width, when the text has changed it |
