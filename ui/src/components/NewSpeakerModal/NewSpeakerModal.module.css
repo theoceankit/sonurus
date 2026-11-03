@@ -1,23 +1,11 @@
+/* The avatar on the left, everything to fill in to its right. */
 .body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.identity {
-  display: flex;
+  flex-direction: row;
   align-items: flex-start;
   gap: var(--space-3);
 }
 
-.name {
+.fields {
   flex: 1;
   min-width: 0;
-}
-
-.details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding-block-start: var(--space-4);
 }

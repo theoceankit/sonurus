@@ -28,6 +28,7 @@ export const Matrix: Story = {
         { label: 'Suggested, selected', render: () => <Candidate speaker={MARK} score={0.82} suggested selected /> },
         { label: 'Recordings', render: () => <Candidate speaker={MARK} usage="8 recordings" /> },
         { label: 'Add new', render: () => <Candidate kind="add">Add a new speaker</Candidate> },
+        { label: 'More', render: () => <Candidate kind="add" icon="more">More speakers</Candidate> },
       ]}
     />
   ),
@@ -39,4 +40,5 @@ export const Selected: Story = { args: { speaker: MARK, score: 0.64, suggested: 
 export const Active: Story = { args: { speaker: MARK, score: 0.41, active: true } }
 export const Recordings: Story = { args: { speaker: MARK, usage: '8 recordings' } }
 export const AddNew: Story = { args: { kind: 'add', children: 'Add a new speaker' } }
+export const More: Story = { args: { kind: 'add', icon: 'more', children: 'More speakers' } }
 export const LongName: Story = { args: { speaker: { name: 'Alexandra Konstantinopolskaya-Vandenberghe of the Very Long Name', color: 3 }, score: 0.82, suggested: true } }

@@ -208,8 +208,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
               selectedId={selectedId}
               busy={busy}
               onSelect={id => setPicked({ speakerId: current.id, candidateId: id === selectedId ? null : id })}
-              onSearch={() => ask(current.id, 'choose', selectedId)}
-              onAddNew={() => ask(current.id, 'new')}
+              onMore={() => ask(current.id, 'choose', selectedId)}
               onSkip={() => setReview(state => skipSpeaker(state, pending))}
               onAssign={assignPicked}
               onClose={() => setReview(closeReview)}

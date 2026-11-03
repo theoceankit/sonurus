@@ -2,7 +2,8 @@
   position: relative;
   display: flex;
   gap: var(--space-3);
-  padding: var(--space-1) var(--space-2);
+  /* Paragraphs of one turn follow each other with no space between them. */
+  padding-inline: var(--space-2);
   border-radius: var(--radius-md);
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
@@ -27,8 +28,8 @@
 
 .bar {
   position: absolute;
-  top: var(--space-1);
-  bottom: var(--space-1);
+  top: 0;
+  bottom: 0;
   left: calc(var(--space-2) + (var(--size-avatar-sm) - var(--size-playing-bar)) / 2);
   width: var(--size-playing-bar);
   overflow: hidden;
@@ -63,9 +64,11 @@
   background: var(--color-selection);
 }
 
+/* Centred on the first line: the bar is a little taller than a line, which is all
+   a one-line paragraph has. */
 .actions {
   position: absolute;
-  top: var(--space-half);
+  top: calc(var(--space-half) * -1);
   right: var(--space-1);
   animation: actionsIn var(--duration-fast) var(--ease-enter);
 }

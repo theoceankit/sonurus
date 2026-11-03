@@ -14,11 +14,12 @@ const CLIP = { duration: '0:04', text: 'That was me.', progress: 0 }
 
 const card = (props = {}) => render(<ReviewCard speaker={UNKNOWN} clip={CLIP} candidates={CANDIDATES} {...props} />)
 
-test('shows the speaker, the candidates and Add a new speaker', () => {
+test('shows the speaker, the candidates and More speakers', () => {
   card()
   expect(screen.getByText('Unknown speaker 1')).toBeTruthy()
   expect(screen.getByRole('button', { name: /Mark Ellis/ })).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Add a new speaker' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'More speakers' })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Search speakers' })).toBeNull()
 })
 
 test('Assign waits for a choice', () => {
@@ -30,16 +31,15 @@ test('Assign waits for a choice', () => {
 })
 
 test('every action calls back', async () => {
-  const handlers = { onSelect: vi.fn(), onSearch: vi.fn(), onAddNew: vi.fn(), onSkip: vi.fn(), onAssign: vi.fn(), onClose: vi.fn() }
+  const handlers = { onSelect: vi.fn(), onMore: vi.fn(), onSkip: vi.fn(), onAssign: vi.fn(), onClose: vi.fn() }
   card({ ...handlers, selectedId: 'mark' })
   await userEvent.click(screen.getByRole('button', { name: /Lena Kovacs/ }))
   expect(handlers.onSelect).toHaveBeenCalledWith('lena')
-  await userEvent.click(screen.getByRole('button', { name: 'Search speakers' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Add a new speaker' }))
+  await userEvent.click(screen.getByRole('button', { name: 'More speakers' }))
   await userEvent.click(screen.getByRole('button', { name: 'Skip' }))
   await userEvent.click(screen.getByRole('button', { name: 'Assign' }))
   await userEvent.click(screen.getByRole('button', { name: 'Close review' }))
-  for (const handler of [handlers.onSearch, handlers.onAddNew, handlers.onSkip, handlers.onAssign, handlers.onClose]) expect(handler).toHaveBeenCalledOnce()
+  for (const handler of [handlers.onMore, handlers.onSkip, handlers.onAssign, handlers.onClose]) expect(handler).toHaveBeenCalledOnce()
 })
 
 test('the text of the clip opens with the chevron', async () => {
@@ -56,11 +56,10 @@ test('no clip, no player, and the rest stays', () => {
   expect(screen.getByRole('button', { name: 'Skip' })).toBeTruthy()
 })
 
-test('no candidates: the search and Add a new speaker stay', () => {
+test('no candidates: More speakers stays', () => {
   card({ candidates: [] })
   expect(screen.getByText('Select speaker')).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Search speakers' })).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Add a new speaker' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'More speakers' })).toBeTruthy()
 })
 
 test('possible match says so', () => {

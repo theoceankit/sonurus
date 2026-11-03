@@ -19,7 +19,6 @@ const BOARDS = [
   'Redesign / Editor / Speakers / Choose speaker',
   'Redesign / Editor / Speakers / Choose speaker / No results',
   'Redesign / Editor / Speakers / New speaker',
-  'Redesign / Editor / Speakers / New speaker / Optional details',
 ]
 
 type StoryFile = { default: { title?: string, decorators?: unknown }, [story: string]: unknown }

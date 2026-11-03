@@ -37,6 +37,8 @@ Who needs a review comes from the segments each time, so an assignment, an undo 
 - Close collapses the card to one line, and Resume opens it on the next speaker.
 - With nobody left, the dock is gone and the unknown avatar leaves the recording's row in the sidebar. Nothing is saved about this: it comes from the segments too.
 
+The card lists the candidates and, last, More speakers, which opens Choose a speaker with the card's choice selected. A new speaker is made from there; the card has no search of its own.
+
 Assign is off until a candidate is chosen, as it writes to speaker memory. It covers all the segments of the voice and shows a toast with Undo, as every change of a speaker does (`useSpeakerChange`): see `undoSpeakerAssignment` in [New UI data](new-ui-data.md). Undo of a speaker the assignment created removes them if nothing else is theirs. The candidate mark and the percentage are what the API says; the client compares nothing with a threshold.
 
 A clip plays from its start to its end on its own audio element (`clip-playback.ts`), so the main player keeps its place. Starting one pauses the other. Another card, another recording or closing the panel stops the clip. With no clip the card has no player, and with no audio its Play button is off.
@@ -51,7 +53,7 @@ Possible match is a recognized speaker to confirm. The backend does not keep a c
 
 Choose a speaker has categories on the left and the search on the right, with the suggested candidate or the card's choice selected. Arrow keys move the selection and Enter assigns. A search looks at any part of a name. With no results it offers a new speaker with that name. Invited to this meeting and Recently added are marked with `markNotImplemented()`: the API knows neither who was invited nor when a speaker was created.
 
-New speaker takes the name from the search. Its colour starts as the least used and gray is not offered, as it stands for an unknown speaker and the API keeps five colours. Names need not be unique, so a repeated one only gets a note. Back returns to where the window was opened from. Handle and Email under Optional details are marked with `markNotImplemented()`.
+New speaker takes the name from the search. Its colour starts as the least used and gray is not offered, as it stands for an unknown speaker and the API keeps five colours. Names need not be unique, so a repeated one only gets a note. Back returns to where the window was opened from. The avatar stands on the left of a single column: Name, Handle, Email and Colour. Handle and Email are marked with `markNotImplemented()`.
 
 ## Stories
 

@@ -17,6 +17,8 @@ EditorScreen → TranscriptPanel → TranscriptHeader
 
 `buildTurns()` in `ui/src/screens/Editor/transcript.ts` makes a turn of the neighbouring segments of one speaker, however long the pause between them. Nothing is merged in the data: each segment stays a paragraph, because the API plays, edits and deletes segments. A speaker with no name is `Unknown speaker N`, numbered by first appearance in the recording.
 
+The paragraphs of a turn follow each other with no space between them, so a turn reads as one block, and turns are 12 px apart. The bar of a paragraph's actions is a little taller than a line and sits centred on the first one.
+
 ## Long recordings
 
 A recording of three hours is about 3600 paragraphs, so the list renders little and draws less:
