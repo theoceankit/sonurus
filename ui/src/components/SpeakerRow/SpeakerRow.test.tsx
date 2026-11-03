@@ -53,8 +53,19 @@ test('only what is passed gets a button', () => {
 })
 
 test('the buttons appear on hover and on focus, in place of the time', () => {
-  expect(css).toMatch(/\.speakerRow:hover \.actions,\s*\.speakerRow:focus-within \.actions/)
-  expect(css).toMatch(/\.hasActions:hover \.time,\s*\.hasActions:focus-within \.time/)
+  expect(css).toMatch(/\.speakerRow:not\(\.followsHighlight\):hover \.actions,\s*\.followsHighlight\[data-highlighted\]:hover \.actions,\s*\.speakerRow:focus-within \.actions/)
+  expect(css).toMatch(/\.hasActions:not\(\.followsHighlight\):hover \.time,\s*\.hasActions\.followsHighlight\[data-highlighted\]:hover \.time,\s*\.hasActions:focus-within \.time/)
+})
+
+// A row whose highlight comes late looks hovered with it, not with the pointer: a
+// pointer passing over it changes nothing.
+test('a row told whether it is highlighted takes the look of hover from that', () => {
+  const { container, rerender } = render(<SpeakerRow speaker={ANNA} time="0:19" onPlay={() => {}} highlighted={false} />)
+  const row = container.firstElementChild!
+  expect(row.className).toContain('followsHighlight')
+  expect(css).toMatch(/\.speakerRow:not\(\.followsHighlight\):hover,\s*\.speakerRow\[data-highlighted\]\s*\{\s*background: var\(--color-fill-hover\)/)
+  rerender(<SpeakerRow speaker={ANNA} time="0:19" onPlay={() => {}} />)
+  expect(row.className).not.toContain('followsHighlight')
 })
 
 test('show more: says how many and toggles', async () => {
@@ -76,7 +87,6 @@ test('highlighted: looks hovered, with no buttons, and a selected row stays pres
   expect(screen.getByText('0:19')).toBeTruthy()
   rerender(<SpeakerRow speaker={ANNA} time="0:19" onPlay={() => {}} />)
   expect(container.firstElementChild!.hasAttribute('data-highlighted')).toBe(false)
-  expect(css).toMatch(/\.speakerRow:hover,\s*\.speakerRow\[data-highlighted\] \{\s*background: var\(--color-fill-hover\)/)
   expect(css.indexOf('[data-highlighted]')).toBeLessThan(css.indexOf('.selected,'))
 })
 

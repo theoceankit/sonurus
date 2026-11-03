@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { ApiError } from '../../api/client'
 import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
@@ -10,6 +10,7 @@ import { dismissAllToasts } from '../../components/Toast/toast'
 import { createKeyStore } from '../../media/active-segment'
 import type { Playback, PlaybackState } from '../../media/playback'
 import { OverlayProvider } from '../../OverlayProvider'
+import { HOVER_DELAY } from '../../styles/motion'
 import { InspectorPanel, type InspectorPanelProps } from './InspectorPanel'
 import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
 import { effectiveSpeaker } from '../../api/types'
@@ -386,6 +387,11 @@ describe('highlighting a speaker', () => {
   const rowOf = (name: string) => screen.getByRole('button', { name: `Assign ${name}` }).closest('[class~="speakerRow"]')!
   const rows = () => [...document.querySelectorAll('[class~="speakerRow"]')]
   const pieces = () => [...document.querySelectorAll<HTMLElement>('[data-segment]')]
+  // The pointer has to stay on a speaker for the delay; the clock also runs on its own,
+  // so that loading still settles.
+  const rest = () => act(() => { vi.advanceTimersByTime(HOVER_DELAY) })
+  beforeEach(() => { vi.useFakeTimers({ shouldAdvanceTime: true }) })
+  afterEach(() => { vi.useRealTimers() })
 
   function highlighted(id: number | null = WEEKLY_SYNC_ID, options: FixtureOptions = {}) {
     const highlight = createKeyStore<string | null>(null)
@@ -395,15 +401,41 @@ describe('highlighting a speaker', () => {
   test('the pointer over a row highlights that speaker until it leaves', async () => {
     const { highlight } = highlighted()
     await userEvent.hover(await screen.findByRole('button', { name: 'Assign Mark Ellis' }).then(found => found.closest('[class~="speakerRow"]')!))
+    rest()
     expect(highlight.get()).toBe(SPEAKER_IDS.mark)
     await userEvent.unhover(rowOf('Mark Ellis'))
     expect(highlight.get()).toBeNull()
+  })
+
+  test('a pointer passing over the rows and talk time highlights nothing', async () => {
+    const { highlight } = highlighted(WEEKLY_SYNC_ID, { board: 'reviewDone' })
+    await screen.findByText('Talk time')
+    for (const target of [pieces()[1], rowOf('Anna Petrova'), rowOf('Mark Ellis')]) {
+      await userEvent.hover(target)
+      await userEvent.unhover(target)
+    }
+    rest()
+    expect(highlight.get()).toBeNull()
+    expect(lit()).toEqual([])
+  })
+
+  test('once a speaker is lit, the next row and the next piece of talk time light up at once', async () => {
+    const { highlight } = highlighted(WEEKLY_SYNC_ID, { board: 'reviewDone' })
+    await screen.findByText('Talk time')
+    await userEvent.hover(rowOf('Anna Petrova'))
+    rest()
+    await userEvent.hover(rowOf('Mark Ellis'))
+    expect(highlight.get()).toBe(SPEAKER_IDS.mark)
+    await userEvent.hover(pieces()[0])
+    await userEvent.hover(pieces()[1])
+    expect(lit()).toEqual([rows()[1]])
   })
 
   test('the pointer over talk time highlights the speaker and lights up their row', async () => {
     const { highlight } = highlighted(WEEKLY_SYNC_ID, { board: 'reviewDone' })
     await screen.findByText('Talk time')
     await userEvent.hover(pieces()[1])
+    rest()
     expect(highlight.get()).not.toBeNull()
     expect(lit()).toEqual([rows()[1]])
     expect(pieces()[0].style.background).toContain('-bg)')
@@ -414,6 +446,7 @@ describe('highlighting a speaker', () => {
     const { highlight } = highlighted()
     const more = await screen.findByRole('button', { name: /Show 3 more/ })
     await userEvent.hover(pieces().at(-1)!)
+    rest()
     expect(highlight.get()).toBe(SPEAKER_IDS.lena)
     expect(lit()).toContain(more.parentElement)
     expect(more.getAttribute('aria-expanded')).toBe('false')
@@ -435,9 +468,11 @@ describe('highlighting a speaker', () => {
   test('works the same with the review card open or collapsed', async () => {
     const { highlight } = highlighted()
     await userEvent.hover(await screen.findByRole('button', { name: 'Assign Anna Petrova' }).then(found => found.closest('[class~="speakerRow"]')!))
+    rest()
     expect(highlight.get()).toBe(SPEAKER_IDS.anna)
     await userEvent.click(within(card()).getByRole('button', { name: 'Close review' }))
     await userEvent.hover(rowOf('Mark Ellis'))
+    rest()
     expect(highlight.get()).toBe(SPEAKER_IDS.mark)
   })
 
@@ -445,6 +480,7 @@ describe('highlighting a speaker', () => {
     const { highlight } = highlighted()
     await userEvent.click(await screen.findByRole('button', { name: /Show 3 more/ }))
     await userEvent.hover(rowOf('Sofia Ramos'))
+    rest()
     expect(highlight.get()).toBe(SPEAKER_IDS.sofia)
     await userEvent.click(screen.getByRole('button', { name: 'Show less' }))
     expect(highlight.get()).toBeNull()
@@ -458,16 +494,19 @@ describe('highlighting a speaker', () => {
     )
     const { rerender } = render(view(WEEKLY_SYNC_ID, true))
     await userEvent.hover(await screen.findByRole('button', { name: 'Assign Mark Ellis' }).then(found => found.closest('[class~="speakerRow"]')!))
+    rest()
     rerender(view(WEEKLY_SYNC_ID, false))
     expect(highlight.get()).toBeNull()
 
     rerender(view(WEEKLY_SYNC_ID, true))
     await userEvent.hover(rowOf('Mark Ellis'))
+    rest()
     rerender(view(DESIGN_REVIEW_ID, true))
     await screen.findByText('Lena Kovacs')
     expect(highlight.get()).toBeNull()
 
     await userEvent.hover(rowOf('Unknown speaker 1'))
+    rest()
     expect(highlight.get()).not.toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Assign Unknown speaker 1' }))
     const dialog = await screen.findByRole('dialog')

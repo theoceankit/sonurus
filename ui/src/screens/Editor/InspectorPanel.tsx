@@ -18,6 +18,7 @@ import { useClipPlayback, useClipState } from '../../media/clip-playback'
 import type { Playback } from '../../media/playback'
 import { formatDuration } from '../../media/timeline'
 import { firstSegmentOf, pendingReview, speakerRows, splitRows, talkTotal, type SpeakerRowData } from './inspector'
+import { createHoverIntent, type HoverIntent } from './hover-intent'
 import styles from './InspectorPanel.module.css'
 import { closeReview, openReview, resumeReview, reviewView, selectSpeaker, skipSpeaker } from './review-queue'
 import type { SpeakerRequest } from './SpeakerDialogs'
@@ -118,9 +119,11 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
 
   const [ownHighlight] = useState(() => createKeyStore<string | null>(null))
   const highlight = givenHighlight ?? ownHighlight
+  const intent = useMemo(() => createHoverIntent(highlight), [highlight])
+  useEffect(() => () => intent.cancel(), [intent])
   const { visible, hidden } = splitRows(rows, mode === 'on' ? currentId : null)
   const collapsible = mode !== 'off' && hidden.length > 0
-  useClearedHighlight(highlight, rows, [showAll, mode, open])
+  useClearedHighlight(highlight, intent, rows, [showAll, mode, open])
 
   const answer = currentId ? candidates[currentId] : undefined
   const current = rows.find(row => row.id === currentId)
@@ -156,16 +159,16 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
   const renderRow = (row: SpeakerRowData) => {
     const key = `row:${row.id}`
     const first = firstSegmentOf(segments, row.id)
-    const leave = () => { if (highlight.get() === row.id) highlight.set(null) }
+    const leave = () => intent.leave(row.id)
     return (
       <HighlightedRow
         key={row.id}
         highlight={highlight}
         speaker={row}
         time={row.time}
-        onPointerEnter={() => highlight.set(row.id)}
+        onPointerEnter={() => intent.enter(row.id)}
         onPointerLeave={leave}
-        onFocus={() => highlight.set(row.id)}
+        onFocus={() => intent.focus(row.id)}
         onBlur={(event: FocusEvent) => { if (!event.currentTarget.contains(event.relatedTarget)) leave() }}
         selected={mode === 'on' && row.id === currentId}
         onSelect={pending.includes(row.id) ? () => setReview(state => selectSpeaker(state, row.id)) : undefined}
@@ -222,7 +225,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
         ? <span className={styles.message}>No speakers</span>
         : (
           <>
-            <HighlightedTalkTime highlight={highlight} total={formatDuration(talkTotal(rows))} segments={rows} />
+            <HighlightedTalkTime highlight={highlight} intent={intent} total={formatDuration(talkTotal(rows))} segments={rows} />
             <Stack gap="half">
               {(collapsible ? visible : rows).map(renderRow)}
               {collapsible && (
@@ -249,12 +252,13 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
 
 // A row that goes away under the pointer reports no leaving: so the highlight goes
 // with the speaker, with a change of what shows, and with the panel itself.
-function useClearedHighlight(highlight: KeyStore<string | null>, rows: readonly SpeakerRowData[], shown: readonly unknown[]) {
+function useClearedHighlight(highlight: KeyStore<string | null>, intent: HoverIntent, rows: readonly SpeakerRowData[], shown: readonly unknown[]) {
   const last = useRef(shown)
   useEffect(() => {
     const id = highlight.get()
     const changed = shown.some((value, i) => value !== last.current[i])
     last.current = shown
+    if (changed) intent.cancel()
     if (id !== null && (changed || !rows.some(row => row.id === id))) highlight.set(null)
   })
   useEffect(() => () => highlight.set(null), [highlight])
@@ -264,8 +268,14 @@ function useClearedHighlight(highlight: KeyStore<string | null>, rows: readonly 
 // panel with its review card.
 type Highlighting = { highlight: KeyStore<string | null> }
 
-function HighlightedTalkTime({ highlight, ...props }: Highlighting & Omit<ComponentProps<typeof TalkTime>, 'highlightedId' | 'onHighlight'>) {
-  return <TalkTime {...props} highlightedId={useKey(highlight)} onHighlight={id => highlight.set(id)} />
+function HighlightedTalkTime({ highlight, intent, ...props }: Highlighting & { intent: HoverIntent } & Omit<ComponentProps<typeof TalkTime>, 'highlightedId' | 'onHighlight'>) {
+  return (
+    <TalkTime
+      {...props}
+      highlightedId={useKey(highlight)}
+      onHighlight={id => id === null ? intent.leave() : intent.enter(id)}
+    />
+  )
 }
 
 function HighlightedRow({ highlight, ...props }: Highlighting & Extract<SpeakerRowProps, { time: string }> & { speaker: SpeakerRowData }) {
