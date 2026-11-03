@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import {
-  barTurns, formatClock, nextSpeakerTime, playerClock, previousSpeakerTime, skipTime, timelineDuration, turnAt, type Turn,
+  barTurns, formatClock, nextSpeakerTime, playerClock, previousSpeakerTime, skipTime, speakerBars, timelineDuration, turnAt, type Turn,
 } from '../../media/timeline'
 import { Button } from '../Button/Button'
 import { IconButton, type IconButtonProps } from '../IconButton/IconButton'
@@ -37,6 +37,9 @@ export interface PlayerProps {
   onSeek?: (seconds: number) => void
   onRateChange?: (rate: number) => void
   onVolumeChange?: (volume: number) => void
+  // The speaker of a row or bar of talk time under the pointer elsewhere: only
+  // their bars keep a colour.
+  highlightedSpeaker?: string | null
   // For a story: the cursor over the waveform at this time, pressed or not.
   initialCursor?: { at: number; dragging?: boolean }
 }
@@ -46,7 +49,7 @@ function ControlButton({ label, ...props }: IconButtonProps) {
 }
 
 export function Player({
-  state, turns, disabled, notice, onToggle, onSeek, onRateChange, onVolumeChange, initialCursor,
+  state, turns, disabled, notice, onToggle, onSeek, onRateChange, onVolumeChange, highlightedSpeaker, initialCursor,
 }: PlayerProps) {
   const { currentTime, rate, volume } = state
   const { elapsed, playing } = playerClock(state)
@@ -57,6 +60,10 @@ export function Player({
   const [dragging, setDragging] = useState(initialCursor?.dragging ?? false)
 
   const bars = useMemo(() => barTurns(turns, BAR_COUNT, duration).map(turn => turn?.color ?? null), [turns, duration])
+  const ownBars = useMemo(
+    () => (highlightedSpeaker ? speakerBars(turns, highlightedSpeaker, BAR_COUNT, duration) : null),
+    [turns, highlightedSpeaker, duration],
+  )
 
   const timeAt = (event: PointerEvent) => {
     const { left, width } = track.current!.getBoundingClientRect()
@@ -157,6 +164,7 @@ export function Player({
             progress={share(currentTime)}
             bars={bars}
             highlight={hovered && [share(hovered.start), share(hovered.end)]}
+            speakerBars={ownBars}
           />
           {!disabled && !dragging && <Playhead position={share(currentTime)} />}
           {!disabled && cursor !== null && (

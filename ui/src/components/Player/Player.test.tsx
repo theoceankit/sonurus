@@ -187,3 +187,19 @@ test('disabled: the bars keep their colours from the segments', () => {
   const bars = [...track.firstElementChild!.children] as HTMLElement[]
   expect(bars[0].style.background).toContain('speaker-5')
 })
+
+test('a highlighted speaker colours only their bars, the rest are pauses', () => {
+  const { track } = setup({ highlightedSpeaker: 'Mark' })
+  const bars = ([...track.firstElementChild!.children] as HTMLElement[]).map(bar => bar.style.background)
+  expect(bars[0]).toBe('var(--color-border-default)')
+  expect(bars[36]).toBe('var(--color-speaker-1-mid)')
+  expect(bars.at(-1)).toBe('var(--color-border-default)')
+  expect(new Set(bars)).toEqual(new Set(['var(--color-border-default)', 'var(--color-speaker-1-mid)']))
+})
+
+test('disabled: a highlighted speaker still shows', () => {
+  const { track } = setup({ disabled: true, highlightedSpeaker: 'Anna' })
+  const bars = [...track.firstElementChild!.children] as HTMLElement[]
+  expect(bars[0].style.background).toBe('var(--color-speaker-5-mid)')
+  expect(bars.at(-1)!.style.background).toBe('var(--color-border-default)')
+})

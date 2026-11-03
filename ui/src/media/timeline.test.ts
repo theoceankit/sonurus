@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import {
-  activeSegmentIndex, barTurns, formatClock, formatDuration, nextSpeakerTime, playerClock, previousSpeakerTime, skipTime, timelineDuration, turnAt,
+  activeSegmentIndex, barTurns, formatClock, formatDuration, nextSpeakerTime, playerClock, previousSpeakerTime, skipTime, speakerBars, timelineDuration, turnAt,
   type Turn,
 } from './timeline'
 
@@ -97,4 +97,26 @@ test('barTurns: each bar takes the turn at its middle', () => {
 
 test('barTurns: no duration means silence', () => {
   expect(barTurns(TURNS, 3, 0)).toEqual([null, null, null])
+})
+
+test('speakerBars: a bar takes the speaker\'s colour where any of their segments falls in it', () => {
+  const turns = [{ ...turn(0, 5, 'anna'), color: 5 as const }, turn(5, 7.5, 'mark'), { ...turn(7.5, 10, 'anna'), color: 5 as const }]
+  expect(speakerBars(turns, 'anna', 4, 10)).toEqual([5, 5, null, 5])
+  expect(speakerBars(turns, 'mark', 4, 10)).toEqual([null, null, 1, null])
+})
+
+test('speakerBars: a short segment on a long recording still has its bar', () => {
+  const turns = [turn(0, 3600, 'anna'), { ...turn(1800, 1801, 'mark'), color: 4 as const }]
+  const bars = speakerBars(turns, 'mark', 120, 3600)
+  expect(bars.filter(Boolean)).toEqual([4])
+  expect(bars[60]).toBe(4)
+})
+
+test('speakerBars: a segment that ends where a bar begins stays out of it', () => {
+  expect(speakerBars([turn(0, 5, 'anna')], 'anna', 2, 10)).toEqual([1, null])
+})
+
+test('speakerBars: someone with no segments, or no duration, lights nothing', () => {
+  expect(speakerBars(TURNS, 'nobody', 3, 10)).toEqual([null, null, null])
+  expect(speakerBars([turn(0, 5, 'anna')], 'anna', 3, 0)).toEqual([null, null, null])
 })

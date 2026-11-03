@@ -82,3 +82,18 @@ export function timelineDuration(audioDuration: number, turns: readonly Turn[]):
 export function barTurns(turns: readonly Turn[], count: number, duration: number): (Turn | null)[] {
   return Array.from({ length: count }, (_, i) => (duration > 0 ? turnAt(turns, ((i + 0.5) / count) * duration) : null))
 }
+
+// The bars any segment of one speaker falls in, in their colour; null elsewhere.
+// Unlike barTurns, a short segment on a long recording still has its bar.
+export function speakerBars(turns: readonly Turn[], speaker: string, count: number, duration: number): (SpeakerColor | null)[] {
+  const bars: (SpeakerColor | null)[] = Array(count).fill(null)
+  if (duration <= 0) return bars
+  const step = duration / count
+  for (const turn of turns) {
+    if (turn.speaker !== speaker) continue
+    const first = Math.min(count - 1, Math.max(0, Math.floor(turn.start / step)))
+    const last = Math.min(count - 1, Math.max(first, Math.ceil(turn.end / step) - 1))
+    for (let i = first; i <= last; i++) bars[i] = turn.color
+  }
+  return bars
+}
