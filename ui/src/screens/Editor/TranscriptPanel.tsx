@@ -14,6 +14,7 @@ import { TranscriptHeader } from '../../components/TranscriptHeader/TranscriptHe
 import { createKeyStore, useActiveSegment } from '../../media/active-segment'
 import type { Playback } from '../../media/playback'
 import { markNotImplemented } from '../../not-implemented'
+import { useLingering } from '../../presence'
 import {
   buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave,
 } from './transcript'
@@ -104,7 +105,9 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   const playing = useActiveSegment(playback, segments)
   const [editing] = useState(() => createKeyStore<number | null>(null))
   const [menuKey] = useState(() => createKeyStore<MenuKey>(null))
-  const [menu, setMenu] = useState<MenuTarget | null>(null)
+  const [menuTarget, setMenu] = useState<MenuTarget | null>(null)
+  const lingeringMenu = useLingering(menuTarget)
+  const menu = lingeringMenu.value
 
   const turns = useMemo(() => buildTurns(segments, speakers), [segments, speakers])
   const times = useMemo(() => talkTimes(segments), [segments])
@@ -218,6 +221,9 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
       {bottom && <ScrollFade edge="bottom" />}
       {menu && (
         <SpeakerMenu
+          key={lingeringMenu.key}
+          open={lingeringMenu.open}
+          onExited={lingeringMenu.exited}
           anchor={menu.anchor}
           allSpeakers={speakers.filter(speaker => speaker.name).length}
           rows={query => {
@@ -238,6 +244,8 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
           onShowAll={() => {
             onShowAllSpeakers?.({ currentId: menu.currentId, segmentStarts: menu.segmentStarts })
             closeMenu()
+            // A window opens over it, and the focus belongs there at once.
+            lingeringMenu.exited()
           }}
           onClose={closeMenu}
         />

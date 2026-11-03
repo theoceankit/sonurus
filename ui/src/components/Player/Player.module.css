@@ -60,6 +60,7 @@
 }
 
 .volume {
+  composes: presence popup from '../../styles/motion.module.css';
   z-index: var(--z-popover);
   padding: var(--space-3);
   border-radius: var(--radius-lg);

@@ -22,6 +22,14 @@
   animation: exit var(--motion-out) var(--ease-exit) forwards;
 }
 
+/* Over everything else and tied to a control: grows from where it hangs. */
+:where(.popup) {
+  --motion-in: var(--duration-base);
+  --motion-out: var(--duration-fast);
+  --motion-from-scale: var(--motion-scale);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin, var(--radix-popover-content-transform-origin));
+}
+
 @keyframes enter {
   from {
     opacity: 0;

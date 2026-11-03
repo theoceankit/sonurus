@@ -1,4 +1,8 @@
 .tooltip {
+  composes: presence from '../../styles/motion.module.css';
+  --motion-in: var(--duration-fast);
+  --motion-out: var(--duration-fast);
+  --motion-from-shift: 0 var(--motion-shift-sm);
   z-index: var(--z-popover);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md);
@@ -6,6 +10,10 @@
   box-shadow: var(--shadow-md);
   color: var(--color-text-on-inverse);
   font: var(--font-caption);
+}
+
+.tooltip[data-side='bottom'] {
+  --motion-from-shift: 0 calc(var(--motion-shift-sm) * -1);
 }
 
 .arrow {
