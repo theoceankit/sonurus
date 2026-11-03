@@ -10,11 +10,13 @@
   composes: presence from '../../styles/motion.module.css';
   --motion-from-scale: var(--motion-scale);
   --motion-to-scale: var(--motion-scale);
+  /* Centred by margins: with a transform for it, scale would grow from the wrong point. */
   position: fixed;
-  top: 50%;
-  left: 50%;
+  inset: 0;
   z-index: var(--z-modal);
   display: flex;
+  height: fit-content;
+  margin: auto;
   flex-direction: column;
   max-width: calc(100vw - var(--space-8));
   max-height: calc(100vh - var(--space-8));
@@ -22,7 +24,6 @@
   background: var(--color-bg-raised);
   box-shadow: var(--shadow-lg);
   color: var(--color-text-primary);
-  transform: translate(-50%, -50%);
   outline: none;
 }
 
@@ -41,7 +42,7 @@
 .preview {
   position: static;
   z-index: auto;
-  transform: none;
+  margin: 0;
   animation: none;
 }
 

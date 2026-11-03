@@ -286,3 +286,7 @@ test('a window taking over from another has no way in, and still a way out', () 
   expect(css).toMatch(/\.skipEnter\[data-state='open'\] \{\s*animation: none/)
 })
 
+
+test('centred without a transform, so that scale grows from its middle', () => {
+  expect(css).not.toMatch(/\.modal \{[^}]*transform:/)
+})
