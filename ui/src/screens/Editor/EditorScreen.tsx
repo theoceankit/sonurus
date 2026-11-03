@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import { useSpeakers, useTranscripts } from '../../api/queries'
 import { Sidebar, type SidebarSection } from '../../components/Sidebar/Sidebar'
@@ -71,7 +71,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const toggle = (panel: Panel) => {
     const area = panelsArea.current!
     if (!prefersReducedMotion()) {
-      const duration = parseFloat(getComputedStyle(area).getPropertyValue('--duration-slow')) || 0
+      const duration = parseFloat(getComputedStyle(area).getPropertyValue('--duration-move')) || 0
       area.dataset.moving = ''
       clearTimeout(stopMoving.current)
       stopMoving.current = setTimeout(() => { delete area.dataset.moving }, duration)
@@ -126,7 +126,6 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
       <div
         ref={panelsArea}
         className={cx(styles.panels, !visible.sidebar && styles.noSidebar, !visible.inspector && styles.noInspector)}
-        style={{ '--screen-width': `${width}px` } as CSSProperties}
       >
         <aside aria-label="Recordings" inert={!visible.sidebar} className={cx(styles.slot, styles.sidebarSlot)}>
           <div className={styles.sidebar}>
@@ -142,11 +141,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
             />
           </div>
         </aside>
-        <main aria-label="Transcript" className={cx(styles.panel, styles.center)}>
-          <div className={styles.centerBody}>
-            {center}
-          </div>
-        </main>
+        <main aria-label="Transcript" className={cx(styles.panel, styles.center)}>{center}</main>
         <section aria-label="Inspector" inert={!visible.inspector} className={cx(styles.slot, styles.inspectorSlot)}>
           <div className={cx(styles.panel, styles.inspector)}>
             {inspector ?? (

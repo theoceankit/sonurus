@@ -30,9 +30,10 @@
   --track-inspector: 0px;
 }
 
-/* Only a press of the button moves anything. A window being resized follows at once. */
+/* Only a press of the button moves anything. A window being resized follows at once.
+   The text of the centre wraps again on every frame of the move, as in native apps. */
 .panels[data-moving] {
-  transition: grid-template-columns var(--duration-slow) var(--ease-standard);
+  transition: grid-template-columns var(--duration-move) var(--ease-standard);
 }
 
 /* A panel leaves with its width kept, and the column closes over it. */
@@ -44,20 +45,20 @@
 }
 
 .panels[data-moving] > .slot {
-  transition: visibility var(--duration-slow) linear;
+  transition: visibility var(--duration-move) linear;
 }
 
 .slot[inert] {
   visibility: hidden;
 }
 
-/* Text wraps once for where the frame is going, not again on every frame on the way. */
-.panels[data-moving] .centerBody {
-  width: calc(var(--screen-width) - var(--space-2) * 2 - var(--track-sidebar) - var(--track-inspector) - var(--border-width-default) * 2);
+/* What is in a panel fades as the panel goes, so it is not seen cut off at the edge. */
+.slot > * {
+  transition: opacity var(--duration-move) var(--ease-standard);
 }
 
-.centerBody {
-  height: 100%;
+.slot[inert] > * {
+  opacity: 0;
 }
 
 .panel {

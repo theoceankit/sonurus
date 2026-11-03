@@ -141,10 +141,11 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 
 1. Motion says where a thing came from and where it went. It decorates nothing.
 2. An action shows on the first frame, and input does not wait for an animation to end. What is opening can be closed.
-3. Nothing takes longer than 200 ms, except the spinner and the bar of the playing segment.
-4. Closing is shorter than opening.
-5. Only `opacity` and `transform` move. Size changes only for a panel, for what opens in place and for the bubble of the player.
-6. Nothing loops unless it reports a process, as the spinner does.
+3. Most of the way is covered at the start: the curves decelerate hard, so a thing is nearly in place after the first few frames.
+4. Nothing takes longer than 200 ms, except panels (250 ms, the furthest travel), the spinner and the bar of the playing segment.
+5. Closing is shorter than opening.
+6. Only `opacity` and `transform` move. Size changes only for a panel, for what opens in place and for the bubble of the player.
+7. Nothing loops unless it reports a process, as the spinner does.
 
 ### Tokens
 
@@ -152,11 +153,12 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 |---|---|---|
 | `--duration-fast` | 100 ms | hover, tooltip, closing a menu |
 | `--duration-base` | 150 ms | opening a menu, closing a modal or a toast |
-| `--duration-slow` | 200 ms | opening a modal or a toast, panels, what opens in place |
-| `--ease-standard` | `cubic-bezier(0.2, 0, 0.38, 0.9)` | what stays on screen: panels, height, width, colour |
-| `--ease-enter` | `cubic-bezier(0, 0, 0.38, 0.9)` | what appears |
-| `--ease-exit` | `cubic-bezier(0.2, 0, 1, 0.9)` | what leaves the screen |
-| `--motion-scale` | 0.98 | what grows as it appears |
+| `--duration-slow` | 200 ms | opening a modal or a toast, what opens in place |
+| `--duration-move` | 250 ms | panels, which travel the furthest |
+| `--ease-standard` | `cubic-bezier(0.2, 0, 0, 1)` | what stays on screen: panels, height, width, colour |
+| `--ease-enter` | `cubic-bezier(0.16, 1, 0.3, 1)` | what appears |
+| `--ease-exit` | `cubic-bezier(0.4, 0, 1, 1)` | what leaves the screen |
+| `--motion-scale` | 0.96 | what grows as it appears |
 | `--motion-shift-sm`, `--motion-shift-md` | 2 px, 8 px | what rises as it appears |
 
 ### What moves
@@ -168,7 +170,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | Menu, popup | 150 | 100 | fade and scale from where it hangs |
 | Modal and scrim | 200 | 150 | fade and scale; Choose speaker and New speaker turn into each other with neither |
 | Toast | 200 | 150 | fade and 8 px up |
-| Panel, on its button | 200 | 200 | the frame moves, the text wraps once |
+| Panel, on its button | 250 | 250 | the frame moves, the text wraps on every frame, the panel's content fades |
 | What opens in place | 200 | 150 | height and fade |
 | Bubble of the player | 100 | 100 | width, when the text has changed it |
 
@@ -179,7 +181,7 @@ Pressed and the focus ring change at once. So do the text and data of the transc
 - `ui/src/styles/motion.module.css` holds the rules, taken with `composes`. A component sets `--motion-in`, `--motion-out`, `--motion-from-scale`, `--motion-to-scale` and `--motion-from-shift`. Scale and shift use the `scale` and `translate` properties, which do not fight the `transform` that centres a modal or that Radix positions with.
 - Radix keeps an element until the animation of `data-state="closed"` has ended. What is shown for a value of state needs that value until then: `useLingering()` in `ui/src/presence.tsx` keeps it, and `ExitSignal` inside the element says when it is gone.
 - `Collapse` and `Disclosure` take their height from Radix, with no measuring of their own.
-- `EditorScreen` always has three columns, because the number of columns cannot animate, and a closed panel's column has no width. The move is marked with `data-moving` on the element, not in state, so its end renders nothing. The body of the centre takes the width it is heading for at the start, so its text wraps once. A window being resized follows at once.
+- `EditorScreen` always has three columns, because the number of columns cannot animate, and a closed panel's column has no width. The move is marked with `data-moving` on the element, not in state, so its end renders nothing. The text of the centre wraps again on every frame, as in native apps: on a three-hour recording that is under 2 ms of layout a frame. Wrapping once for the width it is heading for was tried and dropped: the text jumped on the first frame and was cut off by the frame or left a gap beside it. A window being resized follows at once.
 
 ### Long recordings
 
