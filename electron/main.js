@@ -5,7 +5,7 @@ const { BackendRefusedError, restartBackend, startBackend, stopBackend } = requi
 const { devUserDataPath } = require('./backend-identity')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 const { uiEntry } = require('./ui-entry')
-const { windowChrome } = require('./window-chrome')
+const { windowChrome, overlayDimmer } = require('./window-chrome')
 
 // Dev mode keeps its data apart from the packaged app (electron/backend-identity.js).
 // Must run before the app is ready: settings, the backend's data dir and logs follow it.
@@ -31,6 +31,7 @@ if (process.platform === 'darwin') {
 }
 
 let mainWin = null
+let titleBarDimmer = null
 
 function createWindow() {
   const newUi = app.commandLine.hasSwitch('new-ui')
@@ -61,6 +62,18 @@ function createWindow() {
       sandbox: true,
       spellcheck: false,
     },
+  })
+
+  // macOS draws its own window buttons, with no strip to colour.
+  const win = mainWin
+  if (newUi && process.platform !== 'darwin') {
+    titleBarDimmer = overlayDimmer(overlay => { if (!win.isDestroyed()) win.setTitleBarOverlay(overlay) })
+  }
+  // A page that loads again has no modal open, whatever the last one said.
+  win.webContents.on('did-start-loading', () => titleBarDimmer?.set(false))
+  win.on('closed', () => {
+    titleBarDimmer?.stop()
+    titleBarDimmer = null
   })
 
   if (entry.url) mainWin.loadURL(entry.url)
@@ -122,6 +135,11 @@ ipcMain.handle('open-files', async () => {
   if (canceled || !filePaths.length) return []
   rememberDialogFolder(getDialogStatePath(), filePaths[0])
   return filePaths
+})
+
+// A modal of the new UI is open or closed: the window buttons dim with its scrim.
+ipcMain.on('window-dimmed', (event, dimmed, startedAt) => {
+  if (event.sender === mainWin?.webContents) titleBarDimmer?.set(Boolean(dimmed), Number(startedAt))
 })
 
 ipcMain.handle('get-platform', () => process.platform)

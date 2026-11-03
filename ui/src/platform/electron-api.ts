@@ -21,6 +21,7 @@ export type ElectronAPI = {
   setZoom: (factor: number) => Promise<void>
   writeClipboard: (text: string) => Promise<void>
   restartBackend: () => Promise<void>
+  setWindowDimmed: (dimmed: boolean, startedAt: number) => void
 }
 
 declare global {
