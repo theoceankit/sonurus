@@ -133,6 +133,62 @@ const { area, scrollRef } = useScrollEdges()
 
 It shows while the pointer is over the parent, while the area scrolls and while the thumb is dragged, and takes no width from the area.
 
+## Motion
+
+One standard for everything that moves, seen in Storybook under Foundations/Motion. Screens take values from the tokens, and `raw-values.test.ts` fails on a literal duration or curve in a `*.module.css`, on `transition: all`, and on a literal `scale` or `translate`.
+
+### Principles
+
+1. Motion says where a thing came from and where it went. It decorates nothing.
+2. An action shows on the first frame, and input does not wait for an animation to end. What is opening can be closed.
+3. Nothing takes longer than 200 ms, except the spinner and the bar of the playing segment.
+4. Closing is shorter than opening.
+5. Only `opacity` and `transform` move. Size changes only for a panel, for what opens in place and for the bubble of the player.
+6. Nothing loops unless it reports a process, as the spinner does.
+
+### Tokens
+
+| Token | Value | For |
+|---|---|---|
+| `--duration-fast` | 100 ms | hover, tooltip, closing a menu |
+| `--duration-base` | 150 ms | opening a menu, closing a modal or a toast |
+| `--duration-slow` | 200 ms | opening a modal or a toast, panels, what opens in place |
+| `--ease-standard` | `cubic-bezier(0.2, 0, 0.38, 0.9)` | what stays on screen: panels, height, width, colour |
+| `--ease-enter` | `cubic-bezier(0, 0, 0.38, 0.9)` | what appears |
+| `--ease-exit` | `cubic-bezier(0.2, 0, 1, 0.9)` | what leaves the screen |
+| `--motion-scale` | 0.98 | what grows as it appears |
+| `--motion-shift-sm`, `--motion-shift-md` | 2 px, 8 px | what rises as it appears |
+
+### What moves
+
+| Element | Opens | Closes | How |
+|---|---|---|---|
+| Hover | 100 | 100 | colour only |
+| Tooltip | 100 | 100 | fade and 2 px; the next within 300 ms and one from the keyboard come at once |
+| Menu, popup | 150 | 100 | fade and scale from where it hangs |
+| Modal and scrim | 200 | 150 | fade and scale; Choose speaker and New speaker turn into each other with neither |
+| Toast | 200 | 150 | fade and 8 px up |
+| Panel, on its button | 200 | 200 | the frame moves, the text wraps once |
+| What opens in place | 200 | 150 | height and fade |
+| Bubble of the player | 100 | 100 | width, when the text has changed it |
+
+Pressed and the focus ring change at once. So do the text and data of the transcript, the playhead and the waveform, scrolling, changing recording, tabs and editing a paragraph.
+
+### How it is built
+
+- `ui/src/styles/motion.module.css` holds the rules, taken with `composes`. A component sets `--motion-in`, `--motion-out`, `--motion-from-scale`, `--motion-to-scale` and `--motion-from-shift`. Scale and shift use the `scale` and `translate` properties, which do not fight the `transform` that centres a modal or that Radix positions with.
+- Radix keeps an element until the animation of `data-state="closed"` has ended. What is shown for a value of state needs that value until then: `useLingering()` in `ui/src/presence.tsx` keeps it, and `ExitSignal` inside the element says when it is gone.
+- `Collapse` and `Disclosure` take their height from Radix, with no measuring of their own.
+- `EditorScreen` always has three columns, because the number of columns cannot animate, and a closed panel's column has no width. The move is marked with `data-moving` on the element, not in state, so its end renders nothing. The body of the centre takes the width it is heading for at the start, so its text wraps once. A window being resized follows at once.
+
+### Long recordings
+
+Nothing may walk the rows of a transcript and read their layout. `getBoundingClientRect` on a turn hidden by `content-visibility` lays it out: over a three-hour recording that takes hundreds of milliseconds. Storybook's highlight module does this on any change of the page, so measure a long recording in the app or on Vite with fixtures, not in Storybook.
+
+### Reduced motion
+
+The system setting empties the distance tokens in `tokens.css`, so what fades still fades. What opens in place only fades, the bubble changes width at once, panels do not move and the bar of the playing segment stands whole. The spinner keeps turning: it reports a process. There is no setting for this in the app.
+
 ## Overlays
 
 `Tooltip`, `Menu`, `Toolbar`, `Toast`, `ScrollFade`, `Modal`, `ModalHeader`, `ModalBody` and `ModalFooter`, in `ui/src/components/`. Tooltips, menus, toolbars, toasts and modals are built on Radix Primitives. `OverlayProvider` wraps the app in `ui/src/main.tsx` and every story in `ui/.storybook/preview.tsx`: it holds the tooltip timing and the one `Toaster`.

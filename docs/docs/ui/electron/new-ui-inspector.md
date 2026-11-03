@@ -17,7 +17,7 @@ The components only draw and report. `InspectorPanel` holds the data and the sta
 
 ## Speakers
 
-Rows go by talk time, with Unassigned last, as it is not one person. Talk time is the sum of a speaker's segments. While a review is on, whether open or collapsed, three rows show and the rest are behind Show N more, with the current speaker always among the three. When it is over, everyone shows.
+Rows go by talk time, with Unassigned last, as it is not one person. Talk time is the sum of a speaker's segments. While a review is on, whether open or collapsed, three rows show and the rest are behind Show N more, with the current speaker always among the three. Those three stay in their places when the rest open under them. When it is over, everyone shows.
 
 On hover and focus a row has two buttons in place of the time: Play for the speaker's first segment, and Assign, which opens Choose a speaker for all of the speaker's segments in this recording. Unassigned has only Assign. A click on a speaker who is under review opens the card on them.
 

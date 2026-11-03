@@ -36,7 +36,7 @@ A live recording in WebM has no duration in the file, so the audio element says 
 
 Large colours bars by speaker. A speaker without a name and Unassigned are `speaker-6`, as on their avatars, and a pause is `border-default` whether played or not. The heights are decorative and come from the Penpot boards; the `heights` prop takes others. Small knows nothing of speakers and takes only `progress`, for a clip.
 
-`Playhead` is drawn inside the element that holds the waveform. The default look is the line and the knob at the current time. The hover look is the line and a bubble with the time and the speaker's name.
+`Playhead` is drawn inside the element that holds the waveform. The default look is the line and the knob at the current time. The hover look is the line and a bubble with the time and the speaker's name. The bubble changes width over 100 ms when another speaker or the hour changes the text; the width is read only then, and the position follows the pointer at once.
 
 ## Behaviour
 

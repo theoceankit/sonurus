@@ -71,7 +71,7 @@ With `--new-ui` the window has no system frame (`electron/window-chrome.js`; wit
 | 1112 and more | Both; the centre takes what is left, at least 480 |
 | Below 1112 | One. The sidebar stays and the inspector goes; opening either one hides the other |
 
-The width is that of the screen, so a story can show any size. A panel the user closed stays closed when the window widens; one hidden for lack of room comes back. While the inspector is hidden, a button next to Settings opens it. What is open is not remembered between runs. The rules are pure functions in `panels.ts`.
+The width is that of the screen, so a story can show any size. A panel the user closed stays closed when the window widens; one hidden for lack of room comes back. While the inspector is hidden, a button next to Settings opens it. What is open is not remembered between runs. The rules are pure functions in `panels.ts`. A panel moves on its button and not when the window is resized: see [Motion](new-ui-foundations.md#motion).
 
 `Sidebar` shows the recordings in the sections Pinned, This week and Earlier, worked out on the client in `recordings.ts` rather than taken from `section` of the API: This week is today and the seven calendar days before it, and a section with nothing in it is left out. The API has no pinned recordings yet, so in the app the section does not appear; `EditorScreen` takes them as a prop, and the story Screens / Editor / Board uses it to match the design. A recording shows the Needs review dot when one of its speakers has no name. Rows show three avatars at most. The list has no scrollbar: it would narrow the rows, and the fade at the bottom says there is more.
 
