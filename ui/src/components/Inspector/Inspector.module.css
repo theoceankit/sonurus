@@ -24,8 +24,9 @@
   inset-inline-end: var(--space-2);
 }
 
-/* On a low window a long clip does not fit: then the whole panel scrolls. */
+/* On a low window the review does not fit: then the whole panel scrolls. */
 .panel {
+  container: inspector-panel / size;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -61,6 +62,15 @@
   margin-inline: var(--space-2);
   padding-block-start: var(--space-4);
   border-block-start: var(--border-width-default) solid var(--color-border-default);
+}
+
+/* With room for the card and a few lines of its clip, the clip scrolls instead
+   (ReviewCard.module.css), so the card's buttons stay where they are. */
+@container inspector-panel (min-height: 520px) {
+  .dock {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
 }
 
 .dockHead {
