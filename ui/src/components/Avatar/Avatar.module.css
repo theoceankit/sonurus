@@ -7,6 +7,12 @@
   user-select: none;
 }
 
+/* The line box has more room over the capitals than under them at these sizes, so
+   centring it leaves the letters a pixel high. */
+.initials {
+  text-box: trim-both cap alphabetic;
+}
+
 .xs {
   width: var(--size-avatar-xs);
   height: var(--size-avatar-xs);

@@ -2,6 +2,7 @@ import { render } from '@testing-library/react'
 import { describe, expect, test } from 'vitest'
 import { Avatar } from './Avatar'
 import { speakerInitials } from './initials'
+import avatarCss from './Avatar.module.css?raw'
 
 const avatar = (ui: Parameters<typeof render>[0]) => render(ui).container.firstElementChild as HTMLElement
 
@@ -109,4 +110,10 @@ describe('guards', () => {
       .filter(file => /\bspeakerInitials\b|Avatar\/initials|\/initials['"]/.test(sources[file]))
     expect(found, 'use <Avatar> instead of drawing initials by hand').toEqual([])
   })
+})
+
+test('the initials are trimmed to their capitals, so the letters and not the line box are centred', () => {
+  const { container } = render(<Avatar name="Anna Petrova" color={1} />)
+  expect(container.querySelector('[data-initials]')?.textContent).toBe('AP')
+  expect(avatarCss).toMatch(/\.initials \{[^}]*text-box: trim-both cap alphabetic;/)
 })
