@@ -13,7 +13,7 @@ export default meta
 
 type Story = StoryObj
 
-// Every marked control is dimmed, has the help cursor and only shows the toast.
+// Every marked control is dimmed and only shows the toast.
 export const Controls: Story = {
   render: () => (
     <Stack gap={6} padding={4}>
