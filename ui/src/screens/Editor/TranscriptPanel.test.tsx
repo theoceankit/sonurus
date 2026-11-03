@@ -589,11 +589,13 @@ describe('keyboard', () => {
     await userEvent.tab()
     return document.activeElement as HTMLElement
   }
+  // The button of a turn: the avatar and the name.
+  const speakerButton = (name: string) => screen.getAllByRole('button', { name }).find(button => button === document.activeElement)
 
   test('the list is one stop of Tab', async () => {
     setup()
     const first = await tabToList()
-    expect(first.textContent!.trim()).toBe('Anna Petrova')
+    expect(first).toBe(speakerButton('Anna Petrova'))
     await userEvent.tab({ shift: true })
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Weekly product sync' }))
   })
@@ -602,11 +604,11 @@ describe('keyboard', () => {
     setup()
     await tabToList()
     await userEvent.keyboard('{ArrowUp}')
-    expect(document.activeElement!.textContent!.trim()).toBe('Anna Petrova')
+    expect(document.activeElement).toBe(speakerButton('Anna Petrova'))
     await userEvent.keyboard('{ArrowDown}{ArrowDown}')
     expect(document.activeElement!.textContent).toContain(FIRST)
     await userEvent.keyboard('{ArrowDown}')
-    expect(document.activeElement!.textContent!.trim()).toBe('Mark Ellis')
+    expect(document.activeElement).toBe(speakerButton('Mark Ellis'))
   })
 
   test('the bar of a focused paragraph shows, and Enter starts the edit', async () => {

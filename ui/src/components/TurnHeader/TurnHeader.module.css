@@ -1,18 +1,19 @@
 .turnHeader {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   /* Below: the layer of the paragraph under it keeps away from the avatar. */
   padding: var(--space-1) var(--space-2);
 }
 
-/* The layer stands out of the name's box, so the name stays in line with the text. */
+/* The avatar and the name are one button, so either opens the menu. Its layer stands
+   out of the box, so the avatar stays in line with the text. */
 .name {
   composes: reset stateLayer focusRing from '../../styles/control.module.css';
   display: inline-flex;
   align-self: stretch;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-3);
   min-width: 0;
   color: var(--color-text-primary);
   font: var(--font-body-strong);
@@ -37,26 +38,12 @@
   text-box: trim-both cap alphabetic;
 }
 
-/* Hidden, it keeps its place: the time next to it must not move. */
-.chevron {
-  flex: none;
-  visibility: hidden;
-  color: var(--color-text-secondary);
-}
-
-.name:hover .chevron,
-.name:focus-visible .chevron,
-.open .chevron {
-  visibility: visible;
-}
-
 .time {
   composes: reset focusRing from '../../styles/control.module.css';
   display: inline-flex;
   flex: none;
   align-self: stretch;
   align-items: center;
-  margin-inline-start: calc(var(--space-1) * -1);
   color: var(--color-text-secondary);
   font: var(--font-caption);
   border-radius: var(--radius-sm);

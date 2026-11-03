@@ -1,0 +1,4 @@
+/* A narrow centre panel: a long name ends in an ellipsis next to the time. */
+.narrow {
+  width: calc(var(--space-8) * 8);
+}
