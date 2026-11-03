@@ -28,11 +28,11 @@ test('a click, Enter and Space toggle it', async () => {
 })
 
 test('the chevron points right when collapsed and down when expanded', async () => {
-  const shapes = () => trigger().querySelector('svg')?.innerHTML
+  const turned = () => trigger().querySelector('svg')?.getAttribute('class')?.includes('open')
   render(<Disclosure label="Optional details">Handle</Disclosure>)
-  const collapsed = shapes()
+  expect(turned()).toBe(false)
   await userEvent.click(trigger())
-  expect(shapes()).not.toBe(collapsed)
+  expect(turned()).toBe(true)
 })
 
 test('disabled does not toggle', async () => {

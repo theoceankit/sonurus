@@ -41,7 +41,7 @@ function setup(props = {}, options: FixtureOptions = {}) {
   )
 }
 
-const shown = (label: string) => !screen.getByLabelText(label).hidden
+const shown = (label: string) => !screen.getByLabelText(label).hasAttribute('inert')
 const sidebarShown = () => shown('Recordings')
 
 test('groups the recordings of the fixtures without a pinned section', async () => {
@@ -266,7 +266,7 @@ describe('a refresh in the background', () => {
     const client = createFixtureClient()
     render(<ApiProvider client={client}><OverlayProvider><Synced initialSelectedId={WEEKLY_SYNC_ID} /></OverlayProvider></ApiProvider>)
     const heading = await screen.findByRole('heading', { level: 1 })
-    const review = await screen.findByText('Review speakers')
+    const review = await screen.findByRole('region', { name: 'Review speakers' })
     const scroll = document.querySelector<HTMLElement>('[data-transcript-scroll]')!
     const row = screen.getAllByRole('button', { name: /^Go to / })[0]
     scroll.scrollTop = 840
@@ -310,3 +310,45 @@ describe('a refresh in the background', () => {
     expect(screen.queryByText('Could not load the speakers')).toBeNull()
   })
 })
+
+describe('moving the panels', () => {
+  const panels = () => screen.getByLabelText('Inspector').parentElement!
+
+  test('the button moves them, a resized window does not', async () => {
+    const resize = atWidth(1200)
+    setup()
+    await waitFor(() => expect(shown('Inspector')).toBe(true))
+    const moved: boolean[] = []
+    const watch = new MutationObserver(() => moved.push(panels().hasAttribute('data-moving')))
+    watch.observe(panels(), { attributes: true, attributeFilter: ['data-moving'] })
+    resize(1111)
+    resize(1200)
+    await waitFor(() => expect(shown('Inspector')).toBe(true))
+    expect(moved).toEqual([])
+    await userEvent.click(screen.getByRole('button', { name: 'Toggle sidebar' }))
+    await waitFor(() => expect(moved).toEqual([true, false]))
+    watch.disconnect()
+  })
+
+  test('a closed panel keeps its column and cannot be reached', async () => {
+    atWidth(1200)
+    setup()
+    await waitFor(() => expect(shown('Inspector')).toBe(true))
+    await userEvent.click(screen.getByRole('button', { name: 'Toggle sidebar' }))
+    expect(panels().className).toContain('noSidebar')
+    expect(screen.getByLabelText('Recordings').hasAttribute('inert')).toBe(true)
+    expect(screen.queryByRole('complementary', { name: 'Recordings' })).toBeNull()
+  })
+
+  test('with reduced motion nothing moves', async () => {
+    const matchMedia = vi.fn(() => ({ matches: true }))
+    vi.stubGlobal('matchMedia', matchMedia)
+    atWidth(1200)
+    setup()
+    await waitFor(() => expect(shown('Inspector')).toBe(true))
+    await userEvent.click(screen.getByRole('button', { name: 'Toggle sidebar' }))
+    expect(panels().hasAttribute('data-moving')).toBe(false)
+    vi.unstubAllGlobals()
+  })
+})
+

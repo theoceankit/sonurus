@@ -20,6 +20,8 @@
 
 /* !important: Radix sets pointer-events: none inline on a toast that was already open when a modal opened. */
 .toast {
+  composes: presence from '../../styles/motion.module.css';
+  --motion-from-shift: 0 var(--motion-shift-md);
   display: flex;
   align-items: center;
   gap: var(--space-3);

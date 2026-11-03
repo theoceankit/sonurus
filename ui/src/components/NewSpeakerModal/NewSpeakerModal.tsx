@@ -22,6 +22,9 @@ interface NewSpeakerModalProps {
   onCreate: (name: string, colorIndex: number) => Promise<void>
   onBack: () => void
   onClose: () => void
+  open?: boolean
+  onExited?: () => void
+  skipEnter?: boolean
   // For a story: the window in place, and the details open.
   preview?: boolean
   initialDetailsExpanded?: boolean
@@ -29,7 +32,7 @@ interface NewSpeakerModalProps {
 }
 
 export function NewSpeakerModal({
-  initialName = '', initialColorIndex = 0, isNameTaken, onCreate, onBack, onClose, preview, initialDetailsExpanded = false, initialError,
+  initialName = '', initialColorIndex = 0, isNameTaken, onCreate, onBack, onClose, open = true, onExited, skipEnter, preview, initialDetailsExpanded = false, initialError,
 }: NewSpeakerModalProps) {
   const [name, setName] = useState(initialName.trim())
   const [color, setColor] = useState<SpeakerColor>(speakerColor(initialColorIndex))
@@ -52,7 +55,7 @@ export function NewSpeakerModal({
   const repeated = trimmed && isNameTaken?.(trimmed) ? `Another speaker is also named "${trimmed}".` : undefined
 
   return (
-    <Modal size="medium" open preview={preview} onOpenChange={open => { if (!open) onClose() }}>
+    <Modal size="medium" open={open} onExited={onExited} skipEnter={skipEnter} preview={preview} onOpenChange={next => { if (!next) onClose() }}>
       <ModalHeader title="New speaker" />
       <ModalBody className={styles.body}>
         <div className={styles.identity}>

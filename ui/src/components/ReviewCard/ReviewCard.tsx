@@ -5,6 +5,7 @@ import { Avatar, avatarOf, type LabelledSpeaker } from '../Avatar/Avatar'
 import { Button } from '../Button/Button'
 import { Candidate } from '../Candidate/Candidate'
 import { ClipPlayer } from '../ClipPlayer/ClipPlayer'
+import { Reveal } from '../Reveal/Reveal'
 import { IconButton } from '../IconButton/IconButton'
 import { ScrollBar } from '../ScrollBar/ScrollBar'
 import { SectionHeader } from '../SectionHeader/SectionHeader'
@@ -73,8 +74,12 @@ export function ReviewCard({
             textExpanded={expanded}
             onToggleText={() => setExpanded(open => !open)}
           />
-          {expanded && <p ref={setText} className={styles.text}>{clip.text}</p>}
-          {expanded && <ScrollBar area={text} />}
+          <Reveal open={expanded} className={styles.textBox}>
+            <div className={styles.textWrap}>
+              <p ref={setText} className={styles.text}>{clip.text}</p>
+              <ScrollBar area={text} />
+            </div>
+          </Reveal>
         </div>
       )}
       <div className={styles.answer}>

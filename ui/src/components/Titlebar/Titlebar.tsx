@@ -40,7 +40,7 @@ export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = 
       <div className={styles.actions}>
         <Tool icon="speakers" label="Speakers" {...markNotImplemented('titlebar.speakers')} />
         <Tool icon="settings" label="Settings" {...markNotImplemented('titlebar.settings')} />
-        {!inspectorOpen && <Tool icon="inspector" label="Show inspector" onClick={onOpenInspector} />}
+        {!inspectorOpen && <Tool icon="inspector" label="Show inspector" className={styles.appear} onClick={onOpenInspector} />}
       </div>
     </header>
   )

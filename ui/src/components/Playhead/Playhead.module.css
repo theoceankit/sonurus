@@ -38,9 +38,8 @@
   position: absolute;
   bottom: var(--size-playhead-hover);
   left: 0;
-  display: flex;
-  gap: var(--space-1);
-  max-width: var(--size-playhead-bubble);
+  box-sizing: content-box;
+  overflow: hidden;
   padding: var(--space-half) var(--space-1);
   border-radius: var(--radius-sm);
   background: var(--color-bg-inverse);
@@ -49,6 +48,21 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   transform: translateX(-50%);
+  transition: width var(--duration-fast) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble {
+    transition: none;
+  }
+}
+
+/* Its own width, whatever the bubble's is on the way there. */
+.bubbleText {
+  display: inline-flex;
+  gap: var(--space-1);
+  width: max-content;
+  max-width: calc(var(--size-playhead-bubble) - var(--space-1) * 2);
 }
 
 .name {

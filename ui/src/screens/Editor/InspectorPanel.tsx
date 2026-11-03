@@ -6,6 +6,7 @@ import { effectiveSpeaker, type Speaker, type SpeakerCandidates, type Transcript
 import { avatarOf } from '../../components/Avatar/Avatar'
 import { AvatarStack } from '../../components/AvatarStack/AvatarStack'
 import { Button } from '../../components/Button/Button'
+import { Collapse } from '../../components/Collapse/Collapse'
 import { Inspector, type InspectorReview } from '../../components/Inspector/Inspector'
 import { ReviewCard } from '../../components/ReviewCard/ReviewCard'
 import { SpeakerRow } from '../../components/SpeakerRow/SpeakerRow'
@@ -161,7 +162,6 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
 
   const { visible, hidden } = splitRows(rows, mode === 'on' ? currentId : null)
   const collapsible = mode !== 'off' && hidden.length > 0
-  const shown = collapsible && !showAll ? visible : rows
 
   const dock: InspectorReview = mode === 'off'
     ? { mode }
@@ -211,7 +211,12 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
           <>
             <TalkTime total={formatDuration(talkTotal(rows))} segments={rows} />
             <Stack gap="half">
-              {shown.map(renderRow)}
+              {(collapsible ? visible : rows).map(renderRow)}
+              {collapsible && (
+                <Collapse open={showAll}>
+                  <Stack gap="half">{hidden.map(renderRow)}</Stack>
+                </Collapse>
+              )}
               {collapsible && (
                 <SpeakerRow
                   kind="show-more"

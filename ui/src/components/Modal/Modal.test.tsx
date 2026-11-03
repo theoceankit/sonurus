@@ -271,3 +271,22 @@ test('the scrim and the window sit on the modal layer', () => {
   expect(css).toMatch(/\.scrim \{[^}]*z-index: var\(--z-modal\)/)
   expect(css).toMatch(/\.modal \{[^}]*z-index: var\(--z-modal\)/)
 })
+
+test('says when the way out has played', async () => {
+  const onExited = vi.fn()
+  const { rerender } = render(<Modal open onExited={onExited}><ModalHeader title="Rename" /></Modal>)
+  expect(onExited).not.toHaveBeenCalled()
+  rerender(<Modal open={false} onExited={onExited}><ModalHeader title="Rename" /></Modal>)
+  await waitFor(() => expect(onExited).toHaveBeenCalledOnce())
+})
+
+test('a window taking over from another has no way in, and still a way out', () => {
+  render(<Modal open skipEnter><ModalHeader title="Rename" /></Modal>)
+  expect(screen.getByRole('dialog').className).toContain('skipEnter')
+  expect(css).toMatch(/\.skipEnter\[data-state='open'\] \{\s*animation: none/)
+})
+
+
+test('centred without a transform, so that scale grows from its middle', () => {
+  expect(css).not.toMatch(/\.modal \{[^}]*transform:/)
+})

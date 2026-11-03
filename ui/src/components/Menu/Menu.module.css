@@ -1,5 +1,6 @@
 /* The stroke is inside the size on the board, so it takes no room here either. */
 .surface {
+  composes: presence popup from '../../styles/motion.module.css';
   z-index: var(--z-popover);
   display: flex;
   flex-direction: column;

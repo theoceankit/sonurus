@@ -7,6 +7,7 @@ import { MenuSurface } from '../Menu/Menu'
 import { MenuItem } from '../MenuItem/MenuItem'
 import { SearchField } from '../SearchField/SearchField'
 import { SectionHeader } from '../SectionHeader/SectionHeader'
+import { ExitSignal } from '../../presence'
 import { ScrollBar } from '../ScrollBar/ScrollBar'
 import styles from './SpeakerMenu.module.css'
 
@@ -28,6 +29,9 @@ interface SpeakerMenuProps {
   onSelect: (speakerId: string) => void
   onShowAll?: () => void
   onClose: () => void
+  // False plays the way out; onExited says it is over.
+  open?: boolean
+  onExited?: () => void
   // For a story: the search without typing.
   initialQuery?: string
 }
@@ -37,7 +41,7 @@ const OFFSET = 4
 const ALIGN_OFFSET = -12
 
 // The focus stays in the search field, and the arrow keys move a highlight over the rows.
-export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onShowAll, onClose, initialQuery = '' }: SpeakerMenuProps) {
+export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onShowAll, onClose, open = true, onExited, initialQuery = '' }: SpeakerMenuProps) {
   const [query, setQuery] = useState(initialQuery)
   const [active, setActive] = useState(0)
   const list = useRef<HTMLDivElement>(null)
@@ -67,7 +71,7 @@ export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onSh
   }
 
   return (
-    <Popover.Root open onOpenChange={open => { if (!open) onClose() }}>
+    <Popover.Root open={open} onOpenChange={next => { if (!next) onClose() }}>
       <Popover.Anchor virtualRef={{ current: anchor }} />
       <Popover.Portal>
         <Popover.Content
@@ -77,12 +81,18 @@ export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onSh
           alignOffset={ALIGN_OFFSET}
           collisionPadding={OFFSET}
           aria-label="Change speaker"
+          // A press on the control it opened from is that control's to answer, as on a menu
+          // button: otherwise the menu closes on the press and the click opens it again.
+          onInteractOutside={event => {
+            if (anchor.contains(event.target as Node)) event.preventDefault()
+          }}
           onCloseAutoFocus={event => {
             event.preventDefault()
             anchor.focus()
           }}
         >
           <MenuSurface className={styles.menu} onKeyDown={onKeyDown}>
+            <ExitSignal onExited={onExited} />
             <SearchField
               autoFocus
               placeholder="Search speakers"

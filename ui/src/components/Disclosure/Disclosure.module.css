@@ -9,6 +9,7 @@
   color: var(--color-text-secondary);
   font: var(--font-body);
   user-select: none;
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
 .trigger:not(:disabled):hover,
@@ -28,4 +29,16 @@
   border: var(--border-width-strong) solid var(--color-focus);
   border-radius: var(--radius-lg);
   pointer-events: none;
+}
+
+.chevron {
+  transition: rotate var(--duration-fast) var(--ease-standard);
+}
+
+.open {
+  rotate: 90deg;
+}
+
+.content {
+  composes: collapse from '../../styles/motion.module.css';
 }

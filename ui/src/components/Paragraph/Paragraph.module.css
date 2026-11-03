@@ -4,6 +4,7 @@
   gap: var(--space-3);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md);
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
 .interactive:hover {
@@ -30,7 +31,23 @@
   bottom: var(--space-1);
   left: calc(var(--space-2) + (var(--size-avatar-sm) - var(--size-playing-bar)) / 2);
   width: var(--size-playing-bar);
+  overflow: hidden;
   border-radius: var(--radius-full);
+}
+
+.barTrack,
+.barFill {
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+}
+
+.barTrack {
+  opacity: var(--opacity-playing-track);
+}
+
+.barFill {
+  transform-origin: top;
 }
 
 .text {
@@ -50,6 +67,13 @@
   position: absolute;
   top: var(--space-half);
   right: var(--space-1);
+  animation: actionsIn var(--duration-fast) var(--ease-enter);
+}
+
+@keyframes actionsIn {
+  from {
+    opacity: 0;
+  }
 }
 
 .field {

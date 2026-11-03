@@ -1,0 +1,103 @@
+/*
+ * What appears and goes away, the standard of new-ui-foundations.md. A component
+ * takes .presence with `composes` and sets how long and from where. Radix keeps the
+ * element until the animation of data-state="closed" has ended.
+ *
+ * Every selector sits in :where(), for the reason given in control.module.css.
+ */
+:where(.presence) {
+  --motion-in: var(--duration-slow);
+  --motion-out: var(--duration-base);
+  --motion-from-scale: 1;
+  --motion-from-shift: 0 0;
+  --motion-to-scale: 1;
+}
+
+:where(.presence[data-state='open']),
+:where(.presence[data-state='delayed-open']) {
+  animation: enter var(--motion-in) var(--ease-enter);
+}
+
+:where(.presence[data-state='closed']) {
+  animation: exit var(--motion-out) var(--ease-exit) forwards;
+}
+
+/* What comes into being with no state of its own to play out, as a button that
+   shows only while something else is hidden. */
+:where(.appear) {
+  --motion-in: var(--duration-base);
+  --motion-delay: 0ms;
+  --motion-from-scale: var(--motion-scale);
+  --motion-from-shift: 0 0;
+  animation: enter var(--motion-in) var(--ease-enter) var(--motion-delay) backwards;
+}
+
+/* Over everything else and tied to a control: grows from where it hangs. */
+:where(.popup) {
+  --motion-in: var(--duration-base);
+  --motion-out: var(--duration-fast);
+  --motion-from-scale: var(--motion-scale);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin, var(--radix-popover-content-transform-origin));
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    scale: var(--motion-from-scale);
+    translate: var(--motion-from-shift);
+  }
+}
+
+@keyframes exit {
+  to {
+    opacity: 0;
+    scale: var(--motion-to-scale);
+  }
+}
+
+/* What opens in place and pushes what is under it. Radix measures it and keeps it until closed. */
+:where(.collapse[data-state='open']) {
+  animation: collapseOpen var(--duration-slow) var(--ease-standard);
+}
+
+:where(.collapse[data-state='closed']) {
+  animation: collapseClose var(--duration-base) var(--ease-standard) forwards;
+}
+
+@keyframes collapseOpen {
+  from {
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+
+  to {
+    height: var(--radix-collapsible-content-height);
+    overflow: hidden;
+  }
+}
+
+@keyframes collapseClose {
+  from {
+    height: var(--radix-collapsible-content-height);
+    overflow: hidden;
+  }
+
+  to {
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+}
+
+/* Nothing travels: the content appears and goes where it stands. */
+@media (prefers-reduced-motion: reduce) {
+  :where(.collapse[data-state='open']) {
+    animation-name: enter;
+  }
+
+  :where(.collapse[data-state='closed']) {
+    animation-name: exit;
+  }
+}
+

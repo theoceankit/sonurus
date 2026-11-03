@@ -100,3 +100,13 @@ test('a recording with no named speakers says that rather than a failed search',
   render(<OverlayProvider><SpeakerMenu anchor={anchor} allSpeakers={0} rows={() => ({ section: null, rows: [] })} onSelect={vi.fn()} onClose={vi.fn()} /></OverlayProvider>)
   expect(screen.getByText('No speakers with a name here yet')).toBeTruthy()
 })
+
+test('a press on the control it opened from is not a click outside: that control decides', async () => {
+  const { onClose, anchor } = setup()
+  await userEvent.pointer({ keys: '[MouseLeft>]', target: anchor })
+  expect(onClose).not.toHaveBeenCalled()
+  await userEvent.pointer({ keys: '[/MouseLeft]', target: anchor })
+  await userEvent.pointer({ keys: '[MouseLeft]', target: document.body })
+  expect(onClose).toHaveBeenCalledOnce()
+})
+

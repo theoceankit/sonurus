@@ -1,0 +1,8 @@
+/* Closed it is no box at all, so it takes no gap in a Stack. */
+.root {
+  display: contents;
+}
+
+.collapse {
+  composes: collapse from '../../styles/motion.module.css';
+}

@@ -7,37 +7,58 @@
 }
 
 .panels {
+  --track-sidebar: calc(var(--size-panel-side) + var(--space-2));
+  --track-inspector: calc(var(--size-panel-side) + var(--space-2));
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--size-panel-side) minmax(0, 1fr) var(--size-panel-side);
+  grid-template-columns: var(--track-sidebar) minmax(0, 1fr) var(--track-inspector);
   grid-template-rows: minmax(0, 1fr) var(--size-player);
   grid-template-areas:
     'sidebar center inspector'
     'player player player';
-  gap: var(--space-2);
+  row-gap: var(--space-2);
   padding: var(--space-2);
 }
 
+/* A closed panel keeps its column at no width, because the number of columns cannot animate. */
 .noSidebar {
-  grid-template-columns: minmax(0, 1fr) var(--size-panel-side);
-  grid-template-areas:
-    'center inspector'
-    'player player';
+  --track-sidebar: 0px;
 }
 
 .noInspector {
-  grid-template-columns: var(--size-panel-side) minmax(0, 1fr);
-  grid-template-areas:
-    'sidebar center'
-    'player player';
+  --track-inspector: 0px;
 }
 
-.noSidebar.noInspector {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    'center'
-    'player';
+/* Only a press of the button moves anything. A window being resized follows at once.
+   The text of the centre wraps again on every frame of the move, as in native apps. */
+.panels[data-moving] {
+  transition: grid-template-columns var(--duration-move) var(--ease-standard);
+}
+
+/* A panel leaves with its width kept, and the column closes over it. */
+.slot {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panels[data-moving] > .slot {
+  transition: visibility var(--duration-move) linear;
+}
+
+.slot[inert] {
+  visibility: hidden;
+}
+
+/* What is in a panel fades as the panel goes, so it is not seen cut off at the edge. */
+.slot > * {
+  transition: opacity var(--duration-move) var(--ease-standard);
+}
+
+.slot[inert] > * {
+  opacity: 0;
 }
 
 .panel {
@@ -49,17 +70,30 @@
   overflow: hidden;
 }
 
-.sidebar {
+.sidebarSlot {
   grid-area: sidebar;
+  justify-content: flex-end;
+}
+
+.sidebar {
+  flex: none;
+  width: var(--size-panel-side);
   min-height: 0;
+  margin-inline-end: var(--space-2);
 }
 
 .center {
   grid-area: center;
 }
 
-.inspector {
+.inspectorSlot {
   grid-area: inspector;
+}
+
+.inspector {
+  flex: none;
+  width: var(--size-panel-side);
+  margin-inline-start: var(--space-2);
 }
 
 .player {

@@ -9,6 +9,7 @@
   width: var(--size-scrollbar);
   opacity: 0;
   pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-standard);
 }
 
 :hover > .scrollBar,
@@ -25,6 +26,7 @@
   background: var(--color-border-strong) padding-box;
   pointer-events: auto;
   touch-action: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
 .thumb:hover,

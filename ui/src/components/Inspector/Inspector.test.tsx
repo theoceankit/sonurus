@@ -33,12 +33,12 @@ test('the button closes the panel', async () => {
 
 test('review off: no dock', () => {
   panel()
-  expect(screen.queryByText('Review speakers')).toBeNull()
+  expect(screen.queryByRole('region', { name: 'Review speakers' })).toBeNull()
 })
 
 test('review on: the title, the counter and the card', () => {
   panel({ review: { mode: 'on', counter: '1 of 4', card: <p>card</p> } })
-  expect(screen.getByText('Review speakers')).toBeTruthy()
+  expect(screen.getByRole('region', { name: 'Review speakers' })).toBeTruthy()
   expect(screen.getByText('1 of 4')).toBeTruthy()
   expect(screen.getByText('card')).toBeTruthy()
 })

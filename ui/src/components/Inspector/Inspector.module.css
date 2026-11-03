@@ -51,20 +51,34 @@
   overflow-y: auto;
 }
 
+.dockBox,
+.dockPart,
+.dock,
+.dockBody {
+  flex: none;
+}
+
 .dock {
   display: flex;
-  flex: none;
   flex-direction: column;
-  gap: var(--space-2);
   margin-inline: var(--space-2);
   padding-block-start: var(--space-4);
   border-block-start: var(--border-width-default) solid var(--color-border-default);
 }
 
+.dockBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* With room for the card and a few lines of its clip, the clip scrolls instead
    (ReviewCard.module.css), so the card's buttons stay where they are. */
 @container inspector-panel (min-height: 520px) {
-  .dock {
+  .dockBox,
+  .dockPart,
+  .dock,
+  .dockBody {
     flex: 0 1 auto;
     min-height: 0;
   }
@@ -78,9 +92,10 @@
   user-select: none;
 }
 
-.dockCollapsed {
-  flex-direction: row;
+.dockRow {
+  display: flex;
   align-items: center;
+  gap: var(--space-2);
   padding-block-end: var(--space-4);
   user-select: none;
 }

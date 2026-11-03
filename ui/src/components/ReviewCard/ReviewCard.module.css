@@ -47,10 +47,16 @@
 .clip {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   padding: var(--space-2);
   border-radius: var(--radius-card);
   background: var(--color-bg-sunken);
+}
+
+/* The distance from the player is inside what opens, so it opens with it. */
+.textWrap {
+  display: flex;
+  flex-direction: column;
+  padding-block-start: var(--space-2);
 }
 
 .text {
@@ -96,7 +102,13 @@
     flex: none;
   }
 
-  .clip > .text {
+  .clip > .textBox,
+  .textWrap {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+
+  .textWrap > .text {
     flex: 0 1 auto;
     min-height: 0;
     padding-inline-end: var(--space-2);

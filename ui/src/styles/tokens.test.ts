@@ -42,3 +42,9 @@ test('semantic colours come from the palette, never from a raw value', () => {
     expect(palette.has(refs(value)[0]), `${name}: ${value}`).toBe(true)
   }
 })
+
+test('reduced motion takes away distance only', () => {
+  const block = css.slice(css.indexOf('/* Reduced motion'))
+  expect(block).toContain('prefers-reduced-motion: reduce')
+  expect([...block.matchAll(/(--[\w-]+)\s*:/g)].map(m => m[1]).sort()).toEqual(['--motion-scale', '--motion-shift-md', '--motion-shift-sm'])
+})

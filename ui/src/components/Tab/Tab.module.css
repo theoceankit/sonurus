@@ -10,6 +10,7 @@
   font: var(--font-body-strong);
   white-space: nowrap;
   user-select: none;
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
 .tab:hover {
