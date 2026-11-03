@@ -4,6 +4,7 @@
   height: var(--size-control-md);
   border-radius: var(--radius-card);
   user-select: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
 .speakerRow:hover {
@@ -81,6 +82,7 @@ button.main {
   align-items: center;
   gap: var(--space-half);
   opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
 }
 
 .speakerRow:hover .actions,

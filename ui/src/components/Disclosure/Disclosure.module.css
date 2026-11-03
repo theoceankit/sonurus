@@ -9,6 +9,7 @@
   color: var(--color-text-secondary);
   font: var(--font-body);
   user-select: none;
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
 .trigger:not(:disabled):hover,

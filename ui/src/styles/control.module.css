@@ -20,6 +20,7 @@
   z-index: -1;
   border-radius: inherit;
   pointer-events: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
 :where(.stateLayer:not(:disabled, [aria-disabled='true']):hover)::before {
@@ -28,6 +29,7 @@
 
 :where(.stateLayer:not(:disabled, [aria-disabled='true']):active)::before {
   background: var(--state-pressed, var(--color-fill-pressed));
+  transition: none;
 }
 
 /* A ring two pixels away from the control, drawn over its neighbours. */
