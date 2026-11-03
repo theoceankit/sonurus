@@ -35,3 +35,12 @@ test('the text button is there only when asked, and says its state', async () =>
   rerender(<ClipPlayer progress={0} duration="0:04" onToggleText={onToggleText} textExpanded />)
   expect(screen.getByRole('button', { name: 'Hide text' }).getAttribute('aria-expanded')).toBe('true')
 })
+
+test('the waveform takes the heights of the clip, and is flat without them', () => {
+  const heightsOf = () =>
+    [...screen.getByText('0:04').previousElementSibling!.children].map(bar => (bar as HTMLElement).style.height)
+  const { rerender } = render(<ClipPlayer progress={0} duration="0:04" />)
+  expect(new Set(heightsOf()).size).toBe(1)
+  rerender(<ClipPlayer progress={0} duration="0:04" heights={[0, 0.5, 1]} />)
+  expect(heightsOf()).toEqual(['0%', '50%', '100%'])
+})

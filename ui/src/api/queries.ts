@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
-import { ApiError, type SpeakerAssignment, type SpeakerUndo } from './client'
+import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
 import type { QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
@@ -12,6 +12,8 @@ export const queryKeys = {
   candidates: (id: number) => ['transcripts', id, 'candidates'],
   speakers: ['speakers'],
   sample: (speakerId: string, transcriptId?: number) => ['speakers', speakerId, 'sample', transcriptId],
+  // Not under the transcript: edits never change the audio.
+  waveform: (id: number, { bars, start, end }: WaveformStretch) => ['waveform', id, bars, start, end],
   queue: ['queue'],
   connected: ['connected'],
 } satisfies Record<string, QueryKey | ((...args: never[]) => QueryKey)>
@@ -37,6 +39,18 @@ export function useSpeakerCandidates(id: number | null) {
     queryKey: queryKeys.candidates(id ?? -1),
     queryFn: () => api.getSpeakerCandidates(id!),
     enabled: id !== null,
+  })
+}
+
+// With no recording or no length yet nothing is asked for. The levels of a
+// recording never change.
+export function useWaveform(id: number | null, stretch: WaveformStretch) {
+  const api = useApi()
+  return useQuery({
+    queryKey: queryKeys.waveform(id ?? -1, stretch),
+    queryFn: () => api.getWaveform(id!, stretch),
+    enabled: id !== null && stretch.end > stretch.start,
+    staleTime: Infinity,
   })
 }
 

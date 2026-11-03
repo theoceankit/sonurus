@@ -387,6 +387,16 @@ Full transcript with segments.
 
 The audio file of a recording, for the new UI's player. Answers `Range` requests with `206`, so an audio element can seek. The path comes from the database only. Returns `404` for an unknown id, or when the recording has no file or its file is gone.
 
+### `GET /transcripts/{id}/waveform`
+
+Heights for the player's waveform: `bars` (1–2000) evenly over `start`…`end` seconds of the recording. `start` is `0` by default and `end` the end of the audio; past the end of the audio is silence.
+
+```json
+{ "levels": [0.0, 0.62, 1.0] }
+```
+
+Each level is from `0` (silence) to `1` (the loud part of the whole recording), so a quiet recording fills the height and a clip has the scale of its recording. The loudness comes from ffmpeg and is cached next to the audio ([Waveform](../services/Waveform.md)); the first request for a recording without the cache waits for it, a few seconds for three hours. Returns `404` for an unknown id or when the audio is gone, `422` for `bars` out of range or `end` not after `start`, `500` when ffmpeg cannot read the audio.
+
 ### `GET /transcripts/{id}/speaker-suggestions`
 
 For each unrecognized speaker in the transcript, the known named speaker with the closest voice. `score` is the cosine similarity, rounded to two digits. Empty when there is nothing to suggest; unassigned segments get no suggestion.

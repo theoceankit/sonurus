@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentProps, type FocusEvent, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import type { SpeakerTarget } from '../../api/client'
-import { useBackendConnected, useSpeakerCandidates, useSpeakers, useTranscript } from '../../api/queries'
+import { useBackendConnected, useSpeakerCandidates, useSpeakers, useTranscript, useWaveform } from '../../api/queries'
 import { effectiveSpeaker, type Speaker, type SpeakerCandidates, type Transcript } from '../../api/types'
 import { avatarOf } from '../../components/Avatar/Avatar'
 import { AvatarStack } from '../../components/AvatarStack/AvatarStack'
@@ -13,6 +13,7 @@ import { SpeakerRow, type SpeakerRowProps } from '../../components/SpeakerRow/Sp
 import { Stack } from '../../components/Stack/Stack'
 import { TalkTime } from '../../components/TalkTime/TalkTime'
 import { toast } from '../../components/Toast/toast'
+import { BAR_COUNT } from '../../components/Waveform/bars'
 import { createKeyStore, useIsKey, useKey, type KeyStore } from '../../media/active-segment'
 import { useClipPlayback, useClipState } from '../../media/clip-playback'
 import type { Playback } from '../../media/playback'
@@ -126,6 +127,9 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
   useClearedHighlight(highlight, intent, rows, [showAll, mode, open])
 
   const answer = currentId ? candidates[currentId] : undefined
+  const clipLevels = useWaveform(answer?.clip ? transcriptId : null, {
+    bars: BAR_COUNT.small, start: answer?.clip?.start ?? 0, end: answer?.clip?.end ?? 0,
+  }).data
   const current = rows.find(row => row.id === currentId)
   const isPossibleMatch = current?.kind === 'named'
   const selectedId = picked?.speakerId === currentId
@@ -199,6 +203,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
                 playing: clipState.key === `clip:${current.id}` && clipState.playing,
                 progress: clipState.key === `clip:${current.id}` ? clipState.progress : 0,
                 disabled: !clipState.ready,
+                heights: clipLevels,
                 onToggle: () => clip.toggle(`clip:${current.id}`, answer.clip!.start, answer.clip!.end),
               }}
               candidates={(answer?.candidates ?? []).map(candidate => ({

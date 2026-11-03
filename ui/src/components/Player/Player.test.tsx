@@ -218,3 +218,22 @@ test('disabled: a highlighted speaker still shows', () => {
   expect(bars[0].style.background).toBe('var(--color-speaker-5-mid)')
   expect(bars.at(-1)!.style.background).toBe('var(--color-border-default)')
 })
+
+const heights = (track: HTMLElement) => [...track.firstElementChild!.children].map(bar => (bar as HTMLElement).style.height)
+
+test('the waveform takes the heights it is given, and is flat without them', () => {
+  const levels = Array.from({ length: 120 }, (_, i) => (i % 4) / 4)
+  const { track } = setup({ heights: levels })
+  expect(heights(track)).toEqual(levels.map(level => `${level * 100}%`))
+})
+
+test('flat until the heights come', () => {
+  const { track } = setup()
+  expect(new Set(heights(track)).size).toBe(1)
+})
+
+test('a highlighted speaker changes the colours, not the heights', () => {
+  const levels = Array.from({ length: 120 }, (_, i) => (i % 3) / 3)
+  const { track } = setup({ heights: levels, highlightedSpeaker: 'Mark' })
+  expect(heights(track)).toEqual(levels.map(level => `${level * 100}%`))
+})

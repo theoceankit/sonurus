@@ -1,7 +1,7 @@
 import type { ComponentPropsWithRef } from 'react'
 import { cx } from '../../styles/cx'
 import type { SpeakerColor } from '../../styles/speaker-colors'
-import { WAVEFORM_HEIGHTS } from './bars'
+import { FLAT_HEIGHTS } from './bars'
 import styles from './Waveform.module.css'
 
 export type WaveformSize = 'small' | 'large'
@@ -20,7 +20,8 @@ type WaveformProps = Omit<ComponentPropsWithRef<'div'>, 'children'> & {
   // Large only: the bars of one speaker, as speakerBars() gives them. These are in
   // the speaker's middle tone and the rest look like pauses, whatever has played.
   speakerBars?: readonly WaveformBar[] | null
-  // One per bar, from 0 to 1 of the height. Defaults to the decorative ones.
+  // One per bar, from 0 to 1 of the height, as the levels of the audio give them.
+  // Without them the bars are flat.
   heights?: readonly number[]
 }
 
@@ -30,7 +31,7 @@ function largeColor(bar: WaveformBar | undefined, played: boolean) {
 }
 
 export function Waveform({ size = 'large', progress, bars, highlight, speakerBars, heights, className, ...props }: WaveformProps) {
-  const shown = heights ?? WAVEFORM_HEIGHTS[size]
+  const shown = heights ?? FLAT_HEIGHTS[size]
   return (
     <div className={cx(styles.waveform, styles[size], className)} aria-hidden {...props}>
       {shown.map((height, i) => {

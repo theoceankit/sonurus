@@ -23,6 +23,8 @@ EditorScreen: useTranscriptPlayback() → useAudioPlayback(url) → Playback (ui
 
 ## Components
 
+`EditorPlayer` asks for the levels of the whole recording with `useWaveform()`, 120 bars over the same length the speakers' colours are laid over, so both line up also for audio with no length in the file. The bars are flat until the levels come and stay flat when they cannot be had; then the real heights appear at once, without motion. The backend works the levels out after transcription, so they are usually there when a recording is first opened; for an older recording the first opening waits for ffmpeg, about ten seconds for three hours. With 120 bars a bar of a three-hour recording covers 90 seconds, so a long recording looks almost even and shows only long pauses. The clip on the review card asks for the levels of its own stretch, 26 bars on the scale of the whole recording (`InspectorPanel`).
+
 `Player` only draws and reports: it gets the state and the turns and calls back with what to do. Every state is therefore a story, and `initialCursor` shows the cursor over the waveform without a mouse. `EditorPlayer` connects it to the open recording, on the playback the screen holds, which the transcript follows too. The player is disabled until the audio is `ready`, so with no recording, no audio or audio that failed to load; the bars then take their length from the segments. A recording with nothing to play has `Audio file not found` over the bars (the `notice` prop), unless the backend is what is away.
 
 A live recording in WebM has no duration in the file, so the audio element says Infinity. The length is then the end of the last segment, for the bars and the clock alike, and the playhead stops at the end of the waveform if the audio goes on.
@@ -34,7 +36,9 @@ A live recording in WebM has no duration in the file, so the audio element says 
 | Large | 120, narrower with the panel | `speaker-N-mid` | `speaker-N-bg` |
 | Small | 26, of fixed width | `text-primary` | `speaker-6-mid` |
 
-Large colours bars by speaker. A speaker without a name and Unassigned are `speaker-6`, as on their avatars, and a pause is `border-default` whether played or not. The heights are decorative and come from the Penpot boards; the `heights` prop takes others. Small knows nothing of speakers and takes only `progress`, for a clip.
+Large colours bars by speaker. A speaker without a name and Unassigned are `speaker-6`, as on their avatars, and a pause is `border-default` whether played or not. Small knows nothing of speakers and takes only `progress`, for a clip.
+
+The heights are the loudness of the audio: the `heights` prop, one per bar from 0 to 1. Without them the bars are flat and low (`FLAT_HEIGHTS` in `bars.ts`), which says nothing about the audio. A bar is never lower than `--size-waveform-bar-min`, so a quiet bar keeps its speaker's colour. The heights of the boards (`BOARD_HEIGHTS`) are only for stories.
 
 `Playhead` is drawn inside the element that holds the waveform. The default look is the line and the knob at the current time. The hover look is the line and a bubble with the time and the speaker's name. The bubble changes width over 100 ms when another speaker or the hour changes the text; the width is read only then, and the position follows the pointer at once.
 
@@ -47,6 +51,6 @@ Large colours bars by speaker. A speaker without a name and Unassigned are `spea
 - Previous and next speaker go to the start of the neighbouring run of one speaker, and do nothing at the ends. A pause belongs to the run before it.
 - The speed button opens a list above it: 0.5, 1, 1.2, 1.5 and 2. The button has a fixed width, wider than on the board, so the waveform stays in place.
 - Volume 0 mutes and dims the button. There is no separate mute.
-- A speaker highlighted in the inspector (`highlightedSpeaker`) keeps a colour only on their bars, in the middle tone whatever has played, and the rest look like pauses; the playhead still shows where the audio is. Their bars come from `speakerBars()`, which takes every bar a segment of theirs falls in, so a short speaker on a long recording still has one. This works on a disabled player too.
+- A speaker highlighted in the inspector (`highlightedSpeaker`) keeps a colour only on their bars, in the middle tone whatever has played, and the rest look like pauses; the heights stay as they are, and the playhead still shows where the audio is. Their bars come from `speakerBars()`, which takes every bar a segment of theirs falls in, so a short speaker on a long recording still has one. This works on a disabled player too.
 
 The bubble stands above the panel, so the player panel in `EditorScreen.module.css` does not clip.

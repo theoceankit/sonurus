@@ -25,6 +25,8 @@ export interface ReviewCardClip {
   playing?: boolean
   progress: number
   disabled?: boolean
+  // The levels of the clip's audio.
+  heights?: readonly number[] | null
   onToggle?: () => void
 }
 
@@ -70,6 +72,7 @@ export function ReviewCard({
             progress={clip.progress}
             duration={clip.duration}
             disabled={clip.disabled}
+            heights={clip.heights}
             onToggle={clip.onToggle}
             textExpanded={expanded}
             onToggleText={() => setExpanded(open => !open)}

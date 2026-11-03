@@ -116,6 +116,12 @@ class VoiceClip(ResponseModel):
     text: str
 
 
+class WaveformResponse(ResponseModel):
+    """GET /transcripts/{id}/waveform: one height per bar, from 0 (silence) to 1
+    (the loud part of the recording)."""
+    levels: list[float]
+
+
 class UnknownSpeakerCandidates(ResponseModel):
     """GET /transcripts/{id}/speaker-candidates, per speaker without a name. clip
     is null when the audio file is gone."""

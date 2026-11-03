@@ -76,3 +76,9 @@ test('in the inspector a long clip scrolls inside the card, so the buttons stay 
 test('a long clip keeps to a few lines, so the speakers above stay readable', () => {
   expect(reviewCardCss).toMatch(/\.text \{[^}]*max-height: var\(--size-review-clip-text\);[^}]*overflow-y: auto;/)
 })
+
+test('the clip keeps the heights of its waveform', () => {
+  card({ clip: { ...CLIP, heights: [0.25, 1] } })
+  const bars = [...screen.getByText('0:04').previousElementSibling!.children] as HTMLElement[]
+  expect(bars.map(bar => bar.style.height)).toEqual(['25%', '100%'])
+})

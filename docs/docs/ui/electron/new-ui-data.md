@@ -43,6 +43,8 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `getAudioUrl` is what an audio element plays for a recording, or null when there is nothing to play. On the backend it is `GET /transcripts/{id}/audio`, which answers Range requests. A page on the dev server may not open `file://`, so the route gives both ways of running the app the same source, and the CSP of the new UI allows `http://localhost:8000` for media instead of `file:`.
 
+`getWaveform(transcriptId, { bars, start, end })` gives one height from 0 to 1 per bar over a stretch of a recording, on the scale of the whole recording: `GET /transcripts/{id}/waveform`. `useWaveform()` asks for nothing with no recording or no length yet and never asks for the same stretch twice; its key is not under the transcript's, since an edit never changes the audio. The fixtures make levels from the segments: loud where someone speaks, quiet in the pauses.
+
 `getSpeakerCandidates` gives, per unrecognized speaker, up to three candidates and a clip of the voice, as `GET /transcripts/{id}/speaker-candidates` answers. A speaker with no candidates is still in the answer, for its clip. The fixtures also give candidates to recognized speakers for the Possible match state in Storybook; the API does not.
 
 `assignSpeaker({ transcriptId, segmentStarts, target })` gives segments a speaker in one request, all or none, and answers `{ speakerId }`, so the id of a new speaker comes from the backend.
@@ -87,7 +89,7 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 |---|---|---|
 | `scenario` | `default`, `loading`, `empty`, `error` | `loading` never answers, `empty` has no rows and an idle queue, `error` rejects everything with a 500 |
 | `board` | `review`, `reviewDone`, `unassigned` | The data of the Editor boards; other boards show the same data in another UI state |
-| `noAudio` | `true` | `getAudioUrl` gives null |
+| `noAudio` | `true` | `getAudioUrl` gives null and `getWaveform` a 404 |
 | `overrides` | any methods of `ApiClient` | One method behaving differently, such as a failing save on a loaded screen |
 
 `setConnected(false)` on a fixture client loses the connection to the backend, and `setConnected(true)` brings it back.

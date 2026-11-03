@@ -4,6 +4,7 @@ import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_NOW, queueSnapshot } from './data'
 import type { EventScript } from './event-scripts'
 import { createTestAudioUrl } from './test-audio'
+import { fixtureLevels } from './waveform'
 
 export type FixtureScenario = 'default' | 'loading' | 'empty' | 'error'
 
@@ -137,6 +138,11 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
       if (!audioUrls.has(id)) audioUrls.set(id, createTestAudioUrl(segments))
       return audioUrls.get(id)!
     },
+    getWaveform: (id, stretch) => answer(() => {
+      const found = transcript(id)
+      if (noAudio) throw new ApiError(404, 'Audio file not found')
+      return fixtureLevels(found.segments, stretch)
+    }),
     updateTranscriptTitle: (id, title) => answer(() => {
       transcript(id).title = title
       const item = listItem(id)

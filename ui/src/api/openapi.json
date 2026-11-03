@@ -1491,6 +1491,23 @@
         ],
         "title": "VoiceClip",
         "type": "object"
+      },
+      "WaveformResponse": {
+        "description": "GET /transcripts/{id}/waveform: one height per bar, from 0 (silence) to 1\n(the loud part of the recording).",
+        "properties": {
+          "levels": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Levels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "levels"
+        ],
+        "title": "WaveformResponse",
+        "type": "object"
       }
     }
   },
@@ -3198,6 +3215,96 @@
           }
         },
         "summary": "Get Speaker Suggestions",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
+    "/transcripts/{transcript_id}/waveform": {
+      "get": {
+        "description": "Heights for the player's waveform: bars evenly over [start, end) of the\nrecording, on the scale of the whole recording. The loudness is worked out\nwith ffmpeg on the first request (or after transcription) and cached next to\nthe audio.",
+        "operationId": "get_transcript_waveform_transcripts__transcript_id__waveform_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bars",
+            "required": true,
+            "schema": {
+              "maximum": 2000,
+              "minimum": 1,
+              "title": "Bars",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Start",
+              "type": "number"
+            }
+          },
+          {
+            "description": "Seconds; the end of the audio by default",
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Seconds; the end of the audio by default",
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveformResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such transcript, or its audio file is gone"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "The audio could not be read"
+          }
+        },
+        "summary": "Get Transcript Waveform",
         "tags": [
           "transcripts"
         ]

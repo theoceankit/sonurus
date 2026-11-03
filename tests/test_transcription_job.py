@@ -168,3 +168,31 @@ def test_subprocess_mode_passes_the_cancel_event_through(storage):
             run(JOB, lambda step: None, cancel)
     assert got == [cancel]
     assert storage.list_all() == []
+
+
+# ── Waveform levels after saving ──────────────────────────────────────────────
+
+def _run_in_process(tmp_path, ensure_levels):
+    controller = MagicMock()
+    controller.run_pipeline.return_value = _transcript()
+    job_storage = MagicMock()
+    job_storage.save.side_effect = lambda t: setattr(t, "db_id", 42)
+    run = make_job_runner(storage=MagicMock(), memory_db_path=str(tmp_path / "m.db"), on_saved=lambda: None)
+    with patch("app.services.transcription_job.create_controller", return_value=(controller, job_storage)), \
+         patch("app.services.transcription_job.CommitService"), \
+         patch("app.services.transcription_job.ensure_levels", ensure_levels):
+        return run(JOB, lambda step: None, threading.Event())
+
+
+def test_works_out_the_waveform_levels_of_the_saved_recording(tmp_path, monkeypatch):
+    import app.config as config
+    monkeypatch.setattr(config, "RECORDINGS_DIR", tmp_path / "recordings")
+    ensure = MagicMock()
+
+    assert _run_in_process(tmp_path, ensure) == 42
+
+    ensure.assert_called_once_with(JOB["audio_path"], tmp_path / "recordings")
+
+
+def test_failed_waveform_levels_do_not_fail_the_job(tmp_path):
+    assert _run_in_process(tmp_path, MagicMock(side_effect=RuntimeError("ffmpeg died"))) == 42

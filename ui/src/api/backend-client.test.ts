@@ -159,3 +159,12 @@ describe('errors', () => {
   })
 })
 
+
+describe('getWaveform', () => {
+  test('asks for the bars of a stretch and answers their levels', async () => {
+    const { client, sent } = setup(() => json({ levels: [0, 0.5, 1] }))
+    await expect(client.getWaveform(7, { bars: 3, start: 0, end: 12.5 })).resolves.toEqual([0, 0.5, 1])
+    expect(sent[0].url).toBe('http://localhost:8000/transcripts/7/waveform?bars=3&start=0&end=12.5')
+    expect(sent[0].method).toBe('GET')
+  })
+})

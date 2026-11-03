@@ -943,6 +943,16 @@ def test_reset_deletes_recordings_and_imported_copies(reset_env):
     assert list(recordings.iterdir()) == []
 
 
+def test_reset_deletes_waveform_levels(reset_env):
+    client, recordings, _ = reset_env
+    (recordings / "sonorus-rec-1.wav").write_bytes(b"x")
+    (recordings / "sonorus-rec-1.wav.levels").write_bytes(b"x")
+
+    assert client.post("/data/reset").status_code == 200
+
+    assert list(recordings.iterdir()) == []
+
+
 def test_reset_keeps_audio_files_outside_data_dir(reset_env, tmp_path):
     client, recordings, _ = reset_env
     outside = tmp_path / "imported" / "interview.wav"
@@ -1032,6 +1042,31 @@ def test_delete_transcript_removes_its_live_recording(client, recordings_dir):
     assert client.delete(f"/transcripts/{tid}").status_code == 204
 
     assert not rec.exists()
+
+
+def test_delete_transcript_removes_the_waveform_levels_of_its_recording(client, recordings_dir):
+    rec = recordings_dir / "sonorus-import-1.mp3"
+    rec.write_bytes(b"x")
+    levels = recordings_dir / "sonorus-import-1.mp3.levels"
+    levels.write_bytes(b"x")
+    tid = _save(rec)
+
+    assert client.delete(f"/transcripts/{tid}").status_code == 204
+
+    assert not levels.exists()
+
+
+def test_delete_transcript_keeps_levels_of_a_recording_still_used(client, recordings_dir):
+    rec = recordings_dir / "sonorus-rec-1.wav"
+    rec.write_bytes(b"x")
+    levels = recordings_dir / "sonorus-rec-1.wav.levels"
+    levels.write_bytes(b"x")
+    tid = _save(rec)
+    _save(rec)
+
+    assert client.delete(f"/transcripts/{tid}").status_code == 204
+
+    assert levels.exists()
 
 
 def test_delete_transcript_keeps_imported_file_outside_data_dir(client, recordings_dir, tmp_path):
@@ -1767,7 +1802,9 @@ def test_startup_removes_orphan_import_copies(tmp_path, monkeypatch):
     queued = recordings / "sonorus-import-queued.wav"
     orphan = recordings / "sonorus-import-orphan.wav"
     live = recordings / "sonorus-rec-1.wav"
-    for f in (kept, queued, orphan, live):
+    kept_levels = recordings / "sonorus-import-kept.wav.levels"
+    orphan_levels = recordings / "sonorus-import-orphan.wav.levels"
+    for f in (kept, queued, orphan, live, kept_levels, orphan_levels):
         f.write_bytes(b"x")
     storage = TranscriptStorageService(db_path=str(tmp_path / "t.db"))
     storage.save(_make_transcript(audio_path=str(kept)))
@@ -1792,6 +1829,8 @@ def test_startup_removes_orphan_import_copies(tmp_path, monkeypatch):
     assert queued.exists()
     assert live.exists()
     assert not orphan.exists()
+    assert kept_levels.exists()
+    assert not orphan_levels.exists(), "waveform levels go with their audio"
 
 
 # ── GET /transcripts/{id}/audio ───────────────────────────────────────────────
@@ -2012,3 +2051,86 @@ def test_undo_route_rejects_a_wrong_request(client, body, status):
 def test_undo_route_unknown_transcript(client):
     r = client.post("/transcripts/999/speaker-assignments/undo", json={"segment_starts": [0.0], "speaker_id": "UNASSIGNED"})
     assert r.status_code == 404
+
+
+# ── GET /transcripts/{id}/waveform ────────────────────────────────────────────
+
+def _waveform(client, tid, **params):
+    return client.get(f"/transcripts/{tid}/waveform", params=params)
+
+
+def test_waveform_returns_one_level_per_bar(client, recordings_dir):
+    import numpy as np
+    from app.services import waveform
+    audio = recordings_dir / "sonorus-rec-1.wav"
+    audio.write_bytes(b"x")
+    db = np.repeat(np.array([-20, -40, -20, -20], dtype=np.float32), waveform.WINDOWS_PER_SECOND)
+
+    with patch_levels(db) as ensure:
+        res = _waveform(client, _save(audio), bars=4)
+
+    assert res.status_code == 200
+    levels = res.json()["levels"]
+    assert len(levels) == 4
+    assert levels[0] == 1 and levels[1] < 1
+    ensure.assert_called_once()
+    assert ensure.call_args.args[0] == str(audio)
+
+
+def test_waveform_takes_a_stretch_of_the_recording(client, recordings_dir):
+    import numpy as np
+    from app.services import waveform
+    audio = recordings_dir / "sonorus-rec-1.wav"
+    audio.write_bytes(b"x")
+    db = np.repeat(np.array([-20, -20, -40, -40], dtype=np.float32), waveform.WINDOWS_PER_SECOND)
+
+    with patch_levels(db):
+        whole = _waveform(client, _save(audio), bars=2).json()["levels"]
+        tail = _waveform(client, _save(audio), bars=2, start=2, end=4).json()["levels"]
+        longer = _waveform(client, _save(audio), bars=2, end=8).json()["levels"]
+
+    assert whole[0] == 1 and whole[1] < 1
+    assert tail[0] == tail[1] == whole[1]
+    assert longer[1] == 0, "past the end of the audio is silence"
+
+
+def patch_levels(db):
+    from unittest.mock import patch
+    return patch("app.api.routers.transcripts.ensure_levels", return_value=db)
+
+
+def test_waveform_unknown_transcript_is_404(client):
+    assert _waveform(client, 999, bars=4).status_code == 404
+
+
+def test_waveform_missing_audio_is_404(client, recordings_dir):
+    assert _waveform(client, _save(recordings_dir / "gone.wav"), bars=4).status_code == 404
+
+
+def test_waveform_empty_path_is_404(client):
+    assert _waveform(client, _save(""), bars=4).status_code == 404
+
+
+@pytest.mark.parametrize("params", [
+    {}, {"bars": 0}, {"bars": 2001}, {"bars": 4, "start": -1}, {"bars": 4, "start": 2, "end": 2},
+    {"bars": 4, "start": 3, "end": 2},
+])
+def test_waveform_rejects_bad_parameters(client, recordings_dir, params):
+    audio = recordings_dir / "sonorus-rec-1.wav"
+    audio.write_bytes(b"x")
+    with patch_levels(None) as ensure:
+        assert _waveform(client, _save(audio), **params).status_code == 422
+    ensure.assert_not_called()
+
+
+def test_waveform_audio_that_cannot_be_read_is_500(client, recordings_dir):
+    from unittest.mock import patch
+    from app.services.waveform import WaveformError
+    audio = recordings_dir / "sonorus-rec-1.wav"
+    audio.write_bytes(b"x")
+
+    with patch("app.api.routers.transcripts.ensure_levels", side_effect=WaveformError("bad")):
+        res = _waveform(client, _save(audio), bars=4)
+
+    assert res.status_code == 500
+    assert res.json()["detail"] == "Could not read the audio"

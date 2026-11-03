@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
+import { BOARD_HEIGHTS } from '../Waveform/bars'
 import { ReviewCard, type ReviewCardCandidate } from './ReviewCard'
 import styles from './ReviewCard.stories.module.css'
 
@@ -9,7 +10,7 @@ const CANDIDATES: ReviewCardCandidate[] = [
   { id: 'lena', name: 'Lena Kovacs', colorIndex: 3, score: 0.41, suggested: false },
   { id: 'priya', name: 'Priya Shah', colorIndex: 1, score: 0.12, suggested: false },
 ]
-const CLIP = { duration: '0:04', text: 'That was me. Files over two hours took a long time to copy.', progress: 0 }
+const CLIP = { duration: '0:04', text: 'That was me. Files over two hours took a long time to copy.', progress: 0, heights: BOARD_HEIGHTS.small }
 
 const meta: Meta<typeof ReviewCard> = {
   component: ReviewCard,
