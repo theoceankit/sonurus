@@ -166,6 +166,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | Element | Opens | Closes | How |
 |---|---|---|---|
 | Hover | 100 | 100 | colour only |
+| A highlighted speaker: turns, rows, talk time | 100 | 100 | colour only, as hover; the waveform changes at once |
 | Tooltip | 100 | 100 | fade and 2 px; the next within 300 ms and one from the keyboard come at once |
 | Menu, popup | 150 | 100 | fade and scale from where it hangs |
 | Modal and scrim | 200 | 150 | fade and scale; Choose speaker and New speaker turn into each other with neither |
