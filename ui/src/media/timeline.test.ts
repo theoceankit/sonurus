@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import {
-  activeSegmentIndex, barTurns, formatClock, formatDuration, nextSpeakerTime, playerClock, previousSpeakerTime, skipTime, speakerBars, timelineDuration, turnAt,
+  activeSegmentIndex, barTurns, formatClock, formatDuration, nextSpeakerTime, playerClock, previousSpeakerTime, remainingClock, skipTime, speakerBars, timelineDuration, turnAt,
   type Turn,
 } from './timeline'
 
@@ -119,4 +119,26 @@ test('speakerBars: a segment that ends where a bar begins stays out of it', () =
 test('speakerBars: someone with no segments, or no duration, lights nothing', () => {
   expect(speakerBars(TURNS, 'nobody', 3, 10)).toEqual([null, null, null])
   expect(speakerBars([turn(0, 5, 'anna')], 'anna', 3, 0)).toEqual([null, null, null])
+})
+
+test('remainingClock: the time left, in whole seconds as the elapsed clock counts', () => {
+  expect(remainingClock(30.4, 100.9)).toBe('01:10')
+  expect(remainingClock(0, 100.9)).toBe('01:40')
+  expect(remainingClock(100, 100)).toBe('00:00')
+})
+
+test('remainingClock: never below zero when the audio goes on past the length', () => {
+  expect(remainingClock(130, 100)).toBe('00:00')
+})
+
+test('remainingClock: a length not known yet leaves 00:00', () => {
+  expect(remainingClock(0, 0)).toBe('00:00')
+  expect(remainingClock(0, NaN)).toBe('00:00')
+})
+
+test('remainingClock: a recording of an hour or more keeps the hours to the end', () => {
+  expect(remainingClock(0, 10925)).toBe('3:02:05')
+  expect(remainingClock(7326, 10925)).toBe('0:59:59')
+  expect(remainingClock(10924, 10925)).toBe('0:00:01')
+  expect(remainingClock(0, 3599)).toBe('59:59')
 })

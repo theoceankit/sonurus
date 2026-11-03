@@ -19,7 +19,7 @@ EditorScreen: useTranscriptPlayback() → useAudioPlayback(url) → Playback (ui
 - `useAudioPlayback(src)` makes one for a component's lifetime and loads `src`. The same element stays when the source changes, so speed and volume stay when another recording opens. Neither is remembered between runs.
 - `usePlayback(playback, selector)` renders only when what the selector returns changes. The time changes about four times a second, so something that needs less, such as the active segment, selects just that.
 
-`ui/src/media/timeline.ts` has the pure logic: the clock (`00:35`, from one hour on `1:02:05`), `activeSegmentIndex()`, jumps between speakers and which turn each bar belongs to. It works on turns (`Turn`), a segment with its speaker's name and colour.
+`ui/src/media/timeline.ts` has the pure logic: the clock (`00:35`, from one hour on `1:02:05`), the time left (`remainingClock()`), `activeSegmentIndex()`, jumps between speakers and which turn each bar belongs to. It works on turns (`Turn`), a segment with its speaker's name and colour.
 
 ## Components
 
@@ -41,6 +41,7 @@ Large colours bars by speaker. A speaker without a name and Unassigned are `spea
 ## Behaviour
 
 - The cursor over the waveform shows a second playhead in the hover look and lights up the turn under it; the real playhead stays where it is.
+- The clock on the left is the time played, the one on the right the time left, with no sign. Both count whole seconds, so they add up to the length. A recording of an hour or more keeps the hours in the time left to the end (`0:59:59`), so the clock does not change width and the waveform stays in place. The time left never goes below `00:00`, also when audio with no length plays on past the last segment. The slider reads out the time played of the whole length.
 - Pressing seeks, and dragging keeps seeking. While dragging, the only playhead is in the hover look.
 - The waveform is a `role="slider"`: the arrow keys move by 5 seconds, Home and End go to the ends.
 - Previous and next speaker go to the start of the neighbouring run of one speaker, and do nothing at the ends. A pause belongs to the run before it.

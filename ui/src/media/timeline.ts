@@ -26,6 +26,17 @@ export function formatDuration(seconds: number): string {
   return hours ? `${hours}:${pad(minutes)}:${pad(total % 60)}` : `${minutes}:${pad(total % 60)}`
 }
 
+// The time left, as the player's right clock: whole seconds, as the elapsed clock
+// counts them, so the two add up to the length. A recording of an hour or more
+// keeps the hours to the end (0:59:59), so the clock does not change width.
+export function remainingClock(currentTime: number, duration: number): string {
+  const whole = (seconds: number) => (Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0)
+  const length = whole(duration)
+  const left = Math.max(0, length - whole(currentTime))
+  const clock = formatClock(left)
+  return length >= 3600 && left < 3600 ? `0:${clock}` : clock
+}
+
 // What the player shows for the audio element.
 export function playerClock(audio: { currentTime: number; duration: number; paused: boolean }) {
   return {

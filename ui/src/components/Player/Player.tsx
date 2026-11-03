@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import {
-  barTurns, formatClock, nextSpeakerTime, playerClock, previousSpeakerTime, skipTime, speakerBars, timelineDuration, turnAt, type Turn,
+  barTurns, formatClock, nextSpeakerTime, playerClock, previousSpeakerTime, remainingClock, skipTime, speakerBars, timelineDuration, turnAt, type Turn,
 } from '../../media/timeline'
 import { Button } from '../Button/Button'
 import { IconButton, type IconButtonProps } from '../IconButton/IconButton'
@@ -55,6 +55,7 @@ export function Player({
   const { elapsed, playing } = playerClock(state)
   const duration = timelineDuration(state.duration, turns)
   const total = formatClock(duration)
+  const remaining = remainingClock(currentTime, duration)
   const track = useRef<HTMLDivElement>(null)
   const [cursor, setCursor] = useState<number | null>(initialCursor?.at ?? null)
   const [dragging, setDragging] = useState(initialCursor?.dragging ?? false)
@@ -173,7 +174,7 @@ export function Player({
         </div>
         {notice && <span className={styles.notice}>{notice}</span>}
       </div>
-      <span className={disabled ? styles.totalDisabled : styles.total}>{total}</span>
+      <span className={disabled ? styles.remainingDisabled : styles.remaining}>{remaining}</span>
       <Menu
         side="top"
         align="center"
