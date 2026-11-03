@@ -12,7 +12,7 @@ export interface SidebarRecording {
   id: number
   title: string
   speakers: StackSpeaker[]
-  needsReview: boolean
+  isNew: boolean
 }
 
 export interface SidebarSection {
@@ -48,12 +48,12 @@ export function Sidebar({ state = 'ready', sections = [], selectedId, onSelect, 
           <section key={section.title} aria-label={section.title} className={styles.section}>
             <SectionHeader title={section.title} />
             <Stack as="ul" gap="half" align="stretch" className={styles.list}>
-              {section.recordings.map(({ id, title, speakers, needsReview }) => (
+              {section.recordings.map(({ id, title, speakers, isNew }) => (
                 <li key={id}>
                   <RecordingRow
                     title={title}
                     speakers={speakers}
-                    needsReview={needsReview}
+                    isNew={isNew}
                     selected={id === selectedId}
                     onClick={() => onSelect?.(id)}
                   />

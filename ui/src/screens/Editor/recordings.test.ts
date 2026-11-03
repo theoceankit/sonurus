@@ -1,10 +1,10 @@
 import { expect, test } from 'vitest'
 import { TRANSCRIPTS, SPEAKERS, SPEAKER_IDS, FIXTURE_NOW, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import type { Speaker, TranscriptListItem } from '../../api/types'
-import { deleteRecordingPrompt, groupRecordings, stackSpeakers, needsReview } from './recordings'
+import { deleteRecordingPrompt, groupRecordings, stackSpeakers } from './recordings'
 
 const item = (id: number, created_at: string, speakers: string[] = []): TranscriptListItem => ({
-  id, created_at, speakers, title: `Recording ${id}`, status: 'done', section: '', duration: '',
+  id, created_at, speakers, title: `Recording ${id}`, status: 'done', opened: true, section: '', duration: '',
 })
 const titles = (sections: ReturnType<typeof groupRecordings>) =>
   sections.map(section => [section.title, section.items.map(i => i.id)])
@@ -61,12 +61,6 @@ test('a speaker with no name, or not in the list, is unknown', () => {
 
 test('an empty name is no name', () => {
   expect(stackSpeakers(['a'], [speaker('a', '')])).toEqual([{ id: 'a', kind: 'unknown' }])
-})
-
-test('a recording needs review when a speaker has no name', () => {
-  expect(needsReview(['a', 'b'], [speaker('a', 'Anna'), speaker('b', null)])).toBe(true)
-  expect(needsReview(['a'], [speaker('a', 'Anna')])).toBe(false)
-  expect(needsReview([], [])).toBe(false)
 })
 
 test('on the fixtures the colours follow the boards', () => {

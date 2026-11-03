@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-  useDeleteSegment, useSpeakers, useTranscript, useTranscripts, useUpdateSegmentText, useUpdateTranscriptTitle,
+  useDeleteSegment, useMarkOpened, useSpeakers, useTranscript, useTranscripts, useUpdateSegmentText, useUpdateTranscriptTitle,
 } from '../../api/queries'
 import { effectiveSpeaker, type Speaker, type Transcript } from '../../api/types'
 import { Button } from '../../components/Button/Button'
@@ -43,6 +43,7 @@ interface TranscriptPanelProps {
 export function TranscriptPanel({ transcriptId, playback, onShowAllSpeakers, onDelete }: TranscriptPanelProps) {
   const transcript = useTranscript(transcriptId)
   const speakers = useSpeakers()
+  useMarkOpened(transcriptId, transcript.isSuccess)
 
   if (transcriptId === null) return null
   if ((transcript.isError && !transcript.data) || (speakers.isError && !speakers.data)) {

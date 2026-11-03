@@ -65,6 +65,12 @@ describe('requests', () => {
     expect(sent).toEqual([{ url: 'http://localhost:8000/transcripts/7', method: 'PATCH', body: { title: 'Weekly sync' } }])
   })
 
+  test('an opened recording: POST its flag', async () => {
+    const { client, sent } = setup()
+    await client.markTranscriptOpened(7)
+    expect(sent).toEqual([{ url: 'http://localhost:8000/transcripts/7/opened', method: 'POST' }])
+  })
+
   test('segment text and removal', async () => {
     const { client, sent } = setup()
     await client.updateSegmentText(7, 2.5, 'Hello')

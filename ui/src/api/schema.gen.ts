@@ -602,6 +602,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transcripts/{transcript_id}/opened": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Transcript Opened
+         * @description The user opened the transcript. Only this flag changes; GET /transcripts/{id}
+         *     leaves it alone, so the old renderer and repeated loads do not set it.
+         */
+        post: operations["mark_transcript_opened_transcripts__transcript_id__opened_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transcripts/{transcript_id}/reassign": {
         parameters: {
             query?: never;
@@ -1201,6 +1222,8 @@ export interface components {
             duration: string;
             /** Id */
             id: number;
+            /** Opened */
+            opened: boolean;
             /** Section */
             section: string;
             /** Speakers */
@@ -2290,6 +2313,35 @@ export interface operations {
             };
             /** @description No such transcript, or its audio file is gone */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_transcript_opened_transcripts__transcript_id__opened_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -92,6 +92,28 @@ export function useUpdateTranscriptTitle() {
   })
 }
 
+// Called by the panel that shows a recording, with whether it has loaded. The dot
+// goes at once and nothing is said if the request fails. Asked once per opening:
+// after a failure the list says not opened again, and it would ask forever.
+export function useMarkOpened(transcriptId: number | null, loaded: boolean) {
+  const api = useApi()
+  const queries = useQueryClient()
+  const item = useTranscripts().data?.find(row => row.id === transcriptId)
+  const asked = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (transcriptId === null || !loaded || !item || item.opened || asked.current === transcriptId) return
+    asked.current = transcriptId
+    queries.setQueryData<TranscriptListItem[]>(queryKeys.transcripts, items => items?.map(row => (row.id === transcriptId ? { ...row, opened: true } : row)))
+    // Only the list: the key as a prefix would load the recording again.
+    void api.markTranscriptOpened(transcriptId).catch(() => {}).finally(() => queries.invalidateQueries({ queryKey: queryKeys.transcripts, exact: true }))
+  }, [api, queries, transcriptId, loaded, item])
+
+  useEffect(() => {
+    if (asked.current !== transcriptId) asked.current = null
+  }, [transcriptId])
+}
+
 export function useDeleteTranscript() {
   const api = useApi()
   const queries = useQueryClient()

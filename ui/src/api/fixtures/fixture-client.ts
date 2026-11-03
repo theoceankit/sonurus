@@ -142,6 +142,11 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
       const item = listItem(id)
       if (item) item.title = title
     }),
+    markTranscriptOpened: id => answer(() => {
+      transcript(id)
+      const item = listItem(id)
+      if (item) item.opened = true
+    }),
     deleteTranscript: id => answer(() => {
       transcript(id)
       data.details = data.details.filter(t => t.id !== id)

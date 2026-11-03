@@ -273,7 +273,7 @@ def test_list_all_record_has_expected_keys(tmp_path):
 
     record = svc.list_all()[0]
 
-    assert {"id", "title", "section", "status", "duration", "speakers"} <= record.keys()
+    assert {"id", "title", "section", "status", "duration", "speakers", "opened"} <= record.keys()
 
 
 def test_list_all_title_derived_from_filename(tmp_path):
@@ -856,8 +856,9 @@ def test_v6_migration_gives_raw_labels_a_uuid_per_transcript(tmp_path):
     assert t2[0].speaker_resolved not in (a, c), "same label in another transcript is another speaker"
     assert alice == "Alice"
     assert not any(s.unassigned for s in t1 + t2)
+    from app.db.schema import SCHEMA_VERSION
     with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == 6
+        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION
 
 
 def test_v6_migration_unassigns_segments_without_a_diarization_speaker(tmp_path):
@@ -926,3 +927,62 @@ def test_audio_files_returns_every_referenced_path(tmp_path):
 
 def test_audio_files_empty_db(tmp_path):
     assert make_service(tmp_path).audio_files() == set()
+
+
+# ---------------------------------------------------------------------------
+# Opened (schema v7)
+# ---------------------------------------------------------------------------
+
+def test_a_saved_transcript_is_not_opened(tmp_path):
+    svc = make_service(tmp_path)
+    svc.save(make_transcript())
+    assert svc.list_all()[0]["opened"] is False
+
+
+def test_mark_opened_shows_in_the_list_and_keeps_the_rest(tmp_path):
+    svc = make_service(tmp_path)
+    db_id = svc.save(make_transcript())
+    other = svc.save(make_transcript())
+    svc.update_title(db_id, "Weekly sync")
+    before = svc.load(db_id)
+
+    assert svc.mark_opened(db_id) is True
+    assert svc.mark_opened(db_id) is True, "marking twice is fine"
+
+    listed = {row["id"]: row for row in svc.list_all()}
+    assert listed[db_id]["opened"] is True
+    assert listed[other]["opened"] is False
+    after = svc.load(db_id)
+    assert after.title == "Weekly sync"
+    assert [(s.start, s.end, s.text, s.speaker_resolved, s.unassigned) for s in after.segments] == \
+        [(s.start, s.end, s.text, s.speaker_resolved, s.unassigned) for s in before.segments]
+
+
+def test_mark_opened_unknown_id_is_false(tmp_path):
+    assert make_service(tmp_path).mark_opened(999) is False
+
+
+def test_v7_migration_counts_existing_transcripts_as_opened(tmp_path):
+    db = str(tmp_path / "old.db")
+    _v5_database(db, [(1, "Alice", "SPEAKER_00", 0), (2, None, "SPEAKER_01", 0)])
+    with sqlite3.connect(db) as conn:
+        conn.execute("UPDATE _ts_schema_version SET version = 6")
+
+    svc = TranscriptStorageService(db_path=db)
+
+    assert [row["opened"] for row in svc.list_all()] == [True, True]
+    assert svc.load(1).segments[0].speaker_resolved == "Alice"
+    new_id = svc.save(make_transcript())
+    assert {row["id"]: row["opened"] for row in svc.list_all()}[new_id] is False
+
+
+def test_v7_migration_reruns_after_the_column_was_added_but_not_committed(tmp_path):
+    db = str(tmp_path / "old.db")
+    _v5_database(db, [(1, "Alice", "SPEAKER_00", 0)])
+    with sqlite3.connect(db) as conn:  # a crash after ALTER TABLE, before the version was saved
+        assert conn.execute("SELECT opened FROM transcriptions").fetchall() == [(0,), (0,)]
+        conn.execute("UPDATE _ts_schema_version SET version = 6")
+
+    svc = TranscriptStorageService(db_path=db)
+
+    assert all(row["opened"] for row in svc.list_all())

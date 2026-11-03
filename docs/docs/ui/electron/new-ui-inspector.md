@@ -29,7 +29,7 @@ Who needs a review comes from the segments each time, so an assignment, an undo 
 - `1 of 4` is the place among all at opening; `4 left` is how many have no name yet.
 - Skip goes to the next, and around after the last.
 - Close collapses the card to one line, and Resume opens it on the next speaker.
-- With nobody left, the dock is gone and the recording loses its Needs review dot. Nothing is saved about this: it comes from the segments too.
+- With nobody left, the dock is gone and the unknown avatar leaves the recording's row in the sidebar. Nothing is saved about this: it comes from the segments too.
 
 Assign is off until a candidate is chosen, as it writes to speaker memory. It covers all the segments of the voice and shows a toast with Undo, as every change of a speaker does (`useSpeakerChange`): see `undoSpeakerAssignment` in [New UI data](new-ui-data.md). Undo of a speaker the assignment created removes them if nothing else is theirs. The candidate mark and the percentage are what the API says; the client compares nothing with a threshold.
 

@@ -11,23 +11,23 @@ export default meta
 
 type Story = StoryObj<typeof Sidebar>
 
-const recording = (id: number, title: string, needsReview = false): SidebarRecording => ({
+const recording = (id: number, title: string, isNew = false, unknown = false): SidebarRecording => ({
   id,
   title,
-  needsReview,
+  isNew,
   speakers: [
     { id: 'anna', name: 'Anna Petrova', color: 5 },
-    needsReview ? { id: 'unknown', kind: 'unknown' } : { id: 'mark', name: 'Mark Ellis', color: 1 },
+    unknown ? { id: 'unknown', kind: 'unknown' } : { id: 'mark', name: 'Mark Ellis', color: 1 },
   ],
 })
 
 const WEEK: SidebarSection = {
   title: 'This week',
-  recordings: [recording(3, 'Interview: onboarding feedback', true), recording(4, 'Call with Mark'), recording(5, 'Customer call, Acme')],
+  recordings: [recording(3, 'Interview: onboarding feedback', true, true), recording(4, 'Call with Mark'), recording(5, 'Customer call, Acme')],
 }
 const PINNED: SidebarSection = {
   title: 'Pinned',
-  recordings: [recording(1, 'Weekly product sync', true), recording(2, 'Design review', true)],
+  recordings: [recording(1, 'Weekly product sync', false, true), recording(2, 'Design review', true, true)],
 }
 const earlier = (count: number): SidebarSection => ({
   title: 'Earlier',
