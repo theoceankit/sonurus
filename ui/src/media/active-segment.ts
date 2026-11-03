@@ -27,6 +27,8 @@ export function createKeyStore<K>(initial: K): KeyStore<K> {
   }
 }
 
+export const useKey = <K>(store: KeyStore<K>) => useSyncExternalStore(store.subscribe, store.get)
+
 export const useIsKey = <K>(store: KeyStore<K>, key: K) => useSyncExternalStore(store.subscribe, () => store.get() === key)
 
 // Keeps the store on the start of the segment playing, so it stays quiet between

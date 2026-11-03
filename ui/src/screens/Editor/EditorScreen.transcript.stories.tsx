@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { WEEKLY_SYNC_ID } from '../../api/fixtures/data'
+import { longSegments } from '../../api/fixtures/long-recording'
+import { effectiveSpeaker } from '../../api/types'
 import { EditorScreen } from './EditorScreen'
 import styles from './EditorScreen.stories.module.css'
 import { paragraph, standing, waitFor } from './story-helpers'
@@ -41,4 +43,10 @@ export const NoRecording: Story = { args: { initialSelectedId: null } }
 export const LongRecording: Story = {
   args: { initialSelectedId: 1000, pinnedIds: undefined, playback: undefined },
   parameters: { api: { board: 'longRecording', noAudio: true } },
+}
+
+// The same with a speaker highlighted, for a look at many marked turns.
+export const LongRecordingHighlighted: Story = {
+  ...LongRecording,
+  args: { ...LongRecording.args, initialHighlight: effectiveSpeaker(longSegments()[0]) },
 }

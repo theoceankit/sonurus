@@ -11,7 +11,7 @@ import { toast } from '../../components/Toast/toast'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { Toolbar, ToolbarDivider, ToolbarItem } from '../../components/Toolbar/Toolbar'
 import { TranscriptHeader } from '../../components/TranscriptHeader/TranscriptHeader'
-import { createKeyStore, useActiveSegment } from '../../media/active-segment'
+import { createKeyStore, useActiveSegment, type KeyStore } from '../../media/active-segment'
 import type { Playback } from '../../media/playback'
 import { markNotImplemented } from '../../not-implemented'
 import { useLingering } from '../../presence'
@@ -36,11 +36,13 @@ interface TranscriptPanelProps {
   // Opens the list of all speakers for this turn or paragraph.
   onShowAllSpeakers?: (target: SpeakerMenuTarget) => void
   onDelete?: (recording: RecordingToDelete) => void
+  // The speaker under the pointer in the inspector: their turns are marked.
+  highlight?: KeyStore<string | null>
 }
 
 // Nothing shows until there is a recording and it has loaded: a flash of a spinner
 // on data from this machine says less than a moment of an empty panel.
-export function TranscriptPanel({ transcriptId, playback, onShowAllSpeakers, onDelete }: TranscriptPanelProps) {
+export function TranscriptPanel({ transcriptId, playback, onShowAllSpeakers, onDelete, highlight }: TranscriptPanelProps) {
   const transcript = useTranscript(transcriptId)
   const speakers = useSpeakers()
 
@@ -71,6 +73,7 @@ export function TranscriptPanel({ transcriptId, playback, onShowAllSpeakers, onD
       playback={playback}
       onShowAllSpeakers={onShowAllSpeakers}
       onDelete={onDelete}
+      highlight={highlight}
     />
   )
 }
@@ -83,6 +86,7 @@ interface TranscriptViewProps {
   playback: Playback
   onShowAllSpeakers?: (target: SpeakerMenuTarget) => void
   onDelete?: (recording: RecordingToDelete) => void
+  highlight?: KeyStore<string | null>
 }
 
 async function copyToClipboard(text: string) {
@@ -94,7 +98,7 @@ async function copyToClipboard(text: string) {
   }
 }
 
-function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onDelete }: TranscriptViewProps) {
+function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onDelete, highlight: givenHighlight }: TranscriptViewProps) {
   const { id: transcriptId, segments } = transcript
   const listed = useTranscripts().data?.find(item => item.id === transcriptId)
   const { mutate: rename } = useUpdateTranscriptTitle()
@@ -105,6 +109,8 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   const playing = useActiveSegment(playback, segments)
   const [editing] = useState(() => createKeyStore<number | null>(null))
   const [menuKey] = useState(() => createKeyStore<MenuKey>(null))
+  const [ownHighlight] = useState(() => createKeyStore<string | null>(null))
+  const highlight = givenHighlight ?? ownHighlight
   const [menuTarget, setMenu] = useState<MenuTarget | null>(null)
   const lingeringMenu = useLingering(menuTarget)
   const menu = lingeringMenu.value
@@ -119,6 +125,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
 
   const rows = useMemo<TranscriptRows>(() => ({
     playing,
+    highlight,
     playback,
     editing,
     menu: menuKey,
@@ -151,7 +158,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
       keepInPlace(segment.start)
       setMenu({ anchor, currentId: effectiveSpeaker(segment), segmentStarts: [segment.start] })
     },
-  }), [playing, editing, menuKey, playback, transcriptId, saveText, removeSegment, keepInPlace])
+  }), [playing, highlight, editing, menuKey, playback, transcriptId, saveText, removeSegment, keepInPlace])
 
   const closeMenu = () => {
     menuKey.set(null)

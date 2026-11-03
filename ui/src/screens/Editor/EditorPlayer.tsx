@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import { useBackendConnected, useSpeakers, useTranscript } from '../../api/queries'
 import { effectiveSpeaker, UNASSIGNED, type Segment, type Speaker } from '../../api/types'
 import { Player } from '../../components/Player/Player'
+import { createKeyStore, useKey, type KeyStore } from '../../media/active-segment'
 import { useAudioPlayback, usePlayback, type Playback } from '../../media/playback'
 import type { Turn } from '../../media/timeline'
 import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
@@ -29,13 +30,22 @@ export function useTranscriptPlayback(transcriptId: number | null): Playback {
   return useAudioPlayback(transcriptId !== null && transcript ? api.getAudioUrl(transcript) : null, useBackendConnected())
 }
 
+interface EditorPlayerProps {
+  transcriptId: number | null
+  playback: Playback
+  // The speaker under the pointer in the inspector: only their bars keep a colour.
+  highlight?: KeyStore<string | null>
+}
+
 // The player of the open recording.
-export function EditorPlayer({ transcriptId, playback }: { transcriptId: number | null; playback: Playback }) {
+export function EditorPlayer({ transcriptId, playback, highlight }: EditorPlayerProps) {
   const api = useApi()
   const transcript = useTranscript(transcriptId).data
   const speakers = useSpeakers().data
   const connected = useBackendConnected()
   const state = usePlayback(playback)
+  const [ownHighlight] = useState(() => createKeyStore<string | null>(null))
+  const highlightedSpeaker = useKey(highlight ?? ownHighlight)
   const turns = useMemo(
     () => (transcriptId !== null && transcript ? playerTurns(transcript.segments, speakers ?? []) : []),
     [transcriptId, transcript, speakers],
@@ -47,6 +57,7 @@ export function EditorPlayer({ transcriptId, playback }: { transcriptId: number 
       turns={turns}
       disabled={state.status !== 'ready'}
       notice={transcriptId !== null && transcript && ((state.status === 'error' && connected) || !api.getAudioUrl(transcript)) ? 'Audio file not found' : undefined}
+      highlightedSpeaker={highlightedSpeaker}
       onToggle={playback.toggle}
       onSeek={playback.seek}
       onRateChange={playback.setRate}

@@ -4,11 +4,12 @@ import { Profiler, useState, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { ApiError } from '../../api/client'
-import { SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
+import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { effectiveSpeaker } from '../../api/types'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { longSegments } from '../../api/fixtures/long-recording'
 import { dismissAllToasts } from '../../components/Toast/toast'
+import { createKeyStore, type KeyStore } from '../../media/active-segment'
 import type { Playback, PlaybackState } from '../../media/playback'
 import { OverlayProvider } from '../../OverlayProvider'
 import { TranscriptPanel } from './TranscriptPanel'
@@ -49,16 +50,21 @@ function fakePlayback(initial: Partial<PlaybackState> = {}) {
   return { playback, change }
 }
 
-const setup = (options: FixtureOptions = {}, id: number | null = WEEKLY_SYNC_ID, wrap: (panel: ReactNode) => ReactNode = panel => panel) => {
+const setup = (
+  options: FixtureOptions = {},
+  id: number | null = WEEKLY_SYNC_ID,
+  wrap: (panel: ReactNode) => ReactNode = panel => panel,
+  highlight: KeyStore<string | null> = createKeyStore<string | null>(null),
+) => {
   const client = createFixtureClient(options)
   const { playback, change } = fakePlayback()
   const onShowAllSpeakers = vi.fn()
   render(
     <ApiProvider client={client}>
-      <OverlayProvider>{wrap(<TranscriptPanel transcriptId={id} playback={playback} onShowAllSpeakers={onShowAllSpeakers} />)}</OverlayProvider>
+      <OverlayProvider>{wrap(<TranscriptPanel transcriptId={id} playback={playback} highlight={highlight} onShowAllSpeakers={onShowAllSpeakers} />)}</OverlayProvider>
     </ApiProvider>,
   )
-  return { client, playback, change, onShowAllSpeakers }
+  return { client, playback, change, onShowAllSpeakers, highlight }
 }
 
 const text = (value: string) => screen.findByText(value)
@@ -223,6 +229,70 @@ describe('a long recording', () => {
     await act(() => new Promise(resolve => setTimeout(resolve, 20)))
     expect(paragraphRenders.count).toBeLessThan(8)
   })
+})
+
+describe('highlighting a speaker', () => {
+  const turnOf = (paragraph: HTMLElement) => paragraph.closest('[data-speaker]')!
+  const lit = () => [...document.querySelectorAll('[data-speaker][data-highlighted]')]
+
+  test('marks every turn of that speaker and nothing else, and clearing unmarks them', async () => {
+    const { highlight } = setup()
+    await text(FIRST)
+    act(() => highlight.set(SPEAKER_IDS.mark))
+    expect(lit()).toEqual([turnOf(screen.getByText(MARK_FIRST)), turnOf(screen.getByText('Then we can close the import question next week.'))])
+    act(() => highlight.set(SPEAKER_IDS.anna))
+    expect(lit()).toHaveLength(3)
+    expect(lit()).toContain(turnOf(screen.getByText(FIRST)))
+    act(() => highlight.set(null))
+    expect(lit()).toHaveLength(0)
+  })
+
+  test('speakers with no name are marked the same way, each on their own', async () => {
+    const { client, highlight } = setup({}, DESIGN_REVIEW_ID)
+    const ids = [...new Set((await client.getTranscript(DESIGN_REVIEW_ID)).segments.map(effectiveSpeaker))]
+    await screen.findByRole('group', { name: 'Transcript text' })
+    for (const id of ids) {
+      act(() => highlight.set(id))
+      expect(lit().length).toBeGreaterThan(0)
+      expect(lit().every(turn => turn.getAttribute('data-speaker') === id)).toBe(true)
+    }
+  })
+
+  test('a turn that comes with new data is marked too', async () => {
+    const { highlight } = setup()
+    await userEvent.hover(await text(MARK_FIRST))
+    act(() => highlight.set(SPEAKER_IDS.mark))
+    await userEvent.click(within(screen.getByRole('toolbar', { name: 'Paragraph' })).getByRole('button', { name: 'More' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByText(MARK_FIRST)).toBeNull())
+    expect(turnOf(screen.getByText(MARK_SECOND)).hasAttribute('data-highlighted')).toBe(true)
+  })
+
+  test('the list does not scroll', async () => {
+    const { highlight } = setup()
+    await text(FIRST)
+    const scroll = document.querySelector<HTMLElement>('[data-transcript-scroll]')!
+    const scrollTo = vi.fn()
+    scroll.scrollTo = scrollTo
+    Element.prototype.scrollIntoView = vi.fn()
+    act(() => highlight.set(SPEAKER_IDS.oliver))
+    expect(scroll.scrollTop).toBe(0)
+    expect(scrollTo).not.toHaveBeenCalled()
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  test('on a long recording it commits nothing and renders no paragraph', async () => {
+    const onCommit = vi.fn()
+    const { highlight } = setup({ board: 'longRecording' }, 1000, panel => <Profiler id="panel" onRender={onCommit}>{panel}</Profiler>)
+    await screen.findByRole('heading', { name: 'Long recording, 3 hours' }, { timeout: 10000 })
+    const ids = [...new Set(longSegments().map(effectiveSpeaker))]
+    onCommit.mockClear()
+    paragraphRenders.count = 0
+    for (const id of ids) act(() => highlight.set(id))
+    act(() => highlight.set(null))
+    expect(onCommit).not.toHaveBeenCalled()
+    expect(paragraphRenders.count).toBe(0)
+  }, 30000)
 })
 
 describe('editing', () => {

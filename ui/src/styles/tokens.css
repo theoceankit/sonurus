@@ -335,7 +335,7 @@
   --color-speaker-6-bg: var(--gray-200);
   --color-speaker-6-fg: var(--gray-600);
   --color-speaker-6-mid: var(--gray-400);
-  --color-speaker-6-tint: var(--black-a04);
+  --color-speaker-6-tint: var(--black-a08);
 
   --color-success-bg: var(--green-a10);
   --color-success-border: var(--green-a30);
@@ -434,7 +434,7 @@
   --color-speaker-6-bg: var(--gray-800);
   --color-speaker-6-fg: var(--gray-400);
   --color-speaker-6-mid: var(--gray-500);
-  --color-speaker-6-tint: var(--white-a06);
+  --color-speaker-6-tint: var(--white-a10);
 
   --color-success-bg: var(--green-dark-a16);
   --color-success-border: var(--green-dark-a34);

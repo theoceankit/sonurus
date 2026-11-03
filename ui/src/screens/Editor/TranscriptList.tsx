@@ -1,4 +1,6 @@
-import { createContext, memo, useContext, useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
+import {
+  createContext, memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FocusEvent, type KeyboardEvent, type RefObject,
+} from 'react'
 import type { Segment } from '../../api/types'
 import { Paragraph } from '../../components/Paragraph/Paragraph'
 import { TurnHeader } from '../../components/TurnHeader/TurnHeader'
@@ -15,6 +17,8 @@ export type MenuKey = `turn:${number}` | `segment:${number}` | null
 // stores, so one change renders the rows it is about and not the list.
 export interface TranscriptRows {
   playing: KeyStore<number | null>
+  // The speaker under the pointer in the inspector.
+  highlight: KeyStore<string | null>
   playback: Playback
   editing: KeyStore<number | null>
   menu: KeyStore<MenuKey>
@@ -92,15 +96,17 @@ const TurnRow = memo(function TurnRow({ turn }: { turn: TranscriptTurn }) {
   const rows = useContext(Rows)!
   const open = useIsKey(rows.menu, `turn:${turn.start}`)
   return (
-    <div className={styles.turn}>
-      <TurnHeader
-        speaker={turn.speaker}
-        time={formatClock(turn.start)}
-        open={open}
-        onOpenMenu={anchor => rows.openTurnMenu(anchor, turn)}
-        onSeek={() => rows.seek(turn.start)}
-      />
-      {turn.segments.map(segment => <ParagraphRow key={segment.start} segment={segment} speaker={turn.speaker} color={turn.speaker.color} />)}
+    <div className={styles.turn} data-speaker={turn.speaker.id} style={{ '--turn-tint': `var(--color-speaker-${turn.speaker.color}-tint)` } as CSSProperties}>
+      <div className={styles.turnBody}>
+        <TurnHeader
+          speaker={turn.speaker}
+          time={formatClock(turn.start)}
+          open={open}
+          onOpenMenu={anchor => rows.openTurnMenu(anchor, turn)}
+          onSeek={() => rows.seek(turn.start)}
+        />
+        {turn.segments.map(segment => <ParagraphRow key={segment.start} segment={segment} speaker={turn.speaker} color={turn.speaker.color} />)}
+      </div>
     </div>
   )
 }, sameTurn)
@@ -124,12 +130,34 @@ interface TranscriptListProps {
   rows: TranscriptRows
 }
 
+// Marks the turns of the highlighted speaker on the elements themselves, so a
+// change renders no row: a speaker may have a thousand turns. Nothing is measured.
+function useMarkedSpeaker(list: RefObject<HTMLDivElement | null>, store: KeyStore<string | null>, turns: readonly TranscriptTurn[]) {
+  useLayoutEffect(() => {
+    const node = list.current!
+    let marked: Element[] = []
+    const mark = () => {
+      marked.forEach(turn => turn.removeAttribute('data-highlighted'))
+      const id = store.get()
+      marked = id === null ? [] : [...node.querySelectorAll('[data-speaker]')].filter(turn => turn.getAttribute('data-speaker') === id)
+      marked.forEach(turn => turn.setAttribute('data-highlighted', ''))
+    }
+    mark()
+    const unsubscribe = store.subscribe(mark)
+    return () => {
+      unsubscribe()
+      marked.forEach(turn => turn.removeAttribute('data-highlighted'))
+    }
+  }, [list, store, turns])
+}
+
 // One stop of Tab for the whole list: Tab lands on the list, which hands the focus to
 // the row it was last on or the first in view, and the arrow keys go on from there.
 export const TranscriptList = memo(function TranscriptList({ turns, rows }: TranscriptListProps) {
   const list = useRef<HTMLDivElement>(null)
   const last = useRef<HTMLElement | null>(null)
   const [inside, setInside] = useState(false)
+  useMarkedSpeaker(list, rows.highlight, turns)
 
   const onFocus = (event: FocusEvent<HTMLDivElement>) => {
     const node = list.current!

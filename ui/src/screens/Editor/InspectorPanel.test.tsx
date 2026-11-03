@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
@@ -7,6 +7,7 @@ import { ApiError } from '../../api/client'
 import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { dismissAllToasts } from '../../components/Toast/toast'
+import { createKeyStore } from '../../media/active-segment'
 import type { Playback, PlaybackState } from '../../media/playback'
 import { OverlayProvider } from '../../OverlayProvider'
 import { InspectorPanel, type InspectorPanelProps } from './InspectorPanel'
@@ -366,5 +367,102 @@ describe('speaker windows from the card', () => {
     await userEvent.type(await screen.findByRole('textbox', { name: 'Name' }), 'Olivia')
     await userEvent.click(button('Create and assign'))
     expect(await within(screen.getByRole('dialog')).findByText('Server error 500')).toBeTruthy()
+  })
+})
+
+describe('highlighting a speaker', () => {
+  const lit = () => [...document.querySelectorAll('[data-highlighted]')]
+  const rowOf = (name: string) => screen.getByRole('button', { name: `Assign ${name}` }).closest('[class~="speakerRow"]')!
+  const rows = () => [...document.querySelectorAll('[class~="speakerRow"]')]
+  const pieces = () => [...document.querySelectorAll<HTMLElement>('[data-segment]')]
+
+  function highlighted(id: number | null = WEEKLY_SYNC_ID, options: FixtureOptions = {}) {
+    const highlight = createKeyStore<string | null>(null)
+    return { highlight, ...setup(id, options, { highlight }) }
+  }
+
+  test('the pointer over a row highlights that speaker until it leaves', async () => {
+    const { highlight } = highlighted()
+    await userEvent.hover(await screen.findByRole('button', { name: 'Assign Mark Ellis' }).then(found => found.closest('[class~="speakerRow"]')!))
+    expect(highlight.get()).toBe(SPEAKER_IDS.mark)
+    await userEvent.unhover(rowOf('Mark Ellis'))
+    expect(highlight.get()).toBeNull()
+  })
+
+  test('the pointer over talk time highlights the speaker and lights up their row', async () => {
+    const { highlight } = highlighted(WEEKLY_SYNC_ID, { board: 'reviewDone' })
+    await screen.findByText('Talk time')
+    await userEvent.hover(pieces()[1])
+    expect(highlight.get()).not.toBeNull()
+    expect(lit()).toEqual([rows()[1]])
+    expect(pieces()[0].style.background).toContain('-bg)')
+    expect(pieces()[1].style.background).toContain('-mid)')
+  })
+
+  test('a speaker under Show N more lights up Show N more, which stays closed', async () => {
+    const { highlight } = highlighted()
+    const more = await screen.findByRole('button', { name: /Show 3 more/ })
+    await userEvent.hover(pieces().at(-1)!)
+    expect(highlight.get()).toBe(SPEAKER_IDS.lena)
+    expect(lit()).toContain(more.parentElement)
+    expect(more.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  test('a row highlights its speaker while the focus is in it', async () => {
+    const { highlight } = highlighted(WEEKLY_SYNC_ID, { board: 'reviewDone' })
+    await screen.findByText('Talk time')
+    act(() => screen.getByRole('button', { name: 'Assign Anna Petrova' }).focus())
+    expect(highlight.get()).toBe(SPEAKER_IDS.anna)
+    await userEvent.tab()
+    const next = (document.activeElement as HTMLElement).getAttribute('aria-label')!.replace('Assign ', '')
+    expect(highlight.get()).not.toBe(SPEAKER_IDS.anna)
+    expect(lit()).toEqual([rowOf(next)])
+    act(() => (document.activeElement as HTMLElement).blur())
+    expect(highlight.get()).toBeNull()
+  })
+
+  test('works the same with the review card open or collapsed', async () => {
+    const { highlight } = highlighted()
+    await userEvent.hover(await screen.findByRole('button', { name: 'Assign Anna Petrova' }).then(found => found.closest('[class~="speakerRow"]')!))
+    expect(highlight.get()).toBe(SPEAKER_IDS.anna)
+    await userEvent.click(within(card()).getByRole('button', { name: 'Close review' }))
+    await userEvent.hover(rowOf('Mark Ellis'))
+    expect(highlight.get()).toBe(SPEAKER_IDS.mark)
+  })
+
+  test('Show less under the pointer takes the highlight away', async () => {
+    const { highlight } = highlighted()
+    await userEvent.click(await screen.findByRole('button', { name: /Show 3 more/ }))
+    await userEvent.hover(rowOf('Sofia Ramos'))
+    expect(highlight.get()).toBe(SPEAKER_IDS.sofia)
+    await userEvent.click(screen.getByRole('button', { name: 'Show less' }))
+    expect(highlight.get()).toBeNull()
+  })
+
+  test('closing the panel, another recording and an assigned voice take the highlight away', async () => {
+    const highlight = createKeyStore<string | null>(null)
+    const client = createFixtureClient()
+    const view = (id: number, open: boolean) => (
+      <ApiProvider client={client}><OverlayProvider><Host id={id} panel={{ highlight, open }} /></OverlayProvider></ApiProvider>
+    )
+    const { rerender } = render(view(WEEKLY_SYNC_ID, true))
+    await userEvent.hover(await screen.findByRole('button', { name: 'Assign Mark Ellis' }).then(found => found.closest('[class~="speakerRow"]')!))
+    rerender(view(WEEKLY_SYNC_ID, false))
+    expect(highlight.get()).toBeNull()
+
+    rerender(view(WEEKLY_SYNC_ID, true))
+    await userEvent.hover(rowOf('Mark Ellis'))
+    rerender(view(DESIGN_REVIEW_ID, true))
+    await screen.findByText('Lena Kovacs')
+    expect(highlight.get()).toBeNull()
+
+    await userEvent.hover(rowOf('Unknown speaker 1'))
+    expect(highlight.get()).not.toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Assign Unknown speaker 1' }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(within(dialog).getByRole('option', { name: /Oliver Grant/ }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Assign' }))
+    await screen.findByText('Assigned to Oliver Grant')
+    expect(highlight.get()).toBeNull()
   })
 })
