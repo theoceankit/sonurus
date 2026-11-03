@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FocusEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentProps, type FocusEvent, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import type { SpeakerTarget } from '../../api/client'
 import { useBackendConnected, useSpeakerCandidates, useSpeakers, useTranscript } from '../../api/queries'
@@ -9,11 +9,11 @@ import { Button } from '../../components/Button/Button'
 import { Collapse } from '../../components/Collapse/Collapse'
 import { Inspector, type InspectorReview } from '../../components/Inspector/Inspector'
 import { ReviewCard } from '../../components/ReviewCard/ReviewCard'
-import { SpeakerRow } from '../../components/SpeakerRow/SpeakerRow'
+import { SpeakerRow, type SpeakerRowProps } from '../../components/SpeakerRow/SpeakerRow'
 import { Stack } from '../../components/Stack/Stack'
 import { TalkTime } from '../../components/TalkTime/TalkTime'
 import { toast } from '../../components/Toast/toast'
-import { createKeyStore, useKey, type KeyStore } from '../../media/active-segment'
+import { createKeyStore, useIsKey, useKey, type KeyStore } from '../../media/active-segment'
 import { useClipPlayback, useClipState } from '../../media/clip-playback'
 import type { Playback } from '../../media/playback'
 import { formatDuration } from '../../media/timeline'
@@ -118,7 +118,6 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
 
   const [ownHighlight] = useState(() => createKeyStore<string | null>(null))
   const highlight = givenHighlight ?? ownHighlight
-  const highlighted = useKey(highlight)
   const { visible, hidden } = splitRows(rows, mode === 'on' ? currentId : null)
   const collapsible = mode !== 'off' && hidden.length > 0
   useClearedHighlight(highlight, rows, [showAll, mode, open])
@@ -159,11 +158,11 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
     const first = firstSegmentOf(segments, row.id)
     const leave = () => { if (highlight.get() === row.id) highlight.set(null) }
     return (
-      <SpeakerRow
+      <HighlightedRow
         key={row.id}
+        highlight={highlight}
         speaker={row}
         time={row.time}
-        highlighted={row.id === highlighted}
         onPointerEnter={() => highlight.set(row.id)}
         onPointerLeave={leave}
         onFocus={() => highlight.set(row.id)}
@@ -224,7 +223,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
         ? <span className={styles.message}>No speakers</span>
         : (
           <>
-            <TalkTime total={formatDuration(talkTotal(rows))} segments={rows} highlightedId={highlighted} onHighlight={id => highlight.set(id)} />
+            <HighlightedTalkTime highlight={highlight} total={formatDuration(talkTotal(rows))} segments={rows} />
             <Stack gap="half">
               {(collapsible ? visible : rows).map(renderRow)}
               {collapsible && (
@@ -233,11 +232,11 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
                 </Collapse>
               )}
               {collapsible && (
-                <SpeakerRow
-                  kind="show-more"
+                <ShowMoreRow
+                  highlight={highlight}
+                  hiddenIds={showAll ? [] : hidden.map(row => row.id)}
                   count={hidden.length}
                   expanded={showAll}
-                  highlighted={!showAll && hidden.some(row => row.id === highlighted)}
                   onToggle={() => setShowAll(all => !all)}
                   stack={<AvatarStack speakers={hidden.map(row => ({ id: row.id, ...avatarOf(row) }))} max={MAX_STACK} />}
                 />
@@ -260,4 +259,21 @@ function useClearedHighlight(highlight: KeyStore<string | null>, rows: readonly 
     if (id !== null && (changed || !rows.some(row => row.id === id))) highlight.set(null)
   })
   useEffect(() => () => highlight.set(null), [highlight])
+}
+
+// The highlight changes as the pointer moves: only what it concerns renders, not the
+// panel with its review card.
+type Highlighting = { highlight: KeyStore<string | null> }
+
+function HighlightedTalkTime({ highlight, ...props }: Highlighting & Omit<ComponentProps<typeof TalkTime>, 'highlightedId' | 'onHighlight'>) {
+  return <TalkTime {...props} highlightedId={useKey(highlight)} onHighlight={id => highlight.set(id)} />
+}
+
+function HighlightedRow({ highlight, ...props }: Highlighting & Extract<SpeakerRowProps, { time: string }> & { speaker: SpeakerRowData }) {
+  return <SpeakerRow {...props} highlighted={useIsKey(highlight, props.speaker.id)} />
+}
+
+function ShowMoreRow({ highlight, hiddenIds, ...props }: Highlighting & { hiddenIds: readonly string[]; count: number; expanded: boolean; onToggle: () => void; stack: ReactNode }) {
+  const highlighted = useSyncExternalStore(highlight.subscribe, () => hiddenIds.includes(highlight.get() ?? ''))
+  return <SpeakerRow kind="show-more" {...props} highlighted={highlighted} />
 }

@@ -139,7 +139,7 @@ function useMarkedSpeaker(list: RefObject<HTMLDivElement | null>, store: KeyStor
     const mark = () => {
       marked.forEach(turn => turn.removeAttribute('data-highlighted'))
       const id = store.get()
-      marked = id === null ? [] : [...node.querySelectorAll('[data-speaker]')].filter(turn => turn.getAttribute('data-speaker') === id)
+      marked = id === null ? [] : [...node.querySelectorAll(`[data-speaker="${id.replace(/["\\]/g, '\\$&')}"]`)]
       marked.forEach(turn => turn.setAttribute('data-highlighted', ''))
     }
     mark()
