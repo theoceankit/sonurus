@@ -315,3 +315,42 @@ The control stays visible and focusable, dimmed with `--opacity-disabled`, with 
 The function returns props instead of relying on a global click guard, because Radix does not wait for a click: tabs switch on mousedown and on focus, menus act on pointerup and on the keydown of Enter and Space. Capture handlers stop all of these.
 
 `NOT_IMPLEMENTED` lists the ids, and an id that is not in it is a compile error. `not-implemented.test.tsx` fails when an id has no call or several, when a call has no id or a computed one, and on a control's own "not available" text; stories and tests do not count. The list holds only what the new UI already renders: an old id moves here with its screen. Stories use `notImplementedProps()`, which takes any string.
+
+## Design decisions
+
+These hold on every screen of the new UI, not only on the one where they were settled.
+
+### Source of truth
+
+The code and Storybook are the design. The Penpot boards the Editor was built from are a frozen archive: they are read for reference and as an inventory of states, never edited to follow the app, and the app is not changed to follow them. Screens after the Editor are designed directly in code. Alternatives are shown side by side as Storybook variants or on a stand with the real component, and judged in the running app: motion, delays and hover can only be judged there.
+
+### Accepted differences from the Editor boards
+
+Where a board contradicts itself or an older board contradicts a later decision, the app follows the rule, not the picture. These differences are intended; do not "fix" them back:
+
+1. A recording shows the New dot until it is opened, not while it has a speaker with no name ([Window and Editor shell](overview.md#window-and-editor-shell)).
+2. The recording Design review shows the avatars its data gives (LK and two unknown), not those of the board.
+3. A text field has no glow around it in focus.
+4. Renaming a recording selects the whole title.
+5. The Unassigned time in the inspector is worked out from the segments.
+6. Under Show N more the hidden speakers are the recording's own, not a grey unknown one.
+7. A review card's clip stands at its start.
+8. Other speakers are sorted by name, as the API gives them.
+9. Every section heading has 4 px under it.
+10. A filled search field shows a clear button.
+11. A new speaker's default colour is the least used one.
+
+The player also keeps unknown speakers grey on the waveform and its speed button 44 px wide; sidebar rows show at most three avatars with no count of the others.
+
+### Rules settled on the Editor
+
+- Type scale 11, 13, 15, 18 and 22 px, weights 400 and 600 only, through the `--font-*` tokens.
+- No `·` separators and no all-caps labels: separate values are separate elements with a gap, a list inside a phrase uses commas, a number next to a title is a counter. Straight quotes. All text in the UI and in stories is English.
+- A control whose feature does not exist yet stays visible with the default cursor ([Unimplemented controls](#unimplemented-controls)); it is never hidden or faked.
+- Secondary actions of a row, such as Play and Assign on a speaker, appear on hover and focus of that row. A gap between hover targets is covered by a hit area, not by a timer, so the highlight does not drop between rows.
+- Delays and durations in scripts come from the tokens through `ui/src/styles/motion.ts`, never as literals. A highlight under the pointer waits `--delay-hover`, the next one comes at once.
+- Neighbouring controls with tooltips share one tooltip through `TooltipGroup`; a `Toolbar` always is one.
+- A scroll area shows its own `ScrollBar`; system scrollbars are off.
+- A delete prompt has no icon; a danger modal starts on Cancel.
+- Content stays where it is when something about it changes: a paragraph does not move when its speaker changes, and widths of clocks and counters do not change while they count.
+- A design system component gets its full set of states (Default, Hover, Pressed, Focus, Disabled, and Loading, Error or Selected where they apply), not only the ones the current screen uses.
