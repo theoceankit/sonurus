@@ -13,6 +13,7 @@ import type { Playback, PlaybackState } from '../../media/playback'
 import { OverlayProvider } from '../../OverlayProvider'
 import { HOVER_DELAY } from '../../styles/motion'
 import { InspectorPanel, type InspectorPanelProps } from './InspectorPanel'
+import css from './InspectorPanel.module.css?raw'
 import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
 import { effectiveSpeaker } from '../../api/types'
 
@@ -481,6 +482,13 @@ describe('speaker windows from the card', () => {
     await userEvent.click(button('Create and assign'))
     expect(await within(screen.getByRole('dialog')).findByText('Server error 500')).toBeTruthy()
   })
+})
+
+// The rows stand 2 px apart: a pointer going from one speaker to the next must not
+// fall between them, or the highlight goes out and comes back on the way.
+test('a row takes the pointer over the gap under it', () => {
+  expect(css).toMatch(/\.row \{[^}]*padding-block-end: var\(--space-half\)/)
+  expect(css).toMatch(/\.row > \*::after \{[^}]*inset: 100% 0 calc\(var\(--space-half\) \* -1\)/)
 })
 
 describe('highlighting a speaker', () => {
