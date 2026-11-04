@@ -12,7 +12,7 @@ import { ModalFooter } from '../components/ModalFooter/ModalFooter'
 import { ModalHeader } from '../components/ModalHeader/ModalHeader'
 import { Stack } from '../components/Stack/Stack'
 import { toast } from '../components/Toast/toast'
-import { Tooltip } from '../components/Tooltip/Tooltip'
+import { Tooltip, TooltipGroup } from '../components/Tooltip/Tooltip'
 import { parseTokens } from '../styles/tokens'
 import css from '../styles/tokens.css?raw'
 import styles from './foundations.module.css'
@@ -57,6 +57,16 @@ function Everything() {
           <Tooltip text="Edit"><IconButton icon="edit" label="Edit" /></Tooltip>
           <Tooltip text="Copy" placement="below"><IconButton icon="copy" label="Copy" /></Tooltip>
         </Inline>
+      </Stack>
+      <Stack gap={2}>
+        <span className={styles.heading}>Tooltips of neighbours: one tooltip, its arrow moves to the next</span>
+        <TooltipGroup>
+          <Inline gap={2} style={{ width: 'fit-content' }}>
+            <Tooltip text="Play"><IconButton icon="play" label="Play" /></Tooltip>
+            <Tooltip text="Edit"><IconButton icon="edit" label="Edit" /></Tooltip>
+            <Tooltip text="Copy"><IconButton icon="copy" label="Copy" /></Tooltip>
+          </Inline>
+        </TooltipGroup>
       </Stack>
       <Stack gap={2}>
         <span className={styles.heading}>Menu</span>

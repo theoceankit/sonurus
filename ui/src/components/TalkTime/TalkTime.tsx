@@ -1,7 +1,7 @@
 import type { ComponentPropsWithRef } from 'react'
 import { cx } from '../../styles/cx'
 import type { SpeakerColor } from '../../styles/speaker-colors'
-import { Tooltip } from '../Tooltip/Tooltip'
+import { Tooltip, TooltipGroup } from '../Tooltip/Tooltip'
 import styles from './TalkTime.module.css'
 
 export interface TalkTimeSegment {
@@ -32,23 +32,25 @@ export function TalkTime({ total, segments, highlightedId, onHighlight, classNam
         <span>Talk time</span>
         <span>{total}</span>
       </div>
-      <div
-        className={styles.bar}
-        role="img"
-        aria-label={`Talk time: ${segments.map(segment => segment.name).join(', ')}`}
-        onPointerLeave={() => onHighlight?.(null)}
-      >
-        {segments.map(({ id, name, color, seconds, time }) => (
-          <Tooltip key={id} text={`${name} ${time}`}>
-            <span
-              data-segment
-              className={styles.segment}
-              style={{ flexGrow: seconds, background: `var(--color-speaker-${color}-${dimmed && id !== highlightedId ? 'bg' : 'mid'})` }}
-              onPointerEnter={() => onHighlight?.(id)}
-            />
-          </Tooltip>
-        ))}
-      </div>
+      <TooltipGroup>
+        <div
+          className={styles.bar}
+          role="img"
+          aria-label={`Talk time: ${segments.map(segment => segment.name).join(', ')}`}
+          onPointerLeave={() => onHighlight?.(null)}
+        >
+          {segments.map(({ id, name, color, seconds, time }) => (
+            <Tooltip key={id} text={`${name} ${time}`}>
+              <span
+                data-segment
+                className={styles.segment}
+                style={{ flexGrow: seconds, background: `var(--color-speaker-${color}-${dimmed && id !== highlightedId ? 'bg' : 'mid'})` }}
+                onPointerEnter={() => onHighlight?.(id)}
+              />
+            </Tooltip>
+          ))}
+        </div>
+      </TooltipGroup>
     </div>
   )
 }

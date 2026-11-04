@@ -7,7 +7,7 @@ import { IconButton, type IconButtonProps } from '../IconButton/IconButton'
 import { Inline } from '../Inline/Inline'
 import { Menu, MenuOption, MenuOptions } from '../Menu/Menu'
 import { Playhead } from '../Playhead/Playhead'
-import { Tooltip } from '../Tooltip/Tooltip'
+import { Tooltip, TooltipGroup } from '../Tooltip/Tooltip'
 import { BAR_COUNT as BAR_COUNTS } from '../Waveform/bars'
 import { Waveform } from '../Waveform/Waveform'
 import { POPUP_OFFSET, VolumeControl } from './VolumeControl'
@@ -110,40 +110,42 @@ export function Player({
 
   return (
     <Inline gap={4} paddingX={4} className={styles.player}>
-      <Inline gap={2} className={styles.fixed}>
-        <ControlButton
-          icon="skip-back"
-          label="Previous speaker"
-          disabled={disabled}
-          onClick={() => seek(previousSpeakerTime(turns, currentTime))}
-        />
-        <ControlButton
-          icon="rewind"
-          label="Rewind 15 seconds"
-          disabled={disabled}
-          onClick={() => seek(skipTime(currentTime, -SKIP_SECONDS, duration))}
-        />
-        <ControlButton
-          variant="inverse"
-          size="large"
-          icon={playing ? 'pause' : 'play'}
-          label={playing ? 'Pause' : 'Play'}
-          disabled={disabled}
-          onClick={onToggle}
-        />
-        <ControlButton
-          icon="forward"
-          label="Forward 15 seconds"
-          disabled={disabled}
-          onClick={() => seek(skipTime(currentTime, SKIP_SECONDS, duration))}
-        />
-        <ControlButton
-          icon="skip-forward"
-          label="Next speaker"
-          disabled={disabled}
-          onClick={() => seek(nextSpeakerTime(turns, currentTime))}
-        />
-      </Inline>
+      <TooltipGroup>
+        <Inline gap={2} className={styles.fixed}>
+          <ControlButton
+            icon="skip-back"
+            label="Previous speaker"
+            disabled={disabled}
+            onClick={() => seek(previousSpeakerTime(turns, currentTime))}
+          />
+          <ControlButton
+            icon="rewind"
+            label="Rewind 15 seconds"
+            disabled={disabled}
+            onClick={() => seek(skipTime(currentTime, -SKIP_SECONDS, duration))}
+          />
+          <ControlButton
+            variant="inverse"
+            size="large"
+            icon={playing ? 'pause' : 'play'}
+            label={playing ? 'Pause' : 'Play'}
+            disabled={disabled}
+            onClick={onToggle}
+          />
+          <ControlButton
+            icon="forward"
+            label="Forward 15 seconds"
+            disabled={disabled}
+            onClick={() => seek(skipTime(currentTime, SKIP_SECONDS, duration))}
+          />
+          <ControlButton
+            icon="skip-forward"
+            label="Next speaker"
+            disabled={disabled}
+            onClick={() => seek(nextSpeakerTime(turns, currentTime))}
+          />
+        </Inline>
+      </TooltipGroup>
       <span className={disabled ? styles.currentDisabled : styles.current}>{elapsed}</span>
       <div className={styles.area}>
         <div
@@ -179,22 +181,26 @@ export function Player({
         {notice && <span className={styles.notice}>{notice}</span>}
       </div>
       <span className={disabled ? styles.remainingDisabled : styles.remaining}>{remaining}</span>
-      <Menu
-        side="top"
-        align="center"
-        offset={POPUP_OFFSET}
-        size="narrow"
-        trigger={(
-          <Tooltip text="Playback speed">
-            <Button size="small" className={styles.speed} aria-label={`Playback speed ${rate}×`} disabled={disabled}>{`${rate}×`}</Button>
-          </Tooltip>
-        )}
-      >
-        <MenuOptions value={String(rate)} onValueChange={next => onRateChange?.(Number(next))}>
-          {PLAYER_SPEEDS.map(speed => <MenuOption key={speed} value={String(speed)}>{`${speed}×`}</MenuOption>)}
-        </MenuOptions>
-      </Menu>
-      <VolumeControl volume={volume} disabled={disabled} onChange={next => onVolumeChange?.(next)} />
+      <TooltipGroup>
+        <Inline gap={4}>
+          <Menu
+            side="top"
+            align="center"
+            offset={POPUP_OFFSET}
+            size="narrow"
+            trigger={(
+              <Tooltip text="Playback speed">
+                <Button size="small" className={styles.speed} aria-label={`Playback speed ${rate}×`} disabled={disabled}>{`${rate}×`}</Button>
+              </Tooltip>
+            )}
+          >
+            <MenuOptions value={String(rate)} onValueChange={next => onRateChange?.(Number(next))}>
+              {PLAYER_SPEEDS.map(speed => <MenuOption key={speed} value={String(speed)}>{`${speed}×`}</MenuOption>)}
+            </MenuOptions>
+          </Menu>
+          <VolumeControl volume={volume} disabled={disabled} onChange={next => onVolumeChange?.(next)} />
+        </Inline>
+      </TooltipGroup>
     </Inline>
   )
 }

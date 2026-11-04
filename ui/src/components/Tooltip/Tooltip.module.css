@@ -3,19 +3,98 @@
   --motion-in: var(--duration-fast);
   --motion-out: var(--duration-fast);
   --motion-from-shift: 0 var(--motion-shift-sm);
+  position: relative;
   z-index: var(--z-popover);
+  isolation: isolate;
   padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-inverse);
-  box-shadow: var(--shadow-md);
   color: var(--color-text-on-inverse);
   font: var(--font-caption);
+  white-space: nowrap;
 }
 
 .tooltip[data-side='bottom'] {
   --motion-from-shift: 0 calc(var(--motion-shift-sm) * -1);
 }
 
+/* The background on its own, so that its width can move while the box stands where Radix put it. */
+.plate {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-inverse);
+  box-shadow: var(--shadow-md);
+}
+
+.text {
+  display: block;
+}
+
 .arrow {
   fill: var(--color-bg-inverse);
+}
+
+/* Replaced by the next of its group: gone at once. */
+.tooltip[data-handoff='out'] {
+  visibility: hidden;
+}
+
+/* Comes from where the one it replaces stood, with its width, instead of coming in
+   as an opening; it still goes away as any other. */
+.tooltip[data-handoff='in']:not([data-state='closed']) {
+  animation: handoffMove var(--duration-fast) var(--ease-standard);
+}
+
+.tooltip[data-handoff='settled']:not([data-state='closed']) {
+  animation: none;
+}
+
+.tooltip[data-handoff='in'] .plate {
+  animation: handoffSize var(--duration-fast) var(--ease-standard);
+}
+
+.tooltip[data-handoff='in'] .text {
+  animation: handoffClip var(--duration-fast) var(--ease-standard);
+}
+
+.tooltip[data-handoff='in'] .arrow {
+  animation: handoffArrow var(--duration-fast) var(--ease-standard);
+}
+
+@keyframes handoffMove {
+  from {
+    translate: var(--handoff-shift);
+  }
+}
+
+@keyframes handoffArrow {
+  from {
+    translate: var(--handoff-arrow, 0 0);
+  }
+}
+
+@keyframes handoffClip {
+  from {
+    clip-path: inset(0 var(--handoff-clip));
+  }
+
+  to {
+    clip-path: inset(0 0);
+  }
+}
+
+@keyframes handoffSize {
+  from {
+    inset-inline: var(--handoff-inset);
+  }
+}
+
+/* Nothing travels: the next one stands in place at once. */
+@media (prefers-reduced-motion: reduce) {
+  .tooltip[data-handoff='in']:not([data-state='closed']),
+  .tooltip[data-handoff='in'] .plate,
+  .tooltip[data-handoff='in'] .text,
+  .tooltip[data-handoff='in'] .arrow {
+    animation: none;
+  }
 }
