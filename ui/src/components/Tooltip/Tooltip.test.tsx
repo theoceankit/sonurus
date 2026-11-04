@@ -16,11 +16,11 @@ const tip = (placement?: TooltipPlacement) => render(
 const target = () => screen.getByRole('button', { name: 'Target' })
 const passed = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
 
-test('a pointer shows it after 400 ms', () => {
+test('a pointer shows it after 300 ms', () => {
   vi.useFakeTimers()
   tip()
   fireEvent.pointerMove(target())
-  passed(350)
+  passed(250)
   expect(screen.queryByRole('tooltip')).toBeNull()
   passed(100)
   expect(screen.getByRole('tooltip').textContent).toBe('Reassign speaker')
@@ -30,7 +30,7 @@ test('the next one right after another shows at once', () => {
   vi.useFakeTimers()
   tip()
   fireEvent.pointerMove(target())
-  passed(450)
+  passed(350)
   fireEvent.pointerMove(screen.getByRole('button', { name: 'Other' }))
   passed(10)
   expect(screen.getByRole('tooltip').textContent).toBe('Other tip')

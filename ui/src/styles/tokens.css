@@ -167,6 +167,8 @@
 
   --delay-hover: 150ms;
   --delay-hover-skip: 300ms;
+  --delay-tooltip: 300ms;
+  --delay-tooltip-skip: 300ms;
 
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
