@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
 import { Button } from '../Button/Button'
-import { Tooltip, type TooltipPlacement } from './Tooltip'
+import { Tooltip, TooltipGroup, type TooltipPlacement } from './Tooltip'
 
 afterEach(() => { vi.useRealTimers() })
 
@@ -16,11 +16,11 @@ const tip = (placement?: TooltipPlacement) => render(
 const target = () => screen.getByRole('button', { name: 'Target' })
 const passed = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
 
-test('a pointer shows it after 400 ms', () => {
+test('a pointer shows it after 300 ms', () => {
   vi.useFakeTimers()
   tip()
   fireEvent.pointerMove(target())
-  passed(350)
+  passed(250)
   expect(screen.queryByRole('tooltip')).toBeNull()
   passed(100)
   expect(screen.getByRole('tooltip').textContent).toBe('Reassign speaker')
@@ -30,7 +30,7 @@ test('the next one right after another shows at once', () => {
   vi.useFakeTimers()
   tip()
   fireEvent.pointerMove(target())
-  passed(450)
+  passed(350)
   fireEvent.pointerMove(screen.getByRole('button', { name: 'Other' }))
   passed(10)
   expect(screen.getByRole('tooltip').textContent).toBe('Other tip')
@@ -61,4 +61,76 @@ test.each([
   const content = document.querySelector('[data-side]')
   expect(content?.getAttribute('data-side')).toBe(side)
   expect(Boolean(content?.querySelector('svg'))).toBe(arrow)
+})
+
+const group = () => render(
+  <OverlayProvider>
+    <TooltipGroup>
+      <div>
+        <Tooltip text="Back"><Button>Back</Button></Tooltip>
+        <span data-testid="gap" />
+        <Tooltip text="Forward"><Button>Forward</Button></Tooltip>
+      </div>
+    </TooltipGroup>
+    <Button>Outside</Button>
+  </OverlayProvider>,
+)
+const button = (name: string) => screen.getByRole('button', { name })
+const tooltips = () => screen.queryAllByRole('tooltip').map(tooltip => tooltip.textContent)
+// Radix places a tooltip once a promise has settled, and only then it takes over.
+const waited = (ms: number) => act(async () => { vi.advanceTimersByTime(ms) })
+// As a browser does: out of one element into the next, then a move over it.
+const move = (from: Element, to: Element) => {
+  fireEvent.pointerOut(from, { relatedTarget: to })
+  fireEvent.pointerOver(to, { relatedTarget: from })
+  fireEvent.pointerMove(to)
+}
+
+test('in a group the next control takes the tooltip at once, however long the last was shown', async () => {
+  vi.useFakeTimers()
+  group()
+  fireEvent.pointerMove(button('Back'))
+  await waited(350)
+  expect(tooltips()).toEqual(['Back'])
+  await waited(1000)
+  move(button('Back'), button('Forward'))
+  await waited(10)
+  expect(tooltips()).toEqual(['Forward'])
+  expect(button('Forward').getAttribute('aria-describedby')).toBe(screen.getByRole('tooltip').id)
+})
+
+test('the tooltip of a group stays over a gap and goes once the pointer leaves the group', async () => {
+  vi.useFakeTimers()
+  group()
+  fireEvent.pointerMove(button('Back'))
+  await waited(350)
+  move(button('Back'), screen.getByTestId('gap'))
+  await waited(500)
+  expect(tooltips()).toEqual(['Back'])
+  move(screen.getByTestId('gap'), button('Outside'))
+  await waited(500)
+  expect(tooltips()).toEqual([])
+})
+
+test('a control of a group shows its tooltip again after the pointer has left it', async () => {
+  vi.useFakeTimers()
+  group()
+  fireEvent.pointerMove(button('Back'))
+  await waited(350)
+  move(button('Back'), screen.getByTestId('gap'))
+  move(screen.getByTestId('gap'), button('Outside'))
+  await waited(1000)
+  move(button('Outside'), button('Back'))
+  await waited(350)
+  expect(tooltips()).toEqual(['Back'])
+})
+
+test('keyboard focus passes the tooltip of a group to the next control', async () => {
+  group()
+  await userEvent.tab()
+  expect(tooltips()).toEqual(['Back'])
+  await userEvent.tab()
+  expect(document.activeElement).toBe(button('Forward'))
+  expect(tooltips()).toEqual(['Forward'])
+  expect(button('Forward').getAttribute('aria-describedby')).toBe(screen.getByRole('tooltip').id)
 })

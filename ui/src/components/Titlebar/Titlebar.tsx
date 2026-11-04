@@ -2,7 +2,7 @@ import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
 import { IconButton, type IconButtonProps } from '../IconButton/IconButton'
 import { SearchField } from '../SearchField/SearchField'
-import { Tooltip } from '../Tooltip/Tooltip'
+import { Tooltip, TooltipGroup } from '../Tooltip/Tooltip'
 import styles from './Titlebar.module.css'
 
 interface TitlebarProps {
@@ -28,9 +28,13 @@ export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = 
   return (
     <header className={cx(styles.titlebar, className)}>
       <div className={styles.brand}>
-        <Tool icon="sidebar-toggle" label="Toggle sidebar" aria-expanded={sidebarOpen} onClick={onToggleSidebar} />
-        <Tool icon="arrow-left" label="Back" {...markNotImplemented('titlebar.back')} />
-        <Tool icon="arrow-right" label="Forward" {...markNotImplemented('titlebar.forward')} />
+        <TooltipGroup>
+          <span className={styles.nav}>
+            <Tool icon="sidebar-toggle" label="Toggle sidebar" aria-expanded={sidebarOpen} onClick={onToggleSidebar} />
+            <Tool icon="arrow-left" label="Back" {...markNotImplemented('titlebar.back')} />
+            <Tool icon="arrow-right" label="Forward" {...markNotImplemented('titlebar.forward')} />
+          </span>
+        </TooltipGroup>
         <span className={styles.spacer} />
         <Tool icon="add" label="New transcription" {...markNotImplemented('titlebar.new-transcription')} />
       </div>
@@ -38,9 +42,13 @@ export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = 
         <SearchField value="" onValueChange={ignore} readOnly placeholder="Search transcripts" aria-label="Search transcripts" shortcut={['mod', 'K']} />
       </div>
       <div className={styles.actions}>
-        <Tool icon="speakers" label="Speakers" {...markNotImplemented('titlebar.speakers')} />
-        <Tool icon="settings" label="Settings" {...markNotImplemented('titlebar.settings')} />
-        {!inspectorOpen && <Tool icon="inspector" label="Show inspector" className={styles.appear} onClick={onOpenInspector} />}
+        <TooltipGroup>
+          <span className={styles.nav}>
+            <Tool icon="speakers" label="Speakers" {...markNotImplemented('titlebar.speakers')} />
+            <Tool icon="settings" label="Settings" {...markNotImplemented('titlebar.settings')} />
+            {!inspectorOpen && <Tool icon="inspector" label="Show inspector" className={styles.appear} onClick={onOpenInspector} />}
+          </span>
+        </TooltipGroup>
       </div>
     </header>
   )
