@@ -19,3 +19,11 @@
 .row {
   padding-block-end: var(--space-half);
 }
+
+/* The row finds the pointer over the gap under it too, so moving from one speaker
+   to the next never falls between two and the highlight stays on. */
+.row > *::after {
+  content: '';
+  position: absolute;
+  inset: 100% 0 calc(var(--space-half) * -1);
+}
