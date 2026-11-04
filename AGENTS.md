@@ -86,6 +86,8 @@ npx electron . --user-data-dir=<tmp>
 ```
 
 Seed the data before starting, and check every affected row and state, not just the first one.
+For the new UI (dev server origin, restarts, worktrees, jsdom and Playwright pitfalls) see
+`docs/docs/ui/electron/new-ui-development.md`.
 
 ## Architecture
 
@@ -111,6 +113,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | New UI transcript | `ui/src/screens/Editor/Transcript*.tsx`, `transcript.ts`, `ui/src/media/active-segment.ts`, `ui/src/components/TurnHeader/`, `Paragraph/`, `TranscriptHeader/`, `SpeakerMenu/` | `docs/docs/ui/electron/new-ui-transcript.md` |
 | New UI inspector and speaker review | `ui/src/screens/Editor/InspectorPanel.tsx`, `SpeakerDialogs.tsx`, `review-queue.ts`, `inspector.ts`, `speaker-search.ts`, `new-speaker.ts`, `ui/src/media/clip-playback.ts` | `docs/docs/ui/electron/new-ui-inspector.md` |
 | New UI tokens, font, icons, overlays | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/` | `docs/docs/ui/electron/new-ui-foundations.md` |
+| New UI development: data, isolated checks, restarts, test pitfalls | `scripts/dev-ui.js`, `ui/vite.config.ts`, `ui/src/test-setup.ts` | `docs/docs/ui/electron/new-ui-development.md` |
 | Live recording | `app/api/routers/audio_capture.py`, `native/` | `docs/docs/ui/electron/live-recording.md` |
 | Packaging and releases | `scripts/bundle-backend.js`, `locks/`, `build/` | `docs/docs/distribution/` |
 

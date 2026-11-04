@@ -42,6 +42,8 @@ npm --prefix ui run typecheck
 
 Screens get their data through one client, on the backend or on fixtures: see [New UI data](new-ui-data.md).
 
+Where a run keeps its data, how to check a change on isolated data, when to restart Vite or Storybook and what the tests cannot show: see [New UI development](new-ui-development.md).
+
 Every component lives in `ui/src/components/<Name>/` and has `<Name>.stories.tsx` with a story for each of its states. Storybook finds these files by itself; a component without one is simply absent from it, so a build test checks that the file exists. Whether the stories cover all states is checked by review.
 
 The stories under `Redesign/Editor` reproduce the Editor design boards at 1200×800 and carry their names, so a story can be compared with its board. A test holds the list of names.
