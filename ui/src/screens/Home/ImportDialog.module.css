@@ -1,0 +1,81 @@
+.files {
+  display: flex;
+  flex-direction: column;
+  max-height: var(--size-import-list);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.file {
+  display: grid;
+  animation: fileIn var(--duration-slow) var(--ease-standard);
+}
+
+/* The one grid row grows from 0fr to its content: this cuts the content on the way. */
+.fileClip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-control-md);
+  padding-inline: var(--space-2) var(--space-1);
+  border-radius: var(--radius-md);
+}
+
+.fileRow:hover {
+  background: var(--color-bg-muted);
+}
+
+/* What opens in place: height and fade. */
+@keyframes fileIn {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+
+  to {
+    grid-template-rows: 1fr;
+  }
+}
+
+/* What opens in place only fades. */
+@media (prefers-reduced-motion: reduce) {
+  .file {
+    animation-name: fileFade;
+  }
+}
+
+@keyframes fileFade {
+  from {
+    opacity: 0;
+  }
+}
+
+.fileIcon {
+  flex: none;
+  color: var(--color-text-secondary);
+}
+
+.fileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--font-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.failure {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width-default) solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+  font: var(--font-body);
+}

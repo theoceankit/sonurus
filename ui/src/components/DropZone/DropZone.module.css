@@ -1,0 +1,34 @@
+.dropZone {
+  min-height: var(--size-drop-zone);
+  padding: var(--space-6);
+  border: var(--border-width-strong) dashed var(--color-border-strong);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-sunken);
+  text-align: center;
+  user-select: none;
+  transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
+}
+
+.over {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-bg);
+}
+
+.icon {
+  color: var(--color-text-secondary);
+}
+
+.over .icon,
+.over .title {
+  color: var(--color-accent-fg);
+}
+
+.title {
+  color: var(--color-text-primary);
+  font: var(--font-body-strong);
+}
+
+.hint {
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}

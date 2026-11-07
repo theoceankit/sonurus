@@ -6,7 +6,9 @@ import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { prefersReducedMotion, useLingering } from '../../presence'
 import { cx } from '../../styles/cx'
 import { createKeyStore } from '../../media/active-segment'
+import { ImportDialog } from '../Home/ImportDialog'
 import { pickRecording, useRecentRecordings } from '../Home/last-opened'
+import { useImportDialog } from '../Home/useImportDialog'
 import type { Playback } from '../../media/playback'
 import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecordingDialog'
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
@@ -56,6 +58,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const speakers = useSpeakers()
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const recent = useRecentRecordings()
+  const importer = useImportDialog()
   const [panels, setPanels] = useState(INITIAL_PANELS)
   const ownPlayback = useTranscriptPlayback(givenPlayback ? null : selectedId)
   const playback = givenPlayback ?? ownPlayback
@@ -143,6 +146,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
         onToggleSidebar={() => toggle('sidebar')}
         inspectorOpen={visible.inspector}
         onOpenInspector={() => toggle('inspector')}
+        onNewTranscription={importer.open}
       />
       <div
         ref={panelsArea}
@@ -190,6 +194,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
           onExited={speakerDialog.exited}
         />
       )}
+      <ImportDialog {...importer.dialog} />
       {deleteDialog.value && (
         <DeleteRecordingDialog
           key={deleteDialog.key}

@@ -26,7 +26,14 @@ test('the inspector button shows only while the inspector is closed', async () =
   expect(onOpenInspector).toHaveBeenCalledOnce()
 })
 
-test.each(['Back', 'Forward', 'New transcription', 'Speakers', 'Settings'])('%s says it is not available yet', async name => {
+test('New transcription works', async () => {
+  const onNewTranscription = vi.fn()
+  setup({ onNewTranscription })
+  await userEvent.click(screen.getByRole('button', { name: 'New transcription' }))
+  expect(onNewTranscription).toHaveBeenCalledOnce()
+})
+
+test.each(['Back', 'Forward', 'Speakers', 'Settings'])('%s says it is not available yet', async name => {
   setup()
   const button = screen.getByRole('button', { name })
   expect(button.getAttribute('aria-disabled')).toBe('true')
@@ -47,4 +54,5 @@ test('the working controls are not marked', () => {
   setup({ inspectorOpen: false })
   expect(screen.getByRole('button', { name: 'Toggle sidebar' }).getAttribute('data-not-implemented')).toBeNull()
   expect(screen.getByRole('button', { name: 'Show inspector' }).getAttribute('data-not-implemented')).toBeNull()
+  expect(screen.getByRole('button', { name: 'New transcription' }).getAttribute('data-not-implemented')).toBeNull()
 })
