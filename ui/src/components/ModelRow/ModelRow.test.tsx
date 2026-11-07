@@ -13,7 +13,6 @@ const button = (name: string) => screen.queryByRole('button', { name })
 
 test('not downloaded: Download, nothing else', async () => {
   const { onDownload } = setup()
-  expect(screen.getByRole('group', { name: 'Whisper Small' }).textContent).toContain('Not downloaded')
   await userEvent.click(button('Download')!)
   expect(onDownload).toHaveBeenCalledOnce()
   expect(button('Use')).toBeNull()
@@ -53,7 +52,12 @@ test('a model that cannot be deleted now: the button is off and says why', () =>
 
 test('failed: the reason and Retry, which downloads again', async () => {
   const { onDownload } = setup({ state: 'failed', error: 'Connection to huggingface.co timed out' })
-  expect(screen.getByRole('alert').textContent).toBe('Connection to huggingface.co timed out')
+  expect(screen.getByRole('alert').textContent).toBe('Download failed: Connection to huggingface.co timed out')
   await userEvent.click(button('Retry')!)
   expect(onDownload).toHaveBeenCalledOnce()
+})
+
+test('the state is in the buttons, not in words next to them', () => {
+  setup({ state: 'installed' })
+  expect(screen.getByRole('group', { name: 'Whisper Small' }).textContent).not.toMatch(/Installed|Not downloaded|Downloading/)
 })

@@ -41,16 +41,14 @@ export function ModelsSection() {
   const rows = models.data.filter((model): model is TranscriptionModel => model.kind !== 'alignment')
   const row = (model: TranscriptionModel) => {
     const isDefault = model.kind === 'whisper' && model.installed && state.model === model.id
-    const badges = [
-      ...(model.recommended ? [{ label: 'Recommended', tone: 'accent' as const }] : []),
-      ...(isDefault ? [{ label: 'In use', tone: 'success' as const }] : []),
-    ]
+    const badges = isDefault ? [{ label: 'In use', tone: 'success' as const }] : []
     return (
       <ModelRow
         key={model.id}
         icon={model.kind === 'whisper' ? 'whisper-model' : 'diarization-model'}
         name={model.name}
-        meta={[model.size, model.speed, model.acc]}
+        // The size and the speed; a model without a speed of its own (diarization) shows "—".
+        meta={[model.size, model.speed].filter(item => item && item !== '—')}
         badges={badges}
         {...rowState(model.installed, model.id, downloads)}
         selected={isDefault}

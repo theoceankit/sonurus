@@ -13,9 +13,7 @@ export type ModelRowState = 'available' | 'downloading' | 'installed' | 'failed'
 export interface ModelRowProps {
   icon: IconName
   name: string
-  // Next to the name, quieter: the language's own name.
-  nativeName?: string
-  // Size, speed, accuracy: each its own item, without separators.
+  // Size and speed: each its own item, without separators.
   meta: readonly string[]
   badges?: readonly { label: string; tone?: 'neutral' | 'accent' | 'success' }[]
   state: ModelRowState
@@ -34,16 +32,10 @@ export interface ModelRowProps {
   deleteBlocked?: string
 }
 
-const STATUS: Record<ModelRowState, { icon: IconName; text: string }> = {
-  installed: { icon: 'check', text: 'Installed' },
-  downloading: { icon: 'download', text: 'Downloading' },
-  available: { icon: 'download', text: 'Not downloaded' },
-  failed: { icon: 'alert', text: 'Download failed' },
-}
-
-// One model of the catalog with what can be done with it now.
+// One model of the catalog with what can be done with it now. Its buttons say its
+// state: Download, the progress with Cancel, Use and delete, or the reason with Retry.
 export function ModelRow({
-  icon, name, nativeName, meta, badges = [], state, pct = 0, error, onDownload, onCancel, onUse, selected, onDelete, deleteBlocked,
+  icon, name, meta, badges = [], state, pct = 0, error, onDownload, onCancel, onUse, selected, onDelete, deleteBlocked,
 }: ModelRowProps) {
   const installed = state === 'installed'
   const usable = installed && !selected && onUse
@@ -59,7 +51,6 @@ export function ModelRow({
       ? <Tooltip key="delete" text={deleteBlocked}><span className={styles.blocked} tabIndex={0} aria-label={`${name} cannot be deleted: ${deleteBlocked}`}>{button}</span></Tooltip>
       : button)
   }
-  const status = STATUS[state]
   return (
     <div
       className={cx(styles.modelRow, selected && styles.selected, usable && styles.usable)}
@@ -71,7 +62,6 @@ export function ModelRow({
       <div className={styles.info}>
         <div className={styles.nameRow}>
           <span className={styles.name}>{name}</span>
-          {nativeName && nativeName !== name && <span className={styles.native}>{nativeName}</span>}
           {badges.map(badge => <Badge key={badge.label} tone={badge.tone ?? 'neutral'}>{badge.label}</Badge>)}
         </div>
         <div className={styles.meta}>
@@ -85,9 +75,8 @@ export function ModelRow({
             <span className={styles.pct}>{Math.round(pct)}%</span>
           </div>
         )}
-        {state === 'failed' && error && <span role="alert" className={styles.error}>{error}</span>}
+        {state === 'failed' && <span role="alert" className={styles.error}>Download failed{error ? `: ${error}` : ''}</span>}
       </div>
-      <span className={cx(styles.status, styles[state])}><Icon name={status.icon} size={12} />{status.text}</span>
       {/* Its buttons do their own thing, not the row's Use. */}
       <div className={styles.actions} onClick={event => event.stopPropagation()}>{actions}</div>
     </div>

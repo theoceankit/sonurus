@@ -27,7 +27,7 @@ export function AlignmentSection() {
   return (
     <SectionCard
       title="Word timings"
-      description="A wav2vec2 model per language places each word in time. Download one for each language you transcribe."
+      description="A model per language places each word in time. Download one for each language you transcribe."
       footer={`Not needed for ${list(alignedWithoutModel())}.`}
     >
       {known.map(model => (
@@ -35,8 +35,7 @@ export function AlignmentSection() {
           key={model.id}
           icon="alignment"
           name={model.name}
-          nativeName={model.nativeName}
-          meta={[model.size, 'wav2vec2']}
+          meta={[model.size]}
           {...rowState(installed(model.id), model.id, downloads)}
           onDownload={() => void downloads.start(model.id)}
           onCancel={() => void downloads.cancel(model.id)}

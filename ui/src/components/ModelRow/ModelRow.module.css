@@ -1,6 +1,6 @@
 .modelRow {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   column-gap: var(--space-3);
   padding-block: var(--space-3);
@@ -47,11 +47,6 @@
   font: var(--font-body-strong);
 }
 
-.native {
-  color: var(--color-text-secondary);
-  font: var(--font-body);
-}
-
 .meta {
   display: flex;
   flex-wrap: wrap;
@@ -94,30 +89,6 @@
   color: var(--color-danger-fg);
   font: var(--font-caption);
   overflow-wrap: anywhere;
-}
-
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font: var(--font-caption-strong);
-  white-space: nowrap;
-}
-
-.installed {
-  color: var(--color-success-fg);
-}
-
-.downloading {
-  color: var(--color-accent-fg);
-}
-
-.available {
-  color: var(--color-text-secondary);
-}
-
-.failed {
-  color: var(--color-danger-fg);
 }
 
 .actions {

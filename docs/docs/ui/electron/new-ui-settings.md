@@ -27,10 +27,10 @@ Without a provider, as for a screen alone in a story or a test, `open` does noth
 
 ## Models
 
-The Whisper models and the diarization model, each in its card, as `ModelRow` rows from `GET /models`: name, size, speed and accuracy, Recommended on `large-v3`, In use on the default Whisper model, and the status. While new jobs cannot start, a hint over the cards says why: no Whisper model, or no diarization model.
+The Whisper models and the diarization model, each in its card, as `ModelRow` rows from `GET /models`: name, size and speed, and In use on the default Whisper model. The buttons say the state; there is no status in words next to them. While new jobs cannot start, a hint over the cards says why: no Whisper model, or no diarization model.
 
 - **Download** starts the download of the app (`useModelDownloads()`); the row shows the percentage and Cancel, also after Settings were closed and opened again. Once the model is installed the catalog is read again, and a first Whisper model becomes the default ([New UI transcription](new-ui-transcribe.md#the-default-model)).
-- **Failed.** A download that failed says so in its row, with the reason the backend gave (`error(id)`) and Retry, which starts it anew. There is no toast: the row is where the model is.
+- **Failed.** A download that failed says so in its row, "Download failed: " and the reason the backend gave (`error(id)`), with Retry, which starts it anew. There is no toast: the row is where the model is.
 - **Use**, or a click on the row of an installed Whisper model, makes it the default (`selectTranscribeModel`). The diarization model has no Use: every job needs it.
 - **Delete**, on an installed model, as in the old UI (`ui/src/transcribe/model-delete.ts`). Every job needs the diarization model, a Whisper model only its own jobs, an alignment model the jobs in its language. A model no waiting or failed job needs is deleted at once (`DELETE /models/{id}`). One that some need asks first, "2 jobs in the queue use Whisper Small. Delete anyway?". One the running transcription needs cannot be deleted: the button is off with the reason in a tooltip, and the backend answers 409 anyway; any refusal of the backend is said in a toast and the model stays. After a delete the catalog is read again, so the default moves on with its toast; when the alignment model of the default language goes, the language becomes Detect automatically, with a toast.
 
@@ -38,7 +38,7 @@ While `GET /models` has not answered the section says Checking models…, and th
 
 ## Alignment
 
-The alignment models of the catalog (`ALIGNMENT_MODELS`), in its order, with the name, the language's own name and the size, Download, Cancel and the failed state as in Models. The footer names the languages of the list that need no model of their own, worked out from the catalog. It does not say where the models are kept: the API does not tell the real folder.
+The alignment models of the catalog (`ALIGNMENT_MODELS`), in its order, with the English name of the language and the size, Download, Cancel and the failed state as in Models. The footer names the languages of the list that need no model of their own, worked out from the catalog. It does not say where the models are kept: the API does not tell the real folder.
 
 ## GPU
 
