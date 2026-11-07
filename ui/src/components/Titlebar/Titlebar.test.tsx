@@ -40,7 +40,14 @@ test('Settings works', async () => {
   expect(onOpenSettings).toHaveBeenCalledOnce()
 })
 
-test.each(['Back', 'Forward', 'Speakers'])('%s says it is not available yet', async name => {
+test('Speakers works', async () => {
+  const onOpenSpeakers = vi.fn()
+  setup({ onOpenSpeakers })
+  await userEvent.click(screen.getByRole('button', { name: 'Speakers' }))
+  expect(onOpenSpeakers).toHaveBeenCalledOnce()
+})
+
+test.each(['Back', 'Forward'])('%s says it is not available yet', async name => {
   setup()
   const button = screen.getByRole('button', { name })
   expect(button.getAttribute('aria-disabled')).toBe('true')
@@ -62,4 +69,5 @@ test('the working controls are not marked', () => {
   expect(screen.getByRole('button', { name: 'Toggle sidebar' }).getAttribute('data-not-implemented')).toBeNull()
   expect(screen.getByRole('button', { name: 'Show inspector' }).getAttribute('data-not-implemented')).toBeNull()
   expect(screen.getByRole('button', { name: 'New transcription' }).getAttribute('data-not-implemented')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Speakers' }).getAttribute('data-not-implemented')).toBeNull()
 })

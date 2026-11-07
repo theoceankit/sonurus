@@ -1,0 +1,84 @@
+.body {
+  flex-direction: row;
+  gap: var(--space-4);
+}
+
+.rail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-half);
+  width: var(--size-choose-speaker-rail);
+}
+
+/* The list or a card, in one room whichever it is. */
+.pane {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  height: var(--size-speakers-pane);
+}
+
+.listArea {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-half);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.card {
+  height: 100%;
+  overflow-y: auto;
+  padding-inline-end: var(--space-2);
+}
+
+.fields {
+  flex: 1;
+  min-width: 0;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.quote {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.clip {
+  align-self: stretch;
+}
+
+.danger {
+  padding-block-start: var(--space-3);
+  border-top: var(--border-width-default) solid var(--color-border-default);
+}
+
+.blocked {
+  display: inline-flex;
+  flex: none;
+  border-radius: var(--radius-md);
+  outline: none;
+}
+
+.blocked:focus-visible {
+  outline: var(--border-width-strong) solid var(--color-focus);
+}

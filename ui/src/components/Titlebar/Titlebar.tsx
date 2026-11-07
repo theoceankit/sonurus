@@ -13,6 +13,7 @@ interface TitlebarProps {
   onOpenInspector?: () => void
   onNewTranscription?: () => void
   onOpenSettings?: () => void
+  onOpenSpeakers?: () => void
   className?: string
 }
 
@@ -26,7 +27,7 @@ const Tool = ({ label, ...props }: IconButtonProps) => (
 
 // The strip the window is dragged by. The system's window buttons stand over it,
 // on either side: env(titlebar-area-*) in the styles keeps the controls clear of them.
-export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = true, onOpenInspector, onNewTranscription, onOpenSettings, className }: TitlebarProps) {
+export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = true, onOpenInspector, onNewTranscription, onOpenSettings, onOpenSpeakers, className }: TitlebarProps) {
   return (
     <header className={cx(styles.titlebar, className)}>
       <div className={styles.brand}>
@@ -46,7 +47,7 @@ export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = 
       <div className={styles.actions}>
         <TooltipGroup>
           <span className={styles.nav}>
-            <Tool icon="speakers" label="Speakers" {...markNotImplemented('titlebar.speakers')} />
+            <Tool icon="speakers" label="Speakers" onClick={onOpenSpeakers} />
             <Tool icon="settings" label="Settings" onClick={onOpenSettings} />
             {!inspectorOpen && <Tool icon="inspector" label="Show inspector" className={styles.appear} onClick={onOpenInspector} />}
           </span>
