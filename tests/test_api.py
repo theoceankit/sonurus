@@ -1264,6 +1264,21 @@ def test_speaker_transcripts(client):
     assert client.get(f"/speakers/{_BOB}/transcripts").json()[0]["title"] == "first"
 
 
+def test_speaker_transcripts_tell_whether_the_audio_is_there(client, tmp_path):
+    storage = app.dependency_overrides[get_storage_service]()
+    present = tmp_path / "present.wav"
+    present.write_bytes(b"RIFF")
+    with_audio = storage.save(Transcript(audio_path=str(present), segments=[
+        Segment(0.0, 1.0, "a", "SPEAKER_00", speaker_resolved=_ALICE),
+    ]))
+    without_audio = storage.save(Transcript(audio_path=str(tmp_path / "gone.wav"), segments=[
+        Segment(0.0, 1.0, "b", "SPEAKER_00", speaker_resolved=_ALICE),
+    ]))
+    rows = {t["id"]: t for t in client.get(f"/speakers/{_ALICE}/transcripts").json()}
+    assert rows[with_audio]["has_audio"] is True
+    assert rows[without_audio]["has_audio"] is False
+
+
 def test_speaker_transcripts_unknown_returns_404(client):
     assert client.get(f"/speakers/{_BOB}/transcripts").status_code == 404
 

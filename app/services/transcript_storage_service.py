@@ -320,6 +320,7 @@ class TranscriptStorageService:
             {
                 "id": db_id,
                 "title": title or os.path.splitext(os.path.basename(audio_file))[0],
+                "audio_file": audio_file,
                 "created_at": created_at or "",
                 "segments": segments,
                 "duration_sec": duration or 0.0,

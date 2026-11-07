@@ -459,6 +459,7 @@ export interface paths {
          * List Speakers
          * @description Every speaker: with a voice profile, a name, or assigned segments.
          *     Named speakers first (by name), then unnamed ones (most recently seen first).
+         *     Speakers that tie keep one order: the most recently seen first, then by id.
          */
         get: operations["list_speakers_speakers_get"];
         put?: never;
@@ -1205,6 +1206,8 @@ export interface components {
             created_at: string;
             /** Duration Sec */
             duration_sec: number;
+            /** Has Audio */
+            has_audio: boolean;
             /** Id */
             id: number;
             /** Segments */

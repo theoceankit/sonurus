@@ -111,7 +111,11 @@ def speaker_transcripts(
     rows = storage.transcripts_for_speaker(speaker_id)
     if not rows and speaker_id not in memory.speaker_ids():
         raise HTTPException(status_code=404, detail="Speaker not found")
-    return [SpeakerTranscriptItem(**row) for row in rows]
+    return [
+        SpeakerTranscriptItem(**{k: v for k, v in row.items() if k != "audio_file"},
+                              has_audio=bool(row["audio_file"]) and os.path.isfile(row["audio_file"]))
+        for row in rows
+    ]
 
 
 @router.get("/{speaker_id}/sample", response_model=SpeakerSampleResponse)
