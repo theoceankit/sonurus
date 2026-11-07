@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import {
-  categoryCounts, deleteBlockReason, deleteSpeakerPrompt, duplicateNameIds, filterSpeakers, formatLastSeen, speakerAfter,
-  speakerDisplayName, speakerUsage,
+  categoryCounts, deleteBlockReason, deleteSpeakerPrompt, draftChanges, draftDirty, duplicateNameIds, filterSpeakers, formatLastSeen,
+  speakerAfter, speakerDisplayName, speakerDraft, speakerUsage,
 } from './speakers'
 
 const ROWS = [
@@ -86,4 +86,37 @@ test('speakerAfter: the next one, else the one before', () => {
 test('formatLastSeen', () => {
   expect(formatLastSeen('2026-10-04T02:33:00')).toBe('4 Oct 2026')
   expect(formatLastSeen('')).toBe('Never')
+})
+
+describe('speaker drafts', () => {
+  const lena = { id: 'lena', name: 'Lena Kovacs', color_index: 3 }
+
+  test('a fresh draft is the speaker as saved, with nothing to save', () => {
+    const draft = speakerDraft(lena)
+    expect(draft).toEqual({ id: 'lena', name: 'Lena Kovacs', colorIndex: 3 })
+    expect(draftChanges(draft, lena)).toBeNull()
+  })
+
+  test('a speaker without a name starts with an empty one', () => {
+    expect(speakerDraft({ id: 'x', name: null, color_index: 0 }).name).toBe('')
+  })
+
+  test('the changes are what differs, the name trimmed', () => {
+    expect(draftChanges({ ...speakerDraft(lena), name: '  Lena K  ' }, lena)).toEqual({ name: 'Lena K' })
+    expect(draftChanges({ ...speakerDraft(lena), colorIndex: 0 }, lena)).toEqual({ color_index: 0 })
+    expect(draftChanges({ ...speakerDraft(lena), name: 'Lena K', colorIndex: 0 }, lena)).toEqual({ name: 'Lena K', color_index: 0 })
+    expect(draftChanges({ ...speakerDraft(lena), name: ' Lena Kovacs ' }, lena)).toBeNull()
+  })
+
+  test('a blank name is a change that cannot be saved', () => {
+    const draft = { ...speakerDraft(lena), name: '   ' }
+    expect(draftDirty(draft, lena)).toBe(true)
+    expect(draftChanges(draft, lena)).toBeNull()
+  })
+
+  test('a speaker who had no name and still has none has nothing to save', () => {
+    const unnamed = { id: 'x', name: null, color_index: 0 }
+    expect(draftDirty(speakerDraft(unnamed), unnamed)).toBe(false)
+    expect(draftDirty({ ...speakerDraft(unnamed), name: ' ' }, unnamed)).toBe(false)
+  })
 })

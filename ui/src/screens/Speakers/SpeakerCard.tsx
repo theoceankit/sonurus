@@ -1,12 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState, type MutableRefObject } from 'react'
+import { useRef, useState, type MutableRefObject } from 'react'
 import { useApi } from '../../api/ApiProvider'
-import { queryKeys, useSpeakerSample, useSpeakerTranscripts, useUpdateSpeaker, useWaveform } from '../../api/queries'
+import { queryKeys, useSpeakerSample, useSpeakerTranscripts, useWaveform } from '../../api/queries'
 import type { Speaker } from '../../api/types'
 import { AppearanceRow } from '../../components/AppearanceRow/AppearanceRow'
 import { Avatar } from '../../components/Avatar/Avatar'
-import { Button } from '../../components/Button/Button'
-import { ClipPlayer } from '../../components/ClipPlayer/ClipPlayer'
 import { ColorPicker } from '../../components/ColorPicker/ColorPicker'
 import { IconButton } from '../../components/IconButton/IconButton'
 import { Inline } from '../../components/Inline/Inline'
@@ -17,14 +15,14 @@ import { SectionHeader } from '../../components/SectionHeader/SectionHeader'
 import { Stack } from '../../components/Stack/Stack'
 import { TextField } from '../../components/TextField/TextField'
 import { toast } from '../../components/Toast/toast-store'
-import { Tooltip } from '../../components/Tooltip/Tooltip'
+import { VoiceClip } from '../../components/VoiceClip/VoiceClip'
 import { BAR_COUNT } from '../../components/Waveform/bars'
 import { SAMPLE_MAX_SECONDS, useSampleState, type SamplePlayback } from '../../media/sample-playback'
 import { formatDuration } from '../../media/timeline'
 import { markNotImplemented } from '../../not-implemented'
 import { ASSIGNABLE_SPEAKER_COLORS, speakerColor } from '../../styles/speaker-colors'
 import { hasSpeakerNamed } from '../Editor/new-speaker'
-import { formatLastSeen, speakerUsage } from './speakers'
+import { formatLastSeen, speakerUsage, type SpeakerDraft } from './speakers'
 import styles from './SpeakersDialog.module.css'
 
 const NAME_MAX_LENGTH = 128
@@ -35,58 +33,39 @@ interface SpeakerCardProps {
   // Everyone else, to tell when the name is repeated.
   others: readonly Speaker[]
   sample: SamplePlayback
+  // The name and colour as edited; nothing is saved until Save.
+  draft: SpeakerDraft
+  dirty: boolean
+  saving: boolean
+  // Why the last Save of a name was refused.
+  saveError?: string
+  onDraftChange: (draft: SpeakerDraft) => void
+  onSave: () => void
+  onRevert: () => void
   // Why the speaker cannot be deleted now, or null.
   deleteBlocked: string | null
   onBack: () => void
   onOpenRecording: (id: number) => void
   onDelete: () => void
-  // The dialog asks it first on Escape: true when it only took back an edit of the name.
+  // The dialog asks it first on Escape: true when it only took back the edits.
   cancelEdit: MutableRefObject<() => boolean>
 }
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
-function NameField({ speaker, others, cancelEdit }: Pick<SpeakerCardProps, 'speaker' | 'others' | 'cancelEdit'>) {
-  const saved = speaker.name ?? ''
-  const [draft, setDraft] = useState(saved)
-  const [error, setError] = useState<string>()
+type NameFieldProps = Pick<SpeakerCardProps, 'speaker' | 'others' | 'draft' | 'dirty' | 'saving' | 'saveError' | 'onDraftChange' | 'onSave' | 'onRevert' | 'cancelEdit'>
+
+// Enter saves the card, Escape takes its edits back; typing and leaving save nothing.
+function NameField({ speaker, others, draft, dirty, saving, saveError, onDraftChange, onSave, onRevert, cancelEdit }: NameFieldProps) {
   const input = useRef<HTMLInputElement>(null)
-  const { mutateAsync: update, isPending } = useUpdateSpeaker()
-
-  // A name saved from here or elsewhere shows once it is there.
-  useEffect(() => { setDraft(saved) }, [saved])
-
-  const revert = () => {
-    setDraft(saved)
-    setError(undefined)
-  }
-  // The blur that follows a taken back edit saves nothing.
-  const cancelled = useRef(false)
   cancelEdit.current = () => {
-    if (document.activeElement !== input.current || (draft === saved && !error)) return false
-    revert()
-    cancelled.current = true
-    input.current?.blur()
+    if (document.activeElement !== input.current || !dirty) return false
+    onRevert()
     return true
   }
 
-  const save = async () => {
-    if (cancelled.current) {
-      cancelled.current = false
-      return
-    }
-    const name = draft.trim()
-    // A blank name is not saved: the speaker keeps the one they had.
-    if (!name || name === saved) return revert()
-    try {
-      await update({ speakerId: speaker.id, update: { name } })
-      setError(undefined)
-    } catch (err) {
-      setError(message(err))
-    }
-  }
-
-  const trimmed = draft.trim()
+  const saved = speaker.name ?? ''
+  const trimmed = draft.name.trim()
   const repeated = trimmed && trimmed !== saved && hasSpeakerNamed(others, trimmed) ? `Another speaker is also named "${trimmed}".` : undefined
   const sameAlready = !repeated && speaker.name && hasSpeakerNamed(others, speaker.name) ? `Another speaker is also named "${speaker.name}".` : undefined
 
@@ -96,19 +75,15 @@ function NameField({ speaker, others, cancelEdit }: Pick<SpeakerCardProps, 'spea
       label="Name"
       placeholder="Add a name"
       maxLength={NAME_MAX_LENGTH}
-      value={draft}
-      readOnly={isPending}
+      value={draft.name}
+      readOnly={saving}
       helper={repeated ?? sameAlready}
-      error={error}
-      onChange={event => {
-        setDraft(event.target.value)
-        setError(undefined)
-      }}
-      onBlur={() => { void save() }}
+      error={saveError}
+      onChange={event => onDraftChange({ ...draft, name: event.target.value })}
       onKeyDown={event => {
         if (event.key === 'Enter') {
           event.preventDefault()
-          void save()
+          onSave()
         }
       }}
     />
@@ -121,7 +96,8 @@ function VoiceSample({ speaker, sample }: Pick<SpeakerCardProps, 'speaker' | 'sa
   const state = useSampleState(sample)
   const clip = found.data
   const end = clip ? Math.min(clip.end, clip.start + SAMPLE_MAX_SECONDS) : 0
-  const levels = useWaveform(clip ? clip.transcript_id : null, { bars: BAR_COUNT.small, start: clip?.start ?? 0, end })
+  const [bars, setBars] = useState(BAR_COUNT.small)
+  const levels = useWaveform(clip ? clip.transcript_id : null, { bars, start: clip?.start ?? 0, end })
   const playing = state.key === MAIN_SAMPLE
 
   if (found.isError || (!found.isPending && !clip)) {
@@ -132,18 +108,16 @@ function VoiceSample({ speaker, sample }: Pick<SpeakerCardProps, 'speaker' | 'sa
     )
   }
   return (
-    <Stack gap={2}>
-      <ClipPlayer
-        className={styles.clip}
-        playing={playing && state.playing}
-        progress={playing ? state.progress : 0}
-        duration={formatDuration(end - (clip?.start ?? 0))}
-        disabled={!clip}
-        heights={levels.data}
-        onToggle={() => { if (clip) sample.toggle(MAIN_SAMPLE, api.getRecordingAudioUrl(clip.transcript_id), clip.start, clip.end) }}
-      />
-      {clip && <p className={styles.quote}>&quot;{clip.text.trim()}&quot;</p>}
-    </Stack>
+    <VoiceClip
+      playing={playing && state.playing}
+      progress={playing ? state.progress : 0}
+      duration={formatDuration(end - (clip?.start ?? 0))}
+      text={clip?.text.trim() ?? ''}
+      disabled={!clip}
+      heights={levels.data}
+      onBarCount={setBars}
+      onToggle={() => { if (clip) sample.toggle(MAIN_SAMPLE, api.getRecordingAudioUrl(clip.transcript_id), clip.start, clip.end) }}
+    />
   )
 }
 
@@ -179,7 +153,6 @@ function AppearsIn({ speaker, sample, onOpenRecording }: Pick<SpeakerCardProps, 
             key={row.id}
             title={row.title}
             date={formatLastSeen(row.created_at)}
-            time={formatDuration(row.duration_sec)}
             audioMissing={!row.has_audio}
             playing={state.key === key && state.playing}
             onPlay={() => {
@@ -196,16 +169,17 @@ function AppearsIn({ speaker, sample, onOpenRecording }: Pick<SpeakerCardProps, 
 }
 
 // One speaker, in place of the list: who they are, how they sound and where they talk.
-export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, onOpenRecording, onDelete, cancelEdit }: SpeakerCardProps) {
-  const { mutate: update } = useUpdateSpeaker()
+export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, saveError, onDraftChange, onSave, onRevert, deleteBlocked, onBack, onOpenRecording, onDelete, cancelEdit }: SpeakerCardProps) {
   const [area, setArea] = useState<HTMLElement | null>(null)
   const usage = speakerUsage(speaker)
   const named = Boolean(speaker.name)
-  const color = speakerColor(speaker.color_index)
+  const color = speakerColor(draft.colorIndex)
 
-  const deleteButton = (
-    <Button variant="danger" size="small" icon="delete" disabled={Boolean(deleteBlocked)} onClick={onDelete}>Delete speaker…</Button>
-  )
+  // While it cannot be done, Delete says why instead of asking.
+  const remove = () => {
+    if (deleteBlocked) toast({ message: deleteBlocked, type: 'error' })
+    else onDelete()
+  }
 
   return (
     <>
@@ -213,17 +187,23 @@ export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, on
         <Inline justify="between">
           <IconButton icon="arrow-left" label="Back to speakers" onClick={onBack} />
           <Menu align="end" trigger={<IconButton icon="more" label="More" />}>
-            <MenuAction icon="assign-speaker" {...markNotImplemented('speaker-card.merge')}>Merge into another speaker…</MenuAction>
+            <MenuAction icon="assign-speaker" {...markNotImplemented('speaker-card.merge')}>Merge into another speaker</MenuAction>
+            <MenuAction icon="delete" onSelect={remove}>Delete speaker</MenuAction>
           </Menu>
         </Inline>
         <Inline gap={4} align="start">
           {named ? <Avatar name={speaker.name!} color={color} size="large" /> : <Avatar kind="unknown" size="large" />}
           <Stack gap={3} className={styles.fields}>
-            <NameField key={speaker.id} speaker={speaker} others={others} cancelEdit={cancelEdit} />
+            <NameField speaker={speaker} others={others} draft={draft} dirty={dirty} saving={saving} saveError={saveError} onDraftChange={onDraftChange} onSave={onSave} onRevert={onRevert} cancelEdit={cancelEdit} />
             <TextField label="Handle" prefix="@" placeholder="olivia.brown" readOnly {...markNotImplemented('speaker-card.handle')} />
-            <TextField label="Email" placeholder="name@company.com" readOnly {...markNotImplemented('speaker-card.email')} />
           </Stack>
         </Inline>
+        <Stack gap={1}>
+          <SectionHeader title="Colour" />
+          {named
+            ? <ColorPicker aria-label="Colour" value={color} colors={ASSIGNABLE_SPEAKER_COLORS} disabled={saving} onValueChange={next => onDraftChange({ ...draft, colorIndex: next - 1 })} />
+            : <p className={styles.hint}>Speakers without a name are grey. Add a name to choose a colour.</p>}
+        </Stack>
         <Inline gap={4} wrap>
           <MetaItem icon="microphone">{usage.recordings}</MetaItem>
           {usage.time !== null && <MetaItem icon="clock">{formatDuration(usage.time)}</MetaItem>}
@@ -233,20 +213,7 @@ export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, on
           <SectionHeader title="Voice sample" />
           <VoiceSample speaker={speaker} sample={sample} />
         </Stack>
-        <Stack gap={1}>
-          <SectionHeader title="Colour" />
-          {named
-            ? <ColorPicker aria-label="Colour" value={color} colors={ASSIGNABLE_SPEAKER_COLORS} onValueChange={next => update({ speakerId: speaker.id, update: { color_index: next - 1 } }, { onError: error => toast({ message: message(error), type: 'error' }) })} />
-            : <p className={styles.hint}>Speakers without a name are grey. Add a name to choose a colour.</p>}
-        </Stack>
         <AppearsIn speaker={speaker} sample={sample} onOpenRecording={onOpenRecording} />
-        <Inline gap={4} justify="between" className={styles.danger}>
-          <p className={styles.hint}>Their segments stay in the recordings as Unassigned.</p>
-          {deleteBlocked
-            // A disabled button gets no pointer events: the tooltip hangs on a wrapper.
-            ? <Tooltip text={deleteBlocked}><span className={styles.blocked} tabIndex={0} aria-label={`Delete speaker: ${deleteBlocked}`}>{deleteButton}</span></Tooltip>
-            : deleteButton}
-        </Inline>
       </Stack>
       <ScrollBar area={area} />
     </>

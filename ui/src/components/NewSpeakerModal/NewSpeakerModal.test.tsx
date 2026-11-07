@@ -80,14 +80,13 @@ test('Back goes back, it does not close', async () => {
   expect(onClose).not.toHaveBeenCalled()
 })
 
-test('Handle and Email are in sight, and not there yet', async () => {
+test('Handle is in sight, and not there yet; there is no Email', async () => {
   setup()
   expect(screen.queryByRole('button', { name: 'Optional details' })).toBeNull()
-  for (const label of ['Handle', 'Email']) {
-    const input = screen.getByRole('textbox', { name: label })
-    expect(input.getAttribute('aria-disabled')).toBe('true')
-    await userEvent.click(input)
-  }
+  expect(screen.queryByRole('textbox', { name: 'Email' })).toBeNull()
+  const input = screen.getByRole('textbox', { name: 'Handle' })
+  expect(input.getAttribute('aria-disabled')).toBe('true')
+  await userEvent.click(input)
   expect((await screen.findAllByText('Not available yet')).length).toBeGreaterThan(0)
 })
 

@@ -91,7 +91,7 @@ function Everything() {
       </Stack>
       <Stack gap={2}>
         <span className={styles.heading}>What opens in place</span>
-        <Disclosure label="Optional details">Handle and email go here.</Disclosure>
+        <Disclosure label="Optional details">Handle goes here.</Disclosure>
         <Button variant="ghost" size="small" onClick={() => setMore(!more)}>{more ? 'Show less' : 'Show 3 more'}</Button>
         <Collapse open={more}><Stack gap={1}><span>Oliver Grant</span><span>Sofia Ramos</span><span>Lena Klein</span></Stack></Collapse>
       </Stack>

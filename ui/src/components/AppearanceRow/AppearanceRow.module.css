@@ -41,7 +41,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Play stands over the date and time, and a keyboard finds it too. */
+/* Play stands over the date, and a keyboard finds it too. */
 .actions {
   position: absolute;
   inset-block: 0;

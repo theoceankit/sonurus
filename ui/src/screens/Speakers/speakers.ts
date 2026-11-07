@@ -1,4 +1,4 @@
-import type { QueueSnapshot, Speaker } from '../../api/types'
+import type { QueueSnapshot, Speaker, SpeakerUpdate } from '../../api/types'
 
 export type SpeakersCategory = 'all' | 'named' | 'unnamed'
 
@@ -71,4 +71,30 @@ export function formatLastSeen(iso: string): string {
   const date = new Date(iso)
   if (!iso || Number.isNaN(date.getTime())) return 'Never'
   return `${date.getDate()} ${date.toLocaleDateString('en-US', { month: 'short' })} ${date.getFullYear()}`
+}
+
+// What the card holds until Save: the name and colour as edited, of one speaker.
+export interface SpeakerDraft {
+  id: string
+  name: string
+  colorIndex: number
+}
+
+type Saved = Pick<Speaker, 'id' | 'name' | 'color_index'>
+
+export const speakerDraft = (speaker: Saved): SpeakerDraft => ({ id: speaker.id, name: speaker.name ?? '', colorIndex: speaker.color_index })
+
+// Anything edited, a blank name too: Cancel and the question on leaving cover it.
+export const draftDirty = (draft: SpeakerDraft, saved: Saved) =>
+  draft.name.trim() !== (saved.name ?? '') || draft.colorIndex !== saved.color_index
+
+// What Save sends, or null when there is nothing it can send. A blank name is not
+// saved: a speaker keeps the name they had.
+export function draftChanges(draft: SpeakerDraft, saved: Saved): SpeakerUpdate | null {
+  const name = draft.name.trim()
+  if (!name && saved.name) return null
+  const update: SpeakerUpdate = {}
+  if (name && name !== saved.name) update.name = name
+  if (draft.colorIndex !== saved.color_index) update.color_index = draft.colorIndex
+  return Object.keys(update).length ? update : null
 }

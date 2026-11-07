@@ -4,7 +4,7 @@ import { Disclosure } from './Disclosure'
 
 const meta: Meta<typeof Disclosure> = {
   component: Disclosure,
-  args: { label: 'Optional details', children: 'Handle and email go here.' },
+  args: { label: 'Optional details', children: 'Handle goes here.' },
 }
 export default meta
 

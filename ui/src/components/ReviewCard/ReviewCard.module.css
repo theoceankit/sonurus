@@ -44,29 +44,6 @@
   inset-inline-end: calc(var(--space-4) - var(--border-width-default));
 }
 
-.clip {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-2);
-  border-radius: var(--radius-card);
-  background: var(--color-bg-sunken);
-}
-
-/* The distance from the player is inside what opens, so it opens with it. */
-.textWrap {
-  display: flex;
-  flex-direction: column;
-  padding-block-start: var(--space-2);
-}
-
-.text {
-  max-height: var(--size-review-clip-text);
-  margin: 0;
-  overflow-y: auto;
-  color: var(--color-text-secondary);
-  font: var(--font-body);
-}
-
 .answer {
   display: flex;
   flex-direction: column;
@@ -83,7 +60,8 @@
 }
 
 /* In the inspector the card takes what is left, and only the text of the clip gives
-   way. The height is that of Inspector.module.css, where the dock gets the same rule. */
+   way (VoiceClip.module.css). The height is that of Inspector.module.css, where the
+   dock gets the same rule. */
 @container inspector-panel (min-height: 520px) {
   .reviewCard {
     min-height: 0;
@@ -96,21 +74,5 @@
   .reviewCard > .clip {
     flex: 0 1 auto;
     min-height: 0;
-  }
-
-  .clip > * {
-    flex: none;
-  }
-
-  .clip > .textBox,
-  .textWrap {
-    flex: 0 1 auto;
-    min-height: 0;
-  }
-
-  .textWrap > .text {
-    flex: 0 1 auto;
-    min-height: 0;
-    padding-inline-end: var(--space-2);
   }
 }

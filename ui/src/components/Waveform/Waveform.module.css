@@ -22,11 +22,14 @@
 }
 
 .small {
+  justify-content: space-between;
   gap: var(--space-half);
   height: var(--size-waveform-small);
 }
 
-/* As narrow as the bars allow, and wider where the parent gives it room. */
+/* Every bar as wide as in the board's clip: a wider waveform has more bars
+   (smallBarCount() in bars.ts), and what is left over goes between them. */
 .small .bar {
-  flex: 1 1 var(--space-half);
+  flex: none;
+  width: var(--size-waveform-bar-small);
 }

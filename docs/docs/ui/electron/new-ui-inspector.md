@@ -8,7 +8,7 @@ The right panel of the Editor in the new UI: who speaks and for how long, and th
 
 ```
 EditorScreen → InspectorPanel → Inspector → TalkTime, SpeakerRow
-     │              │                     → ReviewCard → ClipPlayer, Candidate
+     │              │                     → ReviewCard → VoiceClip → ClipPlayer; Candidate
      │              └ review-queue.ts, inspector.ts, clip-playback.ts
      └ SpeakerDialogs → ChooseSpeakerModal, NewSpeakerModal (speaker-search.ts, new-speaker.ts)
 ```
@@ -49,7 +49,7 @@ Assign is off until a candidate is chosen, as it writes to speaker memory. It co
 
 A clip plays from its start to its end on its own audio element (`clip-playback.ts`), so the main player keeps its place. Starting one pauses the other. Another card, another recording or closing the panel stops the clip. With no clip the card has no player, and with no audio its Play button is off.
 
-Show text opens the clip's text inside the card. It takes at most six lines and scrolls beyond them, so the speakers above stay readable. When the card grows, the rows give way to it first, down to one speaker and Show N more. Then the text gets less room, and Skip and Assign stay where they are. In a window lower than about 740 px there is no room for that either, so the whole panel scrolls.
+The player and the text are a `VoiceClip`, which a speaker's card in the Speakers window shows too ([New UI speakers](new-ui-speakers.md)). Show text opens the clip's text inside the card. It takes at most six lines and scrolls beyond them, so the speakers above stay readable. When the card grows, the rows give way to it first, down to one speaker and Show N more. Then the text gets less room, and Skip and Assign stay where they are. In a window lower than about 740 px there is no room for that either, so the whole panel scrolls. The rule that lets only the text give way is in `VoiceClip.module.css`, under the same container query as the card's.
 
 Possible match is a recognized speaker to confirm. The backend does not keep a confidence yet, so only stories show it, through the `possibleMatches` prop.
 
@@ -59,7 +59,7 @@ Possible match is a recognized speaker to confirm. The backend does not keep a c
 
 Choose a speaker has categories on the left and the search on the right, with the suggested candidate or the card's choice selected. Arrow keys move the selection and Enter assigns. A search looks at any part of a name. With no results it offers a new speaker with that name. Invited to this meeting and Recently added are marked with `markNotImplemented()`: the API knows neither who was invited nor when a speaker was created.
 
-New speaker takes the name from the search. Its colour starts as the least used and gray is not offered, as it stands for an unknown speaker and the API keeps five colours. Names need not be unique, so a repeated one only gets a note. Back returns to where the window was opened from. The avatar stands on the left of a single column: Name, Handle, Email and Colour. Handle and Email are marked with `markNotImplemented()`.
+New speaker takes the name from the search. Its colour starts as the least used and gray is not offered, as it stands for an unknown speaker and the API keeps five colours. Names need not be unique, so a repeated one only gets a note. Back returns to where the window was opened from. The avatar stands on the left of a single column: Name, Handle and Colour. Handle is marked with `markNotImplemented()`.
 
 ## Stories
 

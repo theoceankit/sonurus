@@ -31,6 +31,9 @@ const rowNames = (dialog: HTMLElement) =>
   [...within(dialog).getByLabelText('Speakers').querySelectorAll('button')]
     .map(button => [...button.children].slice(1).map(part => part.textContent).join(''))
 
+const saveButton = (dialog: HTMLElement) => within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement
+const cancelButton = (dialog: HTMLElement) => within(dialog).getByRole('button', { name: 'Cancel' }) as HTMLButtonElement
+
 const openCard = async (dialog: HTMLElement, name: RegExp) => {
   await userEvent.click(within(dialog).getAllByRole('button', { name })[0])
   return within(dialog).findByRole('button', { name: 'Back to speakers' })
@@ -57,7 +60,7 @@ test('the categories and the search narrow the list', async () => {
   const { dialog } = await setup()
   await userEvent.click(within(dialog).getByRole('button', { name: /^Unnamed/ }))
   expect(rowNames(dialog).every(name => name?.startsWith('Unnamed speaker'))).toBe(true)
-  await userEvent.click(within(dialog).getByRole('button', { name: /^Named/ }))
+  await userEvent.click(within(dialog).getByRole('button', { name: /^Recognized/ }))
   await userEvent.type(within(dialog).getByRole('searchbox', { name: 'Search speakers' }), 'LENA')
   expect(rowNames(dialog)).toHaveLength(1)
   await userEvent.type(within(dialog).getByRole('searchbox', { name: 'Search speakers' }), 'zzz')
@@ -86,6 +89,7 @@ test('a card opens in place of the list and goes back to it', async () => {
   expect(within(dialog).getByText('11 recordings')).toBeTruthy()
   expect(within(dialog).getByText('Last seen 4 Oct 2026')).toBeTruthy()
   expect(within(dialog).getByRole('textbox', { name: 'Handle' }).getAttribute('data-not-implemented')).toBe('speaker-card.handle')
+  expect(within(dialog).queryByRole('textbox', { name: 'Email' })).toBeNull()
   await userEvent.click(back)
   expect(within(dialog).getByRole('searchbox', { name: 'Search speakers' })).toBeTruthy()
 })
@@ -102,7 +106,7 @@ test('Enter saves a new name everywhere; a repeated one is allowed and said', as
   await waitFor(() => expect(rowNames(dialog).filter(row => row?.includes('same name'))).toHaveLength(2))
 })
 
-test('Escape takes back an edit of the name and keeps the window; a blank name is not saved', async () => {
+test('Escape in the name takes back the edits and keeps the window; a blank name is not saved', async () => {
   const { client, dialog } = await setup()
   const update = vi.spyOn(client, 'updateSpeaker')
   await openCard(dialog, /Lena Kovacs/)
@@ -112,9 +116,74 @@ test('Escape takes back an edit of the name and keeps the window; a blank name i
   expect(name.value).toBe('Lena Kovacs')
   expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeTruthy()
   await userEvent.clear(name)
+  expect(saveButton(dialog).disabled).toBe(true)
   await userEvent.type(name, '{Enter}')
-  expect(name.value).toBe('Lena Kovacs')
   expect(update).not.toHaveBeenCalled()
+})
+
+test('nothing is saved while typing or leaving the field: only Save saves, name and colour at once', async () => {
+  const { client, dialog } = await setup()
+  const update = vi.spyOn(client, 'updateSpeaker')
+  await openCard(dialog, /Lena Kovacs/)
+  expect(saveButton(dialog).disabled).toBe(true)
+  expect(cancelButton(dialog).disabled).toBe(true)
+  const name = within(dialog).getByRole('textbox', { name: 'Name' })
+  await userEvent.clear(name)
+  await userEvent.type(name, 'Lena K')
+  await userEvent.tab()
+  await userEvent.click(within(within(dialog).getByRole('radiogroup', { name: 'Colour' })).getAllByRole('radio')[0])
+  expect(update).not.toHaveBeenCalled()
+  await userEvent.click(saveButton(dialog))
+  await waitFor(() => expect(update).toHaveBeenCalledWith(SPEAKER_IDS.lena, { name: 'Lena K', color_index: 0 }))
+  await waitFor(() => expect(saveButton(dialog).disabled).toBe(true))
+})
+
+test('Cancel takes back the edits', async () => {
+  const { client, dialog } = await setup()
+  const update = vi.spyOn(client, 'updateSpeaker')
+  await openCard(dialog, /Lena Kovacs/)
+  const name = within(dialog).getByRole('textbox', { name: 'Name' }) as HTMLInputElement
+  await userEvent.type(name, ' Jr')
+  await userEvent.click(cancelButton(dialog))
+  expect(name.value).toBe('Lena Kovacs')
+  expect(saveButton(dialog).disabled).toBe(true)
+  expect(update).not.toHaveBeenCalled()
+})
+
+test('leaving a card with edits asks first: Keep editing stays, Discard goes', async () => {
+  const { client, dialog } = await setup()
+  const update = vi.spyOn(client, 'updateSpeaker')
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.type(within(dialog).getByRole('textbox', { name: 'Name' }), ' Jr')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))
+  let ask = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+  await userEvent.click(within(ask).getByRole('button', { name: 'Keep editing' }))
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+  expect((within(dialog).getByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('Lena Kovacs Jr')
+  // A category leaves the card too.
+  await userEvent.click(within(dialog).getByRole('button', { name: /^Recognized/ }))
+  ask = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+  await userEvent.click(within(ask).getByRole('button', { name: 'Discard' }))
+  expect(await within(dialog).findByRole('searchbox', { name: 'Search speakers' })).toBeTruthy()
+  expect(update).not.toHaveBeenCalled()
+})
+
+test('closing the window with edits asks first', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.click(within(within(dialog).getByRole('radiogroup', { name: 'Colour' })).getAllByRole('radio')[0])
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+  const ask = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+  await userEvent.click(within(ask).getByRole('button', { name: 'Discard' }))
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Speakers' })).toBeNull())
+})
+
+test('a card without edits leaves without asking', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))
+  expect(within(dialog).getByRole('searchbox', { name: 'Search speakers' })).toBeTruthy()
+  expect(screen.queryByRole('alertdialog')).toBeNull()
 })
 
 test('a speaker without a name is grey, and gets a colour with a name', async () => {
@@ -125,13 +194,22 @@ test('a speaker without a name is grey, and gets a colour with a name', async ()
   expect(within(dialog).queryByRole('radiogroup', { name: 'Colour' })).toBeNull()
 })
 
-test('a colour is saved at once', async () => {
+test('the voice sample is the clip of the Review card: its text opens with the chevron, without quotes', async () => {
   const { client, dialog } = await setup()
-  const update = vi.spyOn(client, 'updateSpeaker')
+  const { text } = await client.getSpeakerSample(SPEAKER_IDS.lena)
   await openCard(dialog, /Lena Kovacs/)
-  const colours = within(dialog).getByRole('radiogroup', { name: 'Colour' })
-  await userEvent.click(within(colours).getAllByRole('radio')[0])
-  expect(update).toHaveBeenCalledWith(SPEAKER_IDS.lena, { color_index: 0 })
+  const show = await within(dialog).findByRole('button', { name: 'Show text' })
+  expect(within(dialog).queryByText(text.trim())).toBeNull()
+  await userEvent.click(show)
+  expect(within(dialog).getByText(text.trim()).textContent).toBe(text.trim())
+  expect((within(dialog).getByRole('button', { name: 'Play clip' }) as HTMLButtonElement).disabled).toBe(false)
+})
+
+test('while the sample loads its player is off and has no text', async () => {
+  const { dialog } = await setup({ overrides: { getSpeakerSample: () => new Promise(() => {}) } })
+  await openCard(dialog, /Lena Kovacs/)
+  expect((within(dialog).getByRole('button', { name: 'Play clip' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(within(dialog).queryByRole('button', { name: 'Show text' })).toBeNull()
 })
 
 test('Appears in opens a recording in the Editor, and a recording without its file cannot play', async () => {
@@ -148,7 +226,9 @@ test('Appears in opens a recording in the Editor, and a recording without its fi
 test('deleting asks first, then shows the next speaker', async () => {
   const { dialog } = await setup()
   await openCard(dialog, /Lena Kovacs/)
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Delete speaker…' }))
+  expect(within(dialog).queryByRole('button', { name: /^Delete speaker/ })).toBeNull()
+  await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete speaker' }))
   const confirm = await screen.findByRole('alertdialog', { name: 'Delete "Lena Kovacs"?' })
   expect(within(confirm).getByText(/will become Unassigned/)).toBeTruthy()
   await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
@@ -161,6 +241,33 @@ test('a speaker is not deleted while the queue transcribes', async () => {
   const { client, dialog } = await setup()
   act(() => { client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot({ running_job_id: 'a' }) }] }) })
   await openCard(dialog, /Lena Kovacs/)
-  await waitFor(() => expect((within(dialog).getByRole('button', { name: 'Delete speaker…' }) as HTMLButtonElement).disabled).toBe(true))
-  expect(within(dialog).getByLabelText('Delete speaker: Pause the transcription queue first.')).toBeTruthy()
+  await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete speaker' }))
+  expect(await screen.findByText('Pause the transcription queue first.')).toBeTruthy()
+  expect(screen.queryByRole('alertdialog')).toBeNull()
+})
+
+test('Merge and Delete follow each other in More, with nothing between them', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
+  const menu = await screen.findByRole('menu')
+  expect(within(menu).queryByRole('separator')).toBeNull()
+  expect(within(menu).getAllByRole('menuitem').map(item => item.textContent?.trim())).toEqual(['Merge into another speaker', 'Delete speaker'])
+})
+
+test('a card goes: name and colour, what the speaker did, the sample, the recordings', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  const order = ['Colour', '11 recordings', 'Voice sample', 'Appears in'].map(text => within(dialog).getByText(text))
+  for (let i = 1; i < order.length; i++) {
+    expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  }
+})
+
+test('a row of Appears in has the date and no time', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  const row = (await within(dialog).findByText('Design review')).closest('button')!
+  expect(row.textContent).toBe('Design review5 Oct 2026')
 })
