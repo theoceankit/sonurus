@@ -11,6 +11,7 @@ interface TitlebarProps {
   // The inspector closes from inside its panel, so only opening it is here.
   inspectorOpen?: boolean
   onOpenInspector?: () => void
+  onNewTranscription?: () => void
   className?: string
 }
 
@@ -24,7 +25,7 @@ const Tool = ({ label, ...props }: IconButtonProps) => (
 
 // The strip the window is dragged by. The system's window buttons stand over it,
 // on either side: env(titlebar-area-*) in the styles keeps the controls clear of them.
-export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = true, onOpenInspector, className }: TitlebarProps) {
+export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = true, onOpenInspector, onNewTranscription, className }: TitlebarProps) {
   return (
     <header className={cx(styles.titlebar, className)}>
       <div className={styles.brand}>
@@ -36,7 +37,7 @@ export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = 
           </span>
         </TooltipGroup>
         <span className={styles.spacer} />
-        <Tool icon="add" label="New transcription" {...markNotImplemented('titlebar.new-transcription')} />
+        <Tool icon="add" label="New transcription" onClick={onNewTranscription} />
       </div>
       <div className={styles.search} {...markNotImplemented('titlebar.search')}>
         <SearchField value="" onValueChange={ignore} readOnly placeholder="Search transcripts" aria-label="Search transcripts" shortcut={['mod', 'K']} />

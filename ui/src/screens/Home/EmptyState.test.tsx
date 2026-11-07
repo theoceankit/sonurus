@@ -1,0 +1,45 @@
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, expect, test } from 'vitest'
+import { ApiProvider } from '../../api/ApiProvider'
+import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
+import { dismissAllToasts } from '../../components/Toast/toast-store'
+import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
+import { OverlayProvider } from '../../OverlayProvider'
+import { EditorScreen } from '../Editor/EditorScreen'
+
+afterEach(dismissAllToasts)
+
+const setup = (options: FixtureOptions) => render(
+  <ApiProvider client={createFixtureClient(options)}><OverlayProvider><EditorScreen /></OverlayProvider></ApiProvider>,
+)
+const centre = () => screen.getByRole('main', { name: 'Transcript' })
+const HINT = /To make a new transcription, press/
+
+test('with no recordings the centre says how to make one and where the models are', async () => {
+  setup({ scenario: 'empty' })
+  expect(await within(centre()).findByText(HINT)).toBeTruthy()
+  expect(within(centre()).getByRole('img', { name: 'plus' })).toBeTruthy()
+  const settings = within(centre()).getByRole('button', { name: 'Settings' })
+  expect(settings.getAttribute('data-not-implemented')).toBe('home.settings')
+  await userEvent.click(settings)
+  expect((await screen.findAllByText(NOT_IMPLEMENTED_TOAST)).length).toBeGreaterThan(0)
+})
+
+test('loading the list is not empty', async () => {
+  setup({ scenario: 'loading' })
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(within(centre()).queryByText(HINT)).toBeNull()
+})
+
+test('a backend that fails is not empty', async () => {
+  setup({ scenario: 'error' })
+  await screen.findByText('Could not load recordings')
+  expect(within(centre()).queryByText(HINT)).toBeNull()
+})
+
+test('with recordings one is open instead', async () => {
+  setup({})
+  expect(await within(centre()).findByRole('heading', { level: 1 })).toBeTruthy()
+  expect(within(centre()).queryByText(HINT)).toBeNull()
+})

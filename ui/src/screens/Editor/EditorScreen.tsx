@@ -6,6 +6,10 @@ import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { prefersReducedMotion, useLingering } from '../../presence'
 import { cx } from '../../styles/cx'
 import { createKeyStore } from '../../media/active-segment'
+import { EmptyState } from '../Home/EmptyState'
+import { ImportDialog } from '../Home/ImportDialog'
+import { pickRecording, useRecentRecordings } from '../Home/last-opened'
+import { useImportDialog } from '../Home/useImportDialog'
 import type { Playback } from '../../media/playback'
 import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecordingDialog'
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
@@ -54,6 +58,8 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const transcripts = useTranscripts()
   const speakers = useSpeakers()
   const [selectedId, setSelectedId] = useState(initialSelectedId)
+  const recent = useRecentRecordings()
+  const importer = useImportDialog()
   const [panels, setPanels] = useState(INITIAL_PANELS)
   const ownPlayback = useTranscriptPlayback(givenPlayback ? null : selectedId)
   const playback = givenPlayback ?? ownPlayback
@@ -72,6 +78,19 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const panelsArea = useRef<HTMLDivElement>(null)
   const stopMoving = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(stopMoving.current), [])
+
+  // With recordings there is always one open: at startup and after the open one is
+  // deleted, the last one opened that is left.
+  useEffect(() => {
+    if (selectedId !== null || !transcripts.data || recent.ids === null) return
+    const next = pickRecording(transcripts.data, recent.ids)
+    if (next !== null) setSelectedId(next)
+  }, [selectedId, transcripts.data, recent.ids])
+
+  const { remember } = recent
+  useEffect(() => {
+    if (selectedId !== null) remember(selectedId)
+  }, [selectedId, remember])
 
   // On the element and not in state: the frames of this move are the last place for a render.
   const toggle = (panel: Panel) => {
@@ -112,9 +131,13 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
 
   // Moving a panel asks nothing new of the transcript, and on a long recording it is the
   // most expensive thing to render.
+  // Only an answer with no recordings is empty: loading and failing are the sidebar's to say.
+  const noRecordings = transcripts.data?.length === 0
   const center = useMemo(
-    () => transcript ?? <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />,
-    [transcript, selectedId, playback, highlight, showAllSpeakers],
+    () => transcript ?? (noRecordings
+      ? <EmptyState />
+      : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />),
+    [transcript, noRecordings, selectedId, playback, highlight, showAllSpeakers],
   )
 
   // A refresh that fails leaves what was loaded on the screen.
@@ -128,6 +151,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
         onToggleSidebar={() => toggle('sidebar')}
         inspectorOpen={visible.inspector}
         onOpenInspector={() => toggle('inspector')}
+        onNewTranscription={importer.open}
       />
       <div
         ref={panelsArea}
@@ -175,6 +199,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
           onExited={speakerDialog.exited}
         />
       )}
+      <ImportDialog {...importer.dialog} />
       {deleteDialog.value && (
         <DeleteRecordingDialog
           key={deleteDialog.key}

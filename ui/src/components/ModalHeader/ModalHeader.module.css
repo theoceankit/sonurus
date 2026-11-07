@@ -18,6 +18,7 @@
 .title {
   color: var(--color-text-primary);
   font: var(--font-title);
+  user-select: none;
 }
 
 .description {

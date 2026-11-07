@@ -53,6 +53,8 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `markTranscriptOpened(id)` tells the backend the user has opened a recording, so it is no longer new in the sidebar (`opened` in the list). Loading it with `getTranscript` does not.
 
+`addQueueJob({ audioPath, whisperModel, language })` puts a file into the transcription queue: `POST /queue/jobs`. The backend copies the file into `recordings/` and answers the waiting job; the title is the file name. A null model or language is the backend's own: its default model, and the language detected from the audio. A model the job needs that is not installed, or a file it cannot read, is a 400 whose message says what is wrong; for a missing model it ends with "Download it in Settings.".
+
 `now()` is today for the screens: the current time on the backend client, 5 October 2026 on fixtures, so that sections of the recordings list stay as on the design boards.
 
 A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/speaker-colors.ts` turns it into a colour of the avatars. The fixtures use the colours of the boards.
@@ -79,6 +81,8 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 
 `useMarkOpened(id, loaded)` is called by `TranscriptPanel`. Once the recording has loaded and the list says it is not opened, it sets `opened` in the list at once and calls `markTranscriptOpened`, then refreshes the list only, not the recording. A failure says nothing: the next list brings the dot back. It asks once per opening, because after a failure the list says not opened again and it would ask forever.
 
+`useAddToQueue()` takes paths and puts them into the queue one at a time, in the order given, with the default model and language from Electron's settings (`transcribeModel`, `transcribeLang`; `ui/src/platform/transcribe-defaults.ts`). No model saved, or no Electron, leaves the model to the backend, and `auto` is sent as null. It stops at the first refusal with an `AddToQueueError`, whose `added` says how many files went in before it, so that the caller does not send them twice.
+
 `useDeleteTranscript()` counts a recording already gone as deleted. It takes the recording off the list at once and does not ask for its details again, as the panels still show it until `EditorScreen` closes it.
 
 ## Fixtures
@@ -90,6 +94,7 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 | `scenario` | `default`, `loading`, `empty`, `error` | `loading` never answers, `empty` has no rows and an idle queue, `error` rejects everything with a 500 |
 | `board` | `review`, `reviewDone`, `unassigned` | The data of the Editor boards; other boards show the same data in another UI state |
 | `noAudio` | `true` | `getAudioUrl` gives null and `getWaveform` a 404 |
+| `noModels` | `true` | `addQueueJob` answers the 400 of a missing diarization model (`NO_MODELS`) |
 | `overrides` | any methods of `ApiClient` | One method behaving differently, such as a failing save on a loaded screen |
 
 `setConnected(false)` on a fixture client loses the connection to the backend, and `setConnected(true)` brings it back.

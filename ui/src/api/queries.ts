@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
+import { readTranscribeDefaults } from '../platform/transcribe-defaults'
 import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
 import type { QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
@@ -209,6 +210,40 @@ export function useUpdateSpeaker() {
   return useMutation({
     mutationFn: ({ speakerId, update }: { speakerId: string; update: SpeakerUpdate }) => api.updateSpeaker(speakerId, update),
     onSuccess: () => refreshTranscriptsAndSpeakers(queries),
+  })
+}
+
+// Files that went into the queue before one failed stay there, so the caller can
+// take them off its list and not send them twice.
+export class AddToQueueError extends Error {
+  readonly added: number
+  readonly error: ApiError
+
+  constructor(added: number, error: ApiError) {
+    super(error.message)
+    this.name = 'AddToQueueError'
+    this.added = added
+    this.error = error
+  }
+}
+
+// Puts files into the transcription queue one at a time, in the order given, with the
+// default model and language of the settings. Stops at the first refusal.
+export function useAddToQueue() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: async (paths: readonly string[]) => {
+      const defaults = await readTranscribeDefaults()
+      for (const [added, audioPath] of paths.entries()) {
+        try {
+          await api.addQueueJob({ audioPath, ...defaults })
+        } catch (error) {
+          throw new AddToQueueError(added, error instanceof ApiError ? error : new ApiError(0, String(error)))
+        }
+      }
+    },
+    onSettled: () => queries.invalidateQueries({ queryKey: queryKeys.queue }),
   })
 }
 

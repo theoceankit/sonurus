@@ -81,6 +81,9 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
       params: { path: { speaker_id }, query: { transcript_id } },
     })),
     getQueue: () => send(http.GET('/queue')),
+    addQueueJob: ({ audioPath, whisperModel, language }) => send(http.POST('/queue/jobs', {
+      body: { audio_path: audioPath, whisper_model: whisperModel, language },
+    })),
     subscribeQueueEvents: (listener, onConnection) => connectQueueEvents({
       url: `${baseUrl.replace(/^http/, 'ws')}/ws/queue`,
       onEvent: listener,

@@ -1,0 +1,98 @@
+import { ApiError } from '../../api/client'
+
+// What the file dialog of Electron offers, and what the old UI takes from a drop.
+export const SUPPORTED_EXTENSIONS = ['wav', 'mp3', 'm4a', 'flac', 'ogg', 'mp4', 'mkv', 'webm'] as const
+
+export interface ImportFile {
+  name: string
+  path: string
+}
+
+export interface ImportFailure {
+  message: string
+  // A model the job needs is not downloaded: the way out is Settings.
+  missingModels: boolean
+}
+
+export const fileName = (path: string) => path.replace(/^.*[\\/]/, '')
+
+export function isSupportedAudio(name: string | undefined): boolean {
+  const extension = /\.([^./\\]+)$/.exec(name ?? '')?.[1]?.toLowerCase()
+  return SUPPORTED_EXTENSIONS.some(supported => supported === extension)
+}
+
+// New files go to the end of the list. One already there is not added twice and not
+// counted as skipped; one that is not audio or has no path on disk is skipped.
+export function addFiles(current: readonly ImportFile[], incoming: readonly ImportFile[]): { files: ImportFile[]; skipped: string[] } {
+  const files = [...current]
+  const skipped: string[] = []
+  for (const file of incoming) {
+    if (!file.path || !isSupportedAudio(file.name)) skipped.push(file.name)
+    else if (!files.some(other => other.path === file.path)) files.push(file)
+  }
+  return { files, skipped }
+}
+
+export const importingMessage = (files: readonly ImportFile[]) => (
+  files.length === 1 ? `Importing ${files[0].name}…` : `Importing ${files.length} files…`
+)
+
+// A toast, as in the old UI: the dialog keeps only what will be imported.
+export const skippedMessage = (names: readonly string[]) => (
+  names.length === 1
+    ? `${names[0]} was not imported: this file type is not supported.`
+    : `${names.length} files were not imported: these file types are not supported.`
+)
+
+export function importFailure(error: ApiError): ImportFailure {
+  if (error.status === 0) return { message: 'The backend is not responding.', missingModels: false }
+  return { message: error.message, missingModels: /not installed/i.test(error.message) }
+}
+
+export const hasFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes('Files')
+
+export interface FileDragHandlers {
+  // Files came over the window.
+  onEnter: () => void
+  // They left it, or the drag was cancelled, or someone below took the drop.
+  onLeave: () => void
+  onDrop: (files: File[]) => void
+}
+
+// Drags of files over the whole window. Drags of anything else, such as text, are left
+// alone. A drop of files is always cancelled, also outside any zone: otherwise
+// Electron would open the file in the window instead of the app.
+export function watchFileDrags(target: Window, { onEnter, onLeave, onDrop }: FileDragHandlers): () => void {
+  // Enter and leave come for every element crossed: only the first and the last count.
+  let depth = 0
+  const enter = (event: DragEvent) => {
+    if (!hasFiles(event)) return
+    event.preventDefault()
+    if (++depth === 1) onEnter()
+  }
+  const leave = (event: DragEvent) => {
+    if (!hasFiles(event)) return
+    if (--depth > 0) return
+    depth = 0
+    onLeave()
+  }
+  const over = (event: DragEvent) => {
+    if (!hasFiles(event)) return
+    event.preventDefault()
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+  }
+  const drop = (event: DragEvent) => {
+    if (!hasFiles(event)) return
+    // A zone below took it already.
+    const handled = event.defaultPrevented
+    event.preventDefault()
+    depth = 0
+    if (handled) onLeave()
+    else onDrop(Array.from(event.dataTransfer?.files ?? []))
+  }
+  const listeners = { dragenter: enter, dragleave: leave, dragover: over, drop } as const
+  for (const [type, listener] of Object.entries(listeners)) target.addEventListener(type, listener as EventListener)
+  return () => {
+    for (const [type, listener] of Object.entries(listeners)) target.removeEventListener(type, listener as EventListener)
+  }
+}
