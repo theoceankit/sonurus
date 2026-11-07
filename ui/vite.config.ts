@@ -33,5 +33,8 @@ export default defineConfig({
     // The tests that walk the sources use import.meta.glob. A cached transform
     // keeps the old list of files, so they would not see a new file.
     fsModuleCache: false,
+    // Screen tests render the whole Editor and take 1–2 s here, three to four
+    // times that on a CI runner, which is past Vitest's default of 5 s.
+    testTimeout: 15_000,
   },
 })

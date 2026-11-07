@@ -59,6 +59,7 @@ Storybook is not the place to judge timings on long recordings: its highlight ad
 ## Unit tests
 
 - `fsModuleCache` is off in `ui/vite.config.ts` on purpose: a cached transform keeps an old `import.meta.glob`, and the tests that walk the sources would miss new files. When adding such a guard, check it once with a deliberate violation.
+- A test may take up to 15 s (`testTimeout` in `ui/vite.config.ts`). Screen tests that render the whole Editor take 1–2 s on a developer machine and three to four times that on a CI runner. To see CI timings locally, run the suite on two cores: `taskset -c 0,1 npm --prefix ui test`.
 - CSS is not blanked in tests (`css.include`), because tests read tokens and styles through `?raw`. A test that parses CSS should still check that it got non-empty input.
 - jsdom has no layout. It does not work out `:focus-visible`, has no `Range` geometry (stubbed in `ui/src/test-setup.ts`) and no `ResizeObserver` (stubbed there too; a test stub must keep every callback, not the last). It does not reproduce event-order bugs of overlays either: check those in a browser.
 - Radix returns focus a tick after an overlay closes and moves arrow focus in a `setTimeout`: wait before the next step, or focus lands in the next test. Radix radio arrows choose only while the key is held (`{ArrowRight>}`).
