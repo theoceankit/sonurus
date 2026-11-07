@@ -160,6 +160,7 @@
   --opacity-playing-track: 0.25;
 
   --duration-spin: 800ms;
+  --duration-shimmer: 3200ms;
   --duration-fast: 100ms;
   --duration-base: 150ms;
   --duration-slow: 200ms;
