@@ -288,6 +288,15 @@ export function createFixtureClient({
     }),
     listModels: () => answer(() => models),
     startModelDownload: modelId => answer(() => startDownload(modelId)),
+    resetData: () => answer(() => {
+      if (queue.running_job_id) throw new ApiError(409, 'A transcription is in progress')
+      const summary = { transcripts: data.transcripts.length, speakers: data.speakers.length, files: data.transcripts.length }
+      data.transcripts = []
+      data.details = []
+      data.speakers = []
+      data.candidates = {}
+      return summary
+    }),
     getGpuStatus: () => answer(() => gpu),
     startGpuDownload: () => answer(startGpuJob),
     cancelGpuDownload: jobId => answer(() => {

@@ -6,6 +6,7 @@ import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { TabPanel, Tabs } from '../../components/Tabs/Tabs'
 import { AlignmentSection } from './AlignmentSection'
 import { ApiKeysSection } from './ApiKeysSection'
+import { DataSection } from './DataSection'
 import { ExportSection } from './ExportSection'
 import { GeneralSection } from './GeneralSection'
 import { GpuSection } from './GpuSection'
@@ -30,6 +31,7 @@ const PANELS: Record<SettingsSection, ComponentType> = {
   gpu: GpuSection,
   apiKeys: ApiKeysSection,
   export: ExportSection,
+  data: DataSection,
 }
 
 // macOS has no GPU acceleration: no section for it, as the old UI hid its card.

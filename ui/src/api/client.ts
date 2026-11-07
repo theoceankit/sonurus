@@ -1,5 +1,5 @@
 import type {
-  GpuStatus, ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
+  DataResetSummary, GpuStatus, ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
@@ -76,6 +76,9 @@ export interface ApiClient {
   removeGpuPack(): Promise<void>
   // A 409 when there is nothing to apply.
   requestGpuRestart(): Promise<GpuRestartAnswer>
+  // Deletes every transcript, speaker and recording made in the app. Refused with a
+  // 409 while a transcription or a recording runs.
+  resetData(): Promise<DataResetSummary>
   getQueue(): Promise<QueueSnapshot>
   // The backend copies the file and answers the waiting job, or 400 when a model the
   // job needs is not installed or the file cannot be read.

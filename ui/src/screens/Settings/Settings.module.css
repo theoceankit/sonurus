@@ -79,3 +79,13 @@
   flex: 1;
   min-width: 0;
 }
+
+.blocked {
+  display: inline-flex;
+  border-radius: var(--radius-md);
+  outline: none;
+}
+
+.blocked:focus-visible {
+  outline: var(--border-width-strong) solid var(--color-focus);
+}

@@ -102,3 +102,21 @@ export const ApiKeys: Story = { args: { section: 'apiKeys' }, decorators: [withS
 export const ApiKeysEmpty: Story = { args: { section: 'apiKeys' } }
 
 export const Export: Story = { args: { section: 'export' } }
+
+export const Data: Story = { args: { section: 'data' } }
+
+export const DataWhileTranscribing: Story = {
+  args: { section: 'data' },
+  parameters: { api: { overrides: { getQueue: async () => queueSnapshot({ jobs: [{ ...QUEUE_JOB, id: 'a', status: 'running' }], running_job_id: 'a' }) } } },
+}
+
+// Reset… and Delete… ask over Settings, which stays open under the question.
+export const DataLive: Story = {
+  render: function Render() {
+    function Open() {
+      const settings = useSettingsDialog()
+      return <Button onClick={() => settings.open('data')}>Open Settings on Data</Button>
+    }
+    return <SettingsProvider><Open /></SettingsProvider>
+  },
+}

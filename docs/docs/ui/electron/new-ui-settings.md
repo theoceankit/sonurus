@@ -54,6 +54,13 @@ The HuggingFace token (`hfToken`), hidden until the eye button shows it. It is s
 
 Shown and marked with `markNotImplemented()` as a whole, as in the old UI: export does not exist yet, so its format, Duplicate on export and what to include change nothing.
 
+## Data
+
+- **Reset preferences** puts every preference of `DEFAULT_SETTINGS` back (`defaultSettingsPatch`), applies 100% scale and says so in a toast. The HuggingFace token and the recordings opened last are not preferences and stay; so do transcripts, models and recordings. Start transcription belongs to the queue and is not reset, as in the old UI.
+- **Delete all data** sends `POST /data/reset`: every transcript, speaker with its voice profile and recording made in Sonorus goes; imported audio files, models and preferences stay. A toast says what was deleted, "Deleted 3 transcripts, 2 speakers and 4 files." The recordings, speakers and queue are read again, so the window behind shows the empty state. The button is off while a transcription runs, with the reason in a tooltip; the backend also refuses then and during a recording, and its refusal is said in a toast.
+
+Both ask first ([Confirmations](#confirmations)).
+
 ## Confirmations
 
 A destructive step asks in `ConfirmDialog`, a danger `Modal` over Settings: the `alertdialog` role and focus on Cancel. Escape, the scrim and Cancel close only it, and Settings stays open. Focus goes back to the button that asked; when that is gone, such as the delete button of a model just deleted, to Settings. The confirm button is busy until the step is done. The scrim under it dims Settings again (`scrim="dim"`); `scrim="clear"` leaves the dimming to the scrim of Settings. Both are in Storybook, Modal → Over another window.

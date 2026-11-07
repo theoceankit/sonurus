@@ -8,6 +8,7 @@ export const SECTIONS = [
   { id: 'gpu', label: 'GPU', icon: 'sparkle' },
   { id: 'apiKeys', label: 'API Keys', icon: 'api-keys' },
   { id: 'export', label: 'Export', icon: 'export' },
+  { id: 'data', label: 'Data', icon: 'privacy' },
 ] as const satisfies readonly { id: string; label: string; icon: IconName }[]
 
 export type SettingsSection = (typeof SECTIONS)[number]['id']
