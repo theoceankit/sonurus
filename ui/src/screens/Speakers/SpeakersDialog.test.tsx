@@ -9,6 +9,7 @@ import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
+import unknownSpeakerSvg from '../../assets/icons/speaker-unknown.svg?raw'
 
 afterEach(() => {
   dismissAllToasts()
@@ -44,6 +45,15 @@ test('opens from the titlebar on every speaker, named first', async () => {
   expect(names[0]).toMatch(/^Anna Petrova8 recordings/)
   expect(names.at(-1)).toMatch(/^Unnamed speaker/)
   expect(within(dialog).getByRole('button', { name: /All speakers/ }).textContent).toContain('18')
+})
+
+const pathsOf = (svg: Element | null) => [...(svg?.querySelectorAll('path') ?? [])].map(path => path.getAttribute('d'))
+
+test('Unnamed has its own icon, a speaker with a question mark', async () => {
+  const { dialog } = await setup()
+  const icon = within(dialog).getByRole('button', { name: /^Unnamed/ }).querySelector('svg')
+  const file = new DOMParser().parseFromString(unknownSpeakerSvg, 'image/svg+xml').querySelector('svg')
+  expect(pathsOf(icon)).toEqual(pathsOf(file))
 })
 
 test('the categories and the search narrow the list', async () => {

@@ -3,6 +3,7 @@ import { useDeleteSpeaker, useQueue, useSpeakers, useUpdateSpeaker } from '../..
 import type { Speaker } from '../../api/types'
 import { Button } from '../../components/Button/Button'
 import { Candidate } from '../../components/Candidate/Candidate'
+import type { IconName } from '../../components/Icon/icon-names'
 import { MenuItem } from '../../components/MenuItem/MenuItem'
 import { Modal } from '../../components/Modal/Modal'
 import { ModalBody } from '../../components/ModalBody/ModalBody'
@@ -28,10 +29,10 @@ import {
 } from './speakers'
 import styles from './SpeakersDialog.module.css'
 
-const CATEGORIES: { id: SpeakersCategory; label: string; icon: 'speakers' | 'check' | 'info' }[] = [
+const CATEGORIES: { id: SpeakersCategory; label: string; icon: IconName }[] = [
   { id: 'all', label: 'All speakers', icon: 'speakers' },
   { id: 'named', label: 'Recognized', icon: 'check' },
-  { id: 'unnamed', label: 'Unnamed', icon: 'info' },
+  { id: 'unnamed', label: 'Unnamed', icon: 'speaker-unknown' },
 ]
 
 export interface SpeakersDialogProps {

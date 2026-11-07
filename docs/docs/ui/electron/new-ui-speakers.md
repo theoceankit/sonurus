@@ -12,7 +12,7 @@ The Speakers button at the right of the titlebar opens `SpeakersDialog`, which `
 
 ## Categories and the list
 
-- **Categories.** All speakers, Recognized (speakers with a name) and Unnamed, each with its count. Recently added is marked with `markNotImplemented()` until the API knows when a speaker was added.
+- **Categories.** All speakers, Recognized (speakers with a name) and Unnamed, each with its count. Unnamed has its own icon, `speaker-unknown`: a speaker with a question mark. Recently added is marked with `markNotImplemented()` until the API knows when a speaker was added.
 - **Search.** Matches any part of the name, whatever the case and the spaces around it. A speaker without a name never matches a search (`filterSpeakers()` in `speakers.ts`).
 - **Rows.** `Candidate` with the avatar, the name or Unnamed speaker in grey, the number of recordings and the time the speaker talks (`speakerUsage()`). Speakers whose names differ only by case or spaces get a same name badge (`duplicateNameIds()`): names are labels, not identities, so two people may share one.
 - **Order.** As `GET /speakers` gives it: named speakers by name, then those without a name, most recently heard first. Speakers that tie, such as two with one name, keep one order, the one heard last first.
