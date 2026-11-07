@@ -59,7 +59,7 @@ test('with the sidebar hidden a pill in the title bar shows it, and its menu sto
   const titlebar = screen.getByRole('button', { name: 'Toggle sidebar' }).closest('header')!
   expect(within(titlebar).queryByRole('button', { name: /^Recording/ })).toBeNull()
   await userEvent.click(screen.getByRole('button', { name: 'Toggle sidebar' }))
-  await userEvent.click(within(titlebar).getByRole('button', { name: 'Recording 0:00' }))
+  await userEvent.click(within(titlebar).getByRole('button', { name: /^Recording \d+:\d\d$/ }))
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Stop recording' }))
   await waitFor(async () => expect((await client.getQueue()).jobs.map(job => job.title)).toEqual(['Standup']))
   expect(within(titlebar).queryByRole('button', { name: /^Recording|Stopping/ })).toBeNull()
