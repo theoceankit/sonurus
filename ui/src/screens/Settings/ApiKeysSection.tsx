@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FieldRow } from '../../components/FieldRow/FieldRow'
 import { IconButton } from '../../components/IconButton/IconButton'
 import { Inline } from '../../components/Inline/Inline'
@@ -8,16 +8,26 @@ import { settingsStore, useSettings } from '../../platform/settings'
 import styles from './Settings.module.css'
 
 // The HuggingFace token, hidden until shown. Saved when the field changes and is left,
+// on Enter, and when the field goes (Settings closed in any way, another section),
 // without spaces around it; model downloads send it, and the backend reads it on start.
 function HuggingFaceToken({ saved }: { saved: string }) {
   const [token, setToken] = useState(saved)
   const [visible, setVisible] = useState(false)
   useEffect(() => setToken(saved), [saved])
+  // What the field holds and what was written last, for the save on the way out.
+  const latest = useRef({ token, saved })
+  latest.current.token = token
   const save = () => {
-    const next = token.trim()
+    const next = latest.current.token.trim()
     setToken(next)
-    if (next !== saved) void settingsStore().patch({ hfToken: next })
+    if (next === latest.current.saved) return
+    latest.current.saved = next
+    void settingsStore().patch({ hfToken: next })
   }
+  useEffect(() => { latest.current.saved = saved }, [saved])
+  const saveRef = useRef(save)
+  saveRef.current = save
+  useEffect(() => () => saveRef.current(), [])
   return (
     <FieldRow
       label="HuggingFace token"

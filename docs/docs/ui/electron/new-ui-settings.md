@@ -56,7 +56,7 @@ The devices a new recording starts with, in one card, Live recording: Microphone
 
 ## API Keys
 
-The HuggingFace token (`hfToken`), hidden until the eye button shows it. It is saved when the field is left or on Enter, without spaces around it. Model downloads send it with each request ([New UI transcription](new-ui-transcribe.md#downloads)); the main process reads it when it starts the backend.
+The HuggingFace token (`hfToken`), hidden until the eye button shows it. It is saved when the field is left, on Enter, and when the field goes: Settings closed in any way, Escape included, or another section opened. Spaces around it are cut off, and a token left as it was is not written again. Model downloads send it with each request ([New UI transcription](new-ui-transcribe.md#downloads)); the main process reads it when it starts the backend.
 
 ## Export
 
