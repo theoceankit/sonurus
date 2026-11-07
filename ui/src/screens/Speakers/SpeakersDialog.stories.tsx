@@ -4,6 +4,7 @@ import { queueSnapshot, SPEAKER_IDS, SPEAKERS } from '../../api/fixtures/data'
 import { createPlayback } from '../../media/playback'
 import { waitFor } from '../Editor/story-helpers'
 import { DeleteSpeakerDialog } from './DeleteSpeakerDialog'
+import { DiscardChangesDialog } from './DiscardChangesDialog'
 import { SpeakersDialog, type SpeakersDialogProps } from './SpeakersDialog'
 
 const noop = () => {}
@@ -50,6 +51,17 @@ export const SpeakerSampleLoading: Story = {
 }
 export const AudioUnavailable: Story = { args: { initialSpeakerId: SPEAKER_IDS.lena }, parameters: { api: { noAudio: true } } }
 export const NotInAnyRecording: Story = { args: { initialSpeakerId: SPEAKER_IDS.priya } }
+// An edited name and colour wait for Save; Cancel takes them back.
+export const SpeakerEdited: Story = {
+  args: { initialSpeakerId: SPEAKER_IDS.lena },
+  play: async () => {
+    const name = await waitFor(() => document.querySelector('input[aria-label="Name"], input[placeholder="Add a name"]')) as HTMLInputElement
+    // React tracks the value it set: go round its setter so the change is seen.
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(name, 'Lena K')
+    name.dispatchEvent(new Event('input', { bubbles: true }))
+    ;(await waitFor(() => document.querySelectorAll('[role="radio"]')[0])).click()
+  },
+}
 // More holds Merge and Delete. Radix opens a menu on pointer down, not on click.
 const openMore = async () => {
   const more = await waitFor(() => document.querySelector('[aria-label="More"]'))
@@ -76,4 +88,7 @@ export const DeleteConfirm: Story = {
 }
 export const DeleteConfirmWithoutName: Story = {
   render: () => <DeleteSpeakerDialog preview open speaker={{ ...SPEAKERS.find(s => s.id === SPEAKER_IDS.unknown3)!, segments: 0, transcripts: 0 }} onConfirm={noop} onClose={noop} />,
+}
+export const DiscardChanges: Story = {
+  render: () => <DiscardChangesDialog preview open onDiscard={noop} onClose={noop} />,
 }

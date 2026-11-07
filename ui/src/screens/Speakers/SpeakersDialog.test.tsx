@@ -30,6 +30,9 @@ const rowNames = (dialog: HTMLElement) =>
   [...within(dialog).getByLabelText('Speakers').querySelectorAll('button')]
     .map(button => [...button.children].slice(1).map(part => part.textContent).join(''))
 
+const saveButton = (dialog: HTMLElement) => within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement
+const cancelButton = (dialog: HTMLElement) => within(dialog).getByRole('button', { name: 'Cancel' }) as HTMLButtonElement
+
 const openCard = async (dialog: HTMLElement, name: RegExp) => {
   await userEvent.click(within(dialog).getAllByRole('button', { name })[0])
   return within(dialog).findByRole('button', { name: 'Back to speakers' })
@@ -93,7 +96,7 @@ test('Enter saves a new name everywhere; a repeated one is allowed and said', as
   await waitFor(() => expect(rowNames(dialog).filter(row => row?.includes('same name'))).toHaveLength(2))
 })
 
-test('Escape takes back an edit of the name and keeps the window; a blank name is not saved', async () => {
+test('Escape in the name takes back the edits and keeps the window; a blank name is not saved', async () => {
   const { client, dialog } = await setup()
   const update = vi.spyOn(client, 'updateSpeaker')
   await openCard(dialog, /Lena Kovacs/)
@@ -103,9 +106,74 @@ test('Escape takes back an edit of the name and keeps the window; a blank name i
   expect(name.value).toBe('Lena Kovacs')
   expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeTruthy()
   await userEvent.clear(name)
+  expect(saveButton(dialog).disabled).toBe(true)
   await userEvent.type(name, '{Enter}')
-  expect(name.value).toBe('Lena Kovacs')
   expect(update).not.toHaveBeenCalled()
+})
+
+test('nothing is saved while typing or leaving the field: only Save saves, name and colour at once', async () => {
+  const { client, dialog } = await setup()
+  const update = vi.spyOn(client, 'updateSpeaker')
+  await openCard(dialog, /Lena Kovacs/)
+  expect(saveButton(dialog).disabled).toBe(true)
+  expect(cancelButton(dialog).disabled).toBe(true)
+  const name = within(dialog).getByRole('textbox', { name: 'Name' })
+  await userEvent.clear(name)
+  await userEvent.type(name, 'Lena K')
+  await userEvent.tab()
+  await userEvent.click(within(within(dialog).getByRole('radiogroup', { name: 'Colour' })).getAllByRole('radio')[0])
+  expect(update).not.toHaveBeenCalled()
+  await userEvent.click(saveButton(dialog))
+  await waitFor(() => expect(update).toHaveBeenCalledWith(SPEAKER_IDS.lena, { name: 'Lena K', color_index: 0 }))
+  await waitFor(() => expect(saveButton(dialog).disabled).toBe(true))
+})
+
+test('Cancel takes back the edits', async () => {
+  const { client, dialog } = await setup()
+  const update = vi.spyOn(client, 'updateSpeaker')
+  await openCard(dialog, /Lena Kovacs/)
+  const name = within(dialog).getByRole('textbox', { name: 'Name' }) as HTMLInputElement
+  await userEvent.type(name, ' Jr')
+  await userEvent.click(cancelButton(dialog))
+  expect(name.value).toBe('Lena Kovacs')
+  expect(saveButton(dialog).disabled).toBe(true)
+  expect(update).not.toHaveBeenCalled()
+})
+
+test('leaving a card with edits asks first: Keep editing stays, Discard goes', async () => {
+  const { client, dialog } = await setup()
+  const update = vi.spyOn(client, 'updateSpeaker')
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.type(within(dialog).getByRole('textbox', { name: 'Name' }), ' Jr')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))
+  let ask = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+  await userEvent.click(within(ask).getByRole('button', { name: 'Keep editing' }))
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+  expect((within(dialog).getByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('Lena Kovacs Jr')
+  // A category leaves the card too.
+  await userEvent.click(within(dialog).getByRole('button', { name: /^Recognized/ }))
+  ask = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+  await userEvent.click(within(ask).getByRole('button', { name: 'Discard' }))
+  expect(await within(dialog).findByRole('searchbox', { name: 'Search speakers' })).toBeTruthy()
+  expect(update).not.toHaveBeenCalled()
+})
+
+test('closing the window with edits asks first', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.click(within(within(dialog).getByRole('radiogroup', { name: 'Colour' })).getAllByRole('radio')[0])
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+  const ask = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+  await userEvent.click(within(ask).getByRole('button', { name: 'Discard' }))
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Speakers' })).toBeNull())
+})
+
+test('a card without edits leaves without asking', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))
+  expect(within(dialog).getByRole('searchbox', { name: 'Search speakers' })).toBeTruthy()
+  expect(screen.queryByRole('alertdialog')).toBeNull()
 })
 
 test('a speaker without a name is grey, and gets a colour with a name', async () => {
@@ -114,15 +182,6 @@ test('a speaker without a name is grey, and gets a colour with a name', async ()
   await openCard(dialog, /Unnamed speaker/)
   expect(within(dialog).getByText('Speakers without a name are grey. Add a name to choose a colour.')).toBeTruthy()
   expect(within(dialog).queryByRole('radiogroup', { name: 'Colour' })).toBeNull()
-})
-
-test('a colour is saved at once', async () => {
-  const { client, dialog } = await setup()
-  const update = vi.spyOn(client, 'updateSpeaker')
-  await openCard(dialog, /Lena Kovacs/)
-  const colours = within(dialog).getByRole('radiogroup', { name: 'Colour' })
-  await userEvent.click(within(colours).getAllByRole('radio')[0])
-  expect(update).toHaveBeenCalledWith(SPEAKER_IDS.lena, { color_index: 0 })
 })
 
 test('the voice sample is the clip of the Review card: its text opens with the chevron, without quotes', async () => {
