@@ -5,18 +5,16 @@ import { queryKeys, useSpeakerSample, useSpeakerTranscripts, useUpdateSpeaker, u
 import type { Speaker } from '../../api/types'
 import { AppearanceRow } from '../../components/AppearanceRow/AppearanceRow'
 import { Avatar } from '../../components/Avatar/Avatar'
-import { Button } from '../../components/Button/Button'
 import { ColorPicker } from '../../components/ColorPicker/ColorPicker'
 import { IconButton } from '../../components/IconButton/IconButton'
 import { Inline } from '../../components/Inline/Inline'
-import { Menu, MenuAction } from '../../components/Menu/Menu'
+import { Menu, MenuAction, MenuDivider } from '../../components/Menu/Menu'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { MetaItem } from '../../components/MetaItem/MetaItem'
 import { SectionHeader } from '../../components/SectionHeader/SectionHeader'
 import { Stack } from '../../components/Stack/Stack'
 import { TextField } from '../../components/TextField/TextField'
 import { toast } from '../../components/Toast/toast-store'
-import { Tooltip } from '../../components/Tooltip/Tooltip'
 import { VoiceClip } from '../../components/VoiceClip/VoiceClip'
 import { BAR_COUNT } from '../../components/Waveform/bars'
 import { SAMPLE_MAX_SECONDS, useSampleState, type SamplePlayback } from '../../media/sample-playback'
@@ -178,7 +176,6 @@ function AppearsIn({ speaker, sample, onOpenRecording }: Pick<SpeakerCardProps, 
             key={row.id}
             title={row.title}
             date={formatLastSeen(row.created_at)}
-            time={formatDuration(row.duration_sec)}
             audioMissing={!row.has_audio}
             playing={state.key === key && state.playing}
             onPlay={() => {
@@ -202,9 +199,11 @@ export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, on
   const named = Boolean(speaker.name)
   const color = speakerColor(speaker.color_index)
 
-  const deleteButton = (
-    <Button variant="danger" size="small" icon="delete" disabled={Boolean(deleteBlocked)} onClick={onDelete}>Delete speaker…</Button>
-  )
+  // While it cannot be done, Delete says why instead of asking.
+  const remove = () => {
+    if (deleteBlocked) toast({ message: deleteBlocked, type: 'error' })
+    else onDelete()
+  }
 
   return (
     <>
@@ -213,6 +212,8 @@ export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, on
           <IconButton icon="arrow-left" label="Back to speakers" onClick={onBack} />
           <Menu align="end" trigger={<IconButton icon="more" label="More" />}>
             <MenuAction icon="assign-speaker" {...markNotImplemented('speaker-card.merge')}>Merge into another speaker…</MenuAction>
+            <MenuDivider />
+            <MenuAction icon="delete" onSelect={remove}>Delete speaker…</MenuAction>
           </Menu>
         </Inline>
         <Inline gap={4} align="start">
@@ -222,6 +223,12 @@ export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, on
             <TextField label="Handle" prefix="@" placeholder="olivia.brown" readOnly {...markNotImplemented('speaker-card.handle')} />
           </Stack>
         </Inline>
+        <Stack gap={1}>
+          <SectionHeader title="Colour" />
+          {named
+            ? <ColorPicker aria-label="Colour" value={color} colors={ASSIGNABLE_SPEAKER_COLORS} onValueChange={next => update({ speakerId: speaker.id, update: { color_index: next - 1 } }, { onError: error => toast({ message: message(error), type: 'error' }) })} />
+            : <p className={styles.hint}>Speakers without a name are grey. Add a name to choose a colour.</p>}
+        </Stack>
         <Inline gap={4} wrap>
           <MetaItem icon="microphone">{usage.recordings}</MetaItem>
           {usage.time !== null && <MetaItem icon="clock">{formatDuration(usage.time)}</MetaItem>}
@@ -231,20 +238,7 @@ export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, on
           <SectionHeader title="Voice sample" />
           <VoiceSample speaker={speaker} sample={sample} />
         </Stack>
-        <Stack gap={1}>
-          <SectionHeader title="Colour" />
-          {named
-            ? <ColorPicker aria-label="Colour" value={color} colors={ASSIGNABLE_SPEAKER_COLORS} onValueChange={next => update({ speakerId: speaker.id, update: { color_index: next - 1 } }, { onError: error => toast({ message: message(error), type: 'error' }) })} />
-            : <p className={styles.hint}>Speakers without a name are grey. Add a name to choose a colour.</p>}
-        </Stack>
         <AppearsIn speaker={speaker} sample={sample} onOpenRecording={onOpenRecording} />
-        <Inline gap={4} justify="between" className={styles.danger}>
-          <p className={styles.hint}>Their segments stay in the recordings as Unassigned.</p>
-          {deleteBlocked
-            // A disabled button gets no pointer events: the tooltip hangs on a wrapper.
-            ? <Tooltip text={deleteBlocked}><span className={styles.blocked} tabIndex={0} aria-label={`Delete speaker: ${deleteBlocked}`}>{deleteButton}</span></Tooltip>
-            : deleteButton}
-        </Inline>
       </Stack>
       <ScrollBar area={area} />
     </>

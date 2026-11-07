@@ -7,7 +7,7 @@ import { AppearanceRow } from './AppearanceRow'
 const row = (props: Partial<Parameters<typeof AppearanceRow>[0]> = {}) => {
   const onOpen = vi.fn()
   const onPlay = vi.fn()
-  render(<OverlayProvider><AppearanceRow title="Weekly product sync" date="4 Oct 2026" time="0:19" onOpen={onOpen} onPlay={onPlay} {...props} /></OverlayProvider>)
+  render(<OverlayProvider><AppearanceRow title="Weekly product sync" date="4 Oct 2026" onOpen={onOpen} onPlay={onPlay} {...props} /></OverlayProvider>)
   return { onOpen, onPlay }
 }
 
@@ -29,4 +29,9 @@ test('with the audio gone, Play is off from the start and says why', () => {
   expect((screen.getByRole('button', { name: 'Audio unavailable' }) as HTMLButtonElement).disabled).toBe(true)
   expect(screen.getByLabelText('Weekly product sync: audio unavailable').getAttribute('tabindex')).toBe('0')
   expect(onPlay).not.toHaveBeenCalled()
+})
+
+test('shows the title and the date, and no time', () => {
+  row()
+  expect(screen.getByText('Weekly product sync').closest('button')!.textContent).toBe('Weekly product sync4 Oct 2026')
 })

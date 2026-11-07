@@ -8,8 +8,6 @@ type AppearanceRowProps = Omit<ComponentPropsWithRef<'div'>, 'children'> & {
   title: string
   // 4 Oct 2026
   date: string
-  // How long the speaker talks in it: 0:25
-  time: string
   // Opens the recording.
   onOpen: () => void
   onPlay: () => void
@@ -18,8 +16,8 @@ type AppearanceRowProps = Omit<ComponentPropsWithRef<'div'>, 'children'> & {
   audioMissing?: boolean
 }
 
-// A recording a speaker talks in. Play stands where the date and time are, on hover and focus.
-export function AppearanceRow({ title, date, time, onOpen, onPlay, playing, audioMissing, className, ...props }: AppearanceRowProps) {
+// A recording a speaker talks in. Play stands where the date is, on hover and focus.
+export function AppearanceRow({ title, date, onOpen, onPlay, playing, audioMissing, className, ...props }: AppearanceRowProps) {
   const play = (
     <IconButton
       size="xs"
@@ -34,7 +32,6 @@ export function AppearanceRow({ title, date, time, onOpen, onPlay, playing, audi
       <button type="button" className={styles.main} onClick={onOpen}>
         <span className={styles.title}>{title}</span>
         <span className={styles.meta}>{date}</span>
-        <span className={styles.meta}>{time}</span>
       </button>
       <span className={styles.actions}>
         {audioMissing

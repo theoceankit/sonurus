@@ -52,19 +52,3 @@
   color: var(--color-text-secondary);
   font: var(--font-body);
 }
-
-.danger {
-  padding: var(--space-3) var(--space-2) 0;
-  border-top: var(--border-width-default) solid var(--color-border-default);
-}
-
-.blocked {
-  display: inline-flex;
-  flex: none;
-  border-radius: var(--radius-md);
-  outline: none;
-}
-
-.blocked:focus-visible {
-  outline: var(--border-width-strong) solid var(--color-focus);
-}

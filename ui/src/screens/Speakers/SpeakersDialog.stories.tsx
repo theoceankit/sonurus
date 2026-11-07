@@ -50,9 +50,21 @@ export const SpeakerSampleLoading: Story = {
 }
 export const AudioUnavailable: Story = { args: { initialSpeakerId: SPEAKER_IDS.lena }, parameters: { api: { noAudio: true } } }
 export const NotInAnyRecording: Story = { args: { initialSpeakerId: SPEAKER_IDS.priya } }
+// More holds Merge and Delete. Radix opens a menu on pointer down, not on click.
+const openMore = async () => {
+  const more = await waitFor(() => document.querySelector('[aria-label="More"]'))
+  more.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))
+  return waitFor(() => [...document.querySelectorAll('[role="menuitem"]')].find(item => item.textContent?.trim() === 'Delete speaker…'))
+}
+export const SpeakerMenu: Story = {
+  args: { initialSpeakerId: SPEAKER_IDS.lena },
+  play: async () => { await openMore() },
+}
+// Delete while the queue transcribes says why instead of asking.
 export const DeleteBlocked: Story = {
   args: { initialSpeakerId: SPEAKER_IDS.lena },
   parameters: { api: { overrides: { getQueue: () => Promise.resolve(queueSnapshot({ running_job_id: 'job' })) } } },
+  play: async () => { (await openMore()).click() },
 }
 export const DeleteRefused: Story = {
   args: { initialSpeakerId: SPEAKER_IDS.lena },

@@ -4,7 +4,7 @@ import { AppearanceRow } from './AppearanceRow'
 import styles from './AppearanceRow.stories.module.css'
 
 const noop = () => {}
-const ROW = { title: 'Weekly product sync', date: '4 Oct 2026', time: '0:19', onOpen: noop, onPlay: noop }
+const ROW = { title: 'Weekly product sync', date: '4 Oct 2026', onOpen: noop, onPlay: noop }
 
 const meta: Meta<typeof AppearanceRow> = {
   component: AppearanceRow,
@@ -32,4 +32,4 @@ export const Matrix: Story = {
 export const Default: Story = { args: ROW }
 export const Playing: Story = { args: { ...ROW, playing: true } }
 export const AudioUnavailable: Story = { args: { ...ROW, audioMissing: true } }
-export const LongTitle: Story = { args: { ...ROW, title: 'Quarterly planning with the whole product and design team, part two of three', time: '1:02:05' } }
+export const LongTitle: Story = { args: { ...ROW, title: 'Quarterly planning with the whole product and design team, part two of three' } }

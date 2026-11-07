@@ -157,7 +157,9 @@ test('Appears in opens a recording in the Editor, and a recording without its fi
 test('deleting asks first, then shows the next speaker', async () => {
   const { dialog } = await setup()
   await openCard(dialog, /Lena Kovacs/)
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Delete speaker…' }))
+  expect(within(dialog).queryByRole('button', { name: 'Delete speaker…' })).toBeNull()
+  await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete speaker…' }))
   const confirm = await screen.findByRole('alertdialog', { name: 'Delete "Lena Kovacs"?' })
   expect(within(confirm).getByText(/will become Unassigned/)).toBeTruthy()
   await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
@@ -170,6 +172,24 @@ test('a speaker is not deleted while the queue transcribes', async () => {
   const { client, dialog } = await setup()
   act(() => { client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot({ running_job_id: 'a' }) }] }) })
   await openCard(dialog, /Lena Kovacs/)
-  await waitFor(() => expect((within(dialog).getByRole('button', { name: 'Delete speaker…' }) as HTMLButtonElement).disabled).toBe(true))
-  expect(within(dialog).getByLabelText('Delete speaker: Pause the transcription queue first.')).toBeTruthy()
+  await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete speaker…' }))
+  expect(await screen.findByText('Pause the transcription queue first.')).toBeTruthy()
+  expect(screen.queryByRole('alertdialog')).toBeNull()
+})
+
+test('a card goes: name and colour, what the speaker did, the sample, the recordings', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  const order = ['Colour', '11 recordings', 'Voice sample', 'Appears in'].map(text => within(dialog).getByText(text))
+  for (let i = 1; i < order.length; i++) {
+    expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  }
+})
+
+test('a row of Appears in has the date and no time', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  const row = (await within(dialog).findByText('Design review')).closest('button')!
+  expect(row.textContent).toBe('Design review5 Oct 2026')
 })
