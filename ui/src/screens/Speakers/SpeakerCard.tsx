@@ -211,7 +211,7 @@ export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, on
         <Inline justify="between">
           <IconButton icon="arrow-left" label="Back to speakers" onClick={onBack} />
           <Menu align="end" trigger={<IconButton icon="more" label="More" />}>
-            <MenuAction icon="assign-speaker" {...markNotImplemented('speaker-card.merge')}>Merge into another speaker…</MenuAction>
+            <MenuAction icon="assign-speaker" {...markNotImplemented('speaker-card.merge')}>Merge into another speaker</MenuAction>
             <MenuAction icon="delete" onSelect={remove}>Delete speaker</MenuAction>
           </Menu>
         </Inline>

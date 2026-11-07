@@ -184,7 +184,7 @@ test('Merge and Delete follow each other in More, with nothing between them', as
   await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
   const menu = await screen.findByRole('menu')
   expect(within(menu).queryByRole('separator')).toBeNull()
-  expect(within(menu).getAllByRole('menuitem').map(item => item.textContent?.trim())).toEqual(['Merge into another speaker…', 'Delete speaker'])
+  expect(within(menu).getAllByRole('menuitem').map(item => item.textContent?.trim())).toEqual(['Merge into another speaker', 'Delete speaker'])
 })
 
 test('a card goes: name and colour, what the speaker did, the sample, the recordings', async () => {
