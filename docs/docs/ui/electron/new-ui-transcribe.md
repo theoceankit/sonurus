@@ -49,6 +49,8 @@ The transcription queue is a section of the recordings list, above the others, w
 
 A click on a row picks the job: `EditorScreen` shows `QueueJobPanel` in the centre in place of the recording, and the recording comes back when one is picked in the list or the job leaves the queue (it finished or was deleted). The inspector and the player show nothing meanwhile. `QueueJobView` is laid out as a transcript's header, the title where a transcript's stands: the title, the status (`jobStatusText()`: the step of the running job, which glints like its row; Waiting in the queue, or Waiting, queue paused; for a failed job, in red, the model that is missing or else Transcription failed), and Retry and Transcription settings under it. Delete from queue is in the More menu at the top right. A failed job's whole error, as the backend gave it, is folded under Show log, as the text of a review card is (`Reveal`), and scrolls past `--size-queue-log`. This is where the error stays once its toast is gone.
 
+In Storybook, `Screens/Editor` shows the whole app on the fixtures' queue: With queue (a job of each kind, every button working), With queue paused, Queue transcribing (a job that finishes, with its toast) and Queue failed; `Screens/Queue/Job view` shows the centre in each state.
+
 ### Finished and failed jobs
 
 `App` passes every queue event through `queueEventToast()` (`ui/src/screens/Queue/queue-toasts.ts`):

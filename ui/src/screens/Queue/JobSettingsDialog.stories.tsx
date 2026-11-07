@@ -1,14 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { useState } from 'react'
-import { useApi } from '../../api/ApiProvider'
-import { QUEUE_JOB, queueSnapshot } from '../../api/fixtures/data'
-import type { FixtureClient } from '../../api/fixtures/fixture-client'
 import { DEFAULT_INSTALLED, fixtureModels } from '../../api/fixtures/models'
-import { Button } from '../../components/Button/Button'
-import { Stack } from '../../components/Stack/Stack'
 import { NOTHING_PICKED, transcribeChoice } from '../../transcribe/choice'
-import type { QueueJob } from '../../api/types'
-import { EditJobDialog } from './EditJobDialog'
 import { JobSettingsDialog, type JobSettingsDialogProps } from './JobSettingsDialog'
 
 const noop = () => {}
@@ -39,22 +31,4 @@ export const BlankTitle: Story = { args: { form: { title: '', model: 'small', la
 export const Refused: Story = { args: { error: 'The job is running; pause the queue to edit it' } }
 export const Saving: Story = { args: { saving: true } }
 
-const JOB: QueueJob = { ...QUEUE_JOB, title: 'Weekly product sync', whisper_model: 'small', language: null, status: 'waiting' }
-
-// Until the queue has its cards, a button opens it on the fixtures' queue.
-function Live() {
-  const [job, setJob] = useState<QueueJob | null>(null)
-  const client = useApi() as FixtureClient
-  const edit = () => {
-    client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot({ jobs: [JOB] }) }] })
-    setJob(JOB)
-  }
-  return (
-    <Stack gap={2} padding={4} align="start">
-      <Button onClick={edit}>Edit a waiting job</Button>
-      <EditJobDialog job={job} onClose={() => setJob(null)} />
-    </Stack>
-  )
-}
-
-export const InTheApp: Story = { render: () => <Live /> }
+// In the app, the edit button of a queue card opens it: Screens/Editor, With queue.
