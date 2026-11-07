@@ -11,6 +11,7 @@ import { ColorPicker } from '../../components/ColorPicker/ColorPicker'
 import { IconButton } from '../../components/IconButton/IconButton'
 import { Inline } from '../../components/Inline/Inline'
 import { Menu, MenuAction } from '../../components/Menu/Menu'
+import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { MetaItem } from '../../components/MetaItem/MetaItem'
 import { SectionHeader } from '../../components/SectionHeader/SectionHeader'
 import { Stack } from '../../components/Stack/Stack'
@@ -197,6 +198,7 @@ function AppearsIn({ speaker, sample, onOpenRecording }: Pick<SpeakerCardProps, 
 // One speaker, in place of the list: who they are, how they sound and where they talk.
 export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, onOpenRecording, onDelete, cancelEdit }: SpeakerCardProps) {
   const { mutate: update } = useUpdateSpeaker()
+  const [area, setArea] = useState<HTMLElement | null>(null)
   const usage = speakerUsage(speaker)
   const named = Boolean(speaker.name)
   const color = speakerColor(speaker.color_index)
@@ -206,44 +208,47 @@ export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, on
   )
 
   return (
-    <Stack gap={4} className={styles.card}>
-      <Inline justify="between">
-        <IconButton icon="arrow-left" label="Back to speakers" onClick={onBack} />
-        <Menu align="end" trigger={<IconButton icon="more" label="More" />}>
-          <MenuAction icon="assign-speaker" {...markNotImplemented('speaker-card.merge')}>Merge into another speaker…</MenuAction>
-        </Menu>
-      </Inline>
-      <Inline gap={4} align="start">
-        {named ? <Avatar name={speaker.name!} color={color} size="large" /> : <Avatar kind="unknown" size="large" />}
-        <Stack gap={3} className={styles.fields}>
-          <NameField key={speaker.id} speaker={speaker} others={others} cancelEdit={cancelEdit} />
-          <TextField label="Handle" prefix="@" placeholder="olivia.brown" readOnly {...markNotImplemented('speaker-card.handle')} />
-          <TextField label="Email" placeholder="name@company.com" readOnly {...markNotImplemented('speaker-card.email')} />
+    <>
+      <Stack ref={setArea} gap={4} className={styles.card}>
+        <Inline justify="between">
+          <IconButton icon="arrow-left" label="Back to speakers" onClick={onBack} />
+          <Menu align="end" trigger={<IconButton icon="more" label="More" />}>
+            <MenuAction icon="assign-speaker" {...markNotImplemented('speaker-card.merge')}>Merge into another speaker…</MenuAction>
+          </Menu>
+        </Inline>
+        <Inline gap={4} align="start">
+          {named ? <Avatar name={speaker.name!} color={color} size="large" /> : <Avatar kind="unknown" size="large" />}
+          <Stack gap={3} className={styles.fields}>
+            <NameField key={speaker.id} speaker={speaker} others={others} cancelEdit={cancelEdit} />
+            <TextField label="Handle" prefix="@" placeholder="olivia.brown" readOnly {...markNotImplemented('speaker-card.handle')} />
+            <TextField label="Email" placeholder="name@company.com" readOnly {...markNotImplemented('speaker-card.email')} />
+          </Stack>
+        </Inline>
+        <Inline gap={4} wrap>
+          <MetaItem icon="microphone">{usage.recordings}</MetaItem>
+          {usage.time !== null && <MetaItem icon="clock">{formatDuration(usage.time)}</MetaItem>}
+          <MetaItem icon="calendar">{`Last seen ${formatLastSeen(speaker.last_seen)}`}</MetaItem>
+        </Inline>
+        <Stack gap={1}>
+          <SectionHeader title="Voice sample" />
+          <VoiceSample speaker={speaker} sample={sample} />
         </Stack>
-      </Inline>
-      <Inline gap={4} wrap>
-        <MetaItem icon="microphone">{usage.recordings}</MetaItem>
-        {usage.time !== null && <MetaItem icon="clock">{formatDuration(usage.time)}</MetaItem>}
-        <MetaItem icon="calendar">{`Last seen ${formatLastSeen(speaker.last_seen)}`}</MetaItem>
-      </Inline>
-      <Stack gap={1}>
-        <SectionHeader title="Voice sample" />
-        <VoiceSample speaker={speaker} sample={sample} />
+        <Stack gap={1}>
+          <SectionHeader title="Colour" />
+          {named
+            ? <ColorPicker aria-label="Colour" value={color} colors={ASSIGNABLE_SPEAKER_COLORS} onValueChange={next => update({ speakerId: speaker.id, update: { color_index: next - 1 } }, { onError: error => toast({ message: message(error), type: 'error' }) })} />
+            : <p className={styles.hint}>Speakers without a name are grey. Add a name to choose a colour.</p>}
+        </Stack>
+        <AppearsIn speaker={speaker} sample={sample} onOpenRecording={onOpenRecording} />
+        <Inline gap={4} justify="between" className={styles.danger}>
+          <p className={styles.hint}>Their segments stay in the recordings as Unassigned.</p>
+          {deleteBlocked
+            // A disabled button gets no pointer events: the tooltip hangs on a wrapper.
+            ? <Tooltip text={deleteBlocked}><span className={styles.blocked} tabIndex={0} aria-label={`Delete speaker: ${deleteBlocked}`}>{deleteButton}</span></Tooltip>
+            : deleteButton}
+        </Inline>
       </Stack>
-      <Stack gap={1}>
-        <SectionHeader title="Colour" />
-        {named
-          ? <ColorPicker aria-label="Colour" value={color} colors={ASSIGNABLE_SPEAKER_COLORS} onValueChange={next => update({ speakerId: speaker.id, update: { color_index: next - 1 } }, { onError: error => toast({ message: message(error), type: 'error' }) })} />
-          : <p className={styles.hint}>Speakers without a name are grey. Add a name to choose a colour.</p>}
-      </Stack>
-      <AppearsIn speaker={speaker} sample={sample} onOpenRecording={onOpenRecording} />
-      <Inline gap={4} justify="between" className={styles.danger}>
-        <p className={styles.hint}>Their segments stay in the recordings as Unassigned.</p>
-        {deleteBlocked
-          // A disabled button gets no pointer events: the tooltip hangs on a wrapper.
-          ? <Tooltip text={deleteBlocked}><span className={styles.blocked} tabIndex={0} aria-label={`Delete speaker: ${deleteBlocked}`}>{deleteButton}</span></Tooltip>
-          : deleteButton}
-      </Inline>
-    </Stack>
+      <ScrollBar area={area} />
+    </>
   )
 }
