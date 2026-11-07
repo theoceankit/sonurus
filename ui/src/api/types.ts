@@ -12,6 +12,8 @@ export type SpeakerUpdate = Schemas['SpeakerUpdateRequest']
 export type SpeakerTranscript = Schemas['SpeakerTranscriptItem']
 // How many segments, in how many recordings, a deleted speaker left Unassigned.
 export type SpeakerDeleteSummary = Schemas['SpeakerDeleteResponse']
+// What a refusal of the queue's job routes is about; the message is for the user.
+export type RefusalCode = Schemas['RefusalResponse']['code']
 export type QueueJob = Schemas['QueueJob']
 export type QueueSnapshot = Schemas['QueueSnapshot']
 // Only the fields given change. A null language is one detected from the audio.

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'vitest'
 import { ApiError } from '../../api/client'
+import type { RefusalCode } from '../../api/types'
 import { addFiles, defaultTitle, importFailure, importingMessage, isSupportedAudio, queueTitles, skippedMessage, SUPPORTED_EXTENSIONS, watchFileDrags } from './import-files'
 
 const f = (name: string, path = `/in/${name}`) => ({ name, path })
@@ -44,12 +45,17 @@ test('skipped files are named, or counted when there are several', () => {
   expect(skippedMessage(['a.txt', 'b.pdf', 'c.zip'])).toBe('3 files were not imported: these file types are not supported.')
 })
 
-test('a refusal says what is wrong, and a missing model leads to Settings', () => {
-  expect(importFailure(new ApiError(400, 'Diarization model is not installed. Download it in Settings.'))).toEqual({
-    message: 'Diarization model is not installed. Download it in Settings.', missingModels: true,
+test('a refusal says what is wrong, and a missing model leads to its section of Settings', () => {
+  const refusal = (code: RefusalCode | null, message = 'Any wording') => new ApiError(400, message, code)
+  expect(importFailure(refusal('diarization_model_missing', 'Diarization model is not installed.'))).toEqual({
+    message: 'Diarization model is not installed.', settingsSection: 'models',
   })
-  expect(importFailure(new ApiError(400, 'audio_path not readable: /in/a.mp3')).missingModels).toBe(false)
-  expect(importFailure(new ApiError(0, 'Failed to fetch'))).toEqual({ message: 'The backend is not responding.', missingModels: false })
+  expect(importFailure(refusal('whisper_model_missing')).settingsSection).toBe('models')
+  expect(importFailure(refusal('alignment_model_missing')).settingsSection).toBe('alignment')
+  // The wording does not matter, only the code.
+  expect(importFailure(refusal('audio_not_readable', 'Model not installed')).settingsSection).toBeNull()
+  expect(importFailure(refusal(null, 'Whisper model is not installed')).settingsSection).toBeNull()
+  expect(importFailure(new ApiError(0, 'Failed to fetch'))).toEqual({ message: 'The backend is not responding.', settingsSection: null })
 })
 
 describe('watchFileDrags', () => {

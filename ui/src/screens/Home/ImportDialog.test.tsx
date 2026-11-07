@@ -138,7 +138,7 @@ describe('importing', () => {
 
   test('a model refused by the backend shows in the dialog, with a way to Settings', async () => {
     // The catalog said it was there; it went before the job did.
-    setup({ overrides: { addQueueJob: () => Promise.reject(new ApiError(400, NO_MODELS)) } }, ['/in/a.mp3'])
+    setup({ overrides: { addQueueJob: () => Promise.reject(new ApiError(400, NO_MODELS, 'diarization_model_missing')) } }, ['/in/a.mp3'])
     await openByButton()
     await userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
     await userEvent.click(screen.getByRole('button', { name: 'Import' }))
@@ -164,18 +164,18 @@ describe('importing', () => {
   test('files queued before a refusal leave the list, so they are not sent twice', async () => {
     const client = createFixtureClient()
     const add = client.addQueueJob
-    setup({ overrides: { addQueueJob: job => (job.audioPath === '/in/b.mp3' ? Promise.reject(new ApiError(400, 'audio_path not readable: /in/b.mp3')) : add(job)) } }, ['/in/a.mp3', '/in/b.mp3'])
+    setup({ overrides: { addQueueJob: job => (job.audioPath === '/in/b.mp3' ? Promise.reject(new ApiError(400, '"b.mp3" could not be read.', 'audio_not_readable')) : add(job)) } }, ['/in/a.mp3', '/in/b.mp3'])
     await openByButton()
     await userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
     await userEvent.click(screen.getByRole('button', { name: 'Import' }))
-    expect((await screen.findByRole('alert')).textContent!.trim()).toBe('audio_path not readable: /in/b.mp3')
+    expect((await screen.findByRole('alert')).textContent!.trim()).toBe('"b.mp3" could not be read.')
     expect(listed()).toEqual(['b.mp3'])
     expect(await screen.findByText('Importing a.mp3…')).toBeTruthy()
   })
 })
 
 test('an error says what is wrong with no icon', async () => {
-  setup({ overrides: { addQueueJob: () => Promise.reject(new ApiError(400, NO_MODELS)) } }, ['/in/a.mp3'])
+  setup({ overrides: { addQueueJob: () => Promise.reject(new ApiError(400, NO_MODELS, 'diarization_model_missing')) } }, ['/in/a.mp3'])
   await openByButton()
   await userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
   await userEvent.click(screen.getByRole('button', { name: 'Import' }))

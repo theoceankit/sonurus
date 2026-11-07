@@ -147,8 +147,8 @@ export function ImportDialog({
           {failure && (
             <Stack gap={1} align="start" role="alert" className={styles.failure}>
               <span>{failure.message}</span>
-              {failure.missingModels && (
-                <Button variant="ghost" size="small" icon="settings" onClick={() => onOpenSettings?.(/alignment/i.test(failure.message) ? 'alignment' : 'models')}>Open Settings</Button>
+              {failure.settingsSection && (
+                <Button variant="ghost" size="small" icon="settings" onClick={() => onOpenSettings?.(failure.settingsSection!)}>Open Settings</Button>
               )}
             </Stack>
           )}
