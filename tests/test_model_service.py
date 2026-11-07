@@ -339,7 +339,8 @@ def test_download_failure_leaves_model_not_installed(tmp_path):
         raise OSError("connection reset")        # …then the transfer dies
 
     with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=failing_snapshot):
-        with pytest.raises(OSError):
+        from app.services.model_service import ModelDownloadError
+        with pytest.raises(ModelDownloadError, match="connection reset"):
             svc.download_model("tiny")
     assert svc.is_installed("tiny") is False
 
@@ -367,6 +368,71 @@ def test_run_download_propagates_worker_error():
     from app.services.model_service import _run_download
     with pytest.raises(RuntimeError, match="boom"):
         _run_download({}, cancel_event=threading.Event(), worker=download_workers.failing_worker, in_subprocess=True)
+
+
+def test_run_download_passes_on_the_code_of_the_worker():
+    import threading
+    from app.services.model_service import ModelDownloadError, _run_download
+    with pytest.raises(ModelDownloadError, match="GatedRepoError") as raised:
+        _run_download({}, cancel_event=threading.Event(), worker=download_workers.gated_worker, in_subprocess=True)
+    assert raised.value.code == "no_token"
+
+
+def test_run_download_without_a_code_from_the_worker_is_failed():
+    import threading
+    from app.services.model_service import ModelDownloadError, _run_download
+    with pytest.raises(ModelDownloadError) as raised:
+        _run_download({}, cancel_event=threading.Event(), worker=download_workers.failing_worker, in_subprocess=True)
+    assert raised.value.code == "failed"
+
+
+def test_run_download_in_process_gives_the_code_too(monkeypatch):
+    import threading
+    from app.services import model_service
+    monkeypatch.setattr(model_service, "_snapshot", lambda kwargs: (_ for _ in ()).throw(_http_error("GatedRepoError", 403)))
+    with pytest.raises(model_service.ModelDownloadError) as raised:
+        model_service._run_download({}, cancel_event=threading.Event(), in_subprocess=False)
+    assert raised.value.code == "no_access"
+
+
+# Stand-ins named as huggingface_hub, requests and httpx name theirs: the conftest
+# replaces huggingface_hub, and the code goes by class names and status codes.
+def _named(name: str, *bases: type) -> type:
+    return type(name, bases or (Exception,), {})
+
+
+def _http_error(name: str, status: int | None):
+    hub_http = _named("HfHubHTTPError", _named("HTTPError", OSError))
+    classes = {
+        "HfHubHTTPError": hub_http,
+        "RepositoryNotFoundError": _named("RepositoryNotFoundError", hub_http),
+    }
+    classes["GatedRepoError"] = _named("GatedRepoError", classes["RepositoryNotFoundError"])
+    exc = classes[name]("message")
+    exc.response = None if status is None else type("Response", (), {"status_code": status})()
+    return exc
+
+
+@pytest.mark.parametrize("exc, code", [
+    (_http_error("GatedRepoError", 401), "no_token"),
+    (_http_error("RepositoryNotFoundError", 401), "no_token"),
+    (_http_error("HfHubHTTPError", 401), "no_token"),
+    (_http_error("GatedRepoError", 403), "no_access"),
+    (_http_error("HfHubHTTPError", 403), "no_access"),
+    (_http_error("GatedRepoError", None), "no_access"),
+    (_named("LocalEntryNotFoundError", _named("EntryNotFoundError", OSError))("offline"), "network"),
+    (_named("OfflineModeIsEnabled", ConnectionError)("offline"), "network"),
+    (_named("ConnectionError", _named("RequestException", OSError))("refused"), "network"),
+    (_named("ReadTimeout", _named("Timeout", OSError))("slow"), "network"),
+    (_named("ConnectError")("refused"), "network"),
+    (TimeoutError("slow"), "network"),
+    (_http_error("HfHubHTTPError", 500), "failed"),
+    (OSError("disk full"), "failed"),
+    (RuntimeError("boom"), "failed"),
+])
+def test_download_error_code(exc, code):
+    from app.services.model_service import download_error_code
+    assert download_error_code(exc) == code
 
 
 def test_run_download_reports_worker_crash():

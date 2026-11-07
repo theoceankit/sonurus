@@ -19,3 +19,8 @@ def failing_worker(kwargs, conn):
 def crashing_worker(kwargs, conn):
     import os
     os._exit(3)  # dies without reporting, e.g. killed by the OOM killer
+
+
+def gated_worker(kwargs, conn):
+    """Reports what the real worker sends for a gated repo without a token."""
+    conn.send(("error", "GatedRepoError", "401 Client Error. Cannot access gated repo", "no_token"))

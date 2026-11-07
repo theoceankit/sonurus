@@ -448,6 +448,34 @@ def test_progress_streams_with_two_concurrent_downloads(client):
     assert received and received[0]["type"] == "progress"
 
 
+# ── Why a download failed ────────────────────────────────────────────────────
+
+def _failed_download_event(client, raised: BaseException) -> dict:
+    connected = threading.Event()
+
+    def fake_download(self, model_id, cancel_event=None, on_progress=None, hf_token=None):
+        # Fails once the socket listens: a job that is already over is unknown to it.
+        connected.wait(timeout=5)
+        raise raised
+
+    with patch.object(ModelService, "download_model", fake_download):
+        job = client.post("/models/diarize/download").json()["job_id"]
+        with client.websocket_connect(f"/ws/models/{job}") as ws:
+            connected.set()
+            return ws.receive_json()
+
+
+def test_a_failed_download_says_why_with_a_code(client):
+    from app.services.model_service import ModelDownloadError
+    event = _failed_download_event(client, ModelDownloadError("no_token", "GatedRepoError: 401 Client Error"))
+    assert event == {"type": "error", "message": "GatedRepoError: 401 Client Error", "code": "no_token"}
+
+
+def test_any_other_failure_is_failed(client):
+    event = _failed_download_event(client, OSError("disk full"))
+    assert event == {"type": "error", "message": "disk full", "code": "failed"}
+
+
 # ── One download per model ───────────────────────────────────────────────────
 # Two queued jobs failing on the same missing alignment model used to start two
 # downloads into one Hugging Face cache. A second POST while the model is

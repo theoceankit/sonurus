@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 import app.config as config
 from app.api.dependencies import get_transcription_queue
 from app.api.schemas import DownloadRequest, ModelInfo
-from app.services.model_service import ModelService, WHISPER_CATALOG, DIARIZATION_CATALOG, ALIGNMENT_CATALOG
+from app.services.model_service import ModelDownloadError, ModelService, WHISPER_CATALOG, DIARIZATION_CATALOG, ALIGNMENT_CATALOG
 from app.logger import get_logger
 
 log = get_logger("models")
@@ -99,12 +99,15 @@ async def download_model(model_id: str, body: DownloadRequest = DownloadRequest(
         except CancelledError:
             log.info(f"Download cancelled: {model_id}")
             q.put({"type": "cancelled"})
+        except ModelDownloadError as exc:
+            log.error(f"Download error ({exc.code}): {model_id}: {exc}")
+            q.put({"type": "error", "message": str(exc), "code": exc.code})
         except ValueError as exc:
             log.error(f"Download error (ValueError): {model_id}: {exc}")
-            q.put({"type": "error", "message": str(exc)})
+            q.put({"type": "error", "message": str(exc), "code": "failed"})
         except Exception as exc:
             log.error(f"Download error: {model_id}: {exc}", exc_info=True)
-            q.put({"type": "error", "message": str(exc)})
+            q.put({"type": "error", "message": str(exc), "code": "failed"})
         finally:
             with _running_lock:
                 _download_jobs.pop(job_id, None)
