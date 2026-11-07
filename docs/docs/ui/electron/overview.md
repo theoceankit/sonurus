@@ -40,7 +40,7 @@ npm --prefix ui test                # Vitest
 npm --prefix ui run typecheck
 ```
 
-Screens get their data through one client, on the backend or on fixtures: see [New UI data](new-ui-data.md).
+Screens get their data through one client, on the backend or on fixtures: see [New UI data](new-ui-data.md). The Speakers button of the titlebar opens the Speakers window: see [New UI speakers](new-ui-speakers.md).
 
 Where a run keeps its data, how to check a change on isolated data, when to restart Vite or Storybook and what the tests cannot show: see [New UI development](new-ui-development.md).
 

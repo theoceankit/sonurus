@@ -115,6 +115,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | New UI home: the recording open at startup, empty state, import dialog, file drops | `ui/src/screens/Home/`, `ui/src/components/DropZone/` | `docs/docs/ui/electron/new-ui-home.md` |
 | New UI transcription: models, the default model, downloads, languages, the queue in the sidebar, the Alignment model and job settings dialogs | `ui/src/transcribe/`, `ui/src/screens/Queue/` | `docs/docs/ui/electron/new-ui-transcribe.md` |
 | New UI settings: the Settings dialog, its sections and what they change | `ui/src/screens/Settings/`, `ui/src/platform/settings.ts` | `docs/docs/ui/electron/new-ui-settings.md` |
+| New UI speakers: the Speakers window, a speaker's card, voice samples from any recording | `ui/src/screens/Speakers/`, `ui/src/media/sample-playback.ts`, `ui/src/components/AppearanceRow/` | `docs/docs/ui/electron/new-ui-speakers.md` |
 | New UI tokens, font, icons, overlays | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/` | `docs/docs/ui/electron/new-ui-foundations.md` |
 | New UI development: data, isolated checks, restarts, test pitfalls | `scripts/dev-ui.js`, `ui/vite.config.ts`, `ui/src/test-setup.ts` | `docs/docs/ui/electron/new-ui-development.md` |
 | Live recording | `app/api/routers/audio_capture.py`, `native/` | `docs/docs/ui/electron/live-recording.md` |
