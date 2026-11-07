@@ -21,7 +21,7 @@
   text-align: end;
 }
 
-.fill {
+.stretch {
   width: 100%;
 }
 
@@ -46,7 +46,7 @@
   font: var(--font-body);
 }
 
-.track {
+.gpuTrack {
   flex: 1;
   height: var(--size-progress);
   overflow: hidden;
@@ -54,14 +54,14 @@
   background: var(--color-bg-muted);
 }
 
-.fill {
+.gpuFill {
   height: 100%;
   border-radius: inherit;
   background: var(--color-accent-fg);
   transition: width var(--duration-slow) var(--ease-standard);
 }
 
-.pct {
+.gpuPct {
   min-width: var(--size-control-lg);
   color: var(--color-text-secondary);
   font: var(--font-caption);
@@ -70,7 +70,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fill {
+  .gpuFill {
     transition: none;
   }
 }

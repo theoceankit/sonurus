@@ -24,7 +24,7 @@ function HuggingFaceToken({ saved }: { saved: string }) {
       hint="Required for speaker diarization (PyAnnote). Create a read token in your HuggingFace account settings, under Access Tokens."
       stacked
     >
-      <Inline gap={2} className={styles.fill}>
+      <Inline gap={2} className={styles.stretch}>
         <TextField
           aria-label="HuggingFace token"
           type={visible ? 'text' : 'password'}

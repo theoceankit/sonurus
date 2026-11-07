@@ -114,7 +114,7 @@ export function GeneralSection() {
     <>
       <SectionCard title="Interface">
         <FieldRow label="App language" hint="Language used across menus and dialogs.">
-          <div className={styles.fill} {...markNotImplemented('settings.app-language')}>
+          <div className={styles.stretch} {...markNotImplemented('settings.app-language')}>
             <Select aria-label="App language" value="en" options={INTERFACE_LANGUAGES} onValueChange={() => {}} />
           </div>
         </FieldRow>

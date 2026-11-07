@@ -34,10 +34,10 @@ export function GpuSection() {
         <p className={styles.gpuDetail}>{view.detail}</p>
         {view.progress && (
           <Inline gap={2}>
-            <div role="progressbar" aria-label="GPU download" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(view.progress.pct)} className={styles.track}>
-              <div className={styles.fill} style={{ width: `${view.progress.pct}%` }} />
+            <div role="progressbar" aria-label="GPU download" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(view.progress.pct)} className={styles.gpuTrack}>
+              <div className={styles.gpuFill} style={{ width: `${view.progress.pct}%` }} />
             </div>
-            <span className={styles.pct}>{Math.round(view.progress.pct)}%</span>
+            <span className={styles.gpuPct}>{Math.round(view.progress.pct)}%</span>
           </Inline>
         )}
         {view.actions.length > 0 && (
