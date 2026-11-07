@@ -49,6 +49,13 @@ The transcription queue is a section of the recordings list, above the others, w
 
 A click on a row picks the job: `EditorScreen` shows `QueueJobPanel` in the centre in place of the recording, and the recording comes back when one is picked in the list or the job leaves the queue (it finished or was deleted). The inspector and the player show nothing meanwhile. `QueueJobView` is laid out as a transcript's header, the title where a transcript's stands: the title, the status (`jobStatusText()`: the step of the running job, which glints like its row; Waiting in the queue, or Waiting, queue paused; for a failed job, in red, the model that is missing or else Transcription failed), and Retry and Transcription settings under it. Delete from queue is in the More menu at the top right. A failed job's whole error, as the backend gave it, is folded under Show log, as the text of a review card is (`Reveal`), and scrolls past `--size-queue-log`. This is where the error stays once its toast is gone.
 
+### Finished and failed jobs
+
+`App` passes every queue event through `queueEventToast()` (`ui/src/screens/Queue/queue-toasts.ts`):
+
+- `job_done` — a toast "Title" is ready, with Open. Open asks `EditorScreen` for the recording (`openRequest`, a new object each time, so the same recording can be asked for again after leaving it).
+- `job_failed` — an error toast Transcription failed: "Title". A job that failed on a missing alignment model has the [Alignment model dialog](#alignment-model-dialog) instead.
+
 ## Alignment model dialog
 
 A job in a language whose alignment model is not downloaded fails mid-pipeline with `alignment_model_missing`, as a detected language is known only then. `useAlignmentDialogs()` in `ui/src/screens/Queue/`, called by `App`, takes these `job_failed` events from `useQueueEventsSync()` and shows `AlignmentDialog` for the language of the job, so the model can be downloaded and the jobs retried without going to Settings.

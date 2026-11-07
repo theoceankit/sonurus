@@ -24,7 +24,12 @@ import { TranscriptPanel, type SpeakerMenuTarget } from './TranscriptPanel'
 import { useSpeakerChange } from './useSpeakerChange'
 import styles from './EditorScreen.module.css'
 
+// A recording to open from elsewhere, such as the toast of a finished job. Each
+// request is a new object, so the same recording can be asked for again.
+export type RecordingRequest = { id: number }
+
 interface EditorScreenProps {
+  openRequest?: RecordingRequest | null
   // Nothing in the API says a recording is pinned yet.
   pinnedIds?: number[]
   initialSelectedId?: number | null
@@ -56,7 +61,7 @@ function useWidth() {
   return { element, width }
 }
 
-export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, possibleMatches, initialSpeakerId, initialHighlight }: EditorScreenProps) {
+export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, possibleMatches, initialSpeakerId, initialHighlight }: EditorScreenProps) {
   const api = useApi()
   const transcripts = useTranscripts()
   const speakers = useSpeakers()
@@ -94,6 +99,12 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
     const next = pickRecording(transcripts.data, recent.ids)
     if (next !== null) setSelectedId(next)
   }, [selectedId, transcripts.data, recent.ids])
+
+  useEffect(() => {
+    if (!openRequest) return
+    setJobId(null)
+    setSelectedId(openRequest.id)
+  }, [openRequest])
 
   const { remember } = recent
   useEffect(() => {

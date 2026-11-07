@@ -81,7 +81,7 @@ A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/spea
 
 `subscribeQueueEvents` gives the current snapshot and then every snapshot and job event. `queue-events.ts` connects to `WS /ws/queue`, reconnects two seconds after the connection drops and does not pass heartbeats on.
 
-`useQueueEventsSync()`, called once at the root of the app, puts snapshots into the cache behind `useQueue()` and refreshes the recordings and speakers on `job_done`. Its optional callback is for what a screen shows itself, such as a toast on `job_failed`.
+`useQueueEventsSync()`, called once at the root of the app, puts snapshots into the cache behind `useQueue()` and refreshes the recordings and speakers on `job_done`. Its optional callback is for what the app shows itself: the toasts of finished and failed jobs and the Alignment model dialog ([New UI transcription](new-ui-transcribe.md#finished-and-failed-jobs)).
 
 ## Connection to the backend
 
