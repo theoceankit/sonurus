@@ -14,16 +14,23 @@ import type { SessionDeps } from '../../recording/session'
 import type { ApiClient } from '../../api/client'
 import { BOTH_OFF, NO_SYSTEM_AUDIO } from '../../recording/sources'
 import { SettingsProvider } from '../Settings/SettingsProvider'
+import { Modal } from '../../components/Modal/Modal'
+import { ModalHeader } from '../../components/ModalHeader/ModalHeader'
 
 afterEach(() => {
   dismissAllToasts()
   vi.unstubAllGlobals()
 })
 
-function setup(options: FixtureOptions = {}, chosen: string[] = []) {
+// Another window open over the Editor, as Delete recording or New speaker would be.
+function OtherWindow() {
+  return <Modal open><ModalHeader title="Other window" /></Modal>
+}
+
+function setup(options: FixtureOptions = {}, chosen: string[] = [], { other = false } = {}) {
   const client = createFixtureClient(options)
   vi.stubGlobal('electronAPI', createMockElectronAPI({ openFiles: async () => chosen }))
-  render(<ApiProvider client={client}><OverlayProvider><SettingsProvider><EditorScreen /></SettingsProvider></OverlayProvider></ApiProvider>)
+  render(<ApiProvider client={client}><OverlayProvider><SettingsProvider><EditorScreen />{other && <OtherWindow />}</SettingsProvider></OverlayProvider></ApiProvider>)
   return client
 }
 
@@ -36,6 +43,9 @@ function drag(type: string, { files = ['a.mp3'], types = ['Files'] } = {}) {
 }
 
 const dialog = () => screen.queryByRole('dialog', { name: 'New recording' })
+// Under another window, which hides the rest of the page from assistive technology,
+// so it has no accessible name to be found by.
+const dialogUnder = () => screen.queryAllByRole('dialog', { hidden: true }).find(window => window.textContent!.startsWith('New recording')) ?? null
 const listed = () => within(screen.getByRole('list', { name: 'Files to import' })).getAllByRole('listitem').map(item => item.textContent!.trim())
 const openByButton = async () => {
   await userEvent.click(await screen.findByRole('button', { name: 'New recording' }))
@@ -83,6 +93,38 @@ describe('opening', () => {
   })
 })
 
+describe('over other windows', () => {
+  test('files dragged over another window do not open it; their drop is taken and adds nothing', async () => {
+    setup({}, [], { other: true })
+    await screen.findByRole('dialog', { name: 'Other window' })
+    drag('dragenter')
+    expect(dialog()).toBeNull()
+    const event = drag('drop', { files: ['a.mp3', 'notes.txt'] })
+    // Taken, or the window would open the file.
+    expect(event.defaultPrevented).toBe(true)
+    expect(dialog()).toBeNull()
+    expect(screen.queryByText(/was not imported/)).toBeNull()
+  })
+
+  test('Settings open over it, a drop adds nothing; closed, the dialog is back with its files', async () => {
+    setup({ overrides: { addQueueJob: () => Promise.reject(new ApiError(400, NO_MODELS, 'whisper_model_missing')) } }, ['/in/a.mp3'])
+    await openByButton()
+    await userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
+    await userEvent.type(screen.getByRole('textbox', { name: 'Title' }), 'Standup')
+    await userEvent.click(screen.getByRole('button', { name: 'Import' }))
+    await userEvent.click(within(await screen.findByRole('alert')).getByRole('button', { name: 'Open Settings' }))
+    expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
+    expect(dialogUnder()).toBeTruthy()
+    drag('dragenter')
+    expect(drag('drop', { files: ['b.mp3'] }).defaultPrevented).toBe(true)
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
+    expect(dialog()).toBeTruthy()
+    expect(listed()).toEqual(['a.mp3'])
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveProperty('value', 'Standup')
+  })
+})
+
 describe('the files', () => {
   test('a drop anywhere lists the audio, names the rest in a toast, and the dialog stays', async () => {
     setup()
@@ -105,6 +147,33 @@ describe('the files', () => {
     expect(screen.queryByRole('list', { name: 'Files to import' })).toBeNull()
     expect(dialog()).toBeTruthy()
     expect((screen.getByRole('button', { name: 'Import' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  test('removing a file clears the refusal shown', async () => {
+    setup({ overrides: { addQueueJob: () => Promise.reject(new ApiError(400, '"b.mp3" could not be read.', 'audio_not_readable')) } }, ['/in/a.mp3', '/in/b.mp3'])
+    await openByButton()
+    await userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Import' }))
+    await screen.findByRole('alert')
+    await userEvent.click(screen.getByRole('button', { name: 'Remove b.mp3' }))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  test('while the files go to the queue, no more can be added', async () => {
+    let release = () => {}
+    const client = createFixtureClient()
+    const add = client.addQueueJob
+    setup({ overrides: { addQueueJob: job => new Promise(resolve => { release = () => resolve(add(job)) }) } }, ['/in/a.mp3'])
+    await openByButton()
+    await userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Import' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Choose files' })).toHaveProperty('disabled', true))
+    drag('dragenter')
+    expect(drag('drop', { files: ['b.mp3'] }).defaultPrevented).toBe(true)
+    expect(listed()).toEqual(['a.mp3'])
+    expect(screen.getByText('Drop audio or video files here')).toBeTruthy()
+    await act(async () => release())
+    await waitFor(() => expect(dialog()).toBeNull())
   })
 
   test('chosen files join the list, and one can be removed', async () => {
@@ -148,7 +217,6 @@ describe('importing', () => {
     expect(listed()).toEqual(['a.mp3'])
     await userEvent.click(within(alert).getByRole('button', { name: 'Open Settings' }))
     expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy()
-    await waitFor(() => expect(dialog()).toBeNull())
   })
 
   test('a backend that does not answer is said in the dialog, with no link to Settings', async () => {
@@ -310,12 +378,12 @@ describe('title, model and language', () => {
     expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Languages', selected: true })).toBeTruthy()
   })
 
-  test('Download in Settings closes the dialog for Settings', async () => {
+  test('Download in Settings opens Settings over the dialog, which stays', async () => {
     await setupWith({ noModels: true }, [])
     await openByButton()
     await userEvent.click(within(await screen.findByRole('status')).getByRole('button', { name: 'Download in Settings' }))
     expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
-    await waitFor(() => expect(dialog()).toBeNull())
+    expect(dialogUnder()).toBeTruthy()
   })
 
   test('a language whose alignment model is not downloaded is off; picking Detect lets the import go', async () => {

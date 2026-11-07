@@ -8,6 +8,7 @@ import { NOTHING_PICKED, transcribeChoice, type Picked } from '../../transcribe/
 import { apiLanguage } from '../../transcribe/languages'
 import { useSettingsDialog } from '../Settings/SettingsProvider'
 import { useRecordingSetup } from '../../recording/useRecordingSetup'
+import { openModalCount } from '../../components/Modal/open-modals'
 import type { ImportDialogProps } from './ImportDialog'
 import {
   addFiles, defaultTitle, fileName, importFailure, importingMessage, queueTitles, skippedMessage, watchFileDrags, type ImportFailure, type ImportFile,
@@ -46,6 +47,9 @@ export function useImportDialog() {
   const latest = useRef(state)
   latest.current = state
   const { mutateAsync: addToQueue, isPending } = useAddToQueue()
+  // Files cannot be added while the list goes to the queue: it would close without them.
+  // Set at once on Import, not on the next render.
+  const importing = useRef(false)
   const api = useApi()
   const models = useModels()
   const { refetch: refetchModels } = models
@@ -69,7 +73,12 @@ export function useImportDialog() {
   const latestChoice = useRef(choice)
   latestChoice.current = choice
 
+  // Files dragged in are for this dialog only when no other window is open over or
+  // without it, such as Delete recording, or Settings opened from here.
+  const othersOpen = () => openModalCount() > (latest.current.open ? 1 : 0)
+
   const add = useCallback((incoming: ImportFile[]) => {
+    if (importing.current) return
     // A drop on a closed dialog starts a new list.
     const { files, skipped } = addFiles(latest.current.open ? latest.current.files : [], incoming)
     latest.current = { ...latest.current, open: true, sticky: true, files, failure: null }
@@ -77,21 +86,25 @@ export function useImportDialog() {
     if (skipped.length > 0) toast({ message: skippedMessage(skipped) })
   }, [])
 
+  // A drop that is not for the dialog is still taken by watchFileDrags, so the window
+  // does not open the file, and goes nowhere.
   useEffect(() => watchFileDrags(window, {
-    onEnter: () => setState(current => (current.open ? current : { ...CLOSED, open: true })),
+    onEnter: () => { if (!othersOpen()) setState(current => (current.open ? current : { ...CLOSED, open: true })) },
     onLeave: () => setState(current => ({ ...current, open: current.open && (current.sticky || current.files.length > 0) })),
-    onDrop: files => add(files.map(file => ({ name: file.name, path: pathOf(file) }))),
+    onDrop: files => { if (!othersOpen()) add(files.map(file => ({ name: file.name, path: pathOf(file) }))) },
   }), [add])
 
   const open = useCallback(() => setState(current => (current.open ? { ...current, sticky: true } : { ...CLOSED, open: true, sticky: true })), [])
   const close = useCallback(() => setState(current => ({ ...current, open: false })), [])
 
   const chooseFiles = useCallback(async () => {
+    if (importing.current) return
     const paths = await bridge()?.openFiles() ?? []
     if (paths.length > 0) add(paths.map(path => ({ name: fileName(path), path })))
   }, [add])
 
-  const remove = useCallback((path: string) => setState(current => ({ ...current, files: current.files.filter(file => file.path !== path) })), [])
+  // The refusal shown may have been about the file that went.
+  const remove = useCallback((path: string) => setState(current => ({ ...current, files: current.files.filter(file => file.path !== path), failure: null })), [])
 
   const pick = useCallback((change: Partial<Picked>) => setState(current => ({ ...current, picked: { ...current.picked, ...change }, failure: null })), [])
 
@@ -100,6 +113,7 @@ export function useImportDialog() {
     const { model, language, checking, blocked } = latestChoice.current
     if (checking || blocked) return
     const titles = queueTitles(files, title)
+    importing.current = true
     try {
       await addToQueue({
         files: files.map((file, index) => ({ audioPath: file.path, title: titles[index] })),
@@ -113,6 +127,8 @@ export function useImportDialog() {
       // What went in is on its way: off the list, so Import does not send it twice.
       if (failure.added > 0) toast({ message: importingMessage(files.slice(0, failure.added)) })
       setState(current => ({ ...current, files: current.files.slice(failure.added), failure: importFailure(failure.error) }))
+    } finally {
+      importing.current = false
     }
   }, [addToQueue])
 
@@ -142,10 +158,8 @@ export function useImportDialog() {
     onClose: close,
     record: recording.setup,
     onStartRecording: startRecording,
-    onOpenSettings: section => {
-      close()
-      settingsDialog.open(section)
-    },
+    // Over the dialog, which waits with its files under Settings.
+    onOpenSettings: section => settingsDialog.open(section),
   }
   return { open, dialog }
 }

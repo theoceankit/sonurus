@@ -101,13 +101,6 @@ describe('watchFileDrags', () => {
     expect(calls).toEqual(['enter', 'leave'])
   })
 
-  test('a drop a zone below took already is not handed over twice', () => {
-    const { fire, calls } = setup()
-    fire('dragenter')
-    fire('drop', { prevented: true })
-    expect(calls).toEqual(['enter', 'leave'])
-  })
-
   test('after a drop the next drag counts from the start', () => {
     const { fire, calls } = setup()
     fire('dragenter')

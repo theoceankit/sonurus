@@ -11,13 +11,16 @@ interface DropZoneProps {
   // What the files may be, under the call to drop them.
   hint?: string
   onChooseFiles?: () => void
+  // Takes no files for now: Choose files is off and a drag does not light it.
+  disabled?: boolean
 }
 
-const hasFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes('Files')
+// A drag of files from the system, not of text or of something on the page.
+export const hasFiles = (event: { dataTransfer: DataTransfer | null }) => Array.from(event.dataTransfer?.types ?? []).includes('Files')
 
 // Lights up while files are dragged over it, and only then. Taking the drop is left to
 // whoever listens on the window: the zone only shows where to drop.
-export function DropZone({ over: forcedOver = false, hint, onChooseFiles }: DropZoneProps) {
+export function DropZone({ over: forcedOver = false, hint, onChooseFiles, disabled = false }: DropZoneProps) {
   // Enter and leave come for every child crossed: only the first and the last count.
   const depth = useRef(0)
   const [over, setOver] = useState(false)
@@ -35,7 +38,7 @@ export function DropZone({ over: forcedOver = false, hint, onChooseFiles }: Drop
     depth.current = 0
     setOver(false)
   }
-  const lit = over || forcedOver
+  const lit = !disabled && (over || forcedOver)
 
   return (
     <Stack
@@ -44,6 +47,7 @@ export function DropZone({ over: forcedOver = false, hint, onChooseFiles }: Drop
       justify="center"
       className={cx(styles.dropZone, lit && styles.over)}
       data-over={lit || undefined}
+      data-disabled={disabled || undefined}
       onDragEnter={enter}
       onDragLeave={leave}
       onDrop={drop}
@@ -53,7 +57,7 @@ export function DropZone({ over: forcedOver = false, hint, onChooseFiles }: Drop
         <span className={styles.title}>{lit ? 'Drop to add the files' : 'Drop audio or video files here'}</span>
         {hint && <span className={styles.hint}>{hint}</span>}
       </Stack>
-      <Button size="small" onClick={onChooseFiles}>Choose files</Button>
+      <Button size="small" disabled={disabled} onClick={onChooseFiles}>Choose files</Button>
     </Stack>
   )
 }

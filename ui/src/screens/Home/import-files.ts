@@ -1,5 +1,6 @@
 import { ApiError } from '../../api/client'
 import type { RefusalCode } from '../../api/types'
+import { hasFiles } from '../../components/DropZone/DropZone'
 
 // What the file dialog of Electron offers, and what the old UI takes from a drop.
 export const SUPPORTED_EXTENSIONS = ['wav', 'mp3', 'm4a', 'flac', 'ogg', 'mp4', 'mkv', 'webm'] as const
@@ -69,12 +70,10 @@ export function importFailure(error: ApiError): ImportFailure {
   return { message: error.message, settingsSection: (error.code && SETTINGS_SECTIONS[error.code]) ?? null }
 }
 
-export const hasFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes('Files')
-
 export interface FileDragHandlers {
   // Files came over the window.
   onEnter: () => void
-  // They left it, or the drag was cancelled, or someone below took the drop.
+  // They left it, or the drag was cancelled.
   onLeave: () => void
   onDrop: (files: File[]) => void
 }
@@ -103,12 +102,9 @@ export function watchFileDrags(target: Window, { onEnter, onLeave, onDrop }: Fil
   }
   const drop = (event: DragEvent) => {
     if (!hasFiles(event)) return
-    // A zone below took it already.
-    const handled = event.defaultPrevented
     event.preventDefault()
     depth = 0
-    if (handled) onLeave()
-    else onDrop(Array.from(event.dataTransfer?.files ?? []))
+    onDrop(Array.from(event.dataTransfer?.files ?? []))
   }
   const listeners = { dragenter: enter, dragleave: leave, dragover: over, drop } as const
   for (const [type, listener] of Object.entries(listeners)) target.addEventListener(type, listener as EventListener)

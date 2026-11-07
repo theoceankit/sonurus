@@ -42,7 +42,7 @@ export interface ImportDialogProps {
   onRemove: (path: string) => void
   onImport: () => void
   onClose: () => void
-  // Closes the dialog for Settings, on the section where the missing model is downloaded.
+  // Settings over the dialog, on the section where the missing model is downloaded.
   onOpenSettings?: (section: 'models' | 'alignment') => void
   onExited?: () => void
   // The sources and devices of a live recording, and Start recording.
@@ -127,7 +127,7 @@ export function ImportDialog({
               <Button variant="ghost" size="small" icon="settings" onClick={() => onOpenSettings?.(choice.blocked?.missing === 'alignment' ? 'alignment' : 'models')}>Download in Settings</Button>
             </Inline>
           )}
-          <DropZone over={over} hint={HINT} onChooseFiles={onChooseFiles} />
+          <DropZone over={over} hint={HINT} disabled={importing} onChooseFiles={onChooseFiles} />
           {files.length > 0 && (
             <ul aria-label="Files to import" className={styles.files}>
               {files.map(file => (
