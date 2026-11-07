@@ -24,7 +24,7 @@ export function GpuSection() {
     <SectionCard
       title="GPU acceleration"
       description="Faster transcription on an NVIDIA graphics card."
-      action={<Badge tone={view.tone}>{view.label}</Badge>}
+      action={<Badge size="medium" tone={view.tone}>{view.label}</Badge>}
     >
       <Stack gap={2} paddingY={3}>
         <Inline gap={3} wrap className={styles.gpuHead}>

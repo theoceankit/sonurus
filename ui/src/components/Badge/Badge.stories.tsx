@@ -24,6 +24,7 @@ export const Matrix: Story = {
       states={TONES}
       rows={[
         { label: 'Label', render: t => <Inline padding={1} style={onAccent(t)}><Badge tone={tone(t)}>{TEXT[t]}</Badge></Inline> },
+        { label: 'Label, medium', render: t => <Inline padding={1} style={onAccent(t)}><Badge size="medium" tone={tone(t)}>{TEXT[t]}</Badge></Inline> },
         {
           label: 'Count',
           skip: ['Accent', 'Success', 'Warning', 'Danger'],
@@ -36,3 +37,5 @@ export const Matrix: Story = {
 
 export const Example: Story = {}
 export const CountOfZero: Story = { args: { variant: 'count', children: 0 } }
+
+export const Medium: Story = { args: { size: 'medium', children: 'Development build' } }
