@@ -48,3 +48,12 @@ test('an error offers a retry', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(onRetry).toHaveBeenCalledOnce()
 })
+
+test('shows what it is given above the list; nothing given takes no room', () => {
+  const { container, rerender } = render(<Sidebar sections={SECTIONS} top={<p>Queue here</p>} />)
+  const slot = screen.getByText('Queue here').parentElement!
+  expect(slot.compareDocumentPosition(screen.getByText('This week')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  const Nothing = () => null
+  rerender(<Sidebar sections={SECTIONS} top={<Nothing />} />)
+  expect(container.querySelector(':scope > div > div:empty')).not.toBeNull()
+})

@@ -34,6 +34,21 @@ Like the old UI (`syncTranscribeModel`), the new one saves the default when it c
 - `cancel(id)` sends `DELETE /models/{id}/download/{job_id}`. A cancel before the backend answered the start stops the job once it does.
 - A finished download reads the catalog again, so the model shows as installed everywhere.
 
+## Queue
+
+The transcription queue is a section of the recordings list, above the others, while it has jobs: `QueueSection` in `ui/src/screens/Queue/`, in the `top` slot of `Sidebar`. An empty queue takes no room; the slot is at most 40 % of the sidebar's height, and a longer queue scrolls under its header. The snapshots come from `useQueue()`, which `useQueueEventsSync()` keeps up with `WS /ws/queue`. With the sidebar closed the queue is not shown.
+
+- **Header.** "Queue", like the titles of the other sections, with Paused or Paused while recording beside it while the queue stands still (`queueStateLabel()`). It has no button.
+- **Rows.** `QueueRow` in `ui/src/components/` is a row of the recordings list: the same height, title and status slot. A job not transcribed, waiting or failed, is in the secondary text colour. Across the title of the running job a lighter band passes now and then (`ui/src/styles/shimmer.module.css`, `--duration-shimmer`); with reduced motion it is plain text. A failed job has a red dot in the slot, where a new recording has its blue one.
+- **Buttons.** They show at the end of a row with the pointer, the focus, or while the row's menu is open, and are reached with Tab when hidden. A failed job has Retry, which puts it back at the end of the queue (`useRetryQueueJob()`). Every job has a menu, opened by its More button or by a right click on the row: Pause queue or Resume queue (`queueToggle()`, `useQueueControl()`; a pause stops the running job at once and it waits again at its place), Transcription settings for a job that is not running (`EditJobDialog`, [Job settings dialog](#job-settings-dialog)), and Delete from queue.
+- **Delete** asks first in a danger dialog (`DeleteJobDialog`, focus on Cancel) with the text of `deleteJobPrompt()`: an imported file (`sonorus-import-*` in `recordings/`) keeps the user's original, anything else is a live recording, deleted for good. It sends `DELETE /queue/jobs/{id}`, which stops the job first if it runs; a job already gone counts as deleted. The dialog plays its way out also when the last job goes and the queue with it.
+- **Order.** A row is dragged with the mouse onto another, before or after it by the half the pointer is on (`dropPlace()`, `reorderJobIds()`), and the new order goes to `PUT /queue/order` (`useReorderQueue()`). The drag carries its own type, `application/x-sonorus-job`, so a row is never taken for files dropped on the window, whose drop zone takes only files. While a row is dragged the queue stays as it was when the drag began, and the latest snapshot shows after the drop. From the keyboard, Alt+Up and Alt+Down on a focused row move it a step (`moveJob()`); the row keeps the focus in its new place.
+- A refusal of the backend for any of these is a toast with its text; the queue shows what the backend has.
+
+### A job in the centre
+
+A click on a row picks the job: `EditorScreen` shows `QueueJobPanel` in the centre in place of the recording, and the recording comes back when one is picked in the list or the job leaves the queue (it finished or was deleted). The inspector and the player show nothing meanwhile. `QueueJobView` is laid out as a transcript's header, the title where a transcript's stands: the title, the status (`jobStatusText()`: the step of the running job, which glints like its row; Waiting in the queue, or Waiting, queue paused; for a failed job, in red, the model that is missing or else Transcription failed), and Retry and Transcription settings under it. Delete from queue is in the More menu at the top right. A failed job's whole error, as the backend gave it, is folded under Show log, as the text of a review card is (`Reveal`), and scrolls past `--size-queue-log`. This is where the error stays once its toast is gone.
+
 ## Alignment model dialog
 
 A job in a language whose alignment model is not downloaded fails mid-pipeline with `alignment_model_missing`, as a detected language is known only then. `useAlignmentDialogs()` in `ui/src/screens/Queue/`, called by `App`, takes these `job_failed` events from `useQueueEventsSync()` and shows `AlignmentDialog` for the language of the job, so the model can be downloaded and the jobs retried without going to Settings.
@@ -46,7 +61,7 @@ A job in a language whose alignment model is not downloaded fails mid-pipeline w
 
 ## Job settings dialog
 
-`EditJobDialog` in `ui/src/screens/Queue/` changes the title, the model and the language of a job that waits or failed; `canEditJob()` is false for the running one, which the backend refuses to change. It is what the edit button of a queue card opens; the new UI has no queue yet, so nothing in the app opens it, and Storybook shows it on the fixtures' queue.
+`EditJobDialog` in `ui/src/screens/Queue/` changes the title, the model and the language of a job that waits or failed; `canEditJob()` is false for the running one, which the backend refuses to change. It is what Transcription settings opens, in the menu of a queue row and in the centre for a picked job ([Queue](#queue)).
 
 - It starts with the job as it is, the title focused. The lists are those of the import dialog: models and languages without their models are off. The job's own model stays in the list when it has been deleted, until another is picked.
 - Save sends only what changed (`jobEditPatch()`), the title trimmed, Detect as null, through `useUpdateQueueJob()` (`PATCH /queue/jobs/{id}`). Nothing changed closes without a request. Enter in the title saves, Escape closes without saving.

@@ -1,0 +1,10 @@
+/* The centre panel of the window. */
+.frame {
+  /* raw-value: a story frame, not a component */
+  height: 560px;
+  /* raw-value: a story frame, not a component */
+  max-width: 720px;
+  margin: var(--space-4);
+  border-radius: var(--radius-panel);
+  background: var(--color-bg-window);
+}

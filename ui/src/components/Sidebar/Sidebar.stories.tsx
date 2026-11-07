@@ -1,5 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
+import { IconButton } from '../IconButton/IconButton'
+import { QueueRow } from '../QueueRow/QueueRow'
+import { SectionHeader } from '../SectionHeader/SectionHeader'
 import { Sidebar, type SidebarRecording, type SidebarSection } from './Sidebar'
 import styles from './Sidebar.stories.module.css'
 
@@ -48,5 +51,34 @@ export const Selecting: Story = {
   render: () => {
     const [selectedId, setSelectedId] = useState<number | null>(null)
     return <Sidebar sections={[PINNED, WEEK]} selectedId={selectedId} onSelect={setSelectedId} />
+  },
+}
+
+// What the app puts in the slot: the queue as a section of the list.
+const queue = (titles: string[]) => (
+  <section aria-label="Transcription queue" className={styles.queue}>
+    <SectionHeader title="Queue" />
+    <ul className={styles.queueList}>
+      {titles.map((title, i) => (
+        <li key={title}>
+          <QueueRow
+            title={title}
+            status={i === 0 ? 'running' : i === 2 ? 'failed' : 'waiting'}
+            actions={<IconButton variant="ghost" size="xs" icon="more" label="More" />}
+          />
+        </li>
+      ))}
+    </ul>
+  </section>
+)
+
+// The transcription queue above the list.
+export const WithQueue: Story = { args: { sections: [PINNED, WEEK, earlier(4)], top: queue(['Weekly product sync', 'Design review', 'Old customer call']) } }
+
+// A long queue takes up to 40 % of the height and scrolls; the list keeps the rest.
+export const WithLongQueue: Story = {
+  args: {
+    sections: [PINNED, WEEK, earlier(30)],
+    top: queue(Array.from({ length: 12 }, (_, i) => `Recording to transcribe ${i + 1}`)),
   },
 }
