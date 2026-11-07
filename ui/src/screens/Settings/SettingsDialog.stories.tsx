@@ -63,6 +63,9 @@ export const ModelsDownloadFails: Story = { args: { section: 'models' }, paramet
 
 export const ModelsLoading: Story = { args: { section: 'models' }, parameters: { api: { overrides: { listModels: () => new Promise(() => {}) } } } }
 
+// The devices a new recording starts with; the backend's system audio sources.
+export const AudioDevices: Story = { args: { section: 'audio' }, decorators: [withSettings({ recordingSystemDevice: 'bluez_output.58_18_62_38_72_FA.1.monitor' })] }
+export const AudioDevicesNoSystemAudio: Story = { args: { section: 'audio' }, parameters: { api: { captureSources: [] } } }
 export const Alignment: Story = { args: { section: 'alignment' }, parameters: { api: { installedModels: ['small', 'diarize', 'ru', 'uk'], downloadStepMs: 1500 } } }
 
 // Delete Whisper Small: two jobs in the queue use it, so it asks over Settings.

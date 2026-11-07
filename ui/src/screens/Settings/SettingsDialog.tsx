@@ -8,6 +8,7 @@ import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { TabPanel, Tabs } from '../../components/Tabs/Tabs'
 import { AlignmentSection } from './AlignmentSection'
 import { AppearanceSection } from './AppearanceSection'
+import { AudioSection } from './AudioSection'
 import { ApiKeysSection } from './ApiKeysSection'
 import { DataSection } from './DataSection'
 import { ExportSection } from './ExportSection'
@@ -32,6 +33,7 @@ const PANELS: Record<SettingsSection, ComponentType> = {
   appearance: AppearanceSection,
   models: ModelsSection,
   alignment: AlignmentSection,
+  audio: AudioSection,
   gpu: GpuSection,
   apiKeys: ApiKeysSection,
   export: ExportSection,

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useCaptureSources } from '../api/queries'
 import { settingsStore, useSettings } from '../platform/settings'
-import { listInputDevices } from './devices'
+import { useInputDevices } from './devices'
 import { useRecording } from './RecordingProvider'
 import type { RecordingRequest } from './session'
 import {
@@ -36,16 +36,11 @@ export function useRecordingSetup(active: boolean) {
   const settings = useSettings()
   const recording = useRecording()
   const capture = useCaptureSources(active)
-  const [inputs, setInputs] = useState<MediaDeviceInfo[]>([])
+  const inputs = useInputDevices(active)
   const [picks, setPicks] = useState<Picks>(NOTHING)
 
-  useEffect(() => {
-    if (!active) return
-    let current = true
-    setPicks(NOTHING)
-    void listInputDevices().then(devices => { if (current) setInputs(devices) })
-    return () => { current = false }
-  }, [active])
+  // Each opening starts from what is saved.
+  useEffect(() => { if (active) setPicks(NOTHING) }, [active])
 
   const micDevices = micOptions(inputs)
   const systemDevices = systemOptions(capture.data ?? [])
