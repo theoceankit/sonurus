@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiError } from '../client'
 import { effectiveSpeaker, UNASSIGNED, type QueueUpdate, type Segment } from '../types'
 import { BOARDS } from './boards'
-import { DESIGN_REVIEW_ID, QUEUE_JOB, queueSnapshot, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
+import { DESIGN_REVIEW_ID, GONE_AUDIO_IDS, QUEUE_JOB, queueSnapshot, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
 import { EVENT_SCRIPTS } from './event-scripts'
 import type { ApiClient } from '../client'
 import { createFixtureClient, NO_MODELS } from './fixture-client'
@@ -208,7 +208,9 @@ describe('changes', () => {
   test('a voice sample comes from the segments of the speaker', async () => {
     const client = createFixtureClient()
     expect(await client.getSpeakerSample(unknown1, WEEKLY_SYNC_ID)).toMatchObject({ transcript_id: WEEKLY_SYNC_ID, start: 16, end: 25 })
-    await expect(client.getSpeakerSample(SPEAKER_IDS.kate)).rejects.toMatchObject({ status: 404 })
+    // Priya is in no recording; Kate is only in the list, and gets one turn there.
+    await expect(client.getSpeakerSample(SPEAKER_IDS.priya)).rejects.toMatchObject({ status: 404 })
+    expect(await client.getSpeakerSample(SPEAKER_IDS.kate)).toMatchObject({ transcript_id: 5 })
   })
 
   test('clients do not share changes, and results are copies', async () => {
@@ -573,5 +575,44 @@ describe('editing a job', () => {
     await expect(client.updateQueueJob('a', { whisper_model: 'tiny' })).rejects.toMatchObject({ status: 400 })
     await expect(client.updateQueueJob('a', { language: 'ru' })).rejects.toMatchObject({ status: 400 })
     await expect((await withJob('running')).updateQueueJob('a', { title: 'x' })).rejects.toMatchObject({ status: 409 })
+  })
+})
+
+describe('the speakers section', () => {
+  test('the recordings of a speaker, newest first, with whether their audio is there', async () => {
+    const recordings = await createFixtureClient().listSpeakerTranscripts(oliver)
+    expect(recordings.map(r => r.id)).toEqual([DESIGN_REVIEW_ID, WEEKLY_SYNC_ID, 5, 7, 10, 14])
+    expect(recordings.find(r => r.id === WEEKLY_SYNC_ID)).toMatchObject({ segments: 1, duration_sec: 7, has_audio: true })
+    expect(recordings.find(r => r.id === GONE_AUDIO_IDS[0])!.has_audio).toBe(false)
+  })
+
+  test('a recording whose file is gone has nothing to play, and no sample comes from it', async () => {
+    const client = createFixtureClient()
+    expect(client.getRecordingAudioUrl(GONE_AUDIO_IDS[0])).toBeNull()
+    expect(client.getRecordingAudioUrl(WEEKLY_SYNC_ID)).toEqual(expect.any(String))
+    await expect(client.getSpeakerSample(oliver, GONE_AUDIO_IDS[0])).rejects.toMatchObject({ status: 404 })
+  })
+
+  test('two people may share a name', async () => {
+    const speakers = await createFixtureClient({ board: 'sameNames' }).listSpeakers()
+    expect(speakers.filter(s => s.name === 'Mark Ellis').map(s => s.id)).toEqual([mark, SPEAKER_IDS.mark2])
+  })
+
+  test('deleting a speaker leaves their segments Unassigned and takes them off every list', async () => {
+    const client = createFixtureClient()
+    expect(await client.deleteSpeaker(mark)).toEqual({ segments: 3 + 8, transcripts: 9 })
+    expect((await client.listSpeakers()).some(s => s.id === mark)).toBe(false)
+    expect(await startsOf(client, UNASSIGNED)).toEqual([5, 8, 38])
+    expect((await client.listTranscripts()).some(t => t.speakers.includes(mark))).toBe(false)
+    await expect(client.deleteSpeaker(mark)).rejects.toMatchObject({ status: 404 })
+  })
+
+  test('a speaker is not deleted while a transcription or a recording runs', async () => {
+    for (const changes of [{ running_job_id: 'a' }, { recording: true }]) {
+      const client = createFixtureClient()
+      client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot(changes) }] })
+      await vi.waitFor(async () => expect(await client.getQueue()).toMatchObject(changes))
+      await expect(client.deleteSpeaker(anna)).rejects.toMatchObject({ status: 409 })
+    }
   })
 })

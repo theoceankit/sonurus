@@ -1,7 +1,7 @@
 import type { Segment, Speaker, SpeakerCandidates, Transcript, TranscriptListItem } from '../types'
 import { allHands, ALL_HANDS_ITEM } from './all-hands'
 import { longRecording, LONG_RECORDING_ITEM } from './long-recording'
-import { CANDIDATES, DESIGN_REVIEW_CANDIDATES, DESIGN_REVIEW_ID, designReview, PLANNING_CALL, PLANNING_CALL_ITEM, SPEAKER_IDS, SPEAKERS, TRANSCRIPTS, WEEKLY_SYNC_ID, weeklySync } from './data'
+import { CANDIDATES, DESIGN_REVIEW_CANDIDATES, DESIGN_REVIEW_ID, designReview, PLANNING_CALL, PLANNING_CALL_ITEM, speaker, SPEAKER_IDS, SPEAKERS, TRANSCRIPTS, WEEKLY_SYNC_ID, weeklySync } from './data'
 
 export type FixtureData = {
   transcripts: TranscriptListItem[]
@@ -12,7 +12,7 @@ export type FixtureData = {
 
 // The states of the Editor data the boards differ by; the other boards show
 // the same data with another UI state.
-export type FixtureBoard = 'review' | 'reviewDone' | 'unassigned' | 'longRecording' | 'speakerCounts'
+export type FixtureBoard = 'review' | 'reviewDone' | 'unassigned' | 'longRecording' | 'speakerCounts' | 'sameNames'
 
 const { anna, mark, oliver, sofia, lena } = SPEAKER_IDS
 
@@ -55,6 +55,13 @@ export const BOARDS: Record<FixtureBoard, FixtureData> = {
     transcripts: [ALL_HANDS_ITEM, PLANNING_CALL_ITEM, ...TRANSCRIPTS],
     details: [allHands(), PLANNING_CALL, weeklySync(), designReview()],
     speakers: SPEAKERS,
+    candidates: { [WEEKLY_SYNC_ID]: CANDIDATES, [DESIGN_REVIEW_ID]: DESIGN_REVIEW_CANDIDATES },
+  },
+  // Not on a board: two people named Mark Ellis, the other one last heard in September.
+  sameNames: {
+    transcripts: TRANSCRIPTS.map(t => (t.id === 10 || t.id === 14 ? { ...t, speakers: [...t.speakers, SPEAKER_IDS.mark2] } : t)),
+    details: [weeklySync(), designReview()],
+    speakers: SPEAKERS.flatMap(s => (s.id === mark ? [s, speaker(SPEAKER_IDS.mark2, 'Mark Ellis', 2, 2, '2026-09-18T17:00:00')] : [s])),
     candidates: { [WEEKLY_SYNC_ID]: CANDIDATES, [DESIGN_REVIEW_ID]: DESIGN_REVIEW_CANDIDATES },
   },
 }

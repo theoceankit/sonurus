@@ -8,6 +8,10 @@ export type TranscriptListItem = Schemas['TranscriptListItem']
 export type Speaker = Schemas['SpeakerResponse']
 export type SpeakerSample = Schemas['SpeakerSampleResponse']
 export type SpeakerUpdate = Schemas['SpeakerUpdateRequest']
+// A recording a speaker talks in, with whether its audio file is still there.
+export type SpeakerTranscript = Schemas['SpeakerTranscriptItem']
+// How many segments, in how many recordings, a deleted speaker left Unassigned.
+export type SpeakerDeleteSummary = Schemas['SpeakerDeleteResponse']
 export type QueueJob = Schemas['QueueJob']
 export type QueueSnapshot = Schemas['QueueSnapshot']
 // Only the fields given change. A null language is one detected from the audio.

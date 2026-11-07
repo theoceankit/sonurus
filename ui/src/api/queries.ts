@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey 
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
 import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
-import type { QueueJobUpdate, QueueStartMode, QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
+import type { QueueJobUpdate, QueueStartMode, QueueUpdate, Speaker, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
 // queryKeys.transcripts reaches the list, the details and the candidates.
@@ -12,6 +12,7 @@ export const queryKeys = {
   candidates: (id: number) => ['transcripts', id, 'candidates'],
   speakers: ['speakers'],
   sample: (speakerId: string, transcriptId?: number) => ['speakers', speakerId, 'sample', transcriptId],
+  speakerTranscripts: (speakerId: string) => ['speakers', speakerId, 'transcripts'],
   // Not under the transcript: edits never change the audio.
   waveform: (id: number, { bars, start, end }: WaveformStretch) => ['waveform', id, bars, start, end],
   queue: ['queue'],
@@ -65,6 +66,16 @@ export function useSpeakerSample(speakerId: string, transcriptId?: number) {
   return useQuery({
     queryKey: queryKeys.sample(speakerId, transcriptId),
     queryFn: () => api.getSpeakerSample(speakerId, transcriptId),
+  })
+}
+
+// The recordings a speaker talks in. With no speaker nothing is asked for.
+export function useSpeakerTranscripts(speakerId: string | null) {
+  const api = useApi()
+  return useQuery({
+    queryKey: queryKeys.speakerTranscripts(speakerId ?? ''),
+    queryFn: () => api.listSpeakerTranscripts(speakerId!),
+    enabled: speakerId !== null,
   })
 }
 
@@ -217,6 +228,29 @@ export function useUpdateSpeaker() {
   return useMutation({
     mutationFn: ({ speakerId, update }: { speakerId: string; update: SpeakerUpdate }) => api.updateSpeaker(speakerId, update),
     onSuccess: () => refreshTranscriptsAndSpeakers(queries),
+  })
+}
+
+// Their segments become Unassigned in every recording, so the recordings are asked
+// for again; the speaker leaves the list at once and is not asked about again.
+export function useDeleteSpeaker() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: async (speakerId: string) => {
+      try {
+        await api.deleteSpeaker(speakerId)
+      } catch (error) {
+        // Already gone is what was asked for.
+        if (!(error instanceof ApiError && error.status === 404)) throw error
+      }
+    },
+    onSuccess: (_result, speakerId) => {
+      queries.setQueryData<Speaker[]>(queryKeys.speakers, speakers => speakers?.filter(speaker => speaker.id !== speakerId))
+      queries.removeQueries({ queryKey: [...queryKeys.speakers, speakerId] })
+      void queries.invalidateQueries({ queryKey: queryKeys.speakers })
+      void refreshTranscripts(queries)
+    },
   })
 }
 

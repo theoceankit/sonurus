@@ -82,6 +82,9 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     getSpeakerSample: (speaker_id, transcript_id) => send(http.GET('/speakers/{speaker_id}/sample', {
       params: { path: { speaker_id }, query: { transcript_id } },
     })),
+    listSpeakerTranscripts: speaker_id => send(http.GET('/speakers/{speaker_id}/transcripts', { params: { path: { speaker_id } } })),
+    deleteSpeaker: speaker_id => send(http.DELETE('/speakers/{speaker_id}', { params: { path: { speaker_id } } })),
+    getRecordingAudioUrl: id => `${baseUrl}/transcripts/${id}/audio`,
     listModels: () => send(http.GET('/models')),
     startModelDownload: async (model_id, hfToken) => {
       // The schema leaves the answer untyped: it is { job_id }.

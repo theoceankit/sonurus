@@ -1,5 +1,5 @@
 import type {
-  DataResetSummary, GpuStatus, ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
+  DataResetSummary, GpuStatus, ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
@@ -56,6 +56,14 @@ export interface ApiClient {
   listSpeakers(): Promise<Speaker[]>
   updateSpeaker(speakerId: string, update: SpeakerUpdate): Promise<Speaker>
   getSpeakerSample(speakerId: string, transcriptId?: number): Promise<SpeakerSample>
+  // The recordings the speaker talks in, newest first.
+  listSpeakerTranscripts(speakerId: string): Promise<SpeakerTranscript[]>
+  // Every segment of the speaker becomes Unassigned, and their name, colour and voice
+  // go. Refused with a 409 while a transcription or a recording runs.
+  deleteSpeaker(speakerId: string): Promise<SpeakerDeleteSummary>
+  // What an audio element plays for a recording known by its id alone, such as the
+  // one a voice sample comes from; null when there is nothing to play.
+  getRecordingAudioUrl(transcriptId: number): string | null
   // Every model of the catalog with whether it is downloaded.
   listModels(): Promise<ModelInfo[]>
   // Starts downloading a model, or joins its download already running, and answers the

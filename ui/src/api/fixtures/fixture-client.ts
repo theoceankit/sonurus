@@ -1,8 +1,8 @@
 import type { GpuDownloadEvent } from '../gpu-events'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
-import { effectiveSpeaker, UNASSIGNED, type GpuStatus, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Speaker, type SpeakerCandidates } from '../types'
+import { effectiveSpeaker, UNASSIGNED, type GpuStatus, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
-import { FIXTURE_GPU, FIXTURE_NOW, queueSnapshot } from './data'
+import { FIXTURE_GPU, FIXTURE_NOW, GONE_AUDIO_IDS, queueSnapshot } from './data'
 import { fixtureModels } from './models'
 import type { EventScript } from './event-scripts'
 import type { ModelDownloadEvent } from '../model-download-events'
@@ -158,6 +158,61 @@ export function createFixtureClient({
     }
   }
 
+  // A recording of the list has segments only when it is one of the details; for the
+  // others, one turn of each of its speakers, so their samples and stats are there too.
+  const recordingSegments = (id: number): Segment[] => {
+    const detail = data.details.find(t => t.id === id)
+    if (detail) return detail.segments
+    const item = listItem(id)
+    if (!item) throw new ApiError(404, 'Transcript not found')
+    return item.speakers.map((speakerId, i) => ({
+      start: i * 6, end: i * 6 + 5, text: `Something said in "${item.title}".`,
+      speaker_raw: `SPEAKER_0${i}`, speaker_resolved: speakerId, speaker_final: null, unassigned: false,
+    }))
+  }
+  const hasAudio = (id: number) => !noAudio && !GONE_AUDIO_IDS.includes(id)
+
+  const speakerTranscripts = (speakerId: string) => {
+    speaker(speakerId)
+    return data.transcripts.flatMap(item => {
+      const own = recordingSegments(item.id).filter(s => effectiveSpeaker(s) === speakerId)
+      if (own.length === 0) return []
+      return [{
+        id: item.id, title: item.title, created_at: item.created_at, segments: own.length,
+        duration_sec: own.reduce((sum, s) => sum + s.end - s.start, 0), has_audio: hasAudio(item.id),
+      }]
+    })
+  }
+
+  const deleteSpeaker = (speakerId: string) => {
+    speaker(speakerId)
+    if (queue.running_job_id) throw new ApiError(409, 'A transcription is in progress')
+    if (queue.recording) throw new ApiError(409, 'A recording is in progress')
+    let segments = 0
+    const touched = new Set<number>()
+    for (const t of data.details) {
+      for (const s of t.segments) {
+        if (effectiveSpeaker(s) !== speakerId) continue
+        s.speaker_resolved = null
+        s.speaker_final = null
+        s.unassigned = true
+        segments++
+        touched.add(t.id)
+      }
+      delete data.candidates[t.id]?.[speakerId]
+    }
+    for (const item of data.transcripts) {
+      if (!item.speakers.includes(speakerId)) continue
+      if (!data.details.some(t => t.id === item.id)) {
+        segments++
+        touched.add(item.id)
+      }
+      item.speakers = item.speakers.filter(id => id !== speakerId)
+    }
+    data.speakers = data.speakers.filter(s => s.id !== speakerId)
+    return { segments, transcripts: touched.size }
+  }
+
   const connectionListeners = new Set<(connected: boolean) => void>()
 
   // Downloads by job, one per model as on the backend; a job is gone once it ended.
@@ -279,13 +334,23 @@ export function createFixtureClient({
     }),
     getSpeakerSample: (id, transcriptId) => answer(() => {
       speaker(id)
-      const source = data.details.filter(t => transcriptId === undefined || t.id === transcriptId)
+      // The recordings with all their segments first, as before the others had any.
+      const ids = [...new Set([...data.details.map(t => t.id), ...data.transcripts.map(t => t.id)])]
+      const source = ids.map(tid => ({ id: tid })).filter(t => (transcriptId === undefined || t.id === transcriptId) && hasAudio(t.id))
       for (const t of source) {
-        const found = t.segments.find(s => effectiveSpeaker(s) === id)
-        if (found) return { transcript_id: t.id, audio_path: t.audio_path, start: found.start, end: found.end, text: found.text }
+        const found = recordingSegments(t.id).find(s => effectiveSpeaker(s) === id)
+        const audioPath = data.details.find(d => d.id === t.id)?.audio_path ?? `/fixtures/${t.id}.wav`
+        if (found) return { transcript_id: t.id, audio_path: audioPath, start: found.start, end: found.end, text: found.text }
       }
       throw new ApiError(404, 'No audio available for this speaker')
     }),
+    listSpeakerTranscripts: id => answer(() => speakerTranscripts(id)),
+    deleteSpeaker: id => answer(() => deleteSpeaker(id)),
+    getRecordingAudioUrl: id => {
+      if (!hasAudio(id) || !data.transcripts.some(t => t.id === id)) return null
+      if (!audioUrls.has(id)) audioUrls.set(id, createTestAudioUrl(recordingSegments(id)))
+      return audioUrls.get(id)!
+    },
     listModels: () => answer(() => models),
     startModelDownload: modelId => answer(() => startDownload(modelId)),
     resetData: () => answer(() => {

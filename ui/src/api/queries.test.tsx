@@ -7,8 +7,8 @@ import { QUEUE_JOB, SPEAKER_IDS, WEEKLY_SYNC_ID, queueSnapshot } from './fixture
 import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
-  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useDeleteQueueJob, useDeleteTranscript, useModels, useQueue, useQueueControl, useQueueEventsSync,
-  useReorderQueue, useRetryQueueJob, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
+  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useDeleteQueueJob, useDeleteSpeaker, useDeleteTranscript, useModels, useQueue, useQueueControl, useQueueEventsSync,
+  useReorderQueue, useRetryQueueJob, useSpeakerCandidates, useSpeakers, useSpeakerTranscripts, useTranscript, useTranscripts,
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle, useWaveform,
 } from './queries'
 import { effectiveSpeaker, type QueueUpdate } from './types'
@@ -243,6 +243,48 @@ describe('deleting a recording', () => {
     await waitFor(() => expect(has(result.current.list.data)).toBe(true))
     await act(async () => { await expect(result.current.remove.mutateAsync(WEEKLY_SYNC_ID)).rejects.toThrow('Server error 500') })
     expect(has(result.current.list.data)).toBe(true)
+  })
+})
+
+describe('the speakers section', () => {
+  const { mark } = SPEAKER_IDS
+
+  test('the recordings of a speaker; none asked for with no speaker', async () => {
+    const listSpeakerTranscripts = vi.fn(createFixtureClient().listSpeakerTranscripts)
+    const client = createFixtureClient({ overrides: { listSpeakerTranscripts } })
+    const { result, rerender } = renderHook(({ id }: { id: string | null }) => useSpeakerTranscripts(id), {
+      wrapper: wrapperFor(client), initialProps: { id: null as string | null },
+    })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(listSpeakerTranscripts).not.toHaveBeenCalled()
+    rerender({ id: mark })
+    await waitFor(() => expect(result.current.data?.[0]).toMatchObject({ id: WEEKLY_SYNC_ID, has_audio: true }))
+  })
+
+  test('deleting a speaker takes them off the list and leaves their segments Unassigned', async () => {
+    const client = createFixtureClient()
+    const { result } = renderHook(() => ({
+      speakers: useSpeakers(),
+      open: useTranscript(WEEKLY_SYNC_ID),
+      recordings: useSpeakerTranscripts(mark),
+      remove: useDeleteSpeaker(),
+    }), { wrapper: wrapperFor(client) })
+    await waitFor(() => expect(result.current.recordings.data).toBeTruthy())
+    await waitFor(() => expect(result.current.open.data).toBeTruthy())
+    await act(() => result.current.remove.mutateAsync(mark))
+    await waitFor(() => expect(result.current.speakers.data?.some(s => s.id === mark)).toBe(false))
+    await waitFor(() => expect(result.current.open.data?.segments.filter(s => s.unassigned).map(s => s.start)).toEqual([5, 8, 38]))
+  })
+
+  test('a speaker already gone counts as deleted; another failure reaches the caller', async () => {
+    const gone = createFixtureClient({ overrides: { deleteSpeaker: () => Promise.reject(new ApiError(404, 'Speaker not found')) } })
+    const first = renderHook(useDeleteSpeaker, { wrapper: wrapperFor(gone) })
+    await expect(act(() => first.result.current.mutateAsync(mark))).resolves.toBeUndefined()
+    const busy = createFixtureClient({ overrides: { deleteSpeaker: () => Promise.reject(new ApiError(409, 'A transcription is in progress')) } })
+    const second = renderHook(() => ({ speakers: useSpeakers(), remove: useDeleteSpeaker() }), { wrapper: wrapperFor(busy) })
+    await waitFor(() => expect(second.result.current.speakers.data).toBeTruthy())
+    await act(async () => { await expect(second.result.current.remove.mutateAsync(mark)).rejects.toThrow('A transcription is in progress') })
+    expect(second.result.current.speakers.data?.some(s => s.id === mark)).toBe(true)
   })
 })
 
