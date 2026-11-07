@@ -4,6 +4,7 @@ import { ApiError } from '../../api/client'
 import { useModels, useQueue } from '../../api/queries'
 import type { QueueUpdate } from '../../api/types'
 import { toast } from '../../components/Toast/toast-store'
+import { useOpenModalCount } from '../../components/Modal/open-modals'
 import { useModelDownloads } from '../../transcribe/model-downloads'
 import { useSettingsDialog } from '../Settings/SettingsProvider'
 import { addLanguage, ALIGNMENT_MISSING, alignmentRetryJobs, alignmentState } from './alignment'
@@ -17,6 +18,9 @@ type Waiting = {
   // A download of the shown language was seen running: if it then ends without the
   // model, the download failed.
   watched: boolean
+  // The first one is on the screen. It waits while another window is open, such as
+  // New transcription, and once shown stays until it is closed.
+  shown: boolean
 }
 
 // The Alignment model dialogs, one language at a time, in the order the jobs failed.
@@ -27,10 +31,13 @@ export function useAlignmentDialogs() {
   const settingsDialog = useSettingsDialog()
   const models = useModels()
   const queue = useQueue()
-  const [waiting, setWaiting] = useState<Waiting>({ languages: [], closing: false, watched: false })
+  const [waiting, setWaiting] = useState<Waiting>({ languages: [], closing: false, watched: false, shown: false })
   const [cancelling, setCancelling] = useState(false)
   const language = waiting.languages[0] ?? null
   const download = language ? downloads.download(language) : null
+  // Before it is shown, every open window is another one.
+  const othersOpen = useOpenModalCount() > 0
+  if (language && !waiting.shown && !waiting.closing && !othersOpen) setWaiting({ ...waiting, shown: true })
 
   const onQueueEvent = useCallback((event: QueueUpdate) => {
     if (event.type !== 'job_failed' || event.error_code !== ALIGNMENT_MISSING || !event.error_language) return
@@ -56,7 +63,7 @@ export function useAlignmentDialogs() {
   const close = useCallback(() => { setWaiting(current => ({ ...current, closing: true })) }, [])
   const exited = useCallback(() => {
     setCancelling(false)
-    setWaiting(current => ({ languages: current.closing ? current.languages.slice(1) : current.languages, closing: false, watched: false }))
+    setWaiting(current => ({ languages: current.closing ? current.languages.slice(1) : current.languages, closing: false, watched: false, shown: false }))
   }, [])
 
   if (!language) return { onQueueEvent, dialog: null }
@@ -78,7 +85,7 @@ export function useAlignmentDialogs() {
   }
 
   const dialog: AlignmentDialogProps = {
-    open: !waiting.closing,
+    open: waiting.shown && !waiting.closing,
     language,
     state: alignmentState({ downloading: !!download, installed, failed }),
     pct: download?.pct ?? 0,

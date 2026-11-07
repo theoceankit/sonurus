@@ -148,3 +148,14 @@ test('another failure is left to the queue: no dialog', async () => {
   })
   expect(dialog()).toBeNull()
 })
+
+test('a failure while another window is open waits for it to close', async () => {
+  const { fail } = setup()
+  await userEvent.click(await screen.findByRole('button', { name: 'New recording' }))
+  await screen.findByRole('dialog', { name: 'New recording' })
+  await fail(failedJob('a', 'cs'))
+  expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  expect(screen.queryByRole('dialog', { name: /alignment/i })).toBeNull()
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(dialog()?.textContent).toContain('Czech'))
+})
