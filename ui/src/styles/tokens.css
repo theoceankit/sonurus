@@ -203,6 +203,7 @@
   --size-speaker-list: 240px;
 
   --size-playing-bar: 3px;
+  --size-progress: 4px;
   --size-transcript-sticky: 48px;
   /* What a turn off screen counts as until it has been drawn once. */
   --size-turn-estimate: 168px;

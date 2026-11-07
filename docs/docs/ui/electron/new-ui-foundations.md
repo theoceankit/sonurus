@@ -203,7 +203,7 @@ The system setting empties the distance tokens in `tokens.css`, so what fades st
 
 ## Overlays
 
-`Tooltip`, `Menu`, `Toolbar`, `Toast`, `ScrollFade`, `Modal`, `ModalHeader`, `ModalBody` and `ModalFooter`, in `ui/src/components/`. Tooltips, menus, toolbars, toasts and modals are built on Radix Primitives. `OverlayProvider` wraps the app in `ui/src/main.tsx` and every story in `ui/.storybook/preview.tsx`: it holds the tooltip timing and the one `Toaster`.
+`Tooltip`, `Menu`, `Select`, `Toolbar`, `Toast`, `ScrollFade`, `Modal`, `ModalHeader`, `ModalBody` and `ModalFooter`, in `ui/src/components/`. Tooltips, menus, toolbars, toasts and modals are built on Radix Primitives. `OverlayProvider` wraps the app in `ui/src/main.tsx` and every story in `ui/.storybook/preview.tsx`: it holds the tooltip timing and the one `Toaster`.
 
 ### Layers
 
@@ -251,6 +251,12 @@ Each control keeps its own Radix tooltip, so `role="tooltip"` and `aria-describe
 Rows are `MenuItem`. A menu is not modal: a modal one locks the scroll and shifts the page behind it, and an outside click closes it all the same. `MenuSurface` is only the panel, for a menu that is not a list of actions, where focus stays in a search field.
 
 Radix focuses the item under the pointer, and Chromium takes that focus for a keyboard one when nothing had focus before. So `Menu` remembers the last input in `data-input`, and the ring shows only after a key.
+
+### Select
+
+`Select` is one value of a short list in a field that looks like `TextField`, with its label above it. It is a `Menu` of radio options: the same surface, rows and keyboard, and the list is as wide as the field. An option can be off with a reason at the end of its row (`meta`), such as "Not installed"; a value that is none of the options shows `placeholder`.
+
+Inside a `Modal` the list does not go past the window: `Modal` hands its window to popups as their boundary (`useModal().boundary`), and the list opens upwards when there is more room there and scrolls when it fits neither way. Outside a modal the boundary is the viewport.
 
 ### Toolbar
 

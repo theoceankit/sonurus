@@ -169,6 +169,56 @@ describe('getWaveform', () => {
   })
 })
 
+describe('listModels', () => {
+  test('asks GET /models and answers the catalog as it is', async () => {
+    const models = [
+      { id: 'small', kind: 'whisper', name: 'Whisper Small', size: '244 MB', speed: '', acc: '', recommended: false, installed: true },
+      { id: 'ru', kind: 'alignment', installed: false },
+    ]
+    const { client, sent } = setup(() => json(models))
+    await expect(client.listModels()).resolves.toEqual(models)
+    expect(sent).toEqual([{ url: 'http://localhost:8000/models', method: 'GET', body: undefined }])
+  })
+})
+
+describe('model downloads', () => {
+  test('a download starts with the token and answers its job', async () => {
+    const { client, sent } = setup(() => json({ job_id: 'j1' }))
+    await expect(client.startModelDownload('cs', 'hf_x')).resolves.toBe('j1')
+    expect(sent).toEqual([{ url: 'http://localhost:8000/models/cs/download', method: 'POST', body: { hf_token: 'hf_x' } }])
+  })
+
+  test('a cancel asks to stop that job', async () => {
+    const { client, sent } = setup(() => json({ cancelled: 'j1' }))
+    await client.cancelModelDownload('cs', 'j1')
+    expect(sent).toEqual([{ url: 'http://localhost:8000/models/cs/download/j1', method: 'DELETE', body: undefined }])
+  })
+
+  test('progress comes from WS /ws/models of the job', () => {
+    const urls: string[] = []
+    class Socket { constructor(url: string) { urls.push(url) } close() {} }
+    const client = createBackendClient({ WebSocketImpl: Socket as unknown as typeof WebSocket })
+    client.watchModelDownload('j1', () => {})()
+    expect(urls).toEqual(['ws://localhost:8000/ws/models/j1'])
+  })
+})
+
+describe('updateQueueJob', () => {
+  test('sends only the fields given', async () => {
+    const { client, sent } = setup(() => json({ id: 'j', title: 'Standup' }))
+    await expect(client.updateQueueJob('j', { title: 'Standup', language: null })).resolves.toMatchObject({ title: 'Standup' })
+    expect(sent).toEqual([{ url: 'http://localhost:8000/queue/jobs/j', method: 'PATCH', body: { title: 'Standup', language: null } }])
+  })
+})
+
+describe('retryQueueJob', () => {
+  test('asks to retry the job and answers it waiting', async () => {
+    const { client, sent } = setup(() => json({ id: 'j', status: 'waiting' }))
+    await expect(client.retryQueueJob('j')).resolves.toMatchObject({ status: 'waiting' })
+    expect(sent).toEqual([{ url: 'http://localhost:8000/queue/jobs/j/retry', method: 'POST', body: undefined }])
+  })
+})
+
 describe('addQueueJob', () => {
   test('sends the file, the model and the language, and answers the job', async () => {
     const job = { id: 'j', audio_path: '/in/a.mp3', title: 'a', whisper_model: 'small', language: 'ru', status: 'waiting' }
@@ -181,6 +231,12 @@ describe('addQueueJob', () => {
     const { client, sent } = setup(() => json({}))
     await client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: null, language: null })
     expect(sent[0].body).toEqual({ audio_path: '/in/a.mp3', whisper_model: null, language: null })
+  })
+
+  test('a title goes along when there is one', async () => {
+    const { client, sent } = setup(() => json({}))
+    await client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: null, language: null, title: 'Standup' })
+    expect(sent[0].body).toEqual({ audio_path: '/in/a.mp3', whisper_model: null, language: null, title: 'Standup' })
   })
 
   test('a missing model is the 400 with its detail', async () => {

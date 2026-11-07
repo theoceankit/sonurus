@@ -75,6 +75,7 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 | File | What it covers |
 |---|---|
 | `test_cors.py` | `cors_origins()`: the local origins by default, the dev server's on request, never for a packaged backend; preflights for `null` and the dev server |
+| `tests/build/ui-alignment-catalog.test.js` | The alignment models the new UI names are the backend's `ALIGNMENT_CATALOG`, in its order |
 | `tests/build/ui-entry.test.js` | What the window loads for each switch, mode and dev URL; a packaged app ignores the URL; `main.js` uses it and keeps its security settings |
 | `tests/build/window-chrome.test.js` | The old UI's window gets nothing; the new UI has no system frame, and its window buttons match `tokens.css` in colours and height |
 | `tests/build/ui-package.test.js` | New UI: same CSP as the old UI (in the build too, when there is one), dev additions limited to the dev server, Storybook telemetry off, fonts kept as files with their licence, stories for every component, no remote content in sources, only `ui/dist` packaged, build and checks in every build script and CI job, the archive check in `check-packaged-ui.js` |

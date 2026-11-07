@@ -1,8 +1,10 @@
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
-import { effectiveSpeaker, UNASSIGNED, type QueueJob, type QueueSnapshot, type QueueUpdate, type Speaker, type SpeakerCandidates } from '../types'
+import { effectiveSpeaker, UNASSIGNED, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_NOW, queueSnapshot } from './data'
+import { fixtureModels } from './models'
 import type { EventScript } from './event-scripts'
+import type { ModelDownloadEvent } from '../model-download-events'
 import { createTestAudioUrl } from './test-audio'
 import { fixtureLevels } from './waveform'
 
@@ -15,6 +17,12 @@ export type FixtureOptions = {
   noAudio?: boolean
   // No models downloaded: a file for the queue gets the backend's 400.
   noModels?: boolean
+  // The ids of the downloaded models, in place of DEFAULT_INSTALLED.
+  installedModels?: readonly string[]
+  // A model download goes up a quarter every step and then installs the model, or
+  // fails at the end with downloadFails.
+  downloadStepMs?: number
+  downloadFails?: boolean
   // One method behaving differently, e.g. a failing save on a loaded screen.
   overrides?: Partial<ApiClient>
 }
@@ -29,12 +37,30 @@ export type FixtureClient = ApiClient & {
 // What the backend answers for a job when no models are downloaded.
 export const NO_MODELS = 'Diarization model is not installed. Download it in Settings.'
 
+// The backend's 400 for a job whose models are not all downloaded, in its order.
+function missingModelError(models: readonly ModelInfo[], whisperModel: string | null, language: string | null): ApiError | null {
+  const installed = (id: string) => models.some(model => model.id === id && model.installed)
+  if (whisperModel !== null && !installed(whisperModel)) {
+    return new ApiError(400, `Whisper model "${whisperModel}" is not installed. Download it in Settings.`)
+  }
+  if (!installed('diarize')) return new ApiError(400, NO_MODELS)
+  const alignment = models.find(model => model.kind === 'alignment' && model.id === language)
+  if (alignment && !alignment.installed) {
+    return new ApiError(400, `Alignment model for language "${language}" is not installed. Download it in Settings.`)
+  }
+  return null
+}
+
 const EMPTY: FixtureData = { transcripts: [], details: [], speakers: [], candidates: {} }
 
 // The same interface as the backend client, on data kept in memory. Each client
 // has its own copy, so stories and tests do not see each other's changes.
-export function createFixtureClient({ scenario = 'default', board = 'review', noAudio = false, noModels = false, overrides = {} }: FixtureOptions = {}): FixtureClient {
+export function createFixtureClient({
+  scenario = 'default', board = 'review', noAudio = false, noModels = false, installedModels,
+  downloadStepMs = 400, downloadFails = false, overrides = {},
+}: FixtureOptions = {}): FixtureClient {
   const audioUrls = new Map<number, string>()
+  const models = fixtureModels(noModels ? [] : installedModels)
   const data = structuredClone(scenario === 'empty' ? EMPTY : BOARDS[board])
   let queue: QueueSnapshot = queueSnapshot()
   const listeners = new Set<(event: QueueUpdate) => void>()
@@ -129,6 +155,37 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
 
   const connectionListeners = new Set<(connected: boolean) => void>()
 
+  // Downloads by job, one per model as on the backend; a job is gone once it ended.
+  type Download = { modelId: string; pct: number; timer: ReturnType<typeof setInterval>; listeners: Set<(event: ModelDownloadEvent) => void> }
+  const downloads = new Map<string, Download>()
+  const endDownload = (jobId: string, event: ModelDownloadEvent) => {
+    const download = downloads.get(jobId)
+    if (!download) return
+    clearInterval(download.timer)
+    downloads.delete(jobId)
+    download.listeners.forEach(listener => listener(event))
+  }
+  const startDownload = (modelId: string) => {
+    const model = models.find(m => m.id === modelId)
+    if (!model) throw new ApiError(422, `Unknown model '${modelId}'`)
+    const running = [...downloads].find(([, download]) => download.modelId === modelId)
+    if (running) return running[0]
+    const jobId = crypto.randomUUID()
+    const download: Download = {
+      modelId, pct: 0, listeners: new Set(),
+      timer: setInterval(() => {
+        download.pct = Math.min(100, download.pct + 25)
+        download.listeners.forEach(listener => listener({ type: 'progress', pct: download.pct }))
+        if (download.pct < 100) return
+        if (downloadFails) return endDownload(jobId, { type: 'error', message: 'Connection to huggingface.co timed out' })
+        model.installed = true
+        endDownload(jobId, { type: 'done' })
+      }, downloadStepMs),
+    }
+    downloads.set(jobId, download)
+    return jobId
+  }
+
   const emit = (event: QueueUpdate) => {
     if (event.type === 'snapshot') queue = event
     for (const listener of listeners) listener(structuredClone(event))
@@ -193,13 +250,29 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
       }
       throw new ApiError(404, 'No audio available for this speaker')
     }),
+    listModels: () => answer(() => models),
+    startModelDownload: modelId => answer(() => startDownload(modelId)),
+    cancelModelDownload: (_modelId, jobId) => answer(() => {
+      if (!downloads.has(jobId)) throw new ApiError(404, `No active download job '${jobId}'`)
+      endDownload(jobId, { type: 'cancelled' })
+    }),
+    watchModelDownload: (jobId, listener) => {
+      const download = downloads.get(jobId)
+      if (!download) {
+        const unknown = setTimeout(() => listener({ type: 'error', message: 'Unknown job' }), 0)
+        return () => clearTimeout(unknown)
+      }
+      download.listeners.add(listener)
+      return () => download.listeners.delete(listener)
+    },
     getQueue: () => answer(() => queue),
-    addQueueJob: ({ audioPath, whisperModel, language }) => answer(() => {
-      if (noModels) throw new ApiError(400, NO_MODELS)
+    addQueueJob: ({ audioPath, whisperModel, language, title }) => answer(() => {
+      const missing = missingModelError(models, whisperModel, language)
+      if (missing) throw missing
       const job: QueueJob = {
         id: crypto.randomUUID(),
         audio_path: audioPath,
-        title: audioPath.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, ''),
+        title: title || audioPath.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, ''),
         whisper_model: whisperModel ?? 'large-v3',
         language,
         status: 'waiting',
@@ -210,6 +283,37 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
       }
       emit({ ...queue, jobs: [...queue.jobs, job] })
       return job
+    }),
+    updateQueueJob: (jobId, update) => answer(() => {
+      const job = queue.jobs.find(j => j.id === jobId)
+      if (!job) throw new ApiError(404, 'Job not found')
+      const installed = (id: string) => models.some(model => model.id === id && model.installed)
+      if (update.whisper_model && !installed(update.whisper_model)) {
+        throw new ApiError(400, `Whisper model "${update.whisper_model}" is not installed. Download it in Settings.`)
+      }
+      const language = update.language === 'auto' ? null : update.language
+      if (language && models.some(model => model.kind === 'alignment' && model.id === language && !model.installed)) {
+        throw new ApiError(400, `Alignment model for language "${language}" is not installed. Download it in Settings.`)
+      }
+      if (job.status === 'running') throw new ApiError(409, 'The job is running; pause the queue to edit it')
+      const updated: QueueJob = {
+        ...job,
+        ...(update.title != null ? { title: update.title } : {}),
+        ...(update.whisper_model != null ? { whisper_model: update.whisper_model } : {}),
+        ...(update.language !== undefined ? { language } : {}),
+      }
+      emit({ ...queue, jobs: queue.jobs.map(j => (j.id === jobId ? updated : j)) })
+      return updated
+    }),
+    retryQueueJob: jobId => answer(() => {
+      const job = queue.jobs.find(j => j.id === jobId)
+      if (!job) throw new ApiError(404, 'Job not found')
+      if (job.status !== 'failed') throw new ApiError(409, 'Only a failed job can be retried')
+      const missing = missingModelError(models, job.whisper_model, job.language)
+      if (missing) throw missing
+      const waiting: QueueJob = { ...job, status: 'waiting', error: null, error_code: null, error_language: null }
+      emit({ ...queue, jobs: [...queue.jobs.filter(j => j.id !== jobId), waiting] })
+      return waiting
     }),
     subscribeQueueEvents: (listener, onConnection) => {
       listeners.add(listener)

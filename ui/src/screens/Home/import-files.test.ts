@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'vitest'
 import { ApiError } from '../../api/client'
-import { addFiles, importFailure, importingMessage, isSupportedAudio, skippedMessage, SUPPORTED_EXTENSIONS, watchFileDrags } from './import-files'
+import { addFiles, defaultTitle, importFailure, importingMessage, isSupportedAudio, queueTitles, skippedMessage, SUPPORTED_EXTENSIONS, watchFileDrags } from './import-files'
 
 const f = (name: string, path = `/in/${name}`) => ({ name, path })
 
@@ -129,5 +129,23 @@ describe('watchFileDrags', () => {
     stop()
     fire('dragenter')
     expect(calls).toEqual([])
+  })
+})
+
+describe('titles', () => {
+  const files = (...names: string[]) => names.map(name => ({ name, path: `/in/${name}` }))
+
+  test('the hint is the date and time of the opening, as the old UI had it', () => {
+    expect(defaultTitle(new Date(2026, 10, 5, 9, 7))).toBe('5 Nov 09:07 Meeting')
+  })
+
+  test('one file keeps a typed title, trimmed; a blank one is the file name', () => {
+    expect(queueTitles(files('a.mp3'), '  Weekly sync ')).toEqual(['Weekly sync'])
+    expect(queueTitles(files('a.mp3'), '   ')).toEqual([null])
+    expect(queueTitles(files('a.mp3'), '')).toEqual([null])
+  })
+
+  test('several files are each named after their file, in order', () => {
+    expect(queueTitles(files('b.mp3', 'a.wav'), 'Ignored')).toEqual([null, null])
   })
 })

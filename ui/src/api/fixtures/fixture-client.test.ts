@@ -2,10 +2,12 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiError } from '../client'
 import { effectiveSpeaker, UNASSIGNED, type QueueUpdate, type Segment } from '../types'
 import { BOARDS } from './boards'
-import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
+import { DESIGN_REVIEW_ID, QUEUE_JOB, queueSnapshot, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
 import { EVENT_SCRIPTS } from './event-scripts'
 import type { ApiClient } from '../client'
 import { createFixtureClient, NO_MODELS } from './fixture-client'
+import { DEFAULT_INSTALLED } from './models'
+import { ALIGNMENT_MODELS } from '../../transcribe/languages'
 
 const { anna, mark, oliver, unknown1 } = SPEAKER_IDS
 const talkTime = (segments: Segment[], id: string) =>
@@ -414,5 +416,116 @@ describe('adding to the queue', () => {
     const client = createFixtureClient({ noModels: true })
     await expect(client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: null, language: null })).rejects.toMatchObject({ status: 400, message: NO_MODELS })
     expect((await client.getQueue()).jobs).toEqual([])
+  })
+})
+
+describe('models', () => {
+  const installed = (models: { id: string; installed: boolean }[]) => models.filter(m => m.installed).map(m => m.id)
+
+  test('by default a Whisper model and diarization are there, no alignment model', async () => {
+    const models = await createFixtureClient().listModels()
+    expect(installed(models)).toEqual(DEFAULT_INSTALLED)
+    expect(models.filter(m => m.kind === 'alignment').map(m => m.id)).toEqual(ALIGNMENT_MODELS.map(m => m.id))
+  })
+
+  test('noModels has nothing, installedModels exactly the given ones', async () => {
+    expect(installed(await createFixtureClient({ noModels: true }).listModels())).toEqual([])
+    expect(installed(await createFixtureClient({ installedModels: ['tiny', 'diarize', 'ru'] }).listModels())).toEqual(['tiny', 'diarize', 'ru'])
+  })
+
+  test('a job is refused for each missing model in the backend order', async () => {
+    const add = (options: Parameters<typeof createFixtureClient>[0], whisperModel: string | null, language: string | null) =>
+      createFixtureClient(options).addQueueJob({ audioPath: '/in/a.mp3', whisperModel, language })
+    await expect(add({}, 'tiny', null)).rejects.toMatchObject({ status: 400, message: 'Whisper model "tiny" is not installed. Download it in Settings.' })
+    await expect(add({ installedModels: ['small'] }, 'small', null)).rejects.toMatchObject({ status: 400, message: NO_MODELS })
+    await expect(add({}, 'small', 'ru')).rejects.toMatchObject({ status: 400, message: 'Alignment model for language "ru" is not installed. Download it in Settings.' })
+    await expect(add({ installedModels: [...DEFAULT_INSTALLED, 'ru'] }, 'small', 'ru')).resolves.toMatchObject({ language: 'ru' })
+    await expect(add({}, 'small', 'en')).resolves.toMatchObject({ whisper_model: 'small' })
+  })
+})
+
+describe('model downloads', () => {
+  const follow = (client: ReturnType<typeof createFixtureClient>, jobId: string) => new Promise<string[]>(resolve => {
+    const seen: string[] = []
+    client.watchModelDownload(jobId, event => {
+      seen.push(event.type === 'progress' ? String(event.pct) : event.type)
+      if (event.type !== 'progress') resolve(seen)
+    })
+  })
+
+  test('goes up a quarter a step and installs the model', async () => {
+    const client = createFixtureClient({ downloadStepMs: 1 })
+    const jobId = await client.startModelDownload('cs', null)
+    expect(await follow(client, jobId)).toEqual(['25', '50', '75', '100', 'done'])
+    expect((await client.listModels()).find(m => m.id === 'cs')?.installed).toBe(true)
+  })
+
+  test('a second start joins the running download', async () => {
+    const client = createFixtureClient({ downloadStepMs: 1 })
+    expect(await client.startModelDownload('cs', null)).toBe(await client.startModelDownload('cs', null))
+  })
+
+  test('downloadFails ends it with an error and nothing installed', async () => {
+    const client = createFixtureClient({ downloadStepMs: 1, downloadFails: true })
+    const jobId = await client.startModelDownload('cs', null)
+    expect((await follow(client, jobId)).at(-1)).toBe('error')
+    expect((await client.listModels()).find(m => m.id === 'cs')?.installed).toBe(false)
+  })
+
+  test('a cancel ends it as cancelled; a job that ended is unknown', async () => {
+    const client = createFixtureClient({ downloadStepMs: 1000 })
+    const jobId = await client.startModelDownload('cs', null)
+    const seen = follow(client, jobId)
+    await client.cancelModelDownload('cs', jobId)
+    expect(await seen).toEqual(['cancelled'])
+    await expect(client.cancelModelDownload('cs', jobId)).rejects.toMatchObject({ status: 404 })
+    expect(await follow(client, jobId)).toEqual(['error'])
+  })
+})
+
+describe('retrying a job', () => {
+  const failedOn = (language: string) => queueSnapshot({
+    jobs: [
+      { ...QUEUE_JOB, id: 'a', status: 'failed', language, error: 'x', error_code: 'alignment_model_missing', error_language: language },
+      { ...QUEUE_JOB, id: 'b', status: 'waiting' },
+    ],
+  })
+
+  test('a failed job waits again at the end of the queue, with no error', async () => {
+    const client = createFixtureClient({ installedModels: [...DEFAULT_INSTALLED, 'pt'] })
+    client.playEvents({ steps: [{ afterMs: 0, event: failedOn('pt') }] })
+    await vi.waitFor(async () => expect((await client.getQueue()).jobs).toHaveLength(2))
+    await expect(client.retryQueueJob('a')).resolves.toMatchObject({ status: 'waiting', error_code: null })
+    expect((await client.getQueue()).jobs.map(j => j.id)).toEqual(['b', 'a'])
+  })
+
+  test('refused while the model is missing, or for a job that has not failed', async () => {
+    const client = createFixtureClient()
+    client.playEvents({ steps: [{ afterMs: 0, event: failedOn('pt') }] })
+    await vi.waitFor(async () => expect((await client.getQueue()).jobs).toHaveLength(2))
+    await expect(client.retryQueueJob('a')).rejects.toMatchObject({ status: 400 })
+    await expect(client.retryQueueJob('b')).rejects.toMatchObject({ status: 409 })
+  })
+})
+
+describe('editing a job', () => {
+  const withJob = async (status: 'waiting' | 'running', options = {}) => {
+    const client = createFixtureClient(options)
+    client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot({ jobs: [{ ...QUEUE_JOB, id: 'a', status, whisper_model: 'small', language: null }] }) }] })
+    await vi.waitFor(async () => expect((await client.getQueue()).jobs).toHaveLength(1))
+    return client
+  }
+
+  test('changes only what is given', async () => {
+    const client = await withJob('waiting')
+    await expect(client.updateQueueJob('a', { title: 'Standup', language: 'de' })).resolves.toMatchObject({ title: 'Standup', language: 'de', whisper_model: 'small' })
+    expect((await client.getQueue()).jobs[0]).toMatchObject({ title: 'Standup', language: 'de' })
+  })
+
+  test('refuses a model or an alignment model not installed, and a running job', async () => {
+    const client = await withJob('waiting')
+    await expect(client.updateQueueJob('a', { whisper_model: 'tiny' })).rejects.toMatchObject({ status: 400 })
+    await expect(client.updateQueueJob('a', { language: 'ru' })).rejects.toMatchObject({ status: 400 })
+    await expect((await withJob('running')).updateQueueJob('a', { title: 'x' })).rejects.toMatchObject({ status: 409 })
   })
 })

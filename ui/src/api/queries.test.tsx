@@ -7,7 +7,7 @@ import { SPEAKER_IDS, WEEKLY_SYNC_ID } from './fixtures/data'
 import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
-  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useDeleteTranscript, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
+  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useDeleteTranscript, useModels, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle, useWaveform,
 } from './queries'
 import { effectiveSpeaker, type QueueUpdate } from './types'
@@ -271,28 +271,46 @@ describe('waveform', () => {
   })
 })
 
+describe('models', () => {
+  test('reads the catalog with what is downloaded, and again when a screen mounts', async () => {
+    const client = createFixtureClient({ installedModels: ['tiny', 'diarize'] })
+    const list = vi.spyOn(client, 'listModels')
+    const wrapper = wrapperFor(client)
+    const first = renderHook(useModels, { wrapper })
+    await waitFor(() => expect(first.result.current.data?.filter(m => m.installed).map(m => m.id)).toEqual(['tiny', 'diarize']))
+    renderHook(useModels, { wrapper })
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+  })
+})
+
 describe('adding files to the queue', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  test('one job per file, in the order given, with the defaults of the settings', async () => {
+  const files = (...paths: string[]) => paths.map(audioPath => ({ audioPath, title: null }))
+
+  test('one job per file, in the order given, all with the model and language given', async () => {
+    const { client, result } = renderWith(useAddToQueue)
+    const add = vi.spyOn(client, 'addQueueJob')
+    await act(() => result.current.mutateAsync({
+      files: [{ audioPath: '/in/b.mp3', title: 'Standup' }, { audioPath: '/in/a.wav', title: null }],
+      whisperModel: 'small',
+      language: 'de',
+    }))
+    expect(add.mock.calls.map(([job]) => job)).toEqual([
+      { audioPath: '/in/b.mp3', whisperModel: 'small', language: 'de', title: 'Standup' },
+      { audioPath: '/in/a.wav', whisperModel: 'small', language: 'de', title: null },
+    ])
+    expect((await client.getQueue()).jobs.map(job => [job.audio_path, job.title])).toEqual([['/in/b.mp3', 'Standup'], ['/in/a.wav', 'a']])
+  })
+
+  test('the settings play no part: what is not given is the backend\'s', async () => {
     const bridge = createMockElectronAPI()
-    await bridge.writeSettings({ ...await bridge.readSettings(), transcribeModel: 'small', transcribeLang: 'ru' })
+    await bridge.writeSettings({ ...await bridge.readSettings(), transcribeModel: 'small', transcribeLang: 'de' })
     vi.stubGlobal('electronAPI', bridge)
     const { client, result } = renderWith(useAddToQueue)
     const add = vi.spyOn(client, 'addQueueJob')
-    await act(() => result.current.mutateAsync(['/in/b.mp3', '/in/a.wav']))
-    expect(add.mock.calls.map(([job]) => job)).toEqual([
-      { audioPath: '/in/b.mp3', whisperModel: 'small', language: 'ru' },
-      { audioPath: '/in/a.wav', whisperModel: 'small', language: 'ru' },
-    ])
-    expect((await client.getQueue()).jobs.map(job => job.audio_path)).toEqual(['/in/b.mp3', '/in/a.wav'])
-  })
-
-  test('with no model saved and auto language the backend decides both', async () => {
-    const { client, result } = renderWith(useAddToQueue)
-    const add = vi.spyOn(client, 'addQueueJob')
-    await act(() => result.current.mutateAsync(['/in/a.mp3']))
-    expect(add).toHaveBeenCalledWith({ audioPath: '/in/a.mp3', whisperModel: null, language: null })
+    await act(() => result.current.mutateAsync({ files: files('/in/a.mp3'), whisperModel: null, language: null }))
+    expect(add).toHaveBeenCalledWith({ audioPath: '/in/a.mp3', whisperModel: null, language: null, title: null })
   })
 
   test('stops at the first refusal and says how many went in', async () => {
@@ -301,7 +319,7 @@ describe('adding files to the queue', () => {
     const add = client.addQueueJob
     client.addQueueJob = job => (++calls === 2 ? Promise.reject(new ApiError(400, 'audio_path not readable: /in/b.mp3')) : add(job))
     const { result } = renderHook(useAddToQueue, { wrapper: wrapperFor(client) })
-    const failure = await act(() => result.current.mutateAsync(['/in/a.mp3', '/in/b.mp3', '/in/c.mp3']).catch(error => error))
+    const failure = await act(() => result.current.mutateAsync({ files: files('/in/a.mp3', '/in/b.mp3', '/in/c.mp3'), whisperModel: null, language: null }).catch(error => error))
     expect(failure).toBeInstanceOf(AddToQueueError)
     expect(failure).toMatchObject({ added: 1, message: 'audio_path not readable: /in/b.mp3', error: { status: 400 } })
     expect(calls).toBe(2)

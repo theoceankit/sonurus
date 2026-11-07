@@ -1,5 +1,5 @@
 import * as RadixDialog from '@radix-ui/react-dialog'
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { holdWindowDim } from '../../platform/window-dim'
 import { ExitSignal } from '../../presence'
 import { cx } from '../../styles/cx'
@@ -29,9 +29,11 @@ interface ModalProps {
 interface ModalContextValue {
   type: ModalType
   setHasDescription: (has: boolean) => void
+  // The window, for a popup inside it that must not go past its edges.
+  boundary: HTMLElement | null
 }
 
-const ModalContext = createContext<ModalContextValue>({ type: 'default', setHasDescription: () => {} })
+const ModalContext = createContext<ModalContextValue>({ type: 'default', setHasDescription: () => {}, boundary: null })
 export const useModal = () => useContext(ModalContext)
 
 const FOCUSABLE = 'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
@@ -57,7 +59,12 @@ function startingPoint(content: HTMLElement, type: ModalType) {
 
 export function Modal({ size = 'small', type = 'default', open, defaultOpen, onOpenChange, onExited, skipEnter, children, preview }: ModalProps) {
   const [hasDescription, setHasDescription] = useState(false)
-  const content = useRef<HTMLDivElement>(null)
+  const content = useRef<HTMLDivElement | null>(null)
+  const [boundary, setBoundary] = useState<HTMLDivElement | null>(null)
+  const contentRef = useCallback((node: HTMLDivElement | null) => {
+    content.current = node
+    setBoundary(node)
+  }, [])
   const returnTo = useRef<HTMLElement | null>(null)
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen ?? false)
   const isOpen = !preview && (open ?? uncontrolledOpen)
@@ -67,7 +74,7 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
 
   const window = (
     <RadixDialog.Content
-      ref={content}
+      ref={contentRef}
       className={cx(styles.modal, styles[size], preview && styles.preview, skipEnter && styles.skipEnter)}
       {...(type === 'danger' ? { role: 'alertdialog' } : {})}
       {...(hasDescription ? {} : { 'aria-describedby': undefined })}
@@ -89,7 +96,7 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
   )
 
   return (
-    <ModalContext.Provider value={{ type, setHasDescription }}>
+    <ModalContext.Provider value={{ type, setHasDescription, boundary }}>
       <RadixDialog.Root
         open={preview ? true : open}
         defaultOpen={defaultOpen}

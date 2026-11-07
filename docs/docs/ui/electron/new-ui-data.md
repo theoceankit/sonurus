@@ -53,7 +53,15 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `markTranscriptOpened(id)` tells the backend the user has opened a recording, so it is no longer new in the sidebar (`opened` in the list). Loading it with `getTranscript` does not.
 
-`addQueueJob({ audioPath, whisperModel, language })` puts a file into the transcription queue: `POST /queue/jobs`. The backend copies the file into `recordings/` and answers the waiting job; the title is the file name. A null model or language is the backend's own: its default model, and the language detected from the audio. A model the job needs that is not installed, or a file it cannot read, is a 400 whose message says what is wrong; for a missing model it ends with "Download it in Settings.".
+`addQueueJob({ audioPath, whisperModel, language, title })` puts a file into the transcription queue: `POST /queue/jobs`. The backend copies the file into `recordings/` and answers the waiting job; with no title it is named after the file. A null model or language is the backend's own: its default model, and the language detected from the audio. A model the job needs that is not installed, or a file it cannot read, is a 400 whose message says what is wrong; for a missing model it ends with "Download it in Settings.".
+
+`listModels()` is `GET /models`: every model of the catalog with `installed`. Whisper and diarization rows carry a name, size, speed and accuracy; alignment rows only `id`, `kind` and `installed`, and the new UI names them itself ([New UI transcription](new-ui-transcribe.md#models)).
+
+`startModelDownload(id, hfToken)` starts downloading a model, or joins its running download, and answers the job id; `cancelModelDownload(id, jobId)` stops it; `watchModelDownload(jobId, listener)` follows `WS /ws/models/{job_id}` until the download ends with `done`, `cancelled` or `error`. That socket is not in the OpenAPI schema, so its events are typed in `model-download-events.ts`; a connection that drops before the end counts as an error. Screens use them through `useModelDownloads()` ([New UI transcription](new-ui-transcribe.md#downloads)).
+
+`updateQueueJob(jobId, update)` changes the title, model or language of a job that is not running: `PATCH /queue/jobs/{id}` with only the fields given. A model or alignment model that is not installed is a 400, a running job a 409. The fixtures do the same.
+
+`retryQueueJob(jobId)` puts a failed job back at the end of the queue, waiting and with no error: `POST /queue/jobs/{id}/retry`. A model it needs that is still not installed is a 400, a job that has not failed a 409. The fixtures do the same.
 
 `now()` is today for the screens: the current time on the backend client, 5 October 2026 on fixtures, so that sections of the recordings list stay as on the design boards.
 
@@ -81,7 +89,9 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 
 `useMarkOpened(id, loaded)` is called by `TranscriptPanel`. Once the recording has loaded and the list says it is not opened, it sets `opened` in the list at once and calls `markTranscriptOpened`, then refreshes the list only, not the recording. A failure says nothing: the next list brings the dot back. It asks once per opening, because after a failure the list says not opened again and it would ask forever.
 
-`useAddToQueue()` takes paths and puts them into the queue one at a time, in the order given, with the default model and language from Electron's settings (`transcribeModel`, `transcribeLang`; `ui/src/platform/transcribe-defaults.ts`). No model saved, or no Electron, leaves the model to the backend, and `auto` is sent as null. It stops at the first refusal with an `AddToQueueError`, whose `added` says how many files went in before it, so that the caller does not send them twice.
+`useModels()` reads the catalog and asks again every time a screen that uses it mounts, as models are downloaded and deleted elsewhere (the old UI, and later Settings).
+
+`useAddToQueue()` takes files with their titles, one model and one language, and puts the files into the queue one at a time, in the order given. A null title is the file name, and a null model or language is the backend's own. It stops at the first refusal with an `AddToQueueError`, whose `added` says how many files went in before it, so that the caller does not send them twice. The model and language come from the caller: the import dialog works them out from the settings ([New UI transcription](new-ui-transcribe.md)), and `readTranscribeSettings()` in `ui/src/platform/transcribe-defaults.ts` reads what the settings keep.
 
 `useDeleteTranscript()` counts a recording already gone as deleted. It takes the recording off the list at once and does not ask for its details again, as the panels still show it until `EditorScreen` closes it.
 
@@ -94,8 +104,13 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 | `scenario` | `default`, `loading`, `empty`, `error` | `loading` never answers, `empty` has no rows and an idle queue, `error` rejects everything with a 500 |
 | `board` | `review`, `reviewDone`, `unassigned` | The data of the Editor boards; other boards show the same data in another UI state |
 | `noAudio` | `true` | `getAudioUrl` gives null and `getWaveform` a 404 |
-| `noModels` | `true` | `addQueueJob` answers the 400 of a missing diarization model (`NO_MODELS`) |
+| `noModels` | `true` | Nothing is downloaded: `listModels` has every model uninstalled, and `addQueueJob` answers the 400 of a missing diarization model (`NO_MODELS`) |
+| `installedModels` | model ids | What is downloaded, in place of `DEFAULT_INSTALLED` (`small`, `large-v3`, `diarize`; no alignment model) |
+| `downloadStepMs` | milliseconds | A model download goes up a quarter every step, then installs the model; 400 by default |
+| `downloadFails` | `true` | A model download ends with an error at 100 % and installs nothing |
 | `overrides` | any methods of `ApiClient` | One method behaving differently, such as a failing save on a loaded screen |
+
+`addQueueJob` on fixtures refuses a job as the backend does, in its order: a Whisper model that is not downloaded, then the diarization model, then the alignment model of the language, each with the backend's message.
 
 `setConnected(false)` on a fixture client loses the connection to the backend, and `setConnected(true)` brings it back.
 

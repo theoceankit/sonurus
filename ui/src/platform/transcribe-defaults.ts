@@ -1,19 +1,20 @@
+import type { SavedModel } from '../transcribe/models'
 import type { ElectronSettings } from './electron-api'
 
-export type TranscribeDefaults = { whisperModel: string | null; language: string | null }
+// What the settings keep for new transcriptions: the default model with its history
+// and the default language, "auto" for one detected from the audio.
+export type TranscribeSettings = SavedModel & { transcribeLang: string }
 
-// The model and language the old UI's Settings save as defaults. No model is the
-// backend's own default; "auto" is a language detected from the audio, null to the API.
-export function transcribeDefaults(settings: Partial<ElectronSettings> | undefined): TranscribeDefaults {
-  const language = settings?.transcribeLang
+export function transcribeSettings(settings: Partial<ElectronSettings> | undefined): TranscribeSettings {
   return {
-    whisperModel: settings?.transcribeModel || null,
-    language: !language || language === 'auto' ? null : language,
+    transcribeModel: settings?.transcribeModel || null,
+    transcribeModelHistory: settings?.transcribeModelHistory ?? [],
+    transcribeLang: settings?.transcribeLang || 'auto',
   }
 }
 
-// Without Electron (Storybook, tests) the backend decides both.
-export async function readTranscribeDefaults(): Promise<TranscribeDefaults> {
+// Without Electron (Storybook, tests) nothing is saved: no model, detected language.
+export async function readTranscribeSettings(): Promise<TranscribeSettings> {
   const bridge = typeof window === 'undefined' ? undefined : window.electronAPI
-  return transcribeDefaults(await bridge?.readSettings().catch(() => undefined))
+  return transcribeSettings(await bridge?.readSettings().catch(() => undefined))
 }

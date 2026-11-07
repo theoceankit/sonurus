@@ -1,0 +1,28 @@
+.text {
+  color: var(--color-text-primary);
+  font: var(--font-body);
+}
+
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+.track {
+  height: var(--size-progress);
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-muted);
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent-fg);
+  transition: width var(--duration-slow) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+}

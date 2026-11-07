@@ -12,6 +12,7 @@ import { toast } from './components/Toast/toast-store'
 // one of the two is removed).
 
 export const NOT_IMPLEMENTED = [
+  'alignment.open-settings',
   'choose-speaker.invited',
   'choose-speaker.recently-added',
   'home.settings',
@@ -20,6 +21,8 @@ export const NOT_IMPLEMENTED = [
   'inspector.notes',
   'new-speaker.email',
   'new-speaker.handle',
+  'new-transcription.diarize',
+  'new-transcription.open-settings',
   'titlebar.back',
   'titlebar.forward',
   'titlebar.search',
