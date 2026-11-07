@@ -59,12 +59,12 @@ export function DataSection() {
     ])
   }
 
-  const deleteButton = <Button variant="danger" size="small" disabled={!!blocked} onClick={() => setStep({ prompt: DELETE_ALL, run: deleteAll })}>Delete…</Button>
+  const deleteButton = <Button variant="danger" size="small" disabled={!!blocked} onClick={() => setStep({ prompt: DELETE_ALL, run: deleteAll })}>Delete</Button>
   return (
     <>
       <SectionCard title="Reset to defaults">
         <FieldRow label="Reset preferences" hint="Transcripts, downloaded models, recordings and your HuggingFace token are kept.">
-          <Button variant="secondary" size="small" onClick={() => setStep({ prompt: RESET, run: reset })}>Reset…</Button>
+          <Button variant="secondary" size="small" onClick={() => setStep({ prompt: RESET, run: reset })}>Reset</Button>
         </FieldRow>
       </SectionCard>
       <SectionCard title="Delete all data">
