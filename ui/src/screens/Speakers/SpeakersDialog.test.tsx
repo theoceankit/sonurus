@@ -47,7 +47,7 @@ test('the categories and the search narrow the list', async () => {
   const { dialog } = await setup()
   await userEvent.click(within(dialog).getByRole('button', { name: /^Unnamed/ }))
   expect(rowNames(dialog).every(name => name?.startsWith('Unnamed speaker'))).toBe(true)
-  await userEvent.click(within(dialog).getByRole('button', { name: /^Named/ }))
+  await userEvent.click(within(dialog).getByRole('button', { name: /^Recognized/ }))
   await userEvent.type(within(dialog).getByRole('searchbox', { name: 'Search speakers' }), 'LENA')
   expect(rowNames(dialog)).toHaveLength(1)
   await userEvent.type(within(dialog).getByRole('searchbox', { name: 'Search speakers' }), 'zzz')
@@ -157,9 +157,9 @@ test('Appears in opens a recording in the Editor, and a recording without its fi
 test('deleting asks first, then shows the next speaker', async () => {
   const { dialog } = await setup()
   await openCard(dialog, /Lena Kovacs/)
-  expect(within(dialog).queryByRole('button', { name: 'Delete speaker…' })).toBeNull()
+  expect(within(dialog).queryByRole('button', { name: /^Delete speaker/ })).toBeNull()
   await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
-  await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete speaker…' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete speaker' }))
   const confirm = await screen.findByRole('alertdialog', { name: 'Delete "Lena Kovacs"?' })
   expect(within(confirm).getByText(/will become Unassigned/)).toBeTruthy()
   await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
@@ -173,9 +173,18 @@ test('a speaker is not deleted while the queue transcribes', async () => {
   act(() => { client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot({ running_job_id: 'a' }) }] }) })
   await openCard(dialog, /Lena Kovacs/)
   await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
-  await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete speaker…' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete speaker' }))
   expect(await screen.findByText('Pause the transcription queue first.')).toBeTruthy()
   expect(screen.queryByRole('alertdialog')).toBeNull()
+})
+
+test('Merge and Delete follow each other in More, with nothing between them', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
+  const menu = await screen.findByRole('menu')
+  expect(within(menu).queryByRole('separator')).toBeNull()
+  expect(within(menu).getAllByRole('menuitem').map(item => item.textContent?.trim())).toEqual(['Merge into another speaker…', 'Delete speaker'])
 })
 
 test('a card goes: name and colour, what the speaker did, the sample, the recordings', async () => {

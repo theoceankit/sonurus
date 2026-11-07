@@ -8,7 +8,7 @@ import { Avatar } from '../../components/Avatar/Avatar'
 import { ColorPicker } from '../../components/ColorPicker/ColorPicker'
 import { IconButton } from '../../components/IconButton/IconButton'
 import { Inline } from '../../components/Inline/Inline'
-import { Menu, MenuAction, MenuDivider } from '../../components/Menu/Menu'
+import { Menu, MenuAction } from '../../components/Menu/Menu'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { MetaItem } from '../../components/MetaItem/MetaItem'
 import { SectionHeader } from '../../components/SectionHeader/SectionHeader'
@@ -212,8 +212,7 @@ export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, on
           <IconButton icon="arrow-left" label="Back to speakers" onClick={onBack} />
           <Menu align="end" trigger={<IconButton icon="more" label="More" />}>
             <MenuAction icon="assign-speaker" {...markNotImplemented('speaker-card.merge')}>Merge into another speaker…</MenuAction>
-            <MenuDivider />
-            <MenuAction icon="delete" onSelect={remove}>Delete speaker…</MenuAction>
+            <MenuAction icon="delete" onSelect={remove}>Delete speaker</MenuAction>
           </Menu>
         </Inline>
         <Inline gap={4} align="start">

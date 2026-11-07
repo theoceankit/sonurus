@@ -23,7 +23,7 @@ type Story = StoryObj<typeof SpeakersDialog>
 
 // The list.
 export const AllSpeakers: Story = {}
-export const Named: Story = { args: { initialCategory: 'named' } }
+export const Recognized: Story = { args: { initialCategory: 'named' } }
 export const Unnamed: Story = { args: { initialCategory: 'unnamed' } }
 export const Search: Story = { args: { initialQuery: 'ma' } }
 export const NoMatch: Story = { args: { initialQuery: 'Zoe' } }
@@ -54,7 +54,7 @@ export const NotInAnyRecording: Story = { args: { initialSpeakerId: SPEAKER_IDS.
 const openMore = async () => {
   const more = await waitFor(() => document.querySelector('[aria-label="More"]'))
   more.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))
-  return waitFor(() => [...document.querySelectorAll('[role="menuitem"]')].find(item => item.textContent?.trim() === 'Delete speaker…'))
+  return waitFor(() => [...document.querySelectorAll('[role="menuitem"]')].find(item => item.textContent?.trim() === 'Delete speaker'))
 }
 export const SpeakerMenu: Story = {
   args: { initialSpeakerId: SPEAKER_IDS.lena },

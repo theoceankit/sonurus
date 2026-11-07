@@ -29,7 +29,7 @@ import styles from './SpeakersDialog.module.css'
 
 const CATEGORIES: { id: SpeakersCategory; label: string; icon: 'speakers' | 'check' | 'info' }[] = [
   { id: 'all', label: 'All speakers', icon: 'speakers' },
-  { id: 'named', label: 'Named', icon: 'check' },
+  { id: 'named', label: 'Recognized', icon: 'check' },
   { id: 'unnamed', label: 'Unnamed', icon: 'info' },
 ]
 

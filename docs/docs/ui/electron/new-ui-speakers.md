@@ -12,7 +12,7 @@ The Speakers button at the right of the titlebar opens `SpeakersDialog`, which `
 
 ## Categories and the list
 
-- **Categories.** All speakers, Named and Unnamed, each with its count. Recently added is marked with `markNotImplemented()` until the API knows when a speaker was added.
+- **Categories.** All speakers, Recognized (speakers with a name) and Unnamed, each with its count. Recently added is marked with `markNotImplemented()` until the API knows when a speaker was added.
 - **Search.** Matches any part of the name, whatever the case and the spaces around it. A speaker without a name never matches a search (`filterSpeakers()` in `speakers.ts`).
 - **Rows.** `Candidate` with the avatar, the name or Unnamed speaker in grey, the number of recordings and the time the speaker talks (`speakerUsage()`). Speakers whose names differ only by case or spaces get a same name badge (`duplicateNameIds()`): names are labels, not identities, so two people may share one.
 - **Order.** As `GET /speakers` gives it: named speakers by name, then those without a name, most recently heard first. Speakers that tie, such as two with one name, keep one order, the one heard last first.
@@ -29,7 +29,7 @@ A click on a row opens `SpeakerCard` in place of the list; the categories stay, 
 - **Usage.** The recordings, the time the speaker talks and when they were last heard.
 - **Voice sample.** The segment `GET /speakers/{id}/sample` picks, at most fifteen seconds, in a `VoiceClip`, the same as the clip of the inspector's Review card: the player, and its text folded under Show text. While the sample loads, Play is off and there is no text yet. When no recording of the speaker has its audio any more, the card says so instead, and a speaker in no recording says Not in any recording yet.
 - **Appears in.** The recordings of `GET /speakers/{id}/transcripts`, newest first, as `AppearanceRow`: the title and the date. A click closes the window and opens the recording in the Editor. Play stands over the date on hover and focus and plays a sample of the speaker from that recording. A recording whose file is gone (`has_audio` false) has Play off from the start, with Audio unavailable as its tooltip.
-- **Delete speaker…** in the More menu asks first in a danger dialog (`DeleteSpeakerDialog`, focus on Cancel) with the text of `deleteSpeakerPrompt()`: how many segments in how many recordings become Unassigned, and that the voice profile goes. `DELETE /speakers/{id}` then removes the name, colour and voice; the recordings and the speaker list are asked for again, and the next speaker of the list opens, or the one before, or the list. While the queue transcribes or a recording runs it does not ask but shows the reason in a toast (`deleteBlockReason()` on the queue snapshot), as a menu item cannot show a tooltip; the backend refuses then too.
+- **Delete speaker** in the More menu, right under Merge, asks first in a danger dialog (`DeleteSpeakerDialog`, focus on Cancel) with the text of `deleteSpeakerPrompt()`: how many segments in how many recordings become Unassigned, and that the voice profile goes. `DELETE /speakers/{id}` then removes the name, colour and voice; the recordings and the speaker list are asked for again, and the next speaker of the list opens, or the one before, or the list. While the queue transcribes or a recording runs it does not ask but shows the reason in a toast (`deleteBlockReason()` on the queue snapshot), as a menu item cannot show a tooltip; the backend refuses then too.
 
 ## Samples
 
