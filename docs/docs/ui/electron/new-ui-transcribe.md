@@ -23,6 +23,15 @@ There is no built-in default. Electron's settings keep the default Whisper model
 
 A saved model that is not installed is therefore never used. The new UI works this out each time and does not save the result; the old UI saves it and says so in a toast when it changes (`syncTranscribeModel` in `electron/renderer/transcription-model.js`).
 
+## Downloads
+
+`useModelDownloads()` in `model-downloads.ts` holds the model downloads of the app, one store per API client: a screen that starts a download and one that only shows the model see the same download, and it goes on when the screen closes. `GET /models` does not tell of running downloads; this does.
+
+- `start(id)` sends `POST /models/{id}/download` with the HuggingFace token of the settings (`hfToken`) and follows `WS /ws/models/{job_id}`. A second start of a running download does nothing, and the backend also joins a second request for the same model to the running job.
+- `download(id)` is `{ pct }` while it runs, else null. `outcome(id)` says how the last download here ended: `done`, `failed` (an error of the backend, a refused start or a lost connection) or `cancelled`. Starting again clears it.
+- `cancel(id)` sends `DELETE /models/{id}/download/{job_id}`. A cancel before the backend answered the start stops the job once it does.
+- A finished download reads the catalog again, so the model shows as installed everywhere.
+
 ## Languages
 
 `LANGUAGES` is the list a job can be asked for, Detect automatically first. `auto` is what the settings and the screens keep; the API takes it as null (`apiLanguage`). `languageName(code)` is the name for the user.

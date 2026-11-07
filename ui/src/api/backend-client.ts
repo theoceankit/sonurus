@@ -1,5 +1,6 @@
 import createClient from 'openapi-fetch'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from './client'
+import { watchModelDownload } from './model-download-events'
 import { connectQueueEvents } from './queue-events'
 import type { paths } from './schema.gen'
 
@@ -81,6 +82,17 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
       params: { path: { speaker_id }, query: { transcript_id } },
     })),
     listModels: () => send(http.GET('/models')),
+    startModelDownload: async (model_id, hfToken) => {
+      // The schema leaves the answer untyped: it is { job_id }.
+      const answer = await send(http.POST('/models/{model_id}/download', { params: { path: { model_id } }, body: { hf_token: hfToken } }))
+      return (answer as { job_id: string }).job_id
+    },
+    cancelModelDownload: async (model_id, job_id) => {
+      await send(http.DELETE('/models/{model_id}/download/{job_id}', { params: { path: { model_id, job_id } } }))
+    },
+    watchModelDownload: (jobId, listener) => watchModelDownload(
+      `${baseUrl.replace(/^http/, 'ws')}/ws/models/${jobId}`, listener, options.WebSocketImpl,
+    ),
     getQueue: () => send(http.GET('/queue')),
     addQueueJob: ({ audioPath, whisperModel, language, title }) => send(http.POST('/queue/jobs', {
       body: { audio_path: audioPath, whisper_model: whisperModel, language, ...(title ? { title } : {}) },

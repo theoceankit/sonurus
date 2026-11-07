@@ -1,6 +1,7 @@
 import type {
   ModelInfo, QueueJob, QueueSnapshot, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
+import type { ModelDownloadEvent } from './model-download-events'
 
 // status 0: the request never got an answer.
 export class ApiError extends Error {
@@ -56,6 +57,12 @@ export interface ApiClient {
   getSpeakerSample(speakerId: string, transcriptId?: number): Promise<SpeakerSample>
   // Every model of the catalog with whether it is downloaded.
   listModels(): Promise<ModelInfo[]>
+  // Starts downloading a model, or joins its download already running, and answers the
+  // job. The token is for gated models on HuggingFace.
+  startModelDownload(modelId: string, hfToken: string | null): Promise<string>
+  cancelModelDownload(modelId: string, jobId: string): Promise<void>
+  // The progress of a download until it ends. Returns what stops listening.
+  watchModelDownload(jobId: string, listener: (event: ModelDownloadEvent) => void): () => void
   getQueue(): Promise<QueueSnapshot>
   // The backend copies the file and answers the waiting job, or 400 when a model the
   // job needs is not installed or the file cannot be read.

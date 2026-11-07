@@ -443,3 +443,42 @@ describe('models', () => {
     await expect(add({}, 'small', 'en')).resolves.toMatchObject({ whisper_model: 'small' })
   })
 })
+
+describe('model downloads', () => {
+  const follow = (client: ReturnType<typeof createFixtureClient>, jobId: string) => new Promise<string[]>(resolve => {
+    const seen: string[] = []
+    client.watchModelDownload(jobId, event => {
+      seen.push(event.type === 'progress' ? String(event.pct) : event.type)
+      if (event.type !== 'progress') resolve(seen)
+    })
+  })
+
+  test('goes up a quarter a step and installs the model', async () => {
+    const client = createFixtureClient({ downloadStepMs: 1 })
+    const jobId = await client.startModelDownload('cs', null)
+    expect(await follow(client, jobId)).toEqual(['25', '50', '75', '100', 'done'])
+    expect((await client.listModels()).find(m => m.id === 'cs')?.installed).toBe(true)
+  })
+
+  test('a second start joins the running download', async () => {
+    const client = createFixtureClient({ downloadStepMs: 1 })
+    expect(await client.startModelDownload('cs', null)).toBe(await client.startModelDownload('cs', null))
+  })
+
+  test('downloadFails ends it with an error and nothing installed', async () => {
+    const client = createFixtureClient({ downloadStepMs: 1, downloadFails: true })
+    const jobId = await client.startModelDownload('cs', null)
+    expect((await follow(client, jobId)).at(-1)).toBe('error')
+    expect((await client.listModels()).find(m => m.id === 'cs')?.installed).toBe(false)
+  })
+
+  test('a cancel ends it as cancelled; a job that ended is unknown', async () => {
+    const client = createFixtureClient({ downloadStepMs: 1000 })
+    const jobId = await client.startModelDownload('cs', null)
+    const seen = follow(client, jobId)
+    await client.cancelModelDownload('cs', jobId)
+    expect(await seen).toEqual(['cancelled'])
+    await expect(client.cancelModelDownload('cs', jobId)).rejects.toMatchObject({ status: 404 })
+    expect(await follow(client, jobId)).toEqual(['error'])
+  })
+})

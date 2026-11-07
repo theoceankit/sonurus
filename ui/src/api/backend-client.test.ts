@@ -181,6 +181,28 @@ describe('listModels', () => {
   })
 })
 
+describe('model downloads', () => {
+  test('a download starts with the token and answers its job', async () => {
+    const { client, sent } = setup(() => json({ job_id: 'j1' }))
+    await expect(client.startModelDownload('cs', 'hf_x')).resolves.toBe('j1')
+    expect(sent).toEqual([{ url: 'http://localhost:8000/models/cs/download', method: 'POST', body: { hf_token: 'hf_x' } }])
+  })
+
+  test('a cancel asks to stop that job', async () => {
+    const { client, sent } = setup(() => json({ cancelled: 'j1' }))
+    await client.cancelModelDownload('cs', 'j1')
+    expect(sent).toEqual([{ url: 'http://localhost:8000/models/cs/download/j1', method: 'DELETE', body: undefined }])
+  })
+
+  test('progress comes from WS /ws/models of the job', () => {
+    const urls: string[] = []
+    class Socket { constructor(url: string) { urls.push(url) } close() {} }
+    const client = createBackendClient({ WebSocketImpl: Socket as unknown as typeof WebSocket })
+    client.watchModelDownload('j1', () => {})()
+    expect(urls).toEqual(['ws://localhost:8000/ws/models/j1'])
+  })
+})
+
 describe('addQueueJob', () => {
   test('sends the file, the model and the language, and answers the job', async () => {
     const job = { id: 'j', audio_path: '/in/a.mp3', title: 'a', whisper_model: 'small', language: 'ru', status: 'waiting' }

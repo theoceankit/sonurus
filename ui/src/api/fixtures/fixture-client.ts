@@ -4,6 +4,7 @@ import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_NOW, queueSnapshot } from './data'
 import { fixtureModels } from './models'
 import type { EventScript } from './event-scripts'
+import type { ModelDownloadEvent } from '../model-download-events'
 import { createTestAudioUrl } from './test-audio'
 import { fixtureLevels } from './waveform'
 
@@ -18,6 +19,10 @@ export type FixtureOptions = {
   noModels?: boolean
   // The ids of the downloaded models, in place of DEFAULT_INSTALLED.
   installedModels?: readonly string[]
+  // A model download goes up a quarter every step and then installs the model, or
+  // fails at the end with downloadFails.
+  downloadStepMs?: number
+  downloadFails?: boolean
   // One method behaving differently, e.g. a failing save on a loaded screen.
   overrides?: Partial<ApiClient>
 }
@@ -51,7 +56,8 @@ const EMPTY: FixtureData = { transcripts: [], details: [], speakers: [], candida
 // The same interface as the backend client, on data kept in memory. Each client
 // has its own copy, so stories and tests do not see each other's changes.
 export function createFixtureClient({
-  scenario = 'default', board = 'review', noAudio = false, noModels = false, installedModels, overrides = {},
+  scenario = 'default', board = 'review', noAudio = false, noModels = false, installedModels,
+  downloadStepMs = 400, downloadFails = false, overrides = {},
 }: FixtureOptions = {}): FixtureClient {
   const audioUrls = new Map<number, string>()
   const models = fixtureModels(noModels ? [] : installedModels)
@@ -149,6 +155,37 @@ export function createFixtureClient({
 
   const connectionListeners = new Set<(connected: boolean) => void>()
 
+  // Downloads by job, one per model as on the backend; a job is gone once it ended.
+  type Download = { modelId: string; pct: number; timer: ReturnType<typeof setInterval>; listeners: Set<(event: ModelDownloadEvent) => void> }
+  const downloads = new Map<string, Download>()
+  const endDownload = (jobId: string, event: ModelDownloadEvent) => {
+    const download = downloads.get(jobId)
+    if (!download) return
+    clearInterval(download.timer)
+    downloads.delete(jobId)
+    download.listeners.forEach(listener => listener(event))
+  }
+  const startDownload = (modelId: string) => {
+    const model = models.find(m => m.id === modelId)
+    if (!model) throw new ApiError(422, `Unknown model '${modelId}'`)
+    const running = [...downloads].find(([, download]) => download.modelId === modelId)
+    if (running) return running[0]
+    const jobId = crypto.randomUUID()
+    const download: Download = {
+      modelId, pct: 0, listeners: new Set(),
+      timer: setInterval(() => {
+        download.pct = Math.min(100, download.pct + 25)
+        download.listeners.forEach(listener => listener({ type: 'progress', pct: download.pct }))
+        if (download.pct < 100) return
+        if (downloadFails) return endDownload(jobId, { type: 'error', message: 'Connection to huggingface.co timed out' })
+        model.installed = true
+        endDownload(jobId, { type: 'done' })
+      }, downloadStepMs),
+    }
+    downloads.set(jobId, download)
+    return jobId
+  }
+
   const emit = (event: QueueUpdate) => {
     if (event.type === 'snapshot') queue = event
     for (const listener of listeners) listener(structuredClone(event))
@@ -214,6 +251,20 @@ export function createFixtureClient({
       throw new ApiError(404, 'No audio available for this speaker')
     }),
     listModels: () => answer(() => models),
+    startModelDownload: modelId => answer(() => startDownload(modelId)),
+    cancelModelDownload: (_modelId, jobId) => answer(() => {
+      if (!downloads.has(jobId)) throw new ApiError(404, `No active download job '${jobId}'`)
+      endDownload(jobId, { type: 'cancelled' })
+    }),
+    watchModelDownload: (jobId, listener) => {
+      const download = downloads.get(jobId)
+      if (!download) {
+        const unknown = setTimeout(() => listener({ type: 'error', message: 'Unknown job' }), 0)
+        return () => clearTimeout(unknown)
+      }
+      download.listeners.add(listener)
+      return () => download.listeners.delete(listener)
+    },
     getQueue: () => answer(() => queue),
     addQueueJob: ({ audioPath, whisperModel, language, title }) => answer(() => {
       const missing = missingModelError(models, whisperModel, language)

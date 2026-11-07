@@ -57,6 +57,8 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `listModels()` is `GET /models`: every model of the catalog with `installed`. Whisper and diarization rows carry a name, size, speed and accuracy; alignment rows only `id`, `kind` and `installed`, and the new UI names them itself ([New UI transcription](new-ui-transcribe.md#models)).
 
+`startModelDownload(id, hfToken)` starts downloading a model, or joins its running download, and answers the job id; `cancelModelDownload(id, jobId)` stops it; `watchModelDownload(jobId, listener)` follows `WS /ws/models/{job_id}` until the download ends with `done`, `cancelled` or `error`. That socket is not in the OpenAPI schema, so its events are typed in `model-download-events.ts`; a connection that drops before the end counts as an error. Screens use them through `useModelDownloads()` ([New UI transcription](new-ui-transcribe.md#downloads)).
+
 `now()` is today for the screens: the current time on the backend client, 5 October 2026 on fixtures, so that sections of the recordings list stay as on the design boards.
 
 A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/speaker-colors.ts` turns it into a colour of the avatars. The fixtures use the colours of the boards.
@@ -100,6 +102,8 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 | `noAudio` | `true` | `getAudioUrl` gives null and `getWaveform` a 404 |
 | `noModels` | `true` | Nothing is downloaded: `listModels` has every model uninstalled, and `addQueueJob` answers the 400 of a missing diarization model (`NO_MODELS`) |
 | `installedModels` | model ids | What is downloaded, in place of `DEFAULT_INSTALLED` (`small`, `large-v3`, `diarize`; no alignment model) |
+| `downloadStepMs` | milliseconds | A model download goes up a quarter every step, then installs the model; 400 by default |
+| `downloadFails` | `true` | A model download ends with an error at 100 % and installs nothing |
 | `overrides` | any methods of `ApiClient` | One method behaving differently, such as a failing save on a loaded screen |
 
 `addQueueJob` on fixtures refuses a job as the backend does, in its order: a Whisper model that is not downloaded, then the diarization model, then the alignment model of the language, each with the backend's message.
