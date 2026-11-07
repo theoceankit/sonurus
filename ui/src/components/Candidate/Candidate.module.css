@@ -22,7 +22,7 @@
 }
 
 .name {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   font: var(--font-body);
@@ -63,4 +63,18 @@
   font: var(--font-body);
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* The name keeps only its width, so a badge sits right after it and the rest goes to the end. */
+.badge {
+  flex: none;
+  margin-inline-end: auto;
+}
+
+.name:not(:has(+ .badge)) {
+  margin-inline-end: auto;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
 }
