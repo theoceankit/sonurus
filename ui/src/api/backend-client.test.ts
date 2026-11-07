@@ -211,6 +211,29 @@ describe('updateQueueJob', () => {
   })
 })
 
+describe('queue controls', () => {
+  test('start, pause and a new order answer the queue', async () => {
+    const snapshot = { type: 'snapshot', paused: false, jobs: [] }
+    const { client, sent } = setup(() => json(snapshot))
+    await expect(client.startQueue()).resolves.toMatchObject({ paused: false })
+    await client.pauseQueue()
+    await client.reorderQueue(['b', 'a'])
+    expect(sent).toEqual([
+      { url: 'http://localhost:8000/queue/start', method: 'POST', body: undefined },
+      { url: 'http://localhost:8000/queue/pause', method: 'POST', body: undefined },
+      { url: 'http://localhost:8000/queue/order', method: 'PUT', body: { job_ids: ['b', 'a'] } },
+    ])
+  })
+
+  test('deletes a job; a missing one is the backend\'s 404', async () => {
+    const { client, sent } = setup(() => json({ deleted: true }))
+    await expect(client.deleteQueueJob('j')).resolves.toBeUndefined()
+    expect(sent).toEqual([{ url: 'http://localhost:8000/queue/jobs/j', method: 'DELETE', body: undefined }])
+    const missing = setup(() => json({ detail: 'Job not found' }, 404))
+    await expect(missing.client.deleteQueueJob('x')).rejects.toMatchObject({ status: 404, message: 'Job not found' })
+  })
+})
+
 describe('retryQueueJob', () => {
   test('asks to retry the job and answers it waiting', async () => {
     const { client, sent } = setup(() => json({ id: 'j', status: 'waiting' }))

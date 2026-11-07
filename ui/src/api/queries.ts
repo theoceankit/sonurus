@@ -283,6 +283,46 @@ export function useSetQueueStartMode() {
   })
 }
 
+export type QueueControl = 'start' | 'pause'
+
+// Start, pause and a new order answer the queue after the change: it is shown at
+// once, before the snapshot on WS /ws/queue.
+export function useQueueControl() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: (action: QueueControl) => (action === 'start' ? api.startQueue() : api.pauseQueue()),
+    onSuccess: snapshot => queries.setQueryData(queryKeys.queue, snapshot),
+  })
+}
+
+export function useReorderQueue() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: (jobIds: readonly string[]) => api.reorderQueue(jobIds),
+    onSuccess: snapshot => queries.setQueryData(queryKeys.queue, snapshot),
+  })
+}
+
+export function useRetryQueueJob() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: (jobId: string) => api.retryQueueJob(jobId),
+    onSuccess: () => queries.invalidateQueries({ queryKey: queryKeys.queue }),
+  })
+}
+
+export function useDeleteQueueJob() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: (jobId: string) => api.deleteQueueJob(jobId),
+    onSuccess: () => queries.invalidateQueries({ queryKey: queryKeys.queue }),
+  })
+}
+
 // Keeps the cache up with WS /ws/queue while the calling component is mounted:
 // the app's root calls it once. onEvent is for what a screen shows itself, such
 // as the toast of a failed job.
