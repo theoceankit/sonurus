@@ -100,6 +100,7 @@ const DEFAULT_SETTINGS = {
   transcribeModel: null,
   transcribeModelHistory: [],
   exportFormat: 'txt',
+  recordingAudioSource: 'both',
   recordingMicDevice: null,
   recordingSystemDevice: null,
   recordingUseMic: true,
