@@ -17,6 +17,14 @@ export function rememberOpened(recent: readonly number[], id: number): number[] 
   return [id, ...recent.filter(other => other !== id)].slice(0, RECENT_LIMIT)
 }
 
+// Those still in the list of recordings; the same array when none has gone.
+export function pruneRecent(recent: readonly number[], list: readonly TranscriptListItem[]): readonly number[] {
+  const kept = recent.filter(id => list.some(item => item.id === id))
+  return kept.length === recent.length ? recent : kept
+}
+
+const same = (a: readonly number[], b: readonly number[]) => a.length === b.length && a.every((id, i) => id === b[i])
+
 // A settings file from before the field, or one edited by hand, may hold anything.
 const readIds = (value: unknown): number[] => (Array.isArray(value) ? value.filter(id => Number.isInteger(id)) : [])
 
@@ -30,13 +38,20 @@ export function useRecentRecordings() {
   const saved = settings?.recentTranscriptIds
   const ids = useMemo(() => (loaded ? readIds(saved) : null), [loaded, saved])
 
-  const remember = useCallback((id: number) => {
+  // Both change the list as read from the file: before it has been read, they wait
+  // for it, or the list written would hold only this change.
+  const change = useCallback((update: (recent: readonly number[]) => readonly number[]) => {
     const store = settingsStore()
-    const latest = readIds(store.current()?.recentTranscriptIds)
-    const next = rememberOpened(latest, id)
-    if (next.length === latest.length && next.every((other, i) => other === latest[i])) return
-    void store.patch({ recentTranscriptIds: next })
+    void store.read().then(read => {
+      const latest = readIds(store.current()?.recentTranscriptIds ?? read.recentTranscriptIds)
+      const next = update(latest)
+      if (!same(next, latest)) void store.patch({ recentTranscriptIds: [...next] })
+    })
   }, [])
 
-  return { ids, remember }
+  const remember = useCallback((id: number) => change(recent => rememberOpened(recent, id)), [change])
+  // Recordings deleted since, here or in the old UI, are forgotten.
+  const prune = useCallback((list: readonly TranscriptListItem[]) => change(recent => pruneRecent(recent, list)), [change])
+
+  return { ids, remember, prune }
 }
