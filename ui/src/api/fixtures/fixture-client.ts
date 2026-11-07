@@ -1,7 +1,8 @@
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
-import { effectiveSpeaker, UNASSIGNED, type QueueJob, type QueueSnapshot, type QueueUpdate, type Speaker, type SpeakerCandidates } from '../types'
+import { effectiveSpeaker, UNASSIGNED, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_NOW, queueSnapshot } from './data'
+import { fixtureModels } from './models'
 import type { EventScript } from './event-scripts'
 import { createTestAudioUrl } from './test-audio'
 import { fixtureLevels } from './waveform'
@@ -15,6 +16,8 @@ export type FixtureOptions = {
   noAudio?: boolean
   // No models downloaded: a file for the queue gets the backend's 400.
   noModels?: boolean
+  // The ids of the downloaded models, in place of DEFAULT_INSTALLED.
+  installedModels?: readonly string[]
   // One method behaving differently, e.g. a failing save on a loaded screen.
   overrides?: Partial<ApiClient>
 }
@@ -29,12 +32,29 @@ export type FixtureClient = ApiClient & {
 // What the backend answers for a job when no models are downloaded.
 export const NO_MODELS = 'Diarization model is not installed. Download it in Settings.'
 
+// The backend's 400 for a job whose models are not all downloaded, in its order.
+function missingModelError(models: readonly ModelInfo[], whisperModel: string | null, language: string | null): ApiError | null {
+  const installed = (id: string) => models.some(model => model.id === id && model.installed)
+  if (whisperModel !== null && !installed(whisperModel)) {
+    return new ApiError(400, `Whisper model "${whisperModel}" is not installed. Download it in Settings.`)
+  }
+  if (!installed('diarize')) return new ApiError(400, NO_MODELS)
+  const alignment = models.find(model => model.kind === 'alignment' && model.id === language)
+  if (alignment && !alignment.installed) {
+    return new ApiError(400, `Alignment model for language "${language}" is not installed. Download it in Settings.`)
+  }
+  return null
+}
+
 const EMPTY: FixtureData = { transcripts: [], details: [], speakers: [], candidates: {} }
 
 // The same interface as the backend client, on data kept in memory. Each client
 // has its own copy, so stories and tests do not see each other's changes.
-export function createFixtureClient({ scenario = 'default', board = 'review', noAudio = false, noModels = false, overrides = {} }: FixtureOptions = {}): FixtureClient {
+export function createFixtureClient({
+  scenario = 'default', board = 'review', noAudio = false, noModels = false, installedModels, overrides = {},
+}: FixtureOptions = {}): FixtureClient {
   const audioUrls = new Map<number, string>()
+  const models = fixtureModels(noModels ? [] : installedModels)
   const data = structuredClone(scenario === 'empty' ? EMPTY : BOARDS[board])
   let queue: QueueSnapshot = queueSnapshot()
   const listeners = new Set<(event: QueueUpdate) => void>()
@@ -193,9 +213,11 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
       }
       throw new ApiError(404, 'No audio available for this speaker')
     }),
+    listModels: () => answer(() => models),
     getQueue: () => answer(() => queue),
     addQueueJob: ({ audioPath, whisperModel, language }) => answer(() => {
-      if (noModels) throw new ApiError(400, NO_MODELS)
+      const missing = missingModelError(models, whisperModel, language)
+      if (missing) throw missing
       const job: QueueJob = {
         id: crypto.randomUUID(),
         audio_path: audioPath,

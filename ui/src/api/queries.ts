@@ -16,6 +16,7 @@ export const queryKeys = {
   // Not under the transcript: edits never change the audio.
   waveform: (id: number, { bars, start, end }: WaveformStretch) => ['waveform', id, bars, start, end],
   queue: ['queue'],
+  models: ['models'],
   connected: ['connected'],
 } satisfies Record<string, QueryKey | ((...args: never[]) => QueryKey)>
 
@@ -66,6 +67,13 @@ export function useSpeakerSample(speakerId: string, transcriptId?: number) {
     queryKey: queryKeys.sample(speakerId, transcriptId),
     queryFn: () => api.getSpeakerSample(speakerId, transcriptId),
   })
+}
+
+// The catalog with what is downloaded. A screen that shows it asks again when it
+// opens: models come and go in Settings and in the old UI.
+export function useModels() {
+  const api = useApi()
+  return useQuery({ queryKey: queryKeys.models, queryFn: () => api.listModels(), refetchOnMount: 'always' })
 }
 
 export function useQueue() {

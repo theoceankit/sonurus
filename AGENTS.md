@@ -113,6 +113,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | New UI transcript | `ui/src/screens/Editor/Transcript*.tsx`, `transcript.ts`, `ui/src/media/active-segment.ts`, `ui/src/components/TurnHeader/`, `Paragraph/`, `TranscriptHeader/`, `SpeakerMenu/` | `docs/docs/ui/electron/new-ui-transcript.md` |
 | New UI inspector and speaker review | `ui/src/screens/Editor/InspectorPanel.tsx`, `SpeakerDialogs.tsx`, `review-queue.ts`, `inspector.ts`, `speaker-search.ts`, `new-speaker.ts`, `ui/src/media/clip-playback.ts` | `docs/docs/ui/electron/new-ui-inspector.md` |
 | New UI home: the recording open at startup, empty state, import dialog, file drops | `ui/src/screens/Home/`, `ui/src/components/DropZone/` | `docs/docs/ui/electron/new-ui-home.md` |
+| New UI transcription: models, the default model, languages | `ui/src/transcribe/` | `docs/docs/ui/electron/new-ui-transcribe.md` |
 | New UI tokens, font, icons, overlays | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/` | `docs/docs/ui/electron/new-ui-foundations.md` |
 | New UI development: data, isolated checks, restarts, test pitfalls | `scripts/dev-ui.js`, `ui/vite.config.ts`, `ui/src/test-setup.ts` | `docs/docs/ui/electron/new-ui-development.md` |
 | Live recording | `app/api/routers/audio_capture.py`, `native/` | `docs/docs/ui/electron/live-recording.md` |

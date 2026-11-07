@@ -6,6 +6,8 @@ import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
 import { EVENT_SCRIPTS } from './event-scripts'
 import type { ApiClient } from '../client'
 import { createFixtureClient, NO_MODELS } from './fixture-client'
+import { DEFAULT_INSTALLED } from './models'
+import { ALIGNMENT_MODELS } from '../../transcribe/languages'
 
 const { anna, mark, oliver, unknown1 } = SPEAKER_IDS
 const talkTime = (segments: Segment[], id: string) =>
@@ -414,5 +416,30 @@ describe('adding to the queue', () => {
     const client = createFixtureClient({ noModels: true })
     await expect(client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: null, language: null })).rejects.toMatchObject({ status: 400, message: NO_MODELS })
     expect((await client.getQueue()).jobs).toEqual([])
+  })
+})
+
+describe('models', () => {
+  const installed = (models: { id: string; installed: boolean }[]) => models.filter(m => m.installed).map(m => m.id)
+
+  test('by default a Whisper model and diarization are there, no alignment model', async () => {
+    const models = await createFixtureClient().listModels()
+    expect(installed(models)).toEqual(DEFAULT_INSTALLED)
+    expect(models.filter(m => m.kind === 'alignment').map(m => m.id)).toEqual(ALIGNMENT_MODELS.map(m => m.id))
+  })
+
+  test('noModels has nothing, installedModels exactly the given ones', async () => {
+    expect(installed(await createFixtureClient({ noModels: true }).listModels())).toEqual([])
+    expect(installed(await createFixtureClient({ installedModels: ['tiny', 'diarize', 'ru'] }).listModels())).toEqual(['tiny', 'diarize', 'ru'])
+  })
+
+  test('a job is refused for each missing model in the backend order', async () => {
+    const add = (options: Parameters<typeof createFixtureClient>[0], whisperModel: string | null, language: string | null) =>
+      createFixtureClient(options).addQueueJob({ audioPath: '/in/a.mp3', whisperModel, language })
+    await expect(add({}, 'tiny', null)).rejects.toMatchObject({ status: 400, message: 'Whisper model "tiny" is not installed. Download it in Settings.' })
+    await expect(add({ installedModels: ['small'] }, 'small', null)).rejects.toMatchObject({ status: 400, message: NO_MODELS })
+    await expect(add({}, 'small', 'ru')).rejects.toMatchObject({ status: 400, message: 'Alignment model for language "ru" is not installed. Download it in Settings.' })
+    await expect(add({ installedModels: [...DEFAULT_INSTALLED, 'ru'] }, 'small', 'ru')).resolves.toMatchObject({ language: 'ru' })
+    await expect(add({}, 'small', 'en')).resolves.toMatchObject({ whisper_model: 'small' })
   })
 })

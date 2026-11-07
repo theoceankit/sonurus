@@ -7,7 +7,7 @@ import { SPEAKER_IDS, WEEKLY_SYNC_ID } from './fixtures/data'
 import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
-  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useDeleteTranscript, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
+  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useDeleteTranscript, useModels, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle, useWaveform,
 } from './queries'
 import { effectiveSpeaker, type QueueUpdate } from './types'
@@ -271,19 +271,31 @@ describe('waveform', () => {
   })
 })
 
+describe('models', () => {
+  test('reads the catalog with what is downloaded, and again when a screen mounts', async () => {
+    const client = createFixtureClient({ installedModels: ['tiny', 'diarize'] })
+    const list = vi.spyOn(client, 'listModels')
+    const wrapper = wrapperFor(client)
+    const first = renderHook(useModels, { wrapper })
+    await waitFor(() => expect(first.result.current.data?.filter(m => m.installed).map(m => m.id)).toEqual(['tiny', 'diarize']))
+    renderHook(useModels, { wrapper })
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+  })
+})
+
 describe('adding files to the queue', () => {
   afterEach(() => vi.unstubAllGlobals())
 
   test('one job per file, in the order given, with the defaults of the settings', async () => {
     const bridge = createMockElectronAPI()
-    await bridge.writeSettings({ ...await bridge.readSettings(), transcribeModel: 'small', transcribeLang: 'ru' })
+    await bridge.writeSettings({ ...await bridge.readSettings(), transcribeModel: 'small', transcribeLang: 'de' })
     vi.stubGlobal('electronAPI', bridge)
     const { client, result } = renderWith(useAddToQueue)
     const add = vi.spyOn(client, 'addQueueJob')
     await act(() => result.current.mutateAsync(['/in/b.mp3', '/in/a.wav']))
     expect(add.mock.calls.map(([job]) => job)).toEqual([
-      { audioPath: '/in/b.mp3', whisperModel: 'small', language: 'ru' },
-      { audioPath: '/in/a.wav', whisperModel: 'small', language: 'ru' },
+      { audioPath: '/in/b.mp3', whisperModel: 'small', language: 'de' },
+      { audioPath: '/in/a.wav', whisperModel: 'small', language: 'de' },
     ])
     expect((await client.getQueue()).jobs.map(job => job.audio_path)).toEqual(['/in/b.mp3', '/in/a.wav'])
   })

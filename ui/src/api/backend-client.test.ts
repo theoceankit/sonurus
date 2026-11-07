@@ -169,6 +169,18 @@ describe('getWaveform', () => {
   })
 })
 
+describe('listModels', () => {
+  test('asks GET /models and answers the catalog as it is', async () => {
+    const models = [
+      { id: 'small', kind: 'whisper', name: 'Whisper Small', size: '244 MB', speed: '', acc: '', recommended: false, installed: true },
+      { id: 'ru', kind: 'alignment', installed: false },
+    ]
+    const { client, sent } = setup(() => json(models))
+    await expect(client.listModels()).resolves.toEqual(models)
+    expect(sent).toEqual([{ url: 'http://localhost:8000/models', method: 'GET', body: undefined }])
+  })
+})
+
 describe('addQueueJob', () => {
   test('sends the file, the model and the language, and answers the job', async () => {
     const job = { id: 'j', audio_path: '/in/a.mp3', title: 'a', whisper_model: 'small', language: 'ru', status: 'waiting' }

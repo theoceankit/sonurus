@@ -1,5 +1,5 @@
 import type {
-  QueueJob, QueueSnapshot, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
+  ModelInfo, QueueJob, QueueSnapshot, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 
 // status 0: the request never got an answer.
@@ -54,6 +54,8 @@ export interface ApiClient {
   listSpeakers(): Promise<Speaker[]>
   updateSpeaker(speakerId: string, update: SpeakerUpdate): Promise<Speaker>
   getSpeakerSample(speakerId: string, transcriptId?: number): Promise<SpeakerSample>
+  // Every model of the catalog with whether it is downloaded.
+  listModels(): Promise<ModelInfo[]>
   getQueue(): Promise<QueueSnapshot>
   // The backend copies the file and answers the waiting job, or 400 when a model the
   // job needs is not installed or the file cannot be read.

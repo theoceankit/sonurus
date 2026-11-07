@@ -80,6 +80,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     getSpeakerSample: (speaker_id, transcript_id) => send(http.GET('/speakers/{speaker_id}/sample', {
       params: { path: { speaker_id }, query: { transcript_id } },
     })),
+    listModels: () => send(http.GET('/models')),
     getQueue: () => send(http.GET('/queue')),
     addQueueJob: ({ audioPath, whisperModel, language }) => send(http.POST('/queue/jobs', {
       body: { audio_path: audioPath, whisper_model: whisperModel, language },
