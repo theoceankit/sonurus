@@ -14,6 +14,7 @@ import { TextField } from '../TextField/TextField'
 import { dismissAllToasts, toast } from '../Toast/toast-store'
 import { Tooltip } from '../Tooltip/Tooltip'
 import { Modal, type ModalType } from './Modal'
+import { openModalCount } from './open-modals'
 import css from './Modal.module.css?raw'
 
 afterEach(() => act(() => dismissAllToasts()))
@@ -377,5 +378,30 @@ describe('a window over another', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Outer' })))
+  })
+})
+
+describe('open windows', () => {
+  test('a window counts while it is open, and one drawn in place does not', async () => {
+    const { rerender } = render(<Modal open={false}><ModalHeader title="One" /></Modal>)
+    expect(openModalCount()).toBe(0)
+    rerender(<><Modal open><ModalHeader title="One" /></Modal><Modal preview><ModalHeader title="Board" /></Modal></>)
+    expect(openModalCount()).toBe(1)
+    rerender(<><Modal open><ModalHeader title="One" /></Modal><Modal open><ModalHeader title="Two" /></Modal></>)
+    expect(openModalCount()).toBe(2)
+    // Closed, it stops counting at once, before its way out has played.
+    rerender(<><Modal open={false}><ModalHeader title="One" /></Modal><Modal open><ModalHeader title="Two" /></Modal></>)
+    expect(openModalCount()).toBe(1)
+    cleanup()
+    expect(openModalCount()).toBe(0)
+  })
+
+  test('an auto scrim is clear over another window, and dims when the window opens alone', async () => {
+    const scrims = () => [...document.querySelectorAll('.scrim')].map(scrim => scrim.className.includes('clear'))
+    const { rerender } = render(<Modal open scrim="auto"><ModalHeader title="Alone" /></Modal>)
+    await waitFor(() => expect(scrims()).toEqual([false]))
+    rerender(<><Modal open><ModalHeader title="Under" /></Modal><Modal open={false} scrim="auto"><ModalHeader title="Over" /></Modal></>)
+    rerender(<><Modal open><ModalHeader title="Under" /></Modal><Modal open scrim="auto"><ModalHeader title="Over" /></Modal></>)
+    await waitFor(() => expect(scrims()).toEqual([false, true]))
   })
 })
