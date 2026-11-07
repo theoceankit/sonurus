@@ -4,6 +4,7 @@ import { expect, test, vi } from 'vitest'
 import { ReviewCard } from './ReviewCard'
 import reviewCardCss from './ReviewCard.module.css?raw'
 import inspectorCss from '../Inspector/Inspector.module.css?raw'
+import voiceClipCss from '../VoiceClip/VoiceClip.module.css?raw'
 
 const UNKNOWN = { kind: 'unknown', name: 'Unknown speaker 1' } as const
 const CANDIDATES = [
@@ -68,13 +69,11 @@ test('possible match says so', () => {
 })
 
 test('in the inspector a long clip scrolls inside the card, so the buttons stay where they are', () => {
-  expect(reviewCardCss).toMatch(/@container inspector-panel \(min-height: \d+px\) \{[\s\S]*\.clip \{[^}]*min-height: 0;[\s\S]*\.text \{[^}]*min-height: 0;/)
+  // The text inside the clip gives way by the rule in VoiceClip.module.css.
+  expect(reviewCardCss).toMatch(/@container inspector-panel \(min-height: \d+px\) \{[\s\S]*\.clip \{[^}]*min-height: 0;/)
+  expect(voiceClipCss).toMatch(/@container inspector-panel \(min-height: \d+px\) \{[\s\S]*\.text \{[^}]*min-height: 0;/)
   expect(inspectorCss).toMatch(/\.panel \{[^}]*container: inspector-panel \/ size;/)
   expect(inspectorCss).toMatch(/@container inspector-panel \(min-height: \d+px\) \{\s*\.dockBox,\s*\.dockPart,\s*\.dock,\s*\.dockBody \{\s*flex: 0 1 auto;\s*min-height: 0;/)
-})
-
-test('a long clip keeps to a few lines, so the speakers above stay readable', () => {
-  expect(reviewCardCss).toMatch(/\.text \{[^}]*max-height: var\(--size-review-clip-text\);[^}]*overflow-y: auto;/)
 })
 
 test('the clip keeps the heights of its waveform', () => {

@@ -1,0 +1,42 @@
+.voiceClip {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-sunken);
+}
+
+/* The distance from the player is inside what opens, so it opens with it. */
+.textWrap {
+  display: flex;
+  flex-direction: column;
+  padding-block-start: var(--space-2);
+}
+
+.text {
+  max-height: var(--size-review-clip-text);
+  margin: 0;
+  overflow-y: auto;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+/* In the inspector the Review card takes what is left (ReviewCard.module.css), and of
+   the clip only its text gives way. Elsewhere the clip keeps its own height. */
+@container inspector-panel (min-height: 520px) {
+  .voiceClip > * {
+    flex: none;
+  }
+
+  .voiceClip > .textBox,
+  .textWrap {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+
+  .textWrap > .text {
+    flex: 0 1 auto;
+    min-height: 0;
+    padding-inline-end: var(--space-2);
+  }
+}
