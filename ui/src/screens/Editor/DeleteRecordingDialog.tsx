@@ -3,7 +3,7 @@ import { Modal } from '../../components/Modal/Modal'
 import { ModalBody } from '../../components/ModalBody/ModalBody'
 import { ModalFooter } from '../../components/ModalFooter/ModalFooter'
 import { ModalHeader } from '../../components/ModalHeader/ModalHeader'
-import { toast } from '../../components/Toast/toast'
+import { toast } from '../../components/Toast/toast-store'
 import { deleteRecordingPrompt } from './recordings'
 
 export interface RecordingToDelete {

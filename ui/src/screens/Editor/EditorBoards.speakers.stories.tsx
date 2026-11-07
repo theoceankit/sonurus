@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { EditorScreen } from './EditorScreen'
 import styles from './EditorScreen.stories.module.css'
-import { toast } from '../../components/Toast/toast'
+import { toast } from '../../components/Toast/toast-store'
 import { paragraph, standing, waitFor } from './story-helpers'
 
 // The boards of Redesign / Editor / Speakers, with the names of the boards.

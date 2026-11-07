@@ -4,7 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { notImplementedProps, NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
 import { Button } from '../Button/Button'
-import { dismissAllToasts } from '../Toast/toast'
+import { dismissAllToasts } from '../Toast/toast-store'
 import { Menu, MenuAction, MenuDivider, MenuOption, MenuOptions, MenuSection, MenuSurface } from './Menu'
 import css from './Menu.module.css?raw'
 

@@ -1,5 +1,5 @@
 import type { SyntheticEvent } from 'react'
-import { toast } from './components/Toast/toast'
+import { toast } from './components/Toast/toast-store'
 
 // ── Unimplemented controls ─────────────────────────────────────────────────────
 // A control whose feature does not exist yet stays visible, dimmed and

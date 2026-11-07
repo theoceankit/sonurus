@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { ExitSignal } from '../../presence'
 import { cx } from '../../styles/cx'
 import { Icon } from '../Icon/Icon'
-import { dismissToast, removeToast, useToasts, type ToastOptions } from './toast'
+import { dismissToast, removeToast, useToasts, type ToastOptions } from './toast-store'
 import styles from './Toast.module.css'
 
 interface ToastProps extends ToastOptions {

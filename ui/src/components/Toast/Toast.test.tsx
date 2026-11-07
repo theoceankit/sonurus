@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { parseTokens } from '../../styles/tokens'
 import tokensCss from '../../styles/tokens.css?raw'
-import { dismissAllToasts, dismissToast, removeToast, toast, useToasts } from './toast'
+import { dismissAllToasts, dismissToast, removeToast, toast, useToasts } from './toast-store'
 import { Toaster } from './Toast'
 import css from './Toast.module.css?raw'
 

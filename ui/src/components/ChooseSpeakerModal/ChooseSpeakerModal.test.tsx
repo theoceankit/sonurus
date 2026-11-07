@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
-import { dismissAllToasts } from '../Toast/toast'
+import { dismissAllToasts } from '../Toast/toast-store'
 import { ChooseSpeakerModal, type ChooseSpeakerCategory, type ChooseSpeakerRow } from './ChooseSpeakerModal'
 
 afterEach(dismissAllToasts)

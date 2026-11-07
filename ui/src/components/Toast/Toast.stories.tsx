@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { StateMatrix } from '../../foundations/StateMatrix'
 import { Button } from '../Button/Button'
 import { Inline } from '../Inline/Inline'
-import { toast } from './toast'
+import { toast } from './toast-store'
 import { Toast } from './Toast'
 
 const meta: Meta<typeof Toast> = { component: Toast }

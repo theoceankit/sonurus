@@ -4,7 +4,7 @@ import { useSpeakerCandidates, useSpeakers, useTranscript } from '../../api/quer
 import { effectiveSpeaker } from '../../api/types'
 import { ChooseSpeakerModal } from '../../components/ChooseSpeakerModal/ChooseSpeakerModal'
 import { NewSpeakerModal } from '../../components/NewSpeakerModal/NewSpeakerModal'
-import { toast } from '../../components/Toast/toast'
+import { toast } from '../../components/Toast/toast-store'
 import { hasSpeakerNamed, leastUsedColorIndex } from './new-speaker'
 import { chooseSpeakerList, preselectedSpeaker } from './speaker-search'
 

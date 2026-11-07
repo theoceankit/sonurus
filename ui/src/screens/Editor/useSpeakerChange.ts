@@ -1,6 +1,6 @@
 import type { SpeakerTarget } from '../../api/client'
 import { useAssignSpeaker, useSpeakers, useUndoSpeakerAssignment } from '../../api/queries'
-import { toast } from '../../components/Toast/toast'
+import { toast } from '../../components/Toast/toast-store'
 
 export interface SpeakerChange {
   transcriptId: number
