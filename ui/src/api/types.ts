@@ -19,6 +19,8 @@ export type QueueJobUpdate = Schemas['JobUpdateRequest']
 export type QueueStartMode = Schemas['QueueSettingsRequest']['start_mode']
 export type GpuStatus = Schemas['GpuStatus']
 export type DataResetSummary = Schemas['DataResetResponse']
+// A system audio source the backend can capture, by the name of its output device.
+export type AudioSource = Schemas['AudioSource']
 export type JobDoneEvent = Schemas['JobDoneEvent']
 export type JobFailedEvent = Schemas['JobFailedEvent']
 export type HeartbeatEvent = Schemas['HeartbeatEvent']

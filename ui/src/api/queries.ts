@@ -17,6 +17,7 @@ export const queryKeys = {
   waveform: (id: number, { bars, start, end }: WaveformStretch) => ['waveform', id, bars, start, end],
   queue: ['queue'],
   models: ['models'],
+  captureSources: ['captureSources'],
   connected: ['connected'],
 } satisfies Record<string, QueryKey | ((...args: never[]) => QueryKey)>
 
@@ -89,6 +90,13 @@ export function useModels() {
 export function useQueue() {
   const api = useApi()
   return useQuery({ queryKey: queryKeys.queue, queryFn: () => api.getQueue() })
+}
+
+// The system audio sources. Asked again each time a screen that shows them mounts:
+// an output device may have come or gone.
+export function useCaptureSources() {
+  const api = useApi()
+  return useQuery({ queryKey: queryKeys.captureSources, queryFn: () => api.listCaptureSources(), refetchOnMount: 'always' })
 }
 
 // Whether WS /ws/queue is up, kept by useQueueEventsSync.

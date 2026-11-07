@@ -5,7 +5,7 @@ import { BOARDS } from './boards'
 import { DESIGN_REVIEW_ID, GONE_AUDIO_IDS, QUEUE_JOB, queueSnapshot, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
 import { EVENT_SCRIPTS } from './event-scripts'
 import type { ApiClient } from '../client'
-import { createFixtureClient, NO_MODELS } from './fixture-client'
+import { BROKEN_SOURCE, createFixtureClient, NO_MODELS } from './fixture-client'
 import { DEFAULT_INSTALLED } from './models'
 import { ALIGNMENT_MODELS } from '../../transcribe/languages'
 
@@ -614,5 +614,33 @@ describe('the speakers section', () => {
       await vi.waitFor(async () => expect(await client.getQueue()).toMatchObject(changes))
       await expect(client.deleteSpeaker(anna)).rejects.toMatchObject({ status: 409 })
     }
+  })
+})
+
+describe('live recording', () => {
+  test('lists system audio sources, none when asked for none', async () => {
+    expect((await createFixtureClient().listCaptureSources()).map(s => s.label)).toEqual(['System audio (default)', 'AD107 High Definition Audio Controller Digital Stereo (HDMI) [SAMSUNG]', 'WH-1000XM5'])
+    await expect(createFixtureClient({ captureSources: [] }).listCaptureSources()).resolves.toEqual([])
+  })
+
+  test('a capture runs until it is stopped; a source that cannot run is refused', async () => {
+    const client = createFixtureClient()
+    const job = await client.startCapture('@DEFAULT_MONITOR@')
+    await expect(client.stopCapture(job, '/data/recordings/mic.webm')).resolves.toMatch(/\.wav$/)
+    await expect(client.stopCapture(job)).rejects.toMatchObject({ status: 404 })
+    await expect(client.startCapture(BROKEN_SOURCE)).rejects.toMatchObject({ status: 400 })
+  })
+
+  test('an uploaded recording gets a path in the recordings', async () => {
+    await expect(createFixtureClient().uploadRecording(new Blob(['x'], { type: 'audio/webm' }))).resolves.toMatch(/^\/.*recordings\/sonorus-rec-.*\.webm$/)
+  })
+
+  test('a recording pauses a running queue and resumes it after; a queue paused before stays paused', async () => {
+    const client = createFixtureClient()
+    await expect(client.startQueueRecording()).resolves.toMatchObject({ recording: true, paused: true, paused_by_recording: true })
+    await expect(client.stopQueueRecording()).resolves.toMatchObject({ recording: false, paused: false, paused_by_recording: false })
+    await client.pauseQueue()
+    await expect(client.startQueueRecording()).resolves.toMatchObject({ recording: true, paused: true, paused_by_recording: false })
+    await expect(client.stopQueueRecording()).resolves.toMatchObject({ recording: false, paused: true })
   })
 })
