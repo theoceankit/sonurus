@@ -20,6 +20,7 @@ export const NOT_IMPLEMENTED = [
   'new-speaker.handle',
   'settings.app-language',
   'settings.export',
+  'settings.search',
   'new-transcription.diarize',
   'titlebar.back',
   'titlebar.forward',

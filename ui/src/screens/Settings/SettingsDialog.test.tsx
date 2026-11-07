@@ -108,3 +108,16 @@ test('App language is not available yet', async () => {
   const appLanguage = field('App language').closest('[data-not-implemented]')
   expect(appLanguage?.getAttribute('data-not-implemented')).toBe('settings.app-language')
 })
+
+test('opening puts the focus on the section, not on its first control', async () => {
+  await setup()
+  const settings = await openSettings()
+  await waitFor(() => expect(document.activeElement).toBe(within(settings).getByRole('tab', { name: 'General' })))
+})
+
+test('a search over the sections is there and not available yet', async () => {
+  await setup()
+  const settings = await openSettings()
+  const search = within(settings).getByRole('searchbox', { name: 'Search settings' })
+  expect(search.closest('[data-not-implemented]')?.getAttribute('data-not-implemented')).toBe('settings.search')
+})

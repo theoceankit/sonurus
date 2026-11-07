@@ -54,6 +54,7 @@ export const Vertical: Story = {
         <NavTab value="alignment" icon="alignment">Alignment</NavTab>
       </div>
     ),
+    header: <span>Search</span>,
     footer: <span>Sonorus 0.3.0</span>,
     children: (
       <>

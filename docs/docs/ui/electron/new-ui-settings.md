@@ -16,7 +16,7 @@ Settings in the new UI (`ui/src/screens/Settings/`) are one large modal with the
 
 Without a provider, as for a screen alone in a story or a test, `open` does nothing.
 
-`SettingsDialog` is `Modal size="large"` with `Tabs orientation="vertical"`: a `NavTab` per section, the version line under them (`formatAppVersion` of `getAppVersion()`: "Sonorus 0.3.0", "Sonorus" alone without a version) and the panel of the section next to them. The window keeps one height (`--size-settings-height`) whatever the section, down to what a small window leaves; the panel scrolls.
+`SettingsDialog` is `Modal size="large"` with `Tabs orientation="vertical"`: a search over the sections, marked with `markNotImplemented()` until settings can be found by name, a `NavTab` per section, the version line under them (`formatAppVersion` of `getAppVersion()`: "Sonorus 0.3.0", "Sonorus" alone without a version) and the panel of the section next to them. Opening puts the focus on the selected section in the column, not on the first control of its panel. The window keeps one height (`--size-settings-height`) whatever the section, down to what a small window leaves; the panel scrolls.
 
 ## General
 

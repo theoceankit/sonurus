@@ -2,6 +2,8 @@ import { useEffect, useState, type ComponentType } from 'react'
 import { Modal } from '../../components/Modal/Modal'
 import { ModalHeader } from '../../components/ModalHeader/ModalHeader'
 import { NavTab } from '../../components/NavTab/NavTab'
+import { SearchField } from '../../components/SearchField/SearchField'
+import { markNotImplemented } from '../../not-implemented'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { TabPanel, Tabs } from '../../components/Tabs/Tabs'
 import { AlignmentSection } from './AlignmentSection'
@@ -75,7 +77,14 @@ export function SettingsDialog({ open, section, onSectionChange, onClose, previe
         value={current.id}
         onValueChange={value => onSectionChange(value as SettingsSection)}
         className={styles.columns}
-        tabs={sections.map(entry => <NavTab key={entry.id} value={entry.id} icon={entry.icon}>{entry.label}</NavTab>)}
+        header={(
+          // For finding a setting by name later on; not there yet.
+          <div {...markNotImplemented('settings.search')}>
+            <SearchField aria-label="Search settings" placeholder="Search settings" value="" onValueChange={() => {}} readOnly />
+          </div>
+        )}
+        // Opening starts on the section, not on its first control.
+        tabs={sections.map(entry => <NavTab key={entry.id} value={entry.id} icon={entry.icon} {...(entry.id === current.id ? { 'data-modal-start': true } : {})}>{entry.label}</NavTab>)}
         footer={<span className={styles.version}>{version}</span>}
       >
         <div className={styles.content}>
