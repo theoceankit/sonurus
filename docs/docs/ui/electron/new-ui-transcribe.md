@@ -21,14 +21,16 @@ There is no built-in default. Electron's settings keep the default Whisper model
 3. Otherwise the most accurate installed model: the last one in catalog order, from `tiny` to `large-v3`.
 4. With no Whisper model installed, none.
 
-A saved model that is not installed is therefore never used. The new UI works this out each time and does not save the result; the old UI saves it and says so in a toast when it changes (`syncTranscribeModel` in `electron/renderer/transcription-model.js`).
+A saved model that is not installed is therefore never used.
+
+Like the old UI (`syncTranscribeModel`), the new one saves the default when it changes. `useDefaultModelSync()`, called once by `App`, works it out again with every new answer of `GET /models`, so the first model downloaded and the default deleted are the same step. `defaultModelChange(previous, models, saved)` compares the saved model as it was installed in the catalog before with the default now: a change is saved with its history and said in a toast, "Whisper Tiny is now the default transcription model" or "No transcription model installed — download one in Settings". The first answer is the baseline: an installed default stays silently, a saved one that is no longer installed is replaced at once. Picking a model in Settings saves it with `selectTranscribeModel(id)` (`ui/src/platform/transcribe-defaults.ts`), the latest of the history, without a toast.
 
 ## Downloads
 
 `useModelDownloads()` in `model-downloads.ts` holds the model downloads of the app, one store per API client: a screen that starts a download and one that only shows the model see the same download, and it goes on when the screen closes. `GET /models` does not tell of running downloads; this does.
 
 - `start(id)` sends `POST /models/{id}/download` with the HuggingFace token of the settings (`hfToken`) and follows `WS /ws/models/{job_id}`. A second start of a running download does nothing, and the backend also joins a second request for the same model to the running job.
-- `download(id)` is `{ pct }` while it runs, else null. `outcome(id)` says how the last download here ended: `done`, `failed` (an error of the backend, a refused start or a lost connection) or `cancelled`. Starting again clears it.
+- `download(id)` is `{ pct }` while it runs, else null. `outcome(id)` says how the last download here ended: `done`, `failed` (an error of the backend, a refused start or a lost connection) or `cancelled`. `error(id)` is why a failed one failed, in the words of the backend, the refusal or "The connection to the backend was lost.". Starting again clears both.
 - `cancel(id)` sends `DELETE /models/{id}/download/{job_id}`. A cancel before the backend answered the start stops the job once it does.
 - A finished download reads the catalog again, so the model shows as installed everywhere.
 
@@ -40,7 +42,7 @@ A job in a language whose alignment model is not downloaded fails mid-pipeline w
 - **Offer.** The language, its name in itself and the size of the model, with Download and Dismiss.
 - **Downloading.** The progress in per cent, with Cancel, which stops the download and closes the dialog. The download is the app's ([Downloads](#downloads)): a download of the model started elsewhere shows here as progress, and closing the dialog leaves it running.
 - **Ready.** The model is installed, also when it already was by the time the dialog opened. One button, Retry transcription or Retry N transcriptions, puts every job that failed on this model back at the end of the queue, in queue order (`POST /queue/jobs/{id}/retry`); a refusal is a toast. With no such job left there is only Close.
-- **Failed.** The last download of the model from this dialog ended without it. Try again starts it anew; Open Settings is marked with `markNotImplemented()` until the new UI has Settings.
+- **Failed.** The last download of the model from this dialog ended without it. Try again starts it anew; Open Settings closes the dialog and opens [Settings](new-ui-settings.md).
 
 ## Job settings dialog
 

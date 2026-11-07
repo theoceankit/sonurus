@@ -1,5 +1,6 @@
 import createClient from 'openapi-fetch'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from './client'
+import { watchGpuDownload, type GpuRestartAnswer } from './gpu-events'
 import { watchModelDownload } from './model-download-events'
 import { connectQueueEvents } from './queue-events'
 import type { paths } from './schema.gen'
@@ -90,15 +91,28 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     cancelModelDownload: async (model_id, job_id) => {
       await send(http.DELETE('/models/{model_id}/download/{job_id}', { params: { path: { model_id, job_id } } }))
     },
+    deleteModel: async model_id => { await send(http.DELETE('/models/{model_id}', { params: { path: { model_id } } })) },
     watchModelDownload: (jobId, listener) => watchModelDownload(
       `${baseUrl.replace(/^http/, 'ws')}/ws/models/${jobId}`, listener, options.WebSocketImpl,
     ),
+    getGpuStatus: () => send(http.GET('/gpu')),
+    startGpuDownload: async () => {
+      // The schema leaves the answer untyped: it is { job_id }.
+      const answer = await send(http.POST('/gpu/download'))
+      return (answer as { job_id: string }).job_id
+    },
+    cancelGpuDownload: async job_id => { await send(http.DELETE('/gpu/download/{job_id}', { params: { path: { job_id } } })) },
+    watchGpuDownload: (jobId, listener) => watchGpuDownload(`${baseUrl.replace(/^http/, 'ws')}/ws/gpu/${jobId}`, listener, options.WebSocketImpl),
+    removeGpuPack: async () => { await send(http.DELETE('/gpu/pack')) },
+    requestGpuRestart: async () => (await send(http.POST('/gpu/restart'))) as GpuRestartAnswer,
+    resetData: () => send(http.POST('/data/reset')),
     getQueue: () => send(http.GET('/queue')),
     addQueueJob: ({ audioPath, whisperModel, language, title }) => send(http.POST('/queue/jobs', {
       body: { audio_path: audioPath, whisper_model: whisperModel, language, ...(title ? { title } : {}) },
     })),
     updateQueueJob: (job_id, body) => send(http.PATCH('/queue/jobs/{job_id}', { params: { path: { job_id } }, body })),
     retryQueueJob: job_id => send(http.POST('/queue/jobs/{job_id}/retry', { params: { path: { job_id } } })),
+    setQueueStartMode: start_mode => send(http.PUT('/queue/settings', { body: { start_mode } })),
     subscribeQueueEvents: (listener, onConnection) => connectQueueEvents({
       url: `${baseUrl.replace(/^http/, 'ws')}/ws/queue`,
       onEvent: listener,

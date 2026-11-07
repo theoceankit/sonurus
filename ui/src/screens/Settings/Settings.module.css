@@ -1,0 +1,108 @@
+.languageNotice {
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border: var(--border-width-default) solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font: var(--font-body);
+}
+
+.scale {
+  width: 100%;
+}
+
+/* As wide as the widest value, so the slider does not move as the number changes. */
+.scaleValue {
+  flex: none;
+  min-width: var(--size-control-lg);
+  color: var(--color-text-secondary);
+  font: var(--font-caption-strong);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.stretch {
+  width: 100%;
+}
+
+.quiet {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.gpuHead {
+  font: var(--font-body);
+}
+
+.gpuName {
+  color: var(--color-text-primary);
+  font: var(--font-body-strong);
+}
+
+.gpuDetail {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.gpuTrack {
+  flex: 1;
+  height: var(--size-progress);
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-muted);
+}
+
+.gpuFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent-fg);
+  transition: width var(--duration-slow) var(--ease-standard);
+}
+
+.gpuPct {
+  min-width: var(--size-control-lg);
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gpuFill {
+    transition: none;
+  }
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.blocked {
+  display: inline-flex;
+  border-radius: var(--radius-md);
+  outline: none;
+}
+
+.blocked:focus-visible {
+  outline: var(--border-width-strong) solid var(--color-focus);
+}
+
+/* A word in a sentence that goes somewhere else in Settings. */
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent-fg);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.link:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: var(--border-width-focus) solid var(--color-focus);
+}

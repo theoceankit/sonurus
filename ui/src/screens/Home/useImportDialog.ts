@@ -6,6 +6,7 @@ import { toast } from '../../components/Toast/toast-store'
 import { readTranscribeSettings, transcribeSettings, type TranscribeSettings } from '../../platform/transcribe-defaults'
 import { NOTHING_PICKED, transcribeChoice, type Picked } from '../../transcribe/choice'
 import { apiLanguage } from '../../transcribe/languages'
+import { useSettingsDialog } from '../Settings/SettingsProvider'
 import type { ImportDialogProps } from './ImportDialog'
 import {
   addFiles, defaultTitle, fileName, importFailure, importingMessage, queueTitles, skippedMessage, watchFileDrags, type ImportFailure, type ImportFile,
@@ -49,6 +50,7 @@ export function useImportDialog() {
   const { refetch: refetchModels } = models
   const [settings, setSettings] = useState<TranscribeSettings>(() => transcribeSettings(undefined))
   const [openedAt, setOpenedAt] = useState(() => api.now())
+  const settingsDialog = useSettingsDialog()
 
   // Each opening starts from the last known catalog and asks for a fresh one, and
   // reads the defaults again: Settings may have changed them.
@@ -127,6 +129,10 @@ export function useImportDialog() {
     onRemove: remove,
     onImport: () => void importFiles(),
     onClose: close,
+    onOpenSettings: section => {
+      close()
+      settingsDialog.open(section)
+    },
   }
   return { open, dialog }
 }

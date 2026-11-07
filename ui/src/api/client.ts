@@ -1,6 +1,7 @@
 import type {
-  ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
+  DataResetSummary, GpuStatus, ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
+import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
 
 // status 0: the request never got an answer.
@@ -61,8 +62,23 @@ export interface ApiClient {
   // job. The token is for gated models on HuggingFace.
   startModelDownload(modelId: string, hfToken: string | null): Promise<string>
   cancelModelDownload(modelId: string, jobId: string): Promise<void>
+  // Refused with a 409 while the running transcription needs the model.
+  deleteModel(modelId: string): Promise<void>
   // The progress of a download until it ends. Returns what stops listening.
   watchModelDownload(jobId: string, listener: (event: ModelDownloadEvent) => void): () => void
+  // GPU acceleration of the packaged app: what is there, the one CUDA download, its
+  // removal, and whether the backend may restart now to apply either.
+  getGpuStatus(): Promise<GpuStatus>
+  // Refused with a 409 while the GPU does not qualify or a download runs.
+  startGpuDownload(): Promise<string>
+  cancelGpuDownload(jobId: string): Promise<void>
+  watchGpuDownload(jobId: string, listener: (event: GpuDownloadEvent) => void): () => void
+  removeGpuPack(): Promise<void>
+  // A 409 when there is nothing to apply.
+  requestGpuRestart(): Promise<GpuRestartAnswer>
+  // Deletes every transcript, speaker and recording made in the app. Refused with a
+  // 409 while a transcription or a recording runs.
+  resetData(): Promise<DataResetSummary>
   getQueue(): Promise<QueueSnapshot>
   // The backend copies the file and answers the waiting job, or 400 when a model the
   // job needs is not installed or the file cannot be read.
@@ -73,6 +89,8 @@ export interface ApiClient {
   // A failed job waits again, at the end of the queue. Refused with a 400 when a model it
   // needs is still not installed, 409 when the job has not failed.
   retryQueueJob(jobId: string): Promise<QueueJob>
+  // Whether new jobs start on their own or wait for Start; the backend keeps it.
+  setQueueStartMode(startMode: QueueStartMode): Promise<QueueSnapshot>
   // The listener first gets the current snapshot. onConnection is told when the
   // connection is lost and when it is back. Returns the unsubscribe.
   subscribeQueueEvents(listener: (event: QueueUpdate) => void, onConnection?: (connected: boolean) => void): () => void

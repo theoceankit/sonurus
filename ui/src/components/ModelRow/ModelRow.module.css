@@ -1,0 +1,128 @@
+.modelRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+
+.usable {
+  cursor: pointer;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-lg);
+  height: var(--size-control-lg);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-muted);
+  color: var(--color-text-secondary);
+}
+
+.selected .icon {
+  background: var(--color-accent-bg);
+  color: var(--color-accent-fg);
+}
+
+.selected {
+  margin-inline: calc(var(--space-2) * -1);
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-bg);
+}
+
+.defaultText {
+  color: var(--color-accent-fg);
+  font: var(--font-caption-strong);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-half);
+  min-width: 0;
+}
+
+.nameRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-2);
+  row-gap: var(--space-half);
+  min-width: 0;
+}
+
+.name {
+  color: var(--color-text-primary);
+  font: var(--font-body-strong);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-3);
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.track {
+  flex: 1;
+  height: var(--size-progress);
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-muted);
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent-fg);
+  transition: width var(--duration-slow) var(--ease-standard);
+}
+
+.pct {
+  min-width: var(--size-control-lg);
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.error {
+  color: var(--color-danger-fg);
+  font: var(--font-caption);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  min-width: var(--size-model-actions);
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.blocked {
+  display: inline-flex;
+  border-radius: var(--radius-md);
+  outline: none;
+}
+
+.blocked:focus-visible {
+  outline: var(--border-width-strong) solid var(--color-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+}

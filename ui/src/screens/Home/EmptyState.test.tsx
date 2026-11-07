@@ -4,14 +4,14 @@ import { afterEach, expect, test } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
-import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
 import { EditorScreen } from '../Editor/EditorScreen'
+import { SettingsProvider } from '../Settings/SettingsProvider'
 
 afterEach(dismissAllToasts)
 
 const setup = (options: FixtureOptions) => render(
-  <ApiProvider client={createFixtureClient(options)}><OverlayProvider><EditorScreen /></OverlayProvider></ApiProvider>,
+  <ApiProvider client={createFixtureClient(options)}><OverlayProvider><SettingsProvider><EditorScreen /></SettingsProvider></OverlayProvider></ApiProvider>,
 )
 const centre = () => screen.getByRole('main', { name: 'Transcript' })
 const HINT = /To make a new transcription, press/
@@ -20,10 +20,8 @@ test('with no recordings the centre says how to make one and where the models ar
   setup({ scenario: 'empty' })
   expect(await within(centre()).findByText(HINT)).toBeTruthy()
   expect(within(centre()).getByRole('img', { name: 'plus' })).toBeTruthy()
-  const settings = within(centre()).getByRole('button', { name: 'Settings' })
-  expect(settings.getAttribute('data-not-implemented')).toBe('home.settings')
-  await userEvent.click(settings)
-  expect((await screen.findAllByText(NOT_IMPLEMENTED_TOAST)).length).toBeGreaterThan(0)
+  await userEvent.click(within(centre()).getByRole('button', { name: 'Settings' }))
+  expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy()
 })
 
 test('loading the list is not empty', async () => {

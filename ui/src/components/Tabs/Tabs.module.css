@@ -1,5 +1,34 @@
 .list {
   display: flex;
+}
+
+.horizontal {
   align-items: center;
   gap: var(--space-4);
+}
+
+.vertical {
+  flex-direction: column;
+  gap: var(--space-half);
+}
+
+.columns {
+  display: flex;
+  min-height: 0;
+}
+
+.side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
 }

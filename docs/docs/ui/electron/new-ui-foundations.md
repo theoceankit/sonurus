@@ -86,7 +86,7 @@ Both take `as`, `align`, `justify`, `className`, `ref` and other props of the el
 
 ## Base controls
 
-`Button`, `IconButton`, `Avatar`, `AvatarStack`, `Tab`, `Tabs`, `TextField`, `SearchField`, `MenuItem`, `Disclosure`, `ColorSwatch`, `ColorPicker`, `Kbd`, `Badge`, `SectionHeader` and `MetaItem`, in `ui/src/components/`, named after their Penpot components.
+`Button`, `IconButton`, `Avatar`, `AvatarStack`, `Tab`, `Tabs`, `NavTab`, `Toggle`, `Slider`, `TextField`, `SearchField`, `MenuItem`, `Disclosure`, `ColorSwatch`, `ColorPicker`, `Kbd`, `Badge`, `SectionHeader` and `MetaItem`, in `ui/src/components/`, named after their Penpot components.
 
 Penpot's Type is the `variant` prop, because `type` on a button is the HTML attribute. Pairs that do not exist on the boards, such as an inverse button at medium size, are type errors. `Tabs`, `ColorPicker` and `Disclosure` are built on Radix Primitives, which bring the arrow keys and the tab order; `Tab` works only inside `Tabs`, `ColorSwatch` only inside a radio group. `Button`, `IconButton` and `MenuItem` pass on `ref` and other attributes, so Radix can wrap them with `asChild`.
 
@@ -119,6 +119,18 @@ Only `Avatar` works out initials; a test in `Avatar.test.tsx` fails if anything 
 A first Escape in a filled field clears it and goes no further; in an empty field it goes on, so a dialog around the field can close. Radix layers listen for Escape on the document in the capture phase, before any handler on the field, so the field listens on the window in the same phase while it is filled.
 
 `TextField` has no reaction of its own to Escape: cancelling an edit belongs to the screen.
+
+### Settings controls
+
+Settings brought controls that the Editor boards do not have; they follow the Editor's look and tokens.
+
+- `Toggle` is an on/off `switch` that acts at once. It has no visible text of its own: `label` is what assistive technology reads, and the row next to it shows the words.
+- `Slider` is vertical for the player's volume. `orientation="horizontal"` fills the width it is given; `marks` put labels under the track, the end ones inside the slider's width, and `valueText` is what assistive technology reads for a value such as 125%. `onCommit` comes when the pointer lets go or a key is released, for what is costly to apply.
+- `Tabs` with `orientation="vertical"` is a column of `NavTab` rows (icon and label, the selected one filled as in the sidebar) with its panels next to it; up and down move through the column. `header` sits over the column, such as a search; `footer` under it, apart from the tabs.
+- `FieldRow` is one setting: label and hint on the left, the control on the right at most `--size-field-control` wide, so a control never runs past its card at any window width. `stacked` puts the control under the label at the full width, for a slider with marks or a long field; `note` goes under the row. The row is a `group` named by its label; the control still has its own name.
+- `Badge` has a medium size for a status that stands alone, such as the state of a card in Settings: the height of an extra small control and room around the text.
+- `ModelRow` is one model of the catalog: an icon, the name with badges, size and the like as separate items, and the buttons of its state, which say the state without words next to them (Download; the percentage and Cancel; Use and delete; the reason and Retry). Its buttons line up in every row. A delete that cannot happen now is off with the reason in a tooltip. The default model's row is tinted, with Default under its name.
+- `SectionCard` holds the rows that belong together, divided by lines, with an optional title, description, action next to the title and footer under the rows.
 
 ## ScrollBar
 
@@ -304,7 +316,7 @@ What Penpot could make only by detaching a copy is plain children here. `ModalBo
 
 `ModalFooter` takes the colour of Confirm from the type of the modal. `cancel` is by default a Cancel that closes; given an `onClick`, it does that and stays open, as Back does; `null` leaves it out.
 
-Tab stays inside, and Escape, the scrim, Cancel and the close button close. Focus starts on the first control of the body, then the footer, never on the close button first. A danger modal has the `alertdialog` role and starts on Cancel, so that an Enter pressed too soon deletes nothing. It is not a Radix AlertDialog, which would not close on the scrim. On closing, focus returns to what was focused before, and for a window opened from a menu, to the menu's button.
+Tab stays inside, and Escape, the scrim, Cancel and the close button close. Focus starts on the first control of the body, then the footer, never on the close button first. A danger modal has the `alertdialog` role and starts on Cancel, so that an Enter pressed too soon deletes nothing. It is not a Radix AlertDialog, which would not close on the scrim. On closing, focus returns to what was focused before, and for a window opened from a menu, to the menu's button. When that is gone by then, such as the row of a deleted model or a dialog that closed to open this one, focus goes to the window still open under it. A window opened over another one, such as a confirmation over Settings, is a layer of its own: Escape, its scrim and Cancel close only it. Its scrim dims the window under it again; `scrim="clear"` leaves the dimming to the scrim already there.
 
 `preview` draws the window in place, without scrim and focus trap, for a board of variants in a story.
 

@@ -1,7 +1,8 @@
 import { expect, test } from 'vitest'
 import { fixtureModels } from '../api/fixtures/models'
 import {
-  blockMessage, installedWhisperModels, jobBlockReason, missingAlignmentModel, modelState, pushModelHistory, resolveTranscribeModel,
+  blockMessage, defaultModelChange, defaultModelMessage, installedWhisperModels, jobBlockReason, missingAlignmentModel, modelState, pushModelHistory,
+  resolveTranscribeModel, selectedModel,
 } from './models'
 
 test('resolveTranscribeModel: nothing installed, no model', () => {
@@ -63,4 +64,48 @@ test('blockMessage: what is missing, the language by its name', () => {
 
 test('no model is the default by itself: the Whisper model always comes from the catalog', () => {
   expect(modelState(fixtureModels(['diarize'])).model).toBeNull()
+})
+
+const catalog = (...installed: string[]) => fixtureModels(installed)
+
+test('defaultModelChange: nothing installed, nothing to save', () => {
+  expect(defaultModelChange(null, catalog(), {})).toBeNull()
+  expect(defaultModelChange(null, catalog(), { transcribeModel: 'small' })).toBeNull()
+})
+
+test('defaultModelChange: an installed default at start stays silently', () => {
+  expect(defaultModelChange(null, catalog('base', 'diarize'), { transcribeModel: 'base', transcribeModelHistory: ['base'] })).toBeNull()
+})
+
+test('defaultModelChange: the first downloaded model becomes the default', () => {
+  expect(defaultModelChange(catalog(), catalog('tiny'), {})).toEqual({ transcribeModel: 'tiny', transcribeModelHistory: ['tiny'] })
+})
+
+test('defaultModelChange: a saved default that is gone at start is replaced', () => {
+  expect(defaultModelChange(null, catalog('tiny'), { transcribeModel: 'base', transcribeModelHistory: ['base'] }))
+    .toEqual({ transcribeModel: 'tiny', transcribeModelHistory: ['base', 'tiny'] })
+})
+
+test('defaultModelChange: the default deleted, the previous one of the history', () => {
+  expect(defaultModelChange(catalog('tiny', 'base'), catalog('tiny'), { transcribeModel: 'base', transcribeModelHistory: ['tiny', 'base'] }))
+    .toEqual({ transcribeModel: 'tiny', transcribeModelHistory: ['base', 'tiny'] })
+})
+
+test('defaultModelChange: the default deleted with nothing of the history left, the most accurate one', () => {
+  expect(defaultModelChange(catalog('small', 'large-v3'), catalog('large-v3'), { transcribeModel: 'small', transcribeModelHistory: ['small'] })?.transcribeModel)
+    .toBe('large-v3')
+})
+
+test('defaultModelChange: the last model deleted, no default, the history kept', () => {
+  expect(defaultModelChange(catalog('tiny'), catalog(), { transcribeModel: 'tiny', transcribeModelHistory: ['tiny'] }))
+    .toEqual({ transcribeModel: null, transcribeModelHistory: ['tiny'] })
+})
+
+test('selectedModel: the pick becomes the latest of the history', () => {
+  expect(selectedModel({ transcribeModel: 'tiny', transcribeModelHistory: ['tiny'] }, 'base')).toEqual({ transcribeModel: 'base', transcribeModelHistory: ['tiny', 'base'] })
+})
+
+test('defaultModelMessage: the new default by its name, or that there is none', () => {
+  expect(defaultModelMessage('tiny', catalog())).toBe('Whisper Tiny is now the default transcription model')
+  expect(defaultModelMessage(null, catalog())).toBe('No transcription model installed — download one in Settings')
 })

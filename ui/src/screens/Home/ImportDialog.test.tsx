@@ -9,6 +9,7 @@ import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { EditorScreen } from '../Editor/EditorScreen'
+import { SettingsProvider } from '../Settings/SettingsProvider'
 
 afterEach(() => {
   dismissAllToasts()
@@ -18,7 +19,7 @@ afterEach(() => {
 function setup(options: FixtureOptions = {}, chosen: string[] = []) {
   const client = createFixtureClient(options)
   vi.stubGlobal('electronAPI', createMockElectronAPI({ openFiles: async () => chosen }))
-  render(<ApiProvider client={client}><OverlayProvider><EditorScreen /></OverlayProvider></ApiProvider>)
+  render(<ApiProvider client={client}><OverlayProvider><SettingsProvider><EditorScreen /></SettingsProvider></OverlayProvider></ApiProvider>)
   return client
 }
 
@@ -131,7 +132,7 @@ describe('importing', () => {
     expect(await screen.findByText('Importing Team call.m4a…')).toBeTruthy()
   })
 
-  test('a model refused by the backend shows in the dialog, with Settings not there yet', async () => {
+  test('a model refused by the backend shows in the dialog, with a way to Settings', async () => {
     // The catalog said it was there; it went before the job did.
     setup({ overrides: { addQueueJob: () => Promise.reject(new ApiError(400, NO_MODELS)) } }, ['/in/a.mp3'])
     await openByButton()
@@ -141,10 +142,9 @@ describe('importing', () => {
     expect(alert.textContent).toContain(NO_MODELS)
     expect(dialog()).toBeTruthy()
     expect(listed()).toEqual(['a.mp3'])
-    const settings = within(alert).getByRole('button', { name: 'Open Settings' })
-    expect(settings.getAttribute('data-not-implemented')).toBe('import.open-settings')
-    await userEvent.click(settings)
-    expect((await screen.findAllByText(NOT_IMPLEMENTED_TOAST)).length).toBeGreaterThan(0)
+    await userEvent.click(within(alert).getByRole('button', { name: 'Open Settings' }))
+    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy()
+    await waitFor(() => expect(dialog()).toBeNull())
   })
 
   test('a backend that does not answer is said in the dialog, with no link to Settings', async () => {
@@ -195,7 +195,7 @@ describe('title, model and language', () => {
     const client = createFixtureClient(options)
     return saved(settings).then(bridge => {
       vi.stubGlobal('electronAPI', { ...bridge, openFiles: async () => chosen })
-      render(<ApiProvider client={client}><OverlayProvider><EditorScreen /></OverlayProvider></ApiProvider>)
+      render(<ApiProvider client={client}><OverlayProvider><SettingsProvider><EditorScreen /></SettingsProvider></OverlayProvider></ApiProvider>)
       return client
     })
   }
@@ -287,16 +287,31 @@ describe('title, model and language', () => {
     [{ noModels: true }, 'auto', 'No transcription model installed'],
     [{ installedModels: ['small'] }, 'auto', 'Diarization model not installed'],
     [{}, 'ru', 'Alignment model for Русский is not installed'],
-  ])('without a model a job needs it says which, with Settings not there yet, and Import is off (%o, %s)', async (options, language, message) => {
+  ])('without a model a job needs it says which, with a way to Settings, and Import is off (%o, %s)', async (options, language, message) => {
     const client = await setupWith(options, ['/in/a.mp3'], { transcribeLang: language })
     await openByButton()
     const notice = await screen.findByRole('status')
     expect(notice.textContent).toContain(message)
-    expect(within(notice).getByRole('button', { name: 'Download in Settings' }).getAttribute('data-not-implemented')).toBe('new-transcription.open-settings')
     await choose()
     expect(listed()).toEqual(['a.mp3'])
     expect(importButton()).toHaveProperty('disabled', true)
     expect((await client.getQueue()).jobs).toEqual([])
+    expect(within(notice).getByRole('button', { name: 'Download in Settings' })).toBeTruthy()
+  })
+
+  test('for an alignment model, Download in Settings opens its section', async () => {
+    await setupWith({}, [], { transcribeLang: 'ru' })
+    await openByButton()
+    await userEvent.click(within(await screen.findByRole('status')).getByRole('button', { name: 'Download in Settings' }))
+    expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Languages', selected: true })).toBeTruthy()
+  })
+
+  test('Download in Settings closes the dialog for Settings', async () => {
+    await setupWith({ noModels: true }, [])
+    await openByButton()
+    await userEvent.click(within(await screen.findByRole('status')).getByRole('button', { name: 'Download in Settings' }))
+    expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
+    await waitFor(() => expect(dialog()).toBeNull())
   })
 
   test('a language whose alignment model is not downloaded is off; picking Detect lets the import go', async () => {

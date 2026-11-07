@@ -39,6 +39,8 @@ export interface ImportDialogProps {
   onRemove: (path: string) => void
   onImport: () => void
   onClose: () => void
+  // Closes the dialog for Settings, on the section where the missing model is downloaded.
+  onOpenSettings?: (section: 'models' | 'alignment') => void
   onExited?: () => void
   // Drawn in place, for a board of states.
   preview?: boolean
@@ -48,7 +50,7 @@ export interface ImportDialogProps {
 // a model and a language for this run.
 export function ImportDialog({
   open, over, files, title, defaultTitle, onTitleChange, choice, onModelChange, onLanguageChange,
-  failure, importing, onChooseFiles, onRemove, onImport, onClose, onExited, preview,
+  failure, importing, onChooseFiles, onRemove, onImport, onClose, onOpenSettings, onExited, preview,
 }: ImportDialogProps) {
   const several = files.length > 1
   const ready = !choice.checking && !choice.blocked
@@ -86,9 +88,9 @@ export function ImportDialog({
             <Button size="small" icon="add" {...markNotImplemented('new-transcription.diarize')}>Diarize speakers</Button>
           </Inline>
           {choice.blocked && (
-            <Inline gap={2} justify="between" role="status" className={styles.notice}>
+            <Inline gap={2} justify="between" role="status" className={styles.blockedNotice}>
               <span>{blockMessage(choice.blocked)}</span>
-              <Button variant="ghost" size="small" icon="settings" {...markNotImplemented('new-transcription.open-settings')}>Download in Settings</Button>
+              <Button variant="ghost" size="small" icon="settings" onClick={() => onOpenSettings?.(choice.blocked?.missing === 'alignment' ? 'alignment' : 'models')}>Download in Settings</Button>
             </Inline>
           )}
           <DropZone over={over} hint={HINT} onChooseFiles={onChooseFiles} />
@@ -112,7 +114,7 @@ export function ImportDialog({
             <Stack gap={1} align="start" role="alert" className={styles.failure}>
               <span>{failure.message}</span>
               {failure.missingModels && (
-                <Button variant="ghost" size="small" icon="settings" {...markNotImplemented('import.open-settings')}>Open Settings</Button>
+                <Button variant="ghost" size="small" icon="settings" onClick={() => onOpenSettings?.(/alignment/i.test(failure.message) ? 'alignment' : 'models')}>Open Settings</Button>
               )}
             </Stack>
           )}

@@ -1,0 +1,50 @@
+.fieldRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--size-field-control));
+  align-items: center;
+  column-gap: var(--space-4);
+  row-gap: var(--space-2);
+  padding-block: var(--space-3);
+}
+
+.stacked {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-half);
+  min-width: 0;
+}
+
+.label {
+  color: var(--color-text-primary);
+  font: var(--font-body-strong);
+  user-select: none;
+}
+
+.hint {
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+/* A control never gets wider than its column, at any width of the window. */
+.control {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.stacked .control {
+  justify-content: stretch;
+}
+
+.control > * {
+  max-width: 100%;
+}
+
+.note {
+  grid-column: 1 / -1;
+  min-width: 0;
+}

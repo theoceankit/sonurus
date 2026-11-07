@@ -170,3 +170,28 @@ export const OpenFromMenu: Story = {
     return <FromMenu />
   },
 }
+
+function Over({ scrim }: { scrim: 'dim' | 'clear' }) {
+  const [outer, setOuter] = useState(false)
+  const [inner, setInner] = useState(false)
+  return (
+    <>
+      <Button onClick={() => setOuter(true)}>Open a window with a confirmation over it</Button>
+      <Modal size="large" open={outer} onOpenChange={setOuter}>
+        <ModalHeader title="Settings" />
+        <ModalBody><Inline><Button variant="danger" onClick={() => setInner(true)}>Delete…</Button></Inline></ModalBody>
+      </Modal>
+      <Modal type="danger" scrim={scrim} open={inner} onOpenChange={setInner}>
+        <ModalHeader title="Delete Whisper Small?" />
+        <ModalBody>2 jobs in the queue use Whisper Small. Delete anyway?</ModalBody>
+        <ModalFooter confirm={{ children: 'Delete', onClick: () => setInner(false) }} />
+      </Modal>
+    </>
+  )
+}
+
+// A window over another one: Escape and its scrim close only the one on top. The
+// second scrim darkens what is under it again; a clear one leaves it as it is.
+export const OverAnotherWindow: Story = { render: () => <Over scrim="dim" /> }
+
+export const OverAnotherWindowClearScrim: Story = { render: () => <Over scrim="clear" /> }

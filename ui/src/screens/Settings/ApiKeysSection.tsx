@@ -1,0 +1,54 @@
+import { useEffect, useState } from 'react'
+import { FieldRow } from '../../components/FieldRow/FieldRow'
+import { IconButton } from '../../components/IconButton/IconButton'
+import { Inline } from '../../components/Inline/Inline'
+import { SectionCard } from '../../components/SectionCard/SectionCard'
+import { TextField } from '../../components/TextField/TextField'
+import { settingsStore, useSettings } from '../../platform/settings'
+import styles from './Settings.module.css'
+
+// The HuggingFace token, hidden until shown. Saved when the field changes and is left,
+// without spaces around it; model downloads send it, and the backend reads it on start.
+function HuggingFaceToken({ saved }: { saved: string }) {
+  const [token, setToken] = useState(saved)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => setToken(saved), [saved])
+  const save = () => {
+    const next = token.trim()
+    setToken(next)
+    if (next !== saved) void settingsStore().patch({ hfToken: next })
+  }
+  return (
+    <FieldRow
+      label="HuggingFace token"
+      hint="Required for speaker diarization (PyAnnote). Create a read token in your HuggingFace account settings, under Access Tokens."
+      stacked
+    >
+      <Inline gap={2} className={styles.stretch}>
+        <TextField
+          aria-label="HuggingFace token"
+          type={visible ? 'text' : 'password'}
+          placeholder="hf_..."
+          autoComplete="off"
+          spellCheck={false}
+          value={token}
+          onChange={event => setToken(event.target.value)}
+          onBlur={save}
+          onKeyDown={event => { if (event.key === 'Enter') save() }}
+          className={styles.grow}
+        />
+        <IconButton icon="eye" variant="ghost" label={visible ? 'Hide token' : 'Show token'} selected={visible} onClick={() => setVisible(!visible)} />
+      </Inline>
+    </FieldRow>
+  )
+}
+
+export function ApiKeysSection() {
+  const settings = useSettings()
+  if (!settings) return null
+  return (
+    <SectionCard title="Credentials" description="For the models that need an account with their provider.">
+      <HuggingFaceToken saved={settings.hfToken} />
+    </SectionCard>
+  )
+}

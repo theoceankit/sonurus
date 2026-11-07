@@ -1,5 +1,5 @@
 import type {
-  QueueJob, QueueSnapshot, Segment, Speaker, SpeakerCandidates, Transcript, TranscriptListItem,
+  GpuStatus, QueueJob, QueueSnapshot, Segment, Speaker, SpeakerCandidates, Transcript, TranscriptListItem,
 } from '../types'
 
 // The data of the Editor boards. It has the shape the API has: what the boards
@@ -216,6 +216,20 @@ export const queueSnapshot = (changes: Partial<QueueSnapshot> = {}): QueueSnapsh
   jobs: [],
   ...changes,
 })
+
+// GET /gpu of a packaged Linux app on an RTX 4060 with nothing downloaded.
+export const FIXTURE_GPU: GpuStatus = {
+  blocked_reason: null,
+  gpu: { name: 'NVIDIA GeForce RTX 4060', driver: '615.78.08', compute_capability: '8.9' },
+  min_driver: '570',
+  min_compute_capability: '7.0',
+  state: 'not_installed',
+  pending: null,
+  error: null,
+  download_size: 3920090829,
+  device: 'cpu',
+  torch: '2.8.0+cpu',
+}
 
 export const QUEUE_JOB: QueueJob = {
   id: 'f4ad5b41-d2fb-4d2a-ac4a-25abd36c1010',

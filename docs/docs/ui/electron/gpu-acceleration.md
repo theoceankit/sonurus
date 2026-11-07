@@ -10,7 +10,7 @@ The installers ship CPU-only PyTorch. On Linux and Windows the installed app can
 
 ## Settings → GPU acceleration
 
-The section follows `GET /gpu` and the app-level state of `gpu-acceleration.js`; `gpuSectionView()` turns both into a label, a detail line, the device the backend runs on ("Running on CPU" / "Running on GPU") and the actions:
+The new UI has the same section, its store and view in `ui/src/settings/gpu.ts` ([New UI settings](new-ui-settings.md#gpu)); what follows holds for both. The section follows `GET /gpu` and the app-level state of `gpu-acceleration.js`; `gpuSectionView()` turns both into a label, a detail line, the device the backend runs on ("Running on CPU" / "Running on GPU") and the actions:
 
 | Situation | Label | Actions |
 |---|---|---|
@@ -51,6 +51,7 @@ A pack recorded as `error` or for another PyTorch (`stale`, after an app update)
 |---|---|
 | `electron/renderer/gpu-acceleration.js` | `gpuState()` / `subscribeGpu()`, `refreshGpuStatus()`, `startGpuDownload()` / `cancelGpuDownload()`, `removeGpuPack()`, the restart loop, `gpuSectionView()` |
 | `electron/renderer/views/settings-view.js` | `buildGpuSection()` |
+| `ui/src/settings/gpu.ts`, `ui/src/screens/Settings/GpuSection.tsx` | The same in the new UI: `createGpu()` / `useGpu()`, `gpuSectionView()`, the section |
 | `electron/gpu-pack.js` | `gpuSupported()`, `applyPendingOps()`, `prepareGpuStart()`, `runProbe()`, `markPackError()`, `gpuBackendEnv()` |
 | `electron/backend.js` | Uses the above before every start; `restartBackend()` |
 | `app/gpu_probe.py` | The self-check |

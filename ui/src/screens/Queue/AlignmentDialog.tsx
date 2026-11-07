@@ -4,7 +4,6 @@ import { ModalBody } from '../../components/ModalBody/ModalBody'
 import { ModalFooter } from '../../components/ModalFooter/ModalFooter'
 import { ModalHeader } from '../../components/ModalHeader/ModalHeader'
 import { Stack } from '../../components/Stack/Stack'
-import { markNotImplemented } from '../../not-implemented'
 import { alignmentModel } from '../../transcribe/languages'
 import { retryLabel, type AlignmentState } from './alignment'
 import styles from './AlignmentDialog.module.css'
@@ -22,6 +21,8 @@ export interface AlignmentDialogProps {
   onCancel: () => void
   onRetry: () => void
   onClose: () => void
+  // Closes the dialog for Settings, where the model can be downloaded too.
+  onOpenSettings?: () => void
   onExited?: () => void
   // Drawn in place, for a board of states.
   preview?: boolean
@@ -37,7 +38,7 @@ const TITLES: Record<AlignmentState, (name: string) => string> = {
 // A job failed because the alignment model of its language is not downloaded: the
 // model can be downloaded here, and the jobs retried, without going to Settings.
 export function AlignmentDialog({
-  open, language, state, pct, retryCount, cancelling, onDownload, onCancel, onRetry, onClose, onExited, preview,
+  open, language, state, pct, retryCount, cancelling, onDownload, onCancel, onRetry, onClose, onOpenSettings, onExited, preview,
 }: AlignmentDialogProps) {
   const model = alignmentModel(language)
   const download = { children: model.size ? `Download ${model.size}` : 'Download', icon: 'download' as const, onClick: onDownload }
@@ -76,7 +77,7 @@ export function AlignmentDialog({
         {state === 'failed' && (
           <Stack gap={2} align="start" className={styles.text}>
             <span>The download did not finish. Try again, or download the model in Settings.</span>
-            <Button variant="ghost" size="small" icon="settings" {...markNotImplemented('alignment.open-settings')}>Open Settings</Button>
+            <Button variant="ghost" size="small" icon="settings" onClick={onOpenSettings}>Open Settings</Button>
           </Stack>
         )}
       </ModalBody>

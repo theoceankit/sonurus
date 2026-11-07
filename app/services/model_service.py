@@ -27,7 +27,7 @@ DIARIZATION_CATALOG = {
             "pyannote/embedding",
         ],
         "size_bytes": 136_000_000,
-        "name": "Diarization · v2", "size": "130 MB", "speed": "—", "acc": "Speaker separation", "recommended": False, "kind": "diarization",
+        "name": "Pyannote Community 1", "size": "130 MB", "speed": "—", "acc": "Speaker separation", "recommended": False, "kind": "diarization",
     },
 }
 

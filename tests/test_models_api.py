@@ -81,7 +81,7 @@ def test_list_models_rows_keep_their_exact_keys(client):
         "speed": "~10× realtime", "acc": "Low", "recommended": False, "kind": "whisper",
     }
     assert rows["diarize"] == {
-        "id": "diarize", "installed": False, "name": "Diarization · v2", "size": "130 MB",
+        "id": "diarize", "installed": False, "name": "Pyannote Community 1", "size": "130 MB",
         "speed": "—", "acc": "Speaker separation", "recommended": False, "kind": "diarization",
     }
 
