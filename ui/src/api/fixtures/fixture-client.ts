@@ -284,6 +284,27 @@ export function createFixtureClient({
       emit({ ...queue, jobs: [...queue.jobs, job] })
       return job
     }),
+    updateQueueJob: (jobId, update) => answer(() => {
+      const job = queue.jobs.find(j => j.id === jobId)
+      if (!job) throw new ApiError(404, 'Job not found')
+      const installed = (id: string) => models.some(model => model.id === id && model.installed)
+      if (update.whisper_model && !installed(update.whisper_model)) {
+        throw new ApiError(400, `Whisper model "${update.whisper_model}" is not installed. Download it in Settings.`)
+      }
+      const language = update.language === 'auto' ? null : update.language
+      if (language && models.some(model => model.kind === 'alignment' && model.id === language && !model.installed)) {
+        throw new ApiError(400, `Alignment model for language "${language}" is not installed. Download it in Settings.`)
+      }
+      if (job.status === 'running') throw new ApiError(409, 'The job is running; pause the queue to edit it')
+      const updated: QueueJob = {
+        ...job,
+        ...(update.title != null ? { title: update.title } : {}),
+        ...(update.whisper_model != null ? { whisper_model: update.whisper_model } : {}),
+        ...(update.language !== undefined ? { language } : {}),
+      }
+      emit({ ...queue, jobs: queue.jobs.map(j => (j.id === jobId ? updated : j)) })
+      return updated
+    }),
     retryQueueJob: jobId => answer(() => {
       const job = queue.jobs.find(j => j.id === jobId)
       if (!job) throw new ApiError(404, 'Job not found')

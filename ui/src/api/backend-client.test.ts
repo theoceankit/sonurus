@@ -203,6 +203,14 @@ describe('model downloads', () => {
   })
 })
 
+describe('updateQueueJob', () => {
+  test('sends only the fields given', async () => {
+    const { client, sent } = setup(() => json({ id: 'j', title: 'Standup' }))
+    await expect(client.updateQueueJob('j', { title: 'Standup', language: null })).resolves.toMatchObject({ title: 'Standup' })
+    expect(sent).toEqual([{ url: 'http://localhost:8000/queue/jobs/j', method: 'PATCH', body: { title: 'Standup', language: null } }])
+  })
+})
+
 describe('retryQueueJob', () => {
   test('asks to retry the job and answers it waiting', async () => {
     const { client, sent } = setup(() => json({ id: 'j', status: 'waiting' }))

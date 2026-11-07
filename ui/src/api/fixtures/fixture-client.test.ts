@@ -507,3 +507,25 @@ describe('retrying a job', () => {
     await expect(client.retryQueueJob('b')).rejects.toMatchObject({ status: 409 })
   })
 })
+
+describe('editing a job', () => {
+  const withJob = async (status: 'waiting' | 'running', options = {}) => {
+    const client = createFixtureClient(options)
+    client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot({ jobs: [{ ...QUEUE_JOB, id: 'a', status, whisper_model: 'small', language: null }] }) }] })
+    await vi.waitFor(async () => expect((await client.getQueue()).jobs).toHaveLength(1))
+    return client
+  }
+
+  test('changes only what is given', async () => {
+    const client = await withJob('waiting')
+    await expect(client.updateQueueJob('a', { title: 'Standup', language: 'de' })).resolves.toMatchObject({ title: 'Standup', language: 'de', whisper_model: 'small' })
+    expect((await client.getQueue()).jobs[0]).toMatchObject({ title: 'Standup', language: 'de' })
+  })
+
+  test('refuses a model or an alignment model not installed, and a running job', async () => {
+    const client = await withJob('waiting')
+    await expect(client.updateQueueJob('a', { whisper_model: 'tiny' })).rejects.toMatchObject({ status: 400 })
+    await expect(client.updateQueueJob('a', { language: 'ru' })).rejects.toMatchObject({ status: 400 })
+    await expect((await withJob('running')).updateQueueJob('a', { title: 'x' })).rejects.toMatchObject({ status: 409 })
+  })
+})

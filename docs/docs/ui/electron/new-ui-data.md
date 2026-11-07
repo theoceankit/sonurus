@@ -59,6 +59,8 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `startModelDownload(id, hfToken)` starts downloading a model, or joins its running download, and answers the job id; `cancelModelDownload(id, jobId)` stops it; `watchModelDownload(jobId, listener)` follows `WS /ws/models/{job_id}` until the download ends with `done`, `cancelled` or `error`. That socket is not in the OpenAPI schema, so its events are typed in `model-download-events.ts`; a connection that drops before the end counts as an error. Screens use them through `useModelDownloads()` ([New UI transcription](new-ui-transcribe.md#downloads)).
 
+`updateQueueJob(jobId, update)` changes the title, model or language of a job that is not running: `PATCH /queue/jobs/{id}` with only the fields given. A model or alignment model that is not installed is a 400, a running job a 409. The fixtures do the same.
+
 `retryQueueJob(jobId)` puts a failed job back at the end of the queue, waiting and with no error: `POST /queue/jobs/{id}/retry`. A model it needs that is still not installed is a 400, a job that has not failed a 409. The fixtures do the same.
 
 `now()` is today for the screens: the current time on the backend client, 5 October 2026 on fixtures, so that sections of the recordings list stay as on the design boards.

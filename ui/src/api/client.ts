@@ -1,5 +1,5 @@
 import type {
-  ModelInfo, QueueJob, QueueSnapshot, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
+  ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { ModelDownloadEvent } from './model-download-events'
 
@@ -67,6 +67,9 @@ export interface ApiClient {
   // The backend copies the file and answers the waiting job, or 400 when a model the
   // job needs is not installed or the file cannot be read.
   addQueueJob(job: NewQueueJob): Promise<QueueJob>
+  // Title, model or language of a job that is not running. Refused with a 400 when the
+  // model or the alignment model of the language is not installed, 409 while it runs.
+  updateQueueJob(jobId: string, update: QueueJobUpdate): Promise<QueueJob>
   // A failed job waits again, at the end of the queue. Refused with a 400 when a model it
   // needs is still not installed, 409 when the job has not failed.
   retryQueueJob(jobId: string): Promise<QueueJob>

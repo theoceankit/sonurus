@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey 
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
 import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
-import type { QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
+import type { QueueJobUpdate, QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
 // queryKeys.transcripts reaches the list, the details and the candidates.
@@ -258,6 +258,17 @@ export function useAddToQueue() {
       }
     },
     onSettled: () => queries.invalidateQueries({ queryKey: queryKeys.queue }),
+  })
+}
+
+// The snapshot that follows on WS /ws/queue shows the change; asking again covers a
+// connection that is down.
+export function useUpdateQueueJob() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: ({ jobId, update }: { jobId: string; update: QueueJobUpdate }) => api.updateQueueJob(jobId, update),
+    onSuccess: () => queries.invalidateQueries({ queryKey: queryKeys.queue }),
   })
 }
 

@@ -97,6 +97,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     addQueueJob: ({ audioPath, whisperModel, language, title }) => send(http.POST('/queue/jobs', {
       body: { audio_path: audioPath, whisper_model: whisperModel, language, ...(title ? { title } : {}) },
     })),
+    updateQueueJob: (job_id, body) => send(http.PATCH('/queue/jobs/{job_id}', { params: { path: { job_id } }, body })),
     retryQueueJob: job_id => send(http.POST('/queue/jobs/{job_id}/retry', { params: { path: { job_id } } })),
     subscribeQueueEvents: (listener, onConnection) => connectQueueEvents({
       url: `${baseUrl.replace(/^http/, 'ws')}/ws/queue`,

@@ -42,6 +42,16 @@ A job in a language whose alignment model is not downloaded fails mid-pipeline w
 - **Ready.** The model is installed, also when it already was by the time the dialog opened. One button, Retry transcription or Retry N transcriptions, puts every job that failed on this model back at the end of the queue, in queue order (`POST /queue/jobs/{id}/retry`); a refusal is a toast. With no such job left there is only Close.
 - **Failed.** The last download of the model from this dialog ended without it. Try again starts it anew; Open Settings is marked with `markNotImplemented()` until the new UI has Settings.
 
+## Job settings dialog
+
+`EditJobDialog` in `ui/src/screens/Queue/` changes the title, the model and the language of a job that waits or failed; `canEditJob()` is false for the running one, which the backend refuses to change. It is what the edit button of a queue card opens; the new UI has no queue yet, so nothing in the app opens it, and Storybook shows it on the fixtures' queue.
+
+- It starts with the job as it is, the title focused. The lists are those of the import dialog: models and languages without their models are off. The job's own model stays in the list when it has been deleted, until another is picked.
+- Save sends only what changed (`jobEditPatch()`), the title trimmed, Detect as null, through `useUpdateQueueJob()` (`PATCH /queue/jobs/{id}`). Nothing changed closes without a request. Enter in the title saves, Escape closes without saving.
+- A blank title or one over 200 characters is an error under the title. So is a refusal of the backend, such as a model not installed or a job that started running meanwhile; the dialog stays open. The next change clears it.
+
+`JobSettingsDialog` is its view, for the stories of its states.
+
 ## Languages
 
 `LANGUAGES` is the list a job can be asked for, Detect automatically first. `auto` is what the settings and the screens keep; the API takes it as null (`apiLanguage`). `languageName(code)` is the name for the user.
