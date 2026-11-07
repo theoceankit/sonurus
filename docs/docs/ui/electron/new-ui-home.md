@@ -4,7 +4,7 @@ sidebar_position: 8
 
 # New UI home
 
-What the new UI shows before the user picks anything, and how files get in: which recording is open when the app starts and after the open one is deleted, and the import dialog with the drags of files over the window.
+What the new UI shows before the user picks anything, and how files get in: which recording is open when the app starts and after the open one is deleted, the centre without recordings, and the import dialog with the drags of files over the window.
 
 ## Which recording is open
 
@@ -21,6 +21,10 @@ So after a delete the recording opened before the deleted one opens, not its nei
 `useRecentRecordings()` keeps the recent ones in Electron's `settings.json` as `recentTranscriptIds`: up to 20 ids, newest first. A recording goes first when it opens, whether the user clicked it or it was picked. Each write reads the file first and changes only this field, one write at a time, as the old UI shares the file and keeps its own fields there. The old UI does not read the field and carries it along on its own writes, Reset to defaults included. Without Electron, in Storybook and tests, the list starts empty and lives in memory.
 
 The backend is not involved: what was opened last is a setting of the interface, not data of a recording.
+
+## Without recordings
+
+When the backend answers with no recordings at all, the centre shows `EmptyState` (`ui/src/screens/Home/EmptyState.tsx`): how to make a new transcription, with the plus in the sentence on a chip as a key in a shortcut hint, centred on the capitals rather than the lowercase letters, and a line that transcribing needs models, which are downloaded in Settings. Settings there is marked with `markNotImplemented()` until the new UI has it. The sidebar says No recordings yet as before. While the list loads, or when the backend does not answer, the centre stays empty and the sidebar says so: that is not the empty state.
 
 ## Import dialog
 

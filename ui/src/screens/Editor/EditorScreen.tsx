@@ -6,6 +6,7 @@ import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { prefersReducedMotion, useLingering } from '../../presence'
 import { cx } from '../../styles/cx'
 import { createKeyStore } from '../../media/active-segment'
+import { EmptyState } from '../Home/EmptyState'
 import { ImportDialog } from '../Home/ImportDialog'
 import { pickRecording, useRecentRecordings } from '../Home/last-opened'
 import { useImportDialog } from '../Home/useImportDialog'
@@ -130,9 +131,13 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
 
   // Moving a panel asks nothing new of the transcript, and on a long recording it is the
   // most expensive thing to render.
+  // Only an answer with no recordings is empty: loading and failing are the sidebar's to say.
+  const noRecordings = transcripts.data?.length === 0
   const center = useMemo(
-    () => transcript ?? <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />,
-    [transcript, selectedId, playback, highlight, showAllSpeakers],
+    () => transcript ?? (noRecordings
+      ? <EmptyState />
+      : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />),
+    [transcript, noRecordings, selectedId, playback, highlight, showAllSpeakers],
   )
 
   // A refresh that fails leaves what was loaded on the screen.
