@@ -46,6 +46,14 @@ GPU acceleration of the packaged app, after Alignment; on macOS there is no sect
 
 `gpuSectionView(status, ui)` says what the card shows, as in the old UI: a badge (Development build, Not installed, Downloading, Installing, Waiting to apply, Removing, Restarting, On, GPU check failed, Update needed, or why the GPU does not qualify), the card and driver, the device the backend runs on, the detail, the progress, and the buttons. A download is offered only while the GPU qualifies; an installed pack can always be removed. While the app restarts the backend for the change, the toast that the backend is not responding stays away. The toasts after a restart are those of the old UI: GPU acceleration is on, the check failed, or it was removed.
 
+## API Keys
+
+The HuggingFace token (`hfToken`), hidden until the eye button shows it. It is saved when the field is left or on Enter, without spaces around it. Model downloads send it with each request ([New UI transcription](new-ui-transcribe.md#downloads)); the main process reads it when it starts the backend.
+
+## Export
+
+Shown and marked with `markNotImplemented()` as a whole, as in the old UI: export does not exist yet, so its format, Duplicate on export and what to include change nothing.
+
 ## Confirmations
 
 A destructive step asks in `ConfirmDialog`, a danger `Modal` over Settings: the `alertdialog` role and focus on Cancel. Escape, the scrim and Cancel close only it, and Settings stays open. Focus goes back to the button that asked; when that is gone, such as the delete button of a model just deleted, to Settings. The confirm button is busy until the step is done. The scrim under it dims Settings again (`scrim="dim"`); `scrim="clear"` leaves the dimming to the scrim of Settings. Both are in Storybook, Modal → Over another window.

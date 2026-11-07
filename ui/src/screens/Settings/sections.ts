@@ -6,6 +6,8 @@ export const SECTIONS = [
   { id: 'models', label: 'Models', icon: 'models' },
   { id: 'alignment', label: 'Alignment', icon: 'alignment' },
   { id: 'gpu', label: 'GPU', icon: 'sparkle' },
+  { id: 'apiKeys', label: 'API Keys', icon: 'api-keys' },
+  { id: 'export', label: 'Export', icon: 'export' },
 ] as const satisfies readonly { id: string; label: string; icon: IconName }[]
 
 export type SettingsSection = (typeof SECTIONS)[number]['id']

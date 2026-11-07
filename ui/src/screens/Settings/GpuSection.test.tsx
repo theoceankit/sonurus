@@ -31,7 +31,7 @@ test('GPU comes after Alignment; a development build only says what the backend 
   setup({ gpu: { blocked_reason: 'not_packaged', device: 'cuda', torch: '2.8.0+cu128' } })
   await openSettings()
   const tabs = within(settings()).getAllByRole('tab').map(tab => tab.textContent!.trim())
-  expect(tabs.slice(-2)).toEqual(['Alignment', 'GPU'])
+  expect(tabs[tabs.indexOf('Alignment') + 1]).toBe('GPU')
   await userEvent.click(within(settings()).getByRole('tab', { name: 'GPU' }))
   const card = await within(settings()).findByRole('region', { name: 'GPU acceleration' })
   expect(card.textContent).toContain('Development build')

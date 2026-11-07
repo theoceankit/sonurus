@@ -5,6 +5,8 @@ import { NavTab } from '../../components/NavTab/NavTab'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { TabPanel, Tabs } from '../../components/Tabs/Tabs'
 import { AlignmentSection } from './AlignmentSection'
+import { ApiKeysSection } from './ApiKeysSection'
+import { ExportSection } from './ExportSection'
 import { GeneralSection } from './GeneralSection'
 import { GpuSection } from './GpuSection'
 import { ModelsSection } from './ModelsSection'
@@ -26,6 +28,8 @@ const PANELS: Record<SettingsSection, ComponentType> = {
   models: ModelsSection,
   alignment: AlignmentSection,
   gpu: GpuSection,
+  apiKeys: ApiKeysSection,
+  export: ExportSection,
 }
 
 // macOS has no GPU acceleration: no section for it, as the old UI hid its card.

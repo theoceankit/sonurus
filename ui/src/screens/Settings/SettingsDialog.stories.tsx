@@ -96,3 +96,9 @@ export const GpuDriverTooOld: Story = gpuStory({ blocked_reason: 'driver_too_old
 export const GpuTooOld: Story = gpuStory({ blocked_reason: 'gpu_too_old', gpu: { name: 'NVIDIA GeForce GTX 1060', driver: '581.29', compute_capability: '6.1' } })
 export const GpuNoNvidia: Story = gpuStory({ blocked_reason: 'no_nvidia', gpu: null })
 export const GpuDevelopmentBuild: Story = gpuStory({ blocked_reason: 'not_packaged', device: 'cuda', torch: '2.8.0+cu128' })
+
+export const ApiKeys: Story = { args: { section: 'apiKeys' }, decorators: [withSettings({ hfToken: 'hf_storybookExampleToken' })] }
+
+export const ApiKeysEmpty: Story = { args: { section: 'apiKeys' } }
+
+export const Export: Story = { args: { section: 'export' } }

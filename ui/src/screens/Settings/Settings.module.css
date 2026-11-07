@@ -74,3 +74,8 @@
     transition: none;
   }
 }
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}

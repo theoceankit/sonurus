@@ -19,6 +19,7 @@ export const NOT_IMPLEMENTED = [
   'new-speaker.email',
   'new-speaker.handle',
   'settings.app-language',
+  'settings.export',
   'new-transcription.diarize',
   'titlebar.back',
   'titlebar.forward',
