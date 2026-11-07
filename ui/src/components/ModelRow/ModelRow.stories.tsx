@@ -31,6 +31,6 @@ export const Failed: Story = { args: { state: 'failed', error: 'Connection to hu
 export const FailedLongError: Story = {
   args: { state: 'failed', error: '401 Client Error: Unauthorized for the pyannote speaker-diarization-3.1 model, the HuggingFace token has no access to this gated model' },
 }
-export const Diarization: Story = { args: { icon: 'diarization-model', name: 'Pyannote Community-1', meta: ['130 MB'], state: 'installed', onUse: undefined } }
+export const Diarization: Story = { args: { icon: 'diarization-model', name: 'Pyannote Community 1', meta: ['130 MB'], state: 'installed', onUse: undefined } }
 export const Alignment: Story = { args: { icon: 'alignment', name: 'Czech', meta: ['~300 MB'], onUse: undefined } }
 
