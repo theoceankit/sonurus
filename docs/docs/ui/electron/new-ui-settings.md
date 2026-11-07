@@ -27,7 +27,7 @@ Without a provider, as for a screen alone in a story or a test, `open` does noth
 
 ## Models
 
-The Whisper models and the diarization model, each in its card, as `ModelRow` rows from `GET /models`: name, size and speed, and In use on the default Whisper model. The buttons say the state; there is no status in words next to them. While new jobs cannot start, a hint over the cards says why: no Whisper model, or no diarization model.
+The Whisper models and the diarization model, each in its card, as `ModelRow` rows from `GET /models`: name, size and speed, and Default on the default Whisper model. The buttons say the state; there is no status in words next to them. While new jobs cannot start, a hint over the cards says why: no Whisper model, or no diarization model.
 
 - **Download** starts the download of the app (`useModelDownloads()`); the row shows the percentage and Cancel, also after Settings were closed and opened again. Once the model is installed the catalog is read again, and a first Whisper model becomes the default ([New UI transcription](new-ui-transcribe.md#the-default-model)).
 - **Failed.** A download that failed says so in its row, "Download failed: " and the reason the backend gave (`error(id)`), with Retry, which starts it anew. There is no toast: the row is where the model is.

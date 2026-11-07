@@ -61,3 +61,9 @@ test('the state is in the buttons, not in words next to them', () => {
   setup({ state: 'installed' })
   expect(screen.getByRole('group', { name: 'Whisper Small' }).textContent).not.toMatch(/Installed|Not downloaded|Downloading/)
 })
+
+test.each(['badge', 'check', 'tint', 'radio'] as const)('the default says Default (%s)', mark => {
+  setup({ state: 'installed', selected: true, defaultMark: mark })
+  expect(screen.getByRole('group', { name: 'Whisper Small' }).textContent).toContain('Default')
+  expect(button('Use')).toBeNull()
+})

@@ -41,7 +41,6 @@ export function ModelsSection() {
   const rows = models.data.filter((model): model is TranscriptionModel => model.kind !== 'alignment')
   const row = (model: TranscriptionModel) => {
     const isDefault = model.kind === 'whisper' && model.installed && state.model === model.id
-    const badges = isDefault ? [{ label: 'In use', tone: 'success' as const }] : []
     return (
       <ModelRow
         key={model.id}
@@ -49,7 +48,6 @@ export function ModelsSection() {
         name={model.name}
         // The size and the speed; a model without a speed of its own (diarization) shows "—".
         meta={[model.size, model.speed].filter(item => item && item !== '—')}
-        badges={badges}
         {...rowState(model.installed, model.id, downloads)}
         selected={isDefault}
         onDownload={() => void downloads.start(model.id)}
@@ -68,7 +66,7 @@ export function ModelsSection() {
           <span>{hint}</span>
         </Inline>
       )}
-      <SectionCard title="Transcription" description="Whisper turns speech into text. The one in use is the default of new transcriptions.">
+      <SectionCard title="Transcription" description="Whisper turns speech into text. The default one is used for new transcriptions.">
         {rows.filter(model => model.kind === 'whisper').map(row)}
       </SectionCard>
       <SectionCard title="Speaker diarization" description="Tells the speakers apart. Every transcription needs it.">

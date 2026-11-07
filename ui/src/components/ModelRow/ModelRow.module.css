@@ -26,6 +26,48 @@
   color: var(--color-accent-fg);
 }
 
+.tinted {
+  margin-inline: calc(var(--space-2) * -1);
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-bg);
+}
+
+/* Where the icon is on the other rows, and as wide. */
+.radio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-lg);
+  height: var(--size-control-lg);
+}
+
+.radio::before {
+  content: '';
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 var(--border-width-strong) var(--color-border-strong);
+}
+
+.radioOn::before {
+  box-shadow: inset 0 0 0 calc(var(--border-width-strong) * 2.5) var(--color-accent-fg);
+}
+
+.defaultText {
+  color: var(--color-accent-fg);
+  font: var(--font-caption-strong);
+}
+
+.defaultCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline: var(--space-2);
+  color: var(--color-accent-fg);
+  font: var(--font-caption-strong);
+}
+
 .info {
   display: flex;
   flex-direction: column;
