@@ -215,13 +215,13 @@ export function createFixtureClient({
     }),
     listModels: () => answer(() => models),
     getQueue: () => answer(() => queue),
-    addQueueJob: ({ audioPath, whisperModel, language }) => answer(() => {
+    addQueueJob: ({ audioPath, whisperModel, language, title }) => answer(() => {
       const missing = missingModelError(models, whisperModel, language)
       if (missing) throw missing
       const job: QueueJob = {
         id: crypto.randomUUID(),
         audio_path: audioPath,
-        title: audioPath.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, ''),
+        title: title || audioPath.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, ''),
         whisper_model: whisperModel ?? 'large-v3',
         language,
         status: 'waiting',

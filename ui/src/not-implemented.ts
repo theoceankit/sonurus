@@ -20,6 +20,8 @@ export const NOT_IMPLEMENTED = [
   'inspector.notes',
   'new-speaker.email',
   'new-speaker.handle',
+  'new-transcription.diarize',
+  'new-transcription.open-settings',
   'titlebar.back',
   'titlebar.forward',
   'titlebar.search',

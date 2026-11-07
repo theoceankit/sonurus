@@ -195,6 +195,12 @@ describe('addQueueJob', () => {
     expect(sent[0].body).toEqual({ audio_path: '/in/a.mp3', whisper_model: null, language: null })
   })
 
+  test('a title goes along when there is one', async () => {
+    const { client, sent } = setup(() => json({}))
+    await client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: null, language: null, title: 'Standup' })
+    expect(sent[0].body).toEqual({ audio_path: '/in/a.mp3', whisper_model: null, language: null, title: 'Standup' })
+  })
+
   test('a missing model is the 400 with its detail', async () => {
     const { client } = setup(() => json({ detail: 'Diarization model is not installed. Download it in Settings.' }, 400))
     await expect(client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: null, language: null }))

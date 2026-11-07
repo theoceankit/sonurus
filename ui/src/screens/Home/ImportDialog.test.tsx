@@ -131,8 +131,9 @@ describe('importing', () => {
     expect(await screen.findByText('Importing Team call.m4a…')).toBeTruthy()
   })
 
-  test('without models the refusal shows in the dialog, with Settings not there yet', async () => {
-    setup({ noModels: true }, ['/in/a.mp3'])
+  test('a model refused by the backend shows in the dialog, with Settings not there yet', async () => {
+    // The catalog said it was there; it went before the job did.
+    setup({ overrides: { addQueueJob: () => Promise.reject(new ApiError(400, NO_MODELS)) } }, ['/in/a.mp3'])
     await openByButton()
     await userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
     await userEvent.click(screen.getByRole('button', { name: 'Import' }))
@@ -170,9 +171,153 @@ describe('importing', () => {
 })
 
 test('an error says what is wrong with no icon', async () => {
-  setup({ noModels: true }, ['/in/a.mp3'])
+  setup({ overrides: { addQueueJob: () => Promise.reject(new ApiError(400, NO_MODELS)) } }, ['/in/a.mp3'])
   await openByButton()
   await userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
   await userEvent.click(screen.getByRole('button', { name: 'Import' }))
   expect((await screen.findByRole('alert')).querySelector('svg:not(button svg)')).toBeNull()
+})
+
+describe('title, model and language', () => {
+  const choose = async () => userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
+  const importButton = () => screen.getByRole('button', { name: 'Import' })
+  const field = (name: string) => screen.getByRole('button', { name })
+  const option = (name: RegExp) => screen.getByRole('menuitemradio', { name })
+  const jobs = async (client: ReturnType<typeof setup>) => (await client.getQueue()).jobs.map(job => ({
+    title: job.title, model: job.whisper_model, language: job.language,
+  }))
+  const saved = async (settings: object) => {
+    const bridge = createMockElectronAPI({ openFiles: async () => [] })
+    await bridge.writeSettings({ ...await bridge.readSettings(), ...settings })
+    return bridge
+  }
+  function setupWith(options: FixtureOptions, chosen: string[], settings: object = {}) {
+    const client = createFixtureClient(options)
+    return saved(settings).then(bridge => {
+      vi.stubGlobal('electronAPI', { ...bridge, openFiles: async () => chosen })
+      render(<ApiProvider client={client}><OverlayProvider><EditorScreen /></OverlayProvider></ApiProvider>)
+      return client
+    })
+  }
+
+  test('one file keeps a typed title, trimmed', async () => {
+    const client = await setupWith({}, ['/in/a.mp3'])
+    await openByButton()
+    await choose()
+    await userEvent.type(screen.getByRole('textbox', { name: 'Title' }), '  Weekly sync ')
+    await userEvent.click(importButton())
+    await waitFor(async () => expect((await jobs(client))[0]?.title).toBe('Weekly sync'))
+  })
+
+  test('the title field shows the date as a hint, and untouched the file is named after itself', async () => {
+    const client = await setupWith({}, ['/in/Team call.m4a'])
+    await openByButton()
+    const title = screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement
+    expect(title.value).toBe('')
+    expect(title.placeholder).toBe('5 Oct 12:00 Meeting')
+    await choose()
+    await userEvent.click(importButton())
+    await waitFor(async () => expect((await jobs(client))[0]?.title).toBe('Team call'))
+  })
+
+  test('several files are each named after their file, and the title field is off', async () => {
+    const client = await setupWith({}, ['/in/b.mp3', '/in/a.wav'])
+    await openByButton()
+    await choose()
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveProperty('disabled', true)
+    await userEvent.click(importButton())
+    await waitFor(async () => expect((await jobs(client)).map(job => job.title)).toEqual(['b', 'a']))
+  })
+
+  test('model and language start from the defaults; a choice here is for this import and is not saved', async () => {
+    const client = await setupWith({}, ['/in/a.mp3'], { transcribeModel: 'small', transcribeModelHistory: ['small'], transcribeLang: 'de' })
+    await openByButton()
+    await waitFor(() => expect(field('Model').textContent?.trim()).toBe('Whisper Small'))
+    expect(field('Language').textContent?.trim()).toBe('Deutsch')
+    await userEvent.click(field('Model'))
+    await userEvent.click(option(/Whisper Large v3/))
+    await userEvent.click(field('Language'))
+    await userEvent.click(option(/English/))
+    await choose()
+    await userEvent.click(importButton())
+    await waitFor(async () => expect(await jobs(client)).toEqual([{ title: 'a', model: 'large-v3', language: 'en' }]))
+    expect(await window.electronAPI!.readSettings()).toMatchObject({ transcribeModel: 'small', transcribeLang: 'de' })
+  })
+
+  test('the next opening starts from the defaults again', async () => {
+    await setupWith({}, [], { transcribeModel: 'small', transcribeLang: 'auto' })
+    await openByButton()
+    await waitFor(() => expect(field('Model').textContent?.trim()).toBe('Whisper Small'))
+    await userEvent.click(field('Model'))
+    await userEvent.click(option(/Whisper Large v3/))
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(dialog()).toBeNull())
+    await openByButton()
+    await waitFor(() => expect(field('Model').textContent?.trim()).toBe('Whisper Small'))
+  })
+
+  test('models not downloaded are in the list but off', async () => {
+    await setupWith({}, [])
+    await openByButton()
+    await waitFor(() => expect(field('Model').textContent?.trim()).toBe('Whisper Large v3'))
+    await userEvent.click(field('Model'))
+    expect(option(/Whisper Tiny/).getAttribute('aria-disabled')).toBe('true')
+    expect(option(/Whisper Tiny/).textContent).toContain('Not installed')
+    expect(option(/Whisper Small/).getAttribute('aria-disabled')).toBeNull()
+  })
+
+  test('a saved default that is not downloaded is not used', async () => {
+    const client = await setupWith({ installedModels: ['small', 'diarize'] }, ['/in/a.mp3'], { transcribeModel: 'large-v3' })
+    await openByButton()
+    await waitFor(() => expect(field('Model').textContent?.trim()).toBe('Whisper Small'))
+    await choose()
+    await userEvent.click(importButton())
+    await waitFor(async () => expect((await jobs(client))[0]?.model).toBe('small'))
+  })
+
+  test('until the models are known, it opens and waits with Import off', async () => {
+    await setupWith({ overrides: { listModels: () => new Promise(() => {}) } }, ['/in/a.mp3'])
+    await openByButton()
+    expect(field('Model').textContent?.trim()).toBe('Checking models…')
+    await choose()
+    expect(importButton()).toHaveProperty('disabled', true)
+  })
+
+  test.each([
+    [{ noModels: true }, 'auto', 'No transcription model installed'],
+    [{ installedModels: ['small'] }, 'auto', 'Diarization model not installed'],
+    [{}, 'ru', 'Alignment model for Русский is not installed'],
+  ])('without a model a job needs it says which, with Settings not there yet, and Import is off (%o, %s)', async (options, language, message) => {
+    const client = await setupWith(options, ['/in/a.mp3'], { transcribeLang: language })
+    await openByButton()
+    const notice = await screen.findByRole('status')
+    expect(notice.textContent).toContain(message)
+    expect(within(notice).getByRole('button', { name: 'Download in Settings' }).getAttribute('data-not-implemented')).toBe('new-transcription.open-settings')
+    await choose()
+    expect(listed()).toEqual(['a.mp3'])
+    expect(importButton()).toHaveProperty('disabled', true)
+    expect((await client.getQueue()).jobs).toEqual([])
+  })
+
+  test('a language whose alignment model is not downloaded is off; picking Detect lets the import go', async () => {
+    const client = await setupWith({}, ['/in/a.mp3'], { transcribeLang: 'ru' })
+    await openByButton()
+    await screen.findByRole('status')
+    await userEvent.click(field('Language'))
+    expect(option(/Русский/).getAttribute('aria-disabled')).toBe('true')
+    expect(option(/English/).getAttribute('aria-disabled')).toBeNull()
+    await userEvent.click(option(/Detect automatically/))
+    expect(screen.queryByRole('status')).toBeNull()
+    await choose()
+    await userEvent.click(importButton())
+    await waitFor(async () => expect((await jobs(client))[0]?.language).toBeNull())
+  })
+
+  test('Diarize speakers is there, off and marked as not there yet', async () => {
+    await setupWith({}, [])
+    await openByButton()
+    const diarize = screen.getByRole('button', { name: 'Diarize speakers' })
+    expect(diarize.getAttribute('data-not-implemented')).toBe('new-transcription.diarize')
+    expect(diarize.getAttribute('aria-pressed')).toBeNull()
+  })
 })

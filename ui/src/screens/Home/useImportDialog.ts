@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AddToQueueError, useAddToQueue } from '../../api/queries'
+import { useApi } from '../../api/ApiProvider'
+import { AddToQueueError, useAddToQueue, useModels } from '../../api/queries'
 import { ApiError } from '../../api/client'
 import { toast } from '../../components/Toast/toast-store'
+import { readTranscribeSettings, transcribeSettings, type TranscribeSettings } from '../../platform/transcribe-defaults'
+import { NOTHING_PICKED, transcribeChoice, type Picked } from '../../transcribe/choice'
+import { apiLanguage } from '../../transcribe/languages'
 import type { ImportDialogProps } from './ImportDialog'
-import { addFiles, fileName, importFailure, importingMessage, skippedMessage, watchFileDrags, type ImportFailure, type ImportFile } from './import-files'
+import {
+  addFiles, defaultTitle, fileName, importFailure, importingMessage, queueTitles, skippedMessage, watchFileDrags, type ImportFailure, type ImportFile,
+} from './import-files'
 
 interface ImportState {
   open: boolean
@@ -11,10 +17,13 @@ interface ImportState {
   // Opened by a drag alone, it goes again when the drag leaves with nothing dropped.
   sticky: boolean
   files: ImportFile[]
+  title: string
+  // Model and language picked for this run; the defaults until the user picks.
+  picked: Picked
   failure: ImportFailure | null
 }
 
-const CLOSED: ImportState = { open: false, sticky: false, files: [], failure: null }
+const CLOSED: ImportState = { open: false, sticky: false, files: [], title: '', picked: NOTHING_PICKED, failure: null }
 
 const bridge = () => (typeof window === 'undefined' ? undefined : window.electronAPI)
 
@@ -35,6 +44,26 @@ export function useImportDialog() {
   const latest = useRef(state)
   latest.current = state
   const { mutateAsync: addToQueue, isPending } = useAddToQueue()
+  const api = useApi()
+  const models = useModels()
+  const { refetch: refetchModels } = models
+  const [settings, setSettings] = useState<TranscribeSettings>(() => transcribeSettings(undefined))
+  const [openedAt, setOpenedAt] = useState(() => api.now())
+
+  // Each opening starts from the last known catalog and asks for a fresh one, and
+  // reads the defaults again: Settings may have changed them.
+  useEffect(() => {
+    if (!state.open) return
+    let current = true
+    setOpenedAt(api.now())
+    void refetchModels()
+    void readTranscribeSettings().then(read => { if (current) setSettings(read) })
+    return () => { current = false }
+  }, [state.open, api, refetchModels])
+
+  const choice = transcribeChoice(models.data, settings, state.picked)
+  const latestChoice = useRef(choice)
+  latestChoice.current = choice
 
   const add = useCallback((incoming: ImportFile[]) => {
     // A drop on a closed dialog starts a new list.
@@ -60,10 +89,19 @@ export function useImportDialog() {
 
   const remove = useCallback((path: string) => setState(current => ({ ...current, files: current.files.filter(file => file.path !== path) })), [])
 
+  const pick = useCallback((change: Partial<Picked>) => setState(current => ({ ...current, picked: { ...current.picked, ...change }, failure: null })), [])
+
   const importFiles = useCallback(async () => {
-    const { files } = latest.current
+    const { files, title } = latest.current
+    const { model, language, checking, blocked } = latestChoice.current
+    if (checking || blocked) return
+    const titles = queueTitles(files, title)
     try {
-      await addToQueue(files.map(file => file.path))
+      await addToQueue({
+        files: files.map((file, index) => ({ audioPath: file.path, title: titles[index] })),
+        whisperModel: model,
+        language: apiLanguage(language),
+      })
       setState(current => ({ ...current, open: false }))
       toast({ message: importingMessage(files) })
     } catch (error) {
@@ -77,6 +115,12 @@ export function useImportDialog() {
   const dialog: ImportDialogProps = {
     open: state.open,
     files: state.files,
+    title: state.title,
+    defaultTitle: defaultTitle(openedAt),
+    onTitleChange: title => setState(current => ({ ...current, title })),
+    choice,
+    onModelChange: model => pick({ model }),
+    onLanguageChange: language => pick({ language }),
     failure: state.failure,
     importing: isPending,
     onChooseFiles: () => void chooseFiles(),

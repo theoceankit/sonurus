@@ -82,8 +82,8 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     })),
     listModels: () => send(http.GET('/models')),
     getQueue: () => send(http.GET('/queue')),
-    addQueueJob: ({ audioPath, whisperModel, language }) => send(http.POST('/queue/jobs', {
-      body: { audio_path: audioPath, whisper_model: whisperModel, language },
+    addQueueJob: ({ audioPath, whisperModel, language, title }) => send(http.POST('/queue/jobs', {
+      body: { audio_path: audioPath, whisper_model: whisperModel, language, ...(title ? { title } : {}) },
     })),
     subscribeQueueEvents: (listener, onConnection) => connectQueueEvents({
       url: `${baseUrl.replace(/^http/, 'ws')}/ws/queue`,

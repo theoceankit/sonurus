@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
-import { readTranscribeDefaults } from '../platform/transcribe-defaults'
 import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
 import type { QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
@@ -235,17 +234,24 @@ export class AddToQueueError extends Error {
   }
 }
 
-// Puts files into the transcription queue one at a time, in the order given, with the
-// default model and language of the settings. Stops at the first refusal.
+export type QueueFiles = {
+  // A null title is the file name.
+  files: readonly { audioPath: string; title: string | null }[]
+  // Null is the backend's own: its default model, and the language detected from the audio.
+  whisperModel: string | null
+  language: string | null
+}
+
+// Puts files into the transcription queue one at a time, in the order given, all with
+// one model and language. Stops at the first refusal.
 export function useAddToQueue() {
   const api = useApi()
   const queries = useQueryClient()
   return useMutation({
-    mutationFn: async (paths: readonly string[]) => {
-      const defaults = await readTranscribeDefaults()
-      for (const [added, audioPath] of paths.entries()) {
+    mutationFn: async ({ files, whisperModel, language }: QueueFiles) => {
+      for (const [added, { audioPath, title }] of files.entries()) {
         try {
-          await api.addQueueJob({ audioPath, ...defaults })
+          await api.addQueueJob({ audioPath, whisperModel, language, title })
         } catch (error) {
           throw new AddToQueueError(added, error instanceof ApiError ? error : new ApiError(0, String(error)))
         }

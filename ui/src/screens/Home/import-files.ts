@@ -33,6 +33,19 @@ export function addFiles(current: readonly ImportFile[], incoming: readonly Impo
   return { files, skipped }
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const pad = (n: number) => String(n).padStart(2, '0')
+
+// What the title field shows until the user types, as the old UI's: "5 Nov 14:30 Meeting".
+export const defaultTitle = (now: Date) => `${now.getDate()} ${MONTHS[now.getMonth()]} ${pad(now.getHours())}:${pad(now.getMinutes())} Meeting`
+
+// The titles of the jobs, in the order of the files. One file keeps a typed title;
+// with none typed, or with several files, each is named after its file (null).
+export function queueTitles(files: readonly ImportFile[], typed: string): (string | null)[] {
+  const title = typed.trim()
+  return files.map(() => (files.length === 1 && title ? title : null))
+}
+
 export const importingMessage = (files: readonly ImportFile[]) => (
   files.length === 1 ? `Importing ${files[0].name}…` : `Importing ${files.length} files…`
 )
