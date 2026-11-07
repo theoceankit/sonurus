@@ -2,6 +2,7 @@ import * as RadixToast from '@radix-ui/react-toast'
 import { createPortal } from 'react-dom'
 import { ExitSignal } from '../../presence'
 import { cx } from '../../styles/cx'
+import { closeTopModal } from '../Modal/open-modals'
 import { Icon } from '../Icon/Icon'
 import { dismissToast, removeToast, useToasts, type ToastOptions } from './toast-store'
 import styles from './Toast.module.css'
@@ -23,6 +24,8 @@ export function Toast({ message, type = 'default', action, duration, open = true
       type={type === 'error' ? 'foreground' : 'background'}
       className={cx(styles.toast, styles[type])}
       onOpenChange={next => { if (!next) onClose?.() }}
+      // Over a modal Escape is the modal's: the toast stays and goes by itself.
+      onEscapeKeyDown={event => { if (closeTopModal()) event.preventDefault() }}
     >
       <ExitSignal onExited={onExited} />
       <RadixToast.Title className={styles.message}>{message}</RadixToast.Title>
