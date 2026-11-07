@@ -13,6 +13,7 @@ import { useImportDialog } from '../Home/useImportDialog'
 import { useSettingsDialog } from '../Settings/SettingsProvider'
 import { QueueJobPanel } from '../Queue/QueueJobPanel'
 import { QueueSection } from '../Queue/QueueSection'
+import { LiveRecordingPill, LiveRecordingSection } from '../../recording/LiveRecording'
 import { SpeakersDialog } from '../Speakers/SpeakersDialog'
 import type { Playback } from '../../media/playback'
 import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecordingDialog'
@@ -181,6 +182,7 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
         onNewTranscription={importer.open}
         onOpenSettings={() => settingsDialog.open()}
         onOpenSpeakers={() => setSpeakersOpen(true)}
+        status={!visible.sidebar && <LiveRecordingPill />}
       />
       <div
         ref={panelsArea}
@@ -196,7 +198,7 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
                 setJobId(null)
                 setSelectedId(id)
               }}
-              top={<QueueSection selectedJobId={jobId} onSelectJob={setJobId} />}
+              top={<><LiveRecordingSection /><QueueSection selectedJobId={jobId} onSelectJob={setJobId} /></>}
               onRetry={() => {
                 if (transcripts.isError) transcripts.refetch()
                 if (speakers.isError) speakers.refetch()

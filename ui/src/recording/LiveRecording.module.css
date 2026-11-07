@@ -1,0 +1,8 @@
+/* As the queue's section, with the queue under it. */
+.section {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-half);
+  padding-bottom: var(--space-3);
+}

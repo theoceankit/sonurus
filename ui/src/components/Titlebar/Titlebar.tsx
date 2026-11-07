@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
 import { IconButton, type IconButtonProps } from '../IconButton/IconButton'
@@ -14,6 +15,8 @@ interface TitlebarProps {
   onNewTranscription?: () => void
   onOpenSettings?: () => void
   onOpenSpeakers?: () => void
+  // Before the tools on the right, such as a recording in progress.
+  status?: ReactNode
   className?: string
 }
 
@@ -27,7 +30,7 @@ const Tool = ({ label, ...props }: IconButtonProps) => (
 
 // The strip the window is dragged by. The system's window buttons stand over it,
 // on either side: env(titlebar-area-*) in the styles keeps the controls clear of them.
-export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = true, onOpenInspector, onNewTranscription, onOpenSettings, onOpenSpeakers, className }: TitlebarProps) {
+export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = true, onOpenInspector, onNewTranscription, onOpenSettings, onOpenSpeakers, status, className }: TitlebarProps) {
   return (
     <header className={cx(styles.titlebar, className)}>
       <div className={styles.brand}>
@@ -45,6 +48,7 @@ export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = 
         <SearchField value="" onValueChange={ignore} readOnly placeholder="Search transcripts" aria-label="Search transcripts" shortcut={['mod', 'K']} />
       </div>
       <div className={styles.actions}>
+        {status}
         <TooltipGroup>
           <span className={styles.nav}>
             <Tool icon="speakers" label="Speakers" onClick={onOpenSpeakers} />
