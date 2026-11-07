@@ -217,3 +217,13 @@ test('delete: an alignment model queued jobs in its language need asks first', a
   await userEvent.click(await within(settings()).findByRole('button', { name: 'Delete Russian' }))
   expect((await screen.findByRole('alertdialog')).textContent).toContain('1 job in the queue uses Russian.')
 })
+
+test('the diarization card says a HuggingFace token is needed, and API Keys opens where it goes', async () => {
+  await setup({ installedModels: ['small'] })
+  await openSection('Models')
+  const card = await within(settings()).findByRole('region', { name: 'Speaker diarization' })
+  expect(card.textContent).toContain('needs a HuggingFace token')
+  await userEvent.click(within(card).getByRole('button', { name: 'API Keys' }))
+  expect(within(settings()).getByRole('tab', { name: 'API Keys', selected: true })).toBeTruthy()
+  expect(within(settings()).getByLabelText('HuggingFace token', { selector: 'input' })).toBeTruthy()
+})

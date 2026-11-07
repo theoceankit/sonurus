@@ -11,6 +11,7 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { useModelDelete } from './model-delete-action'
 import { useModelDownloads, type ModelDownloads } from '../../transcribe/model-downloads'
 import { modelState, settingsModelHint } from '../../transcribe/models'
+import { useSettingsDialog } from './SettingsProvider'
 import styles from './Settings.module.css'
 
 type TranscriptionModel = Extract<ModelInfo, { kind: 'whisper' | 'diarization' }>
@@ -33,6 +34,7 @@ export function ModelsSection() {
   const models = useModels()
   const settings = useSettings()
   const downloads = useModelDownloads()
+  const settingsDialog = useSettingsDialog()
   const deletion = useModelDelete()
   const confirmation = useLingering(deletion.toConfirm)
   if (!models.data || !settings) return <Loading models={models} />
@@ -69,7 +71,15 @@ export function ModelsSection() {
       <SectionCard title="Transcription" description="Whisper turns speech into text. The default one is used for new transcriptions.">
         {rows.filter(model => model.kind === 'whisper').map(row)}
       </SectionCard>
-      <SectionCard title="Speaker diarization" description="Tells the speakers apart. Every transcription needs it.">
+      <SectionCard
+        title="Speaker diarization"
+        description={(
+          <>
+            Tells the speakers apart. Every transcription needs it. Its download needs a HuggingFace token, set in{' '}
+            <button type="button" className={styles.link} onClick={() => settingsDialog.open('apiKeys')}>API Keys</button>.
+          </>
+        )}
+      >
         {rows.filter(model => model.kind === 'diarization').map(row)}
       </SectionCard>
       {confirmation.value && (

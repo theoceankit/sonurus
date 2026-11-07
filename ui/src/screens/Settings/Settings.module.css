@@ -89,3 +89,20 @@
 .blocked:focus-visible {
   outline: var(--border-width-strong) solid var(--color-focus);
 }
+
+/* A word in a sentence that goes somewhere else in Settings. */
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent-fg);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.link:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: var(--border-width-focus) solid var(--color-focus);
+}
