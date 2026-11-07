@@ -24,6 +24,7 @@ type Story = StoryObj<typeof EditorScreen>
 // Layout and sidebar as on the boards: the size, the pinned section, the selection.
 export const Board: Story = { args: { pinnedIds: [WEEKLY_SYNC_ID, 2], initialSelectedId: WEEKLY_SYNC_ID } }
 export const Default: Story = {}
+export const WithSpeakersOpen: Story = { args: { initialSelectedId: WEEKLY_SYNC_ID, initialSpeakersOpen: true } }
 export const Minimum: Story = { decorators: size('minimum') }
 export const AtTheBoundary: Story = { decorators: size('boundary') }
 export const Loading: Story = { parameters: { api: { scenario: 'loading' } } }

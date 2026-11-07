@@ -13,6 +13,7 @@ import { useImportDialog } from '../Home/useImportDialog'
 import { useSettingsDialog } from '../Settings/SettingsProvider'
 import { QueueJobPanel } from '../Queue/QueueJobPanel'
 import { QueueSection } from '../Queue/QueueSection'
+import { SpeakersDialog } from '../Speakers/SpeakersDialog'
 import type { Playback } from '../../media/playback'
 import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecordingDialog'
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
@@ -43,6 +44,8 @@ interface EditorScreenProps {
   initialSpeakerId?: string
   // For a story: a speaker standing highlighted, as if under the pointer.
   initialHighlight?: string
+  // For a story: the Speakers window open.
+  initialSpeakersOpen?: boolean
 }
 
 // Wide until measured, and a width from the screen itself rather than the window,
@@ -61,7 +64,7 @@ function useWidth() {
   return { element, width }
 }
 
-export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, possibleMatches, initialSpeakerId, initialHighlight }: EditorScreenProps) {
+export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, possibleMatches, initialSpeakerId, initialHighlight, initialSpeakersOpen = false }: EditorScreenProps) {
   const api = useApi()
   const transcripts = useTranscripts()
   const speakers = useSpeakers()
@@ -78,6 +81,9 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   const playback = givenPlayback ?? ownPlayback
   const [speakerRequest, setSpeakerRequest] = useState<SpeakerRequest | null>(null)
   const [toDelete, setToDelete] = useState<RecordingToDelete | null>(null)
+  const [speakersOpen, setSpeakersOpen] = useState(initialSpeakersOpen)
+  // Each opening starts on the list.
+  const speakersWindow = useLingering(speakersOpen ? true : null)
   // The speaker under the pointer in the inspector, for the transcript and the player.
   // Only they listen to it: the screen renders nothing when it changes.
   const [highlight] = useState(() => createKeyStore<string | null>(initialHighlight ?? null))
@@ -174,6 +180,7 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
         onOpenInspector={() => toggle('inspector')}
         onNewTranscription={importer.open}
         onOpenSettings={() => settingsDialog.open()}
+        onOpenSpeakers={() => setSpeakersOpen(true)}
       />
       <div
         ref={panelsArea}
@@ -226,6 +233,19 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
         />
       )}
       <ImportDialog {...importer.dialog} />
+      {speakersWindow.value && (
+        <SpeakersDialog
+          key={speakersWindow.key}
+          open={speakersWindow.open}
+          playback={playback}
+          onClose={() => setSpeakersOpen(false)}
+          onExited={speakersWindow.exited}
+          onOpenRecording={id => {
+            setJobId(null)
+            setSelectedId(id)
+          }}
+        />
+      )}
       {deleteDialog.value && (
         <DeleteRecordingDialog
           key={deleteDialog.key}

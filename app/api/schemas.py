@@ -90,6 +90,8 @@ class SpeakerTranscriptItem(BaseModel):
     created_at: str
     segments: int
     duration_sec: float
+    # Whether the recording's audio file is still on disk, so a sample can play.
+    has_audio: bool
 
 
 class SpeakerSuggestion(BaseModel):

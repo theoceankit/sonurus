@@ -547,7 +547,7 @@ Returns `204`.
 
 ### `GET /speakers`
 
-Returns **every** speaker: those with a voice profile (`speaker_embeddings`), a display name (`speaker_names`), or segments assigned to them. `name` is `null` for unrecognized (unnamed) speakers. Named speakers come first, sorted by name; unnamed ones follow, most recently seen first.
+Returns **every** speaker: those with a voice profile (`speaker_embeddings`), a display name (`speaker_names`), or segments assigned to them. `name` is `null` for unrecognized (unnamed) speakers. Named speakers come first, sorted by name (case and surrounding spaces ignored); unnamed ones follow, most recently seen first. Speakers that tie, such as two with the same name, keep one order between calls: the most recently seen first, then by id.
 
 ```json
 [
@@ -612,11 +612,11 @@ Chosen by `pick_voice_sample()` (`app/services/voice_sample.py`): only segments 
 
 ### `GET /speakers/{id}/transcripts`
 
-Transcripts in which the speaker has segments, newest first. `404` for an unknown speaker.
+Transcripts in which the speaker has segments, newest first. `has_audio` is false when the recording's audio file is gone, so a sample from it cannot play. `404` for an unknown speaker.
 
 ```json
 [
-  { "id": 7, "title": "Weekly sync", "created_at": "2026-09-27T10:15:02", "segments": 5, "duration_sec": 48.2 }
+  { "id": 7, "title": "Weekly sync", "created_at": "2026-09-27T10:15:02", "segments": 5, "duration_sec": 48.2, "has_audio": true }
 ]
 ```
 

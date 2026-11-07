@@ -1132,6 +1132,10 @@
             "title": "Duration Sec",
             "type": "number"
           },
+          "has_audio": {
+            "title": "Has Audio",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -1150,7 +1154,8 @@
           "title",
           "created_at",
           "segments",
-          "duration_sec"
+          "duration_sec",
+          "has_audio"
         ],
         "title": "SpeakerTranscriptItem",
         "type": "object"
@@ -2342,7 +2347,7 @@
     },
     "/speakers": {
       "get": {
-        "description": "Every speaker: with a voice profile, a name, or assigned segments.\nNamed speakers first (by name), then unnamed ones (most recently seen first).",
+        "description": "Every speaker: with a voice profile, a name, or assigned segments.\nNamed speakers first (by name), then unnamed ones (most recently seen first).\nSpeakers that tie keep one order: the most recently seen first, then by id.",
         "operationId": "list_speakers_speakers_get",
         "responses": {
           "200": {

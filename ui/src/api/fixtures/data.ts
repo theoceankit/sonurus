@@ -25,18 +25,20 @@ export const SPEAKER_IDS = {
   unknown3: 'f40d5b41-d2fb-4d2a-ac4a-25abd36c1011',
   unknown4: '051e6c52-e30c-4e3b-8d5b-36bce47d1012',
   unknown5: '162f7d63-f41d-4f4c-9e6c-47cdf58e1013',
+  // Another Mark Ellis, a different person: only on the sameNames board.
+  mark2: '273a8e74-a52e-4a5d-8f7d-58dea69f1014',
 } as const
 
 const { anna, mark, lena, priya, oliver, sofia, olga, daniel, emma, hugo, ines, jonas, kate, unknown1, unknown2, unknown3, unknown4, unknown5 } = SPEAKER_IDS
 
-const speaker = (id: string, name: string | null, colorIndex: number, transcripts: number): Speaker => ({
+export const speaker = (id: string, name: string | null, colorIndex: number, transcripts: number, lastSeen = '2026-10-04T02:33:00'): Speaker => ({
   id,
   name,
   color_index: colorIndex,
   transcripts,
   segments: transcripts * 12,
   duration_sec: transcripts * 310,
-  last_seen: '2026-10-04T02:33:00',
+  last_seen: lastSeen,
 })
 
 // Named first by name, then unnamed: the order of GET /speakers.
@@ -133,6 +135,9 @@ const listItem = (id: number, title: string, createdAt: string, section: string,
 })
 
 const LAST_WEEK = 'Last week'
+
+// Archived partner call: its file was moved away, so there is nothing to play.
+export const GONE_AUDIO_IDS: readonly number[] = [7]
 
 // What now() says on fixtures, so the sections of the list stay as on the boards.
 export const FIXTURE_NOW = new Date(2026, 9, 5, 12)

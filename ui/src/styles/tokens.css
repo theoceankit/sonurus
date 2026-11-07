@@ -244,6 +244,8 @@
   --size-modal-large: 760px;
   --size-choose-speaker-rail: 212px;
   --size-choose-speaker-list: 344px;
+  /* Speakers keep one height, so the list and a card take the same room. */
+  --size-speakers-pane: 440px;
   --size-drop-zone: 168px;
   --size-import-list: 184px;
   --size-settings-nav: 184px;

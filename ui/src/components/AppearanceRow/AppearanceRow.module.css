@@ -1,0 +1,75 @@
+.appearanceRow {
+  position: relative;
+  display: flex;
+  height: var(--size-control-md);
+  border-radius: var(--radius-card);
+  user-select: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.appearanceRow:hover {
+  background: var(--color-fill-hover);
+}
+
+.main {
+  composes: reset focusRing from '../../styles/control.module.css';
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-card);
+  color: var(--color-text-primary);
+  text-align: start;
+  cursor: pointer;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--font-body);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  flex: none;
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Play stands over the date and time, and a keyboard finds it too. */
+.actions {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: var(--space-1);
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.appearanceRow:hover .actions,
+.appearanceRow:focus-within .actions,
+.playing .actions {
+  opacity: 1;
+}
+
+.appearanceRow:hover .meta,
+.appearanceRow:focus-within .meta,
+.playing .meta {
+  visibility: hidden;
+}
+
+.blocked {
+  display: inline-flex;
+  border-radius: var(--radius-md);
+  outline: none;
+}
+
+.blocked:focus-visible {
+  outline: var(--border-width-strong) solid var(--color-focus);
+}

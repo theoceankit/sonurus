@@ -35,3 +35,9 @@ test('a click calls back', async () => {
   await userEvent.click(screen.getByRole('button'))
   expect(onClick).toHaveBeenCalledOnce()
 })
+
+test('a speaker of the Speakers section: a badge after the name, then recordings and time', () => {
+  render(<Candidate speaker={MARK} usage="8 recordings" time="41:20" badge="same name" />)
+  const texts = [...screen.getByRole('button').querySelectorAll('span')].map(span => span.textContent).filter(Boolean)
+  expect(texts.slice(-3)).toEqual(['same name', '8 recordings', '41:20'])
+})

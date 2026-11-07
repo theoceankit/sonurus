@@ -1127,6 +1127,7 @@ def test_delete_unknown_transcript_returns_404(client, recordings_dir):
 
 _BOB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 _CAROL = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+_DAVE = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
 
 
 def _speakers_fixture():
@@ -1179,6 +1180,38 @@ def test_list_speakers_puts_named_first(client):
     assert ids[0] == _ALICE
 
 
+def _set_created_at(transcript_id, created_at):
+    storage = app.dependency_overrides[get_storage_service]()
+    with storage._connect() as conn:
+        conn.execute("UPDATE transcriptions SET created_at = ? WHERE id = ?", (created_at, transcript_id))
+
+
+def test_list_speakers_orders_same_names_by_last_seen_then_id(client):
+    """Speakers sharing a name keep one order: most recently seen first, then by id."""
+    first, second = _speakers_fixture()
+    third = app.dependency_overrides[get_storage_service]().save(Transcript(audio_path="third.wav", segments=[
+        Segment(0.0, 1.0, "e", "SPEAKER_00", speaker_resolved=_DAVE),
+    ]))
+    memory = app.dependency_overrides[get_memory_service]()
+    memory.set_name(_BOB, " alice")
+    memory.set_name(_CAROL, "ALICE ")
+    memory.set_name(_DAVE, "Alice")
+    memory.save_names_only()
+    _set_created_at(first, "2026-01-01T10:00:00")   # Bob, Carol; Alice too
+    _set_created_at(second, "2026-03-01T10:00:00")  # Alice's latest
+    _set_created_at(third, "2026-02-01T10:00:00")   # Dave
+
+    expected = [_ALICE, _DAVE] + sorted([_BOB, _CAROL])
+    for _ in range(3):
+        assert [row["id"] for row in client.get("/speakers").json()] == expected
+
+
+def test_list_speakers_orders_unnamed_with_equal_last_seen_by_id(client):
+    _speakers_fixture()
+    ids = [row["id"] for row in client.get("/speakers").json()]
+    assert ids == [_ALICE] + sorted([_BOB, _CAROL])
+
+
 def test_patch_speaker_renames_and_recolors(client):
     _speakers_fixture()
     r = client.patch(f"/speakers/{_BOB}", json={"name": "  Bob  ", "color_index": 2})
@@ -1229,6 +1262,21 @@ def test_speaker_transcripts(client):
     assert r.status_code == 200
     assert {t["id"] for t in r.json()} == {first, second}
     assert client.get(f"/speakers/{_BOB}/transcripts").json()[0]["title"] == "first"
+
+
+def test_speaker_transcripts_tell_whether_the_audio_is_there(client, tmp_path):
+    storage = app.dependency_overrides[get_storage_service]()
+    present = tmp_path / "present.wav"
+    present.write_bytes(b"RIFF")
+    with_audio = storage.save(Transcript(audio_path=str(present), segments=[
+        Segment(0.0, 1.0, "a", "SPEAKER_00", speaker_resolved=_ALICE),
+    ]))
+    without_audio = storage.save(Transcript(audio_path=str(tmp_path / "gone.wav"), segments=[
+        Segment(0.0, 1.0, "b", "SPEAKER_00", speaker_resolved=_ALICE),
+    ]))
+    rows = {t["id"]: t for t in client.get(f"/speakers/{_ALICE}/transcripts").json()}
+    assert rows[with_audio]["has_audio"] is True
+    assert rows[without_audio]["has_audio"] is False
 
 
 def test_speaker_transcripts_unknown_returns_404(client):
