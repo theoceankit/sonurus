@@ -90,6 +90,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     cancelModelDownload: async (model_id, job_id) => {
       await send(http.DELETE('/models/{model_id}/download/{job_id}', { params: { path: { model_id, job_id } } }))
     },
+    deleteModel: async model_id => { await send(http.DELETE('/models/{model_id}', { params: { path: { model_id } } })) },
     watchModelDownload: (jobId, listener) => watchModelDownload(
       `${baseUrl.replace(/^http/, 'ws')}/ws/models/${jobId}`, listener, options.WebSocketImpl,
     ),

@@ -20,6 +20,8 @@ interface ModalProps {
   onExited?: () => void
   // Takes over from another window, with no way in and no second scrim.
   skipEnter?: boolean
+  // Over another open window: clear leaves the dimming to the scrim already under it.
+  scrim?: 'dim' | 'clear'
   // ModalHeader, ModalBody, ModalFooter. The body is free, Penpot's slot is this.
   children: ReactNode
   // Draws the window in place, without scrim and focus trap, for a board of variants.
@@ -62,7 +64,7 @@ function startingPoint(content: HTMLElement, type: ModalType) {
   return firstIn(content, '[data-modal-body]') ?? firstIn(content, '[data-modal-footer]') ?? firstIn(content, '[data-modal-header]')
 }
 
-export function Modal({ size = 'small', type = 'default', open, defaultOpen, onOpenChange, onExited, skipEnter, children, preview }: ModalProps) {
+export function Modal({ size = 'small', type = 'default', open, defaultOpen, onOpenChange, onExited, skipEnter, scrim = 'dim', children, preview }: ModalProps) {
   const [hasDescription, setHasDescription] = useState(false)
   const content = useRef<HTMLDivElement | null>(null)
   const [boundary, setBoundary] = useState<HTMLDivElement | null>(null)
@@ -116,7 +118,7 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
       >
         {preview ? window : (
           <RadixDialog.Portal>
-            <RadixDialog.Overlay className={cx(styles.scrim, skipEnter && styles.skipEnter)} />
+            <RadixDialog.Overlay className={cx(styles.scrim, scrim === 'clear' && styles.clear, skipEnter && styles.skipEnter)} />
             {window}
           </RadixDialog.Portal>
         )}

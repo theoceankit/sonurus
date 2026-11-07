@@ -32,9 +32,14 @@ The Whisper models and the diarization model, each in its card, as `ModelRow` ro
 - **Download** starts the download of the app (`useModelDownloads()`); the row shows the percentage and Cancel, also after Settings were closed and opened again. Once the model is installed the catalog is read again, and a first Whisper model becomes the default ([New UI transcription](new-ui-transcribe.md#the-default-model)).
 - **Failed.** A download that failed says so in its row, with the reason the backend gave (`error(id)`) and Retry, which starts it anew. There is no toast: the row is where the model is.
 - **Use**, or a click on the row of an installed Whisper model, makes it the default (`selectTranscribeModel`). The diarization model has no Use: every job needs it.
+- **Delete**, on an installed model, as in the old UI (`ui/src/transcribe/model-delete.ts`). Every job needs the diarization model, a Whisper model only its own jobs, an alignment model the jobs in its language. A model no waiting or failed job needs is deleted at once (`DELETE /models/{id}`). One that some need asks first, "2 jobs in the queue use Whisper Small. Delete anyway?". One the running transcription needs cannot be deleted: the button is off with the reason in a tooltip, and the backend answers 409 anyway; any refusal of the backend is said in a toast and the model stays. After a delete the catalog is read again, so the default moves on with its toast; when the alignment model of the default language goes, the language becomes Detect automatically, with a toast.
 
 While `GET /models` has not answered the section says Checking models…, and that the transcription service does not answer when it fails.
 
 ## Alignment
 
 The alignment models of the catalog (`ALIGNMENT_MODELS`), in its order, with the name, the language's own name and the size, Download, Cancel and the failed state as in Models. The footer names the languages of the list that need no model of their own, worked out from the catalog. It does not say where the models are kept: the API does not tell the real folder.
+
+## Confirmations
+
+A destructive step asks in `ConfirmDialog`, a danger `Modal` over Settings: the `alertdialog` role and focus on Cancel. Escape, the scrim and Cancel close only it, and Settings stays open. Focus goes back to the button that asked; when that is gone, such as the delete button of a model just deleted, to Settings. The confirm button is busy until the step is done. The scrim under it dims Settings again (`scrim="dim"`); `scrim="clear"` leaves the dimming to the scrim of Settings. Both are in Storybook, Modal → Over another window.

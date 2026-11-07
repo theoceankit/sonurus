@@ -61,6 +61,8 @@ export interface ApiClient {
   // job. The token is for gated models on HuggingFace.
   startModelDownload(modelId: string, hfToken: string | null): Promise<string>
   cancelModelDownload(modelId: string, jobId: string): Promise<void>
+  // Refused with a 409 while the running transcription needs the model.
+  deleteModel(modelId: string): Promise<void>
   // The progress of a download until it ends. Returns what stops listening.
   watchModelDownload(jobId: string, listener: (event: ModelDownloadEvent) => void): () => void
   getQueue(): Promise<QueueSnapshot>

@@ -6,6 +6,9 @@ import { ModelRow, type ModelRowState } from '../../components/ModelRow/ModelRow
 import { SectionCard } from '../../components/SectionCard/SectionCard'
 import { useSettings } from '../../platform/settings'
 import { selectTranscribeModel } from '../../platform/transcribe-defaults'
+import { useLingering } from '../../presence'
+import { ConfirmDialog } from './ConfirmDialog'
+import { useModelDelete } from './model-delete-action'
 import { useModelDownloads, type ModelDownloads } from '../../transcribe/model-downloads'
 import { modelState, settingsModelHint } from '../../transcribe/models'
 import styles from './Settings.module.css'
@@ -30,6 +33,8 @@ export function ModelsSection() {
   const models = useModels()
   const settings = useSettings()
   const downloads = useModelDownloads()
+  const deletion = useModelDelete()
+  const confirmation = useLingering(deletion.toConfirm)
   if (!models.data || !settings) return <Loading models={models} />
   const state = modelState(models.data, settings)
   const hint = settingsModelHint(state)
@@ -52,6 +57,8 @@ export function ModelsSection() {
         onDownload={() => void downloads.start(model.id)}
         onCancel={() => void downloads.cancel(model.id)}
         onUse={model.kind === 'whisper' ? () => void selectTranscribeModel(model.id) : undefined}
+        onDelete={() => deletion.request(model, model.name)}
+        deleteBlocked={deletion.blocked(model)}
       />
     )
   }
@@ -69,6 +76,16 @@ export function ModelsSection() {
       <SectionCard title="Speaker diarization" description="Tells the speakers apart. Every transcription needs it.">
         {rows.filter(model => model.kind === 'diarization').map(row)}
       </SectionCard>
+      {confirmation.value && (
+        <ConfirmDialog
+          key={confirmation.key}
+          prompt={confirmation.value.prompt}
+          open={confirmation.open}
+          onConfirm={deletion.confirm}
+          onClose={deletion.close}
+          onExited={confirmation.exited}
+        />
+      )}
     </>
   )
 }

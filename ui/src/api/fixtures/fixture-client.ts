@@ -252,6 +252,16 @@ export function createFixtureClient({
     }),
     listModels: () => answer(() => models),
     startModelDownload: modelId => answer(() => startDownload(modelId)),
+    deleteModel: modelId => answer(() => {
+      const model = models.find(m => m.id === modelId)
+      if (!model) throw new ApiError(422, `Unknown model '${modelId}'`)
+      const running = queue.jobs.find(job => job.id === queue.running_job_id)
+      if (running && [running.whisper_model, 'diarize', running.language].includes(modelId)) {
+        throw new ApiError(409, 'In use by the running transcription')
+      }
+      if (!model.installed) throw new ApiError(404, `Model "${modelId}" is not installed`)
+      model.installed = false
+    }),
     cancelModelDownload: (_modelId, jobId) => answer(() => {
       if (!downloads.has(jobId)) throw new ApiError(404, `No active download job '${jobId}'`)
       endDownload(jobId, { type: 'cancelled' })

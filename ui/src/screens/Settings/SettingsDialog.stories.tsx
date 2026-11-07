@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
+import { QUEUE_JOB, queueSnapshot } from '../../api/fixtures/data'
 import { Button } from '../../components/Button/Button'
 import { SettingsDialog, type SettingsDialogProps } from './SettingsDialog'
 import { SettingsProvider, useSettingsDialog } from './SettingsProvider'
@@ -62,3 +63,21 @@ export const ModelsDownloadFails: Story = { args: { section: 'models' }, paramet
 export const ModelsLoading: Story = { args: { section: 'models' }, parameters: { api: { overrides: { listModels: () => new Promise(() => {}) } } } }
 
 export const Alignment: Story = { args: { section: 'alignment' }, parameters: { api: { installedModels: ['small', 'diarize', 'ru', 'uk'], downloadStepMs: 1500 } } }
+
+// Delete Whisper Small: two jobs in the queue use it, so it asks over Settings.
+export const DeleteAskedOverSettings: Story = {
+  args: { section: 'models' },
+  parameters: {
+    api: {
+      installedModels: ['small', 'large-v3', 'diarize'],
+      overrides: { getQueue: async () => queueSnapshot({ jobs: [{ ...QUEUE_JOB, id: 'a', whisper_model: 'small' }, { ...QUEUE_JOB, id: 'b', whisper_model: 'small' }] }) },
+    },
+  },
+  render: function Render() {
+    function Open() {
+      const settings = useSettingsDialog()
+      return <Button onClick={() => settings.open('models')}>Open Settings on Models</Button>
+    }
+    return <SettingsProvider><Open /></SettingsProvider>
+  },
+}
