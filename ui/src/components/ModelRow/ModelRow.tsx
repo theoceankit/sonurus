@@ -17,8 +17,8 @@ export interface ModelRowProps {
   state: ModelRowState
   // While downloading, from 0 to 100.
   pct?: number
-  // Why the last download failed.
-  error?: string
+  // Why the last download failed, in sentences; it may hold a link, such as to API Keys.
+  error?: ReactNode
   onDownload?: () => void
   onCancel?: () => void
   // Makes an installed model the default; its row is clickable too.
@@ -73,7 +73,7 @@ export function ModelRow({
             <span className={styles.pct}>{Math.round(pct)}%</span>
           </div>
         )}
-        {state === 'failed' && <span role="alert" className={styles.error}>Download failed{error ? `: ${error}` : ''}</span>}
+        {state === 'failed' && <span role="alert" className={styles.error}>Download failed.{error ? <> {error}</> : null}</span>}
       </div>
       {/* Its buttons do their own thing, not the row's Use. */}
       <div className={styles.actions} onClick={event => event.stopPropagation()}>{actions}</div>

@@ -9,6 +9,7 @@ import { useModelDownloads } from '../../transcribe/model-downloads'
 import { useSettingsDialog } from '../Settings/SettingsProvider'
 import { addLanguage, ALIGNMENT_MISSING, alignmentRetryJobs, alignmentState } from './alignment'
 import type { AlignmentDialogProps } from './AlignmentDialog'
+import { downloadFailureLine } from '../../transcribe/download-errors'
 
 type Waiting = {
   // The first is shown; the others wait for it to close.
@@ -91,6 +92,8 @@ export function useAlignmentDialogs() {
     pct: download?.pct ?? 0,
     retryCount: jobs.length,
     cancelling,
+    // A download that only did not finish keeps the dialog's own words, which point to Settings.
+    failure: failed && downloads.failure(language) !== 'failed' ? downloadFailureLine(downloads.failure(language)!) : undefined,
     onDownload: () => {
       setWaiting(current => ({ ...current, watched: true }))
       void downloads.start(language)

@@ -104,12 +104,13 @@ test('a model installed by the time the dialog opens is ready at once', async ()
   expect(await waitFor(() => button('Retry transcription'))).toBeTruthy()
 })
 
-test('a failed download says so and offers to try again, or Settings', async () => {
-  const { client, fail } = setup({ downloadFails: true })
+test('a failed download says why and offers to try again, or Settings', async () => {
+  const { client, fail } = setup({ downloadFails: 'network' })
   await screen.findByRole('region', { name: 'This week' })
   await fail(failedJob('a', 'cs'))
   await userEvent.click(await waitFor(() => button('Download ~300 MB')))
   await waitFor(() => expect(dialog()?.textContent).toContain('Download failed'))
+  expect(dialog()?.textContent).toContain('No connection to HuggingFace. Check the internet connection and try again.')
   const start = vi.spyOn(client, 'startModelDownload')
   await userEvent.click(button('Try again'))
   expect(start).toHaveBeenCalledTimes(1)

@@ -6,6 +6,7 @@ import { FIXTURE_GPU, FIXTURE_NOW, GONE_AUDIO_IDS, queueSnapshot } from './data'
 import { fixtureModels } from './models'
 import type { EventScript } from './event-scripts'
 import type { ModelDownloadEvent } from '../model-download-events'
+import type { DownloadFailure } from '../../transcribe/download-errors'
 import { createTestAudioUrl } from './test-audio'
 import { fixtureLevels } from './waveform'
 
@@ -21,9 +22,10 @@ export type FixtureOptions = {
   // The ids of the downloaded models, in place of DEFAULT_INSTALLED.
   installedModels?: readonly string[]
   // A model download goes up a quarter every step and then installs the model, or
-  // fails at the end with downloadFails.
+  // fails at the end with downloadFails: with that code, a timeout (network) for true.
+  // The GPU download fails with it too.
   downloadStepMs?: number
-  downloadFails?: boolean
+  downloadFails?: boolean | DownloadFailure
   // What GET /gpu says; a packaged Linux app with an RTX 4060 and nothing installed by
   // default. The CUDA download goes as model downloads do, then waits for a restart,
   // which the fixtures apply as soon as the app may restart.
@@ -58,6 +60,15 @@ function missingModelError(models: readonly ModelInfo[], whisperModel: string | 
   }
   return null
 }
+
+// What the backend says for each code: the exception as raised, and the code.
+const DOWNLOAD_ERRORS: Record<DownloadFailure, string> = {
+  no_token: 'GatedRepoError: 401 Client Error. Cannot access gated repo pyannote/speaker-diarization-community-1.',
+  no_access: 'GatedRepoError: 403 Client Error. Cannot access gated repo pyannote/speaker-diarization-community-1.',
+  network: 'LocalEntryNotFoundError: Connection to huggingface.co timed out',
+  failed: 'OSError: [Errno 28] No space left on device',
+}
+const downloadError = (code: DownloadFailure) => ({ type: 'error' as const, message: DOWNLOAD_ERRORS[code], code })
 
 // The sources of a Linux desktop with HDMI and Bluetooth headphones.
 export const FIXTURE_CAPTURE_SOURCES: readonly AudioSource[] = [
@@ -254,7 +265,7 @@ export function createFixtureClient({
         download.pct = Math.min(100, download.pct + 25)
         download.listeners.forEach(listener => listener({ type: 'progress', pct: download.pct }))
         if (download.pct < 100) return
-        if (downloadFails) return endDownload(jobId, { type: 'error', message: 'Connection to huggingface.co timed out' })
+        if (downloadFails) return endDownload(jobId, downloadError(downloadFails === true ? 'network' : downloadFails))
         model.installed = true
         endDownload(jobId, { type: 'done' })
       }, downloadStepMs),

@@ -39,6 +39,7 @@ export const ReadyWithOneJob: Story = { args: { state: 'ready', retryCount: 1 } 
 // Nothing left to retry, such as after the jobs were deleted.
 export const ReadyWithNothingToRetry: Story = { args: { state: 'ready' } }
 export const DownloadFailed: Story = { args: { state: 'failed' } }
+export const DownloadFailedOffline: Story = { args: { state: 'failed', failure: 'No connection to HuggingFace. Check the internet connection and try again.' } }
 
 function Live() {
   const alignment = useAlignmentDialogs()

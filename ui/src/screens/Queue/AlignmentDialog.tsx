@@ -17,6 +17,8 @@ export interface AlignmentDialogProps {
   // Failed jobs that one button retries once the model is there.
   retryCount: number
   cancelling: boolean
+  // Why the download failed, in a sentence; a download that did not finish by default.
+  failure?: string
   onDownload: () => void
   onCancel: () => void
   onRetry: () => void
@@ -38,7 +40,7 @@ const TITLES: Record<AlignmentState, (name: string) => string> = {
 // A job failed because the alignment model of its language is not downloaded: the
 // model can be downloaded here, and the jobs retried, without going to Settings.
 export function AlignmentDialog({
-  open, language, state, pct, retryCount, cancelling, onDownload, onCancel, onRetry, onClose, onOpenSettings, onExited, preview,
+  open, language, state, pct, retryCount, cancelling, failure, onDownload, onCancel, onRetry, onClose, onOpenSettings, onExited, preview,
 }: AlignmentDialogProps) {
   const model = alignmentModel(language)
   const download = { children: model.size ? `Download ${model.size}` : 'Download', icon: 'download' as const, onClick: onDownload }
@@ -76,7 +78,7 @@ export function AlignmentDialog({
         )}
         {state === 'failed' && (
           <Stack gap={2} align="start" className={styles.text}>
-            <span>The download did not finish. Try again, or download the model in Settings.</span>
+            <span>{failure ?? 'The download did not finish. Try again, or download the model in Settings.'}</span>
             <Button variant="ghost" size="small" icon="settings" onClick={onOpenSettings}>Open Settings</Button>
           </Stack>
         )}

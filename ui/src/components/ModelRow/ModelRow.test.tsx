@@ -51,8 +51,8 @@ test('a model that cannot be deleted now: the button is off and says why', () =>
 })
 
 test('failed: the reason and Retry, which downloads again', async () => {
-  const { onDownload } = setup({ state: 'failed', error: 'Connection to huggingface.co timed out' })
-  expect(screen.getByRole('alert').textContent).toBe('Download failed: Connection to huggingface.co timed out')
+  const { onDownload } = setup({ state: 'failed', error: 'No connection to HuggingFace.' })
+  expect(screen.getByRole('alert').textContent).toBe('Download failed. No connection to HuggingFace.')
   await userEvent.click(button('Retry')!)
   expect(onDownload).toHaveBeenCalledOnce()
 })

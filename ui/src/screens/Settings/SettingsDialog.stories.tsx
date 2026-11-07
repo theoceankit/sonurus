@@ -60,6 +60,8 @@ export const ModelsWithoutDiarization: Story = { args: { section: 'models' }, pa
 
 // Download any model to see its row fail with the backend's reason and Retry.
 export const ModelsDownloadFails: Story = { args: { section: 'models' }, parameters: { api: { installedModels: ['small', 'diarize'], downloadStepMs: 300, downloadFails: true } } }
+export const ModelsDownloadNeedsToken: Story = { args: { section: 'models' }, parameters: { api: { installedModels: ['small'], downloadStepMs: 300, downloadFails: 'no_token' } } }
+export const ModelsDownloadNoAccess: Story = { args: { section: 'models' }, parameters: { api: { installedModels: ['small'], downloadStepMs: 300, downloadFails: 'no_access' } } }
 
 export const ModelsLoading: Story = { args: { section: 'models' }, parameters: { api: { overrides: { listModels: () => new Promise(() => {}) } } } }
 
