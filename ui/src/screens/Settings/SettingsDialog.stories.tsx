@@ -120,3 +120,5 @@ export const DataLive: Story = {
     return <SettingsProvider><Open /></SettingsProvider>
   },
 }
+
+export const Appearance: Story = { args: { section: 'appearance' }, decorators: [withSettings({ scale: 125 })] }

@@ -20,10 +20,14 @@ Without a provider, as for a screen alone in a story or a test, `open` does noth
 
 ## General
 
-- **App language** is marked with `markNotImplemented()`: the interface has one language.
-- **Interface scale**, 50 to 200% in steps of 5, with marks at 50, 100, 150 and 200%. The slider follows the pointer; when it lets go, or a key is released, the window zooms (`setZoom`) and `scale` is saved. The new UI applies the saved scale on start.
 - **Transcription language**, `transcribeLang`, the default of new transcriptions; Detect automatically is `auto`. A language whose alignment model is not downloaded gets a notice under the row with Download and the model's size; while it downloads, the percentage and Cancel. The download is the one of the app ([New UI transcription](new-ui-transcribe.md#downloads)): it goes on when Settings close. A saved language that is not in the list, such as one picked in the old UI, is still shown, by the name of its alignment model.
 - **Start transcription**, Automatically or Manually. The backend keeps it with the queue (`PUT /queue/settings`), not in `settings.json`; the field shows the value of the queue snapshot and is off until the queue has answered.
+
+## Appearance
+
+- **Theme**, System, Light or Dark, marked with `markNotImplemented()`: the app follows the system for now.
+- **App language** is marked with `markNotImplemented()`: the interface has one language.
+- **Interface scale**, 50 to 200% in steps of 5, with marks at 50, 100, 150 and 200%. The slider follows the pointer; when it lets go, or a key is released, the window zooms (`setZoom`) and `scale` is saved. The new UI applies the saved scale on start.
 
 ## Models
 

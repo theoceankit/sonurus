@@ -29,6 +29,11 @@ const openSettings = async () => {
   await userEvent.click(await screen.findByRole('button', { name: 'Settings' }))
   return screen.findByRole('dialog', { name: 'Settings' })
 }
+const openAppearance = async () => {
+  const settings = await openSettings()
+  await userEvent.click(within(settings).getByRole('tab', { name: 'Appearance' }))
+  return settings
+}
 const field = (name: string) => screen.getByRole('button', { name })
 const option = (name: RegExp | string) => screen.getByRole('menuitemradio', { name })
 
@@ -53,7 +58,7 @@ test('Escape and the close button close it', async () => {
 
 test('the interface scale zooms and is saved once the slider lets go', async () => {
   const { bridge, setZoom } = await setup({}, { scale: 100 })
-  await openSettings()
+  await openAppearance()
   const slider = screen.getByRole('slider', { name: 'Interface scale' })
   expect(slider.getAttribute('aria-valuetext')).toBe('100%')
   fireEvent.keyDown(slider, { key: 'ArrowRight' })
@@ -88,7 +93,7 @@ test('a language without its alignment model says so; Download starts it, with t
 test('a language whose alignment model is there says nothing', async () => {
   await setup({}, { transcribeLang: 'en' })
   const settings = await openSettings()
-  await screen.findByRole('slider', { name: 'Interface scale' })
+  await within(settings).findByRole('button', { name: 'Transcription language' })
   expect(within(settings).queryByRole('status')).toBeNull()
 })
 
@@ -102,11 +107,12 @@ test('Start transcription is the queue\'s and changes it', async () => {
   expect(field('Start transcription').textContent).toContain('Manually')
 })
 
-test('App language is not available yet', async () => {
+test('Appearance: the theme and the app language are there and not available yet', async () => {
   await setup()
-  await openSettings()
-  const appLanguage = field('App language').closest('[data-not-implemented]')
-  expect(appLanguage?.getAttribute('data-not-implemented')).toBe('settings.app-language')
+  await openAppearance()
+  expect(field('App language').closest('[data-not-implemented]')?.getAttribute('data-not-implemented')).toBe('settings.app-language')
+  expect(field('Theme').closest('[data-not-implemented]')?.getAttribute('data-not-implemented')).toBe('settings.theme')
+  expect(field('Theme').textContent).toContain('System')
 })
 
 test('opening puts the focus on the section, not on its first control', async () => {

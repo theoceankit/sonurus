@@ -21,6 +21,7 @@ export const NOT_IMPLEMENTED = [
   'settings.app-language',
   'settings.export',
   'settings.search',
+  'settings.theme',
   'new-transcription.diarize',
   'titlebar.back',
   'titlebar.forward',

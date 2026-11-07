@@ -7,6 +7,7 @@ import { markNotImplemented } from '../../not-implemented'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { TabPanel, Tabs } from '../../components/Tabs/Tabs'
 import { AlignmentSection } from './AlignmentSection'
+import { AppearanceSection } from './AppearanceSection'
 import { ApiKeysSection } from './ApiKeysSection'
 import { DataSection } from './DataSection'
 import { ExportSection } from './ExportSection'
@@ -28,6 +29,7 @@ export interface SettingsDialogProps {
 
 const PANELS: Record<SettingsSection, ComponentType> = {
   general: GeneralSection,
+  appearance: AppearanceSection,
   models: ModelsSection,
   alignment: AlignmentSection,
   gpu: GpuSection,

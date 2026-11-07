@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { useModels, useQueue, useSetQueueStartMode } from '../../api/queries'
 import type { QueueStartMode } from '../../api/types'
 import { Button } from '../../components/Button/Button'
@@ -6,52 +5,17 @@ import { FieldRow } from '../../components/FieldRow/FieldRow'
 import { Inline } from '../../components/Inline/Inline'
 import { SectionCard } from '../../components/SectionCard/SectionCard'
 import { Select } from '../../components/Select/Select'
-import { Slider } from '../../components/Slider/Slider'
-import { markNotImplemented } from '../../not-implemented'
 import { settingsStore, useSettings } from '../../platform/settings'
 import { alignmentModel, LANGUAGES } from '../../transcribe/languages'
 import { useModelDownloads } from '../../transcribe/model-downloads'
 import { missingAlignmentModel } from '../../transcribe/models'
 import styles from './Settings.module.css'
 
-export const SCALE = { min: 50, max: 200, step: 5 }
-const SCALE_MARKS = [50, 100, 150, 200].map(value => ({ value, label: `${value}%` }))
-
 const START_MODES: { value: QueueStartMode; label: string }[] = [
   { value: 'auto', label: 'Automatically' },
   { value: 'manual', label: 'Manually' },
 ]
 
-const INTERFACE_LANGUAGES = LANGUAGES.filter(({ code }) => code !== 'auto').map(({ code, label }) => ({ value: code, label }))
-
-const bridge = () => (typeof window === 'undefined' ? undefined : window.electronAPI)
-
-// The slider follows the pointer; the zoom and the file change once it lets go.
-function InterfaceScale({ saved }: { saved: number }) {
-  const [scale, setScale] = useState(saved)
-  useEffect(() => setScale(saved), [saved])
-  const commit = (value: number) => {
-    void bridge()?.setZoom(value / 100).catch(() => {})
-    void settingsStore().patch({ scale: value })
-  }
-  return (
-    <FieldRow label="Interface scale" hint="Affects type sizes and spacing." stacked>
-      <Inline gap={3} align="start" className={styles.scale}>
-        <Slider
-          label="Interface scale"
-          orientation="horizontal"
-          {...SCALE}
-          value={scale}
-          onChange={setScale}
-          onCommit={commit}
-          marks={SCALE_MARKS}
-          valueText={value => `${value}%`}
-        />
-        <span className={styles.scaleValue} aria-hidden>{scale}%</span>
-      </Inline>
-    </FieldRow>
-  )
-}
 
 // The default language of new transcriptions, with the download of its alignment
 // model while that is missing: without it a job in the language fails.
@@ -112,14 +76,6 @@ export function GeneralSection() {
   if (!settings) return null
   return (
     <>
-      <SectionCard title="Interface">
-        <FieldRow label="App language" hint="Language used across menus and dialogs.">
-          <div className={styles.stretch} {...markNotImplemented('settings.app-language')}>
-            <Select aria-label="App language" value="en" options={INTERFACE_LANGUAGES} onValueChange={() => {}} />
-          </div>
-        </FieldRow>
-        <InterfaceScale saved={settings.scale} />
-      </SectionCard>
       <SectionCard title="Transcription">
         <TranscriptionLanguage language={settings.transcribeLang} />
         <StartTranscription />

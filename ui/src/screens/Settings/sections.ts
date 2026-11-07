@@ -3,6 +3,7 @@ import type { IconName } from '../../components/Icon/icon-names'
 // The sections of Settings, in the order of the column at its side.
 export const SECTIONS = [
   { id: 'general', label: 'General', icon: 'settings' },
+  { id: 'appearance', label: 'Appearance', icon: 'interface' },
   { id: 'models', label: 'Models', icon: 'models' },
   { id: 'alignment', label: 'Languages', icon: 'globe' },
   { id: 'gpu', label: 'GPU', icon: 'sparkle' },
