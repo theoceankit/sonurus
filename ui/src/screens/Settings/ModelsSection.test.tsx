@@ -45,9 +45,9 @@ test('Models lists Whisper and diarization with what is installed and the one in
   expect(row('Whisper Large v3').textContent).not.toMatch(/Recommended|Best|Installed/)
   expect(inRow('Whisper Large v3', 'Use')).toBeTruthy()
   expect(inRow('Whisper Tiny', 'Download')).toBeTruthy()
-  expect(inRow('Diarization v2', 'Delete Diarization v2')).toBeTruthy()
-  expect(row('Diarization v2').textContent).not.toContain('Speaker separation')
-  expect(inRow('Diarization v2', 'Use')).toBeNull()
+  expect(inRow('Pyannote Community-1', 'Delete Pyannote Community-1')).toBeTruthy()
+  expect(row('Pyannote Community-1').textContent).not.toContain('Speaker separation')
+  expect(inRow('Pyannote Community-1', 'Use')).toBeNull()
   expect(within(settings()).queryByRole('status')).toBeNull()
 })
 
@@ -177,8 +177,8 @@ test('delete: the diarization model with queued jobs counts every job', async ()
   const { client } = await setup({ installedModels: ['small', 'diarize'] })
   await queueOf(client, { jobs: [job('a', { whisper_model: 'small' }), job('b', { whisper_model: 'large-v3' })] })
   await openSection('Models')
-  await userEvent.click(await within(settings()).findByRole('button', { name: 'Delete Diarization v2' }))
-  expect((await screen.findByRole('alertdialog')).textContent).toContain('2 jobs in the queue use Diarization v2.')
+  await userEvent.click(await within(settings()).findByRole('button', { name: 'Delete Pyannote Community-1' }))
+  expect((await screen.findByRole('alertdialog')).textContent).toContain('2 jobs in the queue use Pyannote Community-1.')
 })
 
 test('delete: the model of the running transcription cannot be deleted, and says why', async () => {
@@ -187,7 +187,7 @@ test('delete: the model of the running transcription cannot be deleted, and says
   await openSection('Models')
   await waitFor(() => expect(within(settings()).getByRole('button', { name: 'Delete Whisper Small' })).toHaveProperty('disabled', true))
   expect(within(settings()).getByLabelText('Whisper Small cannot be deleted: In use by the running transcription')).toBeTruthy()
-  expect(within(settings()).getByRole('button', { name: 'Delete Diarization v2' })).toHaveProperty('disabled', true)
+  expect(within(settings()).getByRole('button', { name: 'Delete Pyannote Community-1' })).toHaveProperty('disabled', true)
   expect(within(settings()).getByRole('button', { name: 'Delete Whisper Large v3' })).toHaveProperty('disabled', false)
 })
 

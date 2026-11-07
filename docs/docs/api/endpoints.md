@@ -212,7 +212,7 @@ Returns the full catalog with install status for every model: 5 Whisper + 1 Diar
 ```json
 [
   { "id": "large-v3", "installed": true, "name": "Whisper Large v3", "size": "1.55 GB", "speed": "~1× realtime", "acc": "Best", "recommended": true, "kind": "whisper" },
-  { "id": "diarize", "installed": true, "name": "Diarization · v2", "size": "130 MB", "speed": "—", "acc": "Speaker separation", "recommended": false, "kind": "diarization" },
+  { "id": "diarize", "installed": true, "name": "Pyannote Community-1", "size": "130 MB", "speed": "—", "acc": "Speaker separation", "recommended": false, "kind": "diarization" },
   { "id": "ru", "installed": false, "kind": "alignment" }
 ]
 ```

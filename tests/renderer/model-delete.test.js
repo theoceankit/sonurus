@@ -12,7 +12,7 @@ const pending = () => new Promise(() => {})
 const flush = () => new Promise(resolve => setImmediate(resolve))
 
 const SMALL = { id: 'small', name: 'Whisper Small', kind: 'whisper' }
-const DIARIZE = { id: 'diarize', name: 'Diarization · v2', kind: 'diarization' }
+const DIARIZE = { id: 'diarize', name: 'Pyannote Community-1', kind: 'diarization' }
 const RU = { id: 'ru', name: 'Russian', kind: 'alignment' }
 
 const job = (id, status, whisper_model = 'small') => ({ id, status, whisper_model, title: id })
@@ -130,7 +130,7 @@ test('Settings: queued jobs need the model → confirmation; Cancel deletes noth
 test('Settings: the diarization model with queued jobs → confirmation counting every job', () => {
   const s = settings(snapshot([job('a', 'waiting', 'small'), job('b', 'waiting', 'base')]))
   s.deleteButtonOf('diarize').fire('click')
-  assert.equal(s.dialogs[0].body, '2 jobs in the queue use Diarization · v2. Delete anyway?')
+  assert.equal(s.dialogs[0].body, '2 jobs in the queue use Pyannote Community-1. Delete anyway?')
 })
 
 test('Settings: the running transcription uses the model → delete button off with the reason', () => {

@@ -24,7 +24,7 @@ const noop = () => {}
 for (const model of [
   { id: 'small', name: 'Whisper Small', kind: 'whisper', size: '244 MB', installed: true },
   { id: 'large-v3', name: 'Whisper Large v3', kind: 'whisper', size: '1.55 GB', installed: false },
-  { id: 'diarize', name: 'Diarization · v2', kind: 'diarization', size: '130 MB', installed: true },
+  { id: 'diarize', name: 'Pyannote Community-1', kind: 'diarization', size: '130 MB', installed: true },
 ]) {
   test(`makeModelRow: builds the ${model.id} row`, () => {
     iconCalls.length = 0

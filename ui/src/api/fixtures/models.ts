@@ -12,7 +12,7 @@ const CATALOG: readonly Row[] = [
   { id: 'small', kind: 'whisper', name: 'Whisper Small', size: '244 MB', speed: '~4× realtime', acc: 'Good', recommended: false },
   { id: 'medium', kind: 'whisper', name: 'Whisper Medium', size: '769 MB', speed: '~2× realtime', acc: 'Very good', recommended: false },
   { id: 'large-v3', kind: 'whisper', name: 'Whisper Large v3', size: '1.55 GB', speed: '~1× realtime', acc: 'Best', recommended: true },
-  { id: 'diarize', kind: 'diarization', name: 'Diarization v2', size: '130 MB', speed: '', acc: 'Speaker separation', recommended: false },
+  { id: 'diarize', kind: 'diarization', name: 'Pyannote Community-1', size: '130 MB', speed: '', acc: 'Speaker separation', recommended: false },
   ...ALIGNMENT_MODELS.map(({ id }) => ({ id, kind: 'alignment' as const })),
 ]
 
