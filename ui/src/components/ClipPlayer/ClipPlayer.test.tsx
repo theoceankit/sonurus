@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { ClipPlayer } from './ClipPlayer'
+import clipPlayerCss from './ClipPlayer.module.css?raw'
 
 test('shows the duration, and play or pause', () => {
   const { rerender } = render(<ClipPlayer progress={0} duration="0:04" />)
@@ -43,4 +44,16 @@ test('the waveform takes the heights of the clip, and is flat without them', () 
   expect(new Set(heightsOf()).size).toBe(1)
   rerender(<ClipPlayer progress={0} duration="0:04" heights={[0, 0.5, 1]} />)
   expect(heightsOf()).toEqual(['0%', '50%', '100%'])
+})
+
+test('tells how many bars its waveform has room for, and draws that many flat ones until the levels come', () => {
+  const onBarCount = vi.fn()
+  render(<ClipPlayer progress={0} duration="0:04" onBarCount={onBarCount} />)
+  // jsdom has no layout: the count stays the default.
+  expect(onBarCount).toHaveBeenLastCalledWith(26)
+  expect(screen.getByText('0:04').previousElementSibling!.children).toHaveLength(26)
+})
+
+test('the waveform takes the room left, not the width of its bars', () => {
+  expect(clipPlayerCss).toMatch(/\.clipPlayer > \.waveform \{[^}]*flex: 1 1 0;[^}]*min-width: 0;/)
 })

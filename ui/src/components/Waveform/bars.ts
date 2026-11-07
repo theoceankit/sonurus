@@ -9,6 +9,16 @@ export const FLAT_HEIGHTS = {
   small: Array<number>(BAR_COUNT.small).fill(FLAT_LEVEL),
 }
 
+// How many bars of a small waveform fit its width, each as wide as
+// --size-waveform-bar-small with the gap between them, so a wider clip gets more
+// bars, not wider ones. Before the width is known it is BAR_COUNT.small.
+export function smallBarCount(width: number, bar: number, gap: number) {
+  if (!(width > 0) || !(bar > 0)) return BAR_COUNT.small
+  return Math.max(1, Math.floor((width + gap) / (bar + gap)))
+}
+
+export const flatHeights = (count: number) => Array<number>(count).fill(FLAT_LEVEL)
+
 // The heights on the Penpot board, in pixels of a waveform 32 and 18 tall, for
 // stories: some audio to look at.
 const LARGE = [
