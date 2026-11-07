@@ -1,4 +1,5 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
@@ -291,6 +292,54 @@ describe('deleting the open recording', () => {
     expect(await screen.findByText('Could not delete: Server error 500')).toBeTruthy()
     expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(within(panel()).getByRole('heading', { level: 1 })).toBeTruthy()
+  })
+})
+
+// Delete all data in Settings, or a deletion in another window: the list comes back
+// without the open recording.
+describe('the open recording gone from the list', () => {
+  function setupWithQueries(initialSelectedId: number) {
+    atWidth(1200)
+    const client = createFixtureClient()
+    let queries: QueryClient | null = null
+    function Grab() {
+      queries = useQueryClient()
+      return null
+    }
+    render(
+      <ApiProvider client={client}>
+        <OverlayProvider><Grab /><EditorScreen initialSelectedId={initialSelectedId} /></OverlayProvider>
+      </ApiProvider>,
+    )
+    // As Delete all data does: everything under transcripts, the open one too.
+    const refresh = () => act(async () => { await queries!.invalidateQueries({ queryKey: ['transcripts'] }) })
+    return { client, queries: () => queries!, refresh }
+  }
+  const panel = () => screen.getByRole('main', { name: 'Transcript' })
+  const player = () => screen.getByRole('region', { name: 'Player' })
+
+  test('after Delete all data nothing of it is shown and its data leaves the cache', async () => {
+    const { client, queries, refresh } = setupWithQueries(WEEKLY_SYNC_ID)
+    await within(panel()).findByRole('heading', { level: 1 })
+    const speakersTab = () => within(screen.getByRole('region', { name: 'Inspector' })).getByRole('tabpanel')
+    await waitFor(() => expect(speakersTab().textContent).not.toBe(''))
+    await client.resetData()
+    await refresh()
+    await waitFor(() => expect(within(panel()).queryByRole('heading', { level: 1 })).toBeNull())
+    expect(speakersTab().textContent).toBe('')
+    expect(within(player()).getByRole('button', { name: 'Play' }).hasAttribute('disabled')).toBe(true)
+    expect(queries().getQueryCache().findAll({ queryKey: ['transcripts', WEEKLY_SYNC_ID] })).toHaveLength(0)
+    expect(queries().getQueryCache().findAll({ queryKey: ['waveform', WEEKLY_SYNC_ID] })).toHaveLength(0)
+  })
+
+  test('with recordings left, the one opened last of them opens', async () => {
+    const { client, refresh } = setupWithQueries(WEEKLY_SYNC_ID)
+    await within(panel()).findByRole('heading', { level: 1 })
+    await userEvent.click(sidebarRow(/Design review/))
+    await waitFor(() => expect(within(panel()).getByRole('heading', { level: 1 }).textContent).toBe('Design review'))
+    await client.deleteTranscript(DESIGN_REVIEW_ID)
+    await refresh()
+    await waitFor(() => expect(within(panel()).getByRole('heading', { level: 1 }).textContent).toBe('Weekly product sync'))
   })
 })
 
