@@ -735,6 +735,33 @@
         "title": "RecordingUploadResponse",
         "type": "object"
       },
+      "RefusalResponse": {
+        "description": "A 400 of the queue's job routes: a message for the user and what it is about.",
+        "properties": {
+          "code": {
+            "enum": [
+              "whisper_model_missing",
+              "diarization_model_missing",
+              "alignment_model_missing",
+              "audio_not_found",
+              "audio_not_readable",
+              "audio_copy_failed"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail",
+          "code"
+        ],
+        "title": "RefusalResponse",
+        "type": "object"
+      },
       "RenameRequest": {
         "properties": {
           "name": {
@@ -2025,6 +2052,16 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2118,6 +2155,16 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2159,6 +2206,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "422": {
             "content": {

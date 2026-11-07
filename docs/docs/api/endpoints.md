@@ -153,15 +153,18 @@ Adds a job at the end of the queue and returns it (`status: "waiting"`). In `aut
 }
 ```
 
-**Guards** — `400`, nothing is queued:
+**Guards** — `400`, nothing is queued. The body is `{"detail": "…", "code": "…"}` (`RefusalResponse`): `detail` is a message for the user that names the file but never shows its path, `code` says what it is about, so a client acts on the code, not the wording:
 
-| Condition | Detail |
-|---|---|
-| Whisper model not installed | `"Whisper model \"large-v3\" is not installed. Download it in Settings."` |
-| Diarization model not installed | `"Diarization model is not installed. Download it in Settings."` |
-| Explicit language in `ALIGNMENT_CATALOG` and alignment model not installed | `"Alignment model for language \"ru\" is not installed. Download it in Settings."` |
-| File missing / not readable | `"audio_path not found: …"` / `"audio_path not readable: …"` |
-| Copy failed (e.g. no disk space) | `"Could not copy audio file: …"` |
+| Condition | `code` | `detail` |
+|---|---|---|
+| Whisper model not installed | `whisper_model_missing` | `"Whisper model \"large-v3\" is not installed. Download it in Settings."` |
+| Diarization model not installed | `diarization_model_missing` | `"Diarization model is not installed. Download it in Settings."` |
+| Explicit language in `ALIGNMENT_CATALOG` and alignment model not installed | `alignment_model_missing` | `"Alignment model for language \"ru\" is not installed. Download it in Settings."` |
+| File missing | `audio_not_found` | `"\"meeting.mp3\" could not be found."` |
+| File not readable | `audio_not_readable` | `"\"meeting.mp3\" could not be read."` |
+| Copy failed (e.g. no disk space) | `audio_copy_failed` | `"\"meeting.mp3\" could not be copied."` (the error itself goes to the log) |
+
+Other errors of the queue routes (`404`, `409`, `422`) keep FastAPI's plain `{"detail": …}`.
 
 **Audio copy** — an imported file (anything outside `$SONORUS_DATA_DIR/recordings/`) is copied to `recordings/sonorus-import-<uuid>.<ext>` before the job is queued; the job and later the transcript reference the copy, and the original is never touched. A live recording is used as it is. See [Audio Store](../services/AudioStore.md).
 
@@ -171,7 +174,7 @@ A job never downloads a model. Before it starts, the worker checks that its Whis
 
 ### `PATCH /queue/jobs/{id}`
 
-Changes `title`, `whisper_model` and/or `language` — only the fields sent (`language: null` or `"auto"` = auto-detect). Allowed for waiting and failed jobs. `404` unknown job, `409` for the running job, `400` if the new Whisper or alignment model is not installed, `422` for a blank title or one over 200 characters.
+Changes `title`, `whisper_model` and/or `language` — only the fields sent (`language: null` or `"auto"` = auto-detect). Allowed for waiting and failed jobs. `404` unknown job, `409` for the running job, `400` with a model `code` as above if the new Whisper or alignment model is not installed, `422` for a blank title or one over 200 characters.
 
 ### `DELETE /queue/jobs/{id}`
 
@@ -179,7 +182,7 @@ Deletes the job **and its audio** — the live recording, or the copy of an impo
 
 ### `POST /queue/jobs/{id}/retry`
 
-A failed job becomes `waiting` again at the end of the queue, its error cleared. `404` unknown job, `409` if the job has not failed, `400` if its Whisper, diarization or (explicit-language) alignment model is not installed (same texts as `POST /queue/jobs`; the job stays failed).
+A failed job becomes `waiting` again at the end of the queue, its error cleared. `404` unknown job, `409` if the job has not failed, `400` if its Whisper, diarization or (explicit-language) alignment model is not installed (same codes and texts as `POST /queue/jobs`; the job stays failed).
 
 ### `WS /ws/queue`
 

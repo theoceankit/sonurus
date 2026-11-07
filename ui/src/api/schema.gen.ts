@@ -1044,6 +1044,19 @@ export interface components {
             /** File Path */
             file_path: string;
         };
+        /**
+         * RefusalResponse
+         * @description A 400 of the queue's job routes: a message for the user and what it is about.
+         */
+        RefusalResponse: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed";
+            /** Detail */
+            detail: string;
+        };
         /** RenameRequest */
         RenameRequest: {
             /** Name */
@@ -1776,6 +1789,15 @@ export interface operations {
                     "application/json": components["schemas"]["QueueJob"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -1842,6 +1864,15 @@ export interface operations {
                     "application/json": components["schemas"]["QueueJob"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -1871,6 +1902,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QueueJob"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
                 };
             };
             /** @description Validation Error */

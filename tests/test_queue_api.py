@@ -125,7 +125,7 @@ def test_add_copy_failure_is_400_and_queues_nothing(api):
     tc, queue, _, tmp_path = api
     with patch("app.services.audio_store.shutil.copy2", side_effect=OSError(28, "No space left on device")):
         r = tc.post("/queue/jobs", json={"audio_path": _file(tmp_path), "whisper_model": "small"})
-    assert r.status_code == 400 and "copy" in r.json()["detail"].lower()
+    assert r.status_code == 400 and r.json()["code"] == "audio_copy_failed"
     assert queue.snapshot()["jobs"] == [] and _imports(tmp_path) == []
 
 
@@ -313,7 +313,8 @@ def test_retry_refuses_a_job_whose_model_is_not_installed(api):
 
     r = tc.post(f"/queue/jobs/{job['id']}/retry")
     assert r.status_code == 400
-    assert r.json()["detail"] == 'Whisper model "small" is not installed. Download it in Settings.'
+    assert r.json() == {"detail": 'Whisper model "small" is not installed. Download it in Settings.',
+                        "code": "whisper_model_missing"}
     assert queue.snapshot()["jobs"][0]["status"] == "failed"
 
 
@@ -330,6 +331,7 @@ def test_retry_refuses_a_job_without_the_diarization_model(api):
     r = tc.post(f"/queue/jobs/{job['id']}/retry")
     assert r.status_code == 400
     assert "Diarization model is not installed" in r.json()["detail"]
+    assert r.json()["code"] == "diarization_model_missing"
 
 
 def test_a_model_the_running_job_uses_cannot_be_deleted(api):
@@ -375,3 +377,57 @@ def test_an_auto_detect_job_does_not_hold_an_alignment_model(api):
     wait_for(lambda: queue.snapshot()["running_job_id"] is not None)
     assert tc.delete("/models/ru").status_code == 200
     runner.release("Team Meeting")
+
+
+# ── Refusals: a code next to a message without paths ──────────────────────────
+
+def test_a_missing_file_is_refused_by_name_with_a_code(api):
+    tc, _, _, tmp_path = api
+    path = tmp_path / "in" / "nope.wav"
+    r = tc.post("/queue/jobs", json={"audio_path": str(path), "whisper_model": "small"})
+    assert r.status_code == 400
+    assert r.json() == {"detail": '"nope.wav" could not be found.', "code": "audio_not_found"}
+
+
+def test_an_unreadable_file_is_refused_by_name_with_a_code(api):
+    tc, _, _, tmp_path = api
+    path = _file(tmp_path)
+    with patch("app.api.routers.transcription.os.access", return_value=False):
+        r = tc.post("/queue/jobs", json={"audio_path": path, "whisper_model": "small"})
+    assert r.status_code == 400
+    assert r.json() == {"detail": '"Team Meeting.wav" could not be read.', "code": "audio_not_readable"}
+
+
+def test_a_failed_copy_is_refused_without_the_os_error(api):
+    tc, _, _, tmp_path = api
+    with patch("app.services.audio_store.shutil.copy2", side_effect=OSError(28, f"No space left: {tmp_path}")):
+        r = tc.post("/queue/jobs", json={"audio_path": _file(tmp_path), "whisper_model": "small"})
+    assert r.status_code == 400
+    assert r.json() == {"detail": '"Team Meeting.wav" could not be copied.', "code": "audio_copy_failed"}
+
+
+def test_a_missing_whisper_model_is_refused_with_its_code(api):
+    tc, _, _, tmp_path = api
+    r = tc.post("/queue/jobs", json={"audio_path": _file(tmp_path), "whisper_model": "medium"})
+    assert r.status_code == 400
+    assert r.json() == {"detail": 'Whisper model "medium" is not installed. Download it in Settings.',
+                        "code": "whisper_model_missing"}
+
+
+def test_a_missing_alignment_model_is_refused_with_its_code(api):
+    tc, _, _, tmp_path = api
+    r = tc.post("/queue/jobs", json={"audio_path": _file(tmp_path), "whisper_model": "small", "language": "ru"})
+    assert r.status_code == 400
+    assert r.json()["code"] == "alignment_model_missing"
+
+
+def test_an_edit_to_a_missing_model_is_refused_with_its_code(api):
+    tc, _, _, tmp_path = api
+    job = _post(tc, tmp_path)
+    r = tc.patch(f"/queue/jobs/{job['id']}", json={"whisper_model": "medium"})
+    assert r.status_code == 400 and r.json()["code"] == "whisper_model_missing"
+
+
+def test_other_errors_keep_the_plain_detail(api):
+    tc, _, _, _ = api
+    assert tc.patch("/queue/jobs/nope", json={"title": "x"}).json() == {"detail": "Job not found"}
