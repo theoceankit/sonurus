@@ -92,11 +92,11 @@ export function useQueue() {
   return useQuery({ queryKey: queryKeys.queue, queryFn: () => api.getQueue() })
 }
 
-// The system audio sources. Asked again each time a screen that shows them mounts:
-// an output device may have come or gone.
-export function useCaptureSources() {
+// The system audio sources, asked for only while enabled, and again each time a screen
+// that shows them mounts: an output device may have come or gone.
+export function useCaptureSources(enabled = true) {
   const api = useApi()
-  return useQuery({ queryKey: queryKeys.captureSources, queryFn: () => api.listCaptureSources(), refetchOnMount: 'always' })
+  return useQuery({ queryKey: queryKeys.captureSources, queryFn: () => api.listCaptureSources(), refetchOnMount: 'always', enabled })
 }
 
 // Whether WS /ws/queue is up, kept by useQueueEventsSync.

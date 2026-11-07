@@ -9,6 +9,10 @@ import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { EditorScreen } from '../Editor/EditorScreen'
+import { RecordingProvider, useRecording } from '../../recording/RecordingProvider'
+import type { SessionDeps } from '../../recording/session'
+import type { ApiClient } from '../../api/client'
+import { BOTH_OFF, NO_SYSTEM_AUDIO } from '../../recording/sources'
 import { SettingsProvider } from '../Settings/SettingsProvider'
 
 afterEach(() => {
@@ -31,11 +35,11 @@ function drag(type: string, { files = ['a.mp3'], types = ['Files'] } = {}) {
   return event
 }
 
-const dialog = () => screen.queryByRole('dialog', { name: 'New transcription' })
+const dialog = () => screen.queryByRole('dialog', { name: 'New recording' })
 const listed = () => within(screen.getByRole('list', { name: 'Files to import' })).getAllByRole('listitem').map(item => item.textContent!.trim())
 const openByButton = async () => {
-  await userEvent.click(await screen.findByRole('button', { name: 'New transcription' }))
-  return screen.findByRole('dialog', { name: 'New transcription' })
+  await userEvent.click(await screen.findByRole('button', { name: 'New recording' }))
+  return screen.findByRole('dialog', { name: 'New recording' })
 }
 
 describe('opening', () => {
@@ -51,9 +55,9 @@ describe('opening', () => {
 
   test('files dragged over the window open it, and it goes when they leave undropped', async () => {
     setup()
-    await screen.findByRole('button', { name: 'New transcription' })
+    await screen.findByRole('button', { name: 'New recording' })
     drag('dragenter')
-    expect(await screen.findByRole('dialog', { name: 'New transcription' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: 'New recording' })).toBeTruthy()
     // Over the window but not over the zone: the zone stays as it is.
     expect(screen.getByText('Drop audio or video files here')).toBeTruthy()
     drag('dragleave')
@@ -62,27 +66,27 @@ describe('opening', () => {
 
   test('a drag of text opens nothing', async () => {
     setup()
-    await screen.findByRole('button', { name: 'New transcription' })
+    await screen.findByRole('button', { name: 'New recording' })
     drag('dragenter', { types: ['text/plain'] })
     expect(dialog()).toBeNull()
   })
 
   test('opens again on the next drag after a drop', async () => {
     setup()
-    await screen.findByRole('button', { name: 'New transcription' })
+    await screen.findByRole('button', { name: 'New recording' })
     drag('dragenter')
     drag('drop')
     await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(dialog()).toBeNull())
     drag('dragenter')
-    expect(await screen.findByRole('dialog', { name: 'New transcription' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: 'New recording' })).toBeTruthy()
   })
 })
 
 describe('the files', () => {
   test('a drop anywhere lists the audio, names the rest in a toast, and the dialog stays', async () => {
     setup()
-    await screen.findByRole('button', { name: 'New transcription' })
+    await screen.findByRole('button', { name: 'New recording' })
     drag('dragenter')
     const event = drag('drop', { files: ['Team call.m4a', 'notes.txt', 'b.WAV'] })
     expect(event.defaultPrevented).toBe(true)
@@ -94,7 +98,7 @@ describe('the files', () => {
 
   test('a drop with no audio says so in a toast, and the dialog stays empty', async () => {
     setup()
-    await screen.findByRole('button', { name: 'New transcription' })
+    await screen.findByRole('button', { name: 'New recording' })
     drag('dragenter')
     drag('drop', { files: ['a.txt', 'b.pdf'] })
     expect(await screen.findByText('2 files were not imported: these file types are not supported.')).toBeTruthy()
@@ -334,5 +338,106 @@ describe('title, model and language', () => {
     const diarize = screen.getByRole('button', { name: 'Diarize speakers' })
     expect(diarize.getAttribute('data-not-implemented')).toBe('new-transcription.diarize')
     expect(diarize.getAttribute('aria-pressed')).toBeNull()
+  })
+})
+
+describe('recording', () => {
+  // The window's audio in jsdom: system audio only, the backend's fixture captures it.
+  const noMicrophone = (api: ApiClient): SessionDeps => ({
+    api,
+    platform: async () => 'linux',
+    getUserMedia: () => Promise.reject(new Error('no microphone here')),
+    connect: () => { throw new Error('no audio here') },
+    createRecorder: () => { throw new Error('no audio here') },
+  })
+  let control: ReturnType<typeof useRecording>
+  const Probe = () => { control = useRecording(); return null }
+
+  async function setupRecording(options: FixtureOptions = {}, settings: object = {}) {
+    const client = createFixtureClient(options)
+    const bridge = createMockElectronAPI()
+    await bridge.writeSettings({ ...await bridge.readSettings(), ...settings })
+    vi.stubGlobal('electronAPI', bridge)
+    render(
+      <ApiProvider client={client}><OverlayProvider><RecordingProvider deps={noMicrophone}><SettingsProvider>
+        <EditorScreen /><Probe />
+      </SettingsProvider></RecordingProvider></OverlayProvider></ApiProvider>,
+    )
+    return client
+  }
+  const toggle = (name: string) => screen.getByRole('button', { name })
+  const start = () => screen.getByRole('button', { name: 'Start recording' }) as HTMLButtonElement
+  const field = (name: string) => screen.getByRole('button', { name })
+  const option = (name: RegExp) => screen.getByRole('menuitemradio', { name })
+
+  test('New recording asks for consent; Diarize speakers is the only switch, still not there', async () => {
+    await setupRecording()
+    const dialog = await openByButton()
+    expect(within(dialog).getByText('Make sure all participants have agreed to be recorded.')).toBeTruthy()
+    expect(within(dialog).queryAllByRole('switch')).toHaveLength(0)
+    expect(JSON.stringify(await window.electronAPI!.readSettings())).not.toContain('SaveAudio')
+  })
+
+  test('starts from the sources and devices saved last', async () => {
+    await setupRecording({}, { recordingAudioSource: 'mic', recordingSystemDevice: 'bluez_output.58_18_62_38_72_FA.1.monitor' })
+    await openByButton()
+    await waitFor(() => expect(toggle('Microphone').getAttribute('aria-pressed')).toBe('true'))
+    expect(toggle('System audio').getAttribute('aria-pressed')).toBe('false')
+    await userEvent.click(toggle('System audio device'))
+    expect((await screen.findByRole('menuitem', { name: 'WH-1000XM5' })).querySelector('svg:last-child')).toBeTruthy()
+  })
+
+  test('records with the title, model and language of the dialog; only the sources and devices are saved', async () => {
+    const client = await setupRecording({}, { transcribeModel: 'small', transcribeModelHistory: ['small'], transcribeLang: 'de' })
+    await openByButton()
+    await waitFor(() => expect(field('Model').textContent?.trim()).toBe('Whisper Small'))
+    await userEvent.click(field('Model'))
+    await userEvent.click(option(/Whisper Large v3/))
+    await userEvent.click(field('Language'))
+    await userEvent.click(option(/English/))
+    await userEvent.type(screen.getByRole('textbox', { name: 'Title' }), 'Standup')
+    await userEvent.click(toggle('Microphone'))
+    await waitFor(() => expect(start().disabled).toBe(false))
+    await userEvent.click(start())
+    await waitFor(() => expect(dialog()).toBeNull())
+    await waitFor(() => expect(control.phase).toBe('live'))
+    expect((await client.getQueue()).recording).toBe(true)
+    expect(await window.electronAPI!.readSettings()).toMatchObject({
+      recordingAudioSource: 'system', recordingSystemDevice: '@DEFAULT_MONITOR@', transcribeModel: 'small', transcribeLang: 'de',
+    })
+    act(() => control.stop())
+    await waitFor(async () => expect((await client.getQueue()).jobs.map(job => [job.title, job.whisper_model, job.language])).toEqual([['Standup', 'large-v3', 'en']]))
+  })
+
+  test('with both sources off, Start is off and says why', async () => {
+    await setupRecording({}, { recordingAudioSource: 'mic' })
+    await openByButton()
+    await waitFor(() => expect(toggle('Microphone').getAttribute('aria-pressed')).toBe('true'))
+    await userEvent.click(toggle('Microphone'))
+    expect(screen.getByText(BOTH_OFF)).toBeTruthy()
+    expect(start().disabled).toBe(true)
+  })
+
+  test('where no system audio can be recorded, its button is off and says why', async () => {
+    await setupRecording({ captureSources: [] })
+    await openByButton()
+    await waitFor(() => expect(toggle('System audio').getAttribute('aria-disabled')).toBe('true'))
+    expect(toggle('System audio').getAttribute('aria-pressed')).toBe('false')
+    await userEvent.hover(toggle('System audio'))
+    expect((await screen.findByRole('tooltip')).textContent).toBe(NO_SYSTEM_AUDIO)
+  })
+
+  test('while a recording runs the dialog only imports', async () => {
+    const client = await setupRecording()
+    act(() => control.start({ mic: false, micDeviceId: null, system: true, systemSourceId: '@DEFAULT_MONITOR@', title: 'Live', model: null, language: null }))
+    await waitFor(() => expect(control.phase).toBe('live'))
+    vi.stubGlobal('electronAPI', { ...window.electronAPI, openFiles: async () => ['/in/a.mp3'] })
+    await openByButton()
+    expect(screen.getByText('A recording is already in progress. Files can still be imported.')).toBeTruthy()
+    expect(start().disabled).toBe(true)
+    expect(toggle('Microphone').getAttribute('aria-disabled')).toBe('true')
+    await userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Import' }))
+    await waitFor(async () => expect((await client.getQueue()).jobs.map(job => job.title)).toEqual(['a']))
   })
 })

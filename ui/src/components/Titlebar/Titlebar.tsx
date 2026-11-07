@@ -39,7 +39,7 @@ export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = 
           </span>
         </TooltipGroup>
         <span className={styles.spacer} />
-        <Tool icon="add" label="New transcription" onClick={onNewTranscription} />
+        <Tool icon="add" label="New recording" onClick={onNewTranscription} />
       </div>
       <div className={styles.search} {...markNotImplemented('titlebar.search')}>
         <SearchField value="" onValueChange={ignore} readOnly placeholder="Search transcripts" aria-label="Search transcripts" shortcut={['mod', 'K']} />
