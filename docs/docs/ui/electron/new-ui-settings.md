@@ -50,6 +50,10 @@ GPU acceleration of the packaged app, after Languages; on macOS there is no sect
 
 `gpuSectionView(status, ui)` says what the card shows, as in the old UI: a medium badge (Development build, Not installed, Downloading, Installing, Waiting to apply, Removing, Restarting, On, GPU check failed, Update needed, or why the GPU does not qualify), the card and driver, the device the backend runs on, the detail, the progress, and the buttons. A download is offered only while the GPU qualifies; an installed pack can always be removed. While the app restarts the backend for the change, the toast that the backend is not responding stays away. The toasts after a restart are those of the old UI: GPU acceleration is on, the check failed, or it was removed.
 
+## Audio devices
+
+The devices a new recording starts with, in one card, Live recording: Microphone, the default one or an input of the computer, and System audio source, from `GET /audio/capture/sources`. They are `recordingMicDevice` (null for the default microphone) and `recordingSystemDevice` of the settings file, the values New recording saves when it starts a recording ([New UI home](new-ui-home.md#new-recording-dialog)), so the two always show the same. A device that is gone shows the first one in its place. Where no system audio can be captured, its field says Not available and is off. The old UI's Include microphone switch, which nothing read, is not here: New recording turns the microphone on and off.
+
 ## API Keys
 
 The HuggingFace token (`hfToken`), hidden until the eye button shows it. It is saved when the field is left or on Enter, without spaces around it. Model downloads send it with each request ([New UI transcription](new-ui-transcribe.md#downloads)); the main process reads it when it starts the backend.
@@ -61,7 +65,7 @@ Shown and marked with `markNotImplemented()` as a whole, as in the old UI: expor
 ## Data
 
 - **Reset preferences** puts every preference of `DEFAULT_SETTINGS` back (`defaultSettingsPatch`), applies 100% scale and says so in a toast. The HuggingFace token and the recordings opened last are not preferences and stay; so do transcripts, models and recordings. Start transcription belongs to the queue and is not reset, as in the old UI.
-- **Delete all data** sends `POST /data/reset`: every transcript, speaker with its voice profile and recording made in Sonorus goes; imported audio files, models and preferences stay. A toast says what was deleted, "Deleted 3 transcripts, 2 speakers and 4 files." The recordings, speakers and queue are read again, so the window behind shows the empty state. The button is off while a transcription runs, with the reason in a tooltip; the backend also refuses then and during a recording, and its refusal is said in a toast.
+- **Delete all data** sends `POST /data/reset`: every transcript, speaker with its voice profile and recording made in Sonorus goes; imported audio files, models and preferences stay. A toast says what was deleted, "Deleted 3 transcripts, 2 speakers and 4 files." The recordings, speakers and queue are read again, so the window behind shows the empty state. The button is off while a transcription or a live recording runs, with the reason in a tooltip; the backend also refuses then, and its refusal is said in a toast.
 
 Both ask first ([Confirmations](#confirmations)).
 

@@ -273,6 +273,8 @@ The file is queued with `app._importFiles()` (`POST /queue/jobs`). Afterwards â€
 
 Clicking **+** while a session is active opens the modal for imports only: "Start recording" is disabled (tooltip "A recording is already in progress"). Imports and drops during a recording are queued and wait.
 
+The new UI follows the same flow with its own state and interface: see [Live recording â†’ New UI](./live-recording.md#new-ui).
+
 ---
 
 ## Renaming a transcript
