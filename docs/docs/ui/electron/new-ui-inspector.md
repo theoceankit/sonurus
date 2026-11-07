@@ -59,7 +59,7 @@ Possible match is a recognized speaker to confirm. The backend does not keep a c
 
 Choose a speaker has categories on the left and the search on the right, with the suggested candidate or the card's choice selected. Arrow keys move the selection and Enter assigns. A search looks at any part of a name. With no results it offers a new speaker with that name. Invited to this meeting and Recently added are marked with `markNotImplemented()`: the API knows neither who was invited nor when a speaker was created.
 
-New speaker takes the name from the search. Its colour starts as the least used and gray is not offered, as it stands for an unknown speaker and the API keeps five colours. Names need not be unique, so a repeated one only gets a note. Back returns to where the window was opened from. The avatar stands on the left of a single column: Name, Handle, Email and Colour. Handle and Email are marked with `markNotImplemented()`.
+New speaker takes the name from the search. Its colour starts as the least used and gray is not offered, as it stands for an unknown speaker and the API keeps five colours. Names need not be unique, so a repeated one only gets a note. Back returns to where the window was opened from. The avatar stands on the left of a single column: Name, Handle and Colour. Handle is marked with `markNotImplemented()`.
 
 ## Stories
 

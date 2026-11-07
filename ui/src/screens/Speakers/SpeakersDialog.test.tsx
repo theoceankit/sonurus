@@ -76,6 +76,7 @@ test('a card opens in place of the list and goes back to it', async () => {
   expect(within(dialog).getByText('11 recordings')).toBeTruthy()
   expect(within(dialog).getByText('Last seen 4 Oct 2026')).toBeTruthy()
   expect(within(dialog).getByRole('textbox', { name: 'Handle' }).getAttribute('data-not-implemented')).toBe('speaker-card.handle')
+  expect(within(dialog).queryByRole('textbox', { name: 'Email' })).toBeNull()
   await userEvent.click(back)
   expect(within(dialog).getByRole('searchbox', { name: 'Search speakers' })).toBeTruthy()
 })
