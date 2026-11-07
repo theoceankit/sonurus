@@ -9,6 +9,7 @@ import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { EVENT_SCRIPTS } from '../../api/fixtures/event-scripts'
 import { useQueueEventsSync } from '../../api/queries'
+import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { OverlayProvider } from '../../OverlayProvider'
 import { EditorScreen } from './EditorScreen'
 
@@ -270,16 +271,17 @@ describe('deleting the open recording', () => {
     expect(within(panel()).getByRole('heading', { level: 1 })).toBeTruthy()
   })
 
-  test('Delete closes the recording, takes it off the list and says so', async () => {
+  test('Delete opens the recording opened before, takes it off the list and says so', async () => {
     await open()
-    const title = screen.getByRole('heading', { level: 1 }).textContent!
+    await userEvent.click(sidebarRow(/Design review/))
+    await waitFor(() => expect(within(panel()).getByRole('heading', { level: 1 }).textContent).toBe('Design review'))
     const dialog = await askToDelete()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
-    await waitFor(() => expect(within(panel()).queryByRole('heading', { level: 1 })).toBeNull())
+    // Not the newest one left, which is Interview: onboarding feedback.
+    await waitFor(() => expect(within(panel()).getByRole('heading', { level: 1 }).textContent).toBe('Weekly product sync'))
     expect(screen.queryByRole('alertdialog')).toBeNull()
-    expect(within(screen.getByLabelText('Recordings')).queryByText(title)).toBeNull()
-    expect(await screen.findByText(`Deleted "${title}".`)).toBeTruthy()
-    expect((screen.getByRole('button', { name: 'Play' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(within(screen.getByLabelText('Recordings')).queryByText('Design review')).toBeNull()
+    expect(await screen.findByText('Deleted "Design review".')).toBeTruthy()
   })
 
   test('a failure says so and the recording stays open', async () => {
@@ -399,3 +401,46 @@ describe('moving the panels', () => {
   })
 })
 
+
+describe('the recording open at startup', () => {
+  const heading = () => within(screen.getByRole('main', { name: 'Transcript' })).findByRole('heading', { level: 1 })
+  const withRecent = async (recentTranscriptIds: number[]) => {
+    const bridge = createMockElectronAPI()
+    await bridge.writeSettings({ ...await bridge.readSettings(), recentTranscriptIds })
+    vi.stubGlobal('electronAPI', bridge)
+    return bridge
+  }
+
+  test('is the newest one when none was opened before', async () => {
+    setup()
+    expect((await heading()).textContent).toBe('Design review')
+  })
+
+  test('is the one opened last', async () => {
+    await withRecent([WEEKLY_SYNC_ID, DESIGN_REVIEW_ID])
+    setup()
+    expect((await heading()).textContent).toBe('Weekly product sync')
+  })
+
+  test('is the one opened before it when the last one is gone', async () => {
+    await withRecent([404, WEEKLY_SYNC_ID, DESIGN_REVIEW_ID])
+    setup()
+    expect((await heading()).textContent).toBe('Weekly product sync')
+  })
+
+  test('the one opened goes first in the settings, and the rest stay', async () => {
+    const bridge = await withRecent([WEEKLY_SYNC_ID])
+    setup()
+    await heading()
+    await userEvent.click(sidebarRow(/Design review/))
+    await waitFor(async () => expect((await bridge.readSettings()).recentTranscriptIds).toEqual([DESIGN_REVIEW_ID, WEEKLY_SYNC_ID]))
+    expect((await bridge.readSettings()).scale).toBe(100)
+  })
+
+  test('is none without recordings', async () => {
+    await withRecent([WEEKLY_SYNC_ID])
+    setup({}, { scenario: 'empty' })
+    await screen.findByText('No recordings yet')
+    expect(within(screen.getByRole('main', { name: 'Transcript' })).queryByRole('heading', { level: 1 })).toBeNull()
+  })
+})

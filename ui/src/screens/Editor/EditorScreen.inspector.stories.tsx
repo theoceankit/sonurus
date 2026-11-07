@@ -19,7 +19,8 @@ type Story = StoryObj<typeof EditorScreen>
 export const WholeReview: Story = { args: { initialSelectedId: DESIGN_REVIEW_ID, possibleMatches: false } }
 export const InTheApp: Story = { args: { possibleMatches: false } }
 export const NoAudio: Story = { args: { initialSelectedId: DESIGN_REVIEW_ID, possibleMatches: false }, parameters: { api: { noAudio: true } } }
-export const NoRecording: Story = { args: { initialSelectedId: null } }
+// With recordings one is always open, so only an empty list leaves none.
+export const NoRecording: Story = { parameters: { api: { scenario: 'empty' } } }
 export const Loading: Story = { parameters: { api: { scenario: 'loading' } } }
 export const Failed: Story = { parameters: { api: { scenario: 'error' } } }
 

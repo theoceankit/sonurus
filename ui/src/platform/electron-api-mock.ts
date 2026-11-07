@@ -15,6 +15,7 @@ export function createMockElectronAPI(changes: Partial<ElectronAPI> = {}): MockE
     recordingSystemDevice: null,
     recordingUseMic: true,
     hfToken: '',
+    recentTranscriptIds: [],
   }
   let clipboard = ''
   return {

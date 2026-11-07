@@ -104,6 +104,7 @@ const DEFAULT_SETTINGS = {
   recordingSystemDevice: null,
   recordingUseMic: true,
   hfToken: '',
+  recentTranscriptIds: [],
 }
 
 ipcMain.handle('set-zoom', (_e, factor) => {

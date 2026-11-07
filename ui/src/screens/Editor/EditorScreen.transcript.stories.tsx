@@ -37,7 +37,8 @@ export const StickyHeader: Story = {
 export const Paused: Story = { args: { playback: standing({ currentTime: 0, paused: true }) } }
 export const Loading: Story = { parameters: { api: { scenario: 'loading' } } }
 export const Failed: Story = { parameters: { api: { scenario: 'error' } } }
-export const NoRecording: Story = { args: { initialSelectedId: null } }
+// With recordings one is always open, so only an empty list leaves none.
+export const NoRecording: Story = { parameters: { api: { scenario: 'empty' } } }
 
 // Three hours, about 3600 segments, to scroll through. No sound here, the app has it.
 export const LongRecording: Story = {

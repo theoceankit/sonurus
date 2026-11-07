@@ -9,6 +9,8 @@ export type ElectronSettings = {
   recordingSystemDevice: string | null
   recordingUseMic: boolean
   hfToken: string
+  // The new UI's recordings opened last, newest first. The old UI leaves it alone.
+  recentTranscriptIds: number[]
 }
 
 export type ElectronAPI = {
