@@ -6,7 +6,6 @@ import type { Speaker } from '../../api/types'
 import { AppearanceRow } from '../../components/AppearanceRow/AppearanceRow'
 import { Avatar } from '../../components/Avatar/Avatar'
 import { Button } from '../../components/Button/Button'
-import { ClipPlayer } from '../../components/ClipPlayer/ClipPlayer'
 import { ColorPicker } from '../../components/ColorPicker/ColorPicker'
 import { IconButton } from '../../components/IconButton/IconButton'
 import { Inline } from '../../components/Inline/Inline'
@@ -18,6 +17,7 @@ import { Stack } from '../../components/Stack/Stack'
 import { TextField } from '../../components/TextField/TextField'
 import { toast } from '../../components/Toast/toast-store'
 import { Tooltip } from '../../components/Tooltip/Tooltip'
+import { VoiceClip } from '../../components/VoiceClip/VoiceClip'
 import { BAR_COUNT } from '../../components/Waveform/bars'
 import { SAMPLE_MAX_SECONDS, useSampleState, type SamplePlayback } from '../../media/sample-playback'
 import { formatDuration } from '../../media/timeline'
@@ -132,18 +132,15 @@ function VoiceSample({ speaker, sample }: Pick<SpeakerCardProps, 'speaker' | 'sa
     )
   }
   return (
-    <Stack gap={2}>
-      <ClipPlayer
-        className={styles.clip}
-        playing={playing && state.playing}
-        progress={playing ? state.progress : 0}
-        duration={formatDuration(end - (clip?.start ?? 0))}
-        disabled={!clip}
-        heights={levels.data}
-        onToggle={() => { if (clip) sample.toggle(MAIN_SAMPLE, api.getRecordingAudioUrl(clip.transcript_id), clip.start, clip.end) }}
-      />
-      {clip && <p className={styles.quote}>&quot;{clip.text.trim()}&quot;</p>}
-    </Stack>
+    <VoiceClip
+      playing={playing && state.playing}
+      progress={playing ? state.progress : 0}
+      duration={formatDuration(end - (clip?.start ?? 0))}
+      text={clip?.text.trim() ?? ''}
+      disabled={!clip}
+      heights={levels.data}
+      onToggle={() => { if (clip) sample.toggle(MAIN_SAMPLE, api.getRecordingAudioUrl(clip.transcript_id), clip.start, clip.end) }}
+    />
   )
 }
 

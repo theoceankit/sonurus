@@ -125,6 +125,24 @@ test('a colour is saved at once', async () => {
   expect(update).toHaveBeenCalledWith(SPEAKER_IDS.lena, { color_index: 0 })
 })
 
+test('the voice sample is the clip of the Review card: its text opens with the chevron, without quotes', async () => {
+  const { client, dialog } = await setup()
+  const { text } = await client.getSpeakerSample(SPEAKER_IDS.lena)
+  await openCard(dialog, /Lena Kovacs/)
+  const show = await within(dialog).findByRole('button', { name: 'Show text' })
+  expect(within(dialog).queryByText(text.trim())).toBeNull()
+  await userEvent.click(show)
+  expect(within(dialog).getByText(text.trim()).textContent).toBe(text.trim())
+  expect((within(dialog).getByRole('button', { name: 'Play clip' }) as HTMLButtonElement).disabled).toBe(false)
+})
+
+test('while the sample loads its player is off and has no text', async () => {
+  const { dialog } = await setup({ overrides: { getSpeakerSample: () => new Promise(() => {}) } })
+  await openCard(dialog, /Lena Kovacs/)
+  expect((within(dialog).getByRole('button', { name: 'Play clip' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(within(dialog).queryByRole('button', { name: 'Show text' })).toBeNull()
+})
+
 test('Appears in opens a recording in the Editor, and a recording without its file cannot play', async () => {
   const { dialog } = await setup()
   await openCard(dialog, /Oliver Grant/)

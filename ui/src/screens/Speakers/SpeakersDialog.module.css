@@ -53,21 +53,6 @@
   font: var(--font-body);
 }
 
-.quote {
-  display: -webkit-box;
-  margin: 0;
-  padding-inline: var(--space-2);
-  overflow: hidden;
-  color: var(--color-text-secondary);
-  font: var(--font-body);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.clip {
-  align-self: stretch;
-}
-
 .danger {
   padding: var(--space-3) var(--space-2) 0;
   border-top: var(--border-width-default) solid var(--color-border-default);

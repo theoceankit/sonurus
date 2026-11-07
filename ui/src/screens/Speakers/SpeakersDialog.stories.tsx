@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { queueSnapshot, SPEAKER_IDS, SPEAKERS } from '../../api/fixtures/data'
 import { createPlayback } from '../../media/playback'
+import { waitFor } from '../Editor/story-helpers'
 import { DeleteSpeakerDialog } from './DeleteSpeakerDialog'
 import { SpeakersDialog, type SpeakersDialogProps } from './SpeakersDialog'
 
@@ -37,6 +38,16 @@ export const SpeakerWithoutName: Story = { args: { initialSpeakerId: SPEAKER_IDS
 export const SpeakerWithSameName: Story = { args: { initialSpeakerId: SPEAKER_IDS.mark2 }, parameters: { api: { board: 'sameNames' } } }
 // Archived partner call has lost its file: its Play is off.
 export const RecordingWithoutAudio: Story = { args: { initialSpeakerId: SPEAKER_IDS.oliver } }
+// The voice sample with its text open, as Show text leaves it.
+export const SpeakerSampleText: Story = {
+  args: { initialSpeakerId: SPEAKER_IDS.lena },
+  play: async () => { (await waitFor(() => document.querySelector('[aria-label="Show text"]'))).click() },
+}
+// The sample is on its way: the player is off and has no text yet.
+export const SpeakerSampleLoading: Story = {
+  args: { initialSpeakerId: SPEAKER_IDS.lena },
+  parameters: { api: { overrides: { getSpeakerSample: () => new Promise(() => {}) } } },
+}
 export const AudioUnavailable: Story = { args: { initialSpeakerId: SPEAKER_IDS.lena }, parameters: { api: { noAudio: true } } }
 export const NotInAnyRecording: Story = { args: { initialSpeakerId: SPEAKER_IDS.priya } }
 export const DeleteBlocked: Story = {
