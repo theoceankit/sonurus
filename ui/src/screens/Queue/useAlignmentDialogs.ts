@@ -96,7 +96,7 @@ export function useAlignmentDialogs() {
     onClose: close,
     onOpenSettings: () => {
       close()
-      settingsDialog.open()
+      settingsDialog.open('alignment')
     },
     onExited: exited,
   }

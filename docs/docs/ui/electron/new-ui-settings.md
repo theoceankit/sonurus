@@ -24,3 +24,17 @@ Without a provider, as for a screen alone in a story or a test, `open` does noth
 - **Interface scale**, 50 to 200% in steps of 5, with marks at 50, 100, 150 and 200%. The slider follows the pointer; when it lets go, or a key is released, the window zooms (`setZoom`) and `scale` is saved. The new UI applies the saved scale on start.
 - **Transcription language**, `transcribeLang`, the default of new transcriptions; Detect automatically is `auto`. A language whose alignment model is not downloaded gets a notice under the row with Download and the model's size; while it downloads, the percentage and Cancel. The download is the one of the app ([New UI transcription](new-ui-transcribe.md#downloads)): it goes on when Settings close. A saved language that is not in the list, such as one picked in the old UI, is still shown, by the name of its alignment model.
 - **Start transcription**, Automatically or Manually. The backend keeps it with the queue (`PUT /queue/settings`), not in `settings.json`; the field shows the value of the queue snapshot and is off until the queue has answered.
+
+## Models
+
+The Whisper models and the diarization model, each in its card, as `ModelRow` rows from `GET /models`: name, size, speed and accuracy, Recommended on `large-v3`, In use on the default Whisper model, and the status. While new jobs cannot start, a hint over the cards says why: no Whisper model, or no diarization model.
+
+- **Download** starts the download of the app (`useModelDownloads()`); the row shows the percentage and Cancel, also after Settings were closed and opened again. Once the model is installed the catalog is read again, and a first Whisper model becomes the default ([New UI transcription](new-ui-transcribe.md#the-default-model)).
+- **Failed.** A download that failed says so in its row, with the reason the backend gave (`error(id)`) and Retry, which starts it anew. There is no toast: the row is where the model is.
+- **Use**, or a click on the row of an installed Whisper model, makes it the default (`selectTranscribeModel`). The diarization model has no Use: every job needs it.
+
+While `GET /models` has not answered the section says Checking models…, and that the transcription service does not answer when it fails.
+
+## Alignment
+
+The alignment models of the catalog (`ALIGNMENT_MODELS`), in its order, with the name, the language's own name and the size, Download, Cancel and the failed state as in Models. The footer names the languages of the list that need no model of their own, worked out from the catalog. It does not say where the models are kept: the API does not tell the real folder.

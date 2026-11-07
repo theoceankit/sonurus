@@ -122,7 +122,7 @@ test('Open Settings closes the dialog for Settings', async () => {
   await userEvent.click(await waitFor(() => button('Download ~300 MB')))
   await waitFor(() => expect(dialog()?.textContent).toContain('Download failed'))
   await userEvent.click(button('Open Settings'))
-  expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy()
+  expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Alignment', selected: true })).toBeTruthy()
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Download failed' })).toBeNull())
 })
 

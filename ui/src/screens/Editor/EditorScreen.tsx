@@ -137,7 +137,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const noRecordings = transcripts.data?.length === 0
   const center = useMemo(
     () => transcript ?? (noRecordings
-      ? <EmptyState onOpenSettings={() => settingsDialog.open()} />
+      ? <EmptyState onOpenSettings={() => settingsDialog.open('models')} />
       : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />),
     [transcript, noRecordings, selectedId, playback, highlight, showAllSpeakers, settingsDialog],
   )

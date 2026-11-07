@@ -3,6 +3,8 @@ import type { IconName } from '../../components/Icon/icon-names'
 // The sections of Settings, in the order of the column at its side.
 export const SECTIONS = [
   { id: 'general', label: 'General', icon: 'settings' },
+  { id: 'models', label: 'Models', icon: 'models' },
+  { id: 'alignment', label: 'Alignment', icon: 'alignment' },
 ] as const satisfies readonly { id: string; label: string; icon: IconName }[]
 
 export type SettingsSection = (typeof SECTIONS)[number]['id']

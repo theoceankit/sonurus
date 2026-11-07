@@ -4,7 +4,9 @@ import { ModalHeader } from '../../components/ModalHeader/ModalHeader'
 import { NavTab } from '../../components/NavTab/NavTab'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { TabPanel, Tabs } from '../../components/Tabs/Tabs'
+import { AlignmentSection } from './AlignmentSection'
 import { GeneralSection } from './GeneralSection'
+import { ModelsSection } from './ModelsSection'
 import { formatAppVersion, SECTIONS, type SettingsSection } from './sections'
 import styles from './SettingsDialog.module.css'
 
@@ -19,6 +21,8 @@ export interface SettingsDialogProps {
 
 const PANELS: Record<SettingsSection, ComponentType> = {
   general: GeneralSection,
+  models: ModelsSection,
+  alignment: AlignmentSection,
 }
 
 function useAppVersion() {

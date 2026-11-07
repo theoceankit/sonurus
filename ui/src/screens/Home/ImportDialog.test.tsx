@@ -299,11 +299,18 @@ describe('title, model and language', () => {
     expect(within(notice).getByRole('button', { name: 'Download in Settings' })).toBeTruthy()
   })
 
+  test('for an alignment model, Download in Settings opens its section', async () => {
+    await setupWith({}, [], { transcribeLang: 'ru' })
+    await openByButton()
+    await userEvent.click(within(await screen.findByRole('status')).getByRole('button', { name: 'Download in Settings' }))
+    expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Alignment', selected: true })).toBeTruthy()
+  })
+
   test('Download in Settings closes the dialog for Settings', async () => {
     await setupWith({ noModels: true }, [])
     await openByButton()
     await userEvent.click(within(await screen.findByRole('status')).getByRole('button', { name: 'Download in Settings' }))
-    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy()
+    expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
     await waitFor(() => expect(dialog()).toBeNull())
   })
 

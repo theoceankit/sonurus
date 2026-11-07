@@ -27,8 +27,10 @@ test('a failed download says so, and a new one starts over', async () => {
   const downloads = createModelDownloads(client, noToken)
   await downloads.start('cs')
   await waitFor(() => expect(downloads.outcome('cs')).toBe('failed'))
+  expect(downloads.error('cs')).toBe('Connection to huggingface.co timed out')
   void downloads.start('cs')
   expect(downloads.outcome('cs')).toBeUndefined()
+  expect(downloads.error('cs')).toBeUndefined()
   expect(downloads.download('cs')).toEqual({ pct: 0 })
 })
 
@@ -37,6 +39,7 @@ test('a backend that refuses to start is a failure', async () => {
   const downloads = createModelDownloads(client, noToken)
   await downloads.start('cs')
   expect(downloads.outcome('cs')).toBe('failed')
+  expect(downloads.error('cs')).toBe('down')
 })
 
 test('Cancel stops the job on the backend and ends as cancelled', async () => {

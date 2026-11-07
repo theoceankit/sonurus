@@ -128,6 +128,7 @@ Settings brought controls that the Editor boards do not have; they follow the Ed
 - `Slider` is vertical for the player's volume. `orientation="horizontal"` fills the width it is given; `marks` put labels under the track, the end ones inside the slider's width, and `valueText` is what assistive technology reads for a value such as 125%. `onCommit` comes when the pointer lets go or a key is released, for what is costly to apply.
 - `Tabs` with `orientation="vertical"` is a column of `NavTab` rows (icon and label, the selected one filled as in the sidebar) with its panels next to it; up and down move through the column. `footer` sits under the column, apart from the tabs.
 - `FieldRow` is one setting: label and hint on the left, the control on the right at most `--size-field-control` wide, so a control never runs past its card at any window width. `stacked` puts the control under the label at the full width, for a slider with marks or a long field; `note` goes under the row. The row is a `group` named by its label; the control still has its own name.
+- `ModelRow` is one model of the catalog: an icon, the name with badges, size and the like as separate items, the status, and the buttons of its state (Download; the percentage and Cancel; Use and delete; the reason and Retry). Its buttons line up in every row. A delete that cannot happen now is off with the reason in a tooltip.
 - `SectionCard` holds the rows that belong together, divided by lines, with an optional title, description, action next to the title and footer under the rows.
 
 ## ScrollBar

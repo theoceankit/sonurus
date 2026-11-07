@@ -24,3 +24,9 @@
 .fill {
   width: 100%;
 }
+
+.quiet {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}

@@ -129,9 +129,9 @@ export function useImportDialog() {
     onRemove: remove,
     onImport: () => void importFiles(),
     onClose: close,
-    onOpenSettings: () => {
+    onOpenSettings: section => {
       close()
-      settingsDialog.open()
+      settingsDialog.open(section)
     },
   }
   return { open, dialog }

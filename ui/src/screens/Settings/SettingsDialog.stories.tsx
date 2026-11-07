@@ -49,3 +49,16 @@ export const Live: Story = {
     return <SettingsProvider><Open /></SettingsProvider>
   },
 }
+
+export const Models: Story = { args: { section: 'models' }, decorators: [withSettings({ transcribeModel: 'large-v3' })] }
+
+export const ModelsNothingInstalled: Story = { args: { section: 'models' }, parameters: { api: { noModels: true, downloadStepMs: 1500 } } }
+
+export const ModelsWithoutDiarization: Story = { args: { section: 'models' }, parameters: { api: { installedModels: ['small'] } } }
+
+// Download any model to see its row fail with the backend's reason and Retry.
+export const ModelsDownloadFails: Story = { args: { section: 'models' }, parameters: { api: { installedModels: ['small', 'diarize'], downloadStepMs: 300, downloadFails: true } } }
+
+export const ModelsLoading: Story = { args: { section: 'models' }, parameters: { api: { overrides: { listModels: () => new Promise(() => {}) } } } }
+
+export const Alignment: Story = { args: { section: 'alignment' }, parameters: { api: { installedModels: ['small', 'diarize', 'ru', 'uk'], downloadStepMs: 1500 } } }

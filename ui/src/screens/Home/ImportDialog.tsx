@@ -39,8 +39,8 @@ export interface ImportDialogProps {
   onRemove: (path: string) => void
   onImport: () => void
   onClose: () => void
-  // Closes the dialog for Settings, where the models are downloaded.
-  onOpenSettings?: () => void
+  // Closes the dialog for Settings, on the section where the missing model is downloaded.
+  onOpenSettings?: (section: 'models' | 'alignment') => void
   onExited?: () => void
   // Drawn in place, for a board of states.
   preview?: boolean
@@ -90,7 +90,7 @@ export function ImportDialog({
           {choice.blocked && (
             <Inline gap={2} justify="between" role="status" className={styles.blockedNotice}>
               <span>{blockMessage(choice.blocked)}</span>
-              <Button variant="ghost" size="small" icon="settings" onClick={onOpenSettings}>Download in Settings</Button>
+              <Button variant="ghost" size="small" icon="settings" onClick={() => onOpenSettings?.(choice.blocked?.missing === 'alignment' ? 'alignment' : 'models')}>Download in Settings</Button>
             </Inline>
           )}
           <DropZone over={over} hint={HINT} onChooseFiles={onChooseFiles} />
@@ -114,7 +114,7 @@ export function ImportDialog({
             <Stack gap={1} align="start" role="alert" className={styles.failure}>
               <span>{failure.message}</span>
               {failure.missingModels && (
-                <Button variant="ghost" size="small" icon="settings" onClick={onOpenSettings}>Open Settings</Button>
+                <Button variant="ghost" size="small" icon="settings" onClick={() => onOpenSettings?.(/alignment/i.test(failure.message) ? 'alignment' : 'models')}>Open Settings</Button>
               )}
             </Stack>
           )}

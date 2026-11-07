@@ -230,6 +230,8 @@
   --size-toggle-thumb: 12px;
   /* The control of a settings row; the label takes what is left. */
   --size-field-control: 240px;
+  /* The buttons of a model row, the same in every row so the statuses line up. */
+  --size-model-actions: 120px;
   --size-status-dot: 6px;
   --size-talk-time-bar: 6px;
   --size-inspector-list-min: 100px;
