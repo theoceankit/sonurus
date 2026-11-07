@@ -6,6 +6,7 @@ import { EditorScreen, type RecordingRequest } from './screens/Editor/EditorScre
 import { AlignmentDialog } from './screens/Queue/AlignmentDialog'
 import { queueEventToast } from './screens/Queue/queue-toasts'
 import { useAlignmentDialogs } from './screens/Queue/useAlignmentDialogs'
+import { RecordingProvider } from './recording/RecordingProvider'
 import { SettingsProvider } from './screens/Settings/SettingsProvider'
 import { useGpu } from './settings/gpu'
 import { useDefaultModelSync } from './transcribe/default-model-sync'
@@ -42,5 +43,6 @@ function Screens() {
 }
 
 export function App() {
-  return <SettingsProvider><Screens /></SettingsProvider>
+  // Recording above Settings: Delete all data waits for a recording to stop.
+  return <RecordingProvider><SettingsProvider><Screens /></SettingsProvider></RecordingProvider>
 }

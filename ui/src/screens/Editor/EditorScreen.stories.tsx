@@ -1,11 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { useEffect } from 'react'
+import { useEffect, type ComponentType } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import { QUEUE_JOB, queueSnapshot, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { EVENT_SCRIPTS, type EventScript } from '../../api/fixtures/event-scripts'
 import type { FixtureClient } from '../../api/fixtures/fixture-client'
 import type { QueueJob } from '../../api/types'
 import { App } from '../../App'
+import { RecordingProvider } from '../../recording/RecordingProvider'
 import { EditorScreen } from './EditorScreen'
 import styles from './EditorScreen.stories.module.css'
 
@@ -103,3 +104,22 @@ const FAILED: EventScript = {
   ],
 }
 export const QueueFailed: Story = { render: () => <WithEvents script={FAILED} /> }
+
+// ── A live recording ───────────────────────────────────────────────────────────
+
+// Recording for 12 minutes: its row above the queue, Stop under the pointer; with the
+// sidebar hidden, its pill in the title bar. There is no audio here, so Stop does nothing.
+const recording = (phase: 'live' | 'starting' | 'stopping') => ({
+  args: { initialSelectedId: WEEKLY_SYNC_ID },
+  decorators: [
+    (Story: ComponentType) => (
+      <RecordingProvider initial={{ phase, title: '7 Nov 18:30 Meeting', startedAt: phase === 'live' ? Date.now() - 754_000 : null }}>
+        <Story />
+      </RecordingProvider>
+    ),
+  ],
+}) as Story
+
+export const Recording: Story = recording('live')
+export const RecordingStarting: Story = recording('starting')
+export const RecordingStopping: Story = recording('stopping')

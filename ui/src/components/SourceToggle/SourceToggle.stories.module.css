@@ -1,0 +1,13 @@
+/* Half of the dialog's body, as each button stands there. */
+.half {
+  /* raw-value: a story frame, not a component */
+  width: 234px;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  /* raw-value: a story frame, not a component */
+  width: 480px;
+}

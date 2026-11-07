@@ -159,8 +159,12 @@
 
   --opacity-playing-track: 0.25;
 
+  /* The live dot of a recording breathes down to this and back. */
+  --opacity-pulse-low: 0.6;
+
   --duration-spin: 800ms;
   --duration-shimmer: 3200ms;
+  --duration-pulse: 2400ms;
   --duration-fast: 100ms;
   --duration-base: 150ms;
   --duration-slow: 200ms;
@@ -174,6 +178,8 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  /* Sine-like, there and back: a pulse never rests at either end. */
+  --ease-pulse: cubic-bezier(0.37, 0, 0.63, 1);
 
   --motion-scale: 0.96;
   --motion-shift-sm: 2px;

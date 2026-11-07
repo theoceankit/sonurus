@@ -9,6 +9,7 @@ import { toast } from '../../components/Toast/toast-store'
 import { Tooltip } from '../../components/Tooltip/Tooltip'
 import { DEFAULT_SETTINGS, settingsStore } from '../../platform/settings'
 import { useLingering } from '../../presence'
+import { useRecording } from '../../recording/RecordingProvider'
 import { ConfirmDialog, type ConfirmPrompt } from './ConfirmDialog'
 import { dataResetBlockReason, defaultSettingsPatch, formatDataResetSummary } from './data-reset'
 import styles from './Settings.module.css'
@@ -37,7 +38,9 @@ export function DataSection() {
   const queue = useQueue().data
   const [step, setStep] = useState<Step | null>(null)
   const confirmation = useLingering(step)
-  const blocked = dataResetBlockReason(!!queue?.running_job_id)
+  const recording = useRecording().phase !== 'idle'
+  // The queue knows of a recording another window started too.
+  const blocked = dataResetBlockReason(!!queue?.running_job_id, recording || !!queue?.recording)
 
   const reset = async () => {
     await settingsStore().patch(defaultSettingsPatch(DEFAULT_SETTINGS))

@@ -7,6 +7,7 @@ import { readTranscribeSettings, transcribeSettings, type TranscribeSettings } f
 import { NOTHING_PICKED, transcribeChoice, type Picked } from '../../transcribe/choice'
 import { apiLanguage } from '../../transcribe/languages'
 import { useSettingsDialog } from '../Settings/SettingsProvider'
+import { useRecordingSetup } from '../../recording/useRecordingSetup'
 import type { ImportDialogProps } from './ImportDialog'
 import {
   addFiles, defaultTitle, fileName, importFailure, importingMessage, queueTitles, skippedMessage, watchFileDrags, type ImportFailure, type ImportFile,
@@ -51,6 +52,7 @@ export function useImportDialog() {
   const [settings, setSettings] = useState<TranscribeSettings>(() => transcribeSettings(undefined))
   const [openedAt, setOpenedAt] = useState(() => api.now())
   const settingsDialog = useSettingsDialog()
+  const recording = useRecordingSetup(state.open)
 
   // Each opening starts from the last known catalog and asks for a fresh one, and
   // reads the defaults again: Settings may have changed them.
@@ -114,6 +116,15 @@ export function useImportDialog() {
     }
   }, [addToQueue])
 
+  // Starts with the title typed, or the one the field shows; the dialog closes.
+  const startRecording = () => {
+    const { title } = latest.current
+    const { model, language, checking, blocked } = latestChoice.current
+    if (checking || blocked) return
+    const started = recording.start({ title: title.trim() || defaultTitle(openedAt), model, language: apiLanguage(language) })
+    if (started) setState(current => ({ ...current, open: false }))
+  }
+
   const dialog: ImportDialogProps = {
     open: state.open,
     files: state.files,
@@ -129,6 +140,8 @@ export function useImportDialog() {
     onRemove: remove,
     onImport: () => void importFiles(),
     onClose: close,
+    record: recording.setup,
+    onStartRecording: startRecording,
     onOpenSettings: section => {
       close()
       settingsDialog.open(section)

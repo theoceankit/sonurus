@@ -118,7 +118,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | New UI speakers: the Speakers window, a speaker's card, voice samples from any recording | `ui/src/screens/Speakers/`, `ui/src/media/sample-playback.ts`, `ui/src/components/AppearanceRow/` | `docs/docs/ui/electron/new-ui-speakers.md` |
 | New UI tokens, font, icons, overlays | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/` | `docs/docs/ui/electron/new-ui-foundations.md` |
 | New UI development: data, isolated checks, restarts, test pitfalls | `scripts/dev-ui.js`, `ui/vite.config.ts`, `ui/src/test-setup.ts` | `docs/docs/ui/electron/new-ui-development.md` |
-| Live recording | `app/api/routers/audio_capture.py`, `native/` | `docs/docs/ui/electron/live-recording.md` |
+| Live recording | `app/api/routers/audio_capture.py`, `native/`, in the new UI `ui/src/recording/` | `docs/docs/ui/electron/live-recording.md` |
 | Packaging and releases | `scripts/bundle-backend.js`, `locks/`, `build/` | `docs/docs/distribution/` |
 
 ## Rules that must hold

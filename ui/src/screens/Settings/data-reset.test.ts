@@ -19,9 +19,10 @@ test('defaultSettingsPatch: does not change the defaults', () => {
   expect(DEFAULT_SETTINGS.transcribeModelHistory).toEqual([])
 })
 
-test('dataResetBlockReason: off while a transcription runs', () => {
-  expect(dataResetBlockReason(false)).toBeNull()
-  expect(dataResetBlockReason(true)).toBe('Pause the transcription queue first.')
+test('dataResetBlockReason: off while a transcription or a live recording runs', () => {
+  expect(dataResetBlockReason(false, false)).toBeNull()
+  expect(dataResetBlockReason(true, false)).toBe('Pause the transcription queue first.')
+  expect(dataResetBlockReason(false, true)).toBe('Stop the live recording first.')
 })
 
 test('formatDataResetSummary: plural, singular, nothing', () => {

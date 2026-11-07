@@ -1,6 +1,6 @@
 import type { GpuDownloadEvent } from '../gpu-events'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
-import { effectiveSpeaker, UNASSIGNED, type GpuStatus, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type Speaker, type SpeakerCandidates } from '../types'
+import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_GPU, FIXTURE_NOW, GONE_AUDIO_IDS, queueSnapshot } from './data'
 import { fixtureModels } from './models'
@@ -28,6 +28,9 @@ export type FixtureOptions = {
   // default. The CUDA download goes as model downloads do, then waits for a restart,
   // which the fixtures apply as soon as the app may restart.
   gpu?: Partial<GpuStatus>
+  // The system audio sources; FIXTURE_CAPTURE_SOURCES by default, none for a computer
+  // where nothing can be captured.
+  captureSources?: readonly AudioSource[]
   // One method behaving differently, e.g. a failing save on a loaded screen.
   overrides?: Partial<ApiClient>
 }
@@ -56,14 +59,28 @@ function missingModelError(models: readonly ModelInfo[], whisperModel: string | 
   return null
 }
 
+// The sources of a Linux desktop with HDMI and Bluetooth headphones.
+export const FIXTURE_CAPTURE_SOURCES: readonly AudioSource[] = [
+  { id: '@DEFAULT_MONITOR@', label: 'System audio (default)' },
+  { id: 'alsa_output.pci-0000_01_00.1.hdmi-stereo.monitor', label: 'AD107 High Definition Audio Controller Digital Stereo (HDMI) [SAMSUNG]' },
+  { id: 'bluez_output.58_18_62_38_72_FA.1.monitor', label: 'WH-1000XM5' },
+]
+
+// A source whose capture the backend refuses, as when parec is missing.
+export const BROKEN_SOURCE = 'broken.monitor'
+export const BROKEN_SOURCE_ERROR = 'System audio capture needs parec. Install pulseaudio-utils and try again.'
+
+const RECORDINGS_DIR = '/home/me/.config/sonorus/recordings'
+
 const EMPTY: FixtureData = { transcripts: [], details: [], speakers: [], candidates: {} }
 
 // The same interface as the backend client, on data kept in memory. Each client
 // has its own copy, so stories and tests do not see each other's changes.
 export function createFixtureClient({
   scenario = 'default', board = 'review', noAudio = false, noModels = false, installedModels,
-  downloadStepMs = 400, downloadFails = false, gpu: gpuStatus = {}, overrides = {},
+  downloadStepMs = 400, downloadFails = false, gpu: gpuStatus = {}, captureSources = FIXTURE_CAPTURE_SOURCES, overrides = {},
 }: FixtureOptions = {}): FixtureClient {
+  const captures = new Set<string>()
   const audioUrls = new Map<number, string>()
   const models = fixtureModels(noModels ? [] : installedModels)
   const data = structuredClone(scenario === 'empty' ? EMPTY : BOARDS[board])
@@ -501,6 +518,39 @@ export function createFixtureClient({
       const waiting: QueueJob = { ...job, status: 'waiting', error: null, error_code: null, error_language: null }
       emit({ ...queue, jobs: [...queue.jobs.filter(j => j.id !== jobId), waiting] })
       return waiting
+    }),
+    listCaptureSources: () => answer(() => [...captureSources]),
+    startCapture: sourceId => answer(() => {
+      if (sourceId === BROKEN_SOURCE) throw new ApiError(400, BROKEN_SOURCE_ERROR)
+      const job = crypto.randomUUID()
+      captures.add(job)
+      return job
+    }),
+    stopCapture: jobId => answer(() => {
+      if (!captures.delete(jobId)) throw new ApiError(404, 'Capture job not found')
+      return `${RECORDINGS_DIR}/sonorus-rec-${jobId}.wav`
+    }),
+    uploadRecording: () => answer(() => `${RECORDINGS_DIR}/sonorus-rec-${crypto.randomUUID()}.webm`),
+    // As the backend: a recording pauses a running queue and stops its job, and gives
+    // back only the pause it made itself.
+    startQueueRecording: () => answer(() => {
+      emit(queue.paused
+        ? { ...queue, recording: true }
+        : {
+          ...queue,
+          recording: true,
+          paused: true,
+          paused_by_recording: true,
+          running_job_id: null,
+          step: null,
+          jobs: queue.jobs.map(j => (j.status === 'running' ? { ...j, status: 'waiting' } : j)),
+        })
+      return queue
+    }),
+    stopQueueRecording: () => answer(() => {
+      const resume = queue.paused_by_recording && queue.start_mode === 'auto'
+      emit({ ...queue, recording: false, paused_by_recording: false, paused: resume ? false : queue.paused })
+      return queue
     }),
     subscribeQueueEvents: (listener, onConnection) => {
       listeners.add(listener)

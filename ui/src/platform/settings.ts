@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: ElectronSettings = {
   transcribeModel: null,
   transcribeModelHistory: [],
   exportFormat: 'txt',
+  recordingAudioSource: 'both',
   recordingMicDevice: null,
   recordingSystemDevice: null,
   recordingUseMic: true,

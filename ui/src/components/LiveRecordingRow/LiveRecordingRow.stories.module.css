@@ -1,0 +1,5 @@
+/* The width of the sidebar's content. */
+.column {
+  /* raw-value: a story frame, not a component */
+  width: 284px;
+}

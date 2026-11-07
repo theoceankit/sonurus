@@ -5,8 +5,12 @@ export type ElectronSettings = {
   transcribeModel: string | null
   transcribeModelHistory: string[]
   exportFormat: string
+  // What a live recording takes, as the New recording dialog last started it.
+  recordingAudioSource: 'mic' | 'system' | 'both'
+  // Null is the default microphone, or the default system audio source.
   recordingMicDevice: string | null
   recordingSystemDevice: string | null
+  // Kept for the old UI; the new UI does not read it.
   recordingUseMic: boolean
   hfToken: string
   // The new UI's recordings opened last, newest first. The old UI leaves it alone.

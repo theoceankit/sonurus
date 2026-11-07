@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { RecordingPill } from '../RecordingPill/RecordingPill'
 import { Titlebar } from './Titlebar'
 import styles from './Titlebar.stories.module.css'
 
@@ -21,3 +22,9 @@ export const WindowButtonsRight: Story = { decorators: frame(styles.buttonsRight
 
 export const Narrow: Story = { decorators: frame(styles.narrow) }
 export const NarrowWindowButtonsRight: Story = { decorators: frame(styles.narrow, styles.buttonsRight) }
+
+// A recording in progress while the sidebar is hidden: its pill before the tools.
+export const WithRecording: Story = {
+  args: { sidebarOpen: false, status: <RecordingPill phase="live" elapsed="12:34" onStop={() => {}} /> },
+  decorators: frame(),
+}

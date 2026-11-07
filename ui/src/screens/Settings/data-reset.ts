@@ -8,11 +8,12 @@ export function defaultSettingsPatch(defaults: ElectronSettings): Partial<Electr
   return structuredClone(preferences)
 }
 
-// Why Delete all data must stay off now, or null when it may run. The new UI does not
-// record yet, so only a running transcription stops it here; the backend refuses a
-// recording of the old UI too.
-export function dataResetBlockReason(runningJob: boolean): string | null {
-  return runningJob ? 'Pause the transcription queue first.' : null
+// Why Delete all data must stay off now, or null when it may run: the backend refuses
+// it while a transcription or a live recording runs.
+export function dataResetBlockReason(runningJob: boolean, recording: boolean): string | null {
+  if (runningJob) return 'Pause the transcription queue first.'
+  if (recording) return 'Stop the live recording first.'
+  return null
 }
 
 export function formatDataResetSummary({ transcripts, speakers, files }: DataResetSummary): string {

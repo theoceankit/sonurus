@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Live Recording
 
-How live recording works: sources, capture per platform, and the files involved. The renderer side of the flow (titlebar button, `_liveSession`, stop cases) is in [Electron UI → Live recording lifecycle](./overview.md#live-recording-lifecycle).
+How live recording works: sources, capture per platform, and the files involved. The renderer side of the flow (titlebar button, `_liveSession`, stop cases) is in [Electron UI → Live recording lifecycle](./overview.md#live-recording-lifecycle); the new UI's is under [New UI](#new-ui).
 
 ## Overview
 
@@ -49,7 +49,20 @@ POST /queue/jobs  { audio_path: merged_path }
 
 ### Source enumeration
 
-`GET /audio/capture/sources` returns platform sources on every OS. The New Recording modal and the Settings Audio section show this list; virtual inputs such as Stereo Mix or VB-Cable are not offered as system audio (any output device can be chosen directly).
+`GET /audio/capture/sources` returns platform sources on every OS. The New Recording modal and the Settings Audio section show this list (in the new UI, the System audio button's menu and Settings → Audio devices); virtual inputs such as Stereo Mix or VB-Cable are not offered as system audio (any output device can be chosen directly).
+
+---
+
+## New UI
+
+The new UI records the same way: the capture logic of `app.js` moved over unchanged, and the backend still writes every file.
+
+- **Starting.** New recording ([New UI home](./new-ui-home.md#new-recording-dialog)) picks the sources and devices and calls `start()` of `RecordingProvider`, which sits in `App` above the screens, so a recording goes on while the user moves between them. `startRecording()` in `ui/src/recording/session.ts` sends `POST /queue/recording/start`, opens the microphone (`getUserMedia`, an `AudioContext` into `MediaRecorder`, WebM with a chunk a second) and asks the backend to capture system audio. A refusal is a toast "Could not start recording: …"; everything it took is let go, and the queue too.
+- **Recording.** The sidebar shows a Recording section above the queue with one row (`LiveRecordingRow`): a red dot the size of the new-recording dot, breathing, the title and the time, Starting or Stopping in its place while the backend and the microphone get ready or finish. Stop comes in under the pointer or the focus. With the sidebar hidden, a pill in the title bar (`RecordingPill`) shows the same before the Speakers button; its arrow opens a menu with Stop recording. The time counts from the start, so a late timer adds nothing.
+- **Stopping.** The three stop cases of the old UI, then `POST /queue/jobs` with the title, the model and the language of the dialog, and `POST /queue/recording/stop` last whatever happened. A failure is a toast "Recording error: …".
+- **Elsewhere.** While a recording runs New recording only imports, and Delete all data in Settings is off.
+
+The browser's audio is passed into `startRecording()` (`browserDeps()` in the app), so tests run every start and stop path on the fixtures without a microphone.
 
 ---
 
@@ -64,6 +77,9 @@ POST /queue/jobs  { audio_path: merged_path }
 | `electron/renderer/app.js` | `_startLiveRecording()`, `_stopLiveRecording()`, `_liveSession` — background recording state |
 | `electron/renderer/views/new-recording-modal.js` | Source picker modal, fetches backend sources |
 | `electron/renderer/views/settings-view.js` | Audio device settings section |
+| `ui/src/recording/` | New UI: `session.ts` (start and stop), `RecordingProvider.tsx`, `useRecordingSetup.ts` (the dialog's sources and devices), `sources.ts`, `devices.ts`, `LiveRecording.tsx` (the sidebar section and the title bar pill) |
+| `ui/src/components/SourceToggle/`, `LiveRecordingRow/`, `RecordingPill/` | New UI: a source of the dialog, the recording's row, its pill |
+| `ui/src/screens/Settings/AudioSection.tsx` | New UI: Settings → Audio devices |
 | `electron/main.js` | Media permission handler, `SONORUS_CAPTURE_BIN` env |
 | `electron/preload.js` | Exposes `getPlatform` via `contextBridge` |
 
