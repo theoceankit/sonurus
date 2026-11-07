@@ -1,0 +1,34 @@
+/* The red dot of a recording in progress: the size of the new-recording dot, and it
+   breathes. Only the opacity moves: a 6 px dot that scales lands on half pixels.
+   A dot that is waiting (starting, stopping) is still and takes the text colour. */
+.liveDot {
+  flex: none;
+  width: var(--size-status-dot);
+  height: var(--size-status-dot);
+  border-radius: var(--radius-full);
+  background: var(--color-live);
+  animation: pulse var(--duration-pulse) var(--ease-pulse) infinite;
+}
+
+.waiting {
+  background: currentColor;
+  animation: none;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: var(--opacity-pulse-low);
+  }
+}
+
+/* A pulse that never ends is not a fade: it stops with reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .liveDot {
+    animation: none;
+  }
+}

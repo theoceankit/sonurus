@@ -1,4 +1,5 @@
 import type { AudioSource } from '../api/types'
+import type { DeviceOption } from '../components/SourceToggle/SourceToggle'
 import type { ElectronSettings } from '../platform/electron-api'
 
 // What a live recording takes, the two buttons of the New recording dialog.
@@ -6,7 +7,7 @@ export type RecordingSources = { mic: boolean; system: boolean }
 export type SourceSetting = ElectronSettings['recordingAudioSource']
 
 // A device in a menu: an input's deviceId or a backend source id.
-export type DeviceOption = { value: string; label: string }
+export type { DeviceOption }
 
 // The default microphone. Saved as null, as the old UI does.
 export const DEFAULT_MIC = 'default-microphone'

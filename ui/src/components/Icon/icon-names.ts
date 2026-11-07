@@ -6,7 +6,7 @@ export const iconNames = [
   'forward', 'globe', 'highlight', 'info', 'inspector', 'interface', 'microphone', 'microphone-and-system',
   'models', 'more', 'pause', 'pin', 'play', 'play-outline', 'privacy',
   'retry', 'rewind', 'search', 'settings', 'share', 'sidebar-toggle', 'skip-back', 'skip-forward',
-  'sparkle', 'speaker-unknown', 'speakers', 'success', 'system-audio', 'volume', 'warning', 'waveform', 'whisper-model',
+  'sparkle', 'speaker-unknown', 'speakers', 'stop', 'success', 'system-audio', 'volume', 'warning', 'waveform', 'whisper-model',
 ] as const
 
 export type IconName = (typeof iconNames)[number]

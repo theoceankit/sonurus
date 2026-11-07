@@ -1,0 +1,63 @@
+/* One line, a control's height; the arrow is apart from the button by a hairline. */
+.sourceToggle {
+  display: flex;
+  min-width: 0;
+  height: var(--size-control-lg);
+  border-radius: var(--radius-card);
+  box-shadow: inset 0 0 0 var(--border-width-default) var(--color-border-strong);
+  color: var(--color-text-secondary);
+}
+
+.on {
+  background: var(--color-accent-bg);
+  box-shadow: inset 0 0 0 var(--border-width-focus) var(--color-accent-fg);
+  color: var(--color-accent-fg);
+}
+
+.main {
+  composes: reset stateLayer focusRing from '../../styles/control.module.css';
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-inline: var(--space-3) var(--space-2);
+  border-radius: var(--radius-card) 0 0 var(--radius-card);
+  color: inherit;
+}
+
+.name {
+  overflow: hidden;
+  font: var(--font-body-strong);
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.on .name {
+  color: var(--color-text-primary);
+}
+
+.arrow {
+  composes: reset stateLayer focusRing from '../../styles/control.module.css';
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-md);
+  border-left: var(--border-width-default) solid var(--color-border-default);
+  border-radius: 0 var(--radius-card) var(--radius-card) 0;
+  color: inherit;
+}
+
+.on .arrow {
+  border-left-color: var(--color-accent-border);
+}
+
+.blocked {
+  opacity: var(--opacity-disabled);
+}
+
+.blocked .main {
+  cursor: default;
+}
