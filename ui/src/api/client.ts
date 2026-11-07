@@ -1,6 +1,7 @@
 import type {
-  ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
+  GpuStatus, ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
+import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
 
 // status 0: the request never got an answer.
@@ -65,6 +66,16 @@ export interface ApiClient {
   deleteModel(modelId: string): Promise<void>
   // The progress of a download until it ends. Returns what stops listening.
   watchModelDownload(jobId: string, listener: (event: ModelDownloadEvent) => void): () => void
+  // GPU acceleration of the packaged app: what is there, the one CUDA download, its
+  // removal, and whether the backend may restart now to apply either.
+  getGpuStatus(): Promise<GpuStatus>
+  // Refused with a 409 while the GPU does not qualify or a download runs.
+  startGpuDownload(): Promise<string>
+  cancelGpuDownload(jobId: string): Promise<void>
+  watchGpuDownload(jobId: string, listener: (event: GpuDownloadEvent) => void): () => void
+  removeGpuPack(): Promise<void>
+  // A 409 when there is nothing to apply.
+  requestGpuRestart(): Promise<GpuRestartAnswer>
   getQueue(): Promise<QueueSnapshot>
   // The backend copies the file and answers the waiting job, or 400 when a model the
   // job needs is not installed or the file cannot be read.

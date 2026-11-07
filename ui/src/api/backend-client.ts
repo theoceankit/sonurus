@@ -1,5 +1,6 @@
 import createClient from 'openapi-fetch'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from './client'
+import { watchGpuDownload, type GpuRestartAnswer } from './gpu-events'
 import { watchModelDownload } from './model-download-events'
 import { connectQueueEvents } from './queue-events'
 import type { paths } from './schema.gen'
@@ -94,6 +95,16 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     watchModelDownload: (jobId, listener) => watchModelDownload(
       `${baseUrl.replace(/^http/, 'ws')}/ws/models/${jobId}`, listener, options.WebSocketImpl,
     ),
+    getGpuStatus: () => send(http.GET('/gpu')),
+    startGpuDownload: async () => {
+      // The schema leaves the answer untyped: it is { job_id }.
+      const answer = await send(http.POST('/gpu/download'))
+      return (answer as { job_id: string }).job_id
+    },
+    cancelGpuDownload: async job_id => { await send(http.DELETE('/gpu/download/{job_id}', { params: { path: { job_id } } })) },
+    watchGpuDownload: (jobId, listener) => watchGpuDownload(`${baseUrl.replace(/^http/, 'ws')}/ws/gpu/${jobId}`, listener, options.WebSocketImpl),
+    removeGpuPack: async () => { await send(http.DELETE('/gpu/pack')) },
+    requestGpuRestart: async () => (await send(http.POST('/gpu/restart'))) as GpuRestartAnswer,
     getQueue: () => send(http.GET('/queue')),
     addQueueJob: ({ audioPath, whisperModel, language, title }) => send(http.POST('/queue/jobs', {
       body: { audio_path: audioPath, whisper_model: whisperModel, language, ...(title ? { title } : {}) },

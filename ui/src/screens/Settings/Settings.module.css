@@ -30,3 +30,47 @@
   color: var(--color-text-secondary);
   font: var(--font-body);
 }
+
+.gpuHead {
+  font: var(--font-body);
+}
+
+.gpuName {
+  color: var(--color-text-primary);
+  font: var(--font-body-strong);
+}
+
+.gpuDetail {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.track {
+  flex: 1;
+  height: var(--size-progress);
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-muted);
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent-fg);
+  transition: width var(--duration-slow) var(--ease-standard);
+}
+
+.pct {
+  min-width: var(--size-control-lg);
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+}

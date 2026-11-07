@@ -1,7 +1,8 @@
+import type { GpuDownloadEvent } from '../gpu-events'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
-import { effectiveSpeaker, UNASSIGNED, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Speaker, type SpeakerCandidates } from '../types'
+import { effectiveSpeaker, UNASSIGNED, type GpuStatus, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
-import { FIXTURE_NOW, queueSnapshot } from './data'
+import { FIXTURE_GPU, FIXTURE_NOW, queueSnapshot } from './data'
 import { fixtureModels } from './models'
 import type { EventScript } from './event-scripts'
 import type { ModelDownloadEvent } from '../model-download-events'
@@ -23,6 +24,10 @@ export type FixtureOptions = {
   // fails at the end with downloadFails.
   downloadStepMs?: number
   downloadFails?: boolean
+  // What GET /gpu says; a packaged Linux app with an RTX 4060 and nothing installed by
+  // default. The CUDA download goes as model downloads do, then waits for a restart,
+  // which the fixtures apply as soon as the app may restart.
+  gpu?: Partial<GpuStatus>
   // One method behaving differently, e.g. a failing save on a loaded screen.
   overrides?: Partial<ApiClient>
 }
@@ -57,7 +62,7 @@ const EMPTY: FixtureData = { transcripts: [], details: [], speakers: [], candida
 // has its own copy, so stories and tests do not see each other's changes.
 export function createFixtureClient({
   scenario = 'default', board = 'review', noAudio = false, noModels = false, installedModels,
-  downloadStepMs = 400, downloadFails = false, overrides = {},
+  downloadStepMs = 400, downloadFails = false, gpu: gpuStatus = {}, overrides = {},
 }: FixtureOptions = {}): FixtureClient {
   const audioUrls = new Map<number, string>()
   const models = fixtureModels(noModels ? [] : installedModels)
@@ -186,6 +191,37 @@ export function createFixtureClient({
     return jobId
   }
 
+  let gpu: GpuStatus = { ...FIXTURE_GPU, ...gpuStatus }
+  type GpuJob = { id: string; pct: number; timer: ReturnType<typeof setInterval>; listeners: Set<(event: GpuDownloadEvent) => void> }
+  let gpuJob: GpuJob | null = null
+  const endGpuJob = (event: GpuDownloadEvent) => {
+    const job = gpuJob
+    if (!job) return
+    clearInterval(job.timer)
+    gpuJob = null
+    gpu = { ...gpu, state: event.type === 'done' ? 'pending_restart' : gpu.state === 'downloading' ? 'not_installed' : gpu.state, pending: event.type === 'done' ? 'install' : gpu.pending }
+    job.listeners.forEach(listener => listener(event))
+  }
+  const startGpuJob = () => {
+    if (gpu.blocked_reason) throw new ApiError(409, gpu.blocked_reason)
+    if (gpuJob) throw new ApiError(409, 'already_downloading')
+    if (gpu.state === 'active' || gpu.state === 'pending_restart') throw new ApiError(409, 'installed')
+    const job: GpuJob = {
+      id: crypto.randomUUID(), pct: 0, listeners: new Set(),
+      timer: setInterval(() => {
+        if (job.pct >= 100) {
+          if (downloadFails) return endGpuJob({ type: 'error', message: 'Not enough disk space: 11.8 GB needed, 5.0 GB free' })
+          return endGpuJob({ type: 'done' })
+        }
+        job.pct = Math.min(100, job.pct + 25)
+        job.listeners.forEach(listener => listener(job.pct < 100 ? { type: 'progress', phase: 'download', pct: job.pct } : { type: 'progress', phase: 'install' }))
+      }, downloadStepMs),
+    }
+    gpuJob = job
+    gpu = { ...gpu, state: 'downloading' }
+    return job.id
+  }
+
   const emit = (event: QueueUpdate) => {
     if (event.type === 'snapshot') queue = event
     for (const listener of listeners) listener(structuredClone(event))
@@ -252,6 +288,36 @@ export function createFixtureClient({
     }),
     listModels: () => answer(() => models),
     startModelDownload: modelId => answer(() => startDownload(modelId)),
+    getGpuStatus: () => answer(() => gpu),
+    startGpuDownload: () => answer(startGpuJob),
+    cancelGpuDownload: jobId => answer(() => {
+      if (gpuJob?.id !== jobId) throw new ApiError(404, `No active GPU download '${jobId}'`)
+      endGpuJob({ type: 'cancelled' })
+    }),
+    watchGpuDownload: (jobId, listener) => {
+      if (gpuJob?.id !== jobId) {
+        listener({ type: 'error', message: 'Unknown job' })
+        return () => {}
+      }
+      const job = gpuJob
+      job.listeners.add(listener)
+      return () => job.listeners.delete(listener)
+    },
+    removeGpuPack: () => answer(() => {
+      if (gpuJob) throw new ApiError(409, 'Cancel the download first')
+      if (gpu.state === 'pending_restart' && gpu.pending === 'install') gpu = { ...gpu, state: 'not_installed', pending: null }
+      else if (gpu.state === 'active' || gpu.state === 'error' || gpu.state === 'stale') gpu = { ...gpu, state: 'pending_restart', pending: 'remove' }
+      else throw new ApiError(404, 'No GPU pack installed')
+    }),
+    requestGpuRestart: () => answer(() => {
+      if (gpu.state !== 'pending_restart') throw new ApiError(409, 'Nothing to apply')
+      if (queue.running_job_id) return { status: 'waiting' as const, reason: 'transcription' as const }
+      // The restart the app asks for next applies the change.
+      gpu = gpu.pending === 'remove'
+        ? { ...gpu, state: 'not_installed', pending: null, device: 'cpu', torch: '2.8.0+cpu' }
+        : { ...gpu, state: 'active', pending: null, device: 'cuda', torch: '2.8.0+cu128' }
+      return { status: 'ready' as const }
+    }),
     deleteModel: modelId => answer(() => {
       const model = models.find(m => m.id === modelId)
       if (!model) throw new ApiError(422, `Unknown model '${modelId}'`)

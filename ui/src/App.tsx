@@ -5,14 +5,17 @@ import { EditorScreen } from './screens/Editor/EditorScreen'
 import { AlignmentDialog } from './screens/Queue/AlignmentDialog'
 import { useAlignmentDialogs } from './screens/Queue/useAlignmentDialogs'
 import { SettingsProvider } from './screens/Settings/SettingsProvider'
+import { useGpu } from './settings/gpu'
 import { useDefaultModelSync } from './transcribe/default-model-sync'
 
 // What is on the screen stays, so this is the only sign that it may be out of date.
+// Not while the app restarts the backend itself to apply GPU acceleration.
 function useBackendLostToast() {
   const connected = useBackendConnected()
+  const { restarting } = useGpu().state
   useEffect(() => {
-    if (!connected) return toast({ message: 'Backend is not responding', type: 'error', duration: Infinity })
-  }, [connected])
+    if (!connected && !restarting) return toast({ message: 'Backend is not responding', type: 'error', duration: Infinity })
+  }, [connected, restarting])
 }
 
 function Screens() {

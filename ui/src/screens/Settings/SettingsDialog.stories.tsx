@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { QUEUE_JOB, queueSnapshot } from '../../api/fixtures/data'
+import type { GpuStatus } from '../../api/types'
 import { Button } from '../../components/Button/Button'
 import { SettingsDialog, type SettingsDialogProps } from './SettingsDialog'
 import { SettingsProvider, useSettingsDialog } from './SettingsProvider'
@@ -81,3 +82,17 @@ export const DeleteAskedOverSettings: Story = {
     return <SettingsProvider><Open /></SettingsProvider>
   },
 }
+
+const gpuStory = (gpu: Partial<GpuStatus>, extra: object = {}): Story => ({ args: { section: 'gpu' }, parameters: { api: { gpu, downloadStepMs: 1500, ...extra } } })
+
+// Download goes through the download and install to the restart, and then On.
+export const GpuNotInstalled: Story = gpuStory({})
+export const GpuDownloadFails: Story = gpuStory({}, { downloadStepMs: 400, downloadFails: true })
+export const GpuWaitingToApply: Story = gpuStory({ state: 'pending_restart', pending: 'install' }, { overrides: { requestGpuRestart: async () => ({ status: 'waiting', reason: 'transcription' }) } })
+export const GpuOn: Story = gpuStory({ state: 'active', device: 'cuda', torch: '2.8.0+cu128' })
+export const GpuCheckFailed: Story = gpuStory({ state: 'error', error: 'CUDA is not available to PyTorch' })
+export const GpuUpdateNeeded: Story = gpuStory({ state: 'stale' })
+export const GpuDriverTooOld: Story = gpuStory({ blocked_reason: 'driver_too_old', gpu: { name: 'NVIDIA GeForce RTX 4060', driver: '535.183.01', compute_capability: '8.9' } })
+export const GpuTooOld: Story = gpuStory({ blocked_reason: 'gpu_too_old', gpu: { name: 'NVIDIA GeForce GTX 1060', driver: '581.29', compute_capability: '6.1' } })
+export const GpuNoNvidia: Story = gpuStory({ blocked_reason: 'no_nvidia', gpu: null })
+export const GpuDevelopmentBuild: Story = gpuStory({ blocked_reason: 'not_packaged', device: 'cuda', torch: '2.8.0+cu128' })

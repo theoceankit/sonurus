@@ -61,6 +61,8 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `updateQueueJob(jobId, update)` changes the title, model or language of a job that is not running: `PATCH /queue/jobs/{id}` with only the fields given. A model or alignment model that is not installed is a 400, a running job a 409. The fixtures do the same.
 
+`getGpuStatus()`, `startGpuDownload()`, `cancelGpuDownload(jobId)`, `watchGpuDownload(jobId, listener)`, `removeGpuPack()` and `requestGpuRestart()` are `GET /gpu`, `POST /gpu/download`, `DELETE /gpu/download/{job_id}`, `WS /ws/gpu/{job_id}`, `DELETE /gpu/pack` and `POST /gpu/restart`; the events of the socket and the answer of the restart are typed in `ui/src/api/gpu-events.ts`, as they are not in the schema. The fixtures start from `FIXTURE_GPU`, a packaged Linux app on an RTX 4060 with nothing downloaded, changed with the `gpu` option; their download goes as a model download does, waits for the restart, and the restart the app is allowed applies it.
+
 `deleteModel(modelId)` deletes a downloaded model: `DELETE /models/{id}`. A model the running transcription needs is a 409, one that is not downloaded a 404. The fixtures do the same.
 
 `setQueueStartMode(startMode)` sets whether new jobs start on their own (`auto`) or wait for Start (`manual`): `PUT /queue/settings`, answered with the new snapshot. `useSetQueueStartMode()` puts that snapshot in the cache at once. The fixtures do the same and send the snapshot to the queue's listeners.

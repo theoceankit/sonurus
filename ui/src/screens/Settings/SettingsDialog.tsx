@@ -6,7 +6,9 @@ import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { TabPanel, Tabs } from '../../components/Tabs/Tabs'
 import { AlignmentSection } from './AlignmentSection'
 import { GeneralSection } from './GeneralSection'
+import { GpuSection } from './GpuSection'
 import { ModelsSection } from './ModelsSection'
+import { useGpu } from '../../settings/gpu'
 import { formatAppVersion, SECTIONS, type SettingsSection } from './sections'
 import styles from './SettingsDialog.module.css'
 
@@ -23,6 +25,19 @@ const PANELS: Record<SettingsSection, ComponentType> = {
   general: GeneralSection,
   models: ModelsSection,
   alignment: AlignmentSection,
+  gpu: GpuSection,
+}
+
+// macOS has no GPU acceleration: no section for it, as the old UI hid its card.
+function useGpuHidden() {
+  const [platform, setPlatform] = useState<string | null>(null)
+  const { state } = useGpu()
+  useEffect(() => {
+    let current = true
+    window.electronAPI?.getPlatform().then(read => { if (current) setPlatform(read) }).catch(() => {})
+    return () => { current = false }
+  }, [])
+  return platform === 'darwin' || state.status?.blocked_reason === 'unsupported_platform'
 }
 
 function useAppVersion() {
@@ -40,23 +55,25 @@ function useAppVersion() {
 // Settings apply as they change: there is nothing to save, and the window only closes.
 export function SettingsDialog({ open, section, onSectionChange, onClose, preview }: SettingsDialogProps) {
   const version = useAppVersion()
+  const gpuHidden = useGpuHidden()
   const [area, setArea] = useState<HTMLElement | null>(null)
-  const Panel = PANELS[section]
-  const current = SECTIONS.find(entry => entry.id === section)!
+  const sections = SECTIONS.filter(entry => entry.id !== 'gpu' || !gpuHidden)
+  const current = sections.find(entry => entry.id === section) ?? sections[0]
+  const Panel = PANELS[current.id]
   return (
     <Modal size="large" open={open} preview={preview} onOpenChange={next => { if (!next) onClose() }}>
       <ModalHeader title="Settings" />
       <Tabs
         orientation="vertical"
         aria-label="Settings sections"
-        value={section}
+        value={current.id}
         onValueChange={value => onSectionChange(value as SettingsSection)}
         className={styles.columns}
-        tabs={SECTIONS.map(entry => <NavTab key={entry.id} value={entry.id} icon={entry.icon}>{entry.label}</NavTab>)}
+        tabs={sections.map(entry => <NavTab key={entry.id} value={entry.id} icon={entry.icon}>{entry.label}</NavTab>)}
         footer={<span className={styles.version}>{version}</span>}
       >
         <div className={styles.content}>
-          <TabPanel key={section} value={section} ref={setArea} className={styles.panel} data-modal-body>
+          <TabPanel key={current.id} value={current.id} ref={setArea} className={styles.panel} data-modal-body>
             <h2 className={styles.heading}>{current.label}</h2>
             <Panel />
           </TabPanel>
