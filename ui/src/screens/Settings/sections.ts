@@ -4,7 +4,7 @@ import type { IconName } from '../../components/Icon/icon-names'
 export const SECTIONS = [
   { id: 'general', label: 'General', icon: 'settings' },
   { id: 'models', label: 'Models', icon: 'models' },
-  { id: 'alignment', label: 'Alignment', icon: 'alignment' },
+  { id: 'alignment', label: 'Languages', icon: 'globe' },
   { id: 'gpu', label: 'GPU', icon: 'sparkle' },
   { id: 'apiKeys', label: 'API Keys', icon: 'api-keys' },
   { id: 'export', label: 'Export', icon: 'export' },

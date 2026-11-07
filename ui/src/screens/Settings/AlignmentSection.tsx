@@ -27,8 +27,7 @@ export function AlignmentSection() {
   return (
     <SectionCard
       title="Word timings"
-      description="A model per language places each word in time. Download one for each language you transcribe."
-      footer={`Not needed for ${list(alignedWithoutModel())}.`}
+      description={`Not needed for ${list(alignedWithoutModel())}. Other languages need their model, which places each word in time: download one for each language you transcribe.`}
     >
       {known.map(model => (
         <ModelRow

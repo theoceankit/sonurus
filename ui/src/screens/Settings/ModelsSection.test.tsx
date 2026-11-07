@@ -105,7 +105,7 @@ test('a failed download says why in its row, with no toast, and Retry starts it 
 
 test('Alignment lists the models of the languages, and which need none', async () => {
   await setup({ installedModels: ['small', 'diarize', 'ru'] })
-  await openSection('Alignment')
+  await openSection('Languages')
   await within(settings()).findByRole('group', { name: 'Russian' })
   expect(inRow('Russian', 'Delete Russian')).toBeTruthy()
   expect(row('Russian').textContent).not.toMatch(/Русский|wav2vec2|Installed/)
@@ -117,7 +117,7 @@ test('Alignment lists the models of the languages, and which need none', async (
 
 test('Alignment downloads a model', async () => {
   await setup({ installedModels: ['small', 'diarize'] })
-  await openSection('Alignment')
+  await openSection('Languages')
   await userEvent.click((await within(settings()).findByRole('group', { name: 'Czech' })).querySelector('button')!)
   await waitFor(() => expect(inRow('Czech', 'Delete Czech')).toBeTruthy(), { timeout: 2000 })
 })
@@ -201,7 +201,7 @@ test('delete: a refusal of the backend is said in a toast, and the model stays',
 
 test('delete: the alignment model of the default language sets it to Detect, with a toast', async () => {
   const { bridge } = await setup({ installedModels: ['small', 'diarize', 'ru', 'uk'] }, { transcribeLang: 'ru' })
-  await openSection('Alignment')
+  await openSection('Languages')
   await userEvent.click(await within(settings()).findByRole('button', { name: 'Delete Russian' }))
   expect(await screen.findByText('Default language changed to Detect automatically')).toBeTruthy()
   await waitFor(async () => expect((await bridge.readSettings()).transcribeLang).toBe('auto'))
@@ -213,7 +213,7 @@ test('delete: the alignment model of the default language sets it to Detect, wit
 test('delete: an alignment model queued jobs in its language need asks first', async () => {
   const { client } = await setup({ installedModels: ['small', 'diarize', 'ru'] })
   await queueOf(client, { jobs: [job('a', { language: 'ru' }), job('b', { language: null })] })
-  await openSection('Alignment')
+  await openSection('Languages')
   await userEvent.click(await within(settings()).findByRole('button', { name: 'Delete Russian' }))
   expect((await screen.findByRole('alertdialog')).textContent).toContain('1 job in the queue uses Russian.')
 })
