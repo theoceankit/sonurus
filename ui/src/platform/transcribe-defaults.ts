@@ -1,4 +1,4 @@
-import type { SavedModel } from '../transcribe/models'
+import { selectedModel, type SavedModel } from '../transcribe/models'
 import type { ElectronSettings } from './electron-api'
 import { settingsStore } from './settings'
 
@@ -17,4 +17,10 @@ export function transcribeSettings(settings: Partial<ElectronSettings> | undefin
 // Without Electron (Storybook, tests) nothing is saved: no model, detected language.
 export async function readTranscribeSettings(): Promise<TranscribeSettings> {
   return transcribeSettings(await settingsStore().read())
+}
+
+// The user picks the default in Settings: saved with its history, without a toast.
+export function selectTranscribeModel(id: string): Promise<void> {
+  const store = settingsStore()
+  return store.read().then(saved => store.patch(selectedModel(saved, id)))
 }

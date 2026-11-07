@@ -71,24 +71,25 @@ test('the transcription language is saved as picked', async () => {
 
 test('a language without its alignment model says so; Download starts it, with the progress and Cancel', async () => {
   const { client } = await setup({ downloadStepMs: 1000 }, { transcribeLang: 'cs' })
-  await openSettings()
-  const notice = await screen.findByRole('status')
+  const settings = await openSettings()
+  const notice = await within(settings).findByRole('status')
   expect(notice.textContent).toContain('Alignment model for Czech is not installed')
   const start = vi.spyOn(client, 'startModelDownload')
   await userEvent.click(within(notice).getByRole('button', { name: 'Download (~300 MB)' }))
   expect(start).toHaveBeenCalledWith('cs', null)
-  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('downloading 0%'))
+  const status = () => within(settings).getByRole('status')
+  await waitFor(() => expect(status().textContent).toContain('downloading 0%'))
   const cancel = vi.spyOn(client, 'cancelModelDownload')
-  await userEvent.click(within(screen.getByRole('status')).getByRole('button', { name: 'Cancel' }))
+  await userEvent.click(within(status()).getByRole('button', { name: 'Cancel' }))
   await waitFor(() => expect(cancel).toHaveBeenCalled())
-  await waitFor(() => expect(within(screen.getByRole('status')).getByRole('button', { name: 'Download (~300 MB)' })).toBeTruthy())
+  await waitFor(() => expect(within(status()).getByRole('button', { name: 'Download (~300 MB)' })).toBeTruthy())
 })
 
 test('a language whose alignment model is there says nothing', async () => {
   await setup({}, { transcribeLang: 'en' })
-  await openSettings()
+  const settings = await openSettings()
   await screen.findByRole('slider', { name: 'Interface scale' })
-  expect(screen.queryByRole('status')).toBeNull()
+  expect(within(settings).queryByRole('status')).toBeNull()
 })
 
 test('Start transcription is the queue\'s and changes it', async () => {

@@ -64,6 +64,40 @@ export function missingAlignmentModel(language: string | null, models: readonly 
   return row && !row.installed ? row : null
 }
 
+// The default as the old UI kept it: the saved model when it is installed, else none.
+function savedIfInstalled(saved: Partial<SavedModel>, models: readonly ModelInfo[]): string | null {
+  const id = saved.transcribeModel ?? null
+  return id && installedWhisperModels(models).includes(id) ? id : null
+}
+
+// What the settings get when the default changes.
+export type ModelChange = { transcribeModel: string | null; transcribeModelHistory: string[] }
+
+// What to save when the default changes with a new catalog, or null when it does not.
+// previous: the catalog before, null for the first answer, which is the baseline: an
+// installed default stays silently, and a saved one that is gone is replaced.
+export function defaultModelChange(
+  previous: readonly ModelInfo[] | null,
+  models: readonly ModelInfo[],
+  saved: Partial<SavedModel>,
+): ModelChange | null {
+  const before = savedIfInstalled(saved, previous ?? models)
+  const history = saved.transcribeModelHistory ?? []
+  const next = resolveTranscribeModel({ current: saved.transcribeModel ?? null, history, installed: installedWhisperModels(models) })
+  if (next === before) return null
+  return { transcribeModel: next, transcribeModelHistory: next ? pushModelHistory(history, next) : [...history] }
+}
+
+// The user picked the default: it becomes the latest of the history.
+export function selectedModel(saved: Partial<SavedModel>, id: string): ModelChange {
+  return { transcribeModel: id, transcribeModelHistory: pushModelHistory(saved.transcribeModelHistory, id) }
+}
+
+export function defaultModelMessage(id: string | null, models: readonly ModelInfo[]): string {
+  if (!id) return 'No transcription model installed — download one in Settings'
+  return `${whisperModels(models).find(model => model.id === id)?.name ?? id} is now the default transcription model`
+}
+
 export type BlockReason =
   | { missing: 'whisper' }
   | { missing: 'diarization' }

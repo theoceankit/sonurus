@@ -21,7 +21,9 @@ There is no built-in default. Electron's settings keep the default Whisper model
 3. Otherwise the most accurate installed model: the last one in catalog order, from `tiny` to `large-v3`.
 4. With no Whisper model installed, none.
 
-A saved model that is not installed is therefore never used. The new UI works this out each time and does not save the result; the old UI saves it and says so in a toast when it changes (`syncTranscribeModel` in `electron/renderer/transcription-model.js`).
+A saved model that is not installed is therefore never used.
+
+Like the old UI (`syncTranscribeModel`), the new one saves the default when it changes. `useDefaultModelSync()`, called once by `App`, works it out again with every new answer of `GET /models`, so the first model downloaded and the default deleted are the same step. `defaultModelChange(previous, models, saved)` compares the saved model as it was installed in the catalog before with the default now: a change is saved with its history and said in a toast, "Whisper Tiny is now the default transcription model" or "No transcription model installed — download one in Settings". The first answer is the baseline: an installed default stays silently, a saved one that is no longer installed is replaced at once. Picking a model in Settings saves it with `selectTranscribeModel(id)` (`ui/src/platform/transcribe-defaults.ts`), the latest of the history, without a toast.
 
 ## Downloads
 
