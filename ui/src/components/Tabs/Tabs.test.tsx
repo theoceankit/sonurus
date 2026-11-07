@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test } from 'vitest'
+import { NavTab } from '../NavTab/NavTab'
 import { Tab } from '../Tab/Tab'
 import { TabPanel, Tabs } from './Tabs'
 
@@ -59,4 +60,25 @@ test('a click selects', async () => {
   render(sections)
   await userEvent.click(tab('Notes'))
   expect(selected()).toBe(tab('Notes'))
+})
+
+test('vertical: a column moved through with up and down, its footer under it', async () => {
+  render(
+    <Tabs
+      orientation="vertical"
+      aria-label="Settings"
+      defaultValue="general"
+      footer={<span>Sonorus 1.0</span>}
+      tabs={<><NavTab value="general" icon="settings">General</NavTab><NavTab value="models" icon="models">Models</NavTab></>}
+    >
+      <TabPanel value="general">General panel</TabPanel>
+      <TabPanel value="models">Models panel</TabPanel>
+    </Tabs>,
+  )
+  expect(screen.getByRole('tablist').getAttribute('aria-orientation')).toBe('vertical')
+  expect(screen.getByText('Sonorus 1.0')).toBeTruthy()
+  await userEvent.click(tab('General'))
+  await userEvent.keyboard('{ArrowDown}')
+  expect(screen.getByRole('tab', { selected: true, name: 'Models' })).toBeTruthy()
+  expect(screen.getByRole('tabpanel').textContent).toBe('Models panel')
 })

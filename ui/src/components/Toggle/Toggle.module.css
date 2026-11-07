@@ -1,0 +1,37 @@
+.toggle {
+  composes: reset focusRing from '../../styles/control.module.css';
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  width: var(--size-toggle-width);
+  height: var(--size-toggle-height);
+  padding: var(--space-half);
+  border-radius: var(--radius-full);
+  background: var(--color-fill-pressed);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.toggle[aria-checked='true'] {
+  background: var(--color-text-primary);
+}
+
+.toggle:disabled,
+.toggle[aria-disabled='true'] {
+  opacity: var(--opacity-disabled);
+  cursor: default;
+}
+
+.thumb {
+  width: var(--size-toggle-thumb);
+  height: var(--size-toggle-thumb);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-sm);
+  transition: translate var(--duration-fast) var(--ease-standard);
+}
+
+.toggle[aria-checked='true'] .thumb {
+  translate: calc(var(--size-toggle-width) - var(--size-toggle-height)) 0;
+}

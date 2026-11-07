@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { NavTab } from '../NavTab/NavTab'
 import { Tab } from '../Tab/Tab'
 import { TabPanel, Tabs } from './Tabs'
 
@@ -35,6 +36,30 @@ export const WithCountsAndPanels: Story = {
       <>
         <TabPanel value="speakers">Speakers panel</TabPanel>
         <TabPanel value="chapters">Chapters panel</TabPanel>
+      </>
+    ),
+  },
+}
+
+export const Vertical: Story = {
+  args: {
+    orientation: 'vertical',
+    'aria-label': 'Settings',
+    defaultValue: 'general',
+    style: { height: 280 },
+    tabs: (
+      <div style={{ width: 184 }}>
+        <NavTab value="general" icon="settings">General</NavTab>
+        <NavTab value="models" icon="models">Models</NavTab>
+        <NavTab value="alignment" icon="alignment">Alignment</NavTab>
+      </div>
+    ),
+    footer: <span>Sonorus 0.3.0</span>,
+    children: (
+      <>
+        <TabPanel value="general" style={{ paddingInline: 24 }}>General panel</TabPanel>
+        <TabPanel value="models" style={{ paddingInline: 24 }}>Models panel</TabPanel>
+        <TabPanel value="alignment" style={{ paddingInline: 24 }}>Alignment panel</TabPanel>
       </>
     ),
   },

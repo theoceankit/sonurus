@@ -1,11 +1,21 @@
 .slider {
   position: relative;
   display: flex;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.vertical {
   justify-content: center;
   width: var(--size-slider-thumb);
   height: var(--size-slider-length);
-  touch-action: none;
-  cursor: pointer;
+}
+
+.horizontal {
+  align-items: center;
+  width: 100%;
+  min-width: var(--size-slider-length);
+  height: var(--size-slider-thumb);
 }
 
 .slider[data-disabled] {
@@ -15,17 +25,32 @@
 
 .track {
   position: relative;
-  width: var(--size-slider-track);
-  height: 100%;
   border-radius: var(--radius-full);
   background: var(--color-fill-pressed);
 }
 
+.vertical .track {
+  width: var(--size-slider-track);
+  height: 100%;
+}
+
+.horizontal .track {
+  flex: 1;
+  height: var(--size-slider-track);
+}
+
 .range {
   position: absolute;
-  width: 100%;
   border-radius: var(--radius-full);
   background: var(--color-text-primary);
+}
+
+.vertical .range {
+  width: 100%;
+}
+
+.horizontal .range {
+  height: 100%;
 }
 
 .thumb {
@@ -35,4 +60,44 @@
   height: var(--size-slider-thumb);
   border-radius: var(--radius-full);
   background: var(--color-text-primary);
+}
+
+.withMarks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-slider-mark-gap);
+  width: 100%;
+  min-width: 0;
+}
+
+/* Radix keeps the thumb inside the track, so the ends sit half a thumb in. */
+.marks {
+  position: relative;
+  height: var(--type-size-caption);
+  margin-inline: calc(var(--size-slider-thumb) / 2);
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+  user-select: none;
+}
+
+.mark {
+  position: absolute;
+  top: 0;
+  translate: -50% 0;
+  white-space: nowrap;
+}
+
+/* The end labels stay inside the slider's width instead of hanging past it. */
+.mark[data-edge='start'] {
+  left: calc(var(--size-slider-thumb) / -2);
+  translate: 0;
+}
+
+.mark[data-edge='end'] {
+  right: calc(var(--size-slider-thumb) / -2);
+  translate: 0;
+}
+
+.marksDisabled .marks {
+  opacity: var(--opacity-disabled);
 }

@@ -224,6 +224,12 @@
   --size-slider-length: 72px;
   --size-slider-track: 4px;
   --size-slider-thumb: 12px;
+  --size-slider-mark-gap: 6px;
+  --size-toggle-width: 28px;
+  --size-toggle-height: 16px;
+  --size-toggle-thumb: 12px;
+  /* The control of a settings row; the label takes what is left. */
+  --size-field-control: 240px;
   --size-status-dot: 6px;
   --size-talk-time-bar: 6px;
   --size-inspector-list-min: 100px;
@@ -236,6 +242,9 @@
   --size-choose-speaker-list: 344px;
   --size-drop-zone: 168px;
   --size-import-list: 184px;
+  --size-settings-nav: 184px;
+  /* Settings keep one height, so switching sections does not move the window. */
+  --size-settings-height: 600px;
 
   --size-scroll-fade-md: 40px;
   --size-scroll-fade-lg: 48px;

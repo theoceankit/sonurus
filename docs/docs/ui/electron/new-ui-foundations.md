@@ -86,7 +86,7 @@ Both take `as`, `align`, `justify`, `className`, `ref` and other props of the el
 
 ## Base controls
 
-`Button`, `IconButton`, `Avatar`, `AvatarStack`, `Tab`, `Tabs`, `TextField`, `SearchField`, `MenuItem`, `Disclosure`, `ColorSwatch`, `ColorPicker`, `Kbd`, `Badge`, `SectionHeader` and `MetaItem`, in `ui/src/components/`, named after their Penpot components.
+`Button`, `IconButton`, `Avatar`, `AvatarStack`, `Tab`, `Tabs`, `NavTab`, `Toggle`, `Slider`, `TextField`, `SearchField`, `MenuItem`, `Disclosure`, `ColorSwatch`, `ColorPicker`, `Kbd`, `Badge`, `SectionHeader` and `MetaItem`, in `ui/src/components/`, named after their Penpot components.
 
 Penpot's Type is the `variant` prop, because `type` on a button is the HTML attribute. Pairs that do not exist on the boards, such as an inverse button at medium size, are type errors. `Tabs`, `ColorPicker` and `Disclosure` are built on Radix Primitives, which bring the arrow keys and the tab order; `Tab` works only inside `Tabs`, `ColorSwatch` only inside a radio group. `Button`, `IconButton` and `MenuItem` pass on `ref` and other attributes, so Radix can wrap them with `asChild`.
 
@@ -119,6 +119,16 @@ Only `Avatar` works out initials; a test in `Avatar.test.tsx` fails if anything 
 A first Escape in a filled field clears it and goes no further; in an empty field it goes on, so a dialog around the field can close. Radix layers listen for Escape on the document in the capture phase, before any handler on the field, so the field listens on the window in the same phase while it is filled.
 
 `TextField` has no reaction of its own to Escape: cancelling an edit belongs to the screen.
+
+### Settings controls
+
+Settings brought controls that the Editor boards do not have; they follow the Editor's look and tokens.
+
+- `Toggle` is an on/off `switch` that acts at once. It has no visible text of its own: `label` is what assistive technology reads, and the row next to it shows the words.
+- `Slider` is vertical for the player's volume. `orientation="horizontal"` fills the width it is given; `marks` put labels under the track, the end ones inside the slider's width, and `valueText` is what assistive technology reads for a value such as 125%. `onCommit` comes when the pointer lets go or a key is released, for what is costly to apply.
+- `Tabs` with `orientation="vertical"` is a column of `NavTab` rows (icon and label, the selected one filled as in the sidebar) with its panels next to it; up and down move through the column. `footer` sits under the column, apart from the tabs.
+- `FieldRow` is one setting: label and hint on the left, the control on the right at most `--size-field-control` wide, so a control never runs past its card at any window width. `stacked` puts the control under the label at the full width, for a slider with marks or a long field; `note` goes under the row. The row is a `group` named by its label; the control still has its own name.
+- `SectionCard` holds the rows that belong together, divided by lines, with an optional title, description, action next to the title and footer under the rows.
 
 ## ScrollBar
 
