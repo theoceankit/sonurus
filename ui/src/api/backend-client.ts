@@ -107,6 +107,12 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     requestGpuRestart: async () => (await send(http.POST('/gpu/restart'))) as GpuRestartAnswer,
     resetData: () => send(http.POST('/data/reset')),
     getQueue: () => send(http.GET('/queue')),
+    startQueue: () => send(http.POST('/queue/start')),
+    pauseQueue: () => send(http.POST('/queue/pause')),
+    reorderQueue: jobIds => send(http.PUT('/queue/order', { body: { job_ids: [...jobIds] } })),
+    deleteQueueJob: async job_id => {
+      await send(http.DELETE('/queue/jobs/{job_id}', { params: { path: { job_id } } }))
+    },
     addQueueJob: ({ audioPath, whisperModel, language, title }) => send(http.POST('/queue/jobs', {
       body: { audio_path: audioPath, whisper_model: whisperModel, language, ...(title ? { title } : {}) },
     })),

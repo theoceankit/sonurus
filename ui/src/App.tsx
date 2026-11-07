@@ -1,8 +1,10 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useBackendConnected, useQueueEventsSync } from './api/queries'
+import type { QueueUpdate } from './api/types'
 import { toast } from './components/Toast/toast-store'
-import { EditorScreen } from './screens/Editor/EditorScreen'
+import { EditorScreen, type RecordingRequest } from './screens/Editor/EditorScreen'
 import { AlignmentDialog } from './screens/Queue/AlignmentDialog'
+import { queueEventToast } from './screens/Queue/queue-toasts'
 import { useAlignmentDialogs } from './screens/Queue/useAlignmentDialogs'
 import { SettingsProvider } from './screens/Settings/SettingsProvider'
 import { useGpu } from './settings/gpu'
@@ -20,12 +22,20 @@ function useBackendLostToast() {
 
 function Screens() {
   const alignment = useAlignmentDialogs()
-  useQueueEventsSync(alignment.onQueueEvent)
+  // A new object each time, so Open opens the recording again after the user left it.
+  const [opening, setOpening] = useState<RecordingRequest | null>(null)
+  const { onQueueEvent: alignmentEvent } = alignment
+  const onQueueEvent = useCallback((event: QueueUpdate) => {
+    alignmentEvent(event)
+    const shown = queueEventToast(event, id => setOpening({ id }))
+    if (shown) toast(shown)
+  }, [alignmentEvent])
+  useQueueEventsSync(onQueueEvent)
   useBackendLostToast()
   useDefaultModelSync()
   return (
     <>
-      <EditorScreen />
+      <EditorScreen openRequest={opening} />
       {alignment.dialog && <AlignmentDialog key={alignment.dialog.language} {...alignment.dialog} />}
     </>
   )

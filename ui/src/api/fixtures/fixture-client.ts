@@ -351,6 +351,39 @@ export function createFixtureClient({
       return () => download.listeners.delete(listener)
     },
     getQueue: () => answer(() => queue),
+    startQueue: () => answer(() => {
+      emit({ ...queue, paused: false, paused_by_recording: false })
+      return queue
+    }),
+    // As in the backend, the running job is stopped and waits again at its place.
+    pauseQueue: () => answer(() => {
+      emit({
+        ...queue,
+        paused: true,
+        paused_by_recording: false,
+        running_job_id: null,
+        step: null,
+        jobs: queue.jobs.map(j => (j.status === 'running' ? { ...j, status: 'waiting' } : j)),
+      })
+      return queue
+    }),
+    reorderQueue: jobIds => answer(() => {
+      const current = new Set(queue.jobs.map(j => j.id))
+      if (jobIds.length !== current.size || new Set(jobIds).size !== jobIds.length || !jobIds.every(id => current.has(id))) {
+        throw new ApiError(400, 'job_ids must list every job in the queue exactly once')
+      }
+      emit({ ...queue, jobs: jobIds.map(id => queue.jobs.find(j => j.id === id)!) })
+      return queue
+    }),
+    deleteQueueJob: jobId => answer(() => {
+      if (!queue.jobs.some(j => j.id === jobId)) throw new ApiError(404, 'Job not found')
+      const running = queue.running_job_id === jobId
+      emit({
+        ...queue,
+        ...(running ? { running_job_id: null, step: null } : {}),
+        jobs: queue.jobs.filter(j => j.id !== jobId),
+      })
+    }),
     addQueueJob: ({ audioPath, whisperModel, language, title }) => answer(() => {
       const missing = missingModelError(models, whisperModel, language)
       if (missing) throw missing

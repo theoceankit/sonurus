@@ -1,0 +1,34 @@
+/* Text that is being worked on, such as the title of the running job: a lighter
+   band crosses it, then it rests for the second half of the cycle, so the glint
+   comes now and then. Without motion it is plain text. */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-text-primary) 40%,
+    var(--color-text-placeholder) 50%,
+    var(--color-text-primary) 60%
+  );
+  background-size: 300% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer var(--duration-shimmer) linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  50%,
+  100% {
+    background-position: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none;
+    background: none;
+    color: var(--color-text-primary);
+  }
+}

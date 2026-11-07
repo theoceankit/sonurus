@@ -3,11 +3,12 @@ import type { ReactNode } from 'react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider, useApi } from './ApiProvider'
 import { ApiError, type ApiClient } from './client'
-import { SPEAKER_IDS, WEEKLY_SYNC_ID } from './fixtures/data'
+import { QUEUE_JOB, SPEAKER_IDS, WEEKLY_SYNC_ID, queueSnapshot } from './fixtures/data'
 import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
-  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useDeleteTranscript, useModels, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
+  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useDeleteQueueJob, useDeleteTranscript, useModels, useQueue, useQueueControl, useQueueEventsSync,
+  useReorderQueue, useRetryQueueJob, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle, useWaveform,
 } from './queries'
 import { effectiveSpeaker, type QueueUpdate } from './types'
@@ -133,6 +134,39 @@ describe('queue events', () => {
     client.playEvents({ steps: [{ afterMs: 0, event: EVENT_SCRIPTS.failed.steps[0].event }] })
     await new Promise(resolve => setTimeout(resolve, 20))
     expect(events).toHaveLength(1)
+  })
+})
+
+describe('queue controls', () => {
+  const setup = async () => {
+    const client = createFixtureClient()
+    client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot({
+      jobs: [{ ...QUEUE_JOB, id: 'a' }, { ...QUEUE_JOB, id: 'b', status: 'failed', error: 'x' }],
+    }) }] })
+    await vi.waitFor(async () => expect((await client.getQueue()).jobs).toHaveLength(2))
+    const hooks = renderHook(() => ({
+      queue: useQueue(), control: useQueueControl(), reorder: useReorderQueue(), retry: useRetryQueueJob(), remove: useDeleteQueueJob(),
+    }), { wrapper: wrapperFor(client) })
+    await waitFor(() => expect(hooks.result.current.queue.data?.jobs).toHaveLength(2))
+    return hooks.result
+  }
+
+  test('pause, start and a new order are in the cache at once', async () => {
+    const result = await setup()
+    await act(() => result.current.control.mutateAsync('pause'))
+    await waitFor(() => expect(result.current.queue.data?.paused).toBe(true))
+    await act(() => result.current.control.mutateAsync('start'))
+    await waitFor(() => expect(result.current.queue.data?.paused).toBe(false))
+    await act(() => result.current.reorder.mutateAsync(['b', 'a']))
+    await waitFor(() => expect(result.current.queue.data?.jobs.map(j => j.id)).toEqual(['b', 'a']))
+  })
+
+  test('a retry and a delete ask for the queue again', async () => {
+    const result = await setup()
+    await act(() => result.current.retry.mutateAsync('b'))
+    await waitFor(() => expect(result.current.queue.data?.jobs.map(j => [j.id, j.status])).toEqual([['a', 'waiting'], ['b', 'waiting']]))
+    await act(() => result.current.remove.mutateAsync('a'))
+    await waitFor(() => expect(result.current.queue.data?.jobs.map(j => j.id)).toEqual(['b']))
   })
 })
 

@@ -71,6 +71,8 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `retryQueueJob(jobId)` puts a failed job back at the end of the queue, waiting and with no error: `POST /queue/jobs/{id}/retry`. A model it needs that is still not installed is a 400, a job that has not failed a 409. The fixtures do the same.
 
+`startQueue()` and `pauseQueue()` are `POST /queue/start` and `POST /queue/pause`; `reorderQueue(jobIds)` is `PUT /queue/order` with every job of the queue exactly once, else a 400. All three answer the queue after the change. A pause stops the running job at once, and it waits again at its place. `deleteQueueJob(jobId)` is `DELETE /queue/jobs/{id}`: it takes the job and its copy of the audio away, stopping it first if it runs; an unknown job is a 404. The fixtures do the same and send each change as a snapshot.
+
 `now()` is today for the screens: the current time on the backend client, 5 October 2026 on fixtures, so that sections of the recordings list stay as on the design boards.
 
 A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/speaker-colors.ts` turns it into a colour of the avatars. The fixtures use the colours of the boards.
@@ -79,7 +81,7 @@ A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/spea
 
 `subscribeQueueEvents` gives the current snapshot and then every snapshot and job event. `queue-events.ts` connects to `WS /ws/queue`, reconnects two seconds after the connection drops and does not pass heartbeats on.
 
-`useQueueEventsSync()`, called once at the root of the app, puts snapshots into the cache behind `useQueue()` and refreshes the recordings and speakers on `job_done`. Its optional callback is for what a screen shows itself, such as a toast on `job_failed`.
+`useQueueEventsSync()`, called once at the root of the app, puts snapshots into the cache behind `useQueue()` and refreshes the recordings and speakers on `job_done`. Its optional callback is for what the app shows itself: the toasts of finished and failed jobs and the Alignment model dialog ([New UI transcription](new-ui-transcribe.md#finished-and-failed-jobs)).
 
 ## Connection to the backend
 
@@ -100,6 +102,8 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 `useModels()` reads the catalog and asks again every time a screen that uses it mounts, as models are downloaded and deleted elsewhere (the old UI, and later Settings).
 
 `useAddToQueue()` takes files with their titles, one model and one language, and puts the files into the queue one at a time, in the order given. A null title is the file name, and a null model or language is the backend's own. It stops at the first refusal with an `AddToQueueError`, whose `added` says how many files went in before it, so that the caller does not send them twice. The model and language come from the caller: the import dialog works them out from the settings ([New UI transcription](new-ui-transcribe.md)), and `readTranscribeSettings()` in `ui/src/platform/transcribe-defaults.ts` reads what the settings keep.
+
+`useQueueControl()` (start or pause) and `useReorderQueue()` put the queue they answer into the cache at once, before its snapshot arrives on the socket. `useRetryQueueJob()` and `useDeleteQueueJob()` ask for the queue again.
 
 `useDeleteTranscript()` counts a recording already gone as deleted. It takes the recording off the list at once and does not ask for its details again, as the panels still show it until `EditorScreen` closes it.
 

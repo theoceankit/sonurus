@@ -11,6 +11,8 @@ import { ImportDialog } from '../Home/ImportDialog'
 import { pickRecording, useRecentRecordings } from '../Home/last-opened'
 import { useImportDialog } from '../Home/useImportDialog'
 import { useSettingsDialog } from '../Settings/SettingsProvider'
+import { QueueJobPanel } from '../Queue/QueueJobPanel'
+import { QueueSection } from '../Queue/QueueSection'
 import type { Playback } from '../../media/playback'
 import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecordingDialog'
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
@@ -22,7 +24,12 @@ import { TranscriptPanel, type SpeakerMenuTarget } from './TranscriptPanel'
 import { useSpeakerChange } from './useSpeakerChange'
 import styles from './EditorScreen.module.css'
 
+// A recording to open from elsewhere, such as the toast of a finished job. Each
+// request is a new object, so the same recording can be asked for again.
+export type RecordingRequest = { id: number }
+
 interface EditorScreenProps {
+  openRequest?: RecordingRequest | null
   // Nothing in the API says a recording is pinned yet.
   pinnedIds?: number[]
   initialSelectedId?: number | null
@@ -54,16 +61,20 @@ function useWidth() {
   return { element, width }
 }
 
-export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, possibleMatches, initialSpeakerId, initialHighlight }: EditorScreenProps) {
+export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, possibleMatches, initialSpeakerId, initialHighlight }: EditorScreenProps) {
   const api = useApi()
   const transcripts = useTranscripts()
   const speakers = useSpeakers()
   const [selectedId, setSelectedId] = useState(initialSelectedId)
+  // A job picked in the queue takes the centre; the recording comes back when it goes.
+  const [jobId, setJobId] = useState<string | null>(null)
+  const shownId = jobId === null ? selectedId : null
+  const clearJob = useCallback(() => setJobId(null), [])
   const recent = useRecentRecordings()
   const importer = useImportDialog()
   const settingsDialog = useSettingsDialog()
   const [panels, setPanels] = useState(INITIAL_PANELS)
-  const ownPlayback = useTranscriptPlayback(givenPlayback ? null : selectedId)
+  const ownPlayback = useTranscriptPlayback(givenPlayback ? null : shownId)
   const playback = givenPlayback ?? ownPlayback
   const [speakerRequest, setSpeakerRequest] = useState<SpeakerRequest | null>(null)
   const [toDelete, setToDelete] = useState<RecordingToDelete | null>(null)
@@ -88,6 +99,12 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
     const next = pickRecording(transcripts.data, recent.ids)
     if (next !== null) setSelectedId(next)
   }, [selectedId, transcripts.data, recent.ids])
+
+  useEffect(() => {
+    if (!openRequest) return
+    setJobId(null)
+    setSelectedId(openRequest.id)
+  }, [openRequest])
 
   const { remember } = recent
   useEffect(() => {
@@ -136,10 +153,12 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   // Only an answer with no recordings is empty: loading and failing are the sidebar's to say.
   const noRecordings = transcripts.data?.length === 0
   const center = useMemo(
-    () => transcript ?? (noRecordings
-      ? <EmptyState onOpenSettings={() => settingsDialog.open('models')} />
-      : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />),
-    [transcript, noRecordings, selectedId, playback, highlight, showAllSpeakers, settingsDialog],
+    () => transcript ?? (jobId !== null
+      ? <QueueJobPanel jobId={jobId} onGone={clearJob} />
+      : noRecordings
+        ? <EmptyState onOpenSettings={() => settingsDialog.open('models')} />
+        : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />),
+    [transcript, jobId, clearJob, noRecordings, selectedId, playback, highlight, showAllSpeakers, settingsDialog],
   )
 
   // A refresh that fails leaves what was loaded on the screen.
@@ -165,8 +184,12 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
             <Sidebar
               state={failed ? 'error' : ready ? 'ready' : 'loading'}
               sections={sections}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
+              selectedId={shownId}
+              onSelect={id => {
+                setJobId(null)
+                setSelectedId(id)
+              }}
+              top={<QueueSection selectedJobId={jobId} onSelectJob={setJobId} />}
               onRetry={() => {
                 if (transcripts.isError) transcripts.refetch()
                 if (speakers.isError) speakers.refetch()
@@ -179,7 +202,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
           <div className={cx(styles.panel, styles.inspector)}>
             {inspector ?? (
               <InspectorPanel
-                transcriptId={selectedId}
+                transcriptId={shownId}
                 playback={playback}
                 open={visible.inspector}
                 onClose={() => toggle('inspector')}
@@ -191,7 +214,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
             )}
           </div>
         </section>
-        <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player ?? <EditorPlayer transcriptId={selectedId} playback={playback} highlight={highlight} />}</section>
+        <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player ?? <EditorPlayer transcriptId={shownId} playback={playback} highlight={highlight} />}</section>
       </div>
       {speakerDialog.value && (
         <SpeakerDialogs

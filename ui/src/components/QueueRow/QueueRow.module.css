@@ -1,0 +1,118 @@
+/* The row is the box: its main button and the buttons at its end share one hover. */
+.queueRow {
+  composes: stateLayer from '../../styles/control.module.css';
+  display: flex;
+  align-items: center;
+  height: var(--size-control-md);
+  padding-inline-end: var(--space-1);
+  border-radius: var(--radius-md);
+}
+
+/* Rows sit next to each other, so the ring stays inside the row. */
+.queueRow:has(.row:focus-visible) {
+  outline: var(--border-width-strong) solid var(--color-focus);
+  outline-offset: calc(var(--border-width-strong) * -1);
+}
+
+.selected {
+  background: var(--color-fill-pressed);
+}
+
+/* A menu of the row is open: the row stays as under the pointer. */
+.queueRow:has([data-state='open'])::before {
+  background: var(--color-fill-hover);
+}
+
+.row {
+  composes: reset from '../../styles/control.module.css';
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 100%;
+  padding-inline-start: var(--space-2);
+  padding-inline-end: var(--space-1);
+  color: var(--color-text-primary);
+  font: var(--font-body);
+  text-align: start;
+  user-select: none;
+  outline: none;
+}
+
+.status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+}
+
+.dot {
+  width: var(--size-status-dot);
+  height: var(--size-status-dot);
+  border-radius: var(--radius-full);
+  background: var(--color-danger-solid);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Not transcribed: the secondary text colour, as on the meta of the lists. */
+.pale {
+  color: var(--color-text-secondary);
+}
+
+.actions {
+  position: absolute;
+  inset-block: 0;
+  right: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-half);
+  opacity: 0;
+}
+
+/* Hidden but still reached with Tab: they show with the pointer, the focus, or while
+   a menu of theirs is open, and its trigger stays where the menu hangs from. */
+.queueRow:hover .actions,
+.queueRow:focus-within .actions,
+.queueRow:has([data-state='open']) .actions {
+  opacity: 1;
+}
+
+/* The title gives way to them: room for one button, or for two. */
+.queueRow:is(:hover, :focus-within, :has([data-state='open'])) .row {
+  padding-inline-end: calc(var(--size-control-xs) + var(--space-1));
+}
+
+.queueRow:is(:hover, :focus-within, :has([data-state='open'])):has(.actions > :nth-child(2)) .row {
+  padding-inline-end: calc(var(--size-control-xs) * 2 + var(--space-half) + var(--space-1));
+}
+
+.dragging {
+  opacity: var(--opacity-disabled);
+}
+
+.dropLine {
+  position: absolute;
+  inset-inline: var(--space-2);
+  height: var(--border-width-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-focus);
+  pointer-events: none;
+}
+
+.dropLine[data-place='before'] {
+  top: calc(var(--space-half) * -1);
+}
+
+.dropLine[data-place='after'] {
+  bottom: calc(var(--space-half) * -1);
+}

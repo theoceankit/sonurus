@@ -167,6 +167,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | `--duration-base` | 150 ms | opening a menu, closing a modal or a toast |
 | `--duration-slow` | 200 ms | opening a modal or a toast, what opens in place |
 | `--duration-move` | 250 ms | panels, which travel the furthest |
+| `--duration-shimmer` | 3200 ms | one cycle of the glint on text that is being worked on: half crossing, half resting |
 | `--delay-hover` | 150 ms | how long the pointer stays on a speaker before it is highlighted |
 | `--delay-hover-skip` | 300 ms | after a highlight, the next one comes at once for this long |
 | `--delay-tooltip` | 300 ms | how long the pointer stays on a control before its tooltip shows |
@@ -193,6 +194,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | Review dock: the card, Close review, Resume | 250 | 250 | height and fade, as far and as long as a panel |
 | Show inspector | 200 | — | from 8 px to the side the inspector leaves to, on the panel's curve from a fifth of its way, so that both settle in the same frame; it goes at once, as the inspector takes its place |
 | Bubble of the player | 100 | 100 | width, when the text has changed it |
+| Text being worked on: the running job's title and status | — | — | a lighter band crosses it, then it rests, over and over (`shimmer.module.css`); plain with reduced motion |
 
 Pressed and the focus ring change at once. So do the text and data of the transcript, the playhead and the waveform, scrolling, changing recording, tabs and editing a paragraph.
 
@@ -211,7 +213,7 @@ Nothing may walk the rows of a transcript and read their layout. `getBoundingCli
 
 ### Reduced motion
 
-The system setting empties the distance tokens in `tokens.css`, so what fades still fades. What opens in place only fades, the bubble and a tooltip passing to its neighbour change at once, panels do not move and the bar of the playing segment stands whole. The spinner keeps turning: it reports a process. There is no setting for this in the app.
+The system setting empties the distance tokens in `tokens.css`, so what fades still fades. What opens in place only fades, the bubble and a tooltip passing to its neighbour change at once, panels do not move and the bar of the playing segment stands whole. The spinner keeps turning: it reports a process. The glint on text being worked on stops, as the text says the same without it. There is no setting for this in the app.
 
 ## Overlays
 

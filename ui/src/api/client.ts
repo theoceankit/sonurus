@@ -80,6 +80,15 @@ export interface ApiClient {
   // 409 while a transcription or a recording runs.
   resetData(): Promise<DataResetSummary>
   getQueue(): Promise<QueueSnapshot>
+  // Start and pause answer the queue after the change. A pause stops the running job at
+  // once; it waits again at its place.
+  startQueue(): Promise<QueueSnapshot>
+  pauseQueue(): Promise<QueueSnapshot>
+  // Every job of the queue exactly once, in the new order; anything else is a 400.
+  reorderQueue(jobIds: readonly string[]): Promise<QueueSnapshot>
+  // Takes the job and its copy of the audio away; a running job is stopped first. 404
+  // when there is no such job.
+  deleteQueueJob(jobId: string): Promise<void>
   // The backend copies the file and answers the waiting job, or 400 when a model the
   // job needs is not installed or the file cannot be read.
   addQueueJob(job: NewQueueJob): Promise<QueueJob>

@@ -508,6 +508,52 @@ describe('retrying a job', () => {
   })
 })
 
+describe('queue controls', () => {
+  const withJobs = async () => {
+    const client = createFixtureClient()
+    client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot({
+      running_job_id: 'a',
+      step: 'Transcribing audio…',
+      jobs: [{ ...QUEUE_JOB, id: 'a', status: 'running' }, { ...QUEUE_JOB, id: 'b' }, { ...QUEUE_JOB, id: 'c' }],
+    }) }] })
+    await vi.waitFor(async () => expect((await client.getQueue()).jobs).toHaveLength(3))
+    return client
+  }
+
+  test('a pause stops the running job, which waits again at its place; start resumes', async () => {
+    const client = await withJobs()
+    const paused = await client.pauseQueue()
+    expect(paused).toMatchObject({ paused: true, running_job_id: null, step: null })
+    expect(paused.jobs.map(j => [j.id, j.status])).toEqual([['a', 'waiting'], ['b', 'waiting'], ['c', 'waiting']])
+    await expect(client.startQueue()).resolves.toMatchObject({ paused: false, paused_by_recording: false })
+  })
+
+  test('a new order lists every job once; anything else is refused', async () => {
+    const client = await withJobs()
+    expect((await client.reorderQueue(['c', 'a', 'b'])).jobs.map(j => j.id)).toEqual(['c', 'a', 'b'])
+    await expect(client.reorderQueue(['a', 'b'])).rejects.toMatchObject({ status: 400 })
+    await expect(client.reorderQueue(['a', 'a', 'b'])).rejects.toMatchObject({ status: 400 })
+    await expect(client.reorderQueue(['a', 'b', 'x'])).rejects.toMatchObject({ status: 400 })
+  })
+
+  test('deleting the running job stops it; an unknown job is a 404', async () => {
+    const client = await withJobs()
+    await client.deleteQueueJob('a')
+    expect(await client.getQueue()).toMatchObject({ running_job_id: null, step: null })
+    expect((await client.getQueue()).jobs.map(j => j.id)).toEqual(['b', 'c'])
+    await expect(client.deleteQueueJob('a')).rejects.toMatchObject({ status: 404 })
+  })
+
+  test('listeners get each change as a snapshot', async () => {
+    const client = await withJobs()
+    const seen: string[][] = []
+    client.subscribeQueueEvents(event => { if (event.type === 'snapshot') seen.push(event.jobs.map(j => j.id)) })
+    await vi.waitFor(() => expect(seen).toHaveLength(1))
+    await client.deleteQueueJob('b')
+    expect(seen.at(-1)).toEqual(['a', 'c'])
+  })
+})
+
 describe('editing a job', () => {
   const withJob = async (status: 'waiting' | 'running', options = {}) => {
     const client = createFixtureClient(options)
