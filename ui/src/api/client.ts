@@ -67,6 +67,9 @@ export interface ApiClient {
   // The backend copies the file and answers the waiting job, or 400 when a model the
   // job needs is not installed or the file cannot be read.
   addQueueJob(job: NewQueueJob): Promise<QueueJob>
+  // A failed job waits again, at the end of the queue. Refused with a 400 when a model it
+  // needs is still not installed, 409 when the job has not failed.
+  retryQueueJob(jobId: string): Promise<QueueJob>
   // The listener first gets the current snapshot. onConnection is told when the
   // connection is lost and when it is back. Returns the unsubscribe.
   subscribeQueueEvents(listener: (event: QueueUpdate) => void, onConnection?: (connected: boolean) => void): () => void

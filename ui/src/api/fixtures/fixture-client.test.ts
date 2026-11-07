@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiError } from '../client'
 import { effectiveSpeaker, UNASSIGNED, type QueueUpdate, type Segment } from '../types'
 import { BOARDS } from './boards'
-import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
+import { DESIGN_REVIEW_ID, QUEUE_JOB, queueSnapshot, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
 import { EVENT_SCRIPTS } from './event-scripts'
 import type { ApiClient } from '../client'
 import { createFixtureClient, NO_MODELS } from './fixture-client'
@@ -480,5 +480,30 @@ describe('model downloads', () => {
     expect(await seen).toEqual(['cancelled'])
     await expect(client.cancelModelDownload('cs', jobId)).rejects.toMatchObject({ status: 404 })
     expect(await follow(client, jobId)).toEqual(['error'])
+  })
+})
+
+describe('retrying a job', () => {
+  const failedOn = (language: string) => queueSnapshot({
+    jobs: [
+      { ...QUEUE_JOB, id: 'a', status: 'failed', language, error: 'x', error_code: 'alignment_model_missing', error_language: language },
+      { ...QUEUE_JOB, id: 'b', status: 'waiting' },
+    ],
+  })
+
+  test('a failed job waits again at the end of the queue, with no error', async () => {
+    const client = createFixtureClient({ installedModels: [...DEFAULT_INSTALLED, 'pt'] })
+    client.playEvents({ steps: [{ afterMs: 0, event: failedOn('pt') }] })
+    await vi.waitFor(async () => expect((await client.getQueue()).jobs).toHaveLength(2))
+    await expect(client.retryQueueJob('a')).resolves.toMatchObject({ status: 'waiting', error_code: null })
+    expect((await client.getQueue()).jobs.map(j => j.id)).toEqual(['b', 'a'])
+  })
+
+  test('refused while the model is missing, or for a job that has not failed', async () => {
+    const client = createFixtureClient()
+    client.playEvents({ steps: [{ afterMs: 0, event: failedOn('pt') }] })
+    await vi.waitFor(async () => expect((await client.getQueue()).jobs).toHaveLength(2))
+    await expect(client.retryQueueJob('a')).rejects.toMatchObject({ status: 400 })
+    await expect(client.retryQueueJob('b')).rejects.toMatchObject({ status: 409 })
   })
 })

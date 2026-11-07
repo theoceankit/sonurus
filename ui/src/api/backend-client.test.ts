@@ -203,6 +203,14 @@ describe('model downloads', () => {
   })
 })
 
+describe('retryQueueJob', () => {
+  test('asks to retry the job and answers it waiting', async () => {
+    const { client, sent } = setup(() => json({ id: 'j', status: 'waiting' }))
+    await expect(client.retryQueueJob('j')).resolves.toMatchObject({ status: 'waiting' })
+    expect(sent).toEqual([{ url: 'http://localhost:8000/queue/jobs/j/retry', method: 'POST', body: undefined }])
+  })
+})
+
 describe('addQueueJob', () => {
   test('sends the file, the model and the language, and answers the job', async () => {
     const job = { id: 'j', audio_path: '/in/a.mp3', title: 'a', whisper_model: 'small', language: 'ru', status: 'waiting' }

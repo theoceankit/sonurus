@@ -32,6 +32,16 @@ A saved model that is not installed is therefore never used. The new UI works th
 - `cancel(id)` sends `DELETE /models/{id}/download/{job_id}`. A cancel before the backend answered the start stops the job once it does.
 - A finished download reads the catalog again, so the model shows as installed everywhere.
 
+## Alignment model dialog
+
+A job in a language whose alignment model is not downloaded fails mid-pipeline with `alignment_model_missing`, as a detected language is known only then. `useAlignmentDialogs()` in `ui/src/screens/Queue/`, called by `App`, takes these `job_failed` events from `useQueueEventsSync()` and shows `AlignmentDialog` for the language of the job, so the model can be downloaded and the jobs retried without going to Settings.
+
+- **One per language.** Several jobs often fail on one model: a language already shown or waiting is not added again. Languages wait in the order their jobs failed and are shown one at a time; the old UI put the windows on top of each other. Once a dialog is closed, the next failure of its language opens it again.
+- **Offer.** The language, its name in itself and the size of the model, with Download and Dismiss.
+- **Downloading.** The progress in per cent, with Cancel, which stops the download and closes the dialog. The download is the app's ([Downloads](#downloads)): a download of the model started elsewhere shows here as progress, and closing the dialog leaves it running.
+- **Ready.** The model is installed, also when it already was by the time the dialog opened. One button, Retry transcription or Retry N transcriptions, puts every job that failed on this model back at the end of the queue, in queue order (`POST /queue/jobs/{id}/retry`); a refusal is a toast. With no such job left there is only Close.
+- **Failed.** The last download of the model from this dialog ended without it. Try again starts it anew; Open Settings is marked with `markNotImplemented()` until the new UI has Settings.
+
 ## Languages
 
 `LANGUAGES` is the list a job can be asked for, Detect automatically first. `auto` is what the settings and the screens keep; the API takes it as null (`apiLanguage`). `languageName(code)` is the name for the user.

@@ -98,7 +98,7 @@ const readHfToken = async () => {
 // One store per client: the app has one, each story and test its own.
 const stores = new WeakMap<ApiClient, ModelDownloads>()
 
-function storeFor(api: ApiClient): ModelDownloads {
+export function modelDownloadsFor(api: ApiClient): ModelDownloads {
   let store = stores.get(api)
   if (!store) stores.set(api, store = createModelDownloads(api, readHfToken))
   return store
@@ -109,7 +109,7 @@ function storeFor(api: ApiClient): ModelDownloads {
 export function useModelDownloads(): ModelDownloads {
   const api = useApi()
   const queries = useQueryClient()
-  const store = storeFor(api)
+  const store = modelDownloadsFor(api)
   useSyncExternalStore(store.subscribe, store.version)
   useEffect(() => store.subscribe(modelId => {
     if (!store.download(modelId) && store.outcome(modelId) === 'done') void queries.invalidateQueries({ queryKey: queryKeys.models })

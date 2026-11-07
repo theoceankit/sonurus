@@ -284,6 +284,16 @@ export function createFixtureClient({
       emit({ ...queue, jobs: [...queue.jobs, job] })
       return job
     }),
+    retryQueueJob: jobId => answer(() => {
+      const job = queue.jobs.find(j => j.id === jobId)
+      if (!job) throw new ApiError(404, 'Job not found')
+      if (job.status !== 'failed') throw new ApiError(409, 'Only a failed job can be retried')
+      const missing = missingModelError(models, job.whisper_model, job.language)
+      if (missing) throw missing
+      const waiting: QueueJob = { ...job, status: 'waiting', error: null, error_code: null, error_language: null }
+      emit({ ...queue, jobs: [...queue.jobs.filter(j => j.id !== jobId), waiting] })
+      return waiting
+    }),
     subscribeQueueEvents: (listener, onConnection) => {
       listeners.add(listener)
       if (onConnection) connectionListeners.add(onConnection)
