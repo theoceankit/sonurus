@@ -79,7 +79,6 @@ export function NewSpeakerModal({
             }}
           />
           <TextField label="Handle" prefix="@" placeholder="olivia.brown" readOnly {...markNotImplemented('new-speaker.handle')} />
-          <TextField label="Email" placeholder="name@company.com" readOnly {...markNotImplemented('new-speaker.email')} />
           <ColorPicker label="Colour" value={color} onValueChange={setColor} colors={ASSIGNABLE_SPEAKER_COLORS} />
         </Stack>
       </ModalBody>

@@ -221,7 +221,6 @@ export function SpeakerCard({ speaker, others, sample, deleteBlocked, onBack, on
           <Stack gap={3} className={styles.fields}>
             <NameField key={speaker.id} speaker={speaker} others={others} cancelEdit={cancelEdit} />
             <TextField label="Handle" prefix="@" placeholder="olivia.brown" readOnly {...markNotImplemented('speaker-card.handle')} />
-            <TextField label="Email" placeholder="name@company.com" readOnly {...markNotImplemented('speaker-card.email')} />
           </Stack>
         </Inline>
         <Inline gap={4} wrap>

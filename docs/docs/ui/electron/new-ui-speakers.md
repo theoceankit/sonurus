@@ -24,7 +24,7 @@ The Speakers button at the right of the titlebar opens `SpeakersDialog`, which `
 A click on a row opens `SpeakerCard` in place of the list; the categories stay, and Back to speakers returns to the list. A speaker that goes while their card is open (deleted, or all data reset) takes the card back to the list.
 
 - **Name.** Edited in place: Enter or leaving the field saves it through `PATCH /speakers/{id}`, Escape takes the edit back and keeps the window open. A blank name is not saved. A name another speaker has is allowed and said under the field. A refusal of the backend is shown at the field. The name shows at once everywhere: in the list, the sidebar, the transcript and the inspector.
-- **Handle, Email** and Merge into another speaker in the More menu are marked with `markNotImplemented()`, for the speaker profiles and merging still to come.
+- **Handle** and Merge into another speaker in the More menu are marked with `markNotImplemented()`, for the speaker profiles and merging still to come.
 - **Usage.** The recordings, the time the speaker talks and when they were last heard.
 - **Voice sample.** The segment `GET /speakers/{id}/sample` picks, at most fifteen seconds, played in a `ClipPlayer` with its text under it. When no recording of the speaker has its audio any more, the card says so instead.
 - **Colour.** A speaker with a name chooses one of the five speaker colours; the change applies at once. A speaker without a name is grey, and the card says a colour comes with a name. It does not promise that a name makes the speaker recognized: recognition comes from the voice, which only assigning segments in the Editor teaches.
