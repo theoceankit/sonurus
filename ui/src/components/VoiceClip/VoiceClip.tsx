@@ -16,6 +16,8 @@ export interface VoiceClipProps {
   // The levels of the clip's audio.
   heights?: readonly number[] | null
   onToggle?: () => void
+  // How many bars the waveform has room for: ask for the levels of that many.
+  onBarCount?: (count: number) => void
   // For a story.
   initialTextExpanded?: boolean
   className?: string
@@ -23,7 +25,7 @@ export interface VoiceClipProps {
 
 // A voice to hear before choosing, with its words under it: the Review card of the
 // inspector and a speaker's card show it alike.
-export function VoiceClip({ duration, text, playing, progress, disabled, heights, onToggle, initialTextExpanded = false, className }: VoiceClipProps) {
+export function VoiceClip({ duration, text, playing, progress, disabled, heights, onToggle, onBarCount, initialTextExpanded = false, className }: VoiceClipProps) {
   const [expanded, setExpanded] = useState(initialTextExpanded)
   const [box, setBox] = useState<HTMLElement | null>(null)
   const hasText = text.trim() !== ''
@@ -36,6 +38,7 @@ export function VoiceClip({ duration, text, playing, progress, disabled, heights
         disabled={disabled}
         heights={heights}
         onToggle={onToggle}
+        onBarCount={onBarCount}
         textExpanded={expanded}
         onToggleText={hasText ? () => setExpanded(open => !open) : undefined}
       />

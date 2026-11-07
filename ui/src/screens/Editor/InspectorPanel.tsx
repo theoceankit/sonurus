@@ -135,8 +135,9 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
   useClearedHighlight(highlight, intent, rows, [showAll, mode, open, slots])
 
   const answer = currentId ? candidates[currentId] : undefined
+  const [clipBars, setClipBars] = useState(BAR_COUNT.small)
   const clipLevels = useWaveform(answer?.clip ? transcriptId : null, {
-    bars: BAR_COUNT.small, start: answer?.clip?.start ?? 0, end: answer?.clip?.end ?? 0,
+    bars: clipBars, start: answer?.clip?.start ?? 0, end: answer?.clip?.end ?? 0,
   }).data
   const current = rows.find(row => row.id === currentId)
   const isPossibleMatch = current?.kind === 'named'
@@ -212,6 +213,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
                 progress: clipState.key === `clip:${current.id}` ? clipState.progress : 0,
                 disabled: !clipState.ready,
                 heights: clipLevels,
+                onBarCount: setClipBars,
                 onToggle: () => clip.toggle(`clip:${current.id}`, answer.clip!.start, answer.clip!.end),
               }}
               candidates={(answer?.candidates ?? []).map(candidate => ({

@@ -24,9 +24,13 @@
   cursor: default;
 }
 
-.waveform {
-  flex: 1 1 auto;
+/* The room left, whatever the bars in it: their number is worked out from this width
+   (smallBarCount()), so the width must not follow them. The parent in the selector
+   wins over the waveform's own flex: none. */
+.clipPlayer > .waveform {
+  flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .duration {

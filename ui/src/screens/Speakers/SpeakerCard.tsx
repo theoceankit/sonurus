@@ -121,7 +121,8 @@ function VoiceSample({ speaker, sample }: Pick<SpeakerCardProps, 'speaker' | 'sa
   const state = useSampleState(sample)
   const clip = found.data
   const end = clip ? Math.min(clip.end, clip.start + SAMPLE_MAX_SECONDS) : 0
-  const levels = useWaveform(clip ? clip.transcript_id : null, { bars: BAR_COUNT.small, start: clip?.start ?? 0, end })
+  const [bars, setBars] = useState(BAR_COUNT.small)
+  const levels = useWaveform(clip ? clip.transcript_id : null, { bars, start: clip?.start ?? 0, end })
   const playing = state.key === MAIN_SAMPLE
 
   if (found.isError || (!found.isPending && !clip)) {
@@ -139,6 +140,7 @@ function VoiceSample({ speaker, sample }: Pick<SpeakerCardProps, 'speaker' | 'sa
       text={clip?.text.trim() ?? ''}
       disabled={!clip}
       heights={levels.data}
+      onBarCount={setBars}
       onToggle={() => { if (clip) sample.toggle(MAIN_SAMPLE, api.getRecordingAudioUrl(clip.transcript_id), clip.start, clip.end) }}
     />
   )

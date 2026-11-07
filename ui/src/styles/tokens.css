@@ -218,6 +218,8 @@
   --size-waveform-small: 18px;
   /* Silence still shows a bar, so a speaker's colour is never lost. */
   --size-waveform-bar-min: 3px;
+  /* A bar of a clip's waveform; a wider clip gets more bars, not wider ones. */
+  --size-waveform-bar-small: 3px;
   --size-playhead: 38px;
   --size-playhead-hover: 42px;
   --size-playhead-knob: 10px;
