@@ -62,6 +62,7 @@ In Storybook, `Screens/Editor` shows the whole app on the fixtures' queue: With 
 
 A job in a language whose alignment model is not downloaded fails mid-pipeline with `alignment_model_missing`, as a detected language is known only then. `useAlignmentDialogs()` in `ui/src/screens/Queue/`, called by `App`, takes these `job_failed` events from `useQueueEventsSync()` and shows `AlignmentDialog` for the language of the job, so the model can be downloaded and the jobs retried without going to Settings.
 
+- **Waits for open windows.** While another window is open, such as New transcription or Delete recording, the dialog waits and the job shows as failed in the queue; it opens when no window is left (`useOpenModalCount()`). Once shown it stays until closed.
 - **One per language.** Several jobs often fail on one model: a language already shown or waiting is not added again. Languages wait in the order their jobs failed and are shown one at a time; the old UI put the windows on top of each other. Once a dialog is closed, the next failure of its language opens it again.
 - **Offer.** The language, its name in itself and the size of the model, with Download and Dismiss.
 - **Downloading.** The progress in per cent, with Cancel, which stops the download and closes the dialog. The download is the app's ([Downloads](#downloads)): a download of the model started elsewhere shows here as progress, and closing the dialog leaves it running.
