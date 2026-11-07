@@ -15,8 +15,9 @@ export function GpuSection() {
   const { status, ...ui } = state
   const view = gpuSectionView(status, ui)
   if (view.hidden) return <p className={styles.quiet}>{status ? 'GPU acceleration is not available on this system.' : 'Checking the graphics card…'}</p>
-  const run = (id: 'download' | 'cancel' | 'remove') => {
+  const run = (id: 'download' | 'cancel' | 'remove' | 'retry') => {
     if (id === 'download') gpu.startDownload()
+    else if (id === 'retry') gpu.retryRestart()
     else if (id === 'cancel') void gpu.cancelDownload()
     else void gpu.remove()
   }

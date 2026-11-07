@@ -94,6 +94,16 @@ const gpuStory = (gpu: Partial<GpuStatus>, extra: object = {}): Story => ({ args
 export const GpuNotInstalled: Story = gpuStory({})
 export const GpuDownloadFails: Story = gpuStory({}, { downloadStepMs: 400, downloadFails: true })
 export const GpuWaitingToApply: Story = gpuStory({ state: 'pending_restart', pending: 'install' }, { overrides: { requestGpuRestart: async () => ({ status: 'waiting', reason: 'transcription' }) } })
+// The app could not restart the backend: the section waits for Try again.
+export const GpuRestartFailed: Story = {
+  ...gpuStory({ state: 'pending_restart', pending: 'install' }),
+  beforeEach: () => {
+    const bridge = window.electronAPI!
+    const restart = bridge.restartBackend
+    bridge.restartBackend = () => Promise.reject(new Error('Backend did not respond within 60 seconds'))
+    return () => { bridge.restartBackend = restart }
+  },
+}
 export const GpuOn: Story = gpuStory({ state: 'active', device: 'cuda', torch: '2.8.0+cu128' })
 export const GpuCheckFailed: Story = gpuStory({ state: 'error', error: 'CUDA is not available to PyTorch' })
 export const GpuUpdateNeeded: Story = gpuStory({ state: 'stale' })

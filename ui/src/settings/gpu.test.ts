@@ -238,14 +238,40 @@ test('nothing left to apply stops the restart loop', async () => {
   expect(env.timers).toEqual([])
 })
 
-test('a restart that fails is reported and tried again later', async () => {
+test('a restart that fails is reported once and not tried again by itself', async () => {
   const env = setup({ statuses: [status({ state: 'pending_restart', pending: 'install' })] })
   env.restartBackend.mockRejectedValueOnce(new Error('Backend did not respond within 60 seconds'))
   await env.gpu.refresh()
   await env.flush()
   expect(lastToast()).toEqual({ message: 'Could not restart the transcription engine: Backend did not respond within 60 seconds', type: 'error' })
-  expect(env.gpu.state().restarting).toBe(false)
-  expect(env.timers).toHaveLength(1)
+  expect(vi.mocked(toast)).toHaveBeenCalledOnce()
+  expect(env.gpu.state()).toMatchObject({ restarting: false, restart: { failed: true } })
+  expect(env.timers).toEqual([])
+  // Settings opening again reads the status, and starts nothing.
+  await env.gpu.refresh()
+  await env.flush()
+  expect(env.restartBackend).toHaveBeenCalledOnce()
+  expect(env.timers).toEqual([])
+})
+
+test('Try again after a failed restart restarts', async () => {
+  const env = setup({ statuses: [status({ state: 'pending_restart', pending: 'install' }), status({ state: 'active', device: 'cuda' })] })
+  env.restartBackend.mockRejectedValueOnce(new Error('Backend did not respond within 60 seconds'))
+  await env.gpu.refresh()
+  await env.flush()
+  env.gpu.retryRestart()
+  await env.flush()
+  expect(env.restartBackend).toHaveBeenCalledTimes(2)
+  expect(env.gpu.state()).toMatchObject({ restart: null, status: { state: 'active' } })
+  expect(lastToast()).toEqual({ message: 'GPU acceleration is on' })
+})
+
+test('a failed restart says so in the section, with Try again', () => {
+  const v = shown(status({ state: 'pending_restart', pending: 'install' }), { restart: { reason: null, failed: true } })
+  expect(v.label).toBe('Restart failed')
+  expect(v.tone).toBe('danger')
+  expect(v.detail).toBe('Could not restart the transcription engine. Try again, or restart Sonorus to apply the change.')
+  expect(v.actions).toEqual([{ id: 'retry', label: 'Try again', primary: true }])
 })
 
 test('a refused removal is said, and the status is read again', async () => {
