@@ -547,7 +547,7 @@ Returns `204`.
 
 ### `GET /speakers`
 
-Returns **every** speaker: those with a voice profile (`speaker_embeddings`), a display name (`speaker_names`), or segments assigned to them. `name` is `null` for unrecognized (unnamed) speakers. Named speakers come first, sorted by name; unnamed ones follow, most recently seen first.
+Returns **every** speaker: those with a voice profile (`speaker_embeddings`), a display name (`speaker_names`), or segments assigned to them. `name` is `null` for unrecognized (unnamed) speakers. Named speakers come first, sorted by name (case and surrounding spaces ignored); unnamed ones follow, most recently seen first. Speakers that tie, such as two with the same name, keep one order between calls: the most recently seen first, then by id.
 
 ```json
 [

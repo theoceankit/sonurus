@@ -38,11 +38,15 @@ def list_speakers(
     storage: TranscriptStorageService = Depends(get_storage_service),
 ):
     """Every speaker: with a voice profile, a name, or assigned segments.
-    Named speakers first (by name), then unnamed ones (most recently seen first)."""
+    Named speakers first (by name), then unnamed ones (most recently seen first).
+    Speakers that tie keep one order: the most recently seen first, then by id."""
     stats = storage.speaker_stats()
     rows = [_speaker_response(spk_id, memory, stats) for spk_id in memory.speaker_ids() | set(stats)]
-    unnamed = sorted((r for r in rows if r.name is None), key=lambda r: r.last_seen, reverse=True)
-    named = sorted((r for r in rows if r.name is not None), key=lambda r: r.name.casefold())
+    # Stable sorts, last key first.
+    rows.sort(key=lambda r: r.id)
+    rows.sort(key=lambda r: r.last_seen, reverse=True)
+    unnamed = [r for r in rows if r.name is None]
+    named = sorted((r for r in rows if r.name is not None), key=lambda r: r.name.strip().casefold())
     return named + unnamed
 
 
