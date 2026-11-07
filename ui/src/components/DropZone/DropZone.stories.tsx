@@ -16,12 +16,15 @@ type Story = StoryObj<typeof DropZone>
 export const Idle: Story = {}
 // Files are over the zone.
 export const Over: Story = { args: { over: true } }
+// Takes no files for now, as while New transcription sends its files.
+export const Disabled: Story = { args: { disabled: true } }
 
 export const AllStates: Story = {
   render: args => (
     <Stack gap={4}>
       <DropZone {...args} />
       <DropZone {...args} over />
+      <DropZone {...args} disabled />
     </Stack>
   ),
 }

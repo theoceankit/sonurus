@@ -1,4 +1,6 @@
 import { ApiError } from '../../api/client'
+import type { RefusalCode } from '../../api/types'
+import { hasFiles } from '../../components/DropZone/DropZone'
 
 // What the file dialog of Electron offers, and what the old UI takes from a drop.
 export const SUPPORTED_EXTENSIONS = ['wav', 'mp3', 'm4a', 'flac', 'ogg', 'mp4', 'mkv', 'webm'] as const
@@ -10,8 +12,8 @@ export interface ImportFile {
 
 export interface ImportFailure {
   message: string
-  // A model the job needs is not downloaded: the way out is Settings.
-  missingModels: boolean
+  // A model the job needs is not downloaded: the way out is this section of Settings.
+  settingsSection: 'models' | 'alignment' | null
 }
 
 export const fileName = (path: string) => path.replace(/^.*[\\/]/, '')
@@ -57,17 +59,21 @@ export const skippedMessage = (names: readonly string[]) => (
     : `${names.length} files were not imported: these file types are not supported.`
 )
 
-export function importFailure(error: ApiError): ImportFailure {
-  if (error.status === 0) return { message: 'The backend is not responding.', missingModels: false }
-  return { message: error.message, missingModels: /not installed/i.test(error.message) }
+const SETTINGS_SECTIONS: Partial<Record<RefusalCode, ImportFailure['settingsSection']>> = {
+  whisper_model_missing: 'models',
+  diarization_model_missing: 'models',
+  alignment_model_missing: 'alignment',
 }
 
-export const hasFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes('Files')
+export function importFailure(error: ApiError): ImportFailure {
+  if (error.status === 0) return { message: 'The backend is not responding.', settingsSection: null }
+  return { message: error.message, settingsSection: (error.code && SETTINGS_SECTIONS[error.code]) ?? null }
+}
 
 export interface FileDragHandlers {
   // Files came over the window.
   onEnter: () => void
-  // They left it, or the drag was cancelled, or someone below took the drop.
+  // They left it, or the drag was cancelled.
   onLeave: () => void
   onDrop: (files: File[]) => void
 }
@@ -96,12 +102,9 @@ export function watchFileDrags(target: Window, { onEnter, onLeave, onDrop }: Fil
   }
   const drop = (event: DragEvent) => {
     if (!hasFiles(event)) return
-    // A zone below took it already.
-    const handled = event.defaultPrevented
     event.preventDefault()
     depth = 0
-    if (handled) onLeave()
-    else onDrop(Array.from(event.dataTransfer?.files ?? []))
+    onDrop(Array.from(event.dataTransfer?.files ?? []))
   }
   const listeners = { dragenter: enter, dragleave: leave, dragover: over, drop } as const
   for (const [type, listener] of Object.entries(listeners)) target.addEventListener(type, listener as EventListener)

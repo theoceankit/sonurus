@@ -7,6 +7,7 @@ const test   = require('node:test')
 const assert = require('node:assert/strict')
 const fs     = require('fs')
 const path   = require('path')
+const { execFileSync } = require('child_process')
 
 const ROOT = path.resolve(__dirname, '..', '..')
 const { packagedUiProblems } = require(path.join(ROOT, 'scripts', 'check-packaged-ui.js'))
@@ -79,20 +80,17 @@ test('the new UI sources contain no remote content', () => {
 
 test('no two modules in the new UI differ only in case', () => {
   // macOS and Windows resolve imports case-insensitively: ./Toast next to toast.ts
-  // picks whichever extension the resolver tries first.
+  // picks whichever extension the resolver tries first. What git tracks is what a
+  // checkout there gets, not what lies in this one (build output, untracked files).
+  const tracked = execFileSync('git', ['ls-files', '-z', 'ui/src'], { cwd: ROOT, encoding: 'utf8' }).split('\0').filter(Boolean)
+  assert.ok(tracked.length > 0)
   const seen = new Map()
   const clashes = []
-  const walk = dir => {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      const p = path.join(dir, e.name)
-      if (e.isDirectory()) { walk(p); continue }
-      const rel = path.relative(ROOT, p)
-      const key = rel.replace(/\.(ts|tsx|js|jsx|mjs|mts)$/, '').toLowerCase()
-      if (seen.has(key)) clashes.push(`${seen.get(key)} / ${rel}`)
-      else seen.set(key, rel)
-    }
+  for (const rel of tracked) {
+    const key = rel.replace(/\.(ts|tsx|js|jsx|mjs|mts)$/, '').toLowerCase()
+    if (seen.has(key)) clashes.push(`${seen.get(key)} / ${rel}`)
+    else seen.set(key, rel)
   }
-  walk(path.join(ROOT, 'ui', 'src'))
   assert.deepEqual(clashes, [])
 })
 

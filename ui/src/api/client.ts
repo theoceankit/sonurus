@@ -1,17 +1,20 @@
 import type {
-  AudioSource, DataResetSummary, GpuStatus, ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
+  AudioSource, DataResetSummary, GpuStatus, ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
 
-// status 0: the request never got an answer.
+// status 0: the request never got an answer. A refusal of the queue's job routes
+// also says what it is about (code); the message is then for the user.
 export class ApiError extends Error {
   readonly status: number
+  readonly code: RefusalCode | null
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code: RefusalCode | null = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.code = code
   }
 }
 

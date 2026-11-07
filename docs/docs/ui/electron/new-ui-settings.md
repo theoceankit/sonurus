@@ -12,11 +12,11 @@ Settings in the new UI (`ui/src/screens/Settings/`) are one large modal with the
 
 - the Settings button of the titlebar;
 - Settings in the line of the empty state ([New UI home](new-ui-home.md#without-recordings));
-- Download in Settings and Open Settings in the New transcription dialog, and Open Settings in the failed state of the Alignment model dialog ([New UI transcription](new-ui-transcribe.md)). These close their dialog first, as the old UI left the dialog for its Settings screen.
+- Download in Settings and Open Settings in the New transcription dialog, which opens Settings over it and is back with its files when Settings close ([New UI home](new-ui-home.md#new-recording-dialog)), and Open Settings in the failed state of the Alignment model dialog ([New UI transcription](new-ui-transcribe.md)), which closes that dialog first.
 
 Without a provider, as for a screen alone in a story or a test, `open` does nothing.
 
-`SettingsDialog` is `Modal size="large"` with `Tabs orientation="vertical"`: a search over the sections, marked with `markNotImplemented()` until settings can be found by name, a `NavTab` per section, the version line under them (`formatAppVersion` of `getAppVersion()`: "Sonorus 0.3.0", "Sonorus" alone without a version) and the panel of the section next to them. Opening puts the focus on the selected section in the column, not on the first control of its panel. The window keeps one height (`--size-settings-height`) whatever the section, down to what a small window leaves; the panel scrolls.
+`SettingsDialog` is `Modal size="large" scrim="auto"`: over another window its scrim is clear, alone it dims. It has `Tabs orientation="vertical"`: a search over the sections, marked with `markNotImplemented()` until settings can be found by name, a `NavTab` per section, the version line under them (`formatAppVersion` of `getAppVersion()`: "Sonorus 0.3.0", "Sonorus" alone without a version) and the panel of the section next to them. Opening puts the focus on the selected section in the column, not on the first control of its panel. The window keeps one height (`--size-settings-height`) whatever the section, down to what a small window leaves; the panel scrolls.
 
 ## General
 

@@ -14,6 +14,7 @@ if not _verbose:
 
 from app.logger import setup_logging
 from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data, gpu
+from app.api.refusals import Refusal, refusal_handler
 from app.api.dependencies import get_memory_service, get_storage_service, get_transcription_queue
 from app.services.audio_store import remove_orphan_imports, remove_orphan_levels
 from app.version import get_version
@@ -56,6 +57,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_exception_handler(Refusal, refusal_handler)
 
 app.include_router(transcription.router)
 app.include_router(transcripts.router)

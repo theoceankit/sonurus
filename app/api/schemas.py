@@ -131,6 +131,18 @@ class UnknownSpeakerCandidates(ResponseModel):
     clip: VoiceClip | None
 
 
+RefusalCode = Literal[
+    "whisper_model_missing", "diarization_model_missing", "alignment_model_missing",
+    "audio_not_found", "audio_not_readable", "audio_copy_failed",
+]
+
+
+class RefusalResponse(BaseModel):
+    """A 400 of the queue's job routes: a message for the user and what it is about."""
+    detail: str
+    code: RefusalCode
+
+
 class TranscribeRequest(BaseModel):
     """POST /queue/jobs. language null or "auto" = auto-detect; no title =
     the file name without its extension."""

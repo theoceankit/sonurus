@@ -262,6 +262,17 @@ describe('addQueueJob', () => {
     expect(sent[0].body).toEqual({ audio_path: '/in/a.mp3', whisper_model: null, language: null, title: 'Standup' })
   })
 
+  test('a refusal carries its code next to the message', async () => {
+    const { client } = setup(() => json({ detail: '"a.mp3" could not be read.', code: 'audio_not_readable' }, 400))
+    await expect(client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: null, language: null }))
+      .rejects.toMatchObject({ status: 400, message: '"a.mp3" could not be read.', code: 'audio_not_readable' })
+  })
+
+  test('an error without a code has none', async () => {
+    const { client } = setup(() => json({ detail: 'Job not found' }, 404))
+    await expect(client.retryQueueJob('x')).rejects.toMatchObject({ status: 404, code: null })
+  })
+
   test('a missing model is the 400 with its detail', async () => {
     const { client } = setup(() => json({ detail: 'Diarization model is not installed. Download it in Settings.' }, 400))
     await expect(client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: null, language: null }))

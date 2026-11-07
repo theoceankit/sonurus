@@ -171,7 +171,7 @@ export const OpenFromMenu: Story = {
   },
 }
 
-function Over({ scrim }: { scrim: 'dim' | 'clear' }) {
+function Over({ scrim }: { scrim: 'dim' | 'clear' | 'auto' }) {
   const [outer, setOuter] = useState(false)
   const [inner, setInner] = useState(false)
   return (
@@ -195,3 +195,6 @@ function Over({ scrim }: { scrim: 'dim' | 'clear' }) {
 export const OverAnotherWindow: Story = { render: () => <Over scrim="dim" /> }
 
 export const OverAnotherWindowClearScrim: Story = { render: () => <Over scrim="clear" /> }
+
+// Auto: clear over another window, dimmed when it opens alone, as Settings does.
+export const OverAnotherWindowAutoScrim: Story = { render: () => <Over scrim="auto" /> }

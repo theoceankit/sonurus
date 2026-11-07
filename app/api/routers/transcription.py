@@ -11,16 +11,20 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 
 import app.config as config
 from app.api.dependencies import get_transcription_queue
+from app.api.refusals import Refusal
 from app.api.schemas import (
     JobDeleted, JobUpdateRequest, QueueJob, QueueOrderRequest, QueueSettingsRequest,
-    QueueSnapshot, TranscribeRequest,
+    QueueSnapshot, RefusalResponse, TranscribeRequest,
 )
 from app.config import WHISPER_MODEL
+from app.logger import get_logger
 from app.services.audio_store import discard_import, import_audio
 from app.services.model_service import ALIGNMENT_CATALOG, ModelNotInstalledError, ModelService
 from app.services.transcription_queue import (
     JobNotFailed, JobNotFound, JobRunning, TranscriptionQueue,
 )
+
+logger = get_logger("transcription")
 
 router = APIRouter(tags=["transcription"])
 
@@ -36,18 +40,15 @@ def _require_models(whisper_model: str | None = None, language: str | None = Non
     """400 unless the models a job needs are installed."""
     ms = ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR)
     if whisper_model is not None and not ms.is_installed(whisper_model):
-        raise HTTPException(
-            status_code=400,
-            detail=str(ModelNotInstalledError("whisper_model_missing", whisper_model)),
-        )
+        raise Refusal("whisper_model_missing", str(ModelNotInstalledError("whisper_model_missing", whisper_model)))
     if check_diarize and not ms.is_installed("diarize"):
-        raise HTTPException(status_code=400, detail=str(ModelNotInstalledError("diarization_model_missing", "diarize")))
+        raise Refusal("diarization_model_missing", str(ModelNotInstalledError("diarization_model_missing", "diarize")))
     # With auto-detect the language is only known mid-pipeline; a missing
     # alignment model then fails the job with error_code alignment_model_missing.
     if language in ALIGNMENT_CATALOG and not ms.is_installed(language):
-        raise HTTPException(
-            status_code=400,
-            detail=f'Alignment model for language "{language}" is not installed. Download it in Settings.',
+        raise Refusal(
+            "alignment_model_missing",
+            f'Alignment model for language "{language}" is not installed. Download it in Settings.',
         )
 
 
@@ -101,23 +102,26 @@ def reorder(body: QueueOrderRequest, queue: TranscriptionQueue = Depends(get_tra
 
 # ── Jobs ──────────────────────────────────────────────────────────────────────
 
-@router.post("/queue/jobs", response_model=QueueJob)
+@router.post("/queue/jobs", response_model=QueueJob, responses={400: {"model": RefusalResponse}})
 async def add_job(body: TranscribeRequest, queue: TranscriptionQueue = Depends(get_transcription_queue)):
     whisper_model = body.whisper_model or WHISPER_MODEL
     language = _language(body.language)
     _require_models(whisper_model, language, check_diarize=True)
 
+    # Named, not shown by path: the message is for the user.
+    name = os.path.basename(body.audio_path)
     if not os.path.isfile(body.audio_path):
-        raise HTTPException(status_code=400, detail=f"audio_path not found: {body.audio_path}")
+        raise Refusal("audio_not_found", f'"{name}" could not be found.')
     if not os.access(body.audio_path, os.R_OK):
-        raise HTTPException(status_code=400, detail=f"audio_path not readable: {body.audio_path}")
+        raise Refusal("audio_not_readable", f'"{name}" could not be read.')
 
     # Copy an imported file now: the job and the transcript must not depend
     # on the user's original, which may be moved or deleted meanwhile.
     try:
         audio_path = await asyncio.to_thread(import_audio, body.audio_path, config.RECORDINGS_DIR)
-    except OSError as exc:
-        raise HTTPException(status_code=400, detail=f"Could not copy audio file: {exc}")
+    except OSError:
+        logger.exception("Could not copy %s into recordings/", body.audio_path)
+        raise Refusal("audio_copy_failed", f'"{name}" could not be copied.')
     title = body.title or os.path.splitext(os.path.basename(body.audio_path))[0]
     try:
         return queue.add(audio_path=audio_path, title=title, whisper_model=whisper_model, language=language)
@@ -126,7 +130,7 @@ async def add_job(body: TranscribeRequest, queue: TranscriptionQueue = Depends(g
         raise
 
 
-@router.patch("/queue/jobs/{job_id}", response_model=QueueJob)
+@router.patch("/queue/jobs/{job_id}", response_model=QueueJob, responses={400: {"model": RefusalResponse}})
 def update_job(job_id: str, body: JobUpdateRequest,
                queue: TranscriptionQueue = Depends(get_transcription_queue)):
     fields = {}
@@ -153,7 +157,7 @@ async def delete_job(job_id: str, queue: TranscriptionQueue = Depends(get_transc
     return JobDeleted(deleted=True)
 
 
-@router.post("/queue/jobs/{job_id}/retry", response_model=QueueJob)
+@router.post("/queue/jobs/{job_id}/retry", response_model=QueueJob, responses={400: {"model": RefusalResponse}})
 def retry_job(job_id: str, queue: TranscriptionQueue = Depends(get_transcription_queue)):
     try:
         job = queue.get(job_id)

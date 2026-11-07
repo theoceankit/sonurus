@@ -4,6 +4,7 @@ import { watchGpuDownload, type GpuRestartAnswer } from './gpu-events'
 import { watchModelDownload } from './model-download-events'
 import { connectQueueEvents } from './queue-events'
 import type { paths } from './schema.gen'
+import type { RefusalCode } from './types'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -23,6 +24,11 @@ function errorMessage(error: unknown, status: number): string {
   return `Server error ${status}`
 }
 
+function refusalCode(error: unknown): RefusalCode | null {
+  const code = (error as { code?: unknown } | undefined)?.code
+  return typeof code === 'string' ? code as RefusalCode : null
+}
+
 async function send<T>(request: Promise<ApiResult<T>>): Promise<T> {
   let result: ApiResult<T>
   try {
@@ -30,7 +36,7 @@ async function send<T>(request: Promise<ApiResult<T>>): Promise<T> {
   } catch (err) {
     throw new ApiError(0, err instanceof Error ? err.message : String(err))
   }
-  if (!result.response.ok) throw new ApiError(result.response.status, errorMessage(result.error, result.response.status))
+  if (!result.response.ok) throw new ApiError(result.response.status, errorMessage(result.error, result.response.status), refusalCode(result.error))
   return result.data as T
 }
 

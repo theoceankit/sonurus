@@ -113,10 +113,13 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
     setSelectedId(openRequest.id)
   }, [openRequest])
 
-  const { remember } = recent
+  const { remember, prune } = recent
   useEffect(() => {
     if (selectedId !== null) remember(selectedId)
   }, [selectedId, remember])
+  useEffect(() => {
+    if (transcripts.data) prune(transcripts.data)
+  }, [transcripts.data, prune])
 
   // On the element and not in state: the frames of this move are the last place for a render.
   const toggle = (panel: Panel) => {

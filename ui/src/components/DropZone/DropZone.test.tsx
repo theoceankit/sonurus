@@ -41,3 +41,12 @@ test('a drag of text leaves it as it is', () => {
   fireEvent.dragEnter(container.firstElementChild!, files(['text/plain']))
   expect(container.firstElementChild!.hasAttribute('data-over')).toBe(false)
 })
+
+test('disabled, it takes no files: Choose files is off and a drag does not light it', () => {
+  const { container } = render(<DropZone disabled over />)
+  const zone = container.firstElementChild!
+  fireEvent.dragEnter(zone, files())
+  expect(zone.hasAttribute('data-over')).toBe(false)
+  expect(screen.getByText('Drop audio or video files here')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Choose files' })).toHaveProperty('disabled', true)
+})

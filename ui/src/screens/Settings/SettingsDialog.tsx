@@ -73,7 +73,8 @@ export function SettingsDialog({ open, section, onSectionChange, onClose, previe
   const current = sections.find(entry => entry.id === section) ?? sections[0]
   const Panel = PANELS[current.id]
   return (
-    <Modal size="large" open={open} preview={preview} onOpenChange={next => { if (!next) onClose() }}>
+    // Opened from anywhere, also from another window, which then stays under it.
+    <Modal size="large" scrim="auto" open={open} preview={preview} onOpenChange={next => { if (!next) onClose() }}>
       <ModalHeader title="Settings" />
       <Tabs
         orientation="vertical"

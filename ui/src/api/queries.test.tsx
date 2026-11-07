@@ -393,11 +393,11 @@ describe('adding files to the queue', () => {
     const client = createFixtureClient()
     let calls = 0
     const add = client.addQueueJob
-    client.addQueueJob = job => (++calls === 2 ? Promise.reject(new ApiError(400, 'audio_path not readable: /in/b.mp3')) : add(job))
+    client.addQueueJob = job => (++calls === 2 ? Promise.reject(new ApiError(400, '"b.mp3" could not be read.', 'audio_not_readable')) : add(job))
     const { result } = renderHook(useAddToQueue, { wrapper: wrapperFor(client) })
     const failure = await act(() => result.current.mutateAsync({ files: files('/in/a.mp3', '/in/b.mp3', '/in/c.mp3'), whisperModel: null, language: null }).catch(error => error))
     expect(failure).toBeInstanceOf(AddToQueueError)
-    expect(failure).toMatchObject({ added: 1, message: 'audio_path not readable: /in/b.mp3', error: { status: 400 } })
+    expect(failure).toMatchObject({ added: 1, message: '"b.mp3" could not be read.', error: { status: 400 } })
     expect(calls).toBe(2)
   })
 })

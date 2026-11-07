@@ -73,11 +73,11 @@ export const NoDiarizationModel: Story = { args: { files: FILES, choice: choiceW
 // The default language needs an alignment model that is not downloaded.
 export const NoAlignmentModel: Story = { args: { files: FILES, choice: choiceWith(DEFAULT_INSTALLED, 'ru') } }
 export const Importing: Story = { args: { files: FILES, importing: true } }
-export const MissingModels: Story = { args: { files: FILES, failure: { message: NO_MODELS, missingModels: true } } }
+export const MissingModels: Story = { args: { files: FILES, failure: { message: NO_MODELS, settingsSection: 'models' } } }
 export const FileNotReadable: Story = {
-  args: { files: FILES.slice(1), failure: { message: 'audio_path not readable: /Users/me/Recordings/Customer call, Acme.mp3', missingModels: false } },
+  args: { files: FILES.slice(1), failure: { message: '"Customer call, Acme.mp3" could not be read.', settingsSection: null } },
 }
-export const BackendNotResponding: Story = { args: { files: FILES, failure: { message: 'The backend is not responding.', missingModels: false } } }
+export const BackendNotResponding: Story = { args: { files: FILES, failure: { message: 'The backend is not responding.', settingsSection: null } } }
 // With the scrim, focus trap and the way in, as in the app.
 export const Open: Story = { args: { files: FILES, preview: false } }
 

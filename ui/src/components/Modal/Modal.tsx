@@ -4,6 +4,7 @@ import { holdWindowDim } from '../../platform/window-dim'
 import { ExitSignal } from '../../presence'
 import { cx } from '../../styles/cx'
 import styles from './Modal.module.css'
+import { holdOpenModal, useOpenModalCount } from './open-modals'
 
 export type ModalSize = 'small' | 'medium' | 'large'
 export type ModalType = 'default' | 'danger'
@@ -21,7 +22,8 @@ interface ModalProps {
   // Takes over from another window, with no way in and no second scrim.
   skipEnter?: boolean
   // Over another open window: clear leaves the dimming to the scrim already under it.
-  scrim?: 'dim' | 'clear'
+  // Auto is clear when another window is open under this one, for one opened from anywhere.
+  scrim?: 'dim' | 'clear' | 'auto'
   // ModalHeader, ModalBody, ModalFooter. The body is free, Penpot's slot is this.
   children: ReactNode
   // Draws the window in place, without scrim and focus trap, for a board of variants.
@@ -78,6 +80,19 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
 
   // The scrim does not reach the system's window buttons; the window dims them itself.
   useEffect(() => (isOpen ? holdWindowDim() : undefined), [isOpen])
+  // Whether this window is in the count yet: the others are the count without it.
+  const counted = useRef(false)
+  useEffect(() => {
+    if (!isOpen) return undefined
+    const release = holdOpenModal()
+    counted.current = true
+    return () => {
+      counted.current = false
+      release()
+    }
+  }, [isOpen])
+  const others = useOpenModalCount() - (counted.current ? 1 : 0)
+  const clearScrim = scrim === 'clear' || (scrim === 'auto' && others > 0)
 
   const window = (
     <RadixDialog.Content
@@ -91,6 +106,12 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
         // Radix returns focus only to its own Trigger, and a modal here is opened from anywhere.
         returnTo.current = returnPoint()
         if (content.current) startingPoint(content.current, type)?.focus()
+      }}
+      // A window opened over this one from elsewhere in the page, such as Settings over
+      // New transcription, takes the focus: that does not close this one.
+      onFocusOutside={event => {
+        const target = event.target instanceof Element ? event.target : null
+        if (target?.closest('[role="dialog"], [role="alertdialog"]')) event.preventDefault()
       }}
       onCloseAutoFocus={event => {
         event.preventDefault()
@@ -118,7 +139,7 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
       >
         {preview ? window : (
           <RadixDialog.Portal>
-            <RadixDialog.Overlay className={cx(styles.scrim, scrim === 'clear' && styles.clear, skipEnter && styles.skipEnter)} />
+            <RadixDialog.Overlay className={cx(styles.scrim, clearScrim && styles.clear, skipEnter && styles.skipEnter)} />
             {window}
           </RadixDialog.Portal>
         )}

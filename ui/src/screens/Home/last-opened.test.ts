@@ -1,6 +1,9 @@
-import { expect, test } from 'vitest'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import type { TranscriptListItem } from '../../api/types'
-import { pickRecording, RECENT_LIMIT, rememberOpened } from './last-opened'
+import { createMockElectronAPI } from '../../platform/electron-api-mock'
+import { DEFAULT_SETTINGS } from '../../platform/settings'
+import { pickRecording, pruneRecent, RECENT_LIMIT, rememberOpened, useRecentRecordings } from './last-opened'
 
 const list = (...ids: number[]) => ids.map(id => ({ id }) as TranscriptListItem)
 
@@ -29,4 +32,43 @@ test('the one opened goes first, once', () => {
 test('only the last ones are kept', () => {
   const many = Array.from({ length: RECENT_LIMIT }, (_, i) => i)
   expect(rememberOpened(many, 100)).toEqual([100, ...many.slice(0, RECENT_LIMIT - 1)])
+})
+
+test('recordings that are gone leave the list; none gone, it is the same list', () => {
+  const kept = [3, 1]
+  expect(pruneRecent([3, 9, 1, 8], list(1, 2, 3))).toEqual([3, 1])
+  expect(pruneRecent(kept, list(1, 2, 3))).toBe(kept)
+})
+
+describe('useRecentRecordings', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  function setup(saved: number[]) {
+    let release = () => {}
+    const file = { ...DEFAULT_SETTINGS, recentTranscriptIds: saved }
+    const firstRead = new Promise<void>(resolve => { release = resolve })
+    const bridge = createMockElectronAPI({
+      // The file is read only when the test says so.
+      readSettings: () => firstRead.then(() => structuredClone(file)),
+      writeSettings: async data => { Object.assign(file, data) },
+    })
+    vi.stubGlobal('electronAPI', bridge)
+    const { result } = renderHook(() => useRecentRecordings())
+    return { result, file, release: () => act(async () => release()) }
+  }
+
+  test('one opened before the settings are read goes on top of those saved', async () => {
+    const { result, file, release } = setup([2, 1])
+    act(() => result.current.remember(5))
+    await release()
+    await waitFor(() => expect(file.recentTranscriptIds).toEqual([5, 2, 1]))
+    expect(result.current.ids).toEqual([5, 2, 1])
+  })
+
+  test('recordings deleted since are forgotten once the list is known', async () => {
+    const { result, file, release } = setup([3, 9, 1])
+    await release()
+    act(() => result.current.prune(list(1, 2, 3)))
+    await waitFor(() => expect(file.recentTranscriptIds).toEqual([3, 1]))
+  })
 })
