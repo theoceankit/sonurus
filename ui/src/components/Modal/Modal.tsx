@@ -48,6 +48,11 @@ function returnPoint() {
   return (menuButton && document.getElementById(menuButton)) || active
 }
 
+function openWindowUnder(closing: HTMLElement | null) {
+  const open = [...document.querySelectorAll<HTMLElement>('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]')]
+  return open.filter(window => window !== closing).at(-1) ?? null
+}
+
 // Radix would start on the first element in the window, which is the close button.
 function startingPoint(content: HTMLElement, type: ModalType) {
   const cancel = content.querySelector<HTMLElement>('[data-modal-cancel]')
@@ -87,7 +92,10 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
       }}
       onCloseAutoFocus={event => {
         event.preventDefault()
-        returnTo.current?.focus()
+        // What opened it may be gone by now, such as the row of a deleted model, or a
+        // window that closed to open this one: then the window still open under it.
+        if (returnTo.current?.isConnected) returnTo.current.focus()
+        else openWindowUnder(content.current)?.focus()
       }}
     >
       <ExitSignal onExited={onExited} />

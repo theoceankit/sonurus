@@ -10,6 +10,7 @@ import { EmptyState } from '../Home/EmptyState'
 import { ImportDialog } from '../Home/ImportDialog'
 import { pickRecording, useRecentRecordings } from '../Home/last-opened'
 import { useImportDialog } from '../Home/useImportDialog'
+import { useSettingsDialog } from '../Settings/SettingsProvider'
 import type { Playback } from '../../media/playback'
 import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecordingDialog'
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
@@ -60,6 +61,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const recent = useRecentRecordings()
   const importer = useImportDialog()
+  const settingsDialog = useSettingsDialog()
   const [panels, setPanels] = useState(INITIAL_PANELS)
   const ownPlayback = useTranscriptPlayback(givenPlayback ? null : selectedId)
   const playback = givenPlayback ?? ownPlayback
@@ -135,9 +137,9 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
   const noRecordings = transcripts.data?.length === 0
   const center = useMemo(
     () => transcript ?? (noRecordings
-      ? <EmptyState />
+      ? <EmptyState onOpenSettings={() => settingsDialog.open()} />
       : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />),
-    [transcript, noRecordings, selectedId, playback, highlight, showAllSpeakers],
+    [transcript, noRecordings, selectedId, playback, highlight, showAllSpeakers, settingsDialog],
   )
 
   // A refresh that fails leaves what was loaded on the screen.
@@ -152,6 +154,7 @@ export function EditorScreen({ pinnedIds, initialSelectedId = null, transcript, 
         inspectorOpen={visible.inspector}
         onOpenInspector={() => toggle('inspector')}
         onNewTranscription={importer.open}
+        onOpenSettings={() => settingsDialog.open()}
       />
       <div
         ref={panelsArea}

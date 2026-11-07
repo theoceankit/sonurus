@@ -12,6 +12,7 @@ export type QueueJob = Schemas['QueueJob']
 export type QueueSnapshot = Schemas['QueueSnapshot']
 // Only the fields given change. A null language is one detected from the audio.
 export type QueueJobUpdate = Schemas['JobUpdateRequest']
+export type QueueStartMode = Schemas['QueueSettingsRequest']['start_mode']
 export type JobDoneEvent = Schemas['JobDoneEvent']
 export type JobFailedEvent = Schemas['JobFailedEvent']
 export type HeartbeatEvent = Schemas['HeartbeatEvent']

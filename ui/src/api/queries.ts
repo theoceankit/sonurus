@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey 
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
 import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
-import type { QueueJobUpdate, QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
+import type { QueueJobUpdate, QueueStartMode, QueueUpdate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
 // queryKeys.transcripts reaches the list, the details and the candidates.
@@ -269,6 +269,17 @@ export function useUpdateQueueJob() {
   return useMutation({
     mutationFn: ({ jobId, update }: { jobId: string; update: QueueJobUpdate }) => api.updateQueueJob(jobId, update),
     onSuccess: () => queries.invalidateQueries({ queryKey: queryKeys.queue }),
+  })
+}
+
+// The backend keeps the start mode with the queue. The answer is the new snapshot,
+// shown at once; the one that follows on WS /ws/queue says the same.
+export function useSetQueueStartMode() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: (startMode: QueueStartMode) => api.setQueueStartMode(startMode),
+    onSuccess: snapshot => queries.setQueryData(queryKeys.queue, snapshot),
   })
 }
 

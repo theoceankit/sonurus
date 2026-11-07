@@ -99,6 +99,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     })),
     updateQueueJob: (job_id, body) => send(http.PATCH('/queue/jobs/{job_id}', { params: { path: { job_id } }, body })),
     retryQueueJob: job_id => send(http.POST('/queue/jobs/{job_id}/retry', { params: { path: { job_id } } })),
+    setQueueStartMode: start_mode => send(http.PUT('/queue/settings', { body: { start_mode } })),
     subscribeQueueEvents: (listener, onConnection) => connectQueueEvents({
       url: `${baseUrl.replace(/^http/, 'ws')}/ws/queue`,
       onEvent: listener,

@@ -61,6 +61,8 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `updateQueueJob(jobId, update)` changes the title, model or language of a job that is not running: `PATCH /queue/jobs/{id}` with only the fields given. A model or alignment model that is not installed is a 400, a running job a 409. The fixtures do the same.
 
+`setQueueStartMode(startMode)` sets whether new jobs start on their own (`auto`) or wait for Start (`manual`): `PUT /queue/settings`, answered with the new snapshot. `useSetQueueStartMode()` puts that snapshot in the cache at once. The fixtures do the same and send the snapshot to the queue's listeners.
+
 `retryQueueJob(jobId)` puts a failed job back at the end of the queue, waiting and with no error: `POST /queue/jobs/{id}/retry`. A model it needs that is still not installed is a 400, a job that has not failed a 409. The fixtures do the same.
 
 `now()` is today for the screens: the current time on the backend client, 5 October 2026 on fixtures, so that sections of the recordings list stay as on the design boards.

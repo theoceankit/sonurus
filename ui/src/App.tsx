@@ -4,6 +4,7 @@ import { toast } from './components/Toast/toast-store'
 import { EditorScreen } from './screens/Editor/EditorScreen'
 import { AlignmentDialog } from './screens/Queue/AlignmentDialog'
 import { useAlignmentDialogs } from './screens/Queue/useAlignmentDialogs'
+import { SettingsProvider } from './screens/Settings/SettingsProvider'
 
 // What is on the screen stays, so this is the only sign that it may be out of date.
 function useBackendLostToast() {
@@ -13,7 +14,7 @@ function useBackendLostToast() {
   }, [connected])
 }
 
-export function App() {
+function Screens() {
   const alignment = useAlignmentDialogs()
   useQueueEventsSync(alignment.onQueueEvent)
   useBackendLostToast()
@@ -23,4 +24,8 @@ export function App() {
       {alignment.dialog && <AlignmentDialog key={alignment.dialog.language} {...alignment.dialog} />}
     </>
   )
+}
+
+export function App() {
+  return <SettingsProvider><Screens /></SettingsProvider>
 }

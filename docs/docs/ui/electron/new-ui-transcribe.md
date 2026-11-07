@@ -40,7 +40,7 @@ A job in a language whose alignment model is not downloaded fails mid-pipeline w
 - **Offer.** The language, its name in itself and the size of the model, with Download and Dismiss.
 - **Downloading.** The progress in per cent, with Cancel, which stops the download and closes the dialog. The download is the app's ([Downloads](#downloads)): a download of the model started elsewhere shows here as progress, and closing the dialog leaves it running.
 - **Ready.** The model is installed, also when it already was by the time the dialog opened. One button, Retry transcription or Retry N transcriptions, puts every job that failed on this model back at the end of the queue, in queue order (`POST /queue/jobs/{id}/retry`); a refusal is a toast. With no such job left there is only Close.
-- **Failed.** The last download of the model from this dialog ended without it. Try again starts it anew; Open Settings is marked with `markNotImplemented()` until the new UI has Settings.
+- **Failed.** The last download of the model from this dialog ended without it. Try again starts it anew; Open Settings closes the dialog and opens [Settings](new-ui-settings.md).
 
 ## Job settings dialog
 

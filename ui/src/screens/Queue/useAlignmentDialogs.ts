@@ -5,6 +5,7 @@ import { useModels, useQueue } from '../../api/queries'
 import type { QueueUpdate } from '../../api/types'
 import { toast } from '../../components/Toast/toast-store'
 import { useModelDownloads } from '../../transcribe/model-downloads'
+import { useSettingsDialog } from '../Settings/SettingsProvider'
 import { addLanguage, ALIGNMENT_MISSING, alignmentRetryJobs, alignmentState } from './alignment'
 import type { AlignmentDialogProps } from './AlignmentDialog'
 
@@ -23,6 +24,7 @@ type Waiting = {
 export function useAlignmentDialogs() {
   const api = useApi()
   const downloads = useModelDownloads()
+  const settingsDialog = useSettingsDialog()
   const models = useModels()
   const queue = useQueue()
   const [waiting, setWaiting] = useState<Waiting>({ languages: [], closing: false, watched: false })
@@ -92,6 +94,10 @@ export function useAlignmentDialogs() {
     },
     onRetry: () => void retry(),
     onClose: close,
+    onOpenSettings: () => {
+      close()
+      settingsDialog.open()
+    },
     onExited: exited,
   }
   return { onQueueEvent, dialog }

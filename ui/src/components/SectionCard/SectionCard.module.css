@@ -24,8 +24,8 @@
 
 .title {
   margin: 0;
-  color: var(--color-text-primary);
-  font: var(--font-body-strong);
+  color: var(--color-text-secondary);
+  font: var(--font-caption-strong);
   user-select: none;
 }
 

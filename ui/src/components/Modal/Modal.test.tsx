@@ -338,3 +338,44 @@ describe('the strip of the window buttons', () => {
     expect(setWindowDimmed).not.toHaveBeenCalled()
   })
 })
+
+function Nested() {
+  const [outer, setOuter] = useState(true)
+  const [inner, setInner] = useState(false)
+  const [gone, setGone] = useState(false)
+  return (
+    <OverlayProvider>
+      <Modal open={outer} onOpenChange={setOuter}>
+        <ModalHeader title="Outer" />
+        <ModalBody>
+          {!gone && <Button onClick={() => setInner(true)}>Delete row</Button>}
+          <Button>Other</Button>
+        </ModalBody>
+      </Modal>
+      <Modal type="danger" open={inner} onOpenChange={setInner}>
+        <ModalHeader title="Inner" />
+        <ModalFooter confirm={{ children: 'Delete', onClick: () => { setGone(true); setInner(false) } }} />
+      </Modal>
+    </OverlayProvider>
+  )
+}
+
+describe('a window over another', () => {
+  test('Escape closes only the one on top, and focus goes back to what opened it', async () => {
+    render(<Nested />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete row' }))
+    await waitFor(() => expect(document.activeElement).toBe(button('Cancel')))
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(screen.getByRole('dialog', { name: 'Outer' })).toBeTruthy()
+    await waitFor(() => expect(document.activeElement).toBe(button('Delete row')))
+  })
+
+  test('when what opened it is gone, focus goes to the window under it', async () => {
+    render(<Nested />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete row' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Outer' })))
+  })
+})

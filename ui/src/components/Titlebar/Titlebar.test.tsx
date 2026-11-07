@@ -33,7 +33,14 @@ test('New transcription works', async () => {
   expect(onNewTranscription).toHaveBeenCalledOnce()
 })
 
-test.each(['Back', 'Forward', 'Speakers', 'Settings'])('%s says it is not available yet', async name => {
+test('Settings works', async () => {
+  const onOpenSettings = vi.fn()
+  setup({ onOpenSettings })
+  await userEvent.click(screen.getByRole('button', { name: 'Settings' }))
+  expect(onOpenSettings).toHaveBeenCalledOnce()
+})
+
+test.each(['Back', 'Forward', 'Speakers'])('%s says it is not available yet', async name => {
   setup()
   const button = screen.getByRole('button', { name })
   expect(button.getAttribute('aria-disabled')).toBe('true')

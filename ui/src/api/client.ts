@@ -1,5 +1,5 @@
 import type {
-  ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
+  ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { ModelDownloadEvent } from './model-download-events'
 
@@ -73,6 +73,8 @@ export interface ApiClient {
   // A failed job waits again, at the end of the queue. Refused with a 400 when a model it
   // needs is still not installed, 409 when the job has not failed.
   retryQueueJob(jobId: string): Promise<QueueJob>
+  // Whether new jobs start on their own or wait for Start; the backend keeps it.
+  setQueueStartMode(startMode: QueueStartMode): Promise<QueueSnapshot>
   // The listener first gets the current snapshot. onConnection is told when the
   // connection is lost and when it is back. Returns the unsubscribe.
   subscribeQueueEvents(listener: (event: QueueUpdate) => void, onConnection?: (connected: boolean) => void): () => void

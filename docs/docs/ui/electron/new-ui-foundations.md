@@ -314,7 +314,7 @@ What Penpot could make only by detaching a copy is plain children here. `ModalBo
 
 `ModalFooter` takes the colour of Confirm from the type of the modal. `cancel` is by default a Cancel that closes; given an `onClick`, it does that and stays open, as Back does; `null` leaves it out.
 
-Tab stays inside, and Escape, the scrim, Cancel and the close button close. Focus starts on the first control of the body, then the footer, never on the close button first. A danger modal has the `alertdialog` role and starts on Cancel, so that an Enter pressed too soon deletes nothing. It is not a Radix AlertDialog, which would not close on the scrim. On closing, focus returns to what was focused before, and for a window opened from a menu, to the menu's button.
+Tab stays inside, and Escape, the scrim, Cancel and the close button close. Focus starts on the first control of the body, then the footer, never on the close button first. A danger modal has the `alertdialog` role and starts on Cancel, so that an Enter pressed too soon deletes nothing. It is not a Radix AlertDialog, which would not close on the scrim. On closing, focus returns to what was focused before, and for a window opened from a menu, to the menu's button. When that is gone by then, such as the row of a deleted model or a dialog that closed to open this one, focus goes to the window still open under it. A window opened over another one, such as a confirmation over Settings, is a layer of its own: Escape, its scrim and Cancel close only it.
 
 `preview` draws the window in place, without scrim and focus trap, for a board of variants in a story.
 

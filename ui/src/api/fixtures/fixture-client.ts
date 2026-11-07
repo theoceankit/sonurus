@@ -305,6 +305,10 @@ export function createFixtureClient({
       emit({ ...queue, jobs: queue.jobs.map(j => (j.id === jobId ? updated : j)) })
       return updated
     }),
+    setQueueStartMode: startMode => answer(() => {
+      emit({ ...queue, start_mode: startMode })
+      return queue
+    }),
     retryQueueJob: jobId => answer(() => {
       const job = queue.jobs.find(j => j.id === jobId)
       if (!job) throw new ApiError(404, 'Job not found')
