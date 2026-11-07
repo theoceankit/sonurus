@@ -77,6 +77,25 @@ test('the new UI sources contain no remote content', () => {
   }
 })
 
+test('no two modules in the new UI differ only in case', () => {
+  // macOS and Windows resolve imports case-insensitively: ./Toast next to toast.ts
+  // picks whichever extension the resolver tries first.
+  const seen = new Map()
+  const clashes = []
+  const walk = dir => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name)
+      if (e.isDirectory()) { walk(p); continue }
+      const rel = path.relative(ROOT, p)
+      const key = rel.replace(/\.(ts|tsx|js|jsx|mjs|mts)$/, '').toLowerCase()
+      if (seen.has(key)) clashes.push(`${seen.get(key)} / ${rel}`)
+      else seen.set(key, rel)
+    }
+  }
+  walk(path.join(ROOT, 'ui', 'src'))
+  assert.deepEqual(clashes, [])
+})
+
 test('only the build of the new UI is packaged', () => {
   assert.ok(pkg.build.files.includes('ui/dist/**/*'))
   assert.ok(!pkg.build.files.some(f => f === 'ui/**/*' || f === 'ui/**'))

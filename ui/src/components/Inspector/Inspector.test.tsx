@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
-import { dismissAllToasts } from '../Toast/toast'
+import { dismissAllToasts } from '../Toast/toast-store'
 import { OverlayProvider } from '../../OverlayProvider'
 import { Inspector } from './Inspector'
 

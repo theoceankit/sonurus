@@ -11,7 +11,7 @@ import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
 import { SearchField } from '../SearchField/SearchField'
 import { Stack } from '../Stack/Stack'
 import { TextField } from '../TextField/TextField'
-import { toast } from '../Toast/toast'
+import { toast } from '../Toast/toast-store'
 import { Tooltip } from '../Tooltip/Tooltip'
 import { Modal, type ModalSize, type ModalType } from './Modal'
 

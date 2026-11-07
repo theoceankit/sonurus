@@ -8,7 +8,7 @@ import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixture
 import { effectiveSpeaker } from '../../api/types'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { longSegments } from '../../api/fixtures/long-recording'
-import { dismissAllToasts } from '../../components/Toast/toast'
+import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { createKeyStore, type KeyStore } from '../../media/active-segment'
 import type { Playback, PlaybackState } from '../../media/playback'
 import { OverlayProvider } from '../../OverlayProvider'

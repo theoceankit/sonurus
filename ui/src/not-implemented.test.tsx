@@ -4,7 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { Button } from './components/Button/Button'
 import { Tab } from './components/Tab/Tab'
 import { TabPanel, Tabs } from './components/Tabs/Tabs'
-import { dismissAllToasts } from './components/Toast/toast'
+import { dismissAllToasts } from './components/Toast/toast-store'
 import { Toaster } from './components/Toast/Toast'
 import {
   findNotImplementedProblems, NOT_IMPLEMENTED, NOT_IMPLEMENTED_TOAST, notImplementedProps,

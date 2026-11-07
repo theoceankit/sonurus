@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useBackendConnected, useQueueEventsSync } from './api/queries'
-import { toast } from './components/Toast/toast'
+import { toast } from './components/Toast/toast-store'
 import { EditorScreen } from './screens/Editor/EditorScreen'
 
 // What is on the screen stays, so this is the only sign that it may be out of date.
