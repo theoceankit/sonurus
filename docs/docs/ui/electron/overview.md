@@ -170,6 +170,8 @@ Settings are stored in `app.getPath('userData')/settings.json` — `sonorus` in 
 
 Default values are defined in `DEFAULT_SETTINGS` in `main.js` (used when `settings.json` is missing) and in `DEFAULT_APP_SETTINGS` in `app.js`. The renderer starts `appSettings` as a copy of `DEFAULT_APP_SETTINGS` and merges saved values on top via `Object.assign(appSettings, saved)`. The new UI keeps `recentTranscriptIds` in the same file, the recordings it opened last ([New UI home](new-ui-home.md#which-recording-is-open)); the old UI carries the field along without reading it.
 
+The new UI reads and writes the file only through `settingsStore()` in `ui/src/platform/settings.ts`. Its `DEFAULT_SETTINGS` are those of `main.js` (a build test compares them) and fill in what a file lacks. `patch(change)` shows the change at once and queues the write: each write reads the file again and puts only its change on top, one after another, so that neither a second writer in the new UI nor the old UI loses a field. `useSettings()` re-renders on every change. Like the old UI, the new one applies the saved `scale` with `setZoom` on start (`applySavedScale()` in `main.tsx`). Without Electron, in Storybook and tests, the settings start from the defaults and stay in memory.
+
 Settings → **Export**, Interface → **App language** and Audio devices → **Include microphone** have no effect yet and are marked as [unimplemented controls](components/not-implemented.md).
 
 The last two sections of the Settings screen are destructive and use the same two-step confirmation (`Reset…` / `Delete…` → `Cancel` + a red confirm button):

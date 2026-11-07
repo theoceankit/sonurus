@@ -1,7 +1,9 @@
 import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
+import { resetMemorySettings } from './platform/settings'
 
 afterEach(cleanup)
+afterEach(resetMemorySettings)
 
 // Radix menus and tooltips measure and scroll; jsdom has none of this.
 class NoResizeObserver {

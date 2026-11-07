@@ -141,6 +141,14 @@ test('the type of the Electron bridge lists what the preload script exposes', ()
   assert.deepEqual(declared, exposed)
 })
 
+test('the new UI has the default settings of the main process', () => {
+  const literal = (text, pattern) => new Function(`return {${text.match(pattern)[1]}}`)()
+  const main = literal(read('electron', 'main.js'), /const DEFAULT_SETTINGS = \{([\s\S]*?)\n\}/)
+  const ui = literal(read('ui', 'src', 'platform', 'settings.ts'), /export const DEFAULT_SETTINGS: ElectronSettings = \{([\s\S]*?)\n\}/)
+  assert.ok(Object.keys(main).length > 0)
+  assert.deepEqual(ui, main)
+})
+
 test('a build that exists carries no fixtures', { skip: !fs.existsSync(path.join(ROOT, 'ui', 'dist', 'assets')) }, () => {
   for (const file of fs.readdirSync(path.join(ROOT, 'ui', 'dist', 'assets')).filter(f => f.endsWith('.js'))) {
     assert.doesNotMatch(read('ui', 'dist', 'assets', file), /Weekly product sync|createFixtureClient/, file)

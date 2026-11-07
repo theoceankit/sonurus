@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { TranscriptListItem } from '../../api/types'
-import type { ElectronAPI } from '../../platform/electron-api'
+import { settingsStore, useSettings } from '../../platform/settings'
 
 // How many recordings the app remembers having opened, newest first.
 export const RECENT_LIMIT = 20
@@ -17,8 +17,6 @@ export function rememberOpened(recent: readonly number[], id: number): number[] 
   return [id, ...recent.filter(other => other !== id)].slice(0, RECENT_LIMIT)
 }
 
-const bridge = (): ElectronAPI | undefined => (typeof window === 'undefined' ? undefined : window.electronAPI)
-
 // A settings file from before the field, or one edited by hand, may hold anything.
 const readIds = (value: unknown): number[] => (Array.isArray(value) ? value.filter(id => Number.isInteger(id)) : [])
 
@@ -26,36 +24,18 @@ const readIds = (value: unknown): number[] => (Array.isArray(value) ? value.filt
 // UI, which leaves the field alone. Null until they have been read. Without Electron
 // (Storybook, tests) the list starts empty and is kept in memory only.
 export function useRecentRecordings() {
-  const [ids, setIds] = useState<number[] | null>(() => (bridge() ? null : []))
-  const latest = useRef<number[]>([])
-  const writes = useRef<Promise<void>>(Promise.resolve())
-
-  useEffect(() => {
-    const api = bridge()
-    if (!api) return
-    let current = true
-    api.readSettings()
-      .then(settings => readIds(settings.recentTranscriptIds), () => [])
-      .then(read => {
-        if (!current) return
-        latest.current = read
-        setIds(read)
-      })
-    return () => { current = false }
-  }, [])
+  const settings = useSettings()
+  const loaded = settings !== null
+  // Its own array, so changes of other settings do not make a new list.
+  const saved = settings?.recentTranscriptIds
+  const ids = useMemo(() => (loaded ? readIds(saved) : null), [loaded, saved])
 
   const remember = useCallback((id: number) => {
-    const next = rememberOpened(latest.current, id)
-    if (next.every((other, i) => other === latest.current[i]) && next.length === latest.current.length) return
-    latest.current = next
-    setIds(next)
-    const api = bridge()
-    if (!api) return
-    // One at a time, each on what the last one wrote: the settings file is written whole.
-    writes.current = writes.current
-      .then(() => api.readSettings())
-      .then(settings => api.writeSettings({ ...settings, recentTranscriptIds: next }))
-      .catch(() => {})
+    const store = settingsStore()
+    const latest = readIds(store.current()?.recentTranscriptIds)
+    const next = rememberOpened(latest, id)
+    if (next.length === latest.length && next.every((other, i) => other === latest[i])) return
+    void store.patch({ recentTranscriptIds: next })
   }, [])
 
   return { ids, remember }

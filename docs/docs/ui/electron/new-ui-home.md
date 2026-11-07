@@ -18,7 +18,7 @@ The pick is `pickRecording(list, recent)` in `ui/src/screens/Home/last-opened.ts
 
 So after a delete the recording opened before the deleted one opens, not its neighbour in the sidebar. The neighbour could not be known at startup anyway, if a recording was deleted while the app was closed.
 
-`useRecentRecordings()` keeps the recent ones in Electron's `settings.json` as `recentTranscriptIds`: up to 20 ids, newest first. A recording goes first when it opens, whether the user clicked it or it was picked. Each write reads the file first and changes only this field, one write at a time, as the old UI shares the file and keeps its own fields there. The old UI does not read the field and carries it along on its own writes, Reset to defaults included. Without Electron, in Storybook and tests, the list starts empty and lives in memory.
+`useRecentRecordings()` keeps the recent ones in Electron's `settings.json` as `recentTranscriptIds`: up to 20 ids, newest first. A recording goes first when it opens, whether the user clicked it or it was picked. It writes through the settings store of the new UI ([Electron overview](overview.md#settings)), which reads the file before each write and changes only this field, one write at a time, as the old UI shares the file and keeps its own fields there. The old UI does not read the field and carries it along on its own writes, Reset to defaults included. Without Electron, in Storybook and tests, the list starts empty and lives in memory.
 
 The backend is not involved: what was opened last is a setting of the interface, not data of a recording.
 

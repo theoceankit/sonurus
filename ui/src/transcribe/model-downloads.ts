@@ -3,6 +3,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { useApi } from '../api/ApiProvider'
 import type { ApiClient } from '../api/client'
 import { queryKeys } from '../api/queries'
+import { settingsStore } from '../platform/settings'
 
 // The model downloads of the app: one per model, whoever starts it, so every screen
 // that shows a model sees the same one. GET /models does not tell of running downloads;
@@ -89,11 +90,7 @@ export function createModelDownloads(api: ApiClient, readToken: () => Promise<st
   }
 }
 
-const readHfToken = async () => {
-  const bridge = typeof window === 'undefined' ? undefined : window.electronAPI
-  const settings = await bridge?.readSettings().catch(() => undefined)
-  return settings?.hfToken || null
-}
+const readHfToken = async () => (await settingsStore().read()).hfToken || null
 
 // One store per client: the app has one, each story and test its own.
 const stores = new WeakMap<ApiClient, ModelDownloads>()
