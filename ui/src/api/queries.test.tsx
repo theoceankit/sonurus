@@ -1,16 +1,17 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider, useApi } from './ApiProvider'
 import { ApiError, type ApiClient } from './client'
 import { SPEAKER_IDS, WEEKLY_SYNC_ID } from './fixtures/data'
 import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
-  useAssignSpeaker, useBackendConnected, useDeleteTranscript, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
+  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useDeleteTranscript, useQueue, useQueueEventsSync, useSpeakerCandidates, useSpeakers, useTranscript, useTranscripts,
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle, useWaveform,
 } from './queries'
 import { effectiveSpeaker, type QueueUpdate } from './types'
+import { createMockElectronAPI } from '../platform/electron-api-mock'
 
 const wrapperFor = (client: ApiClient) => ({ children }: { children: ReactNode }) => (
   <ApiProvider client={client}>{children}</ApiProvider>
@@ -267,5 +268,42 @@ describe('waveform', () => {
     renderWith(() => useWaveform(null, { bars: 4, start: 0, end: 20 }), options)
     renderWith(() => useWaveform(WEEKLY_SYNC_ID, { bars: 4, start: 0, end: 0 }), options)
     expect(getWaveform).not.toHaveBeenCalled()
+  })
+})
+
+describe('adding files to the queue', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  test('one job per file, in the order given, with the defaults of the settings', async () => {
+    const bridge = createMockElectronAPI()
+    await bridge.writeSettings({ ...await bridge.readSettings(), transcribeModel: 'small', transcribeLang: 'ru' })
+    vi.stubGlobal('electronAPI', bridge)
+    const { client, result } = renderWith(useAddToQueue)
+    const add = vi.spyOn(client, 'addQueueJob')
+    await act(() => result.current.mutateAsync(['/in/b.mp3', '/in/a.wav']))
+    expect(add.mock.calls.map(([job]) => job)).toEqual([
+      { audioPath: '/in/b.mp3', whisperModel: 'small', language: 'ru' },
+      { audioPath: '/in/a.wav', whisperModel: 'small', language: 'ru' },
+    ])
+    expect((await client.getQueue()).jobs.map(job => job.audio_path)).toEqual(['/in/b.mp3', '/in/a.wav'])
+  })
+
+  test('with no model saved and auto language the backend decides both', async () => {
+    const { client, result } = renderWith(useAddToQueue)
+    const add = vi.spyOn(client, 'addQueueJob')
+    await act(() => result.current.mutateAsync(['/in/a.mp3']))
+    expect(add).toHaveBeenCalledWith({ audioPath: '/in/a.mp3', whisperModel: null, language: null })
+  })
+
+  test('stops at the first refusal and says how many went in', async () => {
+    const client = createFixtureClient()
+    let calls = 0
+    const add = client.addQueueJob
+    client.addQueueJob = job => (++calls === 2 ? Promise.reject(new ApiError(400, 'audio_path not readable: /in/b.mp3')) : add(job))
+    const { result } = renderHook(useAddToQueue, { wrapper: wrapperFor(client) })
+    const failure = await act(() => result.current.mutateAsync(['/in/a.mp3', '/in/b.mp3', '/in/c.mp3']).catch(error => error))
+    expect(failure).toBeInstanceOf(AddToQueueError)
+    expect(failure).toMatchObject({ added: 1, message: 'audio_path not readable: /in/b.mp3', error: { status: 400 } })
+    expect(calls).toBe(2)
   })
 })

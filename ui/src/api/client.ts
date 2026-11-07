@@ -1,5 +1,5 @@
 import type {
-  QueueSnapshot, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
+  QueueJob, QueueSnapshot, QueueUpdate, Speaker, SpeakerCandidates, SpeakerSample, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 
 // status 0: the request never got an answer.
@@ -23,6 +23,10 @@ export type SpeakerAssignment = { transcriptId: number; segmentStarts: readonly 
 // the other way would also take the segments the new speaker had before it.
 // createdSpeakerId: the assignment made this speaker, and with nothing left they go.
 export type SpeakerUndo = { transcriptId: number; segmentStarts: readonly number[]; speakerId: string; createdSpeakerId?: string }
+
+// A file for the transcription queue. A null model or language is the backend's own:
+// its default model, and the language detected from the audio.
+export type NewQueueJob = { audioPath: string; whisperModel: string | null; language: string | null }
 
 // Bars evenly over a stretch of a recording, in seconds.
 export type WaveformStretch = { bars: number; start: number; end: number }
@@ -51,6 +55,9 @@ export interface ApiClient {
   updateSpeaker(speakerId: string, update: SpeakerUpdate): Promise<Speaker>
   getSpeakerSample(speakerId: string, transcriptId?: number): Promise<SpeakerSample>
   getQueue(): Promise<QueueSnapshot>
+  // The backend copies the file and answers the waiting job, or 400 when a model the
+  // job needs is not installed or the file cannot be read.
+  addQueueJob(job: NewQueueJob): Promise<QueueJob>
   // The listener first gets the current snapshot. onConnection is told when the
   // connection is lost and when it is back. Returns the unsubscribe.
   subscribeQueueEvents(listener: (event: QueueUpdate) => void, onConnection?: (connected: boolean) => void): () => void

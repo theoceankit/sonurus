@@ -1,5 +1,5 @@
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
-import { effectiveSpeaker, UNASSIGNED, type QueueSnapshot, type QueueUpdate, type Speaker, type SpeakerCandidates } from '../types'
+import { effectiveSpeaker, UNASSIGNED, type QueueJob, type QueueSnapshot, type QueueUpdate, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_NOW, queueSnapshot } from './data'
 import type { EventScript } from './event-scripts'
@@ -13,6 +13,8 @@ export type FixtureOptions = {
   board?: FixtureBoard
   // Recordings with nothing to play.
   noAudio?: boolean
+  // No models downloaded: a file for the queue gets the backend's 400.
+  noModels?: boolean
   // One method behaving differently, e.g. a failing save on a loaded screen.
   overrides?: Partial<ApiClient>
 }
@@ -24,11 +26,14 @@ export type FixtureClient = ApiClient & {
   setConnected(connected: boolean): void
 }
 
+// What the backend answers for a job when no models are downloaded.
+export const NO_MODELS = 'Diarization model is not installed. Download it in Settings.'
+
 const EMPTY: FixtureData = { transcripts: [], details: [], speakers: [], candidates: {} }
 
 // The same interface as the backend client, on data kept in memory. Each client
 // has its own copy, so stories and tests do not see each other's changes.
-export function createFixtureClient({ scenario = 'default', board = 'review', noAudio = false, overrides = {} }: FixtureOptions = {}): FixtureClient {
+export function createFixtureClient({ scenario = 'default', board = 'review', noAudio = false, noModels = false, overrides = {} }: FixtureOptions = {}): FixtureClient {
   const audioUrls = new Map<number, string>()
   const data = structuredClone(scenario === 'empty' ? EMPTY : BOARDS[board])
   let queue: QueueSnapshot = queueSnapshot()
@@ -189,6 +194,23 @@ export function createFixtureClient({ scenario = 'default', board = 'review', no
       throw new ApiError(404, 'No audio available for this speaker')
     }),
     getQueue: () => answer(() => queue),
+    addQueueJob: ({ audioPath, whisperModel, language }) => answer(() => {
+      if (noModels) throw new ApiError(400, NO_MODELS)
+      const job: QueueJob = {
+        id: crypto.randomUUID(),
+        audio_path: audioPath,
+        title: audioPath.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, ''),
+        whisper_model: whisperModel ?? 'large-v3',
+        language,
+        status: 'waiting',
+        error: null,
+        error_code: null,
+        error_language: null,
+        created_at: new Date().toISOString().slice(0, 19),
+      }
+      emit({ ...queue, jobs: [...queue.jobs, job] })
+      return job
+    }),
     subscribeQueueEvents: (listener, onConnection) => {
       listeners.add(listener)
       if (onConnection) connectionListeners.add(onConnection)

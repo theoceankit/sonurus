@@ -168,3 +168,24 @@ describe('getWaveform', () => {
     expect(sent[0].method).toBe('GET')
   })
 })
+
+describe('addQueueJob', () => {
+  test('sends the file, the model and the language, and answers the job', async () => {
+    const job = { id: 'j', audio_path: '/in/a.mp3', title: 'a', whisper_model: 'small', language: 'ru', status: 'waiting' }
+    const { client, sent } = setup(() => json(job))
+    await expect(client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: 'small', language: 'ru' })).resolves.toEqual(job)
+    expect(sent).toEqual([{ url: 'http://localhost:8000/queue/jobs', method: 'POST', body: { audio_path: '/in/a.mp3', whisper_model: 'small', language: 'ru' } }])
+  })
+
+  test('leaves model and language to the backend as null, and no title: it takes the file name', async () => {
+    const { client, sent } = setup(() => json({}))
+    await client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: null, language: null })
+    expect(sent[0].body).toEqual({ audio_path: '/in/a.mp3', whisper_model: null, language: null })
+  })
+
+  test('a missing model is the 400 with its detail', async () => {
+    const { client } = setup(() => json({ detail: 'Diarization model is not installed. Download it in Settings.' }, 400))
+    await expect(client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: null, language: null }))
+      .rejects.toMatchObject({ status: 400, message: 'Diarization model is not installed. Download it in Settings.' })
+  })
+})

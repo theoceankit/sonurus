@@ -5,7 +5,7 @@ import { BOARDS } from './boards'
 import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
 import { EVENT_SCRIPTS } from './event-scripts'
 import type { ApiClient } from '../client'
-import { createFixtureClient } from './fixture-client'
+import { createFixtureClient, NO_MODELS } from './fixture-client'
 
 const { anna, mark, oliver, unknown1 } = SPEAKER_IDS
 const talkTime = (segments: Segment[], id: string) =>
@@ -396,5 +396,23 @@ describe('waveform', () => {
   test('nothing to play: the audio is not found', async () => {
     await expect(createFixtureClient({ noAudio: true }).getWaveform(WEEKLY_SYNC_ID, { bars: 2, start: 0, end: 1 }))
       .rejects.toMatchObject({ status: 404 })
+  })
+})
+
+describe('adding to the queue', () => {
+  test('a file waits in the queue under its name, and the listeners hear of it', async () => {
+    const client = createFixtureClient()
+    const events: QueueUpdate[] = []
+    client.subscribeQueueEvents(e => events.push(e))
+    const job = await client.addQueueJob({ audioPath: '/in/Team call.final.m4a', whisperModel: null, language: null })
+    expect(job).toMatchObject({ title: 'Team call.final', status: 'waiting', language: null })
+    expect((await client.getQueue()).jobs.map(j => j.id)).toEqual([job.id])
+    expect(events.at(-1)).toMatchObject({ type: 'snapshot', jobs: [{ id: job.id }] })
+  })
+
+  test('without models it is refused as the backend does', async () => {
+    const client = createFixtureClient({ noModels: true })
+    await expect(client.addQueueJob({ audioPath: '/in/a.mp3', whisperModel: null, language: null })).rejects.toMatchObject({ status: 400, message: NO_MODELS })
+    expect((await client.getQueue()).jobs).toEqual([])
   })
 })
