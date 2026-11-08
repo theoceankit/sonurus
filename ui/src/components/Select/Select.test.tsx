@@ -19,12 +19,22 @@ function Controlled({ onValueChange = () => {}, start = 'base' }: { onValueChang
   return <Select label="Model" value={value} options={OPTIONS} onValueChange={next => { setValue(next); onValueChange(next) }} />
 }
 
-const field = () => screen.getByRole('button', { name: 'Model' })
+const field = () => screen.getByRole('button', { name: /^Model/ })
 const option = (name: RegExp) => screen.getByRole('menuitemradio', { name })
 
 test('the field shows the chosen option under its label', () => {
   render(<Controlled />)
   expect(field().textContent?.trim()).toBe('Whisper Base')
+})
+
+test('the field is named by its label and the chosen option, or by aria-label and the option', async () => {
+  const { rerender } = render(<Controlled />)
+  expect(screen.getByRole('button', { name: 'Model Whisper Base' })).toBeTruthy()
+  await userEvent.click(field())
+  await userEvent.click(option(/Whisper Small/))
+  expect(screen.getByRole('button', { name: 'Model Whisper Small' })).toBeTruthy()
+  rerender(<Select aria-label="Theme" value="base" options={OPTIONS} onValueChange={() => {}} />)
+  expect(screen.getByRole('button', { name: 'Theme Whisper Base' })).toBeTruthy()
 })
 
 test('picking an option changes the value, marks it and closes the list', async () => {
@@ -61,7 +71,7 @@ test('the keyboard opens the list on the chosen option and skips a disabled one'
 
 test('a value that is none of the options shows the placeholder', () => {
   render(<Select aria-label="Model" value="" placeholder="Checking models..." options={[]} onValueChange={() => {}} />)
-  expect(screen.getByRole('button', { name: 'Model' }).textContent?.trim()).toBe('Checking models...')
+  expect(field().textContent?.trim()).toBe('Checking models...')
 })
 
 test('disabled, it does not open', async () => {

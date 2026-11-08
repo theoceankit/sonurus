@@ -253,7 +253,8 @@ test('an error says what is wrong with no icon', async () => {
 describe('title, model and language', () => {
   const choose = async () => userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
   const importButton = () => screen.getByRole('button', { name: 'Import' })
-  const field = (name: string) => screen.getByRole('button', { name })
+  // A select is named by its label and its value.
+  const field = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}( |$)`) })
   const option = (name: RegExp) => screen.getByRole('menuitemradio', { name })
   const jobs = async (client: ReturnType<typeof setup>) => (await client.getQueue()).jobs.map(job => ({
     title: job.title, model: job.whisper_model, language: job.language,
@@ -435,7 +436,8 @@ describe('recording', () => {
   }
   const toggle = (name: string) => screen.getByRole('button', { name })
   const start = () => screen.getByRole('button', { name: 'Start recording' }) as HTMLButtonElement
-  const field = (name: string) => screen.getByRole('button', { name })
+  // A select is named by its label and its value.
+  const field = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}( |$)`) })
   const option = (name: RegExp) => screen.getByRole('menuitemradio', { name })
 
   test('New recording asks for consent; Diarize speakers is the only switch, still not there', async () => {

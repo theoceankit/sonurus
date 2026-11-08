@@ -29,7 +29,8 @@ async function setup(options: FixtureOptions = {}, saved: object = {}) {
   await userEvent.click(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Audio devices' }))
   return bridge
 }
-const field = (name: string) => screen.getByRole('button', { name })
+// A select is named by its label and its value.
+const field = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}( |$)`) })
 
 test('shows the saved devices and saves a new one for the next recording', async () => {
   const bridge = await setup({}, { recordingSystemDevice: 'bluez_output.58_18_62_38_72_FA.1.monitor' })

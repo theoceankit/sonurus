@@ -30,7 +30,8 @@ async function setup(options: FixtureOptions = {}, job = JOB) {
 const title = () => screen.getByRole('textbox', { name: 'Title' })
 const save = () => screen.getByRole('button', { name: 'Save' })
 const dialog = () => screen.queryByRole('dialog', { name: 'Transcription settings' })
-const field = (name: string) => screen.getByRole('button', { name })
+// A select is named by its label and its value.
+const field = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}( |$)`) })
 const option = (name: RegExp) => screen.getByRole('menuitemradio', { name })
 
 test('starts with the job as it is, the title focused', async () => {

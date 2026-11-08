@@ -42,19 +42,22 @@ const keyboardInput = (event: KeyboardEvent<HTMLElement>) => { delete event.curr
 export function Select({ label, 'aria-label': ariaLabel, value, options, onValueChange, placeholder, disabled, className }: SelectProps) {
   const { boundary } = useModal()
   const labelId = useId()
+  const valueId = useId()
   const current = options.find(option => option.value === value)
   return (
     <Stack gap={1} align="stretch" className={cx(styles.select, disabled && styles.disabled, className)}>
-      {label && <span id={labelId} className={styles.label}>{label}</span>}
+      {label
+        ? <span id={labelId} className={styles.label}>{label}</span>
+        : <span id={labelId} hidden>{ariaLabel}</span>}
       <RadixMenu.Root modal={false}>
         <RadixMenu.Trigger asChild disabled={disabled}>
           <button
             type="button"
             className={cx(field.field, styles.trigger)}
-            aria-label={ariaLabel}
-            aria-labelledby={label ? labelId : undefined}
+            // Named by the label and the value, as a native select is read.
+            aria-labelledby={`${labelId} ${valueId}`}
           >
-            <span className={cx(styles.value, !current && styles.placeholder)}>{current?.label ?? placeholder ?? ''}</span>
+            <span id={valueId} className={cx(styles.value, !current && styles.placeholder)}>{current?.label ?? placeholder ?? ''}</span>
             <Icon name="chevron-down" size={12} className={styles.chevron} />
           </button>
         </RadixMenu.Trigger>
