@@ -82,7 +82,7 @@ A column and a row. Spacing props accept only the steps of the scale: `'half'`, 
 <Inline gap={1} paddingX={3} paddingY={1} justify="between">…</Inline>
 ```
 
-Both take `as`, `align`, `justify`, `className`, `ref` and other props of the element; `Inline` also takes `wrap` and centres its items by default. The Penpot group `layout/` (titlebar, sidebar, inspector and others) is a set of screen components, not these two.
+`paddingTop` and `paddingBottom` pad one end only, for a slot whose neighbour pads the other; an end not asked for adds nothing, since even an empty `padding-block-start` or `-end` would clear that end of `paddingY` in a browser. Both take `as`, `align`, `justify`, `className`, `ref` and other props of the element; `Inline` also takes `wrap` and centres its items by default. The Penpot group `layout/` (titlebar, sidebar, inspector and others) is a set of screen components, not these two.
 
 ## Base controls
 
@@ -196,7 +196,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | Review dock: the card, Close review, Resume | 250 | 250 | height and fade, as far and as long as a panel |
 | Show inspector | 200 | — | from 8 px to the side the inspector leaves to, on the panel's curve from a fifth of its way, so that both settle in the same frame; it goes at once, as the inspector takes its place |
 | Bubble of the player | 100 | 100 | width, when the text has changed it |
-| Text being worked on: the running job's title and status | — | — | a lighter band crosses it, then it rests, over and over (`shimmer.module.css`); plain with reduced motion |
+| Text being worked on: the running job's title and status | — | — | a lighter band crosses it, then it rests, over and over (`shimmer.module.css`, over the element's `--shimmer-color`, primary text unless set); plain in that colour with reduced motion |
 | The live dot of a recording | — | — | its opacity breathes, never its size: a 6 px dot that scales lands on half pixels (`live.module.css`); still with reduced motion |
 | Stop on the recording's row | 150 | 150 | its room opens as the time moves aside, and it fades and slides in 2 px |
 
