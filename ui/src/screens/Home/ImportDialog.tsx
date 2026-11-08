@@ -16,7 +16,9 @@ import type { TranscribeChoice } from '../../transcribe/choice'
 import { blockMessage } from '../../transcribe/models'
 import type { RecordingSetup } from '../../recording/useRecordingSetup'
 import { BOTH_OFF } from '../../recording/sources'
-import { SUPPORTED_EXTENSIONS, type ImportFailure, type ImportFile } from './import-files'
+import { SUPPORTED_EXTENSIONS, type ImportFile } from './import-files'
+import type { Refusal } from '../../transcribe/refusals'
+import { RefusalNote } from '../../transcribe/RefusalNote'
 import styles from './ImportDialog.module.css'
 
 // The backend takes a title of up to 200 characters (JobUpdateRequest, TranscribeRequest).
@@ -36,7 +38,7 @@ export interface ImportDialogProps {
   choice: TranscribeChoice
   onModelChange: (model: string) => void
   onLanguageChange: (language: string) => void
-  failure: ImportFailure | null
+  failure: Refusal | null
   importing: boolean
   onChooseFiles: () => void
   onRemove: (path: string) => void
@@ -144,14 +146,7 @@ export function ImportDialog({
               ))}
             </ul>
           )}
-          {failure && (
-            <Stack gap={1} align="start" role="alert" className={styles.failure}>
-              <span>{failure.message}</span>
-              {failure.settingsSection && (
-                <Button variant="ghost" size="small" icon="settings" onClick={() => onOpenSettings?.(failure.settingsSection!)}>Open Settings</Button>
-              )}
-            </Stack>
-          )}
+          {failure && <RefusalNote refusal={failure} onOpenSettings={onOpenSettings} />}
         </Stack>
       </ModalBody>
       <ModalFooter

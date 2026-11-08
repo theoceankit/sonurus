@@ -70,12 +70,31 @@ test('a blank title is an error in the dialog, gone on the next key', async () =
   expect(screen.queryByText('Title cannot be empty.')).toBeNull()
 })
 
-test('a refusal keeps the dialog open with the reason', async () => {
-  await setup({ overrides: { updateQueueJob: () => Promise.reject(new ApiError(409, 'The job is running; pause the queue to edit it')) } })
+test('a started job: the refusal shows above the buttons, not at the title, and Save is off', async () => {
+  await setup({ overrides: { updateQueueJob: () => Promise.reject(new ApiError(409, 'This job has started and can no longer be changed.', 'job_running')) } })
   await userEvent.type(title(), '!')
   await userEvent.click(save())
-  expect(await screen.findByText('The job is running; pause the queue to edit it')).toBeTruthy()
+  const alert = await screen.findByRole('alert')
+  expect(alert.textContent).toBe('This job has started and can no longer be changed.')
+  expect(title().getAttribute('aria-invalid')).not.toBe('true')
+  expect(within(alert).queryByRole('button')).toBeNull()
+  expect((save() as HTMLButtonElement).disabled).toBe(true)
+  // Changing the form does not make the job editable again.
+  await userEvent.type(title(), '?')
+  expect(screen.getByRole('alert')).toBeTruthy()
   expect(dialog()).toBeTruthy()
+})
+
+test('a missing model: the refusal leads to Settings and goes on the next change', async () => {
+  await setup({ overrides: { updateQueueJob: () => Promise.reject(new ApiError(400, 'Alignment model for language "pl" is not installed. Download it in Settings.', 'alignment_model_missing')) } })
+  await userEvent.type(title(), '!')
+  await userEvent.click(save())
+  const alert = await screen.findByRole('alert')
+  expect(alert.textContent).toContain('Alignment model for language "pl" is not installed.')
+  expect(within(alert).getByRole('button', { name: 'Open Settings' })).toBeTruthy()
+  expect((save() as HTMLButtonElement).disabled).toBe(false)
+  await userEvent.type(title(), '?')
+  expect(screen.queryByRole('alert')).toBeNull()
 })
 
 test('Enter in the title saves, Escape closes without saving', async () => {

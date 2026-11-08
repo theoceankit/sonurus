@@ -75,7 +75,8 @@ A job in a language whose alignment model is not downloaded fails mid-pipeline w
 
 - It starts with the job as it is, the title focused. The lists are those of the import dialog: models and languages without their models are off. The job's own model stays in the list when it has been deleted, until another is picked.
 - Save sends only what changed (`jobEditPatch()`), the title trimmed, Detect as null, through `useUpdateQueueJob()` (`PATCH /queue/jobs/{id}`). Nothing changed closes without a request. Enter in the title saves, Escape closes without saving.
-- A blank title or one over 200 characters is an error under the title. So is a refusal of the backend, such as a model not installed or a job that started running meanwhile; the dialog stays open. The next change clears it.
+- A blank title or one over 200 characters is an error under the title; the next change clears it.
+- A refusal of the backend shows above the buttons, as in New transcription (`RefusalNote`, `refusalOf()` in `ui/src/transcribe/refusals.ts`, shared by both), and the dialog stays open. A model not installed comes with Open Settings, which opens Settings over the dialog on that model's section; the next change clears it. A job that started running meanwhile (`code: job_running`) cannot be edited any more: the refusal stays and Save is off.
 
 `JobSettingsDialog` is its view, for the stories of its states.
 
