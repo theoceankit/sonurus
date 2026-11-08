@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useModels } from '../../api/queries'
 import type { ModelInfo } from '../../api/types'
 import { Icon } from '../../components/Icon/Icon'
@@ -11,19 +12,28 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { useModelDelete } from './model-delete-action'
 import { useModelDownloads, type ModelDownloads } from '../../transcribe/model-downloads'
 import { modelState, settingsModelHint } from '../../transcribe/models'
+import { downloadFailureText, type DownloadFailure } from '../../transcribe/download-errors'
 import { useSettingsDialog } from './SettingsProvider'
 import styles from './Settings.module.css'
 
 type TranscriptionModel = Extract<ModelInfo, { kind: 'whisper' | 'diarization' }>
 
+// Why a download failed, with a link to API Keys where the token is the reason.
+export function DownloadFailureText({ failure }: { failure: DownloadFailure }) {
+  const settingsDialog = useSettingsDialog()
+  const { text, apiKeys } = downloadFailureText(failure)
+  if (!apiKeys) return <>{text}</>
+  return <>{text}{' '}<button type="button" className={styles.link} onClick={() => settingsDialog.open('apiKeys')}>API Keys</button>.</>
+}
+
 // What a row shows of a model: installed per GET /models, downloading or failed per
 // the downloads of the app (GET /models knows of neither).
-export function rowState(installed: boolean, modelId: string, downloads: ModelDownloads): { state: ModelRowState; pct?: number; error?: string } {
+export function rowState(installed: boolean, modelId: string, downloads: ModelDownloads): { state: ModelRowState; pct?: number; error?: ReactNode } {
   if (installed) return { state: 'installed' }
   const download = downloads.download(modelId)
   if (download) return { state: 'downloading', pct: download.pct }
-  const error = downloads.error(modelId)
-  return error ? { state: 'failed', error } : { state: 'available' }
+  const failure = downloads.failure(modelId)
+  return failure ? { state: 'failed', error: <DownloadFailureText failure={failure} /> } : { state: 'available' }
 }
 
 export function Loading({ models }: { models: ReturnType<typeof useModels> }) {

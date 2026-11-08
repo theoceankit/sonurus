@@ -4,6 +4,7 @@ import { useApi } from '../api/ApiProvider'
 import type { ApiClient } from '../api/client'
 import { queryKeys } from '../api/queries'
 import { settingsStore } from '../platform/settings'
+import { downloadFailure, type DownloadFailure } from './download-errors'
 
 // The model downloads of the app: one per model, whoever starts it, so every screen
 // that shows a model sees the same one. GET /models does not tell of running downloads;
@@ -18,8 +19,8 @@ export type ModelDownloads = {
   download(modelId: string): { pct: number } | null
   // How its last download here ended, if one did.
   outcome(modelId: string): DownloadOutcome | undefined
-  // Why its last download here failed, in the backend's words.
-  error(modelId: string): string | undefined
+  // Why its last download here failed, as the backend's code says.
+  failure(modelId: string): DownloadFailure | undefined
   start(modelId: string): Promise<void>
   cancel(modelId: string): Promise<void>
   subscribe(listener: (modelId: string) => void): () => void
@@ -31,7 +32,7 @@ export type ModelDownloads = {
 export function createModelDownloads(api: ApiClient, readToken: () => Promise<string | null>): ModelDownloads {
   const running = new Map<string, Entry>()
   const outcomes = new Map<string, DownloadOutcome>()
-  const errors = new Map<string, string>()
+  const failures = new Map<string, DownloadFailure>()
   const listeners = new Set<(modelId: string) => void>()
   let changes = 0
 
@@ -39,12 +40,12 @@ export function createModelDownloads(api: ApiClient, readToken: () => Promise<st
     changes++
     listeners.forEach(listener => listener(modelId))
   }
-  const finish = (modelId: string, entry: Entry, outcome: DownloadOutcome, message?: string) => {
+  const finish = (modelId: string, entry: Entry, outcome: DownloadOutcome, code?: string) => {
     if (running.get(modelId) !== entry) return
     entry.stop?.()
     running.delete(modelId)
     outcomes.set(modelId, outcome)
-    if (outcome === 'failed') errors.set(modelId, message || 'The download failed.')
+    if (outcome === 'failed') failures.set(modelId, downloadFailure(code))
     notify(modelId)
   }
 
@@ -54,13 +55,13 @@ export function createModelDownloads(api: ApiClient, readToken: () => Promise<st
       return entry ? { pct: entry.pct } : null
     },
     outcome: modelId => outcomes.get(modelId),
-    error: modelId => (outcomes.get(modelId) === 'failed' ? errors.get(modelId) : undefined),
+    failure: modelId => (outcomes.get(modelId) === 'failed' ? failures.get(modelId) : undefined),
     start: async modelId => {
       if (running.has(modelId)) return
       const entry: Entry = { pct: 0, jobId: null }
       running.set(modelId, entry)
       outcomes.delete(modelId)
-      errors.delete(modelId)
+      failures.delete(modelId)
       notify(modelId)
       try {
         const jobId = await api.startModelDownload(modelId, await readToken())
@@ -75,13 +76,13 @@ export function createModelDownloads(api: ApiClient, readToken: () => Promise<st
             entry.pct = event.pct
             notify(modelId)
           } else if (event.type === 'error') {
-            finish(modelId, entry, 'failed', event.message)
+            finish(modelId, entry, 'failed', event.code)
           } else {
             finish(modelId, entry, event.type)
           }
         })
-      } catch (error) {
-        finish(modelId, entry, 'failed', error instanceof Error ? error.message : String(error))
+      } catch {
+        finish(modelId, entry, 'failed')
       }
     },
     cancel: async modelId => {

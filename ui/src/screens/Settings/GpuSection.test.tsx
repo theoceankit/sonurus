@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
+import { FIXTURE_GPU } from '../../api/fixtures/data'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { App } from '../../App'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
@@ -57,4 +58,24 @@ test('no GPU section on macOS', async () => {
   setup({ gpu: { blocked_reason: 'unsupported_platform', gpu: null } }, 'darwin')
   await openSettings()
   await waitFor(() => expect(within(settings()).queryByRole('tab', { name: 'GPU' })).toBeNull())
+})
+
+test('a restart that fails waits for Try again, which restarts', async () => {
+  // As the backend: the change waits until a restart has applied it.
+  let applied = false
+  const { restartBackend } = setup({ overrides: {
+    getGpuStatus: async () => ({ ...FIXTURE_GPU, ...(applied ? { state: 'active', device: 'cuda' } : { state: 'pending_restart', pending: 'install' }) }),
+    requestGpuRestart: async () => ({ status: 'ready' }),
+  } })
+  restartBackend.mockRejectedValueOnce(new Error('Backend did not respond within 60 seconds'))
+  restartBackend.mockImplementation(async () => { applied = true })
+  await openSettings()
+  await userEvent.click(within(settings()).getByRole('tab', { name: 'GPU' }))
+  const card = await within(settings()).findByRole('region', { name: 'GPU acceleration' })
+  await waitFor(() => expect(card.textContent).toContain('Restart failed'))
+  expect(screen.getAllByText(/Could not restart the transcription engine: Backend did not respond/).filter(el => el.closest('li'))).toHaveLength(1)
+  expect(restartBackend).toHaveBeenCalledOnce()
+  await userEvent.click(within(card).getByRole('button', { name: 'Try again' }))
+  await waitFor(() => expect(card.textContent).toContain('Running on GPU'))
+  expect(restartBackend).toHaveBeenCalledTimes(2)
 })

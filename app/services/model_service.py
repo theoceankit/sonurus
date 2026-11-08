@@ -115,13 +115,46 @@ def _snapshot(kwargs: dict) -> None:
     huggingface_hub.snapshot_download(repo_id, **kwargs)
 
 
+class ModelDownloadError(RuntimeError):
+    """A download that failed. `code` says why, for the interface to say in its own
+    words: no_token, no_access, network or failed. The message is the exception's."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
+# By class name, as huggingface_hub raises its own, requests' (and in newer versions
+# httpx') errors; the tests replace huggingface_hub, so isinstance cannot be used.
+_NETWORK_ERRORS = {
+    "LocalEntryNotFoundError",  # offline, and the files are not in the cache
+    "OfflineModeIsEnabled", "ConnectionError", "Timeout", "TimeoutError",
+    "ConnectError", "TimeoutException",
+}
+
+
+def download_error_code(exc: BaseException) -> str:
+    """Why a snapshot download failed. A 401 is a missing or invalid token (the Hub
+    says 401 for a gated repo asked without one); a 403 or a gated repo otherwise is
+    a token without access to the model."""
+    names = {cls.__name__ for cls in type(exc).__mro__}
+    if names & _NETWORK_ERRORS:
+        return "network"
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if status == 401:
+        return "no_token"
+    if status == 403 or "GatedRepoError" in names:
+        return "no_access"
+    return "failed"
+
+
 def _snapshot_worker(kwargs: dict, conn) -> None:
     """Child-process entry point: run snapshot_download and report the outcome."""
     try:
         _snapshot(kwargs)
         conn.send(("ok",))
     except BaseException as exc:
-        conn.send(("error", type(exc).__name__, str(exc)))
+        conn.send(("error", type(exc).__name__, str(exc), download_error_code(exc)))
 
 
 def _run_download(kwargs: dict, cancel_event=None, worker=_snapshot_worker,
@@ -133,7 +166,10 @@ def _run_download(kwargs: dict, cancel_event=None, worker=_snapshot_worker,
         raise CancelledError()
 
     if not in_subprocess:
-        _snapshot(kwargs)
+        try:
+            _snapshot(kwargs)
+        except Exception as exc:
+            raise ModelDownloadError(download_error_code(exc), f"{type(exc).__name__}: {exc}") from exc
         if cancel_event is not None and cancel_event.is_set():
             raise CancelledError()
         return
@@ -163,7 +199,9 @@ def _run_download(kwargs: dict, cancel_event=None, worker=_snapshot_worker,
     if result is None:
         raise RuntimeError(f"Download process exited unexpectedly (code {proc.exitcode})")
     if result[0] == "error":
-        raise RuntimeError(f"{result[1]}: {result[2]}")
+        # A worker that sends no code (the stand-ins of the tests) failed for no known reason.
+        code = result[3] if len(result) > 3 else "failed"
+        raise ModelDownloadError(code, f"{result[1]}: {result[2]}")
 
 def _matches_allow_patterns(filename: str, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatch(filename, p) for p in patterns)

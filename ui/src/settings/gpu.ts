@@ -22,8 +22,9 @@ export type GpuState = {
   // The last GET /gpu; null until it has answered.
   status: GpuStatus | null
   download: GpuDownload | null
-  // While a restart waits: what for, null before the backend said.
-  restart: { reason: GpuWaitReason | null } | null
+  // While a restart waits: what for, null before the backend said. failed: the
+  // restart itself failed, and waits for Try again (or the next start of the app).
+  restart: { reason: GpuWaitReason | null; failed?: boolean } | null
   restarting: boolean
 }
 
@@ -31,6 +32,8 @@ export type Gpu = {
   state(): GpuState
   refresh(): Promise<GpuStatus | null>
   startDownload(): void
+  // After a restart that failed: asks the backend again and restarts it.
+  retryRestart(): void
   cancelDownload(): Promise<void>
   remove(): Promise<void>
   subscribe(listener: () => void): () => void
@@ -63,7 +66,8 @@ export function createGpu(api: ApiClient, { restartBackend, pollMs = GPU_RESTART
   }
 
   const startLoop = () => {
-    if (loop) return
+    // A failed restart is not tried again by itself: GET /gpu still says pending_restart.
+    if (loop || state.restart?.failed) return
     const id = ++loop
     set({ restart: { reason: null } })
     void tick(id)
@@ -98,9 +102,9 @@ export function createGpu(api: ApiClient, { restartBackend, pollMs = GPU_RESTART
     try {
       await restartBackend()
     } catch (error) {
-      set({ restarting: false })
+      loop = 0
+      set({ restarting: false, restart: { reason: null, failed: true } })
       toast({ message: `Could not restart the transcription engine: ${(error as Error).message}`, type: 'error' })
-      setTimer(() => void tick(id), pollMs)
       return
     }
     set({ restarting: false })
@@ -168,6 +172,11 @@ export function createGpu(api: ApiClient, { restartBackend, pollMs = GPU_RESTART
     state: () => state,
     refresh,
     startDownload,
+    retryRestart: () => {
+      if (!state.restart?.failed) return
+      set({ restart: null })
+      startLoop()
+    },
     cancelDownload,
     remove,
     subscribe: listener => {
@@ -205,7 +214,7 @@ const WAIT_TEXT: Record<GpuWaitReason, string> = {
 }
 
 export type GpuTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
-export type GpuAction = { id: 'download' | 'cancel' | 'remove'; label: string; primary: boolean }
+export type GpuAction = { id: 'download' | 'cancel' | 'remove' | 'retry'; label: string; primary: boolean }
 export type GpuView =
   | { hidden: true }
   | { hidden: false; label: string; tone: GpuTone; detail: string; device: 'GPU' | 'CPU'; progress: { pct: number } | null; actions: GpuAction[] }
@@ -235,6 +244,10 @@ export function gpuSectionView(status: GpuStatus | null, ui: Omit<GpuState, 'sta
   const canDownload = !status.blocked_reason
   switch (status.state) {
     case 'pending_restart':
+      if (ui.restart?.failed) {
+        return out('Restart failed', 'danger', 'Could not restart the transcription engine. Try again, or restart Sonorus to apply the change.',
+          [{ id: 'retry', label: 'Try again', primary: true }])
+      }
       return out(status.pending === 'remove' ? 'Removing' : 'Waiting to apply', 'accent',
         (ui.restart?.reason && WAIT_TEXT[ui.restart.reason]) || 'Restarting the transcription engine…')
     case 'active':

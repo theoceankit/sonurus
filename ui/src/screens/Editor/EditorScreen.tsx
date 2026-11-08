@@ -1,6 +1,7 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
-import { useSpeakers, useTranscripts } from '../../api/queries'
+import { queryKeys, useSpeakers, useTranscripts } from '../../api/queries'
 import { Sidebar, type SidebarSection } from '../../components/Sidebar/Sidebar'
 import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { prefersReducedMotion, useLingering } from '../../presence'
@@ -20,7 +21,7 @@ import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecording
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
 import { InspectorPanel } from './InspectorPanel'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
-import { groupRecordings, stackSpeakers } from './recordings'
+import { goneFromList, groupRecordings, stackSpeakers } from './recordings'
 import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
 import { TranscriptPanel, type SpeakerMenuTarget } from './TranscriptPanel'
 import { useSpeakerChange } from './useSpeakerChange'
@@ -67,6 +68,7 @@ function useWidth() {
 
 export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, possibleMatches, initialSpeakerId, initialHighlight, initialSpeakersOpen = false }: EditorScreenProps) {
   const api = useApi()
+  const queries = useQueryClient()
   const transcripts = useTranscripts()
   const speakers = useSpeakers()
   const [selectedId, setSelectedId] = useState(initialSelectedId)
@@ -98,6 +100,20 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   const panelsArea = useRef<HTMLDivElement>(null)
   const stopMoving = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(stopMoving.current), [])
+
+  // A recording deleted elsewhere lets go: nothing of it stays on the screen or in the
+  // cache, and the effect below opens another one.
+  const listedIds = useRef<number[] | null>(null)
+  useEffect(() => {
+    if (!transcripts.data) return
+    const ids = transcripts.data.map(item => item.id)
+    if (goneFromList(selectedId, listedIds.current, ids)) {
+      queries.removeQueries({ queryKey: queryKeys.transcript(selectedId!) })
+      queries.removeQueries({ queryKey: ['waveform', selectedId] })
+      setSelectedId(null)
+    }
+    listedIds.current = ids
+  }, [transcripts.data, selectedId, queries])
 
   // With recordings there is always one open: at startup and after the open one is
   // deleted, the last one opened that is left.

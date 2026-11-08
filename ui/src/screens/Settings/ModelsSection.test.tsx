@@ -91,16 +91,27 @@ test('Cancel stops a download', async () => {
   await waitFor(() => expect(inRow('Whisper Tiny', 'Download')).toBeTruthy())
 })
 
-test('a failed download says why in its row, with no toast, and Retry starts it again', async () => {
-  const { client } = await setup({ installedModels: ['small', 'diarize'], downloadFails: true })
+test('a failed download says why in its row in words of its own, with no toast, and Retry starts it again', async () => {
+  const { client } = await setup({ installedModels: ['small', 'diarize'], downloadFails: 'network' })
   await openSection('Models')
   await userEvent.click((await within(settings()).findByRole('group', { name: 'Whisper Tiny' })).querySelector('button')!)
   const alert = await within(row('Whisper Tiny')).findByRole('alert')
-  expect(alert.textContent).toBe('Download failed: Connection to huggingface.co timed out')
-  expect(screen.getAllByText(/Connection to huggingface.co timed out/)).toHaveLength(1)
+  expect(alert.textContent).toBe('Download failed. No connection to HuggingFace. Check the internet connection and try again.')
+  expect(screen.queryByText(/timed out/)).toBeNull()
   const start = vi.spyOn(client, 'startModelDownload')
   await userEvent.click(inRow('Whisper Tiny', 'Retry')!)
   expect(start).toHaveBeenCalledWith('tiny', null)
+})
+
+test('without a token the failure leads to API Keys', async () => {
+  await setup({ installedModels: ['small'], downloadFails: 'no_token' })
+  await openSection('Models')
+  await userEvent.click(inRow('Pyannote Community 1', 'Download') ?? (await within(settings()).findByRole('group', { name: 'Pyannote Community 1' })).querySelector('button')!)
+  const alert = await within(row('Pyannote Community 1')).findByRole('alert')
+  expect(alert.textContent).toBe('Download failed. A HuggingFace token is needed. Add it in API Keys.')
+  expect(alert.textContent).not.toMatch(/GatedRepoError|https?:/)
+  await userEvent.click(within(alert).getByRole('button', { name: 'API Keys' }))
+  expect(within(settings()).getByRole('tab', { name: 'API Keys', selected: true })).toBeTruthy()
 })
 
 test('Alignment lists the models of the languages, and which need none', async () => {

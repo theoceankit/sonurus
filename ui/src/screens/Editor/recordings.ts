@@ -42,3 +42,10 @@ export const deleteRecordingPrompt = (title: string) => ({
   body: 'The transcript and its recording made in Sonorus will be deleted. Imported audio files are kept.',
   warning: 'This cannot be undone.',
 })
+
+// Whether the open recording was deleted, by Delete all data or in another window:
+// on the list before and not now. One the list has not had yet, such as a recording
+// opened from the toast of a finished job before the list was read again, is not.
+export function goneFromList(openId: number | null, before: readonly number[] | null, now: readonly number[]): boolean {
+  return openId !== null && !!before?.includes(openId) && !now.includes(openId)
+}

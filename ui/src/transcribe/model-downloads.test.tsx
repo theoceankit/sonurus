@@ -23,14 +23,14 @@ test('one download per model, with its progress, ending done', async () => {
 })
 
 test('a failed download says so, and a new one starts over', async () => {
-  const client = createFixtureClient({ downloadStepMs: 1, downloadFails: true })
+  const client = createFixtureClient({ downloadStepMs: 1, downloadFails: 'no_access' })
   const downloads = createModelDownloads(client, noToken)
   await downloads.start('cs')
   await waitFor(() => expect(downloads.outcome('cs')).toBe('failed'))
-  expect(downloads.error('cs')).toBe('Connection to huggingface.co timed out')
+  expect(downloads.failure('cs')).toBe('no_access')
   void downloads.start('cs')
   expect(downloads.outcome('cs')).toBeUndefined()
-  expect(downloads.error('cs')).toBeUndefined()
+  expect(downloads.failure('cs')).toBeUndefined()
   expect(downloads.download('cs')).toEqual({ pct: 0 })
 })
 
@@ -39,7 +39,17 @@ test('a backend that refuses to start is a failure', async () => {
   const downloads = createModelDownloads(client, noToken)
   await downloads.start('cs')
   expect(downloads.outcome('cs')).toBe('failed')
-  expect(downloads.error('cs')).toBe('down')
+  expect(downloads.failure('cs')).toBe('failed')
+})
+
+test('an error without a code, such as a lost connection, is failed', async () => {
+  const client = createFixtureClient({ overrides: { watchModelDownload: (_job, listener) => {
+    setTimeout(() => listener({ type: 'error', message: 'The connection to the backend was lost.' }), 0)
+    return () => {}
+  } } })
+  const downloads = createModelDownloads(client, noToken)
+  await downloads.start('cs')
+  await waitFor(() => expect(downloads.failure('cs')).toBe('failed'))
 })
 
 test('Cancel stops the job on the backend and ends as cancelled', async () => {

@@ -82,9 +82,15 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
   useEffect(() => (isOpen ? holdWindowDim() : undefined), [isOpen])
   // Whether this window is in the count yet: the others are the count without it.
   const counted = useRef(false)
+  // Escape that a toast over it hands on closes it as Escape in it would.
+  const close = useRef(() => {})
+  close.current = () => {
+    setUncontrolledOpen(false)
+    onOpenChange?.(false)
+  }
   useEffect(() => {
     if (!isOpen) return undefined
-    const release = holdOpenModal()
+    const release = holdOpenModal(() => close.current())
     counted.current = true
     return () => {
       counted.current = false

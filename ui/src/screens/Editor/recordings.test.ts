@@ -1,7 +1,7 @@
-import { expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { TRANSCRIPTS, SPEAKERS, SPEAKER_IDS, FIXTURE_NOW, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import type { Speaker, TranscriptListItem } from '../../api/types'
-import { deleteRecordingPrompt, groupRecordings, stackSpeakers } from './recordings'
+import { deleteRecordingPrompt, goneFromList, groupRecordings, stackSpeakers } from './recordings'
 
 const item = (id: number, created_at: string, speakers: string[] = []): TranscriptListItem => ({
   id, created_at, speakers, title: `Recording ${id}`, status: 'done', opened: true, section: '', duration: '',
@@ -79,4 +79,19 @@ test('delete prompt: names the recording and says it cannot be undone', () => {
 
 test('delete prompt: falls back for an empty title', () => {
   expect(deleteRecordingPrompt('').title).toBe('Delete this transcript?')
+})
+
+describe('goneFromList', () => {
+  test('a recording that was on the list and is not any more is gone', () => {
+    expect(goneFromList(5, [4, 5, 6], [4, 6])).toBe(true)
+    expect(goneFromList(5, [5], [])).toBe(true)
+  })
+
+  test('a recording still on the list, or never on it yet, is not', () => {
+    expect(goneFromList(5, [4, 5], [4, 5])).toBe(false)
+    // Opened from the toast of a finished job before the list has it.
+    expect(goneFromList(7, [4, 5], [4, 5])).toBe(false)
+    expect(goneFromList(5, null, [4])).toBe(false)
+    expect(goneFromList(null, [4, 5], [4])).toBe(false)
+  })
 })

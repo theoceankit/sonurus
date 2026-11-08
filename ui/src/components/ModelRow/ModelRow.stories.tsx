@@ -27,10 +27,11 @@ export const Installed: Story = { args: { state: 'installed' } }
 export const Default: Story = { args: { state: 'installed', selected: true } }
 export const InstalledHover: Story = { args: { state: 'installed' }, parameters: { pseudo: { hover: true } } }
 export const DeleteBlocked: Story = { args: { state: 'installed', selected: true, deleteBlocked: 'In use by the running transcription' } }
-export const Failed: Story = { args: { state: 'failed', error: 'Connection to huggingface.co timed out' } }
+export const Failed: Story = { args: { state: 'failed', error: 'No connection to HuggingFace. Check the internet connection and try again.' } }
 export const FailedLongError: Story = {
-  args: { state: 'failed', error: '401 Client Error: Unauthorized for the pyannote speaker-diarization-3.1 model, the HuggingFace token has no access to this gated model' },
+  args: { state: 'failed', error: "Your HuggingFace token has no access to this model. Accept the model's terms in your HuggingFace account and try again, or check the token in API Keys." },
 }
+export const FailedWithoutReason: Story = { args: { state: 'failed' } }
 export const Diarization: Story = { args: { icon: 'diarization-model', name: 'Pyannote Community 1', meta: ['130 MB'], state: 'installed', onUse: undefined } }
 export const Alignment: Story = { args: { icon: 'alignment', name: 'Czech', meta: ['~300 MB'], onUse: undefined } }
 

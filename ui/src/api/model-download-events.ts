@@ -4,7 +4,9 @@ export type ModelDownloadEvent =
   | { type: 'progress'; pct: number }
   | { type: 'done' }
   | { type: 'cancelled' }
-  | { type: 'error'; message: string }
+  // code: why, for the interface to say (transcribe/download-errors.ts); none when the
+  // job is unknown to the backend or the connection is lost.
+  | { type: 'error'; message: string; code?: string }
 
 type Message = ModelDownloadEvent | { type: 'heartbeat' }
 

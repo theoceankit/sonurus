@@ -227,7 +227,7 @@ The system setting empties the distance tokens in `tokens.css`, so what fades st
 
 `--z-modal`, `--z-popover` and `--z-toast` in `tokens.css`, in that order, so a menu or a tooltip opens over a modal and a toast stays over everything. A toast stays clickable over a modal, also one that was open before the modal: Radix sets `pointer-events: none` on the body and on the layers under the modal, and `Toast.module.css` overrides that.
 
-The topmost layer takes Escape. With a toast on screen over a modal, the first Escape closes the toast and the next one closes the modal. Radix decides this, and a toast is gone in seconds anyway.
+The topmost layer takes Escape, except a toast: with a modal open, Escape closes the modal on top, and the toast stays until it goes by itself or by its close button. Radix makes a toast a dismissable layer too, so one that shows over a modal would be the top layer and take Escape from it. Each open `Modal` is held in `ui/src/components/Modal/open-modals.ts` in the order it opened, with its way to close, and the toast's `onEscapeKeyDown` closes the last one there (`closeTopModal()`) instead of itself. Without a modal Escape closes the toast.
 
 ### Tooltip
 

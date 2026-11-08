@@ -253,10 +253,21 @@ Streams download progress. Connect immediately after `POST /models/{model_id}/do
 { "type": "progress", "pct": 47.3 }   // byte-level progress, 0–100
 { "type": "done" }
 { "type": "cancelled" }
-{ "type": "error", "message": "..." }
+{ "type": "error", "message": "...", "code": "no_token" }
 ```
 
 `pct` is computed from filesystem polling of the HuggingFace blob directory — reflects actual bytes written to disk.
+
+`message` of an error is the exception as raised, such as `GatedRepoError: 401 Client Error …`; the old UI shows it. `code` says why, for an interface to say in its own words (`download_error_code()` in `ModelService`, by the class names of huggingface_hub's, requests' and httpx' errors and the HTTP status):
+
+| `code` | When |
+|---|---|
+| `no_token` | HTTP 401: no HuggingFace token, or one the Hub does not accept. A gated repo asked without a token answers 401 too. |
+| `no_access` | HTTP 403, or a gated repo otherwise: the token has no access to the model, such as its terms not accepted on the model page. |
+| `network` | No connection to the Hub: connection refused or reset, a timeout, offline with nothing in the cache. |
+| `failed` | Anything else. |
+
+An `Unknown job` error (the job is over or never was) has no `code`.
 
 ### `DELETE /models/{model_id}`
 

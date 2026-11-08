@@ -60,6 +60,24 @@ test('Enter saves the token too', async () => {
   await waitFor(async () => expect((await bridge.readSettings()).hfToken).toBe('hf_x'))
 })
 
+test('closing Settings with Escape saves the token typed', async () => {
+  const bridge = await setup()
+  const settings = await openSection('API Keys')
+  await userEvent.type(within(settings).getByLabelText('HuggingFace token', { selector: 'input' }), ' hf_esc ')
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
+  await waitFor(async () => expect((await bridge.readSettings()).hfToken).toBe('hf_esc'))
+})
+
+test('a token left as it was is not written again on closing', async () => {
+  const bridge = await setup('hf_saved')
+  await openSection('API Keys')
+  const write = vi.spyOn(bridge, 'writeSettings')
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
+  expect(write).not.toHaveBeenCalled()
+})
+
 test('Export is shown and not available yet; its controls change nothing', async () => {
   const bridge = await setup()
   const settings = await openSection('Export')
