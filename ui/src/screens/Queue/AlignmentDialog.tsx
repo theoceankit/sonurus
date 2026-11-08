@@ -32,7 +32,7 @@ export interface AlignmentDialogProps {
 
 const TITLES: Record<AlignmentState, (name: string) => string> = {
   offer: () => 'Alignment model required',
-  downloading: name => `Downloading ${name} alignment model…`,
+  downloading: name => `Downloading ${name} model…`,
   ready: () => 'Download complete',
   failed: () => 'Download failed',
 }
@@ -66,7 +66,7 @@ export function AlignmentDialog({
         )}
         {state === 'downloading' && (
           <Stack gap={2} className={styles.text}>
-            <span>This may take a few minutes.</span>
+            <span>The alignment model may take a few minutes to download.</span>
             <div role="progressbar" aria-label="Download" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} className={styles.track}>
               <div className={styles.fill} style={{ width: `${pct}%` }} />
             </div>

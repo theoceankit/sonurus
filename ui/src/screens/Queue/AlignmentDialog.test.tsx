@@ -73,7 +73,7 @@ test('Download shows progress, then one button retries every job that failed on 
   await fail(failedJob('a', 'cs'), failedJob('b', 'pt'), failedJob('c', 'cs'))
   await userEvent.click(await waitFor(() => button('Download ~300 MB')))
   expect(await within(dialog()!).findByRole('progressbar')).toBeTruthy()
-  expect(dialog()?.textContent).toContain('Downloading Czech alignment model…')
+  expect(screen.getByRole('dialog', { name: 'Downloading Czech model…' }).textContent).toContain('The alignment model may take a few minutes to download.')
   // A second failure of the language while it downloads joins it.
   await fail(failedJob('a', 'cs'), failedJob('b', 'pt'), failedJob('c', 'cs'))
   expect(start).toHaveBeenCalledTimes(1)
