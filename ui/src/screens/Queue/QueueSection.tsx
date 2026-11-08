@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
 import { useQueue, useQueueControl, useReorderQueue, useRetryQueueJob } from '../../api/queries'
 import type { QueueJob, QueueSnapshot } from '../../api/types'
 import { IconButton } from '../../components/IconButton/IconButton'
@@ -11,7 +11,7 @@ import { DeleteJobDialog } from './DeleteJobDialog'
 import { EditJobDialog } from './EditJobDialog'
 import { canEditJob } from './job-settings'
 import { refused } from './queue-toasts'
-import { dropPlace, moveJob, queueStateLabel, queueToggle, reorderJobIds, type DropPlace } from './queue'
+import { applyOrder, dropPlace, moveJob, queueStateLabel, queueToggle, reorderJobIds, type DropPlace } from './queue'
 import styles from './QueueSection.module.css'
 
 // What a dragged row carries. A drag without it, such as files from outside, is
@@ -44,16 +44,19 @@ export function QueueSection({ selectedJobId = null, onSelectJob }: QueueSection
   // row under the pointer does not move away; the latest one shows after the drop.
   const [drag, setDrag] = useState<{ id: string; frozen: QueueSnapshot } | null>(null)
   const [dropAt, setDropAt] = useState<{ id: string; place: DropPlace } | null>(null)
+  // An order sent and not answered yet: shown over the snapshots until the answer.
+  const [pendingOrder, setPendingOrder] = useState<readonly string[] | null>(null)
 
   // A row moved from the keyboard keeps the focus once the new order is shown.
   const rows = useRef(new Map<string, HTMLDivElement>())
   const refocus = useRef<string | null>(null)
   const snapshot = drag?.frozen ?? live
+  const jobs = useMemo(() => (snapshot ? applyOrder(snapshot.jobs, pendingOrder) : []), [snapshot, pendingOrder])
   useEffect(() => {
     if (!refocus.current) return
     const button = rows.current.get(refocus.current)?.querySelector('button')
     if (button && document.activeElement !== button) button.focus()
-  }, [snapshot?.jobs])
+  }, [jobs])
 
   const dialogs = (
     <>
@@ -70,15 +73,21 @@ export function QueueSection({ selectedJobId = null, onSelectJob }: QueueSection
     </>
   )
   // The dialogs stay for their way out when the last job goes.
-  if (!snapshot || snapshot.jobs.length === 0) return dialogs
+  if (!snapshot || jobs.length === 0) return dialogs
 
-  const ids = () => (live ?? snapshot).jobs.map(job => job.id)
+  // The order as the user sees it: a move builds on one not answered yet.
+  const ids = () => applyOrder((live ?? snapshot).jobs, pendingOrder).map(job => job.id)
   const sendOrder = (order: string[] | null, focused?: string) => {
     if (!order || order.every((id, i) => id === ids()[i])) return
     refocus.current = focused ?? null
+    setPendingOrder(order)
     reorder.mutate(order, {
       onError: refused,
-      onSettled: () => { setTimeout(() => { refocus.current = null }) },
+      onSettled: () => {
+        // A later move keeps its own order.
+        setPendingOrder(current => (current === order ? null : current))
+        setTimeout(() => { refocus.current = null })
+      },
     })
   }
 
@@ -129,7 +138,7 @@ export function QueueSection({ selectedJobId = null, onSelectJob }: QueueSection
       {/* No button here: pausing is in each row's menu, and the header says so. */}
       <SectionHeader title="Queue" meta={snapshot.paused ? queueStateLabel(snapshot) : undefined} />
       <ul className={styles.list}>
-        {snapshot.jobs.map(job => (
+        {jobs.map(job => (
           <li key={job.id}>
             <QueueRow
               ref={element => {

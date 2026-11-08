@@ -67,6 +67,17 @@ export function reorderJobIds(ids: readonly string[], draggedId: string, targetI
   return [...rest.slice(0, at), draggedId, ...rest.slice(at)]
 }
 
+// The jobs of a snapshot in an order sent to the backend and not answered yet, so a
+// moved job does not jump back while the request is on its way. A job gone since
+// drops out; one added since comes last, in the snapshot's order.
+export function applyOrder(jobs: readonly QueueJob[], order: readonly string[] | null): readonly QueueJob[] {
+  if (!order) return jobs
+  const byId = new Map(jobs.map(job => [job.id, job]))
+  const placed = order.flatMap(id => byId.get(id) ?? [])
+  const known = new Set(order)
+  return [...placed, ...jobs.filter(job => !known.has(job.id))]
+}
+
 // Where a dragged card lands next to the card under the pointer.
 export function dropPlace(rect: { top: number; height: number }, clientY: number): DropPlace {
   return clientY < rect.top + rect.height / 2 ? 'before' : 'after'

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { QUEUE_JOB, queueSnapshot } from '../../api/fixtures/data'
 import type { QueueJob } from '../../api/types'
-import { deleteJobPrompt, dropPlace, jobStatusText, moveJob, queueStateLabel, queueToggle, reorderJobIds } from './queue'
+import { applyOrder, deleteJobPrompt, dropPlace, jobStatusText, moveJob, queueStateLabel, queueToggle, reorderJobIds } from './queue'
 
 const job = (changes: Partial<QueueJob> = {}): QueueJob => ({
   ...QUEUE_JOB, id: 'j1', audio_path: '/data/recordings/sonorus-import-1.wav', title: 'Weekly sync', ...changes,
@@ -98,5 +98,26 @@ describe('order', () => {
     expect(moveJob(ids, 'c', 1)).toBeNull()
     expect(moveJob(ids, 'x', 1)).toBeNull()
     expect(ids).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('applyOrder', () => {
+  const jobs = ['a', 'b', 'c'].map(id => job({ id }))
+  const ids = (list: readonly QueueJob[]) => list.map(j => j.id)
+
+  test('shows the jobs in the given order, with the snapshot\'s data', () => {
+    const fresh = jobs.map(j => (j.id === 'b' ? { ...j, status: 'running' as const } : j))
+    const shown = applyOrder(fresh, ['c', 'a', 'b'])
+    expect(ids(shown)).toEqual(['c', 'a', 'b'])
+    expect(shown[2].status).toBe('running')
+  })
+
+  test('a job gone since drops out; a new one comes last, in the snapshot\'s order', () => {
+    const now = [...jobs.filter(j => j.id !== 'a'), job({ id: 'd' }), job({ id: 'e' })]
+    expect(ids(applyOrder(now, ['c', 'a', 'b']))).toEqual(['c', 'b', 'd', 'e'])
+  })
+
+  test('without an order the jobs stay as they are', () => {
+    expect(applyOrder(jobs, null)).toBe(jobs)
   })
 })
