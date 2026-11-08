@@ -11,20 +11,33 @@ const path   = require('path')
 
 const ROOT = path.resolve(__dirname, '..', '..')
 
-function backendIds() {
+// One line per model in ALIGNMENT_CATALOG: "ru": {"hf_repo": "…", "size_bytes": 1_260_000_000},
+function backendCatalog() {
   const source = fs.readFileSync(path.join(ROOT, 'app', 'services', 'model_service.py'), 'utf8')
   const catalog = source.slice(source.indexOf('ALIGNMENT_CATALOG = {'))
-  return [...catalog.slice(0, catalog.indexOf('\n}\n')).matchAll(/^\s+"(\w+)":/gm)].map(m => m[1])
+  const lines = catalog.slice(0, catalog.indexOf('\n}\n')).split('\n').slice(1).filter(line => line.trim())
+  return lines.map(line => {
+    const match = line.match(/^\s+"(\w+)": \{.*"size_bytes": ([\d_]+)\}/)
+    assert.ok(match, `a catalog line this test cannot read: ${line.trim()}`)
+    return { id: match[1], bytes: Number(match[2].replace(/_/g, '')) }
+  })
 }
 
-function uiIds() {
+function uiCatalog() {
   const source = fs.readFileSync(path.join(ROOT, 'ui', 'src', 'transcribe', 'languages.ts'), 'utf8')
   const list = source.slice(source.indexOf('export const ALIGNMENT_MODELS'))
-  return [...list.slice(0, list.indexOf('\n]\n')).matchAll(/\{ id: '(\w+)'/g)].map(m => m[1])
+  return [...list.slice(0, list.indexOf('\n]\n')).matchAll(/\{ id: '(\w+)'.*size: '([^']*)'/g)].map(m => ({ id: m[1], size: m[2] }))
 }
 
+// As the UI writes a size: ~1.3 GB, ~300 MB.
+const sizeText = bytes => (bytes >= 1e9 ? `~${(bytes / 1e9).toFixed(1)} GB` : `~${Math.round(bytes / 1e6)} MB`)
+
 test('the new UI alignment models are the backend ALIGNMENT_CATALOG, in its order', () => {
-  const ids = backendIds()
-  assert.ok(ids.length > 0)
-  assert.deepEqual(uiIds(), ids)
+  const backend = backendCatalog()
+  assert.ok(backend.length > 0)
+  assert.deepEqual(uiCatalog().map(m => m.id), backend.map(m => m.id))
+})
+
+test('the sizes the new UI shows are the sizes of the backend catalog', () => {
+  assert.deepEqual(uiCatalog().map(m => [m.id, m.size]), backendCatalog().map(m => [m.id, sizeText(m.bytes)]))
 })
