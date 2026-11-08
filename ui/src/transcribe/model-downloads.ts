@@ -65,9 +65,10 @@ export function createModelDownloads(api: ApiClient, readToken: () => Promise<st
       notify(modelId)
       try {
         const jobId = await api.startModelDownload(modelId, await readToken())
-        // Cancelled before the backend answered: stop the job it started.
+        // Cancelled before the backend answered: stop the job it started, unless a
+        // newer download of the model has begun: the backend gives that one the same job.
         if (running.get(modelId) !== entry) {
-          await api.cancelModelDownload(modelId, jobId).catch(() => {})
+          if (!running.has(modelId)) await api.cancelModelDownload(modelId, jobId).catch(() => {})
           return
         }
         entry.jobId = jobId
