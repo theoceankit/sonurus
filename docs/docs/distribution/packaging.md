@@ -15,8 +15,8 @@ The packaged app consists of two parts bundled together by `electron-builder`:
 
 ```
 Sonorus.app (or .exe / .AppImage)
-  ├── Electron runtime + renderer (index.html, JS, CSS)
-  ├── ui/dist/                     ← the new UI's build, opened with --new-ui
+  ├── Electron runtime + main process (electron/)
+  ├── ui/dist/                     ← the UI's build, which the window loads
   └── resources/backend/           ← extraResources
         ├── python-dist/           ← python-build-standalone + every backend library (CPU)
         │   └── nltk_data/         ← NLTK punkt_tab sentence data for alignment
@@ -135,7 +135,7 @@ npm run build:capture:win   # compiles → electron/resources/win/sonorus-captur
 Packages the Electron app + `backend-dist/` into the final installer:
 
 ```bash
-npm --prefix ui ci   # once: dependencies of the new UI
+npm --prefix ui ci   # once: dependencies of the UI
 npm run build:mac    # build:capture → build:ui → bundle-backend.js → electron-builder
 npm run build:win    # build:capture:win → build:ui → bundle-backend.js → electron-builder (x64)
 npm run build:linux  # build:ui → bundle-backend.js → electron-builder (x64)
@@ -143,7 +143,7 @@ npm run build:linux  # build:ui → bundle-backend.js → electron-builder (x64)
 
 Output goes to `dist/`.
 
-Of the [new UI](../ui/electron/overview.md#new-ui) only `ui/dist` is listed in `build.files`, so its sources, tooling and Storybook stay out. Every CI build job runs `node scripts/check-packaged-ui.js dist` after electron-builder, which reads `app.asar` and fails if `ui/dist/index.html` is missing or anything else from `ui/`, a story or Storybook got in.
+Of the [UI](../ui/electron/overview.md) only `ui/dist` is listed in `build.files`, so its sources, tooling and Storybook stay out; `electron/**/*` holds only the main process. Every CI build job runs `node scripts/check-packaged-ui.js dist` after electron-builder, which reads `app.asar` and fails if `ui/dist/index.html` is missing or anything else from `ui/`, a story, Storybook or the old renderer (`electron/renderer/`, `electron/assets/icons/`) got in.
 
 ---
 

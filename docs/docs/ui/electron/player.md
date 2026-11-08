@@ -2,9 +2,9 @@
 sidebar_position: 5
 ---
 
-# New UI player
+# Player
 
-The player panel of the Editor in the new UI. Playback is kept apart from the components that draw it, so anything that follows the audio can subscribe to it on its own.
+The player panel of the Editor in the UI. Playback is kept apart from the components that draw it, so anything that follows the audio can subscribe to it on its own.
 
 ```
 EditorPlayer (ui/src/screens/Editor/) → Player → Waveform, Playhead, VolumeControl → Slider

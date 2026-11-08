@@ -4,13 +4,13 @@ sidebar_position: 3
 
 # Live Recording
 
-How live recording works: sources, capture per platform, and the files involved. The renderer side of the flow (titlebar button, `_liveSession`, stop cases) is in [Electron UI → Live recording lifecycle](./overview.md#live-recording-lifecycle); the new UI's is under [New UI](#new-ui).
+How live recording works: sources, capture per platform, the window's side of the flow, and the files involved.
 
 ## Overview
 
-The user clicks **+** in the sidebar, chooses audio sources in the New Recording modal, and starts recording. Recording runs **in the background** — the app remains fully navigable. A **Record button** with a live timer appears in the titlebar. Clicking it stops the recording and adds it to the transcription queue.
+The user clicks **+** in the titlebar, chooses audio sources in the New recording dialog, and starts recording. Recording runs **in the background** — the app remains fully navigable. A Recording row with a live timer appears in the sidebar (a pill in the titlebar while the sidebar is hidden). Its Stop ends the recording and adds it to the transcription queue.
 
-**Architecture:** mic capture stays in the renderer (WebM via `MediaRecorder`); system audio capture goes through the Python `AudioCaptureService` backend. On every OS the system track is loudness-levelled and the two tracks are merged server-side with `ffmpeg` (see [AudioCaptureService](../../services/AudioCaptureService.md#loudness-levelling-and-mic-merge)).
+**Architecture:** mic capture stays in the window (WebM via `MediaRecorder`); system audio capture goes through the Python `AudioCaptureService` backend. On every OS the system track is loudness-levelled and the two tracks are merged server-side with `ffmpeg` (see [AudioCaptureService](../../services/AudioCaptureService.md#loudness-levelling-and-mic-merge)).
 
 ---
 
@@ -18,7 +18,7 @@ The user clicks **+** in the sidebar, chooses audio sources in the New Recording
 
 ### Mic recording (all platforms)
 
-Handled entirely in the renderer:
+Handled entirely in the window:
 
 1. `getUserMedia({ audio: true, deviceId: micDeviceId })` → `MediaRecorder` → WebM chunks
 2. On stop: blob → `POST /audio/recordings` (raw body, `Content-Type: audio/webm`) → the backend stores it as `recordings/sonorus-rec-<uuid>.webm` and returns the path
@@ -26,7 +26,7 @@ Handled entirely in the renderer:
 
 ### System audio (all platforms)
 
-Handled by the Python `AudioCaptureService` backend. The renderer calls HTTP — zero platform detection in JS.
+Handled by the Python `AudioCaptureService` backend. The window calls HTTP — zero platform detection in JS.
 
 | Platform | Backend tool | Notes |
 |---|---|---|
@@ -49,17 +49,17 @@ POST /queue/jobs  { audio_path: merged_path }
 
 ### Source enumeration
 
-`GET /audio/capture/sources` returns platform sources on every OS. The New Recording modal and the Settings Audio section show this list (in the new UI, the System audio button's menu and Settings → Audio devices); virtual inputs such as Stereo Mix or VB-Cable are not offered as system audio (any output device can be chosen directly).
+`GET /audio/capture/sources` returns platform sources on every OS. The menu of the System audio button in New recording and Settings → Audio devices show this list; virtual inputs such as Stereo Mix or VB-Cable are not offered as system audio (any output device can be chosen directly).
 
 ---
 
-## New UI
+## In the window
 
-The new UI records the same way: the capture logic of `app.js` moved over unchanged, and the backend still writes every file.
+The backend writes every file; the window records the microphone and drives the flow.
 
-- **Starting.** New recording ([New UI home](./new-ui-home.md#new-recording-dialog)) picks the sources and devices and calls `start()` of `RecordingProvider`, which sits in `App` above the screens, so a recording goes on while the user moves between them. `startRecording()` in `ui/src/recording/session.ts` sends `POST /queue/recording/start`, opens the microphone (`getUserMedia`, an `AudioContext` into `MediaRecorder`, WebM with a chunk a second) and asks the backend to capture system audio. A refusal is a toast "Could not start recording: …"; everything it took is let go, and the queue too.
+- **Starting.** New recording ([Home](./home.md#new-recording-dialog)) picks the sources and devices and calls `start()` of `RecordingProvider`, which sits in `App` above the screens, so a recording goes on while the user moves between them. `startRecording()` in `ui/src/recording/session.ts` sends `POST /queue/recording/start`, opens the microphone (`getUserMedia`, an `AudioContext` into `MediaRecorder`, WebM with a chunk a second) and asks the backend to capture system audio. A refusal is a toast "Could not start recording: …"; everything it took is let go, and the queue too.
 - **Recording.** The sidebar shows a Recording section above the queue with one row (`LiveRecordingRow`): a red dot the size of the new-recording dot, breathing, the title and the time, Starting or Stopping in its place while the backend and the microphone get ready or finish. Stop comes in under the pointer or the focus. With the sidebar hidden, a pill in the title bar (`RecordingPill`) shows the same before the Speakers button; its arrow opens a menu with Stop recording. The time counts from the start, so a late timer adds nothing.
-- **Stopping.** The three stop cases of the old UI, then `POST /queue/jobs` with the title, the model and the language of the dialog, and `POST /queue/recording/stop` last whatever happened. A failure is a toast "Recording error: …".
+- **Stopping.** With system audio, the microphone's recording (if any) is uploaded and `POST /audio/capture/stop/{job_id}` mixes it in; the microphone alone is uploaded as it is. Then `POST /queue/jobs` with the title, the model and the language of the dialog, and `POST /queue/recording/stop` last whatever happened. A failure is a toast "Recording error: …".
 - **Elsewhere.** While a recording runs New recording only imports, and Delete all data in Settings is off.
 
 The browser's audio is passed into `startRecording()` (`browserDeps()` in the app), so tests run every start and stop path on the fixtures without a microphone.
@@ -71,15 +71,12 @@ The browser's audio is passed into `startRecording()` (`browserDeps()` in the ap
 | File | Role |
 |---|---|
 | `app/services/audio_capture_service.py` | Platform drivers, ffmpeg merge |
-| `app/api/routers/audio_capture.py` | `/audio/capture/*` endpoints, `POST /audio/recordings` (upload of a renderer recording) |
+| `app/api/routers/audio_capture.py` | `/audio/capture/*` endpoints, `POST /audio/recordings` (upload of the window's microphone recording) |
 | `native/macos/sonorus-capture/main.swift` | Swift SCK binary — build with `npm run build:capture` (requires Xcode Command Line Tools: `xcode-select --install`) |
 | `native/windows/sonorus-capture/main.cpp` | C++ WASAPI loopback helper — build with `npm run build:capture:win` (MSVC Build Tools on Windows, or mingw-w64) |
-| `electron/renderer/app.js` | `_startLiveRecording()`, `_stopLiveRecording()`, `_liveSession` — background recording state |
-| `electron/renderer/views/new-recording-modal.js` | Source picker modal, fetches backend sources |
-| `electron/renderer/views/settings-view.js` | Audio device settings section |
-| `ui/src/recording/` | New UI: `session.ts` (start and stop), `RecordingProvider.tsx`, `useRecordingSetup.ts` (the dialog's sources and devices), `sources.ts`, `devices.ts`, `LiveRecording.tsx` (the sidebar section and the title bar pill) |
-| `ui/src/components/SourceToggle/`, `LiveRecordingRow/`, `RecordingPill/` | New UI: a source of the dialog, the recording's row, its pill |
-| `ui/src/screens/Settings/AudioSection.tsx` | New UI: Settings → Audio devices |
+| `ui/src/recording/` | `session.ts` (start and stop), `RecordingProvider.tsx`, `useRecordingSetup.ts` (the dialog's sources and devices), `sources.ts`, `devices.ts`, `LiveRecording.tsx` (the sidebar section and the title bar pill) |
+| `ui/src/components/SourceToggle/`, `LiveRecordingRow/`, `RecordingPill/` | A source of the dialog, the recording's row, its pill |
+| `ui/src/screens/Settings/AudioSection.tsx` | Settings → Audio devices |
 | `electron/main.js` | Media permission handler, `SONORUS_CAPTURE_BIN` env |
 | `electron/preload.js` | Exposes `getPlatform` via `contextBridge` |
 

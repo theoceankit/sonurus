@@ -76,7 +76,7 @@ Stops the capture process and returns the path to the recorded WAV file, loudnes
 
 ### `POST /audio/recordings`
 
-Stores a live recording made in the renderer (the `MediaRecorder` blob). The body is the raw audio; `Content-Type` picks the format: `audio/webm` (parameters such as `;codecs=opus` are ignored) or `audio/wav` / `audio/x-wav` / `audio/wave`. The file is written to `$SONORUS_DATA_DIR/recordings/sonorus-rec-<uuid>.<ext>` — the backend is the only writer of that directory, so a recording always lands where the backend looks for it, whichever data dir Electron uses. It appears under its final name only once complete.
+Stores a live recording made in the window (the `MediaRecorder` blob). The body is the raw audio; `Content-Type` picks the format: `audio/webm` (parameters such as `;codecs=opus` are ignored) or `audio/wav` / `audio/x-wav` / `audio/wave`. The file is written to `$SONORUS_DATA_DIR/recordings/sonorus-rec-<uuid>.<ext>` — the backend is the only writer of that directory, so a recording always lands where the backend looks for it, whichever data dir Electron uses. It appears under its final name only once complete.
 
 ```json
 // Response 201
@@ -259,7 +259,7 @@ Streams download progress. Sends heartbeats every 15 s to keep the connection al
 
 `pct` is computed from filesystem polling of the HuggingFace blob directory — reflects actual bytes written to disk.
 
-`message` of an error is the exception as raised, such as `GatedRepoError: 401 Client Error …`; the old UI shows it. `code` says why, for an interface to say in its own words (`download_error_code()` in `ModelService`, by the class names of huggingface_hub's, requests' and httpx' errors and the HTTP status):
+`message` of an error is the exception as raised, such as `GatedRepoError: 401 Client Error …`. `code` says why, for an interface to say in its own words (`download_error_code()` in `ModelService`, by the class names of huggingface_hub's, requests' and httpx' errors and the HTTP status):
 
 | `code` | When |
 |---|---|
@@ -402,7 +402,7 @@ Full transcript with segments.
 
 ### `GET /transcripts/{id}/audio`
 
-The audio file of a recording, for the new UI's player. Answers `Range` requests with `206`, so an audio element can seek. The path comes from the database only. Returns `404` for an unknown id, or when the recording has no file or its file is gone.
+The audio file of a recording, for the UI's player. Answers `Range` requests with `206`, so an audio element can seek. The path comes from the database only. Returns `404` for an unknown id, or when the recording has no file or its file is gone.
 
 ### `GET /transcripts/{id}/waveform`
 
@@ -428,7 +428,7 @@ For each unrecognized speaker in the transcript, the known named speaker with th
 }
 ```
 
-Read by the current renderer: every entry is shown as a suggestion, so its form does not change. The new UI uses `speaker-candidates`.
+No screen of the UI uses it: it reads `speaker-candidates`.
 
 ### `GET /transcripts/{id}/speaker-candidates`
 
@@ -463,7 +463,7 @@ Renames the transcript. `title` is trimmed and must be 1–200 characters (`422`
 
 ### `POST /transcripts/{id}/opened`
 
-Marks the transcript as opened by the user. No body. Only this flag changes: speakers, segments and the title are untouched. Calling it again is fine. Returns `204`, or `404` for an unknown id. `GET /transcripts/{id}` does not set it, so loading a transcript for any other reason leaves it new. The new UI calls it once a recording has loaded on the screen; the old renderer does not.
+Marks the transcript as opened by the user. No body. Only this flag changes: speakers, segments and the title are untouched. Calling it again is fine. Returns `204`, or `404` for an unknown id. `GET /transcripts/{id}` does not set it, so loading a transcript for any other reason leaves it new. The UI calls it once a recording has loaded on the screen; the old renderer does not.
 
 ### `DELETE /transcripts/{id}`
 
@@ -493,7 +493,7 @@ Reassigns only this one segment (unlike `POST /reassign` which is bulk). After u
 
 ### `POST /transcripts/{id}/speaker-assignments`
 
-Gives the listed segments one speaker, all or none. The new UI uses it for a turn, a paragraph and all segments of a voice; `PATCH /segments/{start}/speaker` and `POST /reassign` stay for the old renderer.
+Gives the listed segments one speaker, all or none. The UI uses it for a turn, a paragraph and all segments of a voice; `PATCH /segments/{start}/speaker` and `POST /reassign` remain, unused by the UI.
 
 ```json
 // An existing speaker:
@@ -580,7 +580,7 @@ Returns **every** speaker: those with a voice profile (`speaker_embeddings`), a 
 ]
 ```
 
-`color_index` is an index (0–4) into the fixed 5-entry palette in `utils.js`. Assigned once when the speaker is first saved, using the least-used palette slot to minimize collisions; the user can change it with `PATCH /speakers/{id}`. Stored in `speaker_meta` (schema v3).
+`color_index` is an index (0–4) into the fixed 5-entry palette of speaker colours (`ui/src/styles/speaker-colors.ts`, `--color-speaker-1…5` in `tokens.css`). Assigned once when the speaker is first saved, using the least-used palette slot to minimize collisions; the user can change it with `PATCH /speakers/{id}`. Stored in `speaker_meta` (schema v3).
 
 `segments`, `transcripts`, `duration_sec` (sum of segment lengths) and `last_seen` (`created_at` of the newest transcript) count segments whose `speaker_id` is this speaker; unassigned segments are not counted. The editor keeps only the named rows (`buildKnownMap`, `namedSpeakers` in `utils.js`).
 

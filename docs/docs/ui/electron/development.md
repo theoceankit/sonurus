@@ -2,9 +2,9 @@
 sidebar_position: 9
 ---
 
-# New UI development
+# Development
 
-Practical notes for working on the new UI in `ui/`: where the data of a run lives, how to check a change on isolated data, when a dev server has to be restarted, and what the test environment cannot show. The commands themselves are in [Electron UI → New UI](overview.md#new-ui).
+Practical notes for working on the UI in `ui/`: where the data of a run lives, how to check a change on isolated data, when a dev server has to be restarted, and what the test environment cannot show. The commands themselves are in [Electron UI](overview.md#running-in-dev-mode).
 
 ## Where the data lives
 
@@ -24,17 +24,17 @@ The backend is always on port 8000, and Electron reuses a development backend th
 
 Tests do not cover layout, so a UI change is checked in the running app on a data directory of its own:
 
-1. Create the directory and seed it **before** the backend starts: the backend reads speaker memory once at startup. Seeding scripts that import app code need `PYTHONPATH=.`. Timestamps such as `created_at` are ISO (`2026-11-03T23:13:10.000000`); a space-separated SQLite datetime breaks the recording list. Audio paths in a copied database point into the original profile, so repoint `transcriptions.audio_file` to the copy.
+1. Create the directory and seed it **before** the backend starts. `tests/e2e/seed.py` makes one with two recordings, their speakers and stand-in models (`PYTHONPATH=. SONORUS_DATA_DIR=<dir> .venv/bin/python tests/e2e/seed.py`); a seed of your own follows the same rules: the backend reads speaker memory once at startup. Seeding scripts that import app code need `PYTHONPATH=.`. Timestamps such as `created_at` are ISO (`2026-11-03T23:13:10.000000`); a space-separated SQLite datetime breaks the recording list. Audio paths in a copied database point into the original profile, so repoint `transcriptions.audio_file` to the copy.
 2. Start the backend on that directory and Electron with the same directory as its profile, so settings and data stay in one place. In development Electron reuses any development backend on port 8000 whatever its data dir, so it is the backend that decides which data the window shows.
 
 ```bash
 SONORUS_DATA_DIR=<dir> .venv/bin/uvicorn app.api.main:app --host 127.0.0.1 --port 8000
-npm run dev:ui -- --user-data-dir=<dir>     # hot reload; or: npm start -- --new-ui --user-data-dir=<dir>
+npm run dev:ui -- --user-data-dir=<dir>     # hot reload; or: npm start -- --user-data-dir=<dir>
 ```
 
 A backend started by hand for `npm run dev:ui` also needs `SONORUS_DEV_UI_ORIGIN=http://localhost:5173`. Without it CORS refuses every request from the dev page: the UI shows "Could not load recordings" while the backend log shows 200. `npm run dev:ui` sets the variable only for a backend that Electron starts itself. Likewise, Electron started without `scripts/dev-ui.js` while Vite runs separately needs both `SONORUS_UI_DEV_URL` and `SONORUS_DEV_UI_ORIGIN` ([Configuration](../../environment/configuration.md)).
 
-Without a backend of your own, `VITE_SONORUS_FIXTURES=1 npm run dev:ui` runs the screens on fixtures ([New UI data → Fixtures](new-ui-data.md#fixtures)).
+Without a backend of your own, `VITE_SONORUS_FIXTURES=1 npm run dev:ui` runs the screens on fixtures ([Data → Fixtures](data.md#fixtures)).
 
 Check every affected row and state, not only the edited element: a layout fix that holds one row in place can move its neighbours instead.
 
@@ -68,6 +68,8 @@ Storybook is not the place to judge timings on long recordings: its highlight ad
 - `tests/build/ui-package.test.js` rejects remote URLs anywhere in `ui/src`, tests included. Use `blob:` or `localhost`.
 
 ## Driving Electron with Playwright
+
+`tests/e2e/harness.js` starts the app on seeded data for a script or a test ([Testing → End-to-end tests](../../testing/overview.md#end-to-end-tests)).
 
 - Pass `--mute-audio` to Electron in automatic runs.
 - Playwright adds `--hide-scrollbars`; use `ignoreDefaultArgs: ['--hide-scrollbars']` to see the scrollbars.

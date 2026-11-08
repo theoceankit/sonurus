@@ -2,13 +2,13 @@
 sidebar_position: 10
 ---
 
-# New UI transcription
+# Transcription
 
-What the new UI needs to start a transcription: the models of the catalog, which one is the default, and the languages a job can be asked for. The code is in `ui/src/transcribe/`; the screens that use it are described on their own pages.
+What the UI needs to start a transcription: the models of the catalog, which one is the default, and the languages a job can be asked for. The code is in `ui/src/transcribe/`; the screens that use it are described on their own pages.
 
 ## Models
 
-`useModels()` reads `GET /models` ([New UI data](new-ui-data.md#client)). The rows of alignment models have only an id and whether they are installed, so their names and sizes are in `ALIGNMENT_MODELS` in `languages.ts`, as in the old UI's `data.js`. A build test (`tests/build/ui-alignment-catalog.test.js`) keeps its ids the same as the backend's `ALIGNMENT_CATALOG`, in its order.
+`useModels()` reads `GET /models` ([Data](data.md#client)). The rows of alignment models have only an id and whether they are installed, so their names and sizes are in `ALIGNMENT_MODELS` in `languages.ts`, as in the old UI's `data.js`. A build test (`tests/build/ui-alignment-catalog.test.js`) keeps its ids the same as the backend's `ALIGNMENT_CATALOG`, in its order.
 
 A job needs a Whisper model, the diarization model and, for some languages, an alignment model. `jobBlockReason(state, language)` says what is missing in the order the backend checks it (`POST /queue/jobs` refuses the job with a 400 otherwise): `{ missing: 'whisper' }`, `{ missing: 'diarization' }` or `{ missing: 'alignment', language }`, or null when the job can start. `blockMessage(reason)` is the text for the user. A language with no row in the catalog needs no model: English, Spanish, German, French and Italian are aligned by torchaudio, and a detected language is known only once the job runs, where a missing model fails it with `alignment_model_missing`.
 
@@ -23,7 +23,7 @@ There is no built-in default. Electron's settings keep the default Whisper model
 
 A saved model that is not installed is therefore never used.
 
-Like the old UI (`syncTranscribeModel`), the new one saves the default when it changes. `useDefaultModelSync()`, called once by `App`, works it out again with every new answer of `GET /models`, so the first model downloaded and the default deleted are the same step. `defaultModelChange(previous, models, saved)` compares the saved model as it was installed in the catalog before with the default now: a change is saved with its history and said in a toast, "Whisper Tiny is now the default transcription model" or "No transcription model installed — download one in Settings". The first answer is the baseline: an installed default stays silently, a saved one that is no longer installed is replaced at once. Picking a model in Settings saves it with `selectTranscribeModel(id)` (`ui/src/platform/transcribe-defaults.ts`), the latest of the history, without a toast.
+The UI saves the default when it changes. `useDefaultModelSync()`, called once by `App`, works it out again with every new answer of `GET /models`, so the first model downloaded and the default deleted are the same step. `defaultModelChange(previous, models, saved)` compares the saved model as it was installed in the catalog before with the default now: a change is saved with its history and said in a toast, "Whisper Tiny is now the default transcription model" or "No transcription model installed — download one in Settings". The first answer is the baseline: an installed default stays silently, a saved one that is no longer installed is replaced at once. Picking a model in Settings saves it with `selectTranscribeModel(id)` (`ui/src/platform/transcribe-defaults.ts`), the latest of the history, without a toast.
 
 ## Downloads
 
@@ -63,11 +63,11 @@ In Storybook, `Screens/Editor` shows the whole app on the fixtures' queue: With 
 A job in a language whose alignment model is not downloaded fails mid-pipeline with `alignment_model_missing`, as a detected language is known only then. `useAlignmentDialogs()` in `ui/src/screens/Queue/`, called by `App`, takes these `job_failed` events from `useQueueEventsSync()` and shows `AlignmentDialog` for the language of the job, so the model can be downloaded and the jobs retried without going to Settings.
 
 - **Waits for open windows.** While another window is open, such as New transcription or Delete recording, the dialog waits and the job shows as failed in the queue; it opens when no window is left (`useOpenModalCount()`). Once shown it stays until closed.
-- **One per language.** Several jobs often fail on one model: a language already shown or waiting is not added again. Languages wait in the order their jobs failed and are shown one at a time; the old UI put the windows on top of each other. Once a dialog is closed, the next failure of its language opens it again.
+- **One per language.** Several jobs often fail on one model: a language already shown or waiting is not added again. Languages wait in the order their jobs failed and are shown one at a time. Once a dialog is closed, the next failure of its language opens it again.
 - **Offer.** The language, its name in itself and the size of the model, with Download and Dismiss.
 - **Downloading.** Titled Downloading Czech model… (short enough for one line in the small dialog with any language of the catalog; the text under it says it is the alignment model). The progress in per cent, with Cancel, which stops the download and closes the dialog. The download is the app's ([Downloads](#downloads)): a download of the model started elsewhere shows here as progress, and closing the dialog leaves it running.
 - **Ready.** The model is installed, also when it already was by the time the dialog opened. One button, Retry transcription or Retry N transcriptions, puts every job that failed on this model back at the end of the queue, in queue order (`POST /queue/jobs/{id}/retry`); a refusal is a toast. With no such job left there is only Close.
-- **Failed.** The last download of the model from this dialog ended without it. Try again starts it anew; Open Settings closes the dialog and opens [Settings](new-ui-settings.md).
+- **Failed.** The last download of the model from this dialog ended without it. Try again starts it anew; Open Settings closes the dialog and opens [Settings](settings.md).
 
 ## Job settings dialog
 

@@ -10,7 +10,7 @@ The installers ship CPU-only PyTorch. On Linux and Windows the installed app can
 
 ## Settings → GPU acceleration
 
-The new UI has the same section, its store and view in `ui/src/settings/gpu.ts` ([New UI settings](new-ui-settings.md#gpu)); what follows holds for both. The section follows `GET /gpu` and the app-level state of `gpu-acceleration.js`; `gpuSectionView()` turns both into a label, a detail line, the device the backend runs on ("Running on CPU" / "Running on GPU") and the actions:
+The section's store and view are in `ui/src/settings/gpu.ts` ([Settings](settings.md#gpu)). It follows `GET /gpu` and the app-level state of `createGpu()`, which belongs to the app and not to Settings; `gpuSectionView()` turns both into a label, a detail line, the device the backend runs on ("Running on CPU" / "Running on GPU") and the actions:
 
 | Situation | Label | Actions |
 |---|---|---|
@@ -34,12 +34,12 @@ Like model downloads, the download and a pending restart belong to the app, not 
 
 The backend never replaces files it has loaded (on Windows the DLLs cannot even be deleted while it runs). A download ends in `<userData>/gpu/incoming/`, a removal as the marker `<userData>/gpu/remove`; the backend restart applies them:
 
-1. `gpu-acceleration.js` asks `POST /gpu/restart` right away and then every 3 s while the answer is `waiting` — a running transcription (it finishes; no other job starts, and the queue continues after the restart), a recording or a model download. The section names what it waits for.
+1. The UI asks `POST /gpu/restart` right away and then every 3 s while the answer is `waiting` — a running transcription (it finishes; no other job starts, and the queue continues after the restart), a recording or a model download. The section names what it waits for.
 2. On `ready` it calls `electronAPI.restartBackend()`. The main process stops the backend, waits until port 8000 is free and starts it again (`restartBackend()` in `electron/backend.js`). A backend the app did not start but reused because it serves the app's data directory (it outlived a crash) is stopped by the `pid` from `GET /health`. If the port is still taken after that, the restart fails (toast) instead of reconnecting to the old backend, which would silently not apply the change.
 3. Before every start `prepareGpuStart()` (`electron/gpu-pack.js`) applies the change: `incoming/pack` replaces `pack/` (recorded in `pack.json` as `unchecked`), a removal deletes `pack/` and `pack.json`, an unfinished download is cleared.
 4. A new pack, or one the current app version has not checked yet, runs the self-check `python -m app.gpu_probe` with the pack on `PYTHONPATH` (2-minute timeout). `pack.json` records `ok` or `error` with the message and the app version.
 5. The backend starts with `SONORUS_GPU_DIR` and `SONORUS_GPU_MANIFEST`, and with `PYTHONPATH=<userData>/gpu/pack` only for a checked pack whose `torch` matches the manifest. If it does not come up with the pack, the pack is marked `error` ("The backend did not start with GPU acceleration: …") and the backend starts again on the CPU.
-6. The renderer reads `GET /gpu` again and shows a toast: "GPU acceleration is on", "GPU check failed: … Transcription runs on the CPU." or "GPU acceleration removed. Transcription runs on the CPU." The queue's WebSocket reconnects by itself.
+6. The UI reads `GET /gpu` again and shows a toast: "GPU acceleration is on", "GPU check failed: … Transcription runs on the CPU." or "GPU acceleration removed. Transcription runs on the CPU." The queue's WebSocket reconnects by itself.
 
 A pack recorded as `error` or for another PyTorch (`stale`, after an app update) is never put on `PYTHONPATH`: the app keeps working on the CPU until the user downloads again or removes it.
 
@@ -49,9 +49,8 @@ A pack recorded as `error` or for another PyTorch (`stale`, after an app update)
 
 | File | Role |
 |---|---|
-| `electron/renderer/gpu-acceleration.js` | `gpuState()` / `subscribeGpu()`, `refreshGpuStatus()`, `startGpuDownload()` / `cancelGpuDownload()`, `removeGpuPack()`, the restart loop, `gpuSectionView()` |
-| `electron/renderer/views/settings-view.js` | `buildGpuSection()` |
-| `ui/src/settings/gpu.ts`, `ui/src/screens/Settings/GpuSection.tsx` | The same in the new UI: `createGpu()` / `useGpu()`, `gpuSectionView()`, the section |
+| `ui/src/settings/gpu.ts` | `createGpu()` / `useGpu()`: the status, download and cancel, removal, the restart loop; `gpuSectionView()` |
+| `ui/src/screens/Settings/GpuSection.tsx` | The section |
 | `electron/gpu-pack.js` | `gpuSupported()`, `applyPendingOps()`, `prepareGpuStart()`, `runProbe()`, `markPackError()`, `gpuBackendEnv()` |
 | `electron/backend.js` | Uses the above before every start; `restartBackend()` |
 | `app/gpu_probe.py` | The self-check |

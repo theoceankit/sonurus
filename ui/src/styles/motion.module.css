@@ -1,5 +1,5 @@
 /*
- * What appears and goes away, the standard of new-ui-foundations.md. A component
+ * What appears and goes away, the standard of foundations.md. A component
  * takes .presence with `composes` and sets how long and from where. Radix keeps the
  * element until the animation of data-state="closed" has ended.
  *

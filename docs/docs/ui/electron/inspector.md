@@ -2,9 +2,9 @@
 sidebar_position: 7
 ---
 
-# New UI inspector
+# Inspector
 
-The right panel of the Editor in the new UI: who speaks and for how long, and the review of speakers with no name.
+The right panel of the Editor in the UI: who speaks and for how long, and the review of speakers with no name.
 
 ```
 EditorScreen → InspectorPanel → Inspector → TalkTime, SpeakerRow
@@ -29,7 +29,7 @@ On hover and focus a row has two buttons in place of the time: Play for the spea
 
 A row under the pointer or with the focus in it highlights its speaker, and so does a segment of talk time, which also names the speaker and their time in a tooltip.
 
-The pointer has to stay on a row or a segment for 150 ms (`--delay-hover`) before its speaker lights up, so a pointer crossing the panel on its way to the buttons above highlights nobody. While a speaker is lit, and for 300 ms after (`--delay-hover-skip`), the next row or segment lights up at once, as tooltips do. The focus lights up at once, and leaving takes the highlight away at once. A row takes the pointer over the 2 px gap under it, as a segment of talk time does over the gaps beside it, so a pointer moving from one speaker to the next never falls between two and the highlight does not go out on the way. A speaker row looks hovered and shows its Play and Assign buttons with the highlight, not with the pointer alone, so the buttons wait as well; the focus shows them at once. `createHoverIntent()` in `hover-intent.ts` keeps the wait, outside React, and sets the same store. The tooltips of talk time keep their own delay. The speaker's turns in the transcript take their tone and only their bars in the player keep a colour (see [New UI transcript](new-ui-transcript.md) and [New UI player](new-ui-player.md)). Here their segment of talk time keeps its colour while the others fade, and their row looks hovered without its buttons. A speaker behind Show N more lights up Show N more, which stays closed. Nothing scrolls, and the review card plays no part: the speaker under review is not highlighted for being so.
+The pointer has to stay on a row or a segment for 150 ms (`--delay-hover`) before its speaker lights up, so a pointer crossing the panel on its way to the buttons above highlights nobody. While a speaker is lit, and for 300 ms after (`--delay-hover-skip`), the next row or segment lights up at once, as tooltips do. The focus lights up at once, and leaving takes the highlight away at once. A row takes the pointer over the 2 px gap under it, as a segment of talk time does over the gaps beside it, so a pointer moving from one speaker to the next never falls between two and the highlight does not go out on the way. A speaker row looks hovered and shows its Play and Assign buttons with the highlight, not with the pointer alone, so the buttons wait as well; the focus shows them at once. `createHoverIntent()` in `hover-intent.ts` keeps the wait, outside React, and sets the same store. The tooltips of talk time keep their own delay. The speaker's turns in the transcript take their tone and only their bars in the player keep a colour (see [Transcript](transcript.md) and [Player](player.md)). Here their segment of talk time keeps its colour while the others fade, and their row looks hovered without its buttons. A speaker behind Show N more lights up Show N more, which stays closed. Nothing scrolls, and the review card plays no part: the speaker under review is not highlighted for being so.
 
 `EditorScreen` holds the speaker in one store (`createKeyStore()`) and hands it to the three panels; the screen itself does not listen. A row that goes away under the pointer reports no leaving, so the highlight is cleared when its speaker is gone, when Show N more opens or closes, when the number of rows that fit changes, when the review opens or closes, when the panel closes and with another recording.
 
@@ -45,11 +45,11 @@ Who needs a review comes from the segments each time, so an assignment, an undo 
 
 The card lists the candidates and, last, More speakers, which opens Choose a speaker with the card's choice selected. A new speaker is made from there; the card has no search of its own.
 
-Assign is off until a candidate is chosen, as it writes to speaker memory. It covers all the segments of the voice and shows a toast with Undo, as every change of a speaker does (`useSpeakerChange`): see `undoSpeakerAssignment` in [New UI data](new-ui-data.md). Undo of a speaker the assignment created removes them if nothing else is theirs. The candidate mark and the percentage are what the API says; the client compares nothing with a threshold.
+Assign is off until a candidate is chosen, as it writes to speaker memory. It covers all the segments of the voice and shows a toast with Undo, as every change of a speaker does (`useSpeakerChange`): see `undoSpeakerAssignment` in [Data](data.md). Undo of a speaker the assignment created removes them if nothing else is theirs. The candidate mark and the percentage are what the API says; the client compares nothing with a threshold.
 
 A clip plays from its start to its end on its own audio element (`clip-playback.ts`), so the main player keeps its place. Starting one pauses the other. Another card, another recording or closing the panel stops the clip. With no clip the card has no player, and with no audio its Play button is off.
 
-The player and the text are a `VoiceClip`, which a speaker's card in the Speakers window shows too ([New UI speakers](new-ui-speakers.md)). Show text opens the clip's text inside the card. It takes at most six lines and scrolls beyond them, so the speakers above stay readable. When the card grows, the rows give way to it first, down to one speaker and Show N more. Then the text gets less room, and Skip and Assign stay where they are. In a window lower than about 740 px there is no room for that either, so the whole panel scrolls. The rule that lets only the text give way is in `VoiceClip.module.css`, under the same container query as the card's.
+The player and the text are a `VoiceClip`, which a speaker's card in the Speakers window shows too ([Speakers](speakers.md)). Show text opens the clip's text inside the card. It takes at most six lines and scrolls beyond them, so the speakers above stay readable. When the card grows, the rows give way to it first, down to one speaker and Show N more. Then the text gets less room, and Skip and Assign stay where they are. In a window lower than about 740 px there is no room for that either, so the whole panel scrolls. The rule that lets only the text give way is in `VoiceClip.module.css`, under the same container query as the card's.
 
 Possible match is a recognized speaker to confirm. The backend does not keep a confidence yet, so only stories show it, through the `possibleMatches` prop.
 

@@ -54,7 +54,7 @@ macOS does not support CUDA. Apple Silicon can use MPS, but WhisperX/ctranslate2
 ### Requirements
 
 - Python 3.12 (via pyenv recommended)
-- Node.js 22.12+ (22.22.2+ to work on the new UI in `ui/`)
+- Node.js 22.22.2+
 - CUDA 12.x (optional, for GPU acceleration)
 - HuggingFace account + token
 
@@ -83,6 +83,8 @@ transcription fails at alignment with an error that names the missing data.
 ```bash
 # Backend starts automatically when Electron launches
 npm ci
+npm --prefix ui ci
+npm run build:ui     # again after every change to ui/; npm run dev:ui reloads by itself
 npm start
 ```
 
@@ -108,7 +110,7 @@ VERBOSE=false
 
 > **Note:** The `.env` file is loaded only when the backend is started manually (`uvicorn ...`). When started via Electron (`npm start`), the token comes from Settings.
 
-The new UI in `ui/` has its own dependencies and commands: [New UI](../ui/electron/overview.md#new-ui).
+The UI in `ui/` has its own commands: [Electron UI](../ui/electron/overview.md#running-in-dev-mode).
 
 ### Tests
 

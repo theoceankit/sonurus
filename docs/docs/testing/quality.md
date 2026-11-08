@@ -29,7 +29,7 @@ Three 3-minute clips of the [AMI Meeting Corpus](https://groups.inf.ed.ac.uk/ami
 
 The build is deterministic (`-bitexact` ffmpeg output, fixed noise seed): two builds with the same ffmpeg produce identical files. The Chromium recordings are real-time captures and differ slightly from run to run.
 
-`scripts/eval/chromium_capture.js` plays a WAV file to Chromium as a fake capture device (`--use-file-for-fake-audio-capture`) and records it with the graph of `startRecording()` in `electron/renderer/app.js`: `getUserMedia` → `AudioContext` → `MediaStreamDestination` → `MediaRecorder` (`audio/webm;codecs=opus`). Chromium applies its microphone processing to the fake device as to a real one. Each recording takes as long as the clip.
+`scripts/eval/chromium_capture.js` plays a WAV file to Chromium as a fake capture device (`--use-file-for-fake-audio-capture`) and records it with the graph of `startRecording()` in `ui/src/recording/session.ts`: `getUserMedia` → `AudioContext` → `MediaStreamDestination` → `MediaRecorder` (`audio/webm;codecs=opus`). Chromium applies its microphone processing to the fake device as to a real one. Each recording takes as long as the clip.
 
 ## Running
 

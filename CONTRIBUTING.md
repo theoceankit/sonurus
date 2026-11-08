@@ -15,7 +15,7 @@ good change looks like and how to get it merged. If you use an AI coding tool, a
 
 ## Development setup
 
-You need Python 3.12, Node.js 22.12+, ffmpeg and git. The full guide, including GPU setup, is
+You need Python 3.12, Node.js 22.22.2+, ffmpeg and git. The full guide, including GPU setup, is
 [Environment → Setup](docs/docs/environment/setup.md) → Developer setup. In short:
 
 ```bash
@@ -24,6 +24,7 @@ python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/fetch_nltk_data.py
 npm ci
+npm --prefix ui ci
 ```
 
 To actually transcribe you need access to the gated PyAnnote models and a
@@ -41,6 +42,7 @@ python3.12 -m venv .venv-test
 ### Running the app
 
 ```bash
+npm run build:ui     # after every change to ui/; or npm run dev:ui for hot reload
 npm start
 ```
 
@@ -59,11 +61,15 @@ directory so you never work on real recordings and speaker profiles.
 
 ```bash
 .venv/bin/python -m pytest tests/ -v      # Python
-node --test 'tests/renderer/*.test.js'    # renderer
+node --test 'tests/electron/*.test.js'    # Electron main process
 node --test 'tests/build/*.test.js'       # build and packaging checks
+npm --prefix ui test                      # UI
+npm --prefix ui run typecheck
+npm run test:e2e                          # built app end to end (needs ui/dist and a free port 8000)
 ```
 
-The new UI in `ui/` has its own suite: `npm --prefix ui ci`, then `npm --prefix ui test` and `npm --prefix ui run typecheck`. Its components take values from the tokens: see `docs/docs/ui/electron/new-ui-foundations.md`.
+UI components take values from the tokens: see `docs/docs/ui/electron/foundations.md`. The end-to-end
+tests need the full `.venv` and are not run by CI: run them before a pull request that changes the window.
 
 All suites must pass before a pull request is merged. CI runs them without the ML libraries —
 `tests/conftest.py` replaces them with stubs — so a test that passes in your full `.venv` can still
@@ -104,7 +110,7 @@ The job store sorted by creation time, so a failed job moved back to its
 original position when the backend restarted.
 ```
 
-Common scopes: `api`, `renderer`, `editor`, `electron`, `capture`, `models`, `packaging`. The body
+Common scopes: `api`, `ui`, `editor`, `electron`, `capture`, `models`, `packaging`. The body
 explains *why*; the diff already shows what.
 
 ## Pull requests

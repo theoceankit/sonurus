@@ -15,7 +15,7 @@ Build the AppImage from source, install it, and remove it again. Installers from
 | | |
 |---|---|
 | System | x86_64 Linux with glibc 2.28 or later |
-| Build tools | `git`, Node.js 22.12+ with `npm` |
+| Build tools | `git`, Node.js 22.22.2+ with `npm` |
 | Disk | ~10 GB free for the build (the installed app itself takes ~3 GB on disk) |
 | Network | needed to build (Node packages, Python, Python libraries); the built app starts offline |
 | Running | FUSE 2 for AppImages, e.g. `sudo pacman -S fuse2` (Arch), `sudo apt install libfuse2` (Debian/Ubuntu) |

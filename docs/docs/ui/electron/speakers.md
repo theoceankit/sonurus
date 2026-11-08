@@ -2,9 +2,9 @@
 sidebar_position: 12
 ---
 
-# New UI speakers
+# Speakers
 
-The Speakers window of the new UI (`ui/src/screens/Speakers/`): every speaker the app knows, their name, colour and voice, the recordings they talk in, and Delete. The old UI keeps its own Speakers section ([Electron overview](overview.md#speakers-section)); both work on the same routes ([API endpoints](../../api/endpoints.md)).
+The Speakers window of the UI (`ui/src/screens/Speakers/`): every speaker the app knows, their name, colour and voice, the recordings they talk in, and Delete. Its routes are in [API endpoints](../../api/endpoints.md).
 
 ## Opening
 

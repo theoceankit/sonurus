@@ -2,9 +2,9 @@
 sidebar_position: 3
 ---
 
-# New UI foundations
+# Foundations
 
-What every component of the new UI in `ui/` builds on: tokens, the theme mechanism, the font, icons, two layout components and the base controls. See them in Storybook under Foundations and Components (`npm --prefix ui run storybook`).
+What every component of the UI in `ui/` builds on: tokens, the theme mechanism, the font, icons, two layout components and the base controls. See them in Storybook under Foundations and Components (`npm --prefix ui run storybook`).
 
 ## Tokens
 
@@ -67,11 +67,9 @@ The fonts stay separate files (`assetsInlineLimit: 0` in `ui/vite.config.ts`) be
 | 20 | `--size-icon-md` | 1.25 px |
 | 24 | `--size-icon-lg` | 1.5 px |
 
-`Icon` puts the shapes inline, not in an image or a CSS mask as the old UI does, because a stroke width set in CSS cannot reach an external file. Strokes are centred on the path. On the 24 grid the path coordinates sit on 0.75 + n × 1.5, which makes the 1 px stroke crisp at 16. Penpot draws closed paths with an inner stroke, so closed shapes here are up to 0.5 px larger at 16 than on the boards.
+`Icon` puts the shapes inline, not in an image or a CSS mask, because a stroke width set in CSS cannot reach an external file. Strokes are centred on the path. On the 24 grid the path coordinates sit on 0.75 + n × 1.5, which makes the 1 px stroke crisp at 16. Penpot draws closed paths with an inner stroke, so closed shapes here are up to 0.5 px larger at 16 than on the boards.
 
 Filled icons (`play`, `pause` and others) have `fill="currentColor"` on the path, logos also `stroke="none"` and `fill-rule="evenodd"`.
-
-The old UI keeps its own files in `electron/assets/icons/` until the switch.
 
 ## Stack and Inline
 
@@ -330,7 +328,7 @@ Tab stays inside, and Escape, the scrim, Cancel and the close button close. Focu
 
 ### Unimplemented controls
 
-`ui/src/not-implemented.ts`, the new UI's counterpart of [Unimplemented controls](components/not-implemented.md):
+A control whose feature does not exist yet is not hidden and does not pretend to work. `ui/src/not-implemented.ts` marks it where it is rendered:
 
 ```tsx
 <Button {...markNotImplemented('titlebar.share')}>Share</Button>
@@ -340,11 +338,13 @@ The control stays visible and focusable, dimmed with `--opacity-disabled`, with 
 
 The function returns props instead of relying on a global click guard, because Radix does not wait for a click: tabs switch on mousedown and on focus, menus act on pointerup and on the keydown of Enter and Space. Capture handlers stop all of these.
 
-`NOT_IMPLEMENTED` lists the ids, and an id that is not in it is a compile error. `not-implemented.test.tsx` fails when an id has no call or several, when a call has no id or a computed one, and on a control's own "not available" text; stories and tests do not count. The list holds only what the new UI already renders: an old id moves here with its screen. Stories use `notImplementedProps()`, which takes any string.
+`NOT_IMPLEMENTED` lists the ids, and an id that is not in it is a compile error. `not-implemented.test.tsx` fails when an id has no call or several, when a call has no id or a computed one, and on a control's own "not available" text; stories and tests do not count. The list holds only what the UI already renders. Stories use `notImplementedProps()`, which takes any string.
+
+This differs from a disabled control, which ignores the press with no word (Start recording while a recording runs). When a feature lands, its id leaves `NOT_IMPLEMENTED` together with the call at its control; the test fails if only one of the two goes.
 
 ## Design decisions
 
-These hold on every screen of the new UI, not only on the one where they were settled.
+These hold on every screen of the UI, not only on the one where they were settled.
 
 ### Source of truth
 

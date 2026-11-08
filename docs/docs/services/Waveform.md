@@ -4,7 +4,7 @@ sidebar_position: 12
 
 # Waveform
 
-`app/services/waveform.py` works out the loudness of a recording for the player's waveform in the new UI ([New UI player](../ui/electron/new-ui-player.md)), and `GET /transcripts/{id}/waveform` turns it into the heights of bars.
+`app/services/waveform.py` works out the loudness of a recording for the player's waveform in the UI ([Player](../ui/electron/player.md)), and `GET /transcripts/{id}/waveform` turns it into the heights of bars.
 
 ---
 

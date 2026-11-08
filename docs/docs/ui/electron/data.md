@@ -2,9 +2,9 @@
 sidebar_position: 4
 ---
 
-# New UI data
+# UI data
 
-How screens of the new UI in `ui/` get their data. A screen calls hooks and does not see what is behind them, so it moves from fixtures to the backend without a change.
+How screens of the UI in `ui/` get their data. A screen calls hooks and does not see what is behind them, so it moves from fixtures to the backend without a change.
 
 ```
 screen → ui/src/api/queries.ts (TanStack Query) → useApi() → ApiClient
@@ -35,13 +35,13 @@ Both files are committed. The schema is FastAPI's own with two differences: it h
 
 Response models that extend `ResponseModel` list fields with a default as required: such a field is always in the response.
 
-The generator is a package of its own in `ui/tools/openapi-types/` because it needs TypeScript 5 and the new UI is on 7. It is a development tool and is not packaged.
+The generator is a package of its own in `ui/tools/openapi-types/` because it needs TypeScript 5 and the UI is on 7. It is a development tool and is not packaged.
 
 ## Client
 
 `ApiClient` in `ui/src/api/client.ts` lists what screens can ask of the backend. It covers what the Editor needs; a screen that needs more adds a method to both implementations. Failures are `ApiError` with `status` (`0` when the backend did not answer) and `message`, which is the `detail` of the response or `Server error N`.
 
-`getAudioUrl` is what an audio element plays for a recording, or null when there is nothing to play. On the backend it is `GET /transcripts/{id}/audio`, which answers Range requests. A page on the dev server may not open `file://`, so the route gives both ways of running the app the same source, and the CSP of the new UI allows `http://localhost:8000` for media instead of `file:`.
+`getAudioUrl` is what an audio element plays for a recording, or null when there is nothing to play. On the backend it is `GET /transcripts/{id}/audio`, which answers Range requests. A page on the dev server may not open `file://`, so the route gives both ways of running the app the same source, and the CSP of the UI allows `http://localhost:8000` for media instead of `file:`.
 
 `getWaveform(transcriptId, { bars, start, end })` gives one height from 0 to 1 per bar over a stretch of a recording, on the scale of the whole recording: `GET /transcripts/{id}/waveform`. `useWaveform()` asks for nothing with no recording or no length yet and never asks for the same stretch twice; its key is not under the transcript's, since an edit never changes the audio. The fixtures make levels from the segments: loud where someone speaks, quiet in the pauses.
 
@@ -55,9 +55,9 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `addQueueJob({ audioPath, whisperModel, language, title })` puts a file into the transcription queue: `POST /queue/jobs`. The backend copies the file into `recordings/` and answers the waiting job; with no title it is named after the file. A null model or language is the backend's own: its default model, and the language detected from the audio. A model the job needs that is not installed, or a file it cannot read, is a 400 whose message says what is wrong; for a missing model it ends with "Download it in Settings.".
 
-`listModels()` is `GET /models`: every model of the catalog with `installed`. Whisper and diarization rows carry a name, size, speed and accuracy; alignment rows only `id`, `kind` and `installed`, and the new UI names them itself ([New UI transcription](new-ui-transcribe.md#models)).
+`listModels()` is `GET /models`: every model of the catalog with `installed`. Whisper and diarization rows carry a name, size, speed and accuracy; alignment rows only `id`, `kind` and `installed`, and the UI names them itself ([Transcription](transcribe.md#models)).
 
-`startModelDownload(id, hfToken)` starts downloading a model, or joins its running download, and answers the job id; `cancelModelDownload(id, jobId)` stops it; `watchModelDownload(jobId, listener)` follows `WS /ws/models/{job_id}` until the download ends with `done`, `cancelled` or `error`. That socket is not in the OpenAPI schema, so its events are typed in `model-download-events.ts`; a connection that drops before the end counts as an error. Screens use them through `useModelDownloads()` ([New UI transcription](new-ui-transcribe.md#downloads)).
+`startModelDownload(id, hfToken)` starts downloading a model, or joins its running download, and answers the job id; `cancelModelDownload(id, jobId)` stops it; `watchModelDownload(jobId, listener)` follows `WS /ws/models/{job_id}` until the download ends with `done`, `cancelled` or `error`. That socket is not in the OpenAPI schema, so its events are typed in `model-download-events.ts`; a connection that drops before the end counts as an error. Screens use them through `useModelDownloads()` ([Transcription](transcribe.md#downloads)).
 
 `updateQueueJob(jobId, update)` changes the title, model or language of a job that is not running: `PATCH /queue/jobs/{id}` with only the fields given. A model or alignment model that is not installed is a 400, a running job a 409. The fixtures do the same.
 
@@ -81,7 +81,7 @@ A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/spea
 
 `subscribeQueueEvents` gives the current snapshot and then every snapshot and job event. `queue-events.ts` connects to `WS /ws/queue`, reconnects two seconds after the connection drops and does not pass heartbeats on.
 
-`useQueueEventsSync()`, called once at the root of the app, puts snapshots into the cache behind `useQueue()` and refreshes the recordings and speakers on `job_done`. Its optional callback is for what the app shows itself: the toasts of finished and failed jobs and the Alignment model dialog ([New UI transcription](new-ui-transcribe.md#finished-and-failed-jobs)).
+`useQueueEventsSync()`, called once at the root of the app, puts snapshots into the cache behind `useQueue()` and refreshes the recordings and speakers on `job_done`. Its optional callback is for what the app shows itself: the toasts of finished and failed jobs and the Alignment model dialog ([Transcription](transcribe.md#finished-and-failed-jobs)).
 
 ## Connection to the backend
 
@@ -99,9 +99,9 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 
 `useMarkOpened(id, loaded)` is called by `TranscriptPanel`. Once the recording has loaded and the list says it is not opened, it sets `opened` in the list at once and calls `markTranscriptOpened`, then refreshes the list only, not the recording. A failure says nothing: the next list brings the dot back. It asks once per opening, because after a failure the list says not opened again and it would ask forever.
 
-`useModels()` reads the catalog and asks again every time a screen that uses it mounts, as models are downloaded and deleted elsewhere (the old UI, and later Settings).
+`useModels()` reads the catalog and asks again every time a screen that uses it mounts, as models are downloaded and deleted elsewhere (Settings, the Alignment model dialog).
 
-`useAddToQueue()` takes files with their titles, one model and one language, and puts the files into the queue one at a time, in the order given. A null title is the file name, and a null model or language is the backend's own. It stops at the first refusal with an `AddToQueueError`, whose `added` says how many files went in before it, so that the caller does not send them twice. The model and language come from the caller: the import dialog works them out from the settings ([New UI transcription](new-ui-transcribe.md)), and `readTranscribeSettings()` in `ui/src/platform/transcribe-defaults.ts` reads what the settings keep.
+`useAddToQueue()` takes files with their titles, one model and one language, and puts the files into the queue one at a time, in the order given. A null title is the file name, and a null model or language is the backend's own. It stops at the first refusal with an `AddToQueueError`, whose `added` says how many files went in before it, so that the caller does not send them twice. The model and language come from the caller: the import dialog works them out from the settings ([Transcription](transcribe.md)), and `readTranscribeSettings()` in `ui/src/platform/transcribe-defaults.ts` reads what the settings keep.
 
 `useQueueControl()` (start or pause) and `useReorderQueue()` put the queue they answer into the cache at once, before its snapshot arrives on the socket. `useRetryQueueJob()` and `useDeleteQueueJob()` ask for the queue again.
 
