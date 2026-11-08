@@ -10,10 +10,8 @@ export type ElectronSettings = {
   // Null is the default microphone, or the default system audio source.
   recordingMicDevice: string | null
   recordingSystemDevice: string | null
-  // Kept for the old UI; the new UI does not read it.
-  recordingUseMic: boolean
   hfToken: string
-  // The new UI's recordings opened last, newest first. The old UI leaves it alone.
+  // The recordings opened last, newest first.
   recentTranscriptIds: number[]
 }
 

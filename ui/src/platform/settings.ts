@@ -15,7 +15,6 @@ export const DEFAULT_SETTINGS: ElectronSettings = {
   recordingAudioSource: 'both',
   recordingMicDevice: null,
   recordingSystemDevice: null,
-  recordingUseMic: true,
   hfToken: '',
   recentTranscriptIds: [],
 }

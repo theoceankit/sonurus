@@ -101,7 +101,6 @@ const DEFAULT_SETTINGS = {
   recordingAudioSource: 'both',
   recordingMicDevice: null,
   recordingSystemDevice: null,
-  recordingUseMic: true,
   hfToken: '',
   recentTranscriptIds: [],
 }
