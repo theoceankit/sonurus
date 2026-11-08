@@ -5,20 +5,18 @@ import { IconButton } from '../../components/IconButton/IconButton'
 import { Menu, MenuAction } from '../../components/Menu/Menu'
 import { QueueRow } from '../../components/QueueRow/QueueRow'
 import { SectionHeader } from '../../components/SectionHeader/SectionHeader'
-import { toast } from '../../components/Toast/toast-store'
 import { Tooltip } from '../../components/Tooltip/Tooltip'
 import { useLingering } from '../../presence'
 import { DeleteJobDialog } from './DeleteJobDialog'
 import { EditJobDialog } from './EditJobDialog'
 import { canEditJob } from './job-settings'
+import { refused } from './queue-toasts'
 import { dropPlace, moveJob, queueStateLabel, queueToggle, reorderJobIds, type DropPlace } from './queue'
 import styles from './QueueSection.module.css'
 
 // What a dragged row carries. A drag without it, such as files from outside, is
 // not a row's: the window's drop zone takes files only.
 export const JOB_DRAG_TYPE = 'application/x-sonorus-job'
-
-export const refused = (error: Error) => toast({ message: error.message, type: 'error' })
 
 const carriesJob = (event: DragEvent) => Array.from(event.dataTransfer.types).includes(JOB_DRAG_TYPE)
 const inActions = (target: EventTarget) => !!(target as HTMLElement).closest('[data-row-actions]')

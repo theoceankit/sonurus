@@ -1,5 +1,5 @@
 import type { QueueUpdate } from '../../api/types'
-import type { ToastOptions } from '../../components/Toast/toast-store'
+import { toast, type ToastOptions } from '../../components/Toast/toast-store'
 import { ALIGNMENT_MISSING } from './alignment'
 
 // What the user hears about a job that ended. A job that failed on a missing
@@ -13,3 +13,6 @@ export function queueEventToast(event: QueueUpdate, openRecording: (transcriptId
   }
   return null
 }
+
+// A request about the queue that the backend refused: what it said, as an error.
+export const refused = (error: Error) => toast({ message: error.message, type: 'error' })
