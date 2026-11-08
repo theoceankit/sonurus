@@ -1,12 +1,21 @@
+/* Shrinks to what the sidebar's slot leaves it; the header stays and the rows
+   scroll under it. */
 .queueSection {
+  flex: 0 1 auto;
   min-height: 0;
 }
 
-/* The header stays; a long queue scrolls under it. */
+.listArea {
+  position: relative;
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .list {
   min-height: 0;
   margin: 0;
-  padding: 0;
   overflow-y: auto;
   list-style: none;
 }

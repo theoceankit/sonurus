@@ -4,6 +4,8 @@ import type { QueueJob, QueueSnapshot } from '../../api/types'
 import { IconButton } from '../../components/IconButton/IconButton'
 import { Menu, MenuAction } from '../../components/Menu/Menu'
 import { QueueRow } from '../../components/QueueRow/QueueRow'
+import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
+import { ScrollFade, useScrollEdges } from '../../components/ScrollFade/ScrollFade'
 import { SectionHeader } from '../../components/SectionHeader/SectionHeader'
 import { Stack } from '../../components/Stack/Stack'
 import { Tooltip } from '../../components/Tooltip/Tooltip'
@@ -40,6 +42,7 @@ export function QueueSection({ selectedJobId = null, onSelectJob }: QueueSection
   // The row whose menu is open: from its More button, or by a right click on the row.
   const [menuOf, setMenuOf] = useState<string | null>(null)
   const deleteDialog = useLingering(toDelete)
+  const { area, scrollRef, bottom } = useScrollEdges()
 
   // While a row is dragged the queue stays as it was when the drag began, so the
   // row under the pointer does not move away; the latest one shows after the drop.
@@ -137,56 +140,61 @@ export function QueueSection({ selectedJobId = null, onSelectJob }: QueueSection
   return (
     <Stack as="section" aria-label="Transcription queue" gap="half" align="stretch" className={styles.queueSection}>
       {/* No button here: pausing is in each row's menu, and the header says so. */}
-      <SectionHeader title="Queue" meta={snapshot.paused ? queueStateLabel(snapshot) : undefined} />
-      <Stack as="ul" gap="half" align="stretch" className={styles.list}>
-        {jobs.map(job => (
-          <li key={job.id}>
-            <QueueRow
-              ref={element => {
-                if (element) rows.current.set(job.id, element)
-                else rows.current.delete(job.id)
-              }}
-              keyShortcuts="Alt+ArrowUp Alt+ArrowDown"
-              title={job.title}
-              status={job.status}
-              selected={job.id === selectedJobId}
-              onClick={() => onSelectJob?.(job.id)}
-              actions={<>
-                {job.status === 'failed' && (
-                  <Tooltip text="Retry" placement="below">
-                    <IconButton
-                      variant="ghost"
-                      size="xs"
-                      icon="retry"
-                      label="Retry"
-                      disabled={retry.isPending && retry.variables === job.id}
-                      onClick={() => retry.mutate(job.id, { onError: refused })}
-                    />
-                  </Tooltip>
-                )}
-                <Menu
-                  align="end"
-                  open={menuOf === job.id}
-                  onOpenChange={open => setMenuOf(open ? job.id : null)}
-                  trigger={<IconButton variant="ghost" size="xs" icon="more" label="More" />}
-                >
-                  <MenuAction icon={toggle.icon} onSelect={() => control.mutate(toggle.action, { onError: refused })}>{toggle.label}</MenuAction>
-                  {canEditJob(job) && <MenuAction icon="edit" onSelect={() => setEditing(job)}>Transcription settings</MenuAction>}
-                  <MenuAction icon="delete" onSelect={() => setToDelete(job)}>Delete from queue</MenuAction>
-                </Menu>
-              </>}
-              drop={dropAt?.id === job.id ? dropAt.place : null}
-              dragging={drag?.id === job.id}
-              onKeyDown={keyDown(job)}
-              onContextMenu={event => {
-                event.preventDefault()
-                setMenuOf(job.id)
-              }}
-              {...dragProps(job)}
-            />
-          </li>
-        ))}
-      </Stack>
+      <Stack paddingX={2}><SectionHeader title="Queue" meta={snapshot.paused ? queueStateLabel(snapshot) : undefined} /></Stack>
+      {/* Padded inside, as the list of recordings is, so the bar stands at the sidebar's edge. */}
+      <div className={styles.listArea}>
+        <Stack as="ul" ref={scrollRef} gap="half" paddingX={2} align="stretch" className={styles.list}>
+          {jobs.map(job => (
+            <li key={job.id}>
+              <QueueRow
+                ref={element => {
+                  if (element) rows.current.set(job.id, element)
+                  else rows.current.delete(job.id)
+                }}
+                keyShortcuts="Alt+ArrowUp Alt+ArrowDown"
+                title={job.title}
+                status={job.status}
+                selected={job.id === selectedJobId}
+                onClick={() => onSelectJob?.(job.id)}
+                actions={<>
+                  {job.status === 'failed' && (
+                    <Tooltip text="Retry" placement="below">
+                      <IconButton
+                        variant="ghost"
+                        size="xs"
+                        icon="retry"
+                        label="Retry"
+                        disabled={retry.isPending && retry.variables === job.id}
+                        onClick={() => retry.mutate(job.id, { onError: refused })}
+                      />
+                    </Tooltip>
+                  )}
+                  <Menu
+                    align="end"
+                    open={menuOf === job.id}
+                    onOpenChange={open => setMenuOf(open ? job.id : null)}
+                    trigger={<IconButton variant="ghost" size="xs" icon="more" label="More" />}
+                  >
+                    <MenuAction icon={toggle.icon} onSelect={() => control.mutate(toggle.action, { onError: refused })}>{toggle.label}</MenuAction>
+                    {canEditJob(job) && <MenuAction icon="edit" onSelect={() => setEditing(job)}>Transcription settings</MenuAction>}
+                    <MenuAction icon="delete" onSelect={() => setToDelete(job)}>Delete from queue</MenuAction>
+                  </Menu>
+                </>}
+                drop={dropAt?.id === job.id ? dropAt.place : null}
+                dragging={drag?.id === job.id}
+                onKeyDown={keyDown(job)}
+                onContextMenu={event => {
+                  event.preventDefault()
+                  setMenuOf(job.id)
+                }}
+                {...dragProps(job)}
+              />
+            </li>
+          ))}
+        </Stack>
+        <ScrollBar area={area} />
+        {bottom && <ScrollFade edge="bottom" surface="sunken" size="lg" />}
+      </div>
       {dialogs}
     </Stack>
   )

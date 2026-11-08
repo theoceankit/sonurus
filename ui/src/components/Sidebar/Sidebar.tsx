@@ -29,7 +29,8 @@ interface SidebarProps {
   onRetry?: () => void
   // Above the list, such as the recording in progress and the transcription queue.
   // It takes up to 40 % of the height, and what it holds scrolls inside; nothing is
-  // reserved for it when it renders nothing.
+  // reserved for it when it renders nothing. Its sections pad their own sides, so a
+  // scroll bar of theirs can stand at the sidebar's edge.
   top?: ReactNode
   className?: string
 }
@@ -39,7 +40,7 @@ export function Sidebar({ state = 'ready', sections = [], selectedId, onSelect, 
   const { area, scrollRef, bottom } = useScrollEdges()
   return (
     <div className={cx(styles.sidebar, className)}>
-      {top && <Stack paddingX={2} paddingTop={3} className={styles.top}>{top}</Stack>}
+      {top && <Stack paddingTop={3} className={styles.top}>{top}</Stack>}
       <div className={styles.listArea}>
         <div ref={scrollRef} className={styles.scroll}>
           {state === 'error' && (

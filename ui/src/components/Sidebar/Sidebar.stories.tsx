@@ -2,7 +2,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { IconButton } from '../IconButton/IconButton'
 import { QueueRow } from '../QueueRow/QueueRow'
+import { ScrollBar } from '../ScrollBar/ScrollBar'
+import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
 import { SectionHeader } from '../SectionHeader/SectionHeader'
+import { Stack } from '../Stack/Stack'
 import { Sidebar, type SidebarRecording, type SidebarSection } from './Sidebar'
 import styles from './Sidebar.stories.module.css'
 
@@ -54,28 +57,38 @@ export const Selecting: Story = {
   },
 }
 
-// What the app puts in the slot: the queue as a section of the list.
-const queue = (titles: string[]) => (
-  <section aria-label="Transcription queue" className={styles.queue}>
-    <SectionHeader title="Queue" />
-    <ul className={styles.queueList}>
-      {titles.map((title, i) => (
-        <li key={title}>
-          <QueueRow
-            title={title}
-            status={i === 0 ? 'running' : i === 2 ? 'failed' : 'waiting'}
-            actions={<IconButton variant="ghost" size="xs" icon="more" label="More" />}
-          />
-        </li>
-      ))}
-    </ul>
-  </section>
-)
+// What the app puts in the slot: the queue as a section of the list, padded inside so
+// its scroll bar stands at the sidebar's edge.
+function QueueSlot({ titles }: { titles: string[] }) {
+  const { area, scrollRef, bottom } = useScrollEdges()
+  return (
+    <Stack as="section" aria-label="Transcription queue" gap="half" align="stretch" className={styles.queue}>
+      <Stack paddingX={2}><SectionHeader title="Queue" /></Stack>
+      <div className={styles.queueArea}>
+        <Stack as="ul" ref={scrollRef} gap="half" paddingX={2} align="stretch" className={styles.queueList}>
+          {titles.map((title, i) => (
+            <li key={title}>
+              <QueueRow
+                title={title}
+                status={i === 0 ? 'running' : i === 2 ? 'failed' : 'waiting'}
+                actions={<IconButton variant="ghost" size="xs" icon="more" label="More" />}
+              />
+            </li>
+          ))}
+        </Stack>
+        <ScrollBar area={area} />
+        {bottom && <ScrollFade edge="bottom" surface="sunken" size="lg" />}
+      </div>
+    </Stack>
+  )
+}
+const queue = (titles: string[]) => <QueueSlot titles={titles} />
 
 // The transcription queue above the list.
 export const WithQueue: Story = { args: { sections: [PINNED, WEEK, earlier(4)], top: queue(['Weekly product sync', 'Design review', 'Old customer call']) } }
 
-// A long queue takes up to 40 % of the height and scrolls; the list keeps the rest.
+// A long queue takes up to 40 % of the height and scrolls with its own bar and fade;
+// the list keeps the rest.
 export const WithLongQueue: Story = {
   args: {
     sections: [PINNED, WEEK, earlier(30)],

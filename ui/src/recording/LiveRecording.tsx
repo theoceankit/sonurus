@@ -12,7 +12,7 @@ export function LiveRecordingSection() {
   const elapsed = formatElapsed(useElapsedSeconds(startedAt))
   if (phase === 'idle') return null
   return (
-    <Stack as="section" aria-label="Recording" gap="half" paddingBottom={3} align="stretch" className={styles.section}>
+    <Stack as="section" aria-label="Recording" gap="half" paddingX={2} paddingBottom={3} align="stretch" className={styles.section}>
       <SectionHeader title="Recording" />
       <LiveRecordingRow title={title} phase={phase} elapsed={elapsed} onStop={stop} />
     </Stack>
