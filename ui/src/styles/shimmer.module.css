@@ -1,7 +1,9 @@
 /* Text that is being worked on, such as the title of the running job: a lighter
    band crosses it, then it rests for the second half of the cycle, so the glint
    comes now and then. Without motion it is plain text. The text's own colour is
-   --shimmer-color, primary unless the element sets another. */
+   --shimmer-color, primary unless the element sets another. The glyphs are made
+   see-through with the fill colour rather than `color`, which the element's own
+   class may set too and, in a built bundle, win. */
 .shimmer {
   --shimmer-base: var(--shimmer-color, var(--color-text-primary));
 
@@ -13,7 +15,7 @@
   );
   background-size: 300% 100%;
   background-clip: text;
-  color: transparent;
+  -webkit-text-fill-color: transparent;
   animation: shimmer var(--duration-shimmer) linear infinite;
 }
 
@@ -33,5 +35,6 @@
     animation: none;
     background: none;
     color: var(--shimmer-base);
+    -webkit-text-fill-color: currentcolor;
   }
 }
