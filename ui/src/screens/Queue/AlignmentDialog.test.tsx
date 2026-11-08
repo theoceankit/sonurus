@@ -116,6 +116,18 @@ test('a failed download says why and offers to try again, or Settings', async ()
   expect(start).toHaveBeenCalledTimes(1)
 })
 
+test('a download that ends done without the model failed', async () => {
+  const { client, fail } = setup()
+  const listModels = client.listModels.bind(client)
+  // The backend says done, the catalog still has no model: an offline download.
+  client.listModels = async () => (await listModels()).map(model => model.id === 'cs' ? { ...model, installed: false } : model)
+  await screen.findByRole('region', { name: 'This week' })
+  await fail(failedJob('a', 'cs'))
+  await userEvent.click(await waitFor(() => button('Download ~300 MB')))
+  await waitFor(() => expect(dialog()?.textContent).toContain('Download failed'))
+  expect(button('Try again')).toBeTruthy()
+})
+
 test('Open Settings closes the dialog for Settings', async () => {
   const { fail } = setup({ downloadFails: true })
   await screen.findByRole('region', { name: 'This week' })

@@ -77,6 +77,12 @@ export function createModelDownloads(api: ApiClient, readToken: () => Promise<st
             notify(modelId)
           } else if (event.type === 'error') {
             finish(modelId, entry, 'failed', event.code)
+          } else if (event.type === 'done') {
+            // Done counts only with the model installed: a backend that says done for
+            // a download that did not finish would otherwise fall back to Download silently.
+            void api.listModels()
+              .then(models => models.some(model => model.id === modelId && model.installed), () => false)
+              .then(installed => finish(modelId, entry, installed ? 'done' : 'failed'))
           } else {
             finish(modelId, entry, event.type)
           }
