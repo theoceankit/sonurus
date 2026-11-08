@@ -98,7 +98,13 @@ test('only the build of the new UI is packaged', () => {
   assert.ok(pkg.build.files.includes('ui/dist/**/*'))
   assert.ok(!pkg.build.files.some(f => f === 'ui/**/*' || f === 'ui/**'))
   assert.ok(pkg.build.files.includes('electron/**/*'))
-  assert.equal(pkg.dependencies.react, undefined, 'React is bundled into ui/dist')
+  assert.equal(pkg.dependencies?.react, undefined, 'React is bundled into ui/dist')
+})
+
+test('test tools are no runtime dependency, so they stay out of the installers', () => {
+  for (const name of ['playwright', 'playwright-core']) {
+    assert.equal(pkg.dependencies?.[name], undefined, `${name} is in dependencies`)
+  }
 })
 
 test('every build script and CI job builds the new UI first', () => {
