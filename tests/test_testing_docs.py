@@ -29,7 +29,8 @@ def _test_files_on_disk():
     python = {p.name for p in TESTS_DIR.glob("test_*.py")}
     electron = {f"tests/electron/{p.name}" for p in (TESTS_DIR / "electron").glob("*.test.js")}
     build = {f"tests/build/{p.name}" for p in (TESTS_DIR / "build").glob("*.test.js")}
-    return python | electron | build
+    e2e = {f"tests/e2e/{p.name}" for p in (TESTS_DIR / "e2e").glob("*.test.js")}
+    return python | electron | build | e2e
 
 
 def test_every_test_file_has_a_row():
