@@ -48,3 +48,7 @@ export function effectiveSpeaker(segment: Segment): string {
   if (segment.unassigned) return UNASSIGNED
   return segment.speaker_final ?? segment.speaker_resolved ?? segment.speaker_raw
 }
+
+// The longest title the backend takes, for a recording (TranscriptUpdateRequest) and a
+// queued job (JobUpdateRequest) alike.
+export const TITLE_MAX_LENGTH = 200

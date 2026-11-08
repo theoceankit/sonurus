@@ -16,13 +16,13 @@ import type { TranscribeChoice } from '../../transcribe/choice'
 import { blockMessage } from '../../transcribe/models'
 import type { RecordingSetup } from '../../recording/useRecordingSetup'
 import { BOTH_OFF } from '../../recording/sources'
+import { TITLE_MAX_LENGTH } from '../../api/types'
 import { SUPPORTED_EXTENSIONS, type ImportFile } from './import-files'
 import type { Refusal } from '../../transcribe/refusals'
 import { RefusalNote } from '../../transcribe/RefusalNote'
 import styles from './ImportDialog.module.css'
 
 // The backend takes a title of up to 200 characters (JobUpdateRequest, TranscribeRequest).
-const TITLE_MAX_LENGTH = 200
 
 const HINT = `${SUPPORTED_EXTENSIONS.slice(0, -1).join(', ')} or ${SUPPORTED_EXTENSIONS.at(-1)}`
 

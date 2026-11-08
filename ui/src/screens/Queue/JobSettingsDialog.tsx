@@ -8,7 +8,8 @@ import { Stack } from '../../components/Stack/Stack'
 import { TextField } from '../../components/TextField/TextField'
 import type { Refusal } from '../../transcribe/refusals'
 import { RefusalNote } from '../../transcribe/RefusalNote'
-import { TITLE_MAX_LENGTH, type JobForm } from './job-settings'
+import { TITLE_MAX_LENGTH } from '../../api/types'
+import type { JobForm } from './job-settings'
 
 export interface JobSettingsDialogProps {
   open: boolean

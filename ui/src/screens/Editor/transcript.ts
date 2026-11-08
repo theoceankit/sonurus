@@ -1,4 +1,4 @@
-import { effectiveSpeaker, UNASSIGNED, type Segment, type Speaker, type Transcript } from '../../api/types'
+import { effectiveSpeaker, TITLE_MAX_LENGTH, UNASSIGNED, type Segment, type Speaker, type Transcript } from '../../api/types'
 import { formatDuration } from '../../media/timeline'
 import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 
@@ -100,8 +100,6 @@ export function speakerMenuRows(
   rows.sort((a, b) => Number(!times.has(a.speaker.id)) - Number(!times.has(b.speaker.id)))
   return { section: search ? null : 'In this recording', rows }
 }
-
-const TITLE_MAX_LENGTH = 200 // TranscriptUpdateRequest.title max_length
 
 // The title to send, or null when there is nothing to save.
 export function titleToSave(raw: string, current: string): string | null {
