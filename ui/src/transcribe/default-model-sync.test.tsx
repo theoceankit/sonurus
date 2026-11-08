@@ -1,4 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../api/ApiProvider'
 import { createFixtureClient, type FixtureOptions } from '../api/fixtures/fixture-client'
@@ -51,4 +52,20 @@ test('picking the default saves it with its history, with nothing said', async (
   await act(() => selectTranscribeModel('small'))
   expect(await bridge.readSettings()).toMatchObject({ transcribeModel: 'small', transcribeModelHistory: ['tiny', 'small'] })
   expect(screen.queryByText(/is now the default transcription model/)).toBeNull()
+})
+
+test('a backend that stops answering keeps the default it had, with nothing said', async () => {
+  let failing = false
+  let refused = 0
+  const { client, bridge } = await setup({ installedModels: ['small', 'diarize'] }, { transcribeModel: 'small', transcribeModelHistory: ['small'] })
+  const listModels = client.listModels.bind(client)
+  client.listModels = () => (failing ? (refused++, Promise.reject(new Error('Failed to fetch'))) : listModels())
+  failing = true
+  // Settings read the catalog again when they open.
+  await userEvent.click(await screen.findByRole('button', { name: 'Settings' }))
+  await screen.findByRole('dialog', { name: 'Settings' })
+  await waitFor(() => expect(refused).toBeGreaterThan(0))
+  await new Promise(resolve => setTimeout(resolve, 30))
+  expect(screen.queryByText(/default transcription model/)).toBeNull()
+  expect(await bridge.readSettings()).toMatchObject({ transcribeModel: 'small', transcribeModelHistory: ['small'] })
 })
