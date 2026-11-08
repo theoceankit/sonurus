@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useEffect, type ComponentType } from 'react'
 import { useApi } from '../../api/ApiProvider'
+import { useQueueEventsSync } from '../../api/queries'
 import { QUEUE_JOB, queueSnapshot, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { EVENT_SCRIPTS, type EventScript } from '../../api/fixtures/event-scripts'
 import type { FixtureClient } from '../../api/fixtures/fixture-client'
@@ -77,6 +78,20 @@ const QUEUE_NOW = queueSnapshot({
 const QUEUE: EventScript = { steps: [{ afterMs: 0, event: QUEUE_NOW }] }
 export const WithQueue: Story = { render: () => <WithEvents script={QUEUE} /> }
 
+// More jobs than the sidebar's slot holds: the rows scroll under the header, with
+// their own bar and a fade at the bottom; the list of recordings keeps the rest.
+const LONG_QUEUE: EventScript = {
+  steps: [{
+    afterMs: 0,
+    event: queueSnapshot({
+      running_job_id: 'l1',
+      step: 'Transcribing audio…',
+      jobs: Array.from({ length: 12 }, (_, i) => job(`l${i + 1}`, `Recording to transcribe ${i + 1}`, i === 0 ? { status: 'running' } : {})),
+    }),
+  }],
+}
+export const WithLongQueue: Story = { render: () => <WithEvents script={LONG_QUEUE} /> }
+
 // The same queue, paused.
 const PAUSED: EventScript = {
   steps: [{
@@ -123,3 +138,12 @@ const recording = (phase: 'live' | 'starting' | 'stopping') => ({
 export const Recording: Story = recording('live')
 export const RecordingStarting: Story = recording('starting')
 export const RecordingStopping: Story = recording('stopping')
+
+// A recording above a long queue: both share the slot, and only the queue's rows scroll.
+function OverLongQueue() {
+  const api = useApi() as FixtureClient
+  useQueueEventsSync()
+  useEffect(() => api.playEvents(LONG_QUEUE), [api])
+  return <EditorScreen initialSelectedId={WEEKLY_SYNC_ID} />
+}
+export const RecordingWithLongQueue: Story = { ...recording('live'), render: () => <OverLongQueue /> }

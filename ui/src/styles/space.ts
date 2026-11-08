@@ -8,15 +8,21 @@ export interface SpacingProps {
   padding?: Space
   paddingX?: Space
   paddingY?: Space
+  // One end of the block axis alone, such as a slot whose neighbour pads the other.
+  paddingTop?: Space
+  paddingBottom?: Space
 }
 
 const space = (step: Space | undefined) => (step === undefined ? undefined : `var(--space-${step})`)
 
-export function spacingStyle({ gap, padding, paddingX, paddingY }: SpacingProps): CSSProperties {
+export function spacingStyle({ gap, padding, paddingX, paddingY, paddingTop, paddingBottom }: SpacingProps): CSSProperties {
   return {
     gap: space(gap),
     paddingBlock: space(paddingY ?? padding),
     paddingInline: space(paddingX ?? padding),
+    // Only when asked: even an empty longhand clears its end of paddingBlock.
+    ...(paddingTop !== undefined && { paddingBlockStart: space(paddingTop) }),
+    ...(paddingBottom !== undefined && { paddingBlockEnd: space(paddingBottom) }),
   }
 }
 

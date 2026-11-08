@@ -10,14 +10,14 @@ type StackProps<T extends ElementType> = SpacingProps & {
 
 // Lays its children out in a column, with spacing only from the scale.
 export function Stack<T extends ElementType = 'div'>({
-  as, gap, padding, paddingX, paddingY, align, justify, className, style, ...props
+  as, gap, padding, paddingX, paddingY, paddingTop, paddingBottom, align, justify, className, style, ...props
 }: StackProps<T>) {
   const Element: ElementType = as ?? 'div'
   return (
     <Element
       className={[styles.stack, className].filter(Boolean).join(' ')}
       style={{
-        ...spacingStyle({ gap, padding, paddingX, paddingY }),
+        ...spacingStyle({ gap, padding, paddingX, paddingY, paddingTop, paddingBottom }),
         alignItems: align && ALIGN[align],
         justifyContent: justify && JUSTIFY[justify],
         ...style,

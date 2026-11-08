@@ -37,6 +37,22 @@ test('a finished job is a toast whose Open opens the recording; the queue shows 
   })
 }, 15_000) // The whole app, through a job's every step: slow under the full suite.
 
+test('the toast of a finished job goes once its recording is no longer in the list', async () => {
+  const client = createFixtureClient()
+  render(<ApiProvider client={client}><OverlayProvider><App /></OverlayProvider></ApiProvider>)
+  await screen.findByRole('region', { name: 'This week' })
+  const [recording] = await client.listTranscripts()
+  act(() => {
+    client.playEvents({ steps: [{ afterMs: 0, event: { type: 'job_done', job_id: 'x', title: recording.title, transcript_id: recording.id } }] })
+  })
+  await screen.findByRole('button', { name: 'Open' })
+  // Deleted elsewhere, such as by Delete all data; the list learns of it on its next refresh.
+  await client.deleteTranscript(recording.id)
+  act(() => client.setConnected(false))
+  act(() => client.setConnected(true))
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Open' })).toBeNull())
+})
+
 test('a failed job is an error toast; one on a missing alignment model opens its dialog instead', async () => {
   const client = createFixtureClient()
   render(<ApiProvider client={client}><OverlayProvider><App /></OverlayProvider></ApiProvider>)

@@ -59,11 +59,11 @@ test('a section like those of the list: its title, and Paused only while paused'
   expect(within(queue()).queryByRole('button', { name: /Pause|Resume|Start/ })).toBeNull()
 })
 
-test('the rows say which job runs and which failed; the picked one is current', async () => {
+test('the rows say which job runs, waits or failed; the picked one is current', async () => {
   await setup()
   within(row('Job a')).getByRole('img', { name: 'Transcribing' })
   within(row('Job c')).getByRole('img', { name: 'Failed' })
-  expect(within(row('Job b')).queryByRole('img')).toBeNull()
+  within(row('Job b')).getByRole('img', { name: 'Waiting' })
   expect(rowButton('Job b').getAttribute('aria-current')).toBe('true')
 })
 
@@ -154,6 +154,7 @@ test('deleting the last job closes the queue and lets the dialog close', async (
 test('Alt+Up and Alt+Down move the focused row a step and keep the focus on it', async () => {
   const { client } = await setup()
   const reorder = vi.spyOn(client, 'reorderQueue')
+  expect(rowButton('Job c').getAttribute('aria-keyshortcuts')).toBe('Alt+ArrowUp Alt+ArrowDown')
   rowButton('Job c').focus()
   await userEvent.keyboard('{Alt>}{ArrowUp}{/Alt}')
   await waitFor(() => expect(reorder).toHaveBeenLastCalledWith(['a', 'c', 'b']))
@@ -203,6 +204,45 @@ test('dropping a row after another sends the new order', async () => {
   fireEvent.dragEnd(rowRoot('Job a'), { dataTransfer: transfer })
   await waitFor(() => expect(reorder).toHaveBeenCalledWith(['b', 'c', 'a']))
   await waitFor(() => expect(order()).toEqual(['Job b', 'Job c', 'Job a']))
+})
+
+// A reorder the backend has not answered yet, answered by the test.
+function pendingReorder() {
+  const calls: { resolve: (snapshot: QueueSnapshot) => void; reject: (error: Error) => void }[] = []
+  const reorderQueue = () => new Promise<QueueSnapshot>((resolve, reject) => { calls.push({ resolve, reject }) })
+  return { calls, overrides: { reorderQueue } }
+}
+
+const dropAfter = (dragged: string, target: string) => {
+  const transfer = dataTransfer()
+  fireEvent.dragStart(rowRoot(dragged), { dataTransfer: transfer })
+  fireEvent.dragOver(rowRoot(target), { dataTransfer: transfer, clientY: 10 })
+  fireEvent.drop(rowRoot(target), { dataTransfer: transfer, clientY: 10 })
+  fireEvent.dragEnd(rowRoot(dragged), { dataTransfer: transfer })
+}
+
+test('a dropped row stays where it was dropped until the backend answers, snapshots meanwhile too', async () => {
+  const pending = pendingReorder()
+  const { client } = await setup(QUEUE, { overrides: pending.overrides })
+  dropAfter('Job a', 'Job c')
+  expect(order()).toEqual(['Job b', 'Job c', 'Job a'])
+  act(() => { client.playEvents({ steps: [{ afterMs: 0, event: { ...QUEUE, step: 'Finding speakers…' } }] }) })
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(order()).toEqual(['Job b', 'Job c', 'Job a'])
+  const reordered = { ...QUEUE, jobs: [QUEUE.jobs[1], QUEUE.jobs[2], QUEUE.jobs[0]] }
+  await act(async () => { pending.calls[0].resolve(reordered) })
+  expect(order()).toEqual(['Job b', 'Job c', 'Job a'])
+})
+
+test('a refused order goes back at once and says why', async () => {
+  const pending = pendingReorder()
+  await setup(QUEUE, { overrides: pending.overrides })
+  rowButton('Job c').focus()
+  await userEvent.keyboard('{Alt>}{ArrowUp}{/Alt}')
+  expect(order()).toEqual(['Job a', 'Job c', 'Job b'])
+  await act(async () => { pending.calls[0].reject(new ApiError(409, 'The queue changed')) })
+  expect(order()).toEqual(['Job a', 'Job b', 'Job c'])
+  await screen.findAllByText('The queue changed')
 })
 
 test('while a row is dragged, new snapshots wait until the drop', async () => {

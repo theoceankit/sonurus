@@ -16,14 +16,17 @@ interface QueueRowProps extends Omit<ComponentPropsWithRef<'div'>, 'title' | 'ch
   // While a row is dragged over this one: where it would land.
   drop?: 'before' | 'after' | null
   dragging?: boolean
+  // Keys that act on the row, such as moving it: on its button, which takes the focus.
+  keyShortcuts?: string
 }
 
-const STATUS_LABEL: Record<QueueRowStatus, string | null> = { waiting: null, running: 'Transcribing', failed: 'Failed' }
+// What a screen reader says of each state; a waiting row shows nothing for it.
+const STATUS_LABEL: Record<QueueRowStatus, string> = { waiting: 'Waiting', running: 'Transcribing', failed: 'Failed' }
 
 // A job of the transcription queue, as a row of the recordings list: the same height,
 // title and status slot. Jobs not transcribed, waiting or failed, are paler; a
 // glint now and then crosses the title of the running job; a failed one has a dot.
-export function QueueRow({ title, status, actions, selected, onClick, drop, dragging, className, ...props }: QueueRowProps) {
+export function QueueRow({ title, status, actions, selected, onClick, drop, dragging, keyShortcuts, className, ...props }: QueueRowProps) {
   const label = STATUS_LABEL[status]
   return (
     <div
@@ -31,10 +34,9 @@ export function QueueRow({ title, status, actions, selected, onClick, drop, drag
       {...props}
     >
       {drop && <span className={styles.dropLine} data-place={drop} aria-hidden />}
-      <button type="button" aria-current={selected ? 'true' : undefined} className={styles.row} onClick={onClick}>
+      <button type="button" aria-keyshortcuts={keyShortcuts} aria-current={selected ? 'true' : undefined} className={styles.row} onClick={onClick}>
         <span className={styles.status}>
-          {status === 'running' && <span role="img" aria-label={label!} />}
-          {status === 'failed' && <span role="img" aria-label={label!} className={styles.dot} />}
+          <span role="img" aria-label={label} className={status === 'failed' ? styles.dot : undefined} />
         </span>
         <span className={cx(styles.title, status !== 'running' && styles.pale, status === 'running' && shimmer.shimmer)}>{title}</span>
       </button>

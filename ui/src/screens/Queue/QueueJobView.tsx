@@ -6,6 +6,7 @@ import { Inline } from '../../components/Inline/Inline'
 import { Menu, MenuAction } from '../../components/Menu/Menu'
 import { Reveal } from '../../components/Reveal/Reveal'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
+import { Stack } from '../../components/Stack/Stack'
 import { cx } from '../../styles/cx'
 import shimmer from '../../styles/shimmer.module.css'
 import styles from './QueueJobView.module.css'
@@ -33,36 +34,38 @@ export function QueueJobView({ title, status, statusText, error, retrying, onRet
   const [log, setLog] = useState<HTMLElement | null>(null)
   const hasLog = status === 'failed' && !!error
   return (
-    <div className={styles.queueJobView}>
+    <Stack gap={2} paddingX={6} paddingY={4} className={styles.queueJobView}>
       <div className={styles.topRow}>
         <Menu align="end" trigger={<IconButton icon="more" label="More" />}>
           <MenuAction icon="delete" onSelect={onDelete}>Delete from queue</MenuAction>
         </Menu>
       </div>
-      <div className={styles.body}>
-        <h1 className={styles.title}>{title}</h1>
-        <p className={cx(styles.status, status === 'failed' && styles.failed, status === 'running' && shimmer.shimmer)}>{statusText}</p>
+      <Stack gap={4} align="start" className={styles.body}>
+        <Stack gap={2} align="start">
+          <h1 className={styles.title}>{title}</h1>
+          <p className={cx(styles.status, status === 'failed' && styles.failed, status === 'running' && shimmer.shimmer)}>{statusText}</p>
+        </Stack>
         {status !== 'running' && (
-          <Inline gap={2} className={styles.actions}>
+          <Inline gap={2}>
             {status === 'failed' && <Button variant="primary" icon="retry" loading={retrying} onClick={onRetry}>Retry</Button>}
             <Button variant="secondary" icon="edit" onClick={onEdit}>Transcription settings</Button>
           </Inline>
         )}
         {hasLog && (
-          <div className={styles.logArea}>
+          <Stack align="start" className={styles.logArea}>
             <button type="button" className={styles.logToggle} aria-expanded={logOpen} onClick={() => setLogOpen(open => !open)}>
               {logOpen ? 'Hide log' : 'Show log'}
               <Icon name="chevron-down" size={12} className={cx(styles.chevron, logOpen && styles.up)} />
             </button>
             <Reveal open={logOpen} className={styles.logBox}>
-              <div className={styles.logWrap}>
+              <Stack paddingTop={2} className={styles.logWrap}>
                 <pre ref={setLog} className={styles.log}>{error}</pre>
                 <ScrollBar area={log} />
-              </div>
+              </Stack>
             </Reveal>
-          </div>
+          </Stack>
         )}
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   )
 }

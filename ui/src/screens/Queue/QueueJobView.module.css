@@ -1,11 +1,7 @@
 /* Laid out as a transcript: its header's padding, row of buttons and title. */
 .queueJobView {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   height: 100%;
   min-height: 0;
-  padding: var(--space-4) var(--space-6);
 }
 
 /* The height of the header's top row, so the title stands where a transcript's does. */
@@ -18,10 +14,6 @@
 }
 
 .body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-2);
   min-height: 0;
 }
 
@@ -32,6 +24,8 @@
 }
 
 .status {
+  --shimmer-color: var(--color-text-secondary);
+
   margin: 0;
   color: var(--color-text-secondary);
   font: var(--font-body);
@@ -41,17 +35,9 @@
   color: var(--color-danger-fg);
 }
 
-.actions {
-  padding-top: var(--space-2);
-}
-
 .logArea {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
   align-self: stretch;
   min-height: 0;
-  padding-top: var(--space-2);
 }
 
 .logToggle {
@@ -81,9 +67,6 @@
 
 .logWrap {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  padding-block-start: var(--space-2);
 }
 
 /* The log as the backend wrote it, kept as it is. */

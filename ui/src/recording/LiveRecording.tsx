@@ -1,6 +1,7 @@
 import { LiveRecordingRow } from '../components/LiveRecordingRow/LiveRecordingRow'
 import { RecordingPill } from '../components/RecordingPill/RecordingPill'
 import { SectionHeader } from '../components/SectionHeader/SectionHeader'
+import { Stack } from '../components/Stack/Stack'
 import { useElapsedSeconds, useRecording } from './RecordingProvider'
 import { formatElapsed } from './sources'
 import styles from './LiveRecording.module.css'
@@ -11,10 +12,10 @@ export function LiveRecordingSection() {
   const elapsed = formatElapsed(useElapsedSeconds(startedAt))
   if (phase === 'idle') return null
   return (
-    <section aria-label="Recording" className={styles.section}>
+    <Stack as="section" aria-label="Recording" gap="half" paddingX={2} paddingBottom={3} align="stretch" className={styles.section}>
       <SectionHeader title="Recording" />
       <LiveRecordingRow title={title} phase={phase} elapsed={elapsed} onStop={stop} />
-    </section>
+    </Stack>
   )
 }
 

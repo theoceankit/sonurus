@@ -11,14 +11,14 @@ type InlineProps<T extends ElementType> = SpacingProps & {
 
 // Lays its children out in a row, with spacing only from the scale.
 export function Inline<T extends ElementType = 'div'>({
-  as, gap, padding, paddingX, paddingY, align = 'center', justify, wrap, className, style, ...props
+  as, gap, padding, paddingX, paddingY, paddingTop, paddingBottom, align = 'center', justify, wrap, className, style, ...props
 }: InlineProps<T>) {
   const Element: ElementType = as ?? 'div'
   return (
     <Element
       className={[styles.inline, className].filter(Boolean).join(' ')}
       style={{
-        ...spacingStyle({ gap, padding, paddingX, paddingY }),
+        ...spacingStyle({ gap, padding, paddingX, paddingY, paddingTop, paddingBottom }),
         alignItems: ALIGN[align],
         justifyContent: justify && JUSTIFY[justify],
         flexWrap: wrap ? 'wrap' : undefined,

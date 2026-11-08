@@ -6,7 +6,7 @@ import { DeleteJobDialog } from './DeleteJobDialog'
 import { EditJobDialog } from './EditJobDialog'
 import { jobStatusText } from './queue'
 import { QueueJobView } from './QueueJobView'
-import { refused } from './QueueSection'
+import { refused } from './queue-toasts'
 
 interface QueueJobPanelProps {
   jobId: string

@@ -1,24 +1,25 @@
-import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
 import { useQueue, useQueueControl, useReorderQueue, useRetryQueueJob } from '../../api/queries'
 import type { QueueJob, QueueSnapshot } from '../../api/types'
 import { IconButton } from '../../components/IconButton/IconButton'
 import { Menu, MenuAction } from '../../components/Menu/Menu'
 import { QueueRow } from '../../components/QueueRow/QueueRow'
+import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
+import { ScrollFade, useScrollEdges } from '../../components/ScrollFade/ScrollFade'
 import { SectionHeader } from '../../components/SectionHeader/SectionHeader'
-import { toast } from '../../components/Toast/toast-store'
+import { Stack } from '../../components/Stack/Stack'
 import { Tooltip } from '../../components/Tooltip/Tooltip'
 import { useLingering } from '../../presence'
 import { DeleteJobDialog } from './DeleteJobDialog'
 import { EditJobDialog } from './EditJobDialog'
 import { canEditJob } from './job-settings'
-import { dropPlace, moveJob, queueStateLabel, queueToggle, reorderJobIds, type DropPlace } from './queue'
+import { refused } from './queue-toasts'
+import { applyOrder, dropPlace, moveJob, queueStateLabel, queueToggle, reorderJobIds, type DropPlace } from './queue'
 import styles from './QueueSection.module.css'
 
 // What a dragged row carries. A drag without it, such as files from outside, is
 // not a row's: the window's drop zone takes files only.
 export const JOB_DRAG_TYPE = 'application/x-sonorus-job'
-
-export const refused = (error: Error) => toast({ message: error.message, type: 'error' })
 
 const carriesJob = (event: DragEvent) => Array.from(event.dataTransfer.types).includes(JOB_DRAG_TYPE)
 const inActions = (target: EventTarget) => !!(target as HTMLElement).closest('[data-row-actions]')
@@ -41,21 +42,25 @@ export function QueueSection({ selectedJobId = null, onSelectJob }: QueueSection
   // The row whose menu is open: from its More button, or by a right click on the row.
   const [menuOf, setMenuOf] = useState<string | null>(null)
   const deleteDialog = useLingering(toDelete)
+  const { area, scrollRef, bottom } = useScrollEdges()
 
   // While a row is dragged the queue stays as it was when the drag began, so the
   // row under the pointer does not move away; the latest one shows after the drop.
   const [drag, setDrag] = useState<{ id: string; frozen: QueueSnapshot } | null>(null)
   const [dropAt, setDropAt] = useState<{ id: string; place: DropPlace } | null>(null)
+  // An order sent and not answered yet: shown over the snapshots until the answer.
+  const [pendingOrder, setPendingOrder] = useState<readonly string[] | null>(null)
 
   // A row moved from the keyboard keeps the focus once the new order is shown.
   const rows = useRef(new Map<string, HTMLDivElement>())
   const refocus = useRef<string | null>(null)
   const snapshot = drag?.frozen ?? live
+  const jobs = useMemo(() => (snapshot ? applyOrder(snapshot.jobs, pendingOrder) : []), [snapshot, pendingOrder])
   useEffect(() => {
     if (!refocus.current) return
     const button = rows.current.get(refocus.current)?.querySelector('button')
     if (button && document.activeElement !== button) button.focus()
-  }, [snapshot?.jobs])
+  }, [jobs])
 
   const dialogs = (
     <>
@@ -72,15 +77,21 @@ export function QueueSection({ selectedJobId = null, onSelectJob }: QueueSection
     </>
   )
   // The dialogs stay for their way out when the last job goes.
-  if (!snapshot || snapshot.jobs.length === 0) return dialogs
+  if (!snapshot || jobs.length === 0) return dialogs
 
-  const ids = () => (live ?? snapshot).jobs.map(job => job.id)
+  // The order as the user sees it: a move builds on one not answered yet.
+  const ids = () => applyOrder((live ?? snapshot).jobs, pendingOrder).map(job => job.id)
   const sendOrder = (order: string[] | null, focused?: string) => {
     if (!order || order.every((id, i) => id === ids()[i])) return
     refocus.current = focused ?? null
+    setPendingOrder(order)
     reorder.mutate(order, {
       onError: refused,
-      onSettled: () => { setTimeout(() => { refocus.current = null }) },
+      onSettled: () => {
+        // A later move keeps its own order.
+        setPendingOrder(current => (current === order ? null : current))
+        setTimeout(() => { refocus.current = null })
+      },
     })
   }
 
@@ -127,59 +138,64 @@ export function QueueSection({ selectedJobId = null, onSelectJob }: QueueSection
   })
 
   return (
-    <section aria-label="Transcription queue" className={styles.queueSection}>
+    <Stack as="section" aria-label="Transcription queue" gap="half" align="stretch" className={styles.queueSection}>
       {/* No button here: pausing is in each row's menu, and the header says so. */}
-      <SectionHeader title="Queue" meta={snapshot.paused ? queueStateLabel(snapshot) : undefined} />
-      <ul className={styles.list}>
-        {snapshot.jobs.map(job => (
-          <li key={job.id}>
-            <QueueRow
-              ref={element => {
-                if (element) rows.current.set(job.id, element)
-                else rows.current.delete(job.id)
-              }}
-              aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
-              title={job.title}
-              status={job.status}
-              selected={job.id === selectedJobId}
-              onClick={() => onSelectJob?.(job.id)}
-              actions={<>
-                {job.status === 'failed' && (
-                  <Tooltip text="Retry" placement="below">
-                    <IconButton
-                      variant="ghost"
-                      size="xs"
-                      icon="retry"
-                      label="Retry"
-                      disabled={retry.isPending && retry.variables === job.id}
-                      onClick={() => retry.mutate(job.id, { onError: refused })}
-                    />
-                  </Tooltip>
-                )}
-                <Menu
-                  align="end"
-                  open={menuOf === job.id}
-                  onOpenChange={open => setMenuOf(open ? job.id : null)}
-                  trigger={<IconButton variant="ghost" size="xs" icon="more" label="More" />}
-                >
-                  <MenuAction icon={toggle.icon} onSelect={() => control.mutate(toggle.action, { onError: refused })}>{toggle.label}</MenuAction>
-                  {canEditJob(job) && <MenuAction icon="edit" onSelect={() => setEditing(job)}>Transcription settings</MenuAction>}
-                  <MenuAction icon="delete" onSelect={() => setToDelete(job)}>Delete from queue</MenuAction>
-                </Menu>
-              </>}
-              drop={dropAt?.id === job.id ? dropAt.place : null}
-              dragging={drag?.id === job.id}
-              onKeyDown={keyDown(job)}
-              onContextMenu={event => {
-                event.preventDefault()
-                setMenuOf(job.id)
-              }}
-              {...dragProps(job)}
-            />
-          </li>
-        ))}
-      </ul>
+      <Stack paddingX={2}><SectionHeader title="Queue" meta={snapshot.paused ? queueStateLabel(snapshot) : undefined} /></Stack>
+      {/* Padded inside, as the list of recordings is, so the bar stands at the sidebar's edge. */}
+      <div className={styles.listArea}>
+        <Stack as="ul" ref={scrollRef} gap="half" paddingX={2} align="stretch" className={styles.list}>
+          {jobs.map(job => (
+            <li key={job.id}>
+              <QueueRow
+                ref={element => {
+                  if (element) rows.current.set(job.id, element)
+                  else rows.current.delete(job.id)
+                }}
+                keyShortcuts="Alt+ArrowUp Alt+ArrowDown"
+                title={job.title}
+                status={job.status}
+                selected={job.id === selectedJobId}
+                onClick={() => onSelectJob?.(job.id)}
+                actions={<>
+                  {job.status === 'failed' && (
+                    <Tooltip text="Retry" placement="below">
+                      <IconButton
+                        variant="ghost"
+                        size="xs"
+                        icon="retry"
+                        label="Retry"
+                        disabled={retry.isPending && retry.variables === job.id}
+                        onClick={() => retry.mutate(job.id, { onError: refused })}
+                      />
+                    </Tooltip>
+                  )}
+                  <Menu
+                    align="end"
+                    open={menuOf === job.id}
+                    onOpenChange={open => setMenuOf(open ? job.id : null)}
+                    trigger={<IconButton variant="ghost" size="xs" icon="more" label="More" />}
+                  >
+                    <MenuAction icon={toggle.icon} onSelect={() => control.mutate(toggle.action, { onError: refused })}>{toggle.label}</MenuAction>
+                    {canEditJob(job) && <MenuAction icon="edit" onSelect={() => setEditing(job)}>Transcription settings</MenuAction>}
+                    <MenuAction icon="delete" onSelect={() => setToDelete(job)}>Delete from queue</MenuAction>
+                  </Menu>
+                </>}
+                drop={dropAt?.id === job.id ? dropAt.place : null}
+                dragging={drag?.id === job.id}
+                onKeyDown={keyDown(job)}
+                onContextMenu={event => {
+                  event.preventDefault()
+                  setMenuOf(job.id)
+                }}
+                {...dragProps(job)}
+              />
+            </li>
+          ))}
+        </Stack>
+        <ScrollBar area={area} />
+        {bottom && <ScrollFade edge="bottom" surface="sunken" size="lg" />}
+      </div>
       {dialogs}
-    </section>
+    </Stack>
   )
 }
