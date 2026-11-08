@@ -538,3 +538,80 @@ def test_after_a_download_ends_a_new_post_starts_a_new_one(client):
         second = client.post("/models/ru/download").json()["job_id"]
         assert second != first
         assert _wait(lambda: calls == ["ru", "ru"])
+
+
+# ── Following a download again ───────────────────────────────────────────────
+# A dropped connection used to remove the job's events: the download went on, but
+# a new connection to the same job_id got "Unknown job".
+
+def _progress_then_wait(release):
+    def download_model(self, model_id, cancel_event=None, on_progress=None, hf_token=None):
+        on_progress({"type": "progress", "pct": 10.0})
+        release.wait(timeout=5)
+    return download_model
+
+
+@pytest.fixture
+def quick_heartbeats(monkeypatch):
+    # A closed test connection waits for its handler, which sleeps until the next
+    # heartbeat: keep that short.
+    import app.api.routers.models as models_router
+    monkeypatch.setattr(models_router, "_HEARTBEAT_INTERVAL", 0.05)
+
+
+def _next_event(ws) -> dict:
+    while (event := ws.receive_json())["type"] == "heartbeat":
+        pass
+    return event
+
+
+def test_a_new_connection_follows_the_download_after_one_drops(client, quick_heartbeats):
+    import app.api.routers.models as models_router
+    release = threading.Event()
+    with patch.object(ModelService, "download_model", _progress_then_wait(release)):
+        try:
+            job = client.post("/models/ru/download").json()["job_id"]
+            with client.websocket_connect(f"/ws/models/{job}") as ws:
+                assert _next_event(ws) == {"type": "progress", "pct": 10.0}
+            assert client.post("/models/ru/download").json()["job_id"] == job
+            with client.websocket_connect(f"/ws/models/{job}") as ws:
+                assert _next_event(ws) == {"type": "progress", "pct": 10.0}
+                release.set()
+                assert _next_event(ws) == {"type": "done"}
+        finally:
+            release.set()
+        assert _wait(lambda: not models_router.active_downloads())
+
+
+def test_a_connection_after_the_download_ended_gets_how_it_ended(client, quick_heartbeats):
+    import app.api.routers.models as models_router
+    release = threading.Event()
+    release.set()
+    with patch.object(ModelService, "download_model", _progress_then_wait(release)):
+        job = client.post("/models/ru/download").json()["job_id"]
+        assert _wait(lambda: not models_router.active_downloads())
+        with client.websocket_connect(f"/ws/models/{job}") as ws:
+            assert _next_event(ws) == {"type": "done"}
+
+
+def test_two_connections_get_the_same_events(client, quick_heartbeats):
+    import app.api.routers.models as models_router
+    release = threading.Event()
+    with patch.object(ModelService, "download_model", _progress_then_wait(release)):
+        try:
+            job = client.post("/models/ru/download").json()["job_id"]
+            with client.websocket_connect(f"/ws/models/{job}") as first, \
+                 client.websocket_connect(f"/ws/models/{job}") as second:
+                assert _next_event(first)["type"] == "progress"
+                assert _next_event(second)["type"] == "progress"
+                release.set()
+                assert _next_event(first) == {"type": "done"}
+                assert _next_event(second) == {"type": "done"}
+        finally:
+            release.set()
+        assert _wait(lambda: not models_router.active_downloads())
+
+
+def test_a_job_that_never_was_is_unknown(client):
+    with client.websocket_connect("/ws/models/no-such-job") as ws:
+        assert ws.receive_json() == {"type": "error", "message": "Unknown job"}

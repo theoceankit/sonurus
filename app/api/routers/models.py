@@ -1,7 +1,7 @@
 import asyncio
-import queue as _queue
 import threading
 import uuid
+from collections import deque
 from asyncio import CancelledError
 from concurrent.futures import ThreadPoolExecutor
 
@@ -22,8 +22,38 @@ _executor = ThreadPoolExecutor(max_workers=2)
 
 _HEARTBEAT_INTERVAL = 15  # seconds between heartbeats when no progress arrives
 
-# job_id → threading.Queue carrying a single terminal event (done/error/cancelled)
-_download_jobs: dict[str, _queue.Queue] = {}
+
+
+class _DownloadEvents:
+    """The events of one download, for any number of WebSockets. Each reads from its
+    own position, so a connection that drops loses nothing for the next one; a new
+    connection starts at the latest event, which after the end is how it ended."""
+
+    def __init__(self):
+        self._events: list[dict] = []
+        self._changed = threading.Condition()
+
+    def put(self, event: dict) -> None:
+        with self._changed:
+            self._events.append(event)
+            self._changed.notify_all()
+
+    def latest(self) -> int:
+        with self._changed:
+            return max(len(self._events) - 1, 0)
+
+    def get(self, index: int, timeout: float) -> dict | None:
+        """The event at index, waiting up to timeout for it; None if it did not come."""
+        with self._changed:
+            self._changed.wait_for(lambda: len(self._events) > index, timeout)
+            return self._events[index] if len(self._events) > index else None
+
+
+# job_id → its events. A finished download stays for the last _FINISHED_KEPT, so a
+# connection after a fast end still gets how it ended.
+_download_jobs: dict[str, _DownloadEvents] = {}
+_FINISHED_KEPT = 16
+_finished_jobs: deque[str] = deque()
 # job_id → threading.Event for cancellation
 _cancel_events: dict[str, threading.Event] = {}
 # model_id → job_id of its running download: one download per model, since two
@@ -82,7 +112,7 @@ async def download_model(model_id: str, body: DownloadRequest = DownloadRequest(
             log.info(f"Download already running: {model_id} (job {running})")
             return {"job_id": running}
         job_id = str(uuid.uuid4())
-        q: _queue.Queue = _queue.Queue()
+        q = _DownloadEvents()
         cancel_event = threading.Event()
         _download_jobs[job_id] = q
         _cancel_events[job_id] = cancel_event
@@ -110,9 +140,11 @@ async def download_model(model_id: str, body: DownloadRequest = DownloadRequest(
             q.put({"type": "error", "message": str(exc), "code": "failed"})
         finally:
             with _running_lock:
-                _download_jobs.pop(job_id, None)
                 _cancel_events.pop(job_id, None)
                 _running_downloads.pop(model_id, None)
+                _finished_jobs.append(job_id)
+                while len(_finished_jobs) > _FINISHED_KEPT:
+                    _download_jobs.pop(_finished_jobs.popleft(), None)
 
     loop = asyncio.get_running_loop()
     loop.run_in_executor(_executor, _run)
@@ -139,20 +171,18 @@ async def ws_download_progress(websocket: WebSocket, job_id: str):
         await websocket.close()
         return
 
+    index = q.latest()
     try:
         while True:
-            try:
-                # Wait on the default thread pool, never on _executor: with every
-                # download worker busy, reads queued there would never run.
-                event = await asyncio.to_thread(q.get, timeout=_HEARTBEAT_INTERVAL)
-            except _queue.Empty:
+            # Wait on the default thread pool, never on _executor: with every
+            # download worker busy, reads queued there would never run.
+            event = await asyncio.to_thread(q.get, index, _HEARTBEAT_INTERVAL)
+            if event is None:
                 await websocket.send_json({"type": "heartbeat"})
                 continue
+            index += 1
             await websocket.send_json(event)
             if event["type"] in ("done", "error", "cancelled"):
                 break
     except WebSocketDisconnect:
         pass
-    finally:
-        _download_jobs.pop(job_id, None)
-        # _cancel_events is cleaned up by _run()'s finally — not here

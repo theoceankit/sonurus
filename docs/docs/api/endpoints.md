@@ -231,7 +231,7 @@ Valid `model_id` values:
 - Diarization: `diarize` (downloads `pyannote/speaker-diarization-community-1` + `pyannote/embedding`)
 - Alignment: two-letter language code from `ALIGNMENT_CATALOG` — `ru`, `zh`, `ja`, `ko`, `uk`, `pt`, `ar`, `nl`, `pl`, `hi`, `cs`, `tr`, `hu`, `fi`, `fa`, `el`, `da`, `he`, `vi`, `ur`, `te`, `ca`, `ml`, `no`, `nn`, `sk`, `sl`, `hr`, `ro`, `eu`, `gl`, `ka`, `lv`, `tl`, `sv`
 
-Unknown `model_id` returns `422`. One download per model: a `POST` while that model is downloading starts nothing and returns the running download's `job_id` (two downloads would write into the same cache). Its WS stream has one reader — the app keeps one connection per download (`model-downloads.js`).
+Unknown `model_id` returns `422`. One download per model: a `POST` while that model is downloading starts nothing and returns the running download's `job_id` (two downloads would write into the same cache), so a client that lost its connection can follow the same download again.
 
 ```json
 { "job_id": "a1b2c3d4-..." }
@@ -246,7 +246,7 @@ Cancels an in-progress download. Sets a `threading.Event`; each `snapshot_downlo
 
 ### `WS /ws/models/{job_id}`
 
-Streams download progress. Connect immediately after `POST /models/{model_id}/download`. Sends heartbeats every 15 s to keep the connection alive during large downloads.
+Streams download progress. Sends heartbeats every 15 s to keep the connection alive during large downloads. Any number of connections may follow one download, each from the latest event at the time it connects: a connection that drops loses nothing for the next one. A finished download keeps its final event for the last 16 downloads, so a connection after the end still gets how it ended.
 
 ```json
 { "type": "heartbeat" }
@@ -269,7 +269,7 @@ Streams download progress. Connect immediately after `POST /models/{model_id}/do
 
 `done` means the model is installed: after `snapshot_download` returns, each repo is checked as `GET /models` checks it. Offline, `snapshot_download` returns the cached snapshot of an interrupted earlier download without fetching its missing files; such a download ends in `error` with `code: "failed"`, not `done`.
 
-An `Unknown job` error (the job is over or never was) has no `code`.
+An `Unknown job` error (the job never was, or ended long ago) has no `code`.
 
 ### `DELETE /models/{model_id}`
 
