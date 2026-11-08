@@ -1,6 +1,6 @@
 import { hasFiles } from '../../components/DropZone/DropZone'
 
-// What the file dialog of Electron offers, and what the old UI takes from a drop.
+// What the file dialog of Electron offers, and what a drop takes.
 export const SUPPORTED_EXTENSIONS = ['wav', 'mp3', 'm4a', 'flac', 'ogg', 'mp4', 'mkv', 'webm'] as const
 
 export interface ImportFile {
@@ -30,7 +30,7 @@ export function addFiles(current: readonly ImportFile[], incoming: readonly Impo
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const pad = (n: number) => String(n).padStart(2, '0')
 
-// What the title field shows until the user types, as the old UI's: "5 Nov 14:30 Meeting".
+// What the title field shows until the user types: "5 Nov 14:30 Meeting".
 export const defaultTitle = (now: Date) => `${now.getDate()} ${MONTHS[now.getMonth()]} ${pad(now.getHours())}:${pad(now.getMinutes())} Meeting`
 
 // The titles of the jobs, in the order of the files. One file keeps a typed title;
@@ -44,7 +44,7 @@ export const importingMessage = (files: readonly ImportFile[]) => (
   files.length === 1 ? `Importing ${files[0].name}…` : `Importing ${files.length} files…`
 )
 
-// A toast, as in the old UI: the dialog keeps only what will be imported.
+// A toast: the dialog keeps only what will be imported.
 export const skippedMessage = (names: readonly string[]) => (
   names.length === 1
     ? `${names[0]} was not imported: this file type is not supported.`

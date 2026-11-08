@@ -1,4 +1,4 @@
-"""The API schema the new UI generates its types from: FastAPI's own schema
+"""The API schema the UI generates its types from: FastAPI's own schema
 plus what it cannot see. See docs/docs/ui/electron/new-ui-data.md."""
 import copy
 

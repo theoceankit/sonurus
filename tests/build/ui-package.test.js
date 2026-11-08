@@ -62,7 +62,7 @@ test('every component has stories', () => {
   }
 })
 
-test('the new UI sources contain no remote content', () => {
+test('the UI sources contain no remote content', () => {
   const sources = [path.join(ROOT, 'ui', 'index.html')]
   const walk = dir => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -79,7 +79,7 @@ test('the new UI sources contain no remote content', () => {
   }
 })
 
-test('no two modules in the new UI differ only in case', () => {
+test('no two modules in the UI differ only in case', () => {
   // macOS and Windows resolve imports case-insensitively: ./Toast next to toast.ts
   // picks whichever extension the resolver tries first. What git tracks is what a
   // checkout there gets, not what lies in this one (build output, untracked files).
@@ -114,7 +114,7 @@ test('test tools are no runtime dependency, so they stay out of the installers',
   }
 })
 
-test('every build script and CI job builds the new UI first', () => {
+test('every build script and CI job builds the UI first', () => {
   for (const name of ['build:mac', 'build:win', 'build:linux', 'build:all']) {
     assert.match(pkg.scripts[name], /npm run build:ui && .*electron-builder/, name)
   }
@@ -127,7 +127,7 @@ test('every build script and CI job builds the new UI first', () => {
   assert.equal(count(/node scripts\/check-packaged-ui\.js dist/g), jobs)
 })
 
-test('CI runs the type check and the unit tests of the new UI', () => {
+test('CI runs the type check and the unit tests of the UI', () => {
   const workflow = read('.github', 'workflows', 'tests.yml')
   assert.match(workflow, /npm --prefix ui ci/)
   assert.match(workflow, /npm --prefix ui run typecheck/)
@@ -152,7 +152,7 @@ test('the type of the Electron bridge lists what the preload script exposes', ()
   assert.deepEqual(declared, exposed)
 })
 
-test('the new UI has the default settings of the main process', () => {
+test('the UI has the default settings of the main process', () => {
   const literal = (text, pattern) => new Function(`return {${text.match(pattern)[1]}}`)()
   const main = literal(read('electron', 'main.js'), /const DEFAULT_SETTINGS = \{([\s\S]*?)\n\}/)
   const ui = literal(read('ui', 'src', 'platform', 'settings.ts'), /export const DEFAULT_SETTINGS: ElectronSettings = \{([\s\S]*?)\n\}/)

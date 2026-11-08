@@ -1,6 +1,6 @@
 'use strict'
 
-// The new UI names the alignment models itself (GET /models gives them only an
+// The UI names the alignment models itself (GET /models gives them only an
 // id), so its list must be the backend catalog: a model missing from it could
 // not be offered, one too many would never install.
 
@@ -32,12 +32,12 @@ function uiCatalog() {
 // As the UI writes a size: ~1.3 GB, ~300 MB.
 const sizeText = bytes => (bytes >= 1e9 ? `~${(bytes / 1e9).toFixed(1)} GB` : `~${Math.round(bytes / 1e6)} MB`)
 
-test('the new UI alignment models are the backend ALIGNMENT_CATALOG, in its order', () => {
+test('the UI alignment models are the backend ALIGNMENT_CATALOG, in its order', () => {
   const backend = backendCatalog()
   assert.ok(backend.length > 0)
   assert.deepEqual(uiCatalog().map(m => m.id), backend.map(m => m.id))
 })
 
-test('the sizes the new UI shows are the sizes of the backend catalog', () => {
+test('the sizes the UI shows are the sizes of the backend catalog', () => {
   assert.deepEqual(uiCatalog().map(m => [m.id, m.size]), backendCatalog().map(m => [m.id, sizeText(m.bytes)]))
 })

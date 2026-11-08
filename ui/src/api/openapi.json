@@ -2869,7 +2869,7 @@
     },
     "/transcripts/{transcript_id}/opened": {
       "post": {
-        "description": "The user opened the transcript. Only this flag changes; GET /transcripts/{id}\nleaves it alone, so the old renderer and repeated loads do not set it.",
+        "description": "The user opened the transcript. Only this flag changes; GET /transcripts/{id}\nleaves it alone, so repeated loads do not set it.",
         "operationId": "mark_transcript_opened_transcripts__transcript_id__opened_post",
         "parameters": [
           {

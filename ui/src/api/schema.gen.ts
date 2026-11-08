@@ -615,7 +615,7 @@ export interface paths {
         /**
          * Mark Transcript Opened
          * @description The user opened the transcript. Only this flag changes; GET /transcripts/{id}
-         *     leaves it alone, so the old renderer and repeated loads do not set it.
+         *     leaves it alone, so repeated loads do not set it.
          */
         post: operations["mark_transcript_opened_transcripts__transcript_id__opened_post"];
         delete?: never;

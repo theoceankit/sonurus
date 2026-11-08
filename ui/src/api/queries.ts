@@ -81,7 +81,7 @@ export function useSpeakerTranscripts(speakerId: string | null) {
 }
 
 // The catalog with what is downloaded. A screen that shows it asks again when it
-// opens: models come and go in Settings and in the old UI.
+// opens: models come and go in Settings.
 export function useModels() {
   const api = useApi()
   return useQuery({ queryKey: queryKeys.models, queryFn: () => api.listModels(), refetchOnMount: 'always' })

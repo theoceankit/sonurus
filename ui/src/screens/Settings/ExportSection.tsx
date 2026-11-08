@@ -6,7 +6,7 @@ import { Toggle } from '../../components/Toggle/Toggle'
 import { markNotImplemented } from '../../not-implemented'
 
 // Export is not there yet: the titlebar copy is always plain text. The section is
-// shown, marked as not available, as in the old UI.
+// shown, marked as not available.
 const FORMATS = [
   { value: 'txt', label: 'Plain text', meta: '.txt' },
   { value: 'md', label: 'Markdown', meta: '.md' },

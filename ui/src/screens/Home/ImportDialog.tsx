@@ -54,7 +54,7 @@ export interface ImportDialogProps {
   preview?: boolean
 }
 
-// New recording, as in the old UI: a title, a model and a language for this run, and
+// New recording: a title, a model and a language for this run, and
 // either a live recording of the sources below them or the files dropped or chosen.
 export function ImportDialog({
   open, over, files, title, defaultTitle, onTitleChange, choice, onModelChange, onLanguageChange,

@@ -50,7 +50,7 @@ export function useRecentRecordings() {
   }, [])
 
   const remember = useCallback((id: number) => change(recent => rememberOpened(recent, id)), [change])
-  // Recordings deleted since, here or in the old UI, are forgotten.
+  // Recordings deleted since are forgotten.
   const prune = useCallback((list: readonly TranscriptListItem[]) => change(recent => pruneRecent(recent, list)), [change])
 
   return { ids, remember, prune }

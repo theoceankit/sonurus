@@ -38,7 +38,7 @@ test('a change shows at once and goes on top of the file as it is then', async (
   const bridge = createMockElectronAPI()
   const store = createSettingsStore(bridge)
   await store.read()
-  // Written by the old UI or another window in the meantime.
+  // Written by another window in the meantime.
   await bridge.writeSettings({ ...DEFAULT_SETTINGS, hfToken: 'hf_other' })
   const listener = vi.fn()
   store.subscribe(listener)

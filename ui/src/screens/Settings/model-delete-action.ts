@@ -10,7 +10,7 @@ import type { ConfirmPrompt } from './ConfirmDialog'
 
 export type ModelToDelete = { model: ModelInfo; name: string; prompt: ConfirmPrompt }
 
-// Deleting models from Settings, as the old UI did: at once when no queued job needs
+// Deleting models from Settings: at once when no queued job needs
 // the model, after a confirmation when some do; not while the running transcription
 // needs it (the backend says 409 too, which is shown as a toast).
 export function useModelDelete() {

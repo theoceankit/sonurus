@@ -313,7 +313,7 @@ def mark_transcript_opened(
     storage: TranscriptStorageService = Depends(get_storage_service),
 ):
     """The user opened the transcript. Only this flag changes; GET /transcripts/{id}
-    leaves it alone, so the old renderer and repeated loads do not set it."""
+    leaves it alone, so repeated loads do not set it."""
     if not storage.mark_opened(transcript_id):
         raise HTTPException(status_code=404, detail="Transcript not found")
 

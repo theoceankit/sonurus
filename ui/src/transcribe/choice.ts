@@ -32,7 +32,7 @@ export function transcribeChoice(models: readonly ModelInfo[] | undefined, setti
     const off = !!models && !!missingAlignmentModel(code, models)
     return { value: code, label, ...(off ? { disabled: true, meta: NOT_INSTALLED } : {}) }
   })
-  // A saved language that is not in the list is still shown, as the old UI did.
+  // A saved language that is not in the list is still shown.
   if (language && !LANGUAGES.some(({ code }) => code === language)) languageOptions.push({ value: language, label: languageName(language) })
   if (!models || !settings) return { checking: true, model: null, language, blocked: null, modelOptions: [], languageOptions }
 

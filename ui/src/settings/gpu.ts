@@ -5,7 +5,7 @@ import type { GpuDownloadEvent, GpuWaitReason } from '../api/gpu-events'
 import type { GpuStatus } from '../api/types'
 import { toast } from '../components/Toast/toast-store'
 
-// GPU acceleration, as gpu-acceleration.js in the old UI: GET /gpu, the CUDA download
+// GPU acceleration: GET /gpu, the CUDA download
 // over WS /ws/gpu/{job}, its removal, and the restart of the backend that applies
 // either. It belongs to the app, not to Settings: a download goes on and the restart
 // still happens after Settings close.
@@ -198,7 +198,7 @@ export function gpuFor(api: ApiClient): Gpu {
 }
 
 // The GPU state, re-rendering on every change. Nothing is asked here: the GPU section
-// asks GET /gpu when it opens, as the old UI did.
+// asks GET /gpu when it opens.
 export function useGpu(): { gpu: Gpu; state: GpuState } {
   const gpu = gpuFor(useApi())
   return { gpu, state: useSyncExternalStore(gpu.subscribe, gpu.state) }

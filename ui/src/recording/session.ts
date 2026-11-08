@@ -1,7 +1,7 @@
 import type { ApiClient } from '../api/client'
 import { captureStartError } from './sources'
 
-// One live recording, as the old UI makes it: the microphone is recorded in the window
+// One live recording: the microphone is recorded in the window
 // (WebM through MediaRecorder), system audio is captured by the backend on every OS,
 // and the backend alone writes the files. While it runs the queue is paused.
 

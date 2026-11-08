@@ -25,7 +25,7 @@ function TranscriptionLanguage({ language }: { language: string }) {
   const missing = models ? missingAlignmentModel(language, models) : null
   const download = missing ? downloads.download(missing.id) : null
   const options = LANGUAGES.map(({ code, label }) => ({ value: code, label }))
-  // A saved language that is not in the list (the old UI has more) is still shown.
+  // A saved language that is not in the list (older versions had more) is still shown.
   if (!LANGUAGES.some(({ code }) => code === language)) options.push({ value: language, label: alignmentModel(language).name })
   const note = missing && (
     <Inline gap={2} justify="between" role="status" className={styles.languageNotice}>
