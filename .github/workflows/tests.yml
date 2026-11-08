@@ -52,8 +52,8 @@ jobs:
       - name: Build new UI
         run: npm --prefix ui run build
 
-      - name: Run renderer tests
-        run: node --test 'tests/renderer/*.test.js'
+      - name: Run Electron tests
+        run: node --test 'tests/electron/*.test.js'
 
       - name: Run build tests
         run: node --test 'tests/build/*.test.js'
