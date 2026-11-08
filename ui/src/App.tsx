@@ -4,7 +4,7 @@ import type { QueueUpdate } from './api/types'
 import { toast } from './components/Toast/toast-store'
 import { EditorScreen, type RecordingRequest } from './screens/Editor/EditorScreen'
 import { AlignmentDialog } from './screens/Queue/AlignmentDialog'
-import { queueEventToast } from './screens/Queue/queue-toasts'
+import { useQueueToasts } from './screens/Queue/queue-toasts'
 import { useAlignmentDialogs } from './screens/Queue/useAlignmentDialogs'
 import { RecordingProvider } from './recording/RecordingProvider'
 import { SettingsProvider } from './screens/Settings/SettingsProvider'
@@ -26,11 +26,12 @@ function Screens() {
   // A new object each time, so Open opens the recording again after the user left it.
   const [opening, setOpening] = useState<RecordingRequest | null>(null)
   const { onQueueEvent: alignmentEvent } = alignment
+  const openRecording = useCallback((id: number) => setOpening({ id }), [])
+  const showToast = useQueueToasts(openRecording)
   const onQueueEvent = useCallback((event: QueueUpdate) => {
     alignmentEvent(event)
-    const shown = queueEventToast(event, id => setOpening({ id }))
-    if (shown) toast(shown)
-  }, [alignmentEvent])
+    showToast(event)
+  }, [alignmentEvent, showToast])
   useQueueEventsSync(onQueueEvent)
   useBackendLostToast()
   useDefaultModelSync()
