@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { createRef } from 'react'
 import { expect, test } from 'vitest'
+import { spacingStyle } from '../../styles/space'
 import { Stack } from './Stack'
 
 const rendered = (element: React.ReactElement) => render(element).container.firstElementChild as HTMLElement
@@ -22,6 +23,22 @@ test('padding sets both axes, and an axis overrides it', () => {
   const axis = rendered(<Stack padding={2} paddingX={4} />).style
   expect(axis.paddingBlock).toBe('var(--space-2)')
   expect(axis.paddingInline).toBe('var(--space-4)')
+})
+
+test('paddingTop pads the start of the column only, such as a slot under a header', () => {
+  const { style } = rendered(<Stack paddingX={2} paddingTop={3} />)
+  expect(style.paddingBlockStart).toBe('var(--space-3)')
+  expect(style.paddingBlock).toBe('')
+  expect(style.paddingInline).toBe('var(--space-2)')
+})
+
+// jsdom does not expand logical shorthands, so the style object itself is checked:
+// in a browser even an empty longhand clears its end of paddingBlock.
+test('without paddingTop or paddingBottom there is no longhand to clear paddingY', () => {
+  expect(spacingStyle({ paddingY: 4 })).not.toHaveProperty('paddingBlockStart')
+  expect(spacingStyle({ paddingY: 4 })).not.toHaveProperty('paddingBlockEnd')
+  expect(spacingStyle({ paddingY: 4, paddingTop: 2 }).paddingBlockStart).toBe('var(--space-2)')
+  expect(spacingStyle({ paddingBottom: 3 }).paddingBlockEnd).toBe('var(--space-3)')
 })
 
 test('sets no spacing unless asked', () => {

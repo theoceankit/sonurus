@@ -5,6 +5,7 @@ import { IconButton } from '../../components/IconButton/IconButton'
 import { Menu, MenuAction } from '../../components/Menu/Menu'
 import { QueueRow } from '../../components/QueueRow/QueueRow'
 import { SectionHeader } from '../../components/SectionHeader/SectionHeader'
+import { Stack } from '../../components/Stack/Stack'
 import { Tooltip } from '../../components/Tooltip/Tooltip'
 import { useLingering } from '../../presence'
 import { DeleteJobDialog } from './DeleteJobDialog'
@@ -134,10 +135,10 @@ export function QueueSection({ selectedJobId = null, onSelectJob }: QueueSection
   })
 
   return (
-    <section aria-label="Transcription queue" className={styles.queueSection}>
+    <Stack as="section" aria-label="Transcription queue" gap="half" align="stretch" className={styles.queueSection}>
       {/* No button here: pausing is in each row's menu, and the header says so. */}
       <SectionHeader title="Queue" meta={snapshot.paused ? queueStateLabel(snapshot) : undefined} />
-      <ul className={styles.list}>
+      <Stack as="ul" gap="half" align="stretch" className={styles.list}>
         {jobs.map(job => (
           <li key={job.id}>
             <QueueRow
@@ -185,8 +186,8 @@ export function QueueSection({ selectedJobId = null, onSelectJob }: QueueSection
             />
           </li>
         ))}
-      </ul>
+      </Stack>
       {dialogs}
-    </section>
+    </Stack>
   )
 }
