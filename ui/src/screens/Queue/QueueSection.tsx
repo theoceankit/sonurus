@@ -136,7 +136,7 @@ export function QueueSection({ selectedJobId = null, onSelectJob }: QueueSection
                 if (element) rows.current.set(job.id, element)
                 else rows.current.delete(job.id)
               }}
-              aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+              keyShortcuts="Alt+ArrowUp Alt+ArrowDown"
               title={job.title}
               status={job.status}
               selected={job.id === selectedJobId}

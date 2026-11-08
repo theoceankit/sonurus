@@ -59,11 +59,11 @@ test('a section like those of the list: its title, and Paused only while paused'
   expect(within(queue()).queryByRole('button', { name: /Pause|Resume|Start/ })).toBeNull()
 })
 
-test('the rows say which job runs and which failed; the picked one is current', async () => {
+test('the rows say which job runs, waits or failed; the picked one is current', async () => {
   await setup()
   within(row('Job a')).getByRole('img', { name: 'Transcribing' })
   within(row('Job c')).getByRole('img', { name: 'Failed' })
-  expect(within(row('Job b')).queryByRole('img')).toBeNull()
+  within(row('Job b')).getByRole('img', { name: 'Waiting' })
   expect(rowButton('Job b').getAttribute('aria-current')).toBe('true')
 })
 
@@ -154,6 +154,7 @@ test('deleting the last job closes the queue and lets the dialog close', async (
 test('Alt+Up and Alt+Down move the focused row a step and keep the focus on it', async () => {
   const { client } = await setup()
   const reorder = vi.spyOn(client, 'reorderQueue')
+  expect(rowButton('Job c').getAttribute('aria-keyshortcuts')).toBe('Alt+ArrowUp Alt+ArrowDown')
   rowButton('Job c').focus()
   await userEvent.keyboard('{Alt>}{ArrowUp}{/Alt}')
   await waitFor(() => expect(reorder).toHaveBeenLastCalledWith(['a', 'c', 'b']))
