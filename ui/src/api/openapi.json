@@ -736,7 +736,7 @@
         "type": "object"
       },
       "RefusalResponse": {
-        "description": "A 400 of the queue's job routes: a message for the user and what it is about.",
+        "description": "A refusal of the queue's job routes (400, and 409 for a job that started):\na message for the user and what it is about.",
         "properties": {
           "code": {
             "enum": [
@@ -745,7 +745,8 @@
               "alignment_model_missing",
               "audio_not_found",
               "audio_not_readable",
-              "audio_copy_failed"
+              "audio_copy_failed",
+              "job_running"
             ],
             "title": "Code",
             "type": "string"
@@ -2164,6 +2165,16 @@
               }
             },
             "description": "Bad Request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {

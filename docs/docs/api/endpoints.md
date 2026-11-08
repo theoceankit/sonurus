@@ -163,8 +163,9 @@ Adds a job at the end of the queue and returns it (`status: "waiting"`). In `aut
 | File missing | `audio_not_found` | `"\"meeting.mp3\" could not be found."` |
 | File not readable | `audio_not_readable` | `"\"meeting.mp3\" could not be read."` |
 | Copy failed (e.g. no disk space) | `audio_copy_failed` | `"\"meeting.mp3\" could not be copied."` (the error itself goes to the log) |
+| `PATCH` of the job that is running (status `409`) | `job_running` | `"This job has started and can no longer be changed."` |
 
-Other errors of the queue routes (`404`, `409`, `422`) keep FastAPI's plain `{"detail": …}`.
+Other errors of the queue routes (`404`, other `409`s, `422`) keep FastAPI's plain `{"detail": …}`.
 
 **Audio copy** — an imported file (anything outside `$SONORUS_DATA_DIR/recordings/`) is copied to `recordings/sonorus-import-<uuid>.<ext>` before the job is queued; the job and later the transcript reference the copy, and the original is never touched. A live recording is used as it is. See [Audio Store](../services/AudioStore.md).
 
@@ -174,7 +175,7 @@ A job never downloads a model. Before it starts, the worker checks that its Whis
 
 ### `PATCH /queue/jobs/{id}`
 
-Changes `title`, `whisper_model` and/or `language` — only the fields sent (`language: null` or `"auto"` = auto-detect). Allowed for waiting and failed jobs. `404` unknown job, `409` for the running job, `400` with a model `code` as above if the new Whisper or alignment model is not installed, `422` for a blank title or one over 200 characters.
+Changes `title`, `whisper_model` and/or `language` — only the fields sent (`language: null` or `"auto"` = auto-detect). Allowed for waiting and failed jobs. `404` unknown job, `409` with `code: "job_running"` for the running job, `400` with a model `code` as above if the new Whisper or alignment model is not installed, `422` for a blank title or one over 200 characters.
 
 ### `DELETE /queue/jobs/{id}`
 
