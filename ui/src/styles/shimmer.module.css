@@ -1,12 +1,15 @@
 /* Text that is being worked on, such as the title of the running job: a lighter
    band crosses it, then it rests for the second half of the cycle, so the glint
-   comes now and then. Without motion it is plain text. */
+   comes now and then. Without motion it is plain text. The text's own colour is
+   --shimmer-color, primary unless the element sets another. */
 .shimmer {
+  --shimmer-base: var(--shimmer-color, var(--color-text-primary));
+
   background: linear-gradient(
     90deg,
-    var(--color-text-primary) 40%,
+    var(--shimmer-base) 40%,
     var(--color-text-placeholder) 50%,
-    var(--color-text-primary) 60%
+    var(--shimmer-base) 60%
   );
   background-size: 300% 100%;
   background-clip: text;
@@ -29,6 +32,6 @@
   .shimmer {
     animation: none;
     background: none;
-    color: var(--color-text-primary);
+    color: var(--shimmer-base);
   }
 }
