@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from snapshot_fakes import complete_snapshot
 
 from app.services.model_service import (
     ModelService,
@@ -196,7 +197,7 @@ def test_download_model_emits_progress_events(tmp_path):
     mock_info = MagicMock()
     mock_info.siblings = [_make_sibling("model.bin", total)]
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=slow_snapshot):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot(slow_snapshot)):
         with patch("app.services.model_service.huggingface_hub.model_info", return_value=mock_info):
             svc.download_model("tiny", on_progress=events.append)
 
@@ -214,7 +215,7 @@ def test_download_model_no_progress_when_callback_none(tmp_path):
     svc = _make_service(tmp_path)
     called = []
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download"):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot()):
         svc.download_model("tiny", on_progress=None)
 
     assert called == []
@@ -237,7 +238,7 @@ def test_download_diarize_emits_progress_events(tmp_path):
     info_b = MagicMock()
     info_b.siblings = [_make_sibling("pytorch_model.bin", total // 2)]
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=[None, None]):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot()):
         with patch("app.services.model_service.huggingface_hub.model_info", side_effect=[info_a, info_b]):
             svc.download_model("diarize", on_progress=events.append)
 
@@ -262,7 +263,7 @@ def test_download_model_progress_pct_capped_at_99(tmp_path):
     mock_info = MagicMock()
     mock_info.siblings = [_make_sibling("model.bin", total)]
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=instant_snapshot):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot(instant_snapshot)):
         with patch("app.services.model_service.huggingface_hub.model_info", return_value=mock_info):
             svc.download_model("tiny", on_progress=events.append)
 
@@ -283,7 +284,7 @@ def test_download_model_poller_stops_after_download(tmp_path):
     mock_info = MagicMock()
     mock_info.siblings = [_make_sibling("model.bin", 100)]
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=instant_snapshot):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot(instant_snapshot)):
         with patch("app.services.model_service.huggingface_hub.model_info", return_value=mock_info):
             svc.download_model("tiny", on_progress=events.append)
 

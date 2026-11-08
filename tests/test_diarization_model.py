@@ -12,6 +12,7 @@ from app.api.dependencies import get_memory_service, get_storage_service
 from app.services.model_service import ModelService, DIARIZATION_CATALOG
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.speaker_memory_service import SpeakerMemoryService
+from snapshot_fakes import complete_snapshot
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +179,7 @@ def test_download_diarize_calls_snapshot_for_both_repos(tmp_path):
     def fake_download(repo, **kwargs):
         downloaded.append(repo)
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=fake_download):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot(fake_download)):
         svc.download_model("diarize")
 
     expected = DIARIZATION_CATALOG["diarize"]["hf_repos"]
@@ -193,7 +194,7 @@ def test_download_diarize_passes_hf_models_dir_as_cache(tmp_path):
     def fake_download(repo, cache_dir=None, **kwargs):
         captured_cache_dirs.append(cache_dir)
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=fake_download):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot(fake_download)):
         svc.download_model("diarize")
 
     for cache_dir in captured_cache_dirs:

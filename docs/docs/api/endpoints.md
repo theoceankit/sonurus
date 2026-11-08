@@ -265,7 +265,9 @@ Streams download progress. Connect immediately after `POST /models/{model_id}/do
 | `no_token` | HTTP 401: no HuggingFace token, or one the Hub does not accept. A gated repo asked without a token answers 401 too. |
 | `no_access` | HTTP 403, or a gated repo otherwise: the token has no access to the model, such as its terms not accepted on the model page. |
 | `network` | No connection to the Hub: connection refused or reset, a timeout, offline with nothing in the cache. |
-| `failed` | Anything else. |
+| `failed` | Anything else, and a download after which the model is still not installed. |
+
+`done` means the model is installed: after `snapshot_download` returns, each repo is checked as `GET /models` checks it. Offline, `snapshot_download` returns the cached snapshot of an interrupted earlier download without fetching its missing files; such a download ends in `error` with `code: "failed"`, not `done`.
 
 An `Unknown job` error (the job is over or never was) has no `code`.
 
