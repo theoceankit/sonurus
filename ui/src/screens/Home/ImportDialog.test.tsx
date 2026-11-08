@@ -348,6 +348,17 @@ describe('title, model and language', () => {
     await waitFor(async () => expect((await jobs(client))[0]?.model).toBe('small'))
   })
 
+  test('until the settings are read, it waits with Import off and shows no default', async () => {
+    const bridge = createMockElectronAPI({ openFiles: async () => ['/in/a.mp3'] })
+    vi.stubGlobal('electronAPI', { ...bridge, readSettings: () => new Promise(() => {}) })
+    render(<ApiProvider client={createFixtureClient()}><OverlayProvider><SettingsProvider><EditorScreen /></SettingsProvider></OverlayProvider></ApiProvider>)
+    await openByButton()
+    await choose()
+    expect(field('Model').textContent?.trim()).toBe('Checking models…')
+    expect(field('Language').textContent?.trim()).toBe('Checking…')
+    expect(importButton()).toHaveProperty('disabled', true)
+  })
+
   test('until the models are known, it opens and waits with Import off', async () => {
     await setupWith({ overrides: { listModels: () => new Promise(() => {}) } }, ['/in/a.mp3'])
     await openByButton()

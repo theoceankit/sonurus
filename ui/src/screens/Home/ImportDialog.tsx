@@ -88,7 +88,8 @@ export function ImportDialog({
               label="Language"
               value={choice.language}
               options={choice.languageOptions}
-              disabled={importing}
+              placeholder="Checking…"
+              disabled={!choice.language || importing}
               onValueChange={onLanguageChange}
             />
           </Inline>

@@ -3,7 +3,7 @@ import { useApi } from '../../api/ApiProvider'
 import { AddToQueueError, useAddToQueue, useModels } from '../../api/queries'
 import { ApiError } from '../../api/client'
 import { toast } from '../../components/Toast/toast-store'
-import { readTranscribeSettings, transcribeSettings, type TranscribeSettings } from '../../platform/transcribe-defaults'
+import { readTranscribeSettings, type TranscribeSettings } from '../../platform/transcribe-defaults'
 import { NOTHING_PICKED, transcribeChoice, type Picked } from '../../transcribe/choice'
 import { apiLanguage } from '../../transcribe/languages'
 import { useSettingsDialog } from '../Settings/SettingsProvider'
@@ -54,7 +54,8 @@ export function useImportDialog() {
   const api = useApi()
   const models = useModels()
   const { refetch: refetchModels } = models
-  const [settings, setSettings] = useState<TranscribeSettings>(() => transcribeSettings(undefined))
+  // Null until read: the dialog waits for the defaults rather than show others first.
+  const [settings, setSettings] = useState<TranscribeSettings | null>(null)
   const [openedAt, setOpenedAt] = useState(() => api.now())
   const settingsDialog = useSettingsDialog()
   const recording = useRecordingSetup(state.open)
