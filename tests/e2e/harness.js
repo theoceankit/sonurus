@@ -103,7 +103,7 @@ async function startApp({ seed: profile = 'full' } = {}) {
 
     const env = { ...process.env }
     delete env.SONORUS_UI_DEV_URL
-    app = await electron.launch({ args: [ROOT, `--user-data-dir=${profileDir}`], cwd: ROOT, env })
+    app = await electron.launch({ args: [ROOT, `--user-data-dir=${profileDir}`, '--mute-audio'], cwd: ROOT, env })
     const page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
     return { app, page, dataDir, stop }
