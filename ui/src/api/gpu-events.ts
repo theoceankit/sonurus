@@ -28,7 +28,15 @@ export function watchGpuDownload(url: string, listener: (event: GpuDownloadEvent
     listener(event)
   }
   socket.onmessage = ({ data }) => {
-    const message = JSON.parse(data) as Message
+    let message: Message
+    try {
+      message = JSON.parse(data) as Message
+    } catch {
+      // Nothing after it can be trusted to end the download here.
+      end({ type: 'error', message: 'the backend sent an unreadable message' })
+      socket.close()
+      return
+    }
     if (message.type !== 'heartbeat') end(message)
   }
   socket.onclose = () => end({ type: 'error', message: 'the connection to the backend was lost' })

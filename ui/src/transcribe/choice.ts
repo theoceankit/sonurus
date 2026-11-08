@@ -13,9 +13,10 @@ export const NOTHING_PICKED: Picked = { model: null, language: null }
 export const NOT_INSTALLED = 'Not installed'
 
 export type TranscribeChoice = {
-  // Null until GET /models has answered once.
+  // True until GET /models has answered once and the settings are read.
   checking: boolean
   model: string | null
+  // Empty while the default is not known yet.
   language: string
   // Why the run cannot start; null when it can, and while checking.
   blocked: BlockReason | null
@@ -23,17 +24,17 @@ export type TranscribeChoice = {
   languageOptions: SelectOption[]
 }
 
-// models: the last catalog, undefined before any. A model picked here stays while it
-// is installed; when it goes, the default takes its place.
-export function transcribeChoice(models: readonly ModelInfo[] | undefined, settings: TranscribeSettings, picked: Picked): TranscribeChoice {
-  const language = picked.language ?? settings.transcribeLang
+// models: the last catalog, undefined before any; settings: null until read. A model
+// picked here stays while it is installed; when it goes, the default takes its place.
+export function transcribeChoice(models: readonly ModelInfo[] | undefined, settings: TranscribeSettings | null, picked: Picked): TranscribeChoice {
+  const language = picked.language ?? settings?.transcribeLang ?? ''
   const languageOptions = LANGUAGES.map(({ code, label }) => {
     const off = !!models && !!missingAlignmentModel(code, models)
     return { value: code, label, ...(off ? { disabled: true, meta: NOT_INSTALLED } : {}) }
   })
   // A saved language that is not in the list is still shown, as the old UI did.
-  if (!LANGUAGES.some(({ code }) => code === language)) languageOptions.push({ value: language, label: languageName(language) })
-  if (!models) return { checking: true, model: null, language, blocked: null, modelOptions: [], languageOptions }
+  if (language && !LANGUAGES.some(({ code }) => code === language)) languageOptions.push({ value: language, label: languageName(language) })
+  if (!models || !settings) return { checking: true, model: null, language, blocked: null, modelOptions: [], languageOptions }
 
   const state = modelState(models, settings)
   const model = picked.model && installedWhisperModels(models).includes(picked.model) ? picked.model : state.model

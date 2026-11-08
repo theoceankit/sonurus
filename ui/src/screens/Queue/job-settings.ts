@@ -1,8 +1,5 @@
-import type { QueueJob, QueueJobUpdate } from '../../api/types'
+import { TITLE_MAX_LENGTH, type QueueJob, type QueueJobUpdate } from '../../api/types'
 import { apiLanguage, AUTO_LANGUAGE } from '../../transcribe/languages'
-
-// The backend takes a title of up to 200 characters (JobUpdateRequest).
-export const TITLE_MAX_LENGTH = 200
 
 export type JobForm = { title: string; model: string; language: string }
 

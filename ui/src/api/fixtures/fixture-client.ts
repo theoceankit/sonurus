@@ -506,7 +506,7 @@ export function createFixtureClient({
       if (language && models.some(model => model.kind === 'alignment' && model.id === language && !model.installed)) {
         throw new ApiError(400, `Alignment model for language "${language}" is not installed. Download it in Settings.`)
       }
-      if (job.status === 'running') throw new ApiError(409, 'The job is running; pause the queue to edit it')
+      if (job.status === 'running') throw new ApiError(409, 'This job has started and can no longer be changed.', 'job_running')
       const updated: QueueJob = {
         ...job,
         ...(update.title != null ? { title: update.title } : {}),

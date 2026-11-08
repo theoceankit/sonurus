@@ -73,7 +73,7 @@ test('Download shows progress, then one button retries every job that failed on 
   await fail(failedJob('a', 'cs'), failedJob('b', 'pt'), failedJob('c', 'cs'))
   await userEvent.click(await waitFor(() => button('Download ~300 MB')))
   expect(await within(dialog()!).findByRole('progressbar')).toBeTruthy()
-  expect(dialog()?.textContent).toContain('Downloading Czech alignment model…')
+  expect(screen.getByRole('dialog', { name: 'Downloading Czech model…' }).textContent).toContain('The alignment model may take a few minutes to download.')
   // A second failure of the language while it downloads joins it.
   await fail(failedJob('a', 'cs'), failedJob('b', 'pt'), failedJob('c', 'cs'))
   expect(start).toHaveBeenCalledTimes(1)
@@ -114,6 +114,18 @@ test('a failed download says why and offers to try again, or Settings', async ()
   const start = vi.spyOn(client, 'startModelDownload')
   await userEvent.click(button('Try again'))
   expect(start).toHaveBeenCalledTimes(1)
+})
+
+test('a download that ends done without the model failed', async () => {
+  const { client, fail } = setup()
+  const listModels = client.listModels.bind(client)
+  // The backend says done, the catalog still has no model: an offline download.
+  client.listModels = async () => (await listModels()).map(model => model.id === 'cs' ? { ...model, installed: false } : model)
+  await screen.findByRole('region', { name: 'This week' })
+  await fail(failedJob('a', 'cs'))
+  await userEvent.click(await waitFor(() => button('Download ~300 MB')))
+  await waitFor(() => expect(dialog()?.textContent).toContain('Download failed'))
+  expect(button('Try again')).toBeTruthy()
 })
 
 test('Open Settings closes the dialog for Settings', async () => {

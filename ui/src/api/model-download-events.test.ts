@@ -57,3 +57,11 @@ test('stopping closes the connection and says nothing more', () => {
   expect(socket.closed).toBe(true)
   expect(events).toEqual([])
 })
+
+test('an unreadable message ends the watch with an error and closes the connection', () => {
+  const { events, socket } = watch()
+  socket.onmessage?.({ data: 'not json' })
+  socket.receive({ type: 'done' })
+  expect(events).toEqual([{ type: 'error', message: 'The backend sent an unreadable message.' }])
+  expect(socket.closed).toBe(true)
+})

@@ -34,7 +34,8 @@ const openAppearance = async () => {
   await userEvent.click(within(settings).getByRole('tab', { name: 'Appearance' }))
   return settings
 }
-const field = (name: string) => screen.getByRole('button', { name })
+// A select is named by its label and its value.
+const field = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}( |$)`) })
 const option = (name: RegExp | string) => screen.getByRole('menuitemradio', { name })
 
 test('opens from the titlebar on General, with the sections at the side and the version under them', async () => {
@@ -93,7 +94,7 @@ test('a language without its alignment model says so; Download starts it, with t
 test('a language whose alignment model is there says nothing', async () => {
   await setup({}, { transcribeLang: 'en' })
   const settings = await openSettings()
-  await within(settings).findByRole('button', { name: 'Transcription language' })
+  await within(settings).findByRole('button', { name: /^Transcription language/ })
   expect(within(settings).queryByRole('status')).toBeNull()
 })
 

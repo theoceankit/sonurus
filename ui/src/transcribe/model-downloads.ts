@@ -65,9 +65,10 @@ export function createModelDownloads(api: ApiClient, readToken: () => Promise<st
       notify(modelId)
       try {
         const jobId = await api.startModelDownload(modelId, await readToken())
-        // Cancelled before the backend answered: stop the job it started.
+        // Cancelled before the backend answered: stop the job it started, unless a
+        // newer download of the model has begun: the backend gives that one the same job.
         if (running.get(modelId) !== entry) {
-          await api.cancelModelDownload(modelId, jobId).catch(() => {})
+          if (!running.has(modelId)) await api.cancelModelDownload(modelId, jobId).catch(() => {})
           return
         }
         entry.jobId = jobId
@@ -77,6 +78,12 @@ export function createModelDownloads(api: ApiClient, readToken: () => Promise<st
             notify(modelId)
           } else if (event.type === 'error') {
             finish(modelId, entry, 'failed', event.code)
+          } else if (event.type === 'done') {
+            // Done counts only with the model installed: a backend that says done for
+            // a download that did not finish would otherwise fall back to Download silently.
+            void api.listModels()
+              .then(models => models.some(model => model.id === modelId && model.installed), () => false)
+              .then(installed => finish(modelId, entry, installed ? 'done' : 'failed'))
           } else {
             finish(modelId, entry, event.type)
           }

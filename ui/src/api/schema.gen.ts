@@ -1046,14 +1046,15 @@ export interface components {
         };
         /**
          * RefusalResponse
-         * @description A 400 of the queue's job routes: a message for the user and what it is about.
+         * @description A refusal of the queue's job routes (400, and 409 for a job that started):
+         *     a message for the user and what it is about.
          */
         RefusalResponse: {
             /**
              * Code
              * @enum {string}
              */
-            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed";
+            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed" | "job_running";
             /** Detail */
             detail: string;
         };
@@ -1866,6 +1867,15 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

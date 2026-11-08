@@ -16,11 +16,13 @@ import type { TranscribeChoice } from '../../transcribe/choice'
 import { blockMessage } from '../../transcribe/models'
 import type { RecordingSetup } from '../../recording/useRecordingSetup'
 import { BOTH_OFF } from '../../recording/sources'
-import { SUPPORTED_EXTENSIONS, type ImportFailure, type ImportFile } from './import-files'
+import { TITLE_MAX_LENGTH } from '../../api/types'
+import { SUPPORTED_EXTENSIONS, type ImportFile } from './import-files'
+import type { Refusal } from '../../transcribe/refusals'
+import { RefusalNote } from '../../transcribe/RefusalNote'
 import styles from './ImportDialog.module.css'
 
 // The backend takes a title of up to 200 characters (JobUpdateRequest, TranscribeRequest).
-const TITLE_MAX_LENGTH = 200
 
 const HINT = `${SUPPORTED_EXTENSIONS.slice(0, -1).join(', ')} or ${SUPPORTED_EXTENSIONS.at(-1)}`
 
@@ -36,7 +38,7 @@ export interface ImportDialogProps {
   choice: TranscribeChoice
   onModelChange: (model: string) => void
   onLanguageChange: (language: string) => void
-  failure: ImportFailure | null
+  failure: Refusal | null
   importing: boolean
   onChooseFiles: () => void
   onRemove: (path: string) => void
@@ -86,7 +88,8 @@ export function ImportDialog({
               label="Language"
               value={choice.language}
               options={choice.languageOptions}
-              disabled={importing}
+              placeholder="Checking…"
+              disabled={!choice.language || importing}
               onValueChange={onLanguageChange}
             />
           </Inline>
@@ -144,14 +147,7 @@ export function ImportDialog({
               ))}
             </ul>
           )}
-          {failure && (
-            <Stack gap={1} align="start" role="alert" className={styles.failure}>
-              <span>{failure.message}</span>
-              {failure.settingsSection && (
-                <Button variant="ghost" size="small" icon="settings" onClick={() => onOpenSettings?.(failure.settingsSection!)}>Open Settings</Button>
-              )}
-            </Stack>
-          )}
+          {failure && <RefusalNote refusal={failure} onOpenSettings={onOpenSettings} />}
         </Stack>
       </ModalBody>
       <ModalFooter

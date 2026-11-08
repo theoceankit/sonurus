@@ -345,6 +345,29 @@ def test_download_failure_leaves_model_not_installed(tmp_path):
     assert svc.is_installed("tiny") is False
 
 
+def _incomplete_snapshot(repo, cache_dir, **_kw):
+    """What snapshot_download does offline over an interrupted earlier download: it
+    returns the cached snapshot (refs/main is there) without fetching the blobs."""
+    cache = Path(cache_dir) / cache_dir_name(repo)
+    (cache / "refs").mkdir(parents=True, exist_ok=True)
+    (cache / "refs" / "main").write_text("abc123")
+    (cache / "blobs").mkdir(exist_ok=True)
+    (cache / "blobs" / "abc.incomplete").write_bytes(b"partial")
+
+
+@pytest.mark.parametrize("model_id", ["tiny", "diarize", "ru"])
+def test_download_that_leaves_the_model_incomplete_fails(tmp_path, model_id):
+    from unittest.mock import patch
+    from app.services.model_service import ModelDownloadError
+    svc = ModelService(tmp_path / "whisper")
+
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=_incomplete_snapshot):
+        with pytest.raises(ModelDownloadError) as raised:
+            svc.download_model(model_id)
+    assert raised.value.code == "failed"
+    assert svc.is_installed(model_id) is False
+
+
 # ---------------------------------------------------------------------------
 # Cancel must stop the transfer, not wait for it to finish
 # ---------------------------------------------------------------------------

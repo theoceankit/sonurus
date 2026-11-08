@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useModels, useUpdateQueueJob } from '../../api/queries'
 import type { QueueJob } from '../../api/types'
 import { NOTHING_PICKED, transcribeChoice } from '../../transcribe/choice'
+import { refusalOf, type Refusal } from '../../transcribe/refusals'
+import { useSettingsDialog } from '../Settings/SettingsProvider'
 import { jobEditPatch, jobForm, type JobForm } from './job-settings'
 import { JobSettingsDialog } from './JobSettingsDialog'
 
@@ -12,11 +14,14 @@ interface EditJobDialogProps {
 }
 
 // What the edit button of a queue card opens. Only the changed fields are sent; a
-// refusal keeps the dialog open with the reason, such as a model not installed.
+// refusal keeps the dialog open with the reason above the buttons, such as a model
+// not installed. A job that started meanwhile stays refused: it cannot be edited.
 export function EditJobDialog({ job, onClose }: EditJobDialogProps) {
   const [shown, setShown] = useState(job)
   const [form, setForm] = useState<JobForm | null>(job && jobForm(job))
   const [error, setError] = useState<string | null>(null)
+  const [refusal, setRefusal] = useState<Refusal | null>(null)
+  const settingsDialog = useSettingsDialog()
   const models = useModels()
   const update = useUpdateQueueJob()
 
@@ -25,6 +30,7 @@ export function EditJobDialog({ job, onClose }: EditJobDialogProps) {
     setShown(job)
     setForm(jobForm(job))
     setError(null)
+    setRefusal(null)
   }, [job])
 
   if (!shown || !form) return null
@@ -38,15 +44,15 @@ export function EditJobDialog({ job, onClose }: EditJobDialogProps) {
   }
 
   const save = async () => {
-    if (update.isPending) return
+    if (update.isPending || refusal?.code === 'job_running') return
     const result = jobEditPatch(shown, form)
     if (result.error) return setError(result.error)
     if (!result.patch) return onClose()
     try {
       await update.mutateAsync({ jobId: shown.id, update: result.patch })
       onClose()
-    } catch (refusal) {
-      setError(refusal instanceof Error ? refusal.message : String(refusal))
+    } catch (failure) {
+      setRefusal(refusalOf(failure))
     }
   }
 
@@ -57,9 +63,15 @@ export function EditJobDialog({ job, onClose }: EditJobDialogProps) {
       modelOptions={modelOptions}
       languageOptions={choice.languageOptions}
       error={error}
+      refusal={refusal}
       saving={update.isPending}
-      onChange={next => { setForm(next); setError(null) }}
+      onChange={next => {
+        setForm(next)
+        setError(null)
+        if (refusal?.code !== 'job_running') setRefusal(null)
+      }}
       onSave={() => void save()}
+      onOpenSettings={section => settingsDialog.open(section)}
       onClose={onClose}
       onExited={() => setShown(null)}
     />

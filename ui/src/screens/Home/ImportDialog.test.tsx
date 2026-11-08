@@ -253,7 +253,8 @@ test('an error says what is wrong with no icon', async () => {
 describe('title, model and language', () => {
   const choose = async () => userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
   const importButton = () => screen.getByRole('button', { name: 'Import' })
-  const field = (name: string) => screen.getByRole('button', { name })
+  // A select is named by its label and its value.
+  const field = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}( |$)`) })
   const option = (name: RegExp) => screen.getByRole('menuitemradio', { name })
   const jobs = async (client: ReturnType<typeof setup>) => (await client.getQueue()).jobs.map(job => ({
     title: job.title, model: job.whisper_model, language: job.language,
@@ -347,6 +348,17 @@ describe('title, model and language', () => {
     await waitFor(async () => expect((await jobs(client))[0]?.model).toBe('small'))
   })
 
+  test('until the settings are read, it waits with Import off and shows no default', async () => {
+    const bridge = createMockElectronAPI({ openFiles: async () => ['/in/a.mp3'] })
+    vi.stubGlobal('electronAPI', { ...bridge, readSettings: () => new Promise(() => {}) })
+    render(<ApiProvider client={createFixtureClient()}><OverlayProvider><SettingsProvider><EditorScreen /></SettingsProvider></OverlayProvider></ApiProvider>)
+    await openByButton()
+    await choose()
+    expect(field('Model').textContent?.trim()).toBe('Checking models…')
+    expect(field('Language').textContent?.trim()).toBe('Checking…')
+    expect(importButton()).toHaveProperty('disabled', true)
+  })
+
   test('until the models are known, it opens and waits with Import off', async () => {
     await setupWith({ overrides: { listModels: () => new Promise(() => {}) } }, ['/in/a.mp3'])
     await openByButton()
@@ -435,7 +447,8 @@ describe('recording', () => {
   }
   const toggle = (name: string) => screen.getByRole('button', { name })
   const start = () => screen.getByRole('button', { name: 'Start recording' }) as HTMLButtonElement
-  const field = (name: string) => screen.getByRole('button', { name })
+  // A select is named by its label and its value.
+  const field = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}( |$)`) })
   const option = (name: RegExp) => screen.getByRole('menuitemradio', { name })
 
   test('New recording asks for consent; Diarize speakers is the only switch, still not there', async () => {

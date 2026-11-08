@@ -210,7 +210,9 @@ def test_patch_the_running_job_is_409(api):
     job = _post(tc, tmp_path)
     tc.post("/queue/start")
     wait_for(lambda: runner.started == ["Team Meeting"])
-    assert tc.patch(f"/queue/jobs/{job['id']}", json={"title": "x"}).status_code == 409
+    r = tc.patch(f"/queue/jobs/{job['id']}", json={"title": "x"})
+    assert r.status_code == 409
+    assert r.json() == {"detail": "This job has started and can no longer be changed.", "code": "job_running"}
     runner.release("Team Meeting")
 
 

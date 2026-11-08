@@ -130,7 +130,7 @@ async def add_job(body: TranscribeRequest, queue: TranscriptionQueue = Depends(g
         raise
 
 
-@router.patch("/queue/jobs/{job_id}", response_model=QueueJob, responses={400: {"model": RefusalResponse}})
+@router.patch("/queue/jobs/{job_id}", response_model=QueueJob, responses={400: {"model": RefusalResponse}, 409: {"model": RefusalResponse}})
 def update_job(job_id: str, body: JobUpdateRequest,
                queue: TranscriptionQueue = Depends(get_transcription_queue)):
     fields = {}
@@ -146,7 +146,7 @@ def update_job(job_id: str, body: JobUpdateRequest,
     except JobNotFound:
         raise HTTPException(status_code=404, detail="Job not found")
     except JobRunning:
-        raise HTTPException(status_code=409, detail="The job is running; pause the queue to edit it")
+        raise Refusal("job_running", "This job has started and can no longer be changed.", status_code=409)
 
 
 @router.delete("/queue/jobs/{job_id}", response_model=JobDeleted)

@@ -3,15 +3,16 @@ import { useApi } from '../../api/ApiProvider'
 import { AddToQueueError, useAddToQueue, useModels } from '../../api/queries'
 import { ApiError } from '../../api/client'
 import { toast } from '../../components/Toast/toast-store'
-import { readTranscribeSettings, transcribeSettings, type TranscribeSettings } from '../../platform/transcribe-defaults'
+import { readTranscribeSettings, type TranscribeSettings } from '../../platform/transcribe-defaults'
 import { NOTHING_PICKED, transcribeChoice, type Picked } from '../../transcribe/choice'
 import { apiLanguage } from '../../transcribe/languages'
 import { useSettingsDialog } from '../Settings/SettingsProvider'
 import { useRecordingSetup } from '../../recording/useRecordingSetup'
 import { openModalCount } from '../../components/Modal/open-modals'
 import type { ImportDialogProps } from './ImportDialog'
+import { refusalOf, type Refusal } from '../../transcribe/refusals'
 import {
-  addFiles, defaultTitle, fileName, importFailure, importingMessage, queueTitles, skippedMessage, watchFileDrags, type ImportFailure, type ImportFile,
+  addFiles, defaultTitle, fileName, importingMessage, queueTitles, skippedMessage, watchFileDrags, type ImportFile,
 } from './import-files'
 
 interface ImportState {
@@ -23,7 +24,7 @@ interface ImportState {
   title: string
   // Model and language picked for this run; the defaults until the user picks.
   picked: Picked
-  failure: ImportFailure | null
+  failure: Refusal | null
 }
 
 const CLOSED: ImportState = { open: false, sticky: false, files: [], title: '', picked: NOTHING_PICKED, failure: null }
@@ -53,7 +54,8 @@ export function useImportDialog() {
   const api = useApi()
   const models = useModels()
   const { refetch: refetchModels } = models
-  const [settings, setSettings] = useState<TranscribeSettings>(() => transcribeSettings(undefined))
+  // Null until read: the dialog waits for the defaults rather than show others first.
+  const [settings, setSettings] = useState<TranscribeSettings | null>(null)
   const [openedAt, setOpenedAt] = useState(() => api.now())
   const settingsDialog = useSettingsDialog()
   const recording = useRecordingSetup(state.open)
@@ -126,7 +128,7 @@ export function useImportDialog() {
       const failure = error instanceof AddToQueueError ? error : new AddToQueueError(0, new ApiError(0, String(error)))
       // What went in is on its way: off the list, so Import does not send it twice.
       if (failure.added > 0) toast({ message: importingMessage(files.slice(0, failure.added)) })
-      setState(current => ({ ...current, files: current.files.slice(failure.added), failure: importFailure(failure.error) }))
+      setState(current => ({ ...current, files: current.files.slice(failure.added), failure: refusalOf(failure.error) }))
     } finally {
       importing.current = false
     }

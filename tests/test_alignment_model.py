@@ -11,6 +11,7 @@ from unittest.mock import patch, call
 import pytest
 
 from app.services.model_service import ModelService, ALIGNMENT_CATALOG
+from snapshot_fakes import complete_snapshot
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +267,7 @@ def test_download_alignment_calls_snapshot_download(tmp_path):
     """download_model(lang) calls huggingface_hub.snapshot_download once."""
     svc = make_service(tmp_path)
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download") as mock_dl:
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot()) as mock_dl:
         svc.download_model("ru")
 
     mock_dl.assert_called_once()
@@ -281,7 +282,7 @@ def test_download_alignment_passes_correct_hf_repo(tmp_path):
     def fake_download(repo, **kwargs):
         captured_repos.append(repo)
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=fake_download):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot(fake_download)):
         svc.download_model("ru")
 
     assert len(captured_repos) == 1
@@ -297,7 +298,7 @@ def test_download_alignment_passes_alignment_dir_as_cache_dir(tmp_path):
     def fake_download(repo, cache_dir=None, **kwargs):
         captured_cache_dirs.append(cache_dir)
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=fake_download):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot(fake_download)):
         svc.download_model("ru")
 
     assert len(captured_cache_dirs) == 1
@@ -342,7 +343,7 @@ def test_download_alignment_starts_progress_poller_thread(tmp_path):
     def fake_download(repo, **kwargs):
         pass
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=fake_download):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot(fake_download)):
         with patch.object(threading.Thread, "start", mock_start):
             svc.download_model("ru", on_progress=progress_events.append)
 
@@ -362,7 +363,7 @@ def test_download_alignment_no_progress_poller_when_on_progress_none(tmp_path):
         threads_started.append(self)
         original_start(self, *args, **kwargs)
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download"):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot()):
         with patch.object(threading.Thread, "start", mock_start):
             svc.download_model("ru")
 

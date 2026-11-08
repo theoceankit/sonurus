@@ -272,7 +272,7 @@ Radix focuses the item under the pointer, and Chromium takes that focus for a ke
 
 ### Select
 
-`Select` is one value of a short list in a field that looks like `TextField`, with its label above it. It is a `Menu` of radio options: the same surface, rows and keyboard, and the list is as wide as the field. An option can be off with a reason at the end of its row (`meta`), such as "Not installed"; a value that is none of the options shows `placeholder`.
+`Select` is one value of a short list in a field that looks like `TextField`, with its label above it. It is a `Menu` of radio options: the same surface, rows and keyboard, and the list is as wide as the field. An option can be off with a reason at the end of its row (`meta`), such as "Not installed"; a value that is none of the options shows `placeholder`. The field is named by its label, or its `aria-label`, and its value, as a native select is read ("Model Whisper Small"); the list keeps the roles of a menu.
 
 Inside a `Modal` the list does not go past the window: `Modal` hands its window to popups as their boundary (`useModal().boundary`), and the list opens upwards when there is more room there and scrolls when it fits neither way. Outside a modal the boundary is the viewport.
 

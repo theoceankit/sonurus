@@ -282,12 +282,16 @@ class ModelService:
 
     @staticmethod
     def _download_repo(cache_dir: Path, kwargs: dict, cancel_event) -> None:
-        """Download one repo; its marker is removed only after a successful download."""
+        """Download one repo; its marker is removed only after a successful download.
+        A snapshot that returns without every file is a failed download: offline,
+        huggingface_hub returns the cached snapshot of an interrupted earlier one."""
         cache_dir.mkdir(parents=True, exist_ok=True)
         marker = cache_dir / _DOWNLOAD_MARKER
         marker.touch()
         _run_download(kwargs, cancel_event)
         marker.unlink(missing_ok=True)
+        if not _is_repo_complete(cache_dir):
+            raise ModelDownloadError("failed", f"The download of {kwargs['repo_id']} did not finish.")
 
     def list_models(self) -> list[dict]:
         result = []

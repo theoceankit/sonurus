@@ -133,12 +133,13 @@ class UnknownSpeakerCandidates(ResponseModel):
 
 RefusalCode = Literal[
     "whisper_model_missing", "diarization_model_missing", "alignment_model_missing",
-    "audio_not_found", "audio_not_readable", "audio_copy_failed",
+    "audio_not_found", "audio_not_readable", "audio_copy_failed", "job_running",
 ]
 
 
 class RefusalResponse(BaseModel):
-    """A 400 of the queue's job routes: a message for the user and what it is about."""
+    """A refusal of the queue's job routes (400, and 409 for a job that started):
+    a message for the user and what it is about."""
     detail: str
     code: RefusalCode
 

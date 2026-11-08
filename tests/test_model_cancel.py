@@ -23,6 +23,7 @@ from app.api.dependencies import get_memory_service, get_storage_service
 from app.services.model_service import ModelService, WHISPER_CATALOG
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.speaker_memory_service import SpeakerMemoryService
+from snapshot_fakes import complete_snapshot
 
 
 # ---------------------------------------------------------------------------
@@ -119,9 +120,8 @@ def test_download_model_accepts_none_cancel_event(tmp_path):
     svc = make_service(tmp_path)
 
     with patch(
-        "app.services.model_service.huggingface_hub.snapshot_download"
-    ) as mock_dl:
-        mock_dl.return_value = str(tmp_path / "fake_cache")
+        "app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot()
+    ):
         # Passing cancel_event=None explicitly must be valid — the new signature
         # must default to None and treat it as "no cancellation".
         svc.download_model("small", cancel_event=None)
@@ -133,9 +133,8 @@ def test_download_model_completes_normally_with_unset_cancel_event(tmp_path):
     cancel_event = threading.Event()  # not set
 
     with patch(
-        "app.services.model_service.huggingface_hub.snapshot_download"
-    ) as mock_dl:
-        mock_dl.return_value = str(tmp_path / "fake_cache")
+        "app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot()
+    ):
         # Should not raise.
         svc.download_model("small", cancel_event=cancel_event)
 
