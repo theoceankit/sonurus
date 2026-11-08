@@ -1,7 +1,7 @@
 'use strict'
 
-// The new UI (ui/) keeps the old UI's security settings when packaged, is part
-// of every build, and leaves its sources and Storybook out of the installers.
+// The UI (ui/) keeps its security settings when packaged, is part of every
+// build, and leaves its sources and Storybook out of the installers.
 
 const test   = require('node:test')
 const assert = require('node:assert/strict')
@@ -16,16 +16,17 @@ const read = (...parts) => fs.readFileSync(path.join(ROOT, ...parts), 'utf8')
 const pkg  = JSON.parse(read('package.json'))
 const csp  = html => html.match(/http-equiv="Content-Security-Policy"\s+content="([^"]+)"/)[1]
 
-// The one difference: the new UI plays audio from the backend, the old one from file://.
-const NEW_UI_CSP = csp(read('electron', 'renderer', 'index.html')).replace("media-src 'self' file: blob:", "media-src 'self' http://localhost:8000 blob:")
+// Only the backend on this machine: requests, its WebSocket and the audio it serves.
+const UI_CSP = "default-src 'self'; connect-src http://localhost:8000 ws://localhost:8000; " +
+  "style-src 'self' 'unsafe-inline'; media-src 'self' http://localhost:8000 blob:; worker-src 'none'"
 
-test('the new UI has the CSP of the old one, with audio from the backend and not from files', () => {
-  assert.equal(csp(read('ui', 'index.html')), NEW_UI_CSP)
-  assert.doesNotMatch(NEW_UI_CSP, /file:/)
+test('the UI talks to the local backend only and plays no files from disk', () => {
+  assert.equal(csp(read('ui', 'index.html')), UI_CSP)
+  assert.doesNotMatch(UI_CSP, /file:/)
 })
 
 test('a build that exists has the same CSP too: the dev server additions stay out', { skip: !fs.existsSync(path.join(ROOT, 'ui', 'dist', 'index.html')) }, () => {
-  assert.equal(csp(read('ui', 'dist', 'index.html')), NEW_UI_CSP)
+  assert.equal(csp(read('ui', 'dist', 'index.html')), UI_CSP)
 })
 
 test('the dev server additions apply to the dev server only', () => {
@@ -94,11 +95,17 @@ test('no two modules in the new UI differ only in case', () => {
   assert.deepEqual(clashes, [])
 })
 
-test('only the build of the new UI is packaged', () => {
+test('only the build of the UI is packaged', () => {
   assert.ok(pkg.build.files.includes('ui/dist/**/*'))
   assert.ok(!pkg.build.files.some(f => f === 'ui/**/*' || f === 'ui/**'))
   assert.ok(pkg.build.files.includes('electron/**/*'))
   assert.equal(pkg.dependencies?.react, undefined, 'React is bundled into ui/dist')
+})
+
+test('the old renderer is gone: electron/ holds the main process alone', () => {
+  for (const gone of ['renderer', path.join('assets', 'icons')]) {
+    assert.ok(!fs.existsSync(path.join(ROOT, 'electron', gone)), `electron/${gone} is back`)
+  }
 })
 
 test('test tools are no runtime dependency, so they stay out of the installers', () => {
@@ -166,6 +173,13 @@ test('the archive check accepts the build alone', () => {
 
 test('the archive check reports a missing build', () => {
   assert.deepEqual(packagedUiProblems(['/package.json', '/electron/main.js']), ['missing: /ui/dist/index.html'])
+})
+
+test('the archive check reports the old renderer and its icons', () => {
+  for (const file of ['/electron/renderer/index.html', '/electron/assets/icons/play.svg']) {
+    assert.deepEqual(packagedUiProblems(['/ui/dist/index.html', file]), [`must not be packaged: ${file}`])
+  }
+  assert.deepEqual(packagedUiProblems(['/ui/dist/index.html', '/electron/assets/icon.png']), [])
 })
 
 test('the archive check reports sources and Storybook', () => {
