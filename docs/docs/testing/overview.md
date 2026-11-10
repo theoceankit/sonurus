@@ -63,14 +63,16 @@ Both pass in the CI environment: the schema is taken with the ML libraries stubb
 
 ### End-to-end tests
 
-`tests/e2e/` runs the built app as the user gets it: Electron with `ui/dist`, the main process and a real backend, driven by Playwright's `_electron`. `harness.js` makes a temporary data directory, seeds it with `seed.py` (two recordings with named and unnamed speakers, a tone as their audio), starts the backend on it and Electron with a profile in the same directory, and removes it all afterwards (`SONORUS_E2E_KEEP=1` keeps it, with `backend.log`). Whisper Small and the diarization model only look installed, and the queue starts paused on manual start, so nothing is transcribed and no model is loaded. The main process's file dialog is replaced by `stubOpenFiles()`.
+`tests/e2e/` runs the built app as the user gets it: Electron with `ui/dist`, the main process and a real backend, driven by Playwright's `_electron`. `harness.js` makes a temporary data directory, seeds it with `seed.py` (two recordings with named and unnamed speakers, a tone as their audio), starts the backend on it and Electron with a profile in the same directory, and removes it all afterwards (`SONORUS_E2E_KEEP=1` keeps it, with `backend.log`). A test registers `t.after(app.stop)`: when it fails, the directory is kept with `window.png` and `window.aria.yml` (the window's screenshot and accessibility tree at that moment) next to `backend.log`, and the test's output names it. Whisper Small and the diarization model only look installed, and the queue starts paused on manual start, so nothing is transcribed and no model is loaded. The main process's file dialog is replaced by `stubOpenFiles()`.
+
+What the window shows is not yet what the backend or the rest of the window has: titles and text are edited optimistically, before the request lands, and a toast renders a moment before the queries that changed with it (TanStack Query notifies on the next task). A check that follows such a sign waits with `assertEventually()` from `harness.js` instead of reading once. Look for a toast inside the `Notifications` region: for a second Radix also puts its text in a live region outside it, and a page-wide `getByText()` then finds two elements.
 
 ```bash
 npm run build:ui
 npm run test:e2e        # one file at a time: the backend is always on port 8000
 ```
 
-The tests refuse to start while something answers on port 8000, as Electron would use that backend and its data. They need the development `.venv` (the backend imports its ML libraries at start), so CI does not run them. Layout is still checked by eye: see [Development](../ui/electron/development.md#checking-on-isolated-data).
+The tests refuse to start while something answers on port 8000, as Electron would use that backend and its data, and while `ui/dist` is older than its sources in `ui/`: an old build fails them in ways that look like bugs. They need the development `.venv` (the backend imports its ML libraries at start), so CI does not run them. Layout is still checked by eye: see [Development](../ui/electron/development.md#checking-on-isolated-data).
 
 ### Quality tests
 

@@ -5,8 +5,12 @@
 // Electron with a profile in the same directory. Nothing touches real data.
 //
 //   const app = await startApp({ seed: 'full' })
+//   t.after(app.stop)
 //   ... app.page is the window (Playwright Page)
-//   await app.stop()
+//
+// As a hook, stop() gets the test: when it failed, the window's screenshot and
+// accessibility tree go into the data directory, which is kept, and the test's
+// output names it next to backend.log.
 
 const { spawn, spawnSync } = require('child_process')
 const fs   = require('fs')
@@ -42,9 +46,21 @@ async function waitFor(check, what, timeoutMs = START_TIMEOUT_MS) {
   throw new Error(`${what} within ${timeoutMs / 1000} s`)
 }
 
+// The newest change to what goes into ui/dist.
+function newestUiSource(file = path.join(ROOT, 'ui', 'src')) {
+  const stat = fs.statSync(file, { throwIfNoEntry: false })
+  if (!stat) return 0
+  if (!stat.isDirectory()) return stat.mtimeMs
+  return Math.max(0, ...fs.readdirSync(file).map(name => newestUiSource(path.join(file, name))))
+}
+
 async function preflight() {
-  if (!fs.existsSync(path.join(ROOT, 'ui', 'dist', 'index.html'))) {
-    throw new Error('ui/dist is not built. Run: npm run build:ui')
+  const built = fs.statSync(path.join(ROOT, 'ui', 'dist', 'index.html'), { throwIfNoEntry: false })
+  if (!built) throw new Error('ui/dist is not built. Run: npm run build:ui')
+  // An old build fails the tests in ways that look like bugs.
+  const sources = ['src', 'public', 'index.html', 'vite.config.ts', 'package.json'].map(name => path.join(ROOT, 'ui', name))
+  if (Math.max(...sources.map(file => newestUiSource(file))) > built.mtimeMs) {
+    throw new Error('ui/dist is older than its sources in ui/. Run: npm run build:ui')
   }
   if (!fs.existsSync(PYTHON)) throw new Error(`No Python at ${PYTHON}. See docs/docs/environment/setup.md`)
   // Electron reuses a development backend on the port: the test would run on its data.
@@ -83,10 +99,13 @@ async function startApp({ seed: profile = 'full' } = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sonorus-e2e-'))
   let backend = null
   let app = null
-  const stop = async () => {
+  const stop = async test => {
+    const failed = test?.passed === false
+    if (failed) await keepEvidence(app, dataDir)
     await app?.close().catch(() => {})
     await stopProcess(backend)
-    if (!process.env.SONORUS_E2E_KEEP) fs.rmSync(dataDir, { recursive: true, force: true })
+    if (failed) test.diagnostic(`Data, backend.log, window.png and window.aria.yml kept in ${dataDir}`)
+    else if (!process.env.SONORUS_E2E_KEEP) fs.rmSync(dataDir, { recursive: true, force: true })
   }
   try {
     seed(dataDir, profile)
@@ -113,6 +132,15 @@ async function startApp({ seed: profile = 'full' } = {}) {
   }
 }
 
+// What the window showed when a test failed. Best effort: the window may be gone.
+async function keepEvidence(app, dataDir) {
+  const page = app?.windows()[0]
+  if (!page) return
+  await page.screenshot({ path: path.join(dataDir, 'window.png') }).catch(() => {})
+  const tree = await page.locator('body').ariaSnapshot().catch(error => `No snapshot: ${error.message}`)
+  fs.writeFileSync(path.join(dataDir, 'window.aria.yml'), tree)
+}
+
 // What the main process saved in settings.json.
 function savedSettings(dataDir) {
   return JSON.parse(fs.readFileSync(path.join(dataDir, 'profile', 'settings.json'), 'utf8'))
@@ -126,6 +154,18 @@ async function stubOpenFiles(app, paths) {
   }, paths)
 }
 
+// Waits until check() holds. For what the window shows before the backend has
+// it (optimistic edits) or a moment after the sign of it (a toast renders
+// before the query that changed with it): asserting at once races.
+async function assertEventually(check, what, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (await check()) return
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  throw new Error(`${what} within ${timeoutMs / 1000} s`)
+}
+
 async function api(method, route, body) {
   const res = await fetch(`${BACKEND}${route}`, {
     method,
@@ -136,4 +176,4 @@ async function api(method, route, body) {
   return res.status === 204 ? null : res.json()
 }
 
-module.exports = { ROOT, startApp, stubOpenFiles, savedSettings, api }
+module.exports = { ROOT, startApp, stubOpenFiles, savedSettings, assertEventually, api }

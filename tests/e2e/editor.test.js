@@ -2,10 +2,13 @@
 
 // The newest recording opens at start. It plays, a turn changes speaker and
 // back with Undo, and its title and text are edited.
+//
+// The toast of a new speaker renders a moment before the transcript that
+// changed with it, and edited titles and text show before the backend has
+// them: what follows them is awaited, never read at once.
 
 const test   = require('node:test')
-const assert = require('node:assert/strict')
-const { startApp, api } = require('./harness')
+const { startApp, assertEventually, api } = require('./harness')
 
 test('the editor plays, changes a speaker with Undo, and edits the title and the text', async t => {
   const app = await startApp()
@@ -25,9 +28,12 @@ test('the editor plays, changes a speaker with Undo, and edits the title and the
   // A turn of Mark Ellis goes to Anna Petrova, then back.
   await text.getByRole('button', { name: 'Mark Ellis' }).first().click()
   await page.getByRole('dialog', { name: 'Change speaker' }).getByRole('option', { name: /Anna Petrova/ }).click()
-  await page.getByText('Assigned to Anna Petrova').waitFor()
-  assert.equal(await text.getByRole('button', { name: 'Mark Ellis' }).count(), 1)
-  await page.getByRole('region', { name: /Notifications/ }).getByRole('button', { name: 'Undo' }).click()
+  // Radix also puts the toast's text in a live region outside the toasts for a second.
+  const toasts = page.getByRole('region', { name: /Notifications/ })
+  await toasts.getByText('Assigned to Anna Petrova').waitFor()
+  await assertEventually(async () => await text.getByRole('button', { name: 'Mark Ellis' }).count() === 1,
+    'one turn of Mark Ellis is left')
+  await toasts.getByRole('button', { name: 'Undo' }).click()
   await text.getByRole('button', { name: 'Mark Ellis' }).nth(1).waitFor()
 
   // The title, in the editor and in the list.
@@ -45,8 +51,10 @@ test('the editor plays, changes a speaker with Undo, and edits the title and the
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Enter' : 'Control+Enter')
   await text.getByText('The installers are ready for review.').waitFor()
 
-  const list = await api('GET', '/transcripts')
-  const id = list.find(item => item.title === 'Weekly sync, week 45').id
-  const saved = await api('GET', `/transcripts/${id}`)
-  assert.ok(saved.segments.some(segment => segment.text === 'The installers are ready for review.'))
+  await assertEventually(async () => {
+    const saved = (await api('GET', '/transcripts')).find(item => item.title === 'Weekly sync, week 45')
+    if (!saved) return false
+    const { segments } = await api('GET', `/transcripts/${saved.id}`)
+    return segments.some(segment => segment.text === 'The installers are ready for review.')
+  }, 'the backend has the new title and text')
 })
