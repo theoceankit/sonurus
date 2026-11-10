@@ -1,5 +1,5 @@
 import { effectiveSpeaker, TITLE_MAX_LENGTH, UNASSIGNED, type Segment, type Speaker, type Transcript } from '../../api/types'
-import { formatDuration } from '../../media/timeline'
+import { formatClock, formatDuration } from '../../media/timeline'
 import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 
 const GRAY: SpeakerColor = 6
@@ -52,6 +52,13 @@ export function buildTurns(segments: readonly Segment[], speakers: readonly Spea
     else turns.push({ speaker: describe(id), start: segment.start, segments: [segment] })
   }
   return turns
+}
+
+// The whole transcript as plain text, as the Editor shows it: the title, then each
+// turn its speaker and start time over a line per paragraph, all apart by an empty line.
+export function transcriptText(title: string, turns: readonly TranscriptTurn[]): string {
+  const blocks = turns.map(turn => [`${turn.speaker.name} ${formatClock(turn.start)}`, ...turn.segments.map(segment => segment.text)].join('\n'))
+  return [title, ...blocks].join('\n\n')
 }
 
 export function talkTimes(segments: readonly Segment[]): Map<string, number> {

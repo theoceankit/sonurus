@@ -110,6 +110,7 @@ describe('states', () => {
     render(<ApiProvider client={client}><OverlayProvider><TranscriptPanel transcriptId={WEEKLY_SYNC_ID} playback={playback} /></OverlayProvider></ApiProvider>)
     await text('No speech in this recording')
     expect(screen.getByRole('heading', { name: 'Weekly product sync' })).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Copy transcript' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })
 
@@ -376,6 +377,30 @@ describe('copying', () => {
     await userEvent.hover(await text(MARK_SECOND))
     await userEvent.click(screen.getByRole('button', { name: 'Copy' }))
     await text('Copy failed')
+  })
+
+  test('Copy transcript puts the title and every turn on the clipboard, with speakers and times, and says so', async () => {
+    const writeClipboard = vi.fn(async () => {})
+    clipboard(writeClipboard)
+    setup()
+    await text(FIRST)
+    await userEvent.click(screen.getByRole('button', { name: 'Copy transcript' }))
+    const copied = (writeClipboard.mock.calls as unknown as [string][])[0][0]
+    expect(copied.startsWith(`Weekly product sync\n\nAnna Petrova 00:00\n${FIRST}\n\nMark Ellis 00:05\n${MARK_FIRST}\n${MARK_SECOND}\n\n`)).toBe(true)
+    expect(copied.endsWith("Great, thanks everyone. That's all for today.")).toBe(true)
+    await text('Copied')
+  })
+
+  test('the sticky header copies the same', async () => {
+    const writeClipboard = vi.fn(async () => {})
+    clipboard(writeClipboard)
+    setup()
+    await text(FIRST)
+    await userEvent.click(screen.getByRole('button', { name: 'Copy transcript' }))
+    fireEvent.scroll(document.querySelector<HTMLElement>('[data-transcript-scroll]')!, { target: { scrollTop: 300 } })
+    await userEvent.click(screen.getAllByRole('button', { name: 'Copy transcript' })[1])
+    expect(writeClipboard).toHaveBeenCalledTimes(2)
+    expect(writeClipboard.mock.calls[1]).toEqual(writeClipboard.mock.calls[0])
   })
 })
 

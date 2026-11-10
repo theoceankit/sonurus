@@ -16,7 +16,7 @@ import type { Playback } from '../../media/playback'
 import { markNotImplemented } from '../../not-implemented'
 import { useLingering } from '../../presence'
 import {
-  buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave,
+  buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave, transcriptText,
 } from './transcript'
 import type { RecordingToDelete } from './DeleteRecordingDialog'
 import { useKeepRowInPlace } from './useKeepRowInPlace'
@@ -120,6 +120,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   const times = useMemo(() => talkTimes(segments), [segments])
   const title = recordingTitle(transcript, listed?.title)
   const deleteRecording = () => onDelete?.({ id: transcriptId, title })
+  const copyTranscript = turns.length > 0 ? () => void copyToClipboard(transcriptText(title, turns)) : undefined
 
   const { area, scrollRef, bottom } = useScrollEdges()
   const keepInPlace = useKeepRowInPlace(area, segments)
@@ -195,6 +196,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
               date={formatRecordingDate(listed?.created_at)}
               language={languageLabel(transcript.language)}
               onDelete={deleteRecording}
+              onCopy={copyTranscript}
               onRename={typed => {
                 const next = titleToSave(typed, title)
                 if (next) rename({ transcriptId, title: next }, { onError: error => toast({ message: `Failed to rename: ${error.message}`, type: 'error' }) })
@@ -231,7 +233,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
           )}
         </div>
       </div>
-      {stuck && <TranscriptHeader sticky title={title} onDelete={deleteRecording} className={styles.sticky} />}
+      {stuck && <TranscriptHeader sticky title={title} onDelete={deleteRecording} onCopy={copyTranscript} className={styles.sticky} />}
       <ScrollBar area={area} />
       {bottom && <ScrollFade edge="bottom" />}
       {menu && (
