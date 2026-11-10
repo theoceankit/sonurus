@@ -12,7 +12,7 @@ import { ModalHeader } from '../ModalHeader/ModalHeader'
 import { SearchField } from '../SearchField/SearchField'
 import { TextField } from '../TextField/TextField'
 import { dismissAllToasts, toast } from '../Toast/toast-store'
-import { Tooltip } from '../Tooltip/Tooltip'
+import { Tooltip, TooltipGroup } from '../Tooltip/Tooltip'
 import { Modal, type ModalType } from './Modal'
 import { openModalCount } from './open-modals'
 import css from './Modal.module.css?raw'
@@ -235,11 +235,71 @@ test('a tooltip inside shows on focus', async () => {
   expect(screen.getByRole('tooltip', { hidden: true }).textContent).toBe('Hint')
 })
 
-function FromMenu() {
+function FromTooltip({ group }: { group?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const opener = <Tooltip text="Open a window"><Button onClick={() => setOpen(true)}>Open</Button></Tooltip>
+  return (
+    <OverlayProvider>
+      {group ? <TooltipGroup><div>{opener}<Tooltip text="Next to it"><Button>Next</Button></Tooltip></div></TooltipGroup> : opener}
+      <Button>Behind</Button>
+      <Modal open={open} onOpenChange={setOpen}>
+        <ModalHeader title="Title" />
+        <ModalFooter confirm={{ children: 'Confirm' }} />
+      </Modal>
+    </OverlayProvider>
+  )
+}
+
+const tooltipShown = () => screen.queryByRole('tooltip', { hidden: true })?.textContent ?? null
+
+describe('focus given back to a control with a tooltip', () => {
+  test.each([
+    ['Escape', () => userEvent.keyboard('{Escape}')],
+    ['Close', () => userEvent.click(button('Close'))],
+    ['Cancel', () => userEvent.click(button('Cancel'))],
+  ])('does not show its tooltip after %s', async (_, close) => {
+    render(<FromTooltip />)
+    await userEvent.click(button('Open'))
+    await close()
+    expect(dialog()).toBeNull()
+    expect(document.activeElement).toBe(button('Open'))
+    expect(tooltipShown()).toBeNull()
+  })
+
+  test('does not show the tooltip of a group', async () => {
+    render(<FromTooltip group />)
+    await userEvent.click(button('Open'))
+    await userEvent.keyboard('{Escape}')
+    expect(document.activeElement).toBe(button('Open'))
+    expect(tooltipShown()).toBeNull()
+  })
+
+  test('keyboard focus on it afterwards shows the tooltip', async () => {
+    render(<FromTooltip />)
+    await userEvent.click(button('Open'))
+    await userEvent.keyboard('{Escape}')
+    await userEvent.tab()
+    await userEvent.tab({ shift: true })
+    expect(document.activeElement).toBe(button('Open'))
+    expect(tooltipShown()).toBe('Open a window')
+  })
+
+  test('does not show the tooltip of a menu button that opened it from the menu', async () => {
+    render(<FromMenu tooltip />)
+    await userEvent.click(button('More'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    await waitFor(() => expect(document.activeElement).toBe(button('Cancel')))
+    await userEvent.click(button('Cancel'))
+    await waitFor(() => expect(document.activeElement).toBe(button('More')))
+    expect(tooltipShown()).toBeNull()
+  })
+})
+
+function FromMenu({ tooltip }: { tooltip?: boolean }) {
   const [open, setOpen] = useState(false)
   return (
     <OverlayProvider>
-      <Menu trigger={<Button>More</Button>}>
+      <Menu trigger={tooltip ? <Tooltip text="More actions"><Button>More</Button></Tooltip> : <Button>More</Button>}>
         <MenuAction onSelect={() => setOpen(true)}>Delete</MenuAction>
       </Menu>
       <Modal type="danger" open={open} onOpenChange={setOpen}>

@@ -1,7 +1,7 @@
 import * as RadixTooltip from '@radix-ui/react-tooltip'
 import {
   cloneElement, createContext, useContext, useEffect, useId, useRef, useState,
-  type ComponentPropsWithRef, type PointerEvent, type ReactElement,
+  type ComponentPropsWithRef, type FocusEvent, type PointerEvent, type ReactElement,
 } from 'react'
 import styles from './Tooltip.module.css'
 
@@ -104,6 +104,20 @@ function replace(shown: Shown): From {
   return from
 }
 
+let returning: Element | null = null
+
+// Focus given back to a control, as a window does on closing, shows no tooltip: the
+// person did not come to the control, and the tooltip would stay with no pointer on
+// it until focus moves on. Coming to it from the keyboard again shows it as always.
+export function returnFocus(element: HTMLElement) {
+  returning = element
+  try {
+    element.focus()
+  } finally {
+    returning = null
+  }
+}
+
 // What is left goes to the trigger, so a menu can open from a control with a tooltip.
 interface TooltipProps extends Omit<ComponentPropsWithRef<typeof RadixTooltip.Trigger>, 'asChild' | 'children'> {
   text: string
@@ -118,7 +132,7 @@ interface TooltipProps extends Omit<ComponentPropsWithRef<typeof RadixTooltip.Tr
 // The distance from the control, the arrow comes on top of it.
 const OFFSET = 4
 
-export function Tooltip({ text, placement = 'above', children, open, onPointerLeave, ...props }: TooltipProps) {
+export function Tooltip({ text, placement = 'above', children, open, onPointerLeave, onFocus, ...props }: TooltipProps) {
   const group = useContext(GroupContext)
   const owner = useId()
   const [shown, setShown] = useState(false)
@@ -148,6 +162,12 @@ export function Tooltip({ text, placement = 'above', children, open, onPointerLe
     overGap.current = Boolean(group && shown && to instanceof Element && to.closest(`[data-tooltip-group="${group.id}"]`))
   }
 
+  // Radix opens on focus unless the handler before it prevents that.
+  const handleFocus = (event: FocusEvent<HTMLButtonElement>) => {
+    onFocus?.(event)
+    if (returning && event.currentTarget.contains(returning)) event.preventDefault()
+  }
+
   // Radix has placed it: it starts where the one it replaces stood. Its height is
   // taken from the controls: Radix places it once more, lower by the height of the
   // arrow, before it is seen.
@@ -172,7 +192,7 @@ export function Tooltip({ text, placement = 'above', children, open, onPointerLe
       delayDuration={group?.active ? 0 : undefined}
       disableHoverableContent={group ? true : undefined}
     >
-      <RadixTooltip.Trigger asChild onPointerLeave={handlePointerLeave} {...props}>{children}</RadixTooltip.Trigger>
+      <RadixTooltip.Trigger asChild onPointerLeave={handlePointerLeave} onFocus={handleFocus} {...props}>{children}</RadixTooltip.Trigger>
       <RadixTooltip.Portal>
         <RadixTooltip.Content
           ref={content}
