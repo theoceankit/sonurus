@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'vitest'
-import { addFiles, defaultTitle, importingMessage, isSupportedAudio, queueTitles, skippedMessage, SUPPORTED_EXTENSIONS, watchFileDrags } from './import-files'
+import { addFiles, defaultTitle, importingMessage, isSupportedAudio, queueTitles, renameFile, skippedMessage, splitName, SUPPORTED_EXTENSIONS, watchFileDrags } from './import-files'
 
 const f = (name: string, path = `/in/${name}`) => ({ name, path })
 
@@ -124,13 +124,29 @@ describe('titles', () => {
     expect(defaultTitle(new Date(2026, 10, 5, 9, 7))).toBe('5 Nov 09:07 Meeting')
   })
 
-  test('one file keeps a typed title, trimmed; a blank one is the file name', () => {
-    expect(queueTitles(files('a.mp3'), '  Weekly sync ')).toEqual(['Weekly sync'])
-    expect(queueTitles(files('a.mp3'), '   ')).toEqual([null])
-    expect(queueTitles(files('a.mp3'), '')).toEqual([null])
+  test('a file renamed keeps its title; one not renamed is named after itself (null)', () => {
+    const [a, b] = files('a.mp3', 'b.wav')
+    expect(queueTitles([{ ...a, title: 'Weekly sync' }, b])).toEqual(['Weekly sync', null])
+  })
+})
+
+describe('renaming a file', () => {
+  const files = (...names: string[]) => names.map(name => ({ name, path: `/in/${name}` }))
+
+  test('the extension is apart from the name, and stays', () => {
+    expect(splitName('Team call.m4a')).toEqual({ stem: 'Team call', extension: '.m4a' })
+    expect(splitName('v1.2 notes.WAV')).toEqual({ stem: 'v1.2 notes', extension: '.WAV' })
+    expect(splitName('noextension')).toEqual({ stem: 'noextension', extension: '' })
   })
 
-  test('several files are each named after their file, in order', () => {
-    expect(queueTitles(files('b.mp3', 'a.wav'), 'Ignored')).toEqual([null, null])
+  test('takes the typed title, trimmed, for that file only', () => {
+    const renamed = renameFile(files('a.mp3', 'b.mp3'), '/in/b.mp3', '  Retro ')
+    expect(renamed.map(file => file.title)).toEqual([undefined, 'Retro'])
+  })
+
+  test('a blank title, or the file name itself, names it after the file again', () => {
+    const renamed = renameFile([{ name: 'a.mp3', path: '/in/a.mp3', title: 'Retro' }], '/in/a.mp3', '   ')
+    expect(renamed[0].title).toBeUndefined()
+    expect(renameFile(files('a.mp3'), '/in/a.mp3', 'a')[0].title).toBeUndefined()
   })
 })

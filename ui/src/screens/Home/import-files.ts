@@ -6,6 +6,8 @@ export const SUPPORTED_EXTENSIONS = ['wav', 'mp3', 'm4a', 'flac', 'ogg', 'mp4', 
 export interface ImportFile {
   name: string
   path: string
+  // Renamed in the list: the title of its recording. Without one it is named after the file.
+  title?: string
 }
 
 export const fileName = (path: string) => path.replace(/^.*[\\/]/, '')
@@ -33,11 +35,24 @@ const pad = (n: number) => String(n).padStart(2, '0')
 // What the title field shows until the user types: "5 Nov 14:30 Meeting".
 export const defaultTitle = (now: Date) => `${now.getDate()} ${MONTHS[now.getMonth()]} ${pad(now.getHours())}:${pad(now.getMinutes())} Meeting`
 
-// The titles of the jobs, in the order of the files. One file keeps a typed title;
-// with none typed, or with several files, each is named after its file (null).
-export function queueTitles(files: readonly ImportFile[], typed: string): (string | null)[] {
-  const title = typed.trim()
-  return files.map(() => (files.length === 1 && title ? title : null))
+// The titles of the jobs, in the order of the files: the one a file was renamed to, or
+// null, which the backend turns into the name of the file.
+export const queueTitles = (files: readonly ImportFile[]): (string | null)[] => files.map(file => file.title ?? null)
+
+// A file's name and its extension, which a rename leaves as it is.
+export function splitName(name: string): { stem: string; extension: string } {
+  const dot = name.lastIndexOf('.')
+  return dot > 0 ? { stem: name.slice(0, dot), extension: name.slice(dot) } : { stem: name, extension: '' }
+}
+
+// Renames one file of the list. Blank, or its own name, it is named after the file again.
+export function renameFile(files: readonly ImportFile[], path: string, typed: string): ImportFile[] {
+  return files.map(file => {
+    if (file.path !== path) return file
+    const title = typed.trim()
+    const named = { name: file.name, path: file.path }
+    return title && title !== splitName(file.name).stem ? { ...named, title } : named
+  })
 }
 
 export const importingMessage = (files: readonly ImportFile[]) => (

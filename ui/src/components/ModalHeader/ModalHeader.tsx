@@ -25,14 +25,17 @@ export function ModalHeader({ title, description, icon }: ModalHeaderProps) {
 
   return (
     <header className={styles.modalHeader} data-modal-header>
-      {icon && <Icon name={icon} size={20} className={styles.icon} />}
+      {icon && <span className={styles.titleLine}><Icon name={icon} size={20} className={styles.icon} /></span>}
       <Stack gap="half" className={styles.heading}>
         <Title className={styles.title}>{title}</Title>
         {description && <Description className={styles.description}>{description}</Description>}
       </Stack>
-      <Close asChild>
-        <IconButton icon="close" size="xs" label="Close" />
-      </Close>
+      {/* On the line of the title, also with a description under it. */}
+      <span className={styles.titleLine}>
+        <Close asChild>
+          <IconButton icon="close" size="xs" label="Close" />
+        </Close>
+      </span>
     </header>
   )
 }

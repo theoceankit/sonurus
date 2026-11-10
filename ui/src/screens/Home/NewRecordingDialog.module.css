@@ -1,0 +1,24 @@
+/* As the label of a field. */
+.label {
+  font: var(--font-caption);
+  color: var(--color-text-secondary);
+}
+
+.sources {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.hint {
+  font: var(--font-caption);
+  color: var(--color-text-secondary);
+}
+
+.recordingNotice {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-fill-hover);
+  font: var(--font-caption);
+  color: var(--color-text-secondary);
+}

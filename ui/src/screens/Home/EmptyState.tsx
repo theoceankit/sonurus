@@ -14,6 +14,7 @@ export function EmptyState({ onOpenSettings }: { onOpenSettings?: () => void }) 
           <span className={styles.plus}><Icon name="add" label="plus" /></span>
           {' '}at the top left.
         </p>
+        <p className={styles.title}>Or drop audio or video files into the window.</p>
         <p className={styles.note}>
           Transcribing needs models, which are downloaded in{' '}
           <button type="button" className={styles.link} onClick={onOpenSettings}>Settings</button>.

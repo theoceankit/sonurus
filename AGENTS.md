@@ -113,7 +113,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | Player and playback | `ui/src/media/`, `ui/src/components/Player/`, `ui/src/screens/Editor/EditorPlayer.tsx` | `docs/docs/ui/electron/player.md` |
 | Transcript | `ui/src/screens/Editor/Transcript*.tsx`, `transcript.ts`, `ui/src/media/active-segment.ts`, `ui/src/components/TurnHeader/`, `Paragraph/`, `TranscriptHeader/`, `SpeakerMenu/` | `docs/docs/ui/electron/transcript.md` |
 | Inspector and speaker review | `ui/src/screens/Editor/InspectorPanel.tsx`, `SpeakerDialogs.tsx`, `review-queue.ts`, `inspector.ts`, `speaker-search.ts`, `new-speaker.ts`, `ui/src/media/clip-playback.ts` | `docs/docs/ui/electron/inspector.md` |
-| Home: the recording open at startup, empty state, import dialog, file drops | `ui/src/screens/Home/`, `ui/src/components/DropZone/` | `docs/docs/ui/electron/home.md` |
+| Home: the recording open at startup, empty state, New recording and Import files dialogs, file drops | `ui/src/screens/Home/`, `ui/src/components/DropZone/` | `docs/docs/ui/electron/home.md` |
 | Transcription: models, the default model, downloads, languages, the queue in the sidebar, the Alignment model and job settings dialogs | `ui/src/transcribe/`, `ui/src/screens/Queue/` | `docs/docs/ui/electron/transcribe.md` |
 | Settings: the Settings dialog, its sections and what they change | `ui/src/screens/Settings/`, `ui/src/platform/settings.ts` | `docs/docs/ui/electron/settings.md` |
 | Speakers: the Speakers window, a speaker's card, voice samples from any recording | `ui/src/screens/Speakers/`, `ui/src/media/sample-playback.ts`, `ui/src/components/AppearanceRow/` | `docs/docs/ui/electron/speakers.md` |

@@ -9,8 +9,9 @@ import { cx } from '../../styles/cx'
 import { createKeyStore } from '../../media/active-segment'
 import { EmptyState } from '../Home/EmptyState'
 import { ImportDialog } from '../Home/ImportDialog'
+import { NewRecordingDialog } from '../Home/NewRecordingDialog'
 import { pickRecording, useRecentRecordings } from '../Home/last-opened'
-import { useImportDialog } from '../Home/useImportDialog'
+import { useNewTranscription } from '../Home/useNewTranscription'
 import { useSettingsDialog } from '../Settings/SettingsProvider'
 import { QueueJobPanel } from '../Queue/QueueJobPanel'
 import { QueueSection } from '../Queue/QueueSection'
@@ -77,7 +78,7 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   const shownId = jobId === null ? selectedId : null
   const clearJob = useCallback(() => setJobId(null), [])
   const recent = useRecentRecordings()
-  const importer = useImportDialog()
+  const newTranscription = useNewTranscription()
   const settingsDialog = useSettingsDialog()
   const [panels, setPanels] = useState(INITIAL_PANELS)
   const ownPlayback = useTranscriptPlayback(givenPlayback ? null : shownId)
@@ -198,7 +199,7 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
         onToggleSidebar={() => toggle('sidebar')}
         inspectorOpen={visible.inspector}
         onOpenInspector={() => toggle('inspector')}
-        onNewTranscription={importer.open}
+        onNewTranscription={newTranscription.openRecording}
         onOpenSettings={() => settingsDialog.open()}
         onOpenSpeakers={() => setSpeakersOpen(true)}
         status={!visible.sidebar && <LiveRecordingPill />}
@@ -253,7 +254,8 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
           onExited={speakerDialog.exited}
         />
       )}
-      <ImportDialog {...importer.dialog} />
+      <NewRecordingDialog {...newTranscription.record} />
+      <ImportDialog {...newTranscription.importer} />
       {speakersWindow.value && (
         <SpeakersDialog
           key={speakersWindow.key}
