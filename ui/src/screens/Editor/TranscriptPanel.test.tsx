@@ -379,14 +379,14 @@ describe('copying', () => {
     await text('Copy failed')
   })
 
-  test('Copy transcript puts every turn on the clipboard, with speakers and times, and says so', async () => {
+  test('Copy transcript puts the title and every turn on the clipboard, with speakers and times, and says so', async () => {
     const writeClipboard = vi.fn(async () => {})
     clipboard(writeClipboard)
     setup()
     await text(FIRST)
     await userEvent.click(screen.getByRole('button', { name: 'Copy transcript' }))
     const copied = (writeClipboard.mock.calls as unknown as [string][])[0][0]
-    expect(copied.startsWith(`Anna Petrova 00:00\n${FIRST}\n\nMark Ellis 00:05\n${MARK_FIRST}\n${MARK_SECOND}\n\n`)).toBe(true)
+    expect(copied.startsWith(`Weekly product sync\n\nAnna Petrova 00:00\n${FIRST}\n\nMark Ellis 00:05\n${MARK_FIRST}\n${MARK_SECOND}\n\n`)).toBe(true)
     expect(copied.endsWith("Great, thanks everyone. That's all for today.")).toBe(true)
     await text('Copied')
   })

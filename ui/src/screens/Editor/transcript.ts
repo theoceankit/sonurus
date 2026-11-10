@@ -54,12 +54,11 @@ export function buildTurns(segments: readonly Segment[], speakers: readonly Spea
   return turns
 }
 
-// The whole transcript as plain text, as the Editor shows it: each turn its speaker
-// and start time, then a line per paragraph, turns apart by an empty line.
-export function transcriptText(turns: readonly TranscriptTurn[]): string {
-  return turns
-    .map(turn => [`${turn.speaker.name} ${formatClock(turn.start)}`, ...turn.segments.map(segment => segment.text)].join('\n'))
-    .join('\n\n')
+// The whole transcript as plain text, as the Editor shows it: the title, then each
+// turn its speaker and start time over a line per paragraph, all apart by an empty line.
+export function transcriptText(title: string, turns: readonly TranscriptTurn[]): string {
+  const blocks = turns.map(turn => [`${turn.speaker.name} ${formatClock(turn.start)}`, ...turn.segments.map(segment => segment.text)].join('\n'))
+  return [title, ...blocks].join('\n\n')
 }
 
 export function talkTimes(segments: readonly Segment[]): Map<string, number> {

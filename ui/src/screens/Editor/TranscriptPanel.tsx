@@ -120,7 +120,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   const times = useMemo(() => talkTimes(segments), [segments])
   const title = recordingTitle(transcript, listed?.title)
   const deleteRecording = () => onDelete?.({ id: transcriptId, title })
-  const copyTranscript = turns.length > 0 ? () => void copyToClipboard(transcriptText(turns)) : undefined
+  const copyTranscript = turns.length > 0 ? () => void copyToClipboard(transcriptText(title, turns)) : undefined
 
   const { area, scrollRef, bottom } = useScrollEdges()
   const keepInPlace = useKeepRowInPlace(area, segments)

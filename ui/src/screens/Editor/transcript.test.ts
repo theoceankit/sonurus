@@ -132,24 +132,24 @@ test('formatRecordingDate: as on the boards, nothing for a bad date', () => {
 })
 
 describe('transcriptText', () => {
-  test('each turn is its speaker and start time, then a line per paragraph; turns apart by an empty line', () => {
+  test('the title comes first, an empty line under it; then each turn is its speaker and start time, then a line per paragraph; turns apart by an empty line', () => {
     const turns = buildTurns([
       segment(12, 14, 'mark', { text: 'So the budget.' }),
       segment(14, 16, 'mark', { text: 'Three items today.' }),
       segment(3725, 3730, 'gone', { text: 'Sure, go ahead.' }),
       segment(3730, 3731, 'anna', { text: 'Late.', unassigned: true }),
     ], SPEAKERS)
-    expect(transcriptText(turns)).toBe(
-      'Mark 00:12\nSo the budget.\nThree items today.\n\nUnknown speaker 1 1:02:05\nSure, go ahead.\n\nUnassigned 1:02:10\nLate.',
+    expect(transcriptText('Weekly sync', turns)).toBe(
+      'Weekly sync\n\nMark 00:12\nSo the budget.\nThree items today.\n\nUnknown speaker 1 1:02:05\nSure, go ahead.\n\nUnassigned 1:02:10\nLate.',
     )
   })
 
   test('the user\'s correction of the speaker and the edited text are what is copied', () => {
     const turns = buildTurns([segment(0, 1, 'anna', { speaker_final: 'mark', text: 'Edited.' })], SPEAKERS)
-    expect(transcriptText(turns)).toBe('Mark 00:00\nEdited.')
+    expect(transcriptText('Call', turns)).toBe('Call\n\nMark 00:00\nEdited.')
   })
 
-  test('no turns, no text', () => {
-    expect(transcriptText([])).toBe('')
+  test('no turns, only the title', () => {
+    expect(transcriptText('Call', [])).toBe('Call')
   })
 })
