@@ -4,7 +4,7 @@
 
 const test   = require('node:test')
 const assert = require('node:assert/strict')
-const { startApp, savedSettings } = require('./harness')
+const { startApp, savedSettings, assertEventually } = require('./harness')
 
 test('the interface scale zooms the window, is saved, and Reset puts it back', async t => {
   const app = await startApp()
@@ -28,12 +28,3 @@ test('the interface scale zooms the window, is saved, and Reset puts it back', a
   await assertEventually(async () => (await zoom()) === 1, 'the window is back to 100 %')
   assert.equal(savedSettings(app.dataDir).scale, 100)
 })
-
-async function assertEventually(check, what, timeoutMs = 5000) {
-  const deadline = Date.now() + timeoutMs
-  while (Date.now() < deadline) {
-    if (await check()) return
-    await new Promise(resolve => setTimeout(resolve, 100))
-  }
-  assert.fail(`${what} within ${timeoutMs / 1000} s`)
-}

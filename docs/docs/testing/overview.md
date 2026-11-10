@@ -65,6 +65,8 @@ Both pass in the CI environment: the schema is taken with the ML libraries stubb
 
 `tests/e2e/` runs the built app as the user gets it: Electron with `ui/dist`, the main process and a real backend, driven by Playwright's `_electron`. `harness.js` makes a temporary data directory, seeds it with `seed.py` (two recordings with named and unnamed speakers, a tone as their audio), starts the backend on it and Electron with a profile in the same directory, and removes it all afterwards (`SONORUS_E2E_KEEP=1` keeps it, with `backend.log`). Whisper Small and the diarization model only look installed, and the queue starts paused on manual start, so nothing is transcribed and no model is loaded. The main process's file dialog is replaced by `stubOpenFiles()`.
 
+What the window shows is not yet what the backend or the rest of the window has: titles and text are edited optimistically, before the request lands, and a toast renders a moment before the queries that changed with it (TanStack Query notifies on the next task). A check that follows such a sign waits with `assertEventually()` from `harness.js` instead of reading once.
+
 ```bash
 npm run build:ui
 npm run test:e2e        # one file at a time: the backend is always on port 8000

@@ -126,6 +126,18 @@ async function stubOpenFiles(app, paths) {
   }, paths)
 }
 
+// Waits until check() holds. For what the window shows before the backend has
+// it (optimistic edits) or a moment after the sign of it (a toast renders
+// before the query that changed with it): asserting at once races.
+async function assertEventually(check, what, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (await check()) return
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  throw new Error(`${what} within ${timeoutMs / 1000} s`)
+}
+
 async function api(method, route, body) {
   const res = await fetch(`${BACKEND}${route}`, {
     method,
@@ -136,4 +148,4 @@ async function api(method, route, body) {
   return res.status === 204 ? null : res.json()
 }
 
-module.exports = { ROOT, startApp, stubOpenFiles, savedSettings, api }
+module.exports = { ROOT, startApp, stubOpenFiles, savedSettings, assertEventually, api }
