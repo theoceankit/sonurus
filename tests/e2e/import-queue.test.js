@@ -20,7 +20,8 @@ test('an imported file waits in the queue, can be edited and deleted', async t =
   await stubOpenFiles(app.app, [file])
 
   await page.getByRole('button', { name: 'New recording' }).click()
-  const dialog = page.getByRole('dialog', { name: 'New recording' })
+  await page.getByRole('dialog', { name: 'New recording' }).getByRole('button', { name: 'Import files' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Import files' })
   await dialog.getByRole('button', { name: 'Choose files' }).click()
   await dialog.getByRole('list', { name: 'Files to import' }).getByText('Team call.wav').waitFor()
   await dialog.getByRole('button', { name: 'Import', exact: true }).click()

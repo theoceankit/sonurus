@@ -6,12 +6,9 @@ import { Modal } from '../../components/Modal/Modal'
 import { ModalBody } from '../../components/ModalBody/ModalBody'
 import { ModalFooter } from '../../components/ModalFooter/ModalFooter'
 import { ModalHeader } from '../../components/ModalHeader/ModalHeader'
-import { SourceToggle } from '../../components/SourceToggle/SourceToggle'
 import { Stack } from '../../components/Stack/Stack'
 import { TextField } from '../../components/TextField/TextField'
 import type { TranscribeChoice } from '../../transcribe/choice'
-import type { RecordingSetup } from '../../recording/useRecordingSetup'
-import { BOTH_OFF } from '../../recording/sources'
 import { TITLE_MAX_LENGTH } from '../../api/types'
 import { SUPPORTED_EXTENSIONS, type ImportFile } from './import-files'
 import type { Refusal } from '../../transcribe/refusals'
@@ -44,24 +41,21 @@ export interface ImportDialogProps {
   // Settings over the dialog, on the section where the missing model is downloaded.
   onOpenSettings?: (section: 'models' | 'alignment') => void
   onExited?: () => void
-  // The sources and devices of a live recording, and Start recording.
-  record: RecordingSetup
-  onStartRecording: () => void
   // Drawn in place, for a board of states.
   preview?: boolean
 }
 
-// New recording: a title, a model and a language for this run, and
-// either a live recording of the sources below them or the files dropped or chosen.
+// Import files: a title, a model and a language for this run, and the files dropped
+// or chosen. Opened by files dragged over the window, or from New recording.
 export function ImportDialog({
   open, over, files, title, defaultTitle, onTitleChange, choice, onModelChange, onLanguageChange,
-  failure, importing, onChooseFiles, onRemove, onImport, onClose, onOpenSettings, onExited, record, onStartRecording, preview,
+  failure, importing, onChooseFiles, onRemove, onImport, onClose, onOpenSettings, onExited, preview,
 }: ImportDialogProps) {
   const several = files.length > 1
   const ready = !choice.checking && !choice.blocked
   return (
     <Modal size="medium" open={open} preview={preview} onExited={onExited} onOpenChange={next => { if (!next) onClose() }}>
-      <ModalHeader title="New recording" description="Make sure all participants have agreed to be recorded." />
+      <ModalHeader title="Import files" />
       <ModalBody>
         <Stack gap={3}>
           <TextField
@@ -78,36 +72,7 @@ export function ImportDialog({
             onLanguageChange={onLanguageChange}
             disabled={importing}
             onOpenSettings={onOpenSettings}
-          >
-            <Stack gap={1} role="group" aria-label="Record">
-              <span className={styles.label}>Record</span>
-              {record.recording && <span className={styles.recordingNotice}>A recording is already in progress. Files can still be imported.</span>}
-              <div className={styles.sources}>
-                <SourceToggle
-                  icon="microphone"
-                  name="Microphone"
-                  on={record.sources.mic}
-                  onToggle={() => record.onToggle('mic')}
-                  devices={record.micDevices}
-                  device={record.micDevice}
-                  onDeviceChange={record.onMicDeviceChange}
-                  disabled={record.recording}
-                />
-                <SourceToggle
-                  icon="system-audio"
-                  name="System audio"
-                  on={record.sources.system}
-                  onToggle={() => record.onToggle('system')}
-                  devices={record.systemDevices}
-                  device={record.systemDevice}
-                  onDeviceChange={record.onSystemDeviceChange}
-                  disabled={record.recording}
-                  unavailable={record.systemUnavailable}
-                />
-              </div>
-              {record.blocked === BOTH_OFF && <span className={styles.hint}>{BOTH_OFF}</span>}
-            </Stack>
-          </TranscribeFields>
+          />
           <DropZone over={over} hint={HINT} disabled={importing} onChooseFiles={onChooseFiles} />
           {files.length > 0 && (
             <ul aria-label="Files to import" className={styles.files}>
@@ -129,8 +94,7 @@ export function ImportDialog({
         </Stack>
       </ModalBody>
       <ModalFooter
-        cancel={{ children: 'Import', disabled: files.length === 0 || !ready, loading: importing, onClick: onImport }}
-        confirm={{ children: 'Start recording', disabled: !!record.blocked || !ready || importing, onClick: onStartRecording }}
+        confirm={{ children: 'Import', disabled: files.length === 0 || !ready, loading: importing, onClick: onImport }}
       />
     </Modal>
   )

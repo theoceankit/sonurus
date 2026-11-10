@@ -31,8 +31,10 @@ export type RecordingSetup = {
 
 // What the New recording dialog records with: the sources and devices saved last,
 // changed for this run until it starts. While `active` (the dialog is open) it lists
-// the devices again, as they may have changed.
-export function useRecordingSetup(active: boolean) {
+// the devices again, as they may have changed. What was changed is kept until
+// `session` changes: New recording that comes back after files were dragged over it
+// keeps it, a new opening starts from what is saved.
+export function useRecordingSetup(active: boolean, session: number) {
   const settings = useSettings()
   const recording = useRecording()
   const capture = useCaptureSources(active)
@@ -40,7 +42,7 @@ export function useRecordingSetup(active: boolean) {
   const [picks, setPicks] = useState<Picks>(NOTHING)
 
   // Each opening starts from what is saved.
-  useEffect(() => { if (active) setPicks(NOTHING) }, [active])
+  useEffect(() => { setPicks(NOTHING) }, [session])
 
   const micDevices = micOptions(inputs)
   const systemDevices = systemOptions(capture.data ?? [])

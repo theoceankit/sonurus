@@ -2,9 +2,6 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { NO_MODELS } from '../../api/fixtures/fixture-client'
 import { DEFAULT_INSTALLED, fixtureModels } from '../../api/fixtures/models'
 import { NOTHING_PICKED, transcribeChoice } from '../../transcribe/choice'
-import { FIXTURE_CAPTURE_SOURCES } from '../../api/fixtures/fixture-client'
-import { BOTH_OFF, DEFAULT_MIC, NO_SYSTEM_AUDIO, micOptions, systemOptions } from '../../recording/sources'
-import type { RecordingSetup } from '../../recording/useRecordingSetup'
 import { ImportDialog, type ImportDialogProps } from './ImportDialog'
 
 const noop = () => {}
@@ -14,21 +11,8 @@ const choiceWith = (installed: readonly string[] | undefined, language = 'auto')
   transcribeChoice(installed && fixtureModels(installed), { ...SETTINGS, transcribeLang: language }, NOTHING_PICKED)
 )
 
-const RECORD: RecordingSetup = {
-  sources: { mic: true, system: true },
-  onToggle: noop,
-  micDevices: micOptions([{ kind: 'audioinput', deviceId: 'maono', label: 'Maono Dynamic Microphone' } as MediaDeviceInfo]),
-  micDevice: DEFAULT_MIC,
-  onMicDeviceChange: noop,
-  systemDevices: systemOptions(FIXTURE_CAPTURE_SOURCES),
-  systemDevice: FIXTURE_CAPTURE_SOURCES[0].id,
-  onSystemDeviceChange: noop,
-  recording: false,
-  blocked: null,
-}
-
 const meta: Meta<typeof ImportDialog> = {
-  title: 'Screens/Home/Import dialog',
+  title: 'Screens/Home/Import files',
   component: ImportDialog,
   args: {
     open: true,
@@ -46,8 +30,6 @@ const meta: Meta<typeof ImportDialog> = {
     onRemove: noop,
     onImport: noop,
     onClose: noop,
-    record: RECORD,
-    onStartRecording: noop,
   } satisfies ImportDialogProps,
 }
 export default meta
@@ -81,9 +63,3 @@ export const BackendNotResponding: Story = { args: { files: FILES, failure: { me
 // With the scrim, focus trap and the way in, as in the app.
 export const Open: Story = { args: { files: FILES, preview: false } }
 
-// The sources of a live recording. Start is off with nothing to record, or while a
-// recording runs; then the dialog only imports.
-export const MicrophoneOnly: Story = { args: { record: { ...RECORD, sources: { mic: true, system: false } } } }
-export const BothSourcesOff: Story = { args: { record: { ...RECORD, sources: { mic: false, system: false }, blocked: BOTH_OFF } } }
-export const NoSystemAudio: Story = { args: { record: { ...RECORD, systemDevices: [], systemDevice: null, systemUnavailable: NO_SYSTEM_AUDIO } } }
-export const WhileRecording: Story = { args: { files: FILES.slice(0, 1), record: { ...RECORD, recording: true, blocked: 'A recording is already in progress' } } }
