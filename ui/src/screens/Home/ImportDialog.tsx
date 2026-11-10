@@ -6,20 +6,17 @@ import { Modal } from '../../components/Modal/Modal'
 import { ModalBody } from '../../components/ModalBody/ModalBody'
 import { ModalFooter } from '../../components/ModalFooter/ModalFooter'
 import { ModalHeader } from '../../components/ModalHeader/ModalHeader'
-import { Inline } from '../../components/Inline/Inline'
-import { Select } from '../../components/Select/Select'
 import { SourceToggle } from '../../components/SourceToggle/SourceToggle'
 import { Stack } from '../../components/Stack/Stack'
 import { TextField } from '../../components/TextField/TextField'
-import { markNotImplemented } from '../../not-implemented'
 import type { TranscribeChoice } from '../../transcribe/choice'
-import { blockMessage } from '../../transcribe/models'
 import type { RecordingSetup } from '../../recording/useRecordingSetup'
 import { BOTH_OFF } from '../../recording/sources'
 import { TITLE_MAX_LENGTH } from '../../api/types'
 import { SUPPORTED_EXTENSIONS, type ImportFile } from './import-files'
 import type { Refusal } from '../../transcribe/refusals'
 import { RefusalNote } from '../../transcribe/RefusalNote'
+import { TranscribeFields } from './TranscribeFields'
 import styles from './ImportDialog.module.css'
 
 // The backend takes a title of up to 200 characters (JobUpdateRequest, TranscribeRequest).
@@ -75,61 +72,42 @@ export function ImportDialog({
             maxLength={TITLE_MAX_LENGTH}
             onChange={event => onTitleChange(event.target.value)}
           />
-          <Inline gap={3} align="start">
-            <Select
-              label="Model"
-              value={choice.model ?? ''}
-              options={choice.modelOptions}
-              placeholder={choice.checking ? 'Checking models…' : 'No model installed'}
-              disabled={choice.checking || importing}
-              onValueChange={onModelChange}
-            />
-            <Select
-              label="Language"
-              value={choice.language}
-              options={choice.languageOptions}
-              placeholder="Checking…"
-              disabled={!choice.language || importing}
-              onValueChange={onLanguageChange}
-            />
-          </Inline>
-          <Stack gap={1} role="group" aria-label="Record">
-            <span className={styles.label}>Record</span>
-            {record.recording && <span className={styles.recordingNotice}>A recording is already in progress. Files can still be imported.</span>}
-            <div className={styles.sources}>
-              <SourceToggle
-                icon="microphone"
-                name="Microphone"
-                on={record.sources.mic}
-                onToggle={() => record.onToggle('mic')}
-                devices={record.micDevices}
-                device={record.micDevice}
-                onDeviceChange={record.onMicDeviceChange}
-                disabled={record.recording}
-              />
-              <SourceToggle
-                icon="system-audio"
-                name="System audio"
-                on={record.sources.system}
-                onToggle={() => record.onToggle('system')}
-                devices={record.systemDevices}
-                device={record.systemDevice}
-                onDeviceChange={record.onSystemDeviceChange}
-                disabled={record.recording}
-                unavailable={record.systemUnavailable}
-              />
-            </div>
-            {record.blocked === BOTH_OFF && <span className={styles.hint}>{BOTH_OFF}</span>}
-          </Stack>
-          <Inline>
-            <Button size="small" icon="add" {...markNotImplemented('new-transcription.diarize')}>Diarize speakers</Button>
-          </Inline>
-          {choice.blocked && (
-            <Inline gap={2} justify="between" role="status" className={styles.blockedNotice}>
-              <span>{blockMessage(choice.blocked)}</span>
-              <Button variant="ghost" size="small" icon="settings" onClick={() => onOpenSettings?.(choice.blocked?.missing === 'alignment' ? 'alignment' : 'models')}>Download in Settings</Button>
-            </Inline>
-          )}
+          <TranscribeFields
+            choice={choice}
+            onModelChange={onModelChange}
+            onLanguageChange={onLanguageChange}
+            disabled={importing}
+            onOpenSettings={onOpenSettings}
+          >
+            <Stack gap={1} role="group" aria-label="Record">
+              <span className={styles.label}>Record</span>
+              {record.recording && <span className={styles.recordingNotice}>A recording is already in progress. Files can still be imported.</span>}
+              <div className={styles.sources}>
+                <SourceToggle
+                  icon="microphone"
+                  name="Microphone"
+                  on={record.sources.mic}
+                  onToggle={() => record.onToggle('mic')}
+                  devices={record.micDevices}
+                  device={record.micDevice}
+                  onDeviceChange={record.onMicDeviceChange}
+                  disabled={record.recording}
+                />
+                <SourceToggle
+                  icon="system-audio"
+                  name="System audio"
+                  on={record.sources.system}
+                  onToggle={() => record.onToggle('system')}
+                  devices={record.systemDevices}
+                  device={record.systemDevice}
+                  onDeviceChange={record.onSystemDeviceChange}
+                  disabled={record.recording}
+                  unavailable={record.systemUnavailable}
+                />
+              </div>
+              {record.blocked === BOTH_OFF && <span className={styles.hint}>{BOTH_OFF}</span>}
+            </Stack>
+          </TranscribeFields>
           <DropZone over={over} hint={HINT} disabled={importing} onChooseFiles={onChooseFiles} />
           {files.length > 0 && (
             <ul aria-label="Files to import" className={styles.files}>
