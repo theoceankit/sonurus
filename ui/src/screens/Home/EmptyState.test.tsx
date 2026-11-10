@@ -20,6 +20,7 @@ test('with no recordings the centre says how to make one and where the models ar
   setup({ scenario: 'empty' })
   expect(await within(centre()).findByText(HINT)).toBeTruthy()
   expect(within(centre()).getByRole('img', { name: 'plus' })).toBeTruthy()
+  expect(within(centre()).getByText('Or drop audio or video files into the window.')).toBeTruthy()
   await userEvent.click(within(centre()).getByRole('button', { name: 'Settings' }))
   expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy()
 })

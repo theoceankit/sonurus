@@ -26,7 +26,7 @@ The backend is not involved: what was opened last is a setting of the interface,
 
 ## Without recordings
 
-When the backend answers with no recordings at all, the centre shows `EmptyState` (`ui/src/screens/Home/EmptyState.tsx`): how to make a new transcription, with the plus in the sentence on a chip as a key in a shortcut hint, centred on the capitals rather than the lowercase letters, and a line that transcribing needs models, which are downloaded in Settings. Settings there opens [Settings](settings.md). The sidebar says No recordings yet as before. While the list loads, or when the backend does not answer, the centre stays empty and the sidebar says so: that is not the empty state.
+When the backend answers with no recordings at all, the centre shows `EmptyState` (`ui/src/screens/Home/EmptyState.tsx`): how to make a new transcription, with the plus in the sentence on a chip as a key in a shortcut hint, centred on the capitals rather than the lowercase letters, then "Or drop audio or video files into the window.", and a line that transcribing needs models, which are downloaded in Settings. Settings there opens [Settings](settings.md). The sidebar says No recordings yet as before. While the list loads, or when the backend does not answer, the centre stays empty and the sidebar says so: that is not the empty state.
 
 ## New recording dialog
 
