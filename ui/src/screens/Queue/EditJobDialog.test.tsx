@@ -31,8 +31,8 @@ const title = () => screen.getByRole('textbox', { name: 'Title' })
 const save = () => screen.getByRole('button', { name: 'Save' })
 const dialog = () => screen.queryByRole('dialog', { name: 'Transcription settings' })
 // A select is named by its label and its value.
-const field = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}( |$)`) })
-const option = (name: RegExp) => screen.getByRole('menuitemradio', { name })
+const field = (name: string) => screen.getByRole('combobox', { name })
+const option = (name: RegExp) => screen.getByRole('option', { name })
 
 test('starts with the job as it is, the title focused', async () => {
   await setup()
@@ -117,7 +117,7 @@ test('models not downloaded are off; the job keeps its own model when it is gone
   await setup({}, { ...JOB, whisper_model: 'medium' })
   await waitFor(() => expect(field('Model').textContent?.trim()).toBe('Whisper Medium'))
   await userEvent.click(field('Model'))
-  const menu = screen.getByRole('menu')
-  expect(within(menu).getByRole('menuitemradio', { name: /Whisper Medium/ }).getAttribute('aria-disabled')).toBe('true')
-  expect(within(menu).getByRole('menuitemradio', { name: /Whisper Large v3/ }).getAttribute('aria-disabled')).toBeNull()
+  const list = screen.getByRole('listbox')
+  expect(within(list).getByRole('option', { name: /Whisper Medium/ }).getAttribute('aria-disabled')).toBe('true')
+  expect(within(list).getByRole('option', { name: /Whisper Large v3/ }).getAttribute('aria-disabled')).toBeNull()
 })

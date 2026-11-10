@@ -47,9 +47,15 @@
 
 /* As wide as the field, and never past the window it is in. */
 .list {
-  width: var(--radix-dropdown-menu-trigger-width);
-  max-height: var(--radix-dropdown-menu-content-available-height);
+  width: var(--radix-select-trigger-width);
+  max-height: var(--radix-select-content-available-height);
   overflow-y: auto;
+  transform-origin: var(--radix-select-content-transform-origin);
+}
+
+/* The rows scroll in here; the panel keeps its padding around them. */
+.viewport {
+  min-height: 0;
 }
 
 .disabled {
