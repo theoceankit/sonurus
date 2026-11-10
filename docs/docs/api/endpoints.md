@@ -371,7 +371,7 @@ Returns all transcripts for the sidebar, newest first.
 ]
 ```
 
-`speakers` is a list of speaker UUIDs (may include unrecognized ones without a display name). `opened` is false until the user opens the transcript (`POST /transcripts/{id}/opened`); transcripts that existed before the flag count as opened.
+`speakers` is a list of speaker UUIDs (may include unrecognized ones without a display name). `opened` is false until the user opens the transcript (`POST /transcripts/{id}/opened`), and again after Mark as unread (`DELETE /transcripts/{id}/opened`); transcripts that existed before the flag count as opened.
 
 ### `GET /transcripts/{id}`
 
@@ -448,6 +448,10 @@ Renames the transcript. `title` is trimmed and must be 1–200 characters (`422`
 ### `POST /transcripts/{id}/opened`
 
 Marks the transcript as opened by the user. No body. Only this flag changes: speakers, segments and the title are untouched. Calling it again is fine. Returns `204`, or `404` for an unknown id. `GET /transcripts/{id}` does not set it, so loading a transcript for any other reason leaves it new. The UI calls it once a recording has loaded on the screen.
+
+### `DELETE /transcripts/{id}/opened`
+
+Marks the transcript as not opened, as Mark as unread in the recordings list asks. No body. Only this flag changes, as with `POST`; calling it again is fine. Returns `204`, or `404` for an unknown id. The transcript is listed as new until `POST /transcripts/{id}/opened`.
 
 ### `DELETE /transcripts/{id}`
 

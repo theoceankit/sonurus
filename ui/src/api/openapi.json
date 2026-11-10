@@ -2755,6 +2755,40 @@
       }
     },
     "/transcripts/{transcript_id}/opened": {
+      "delete": {
+        "description": "The user marked the transcript unread: it is listed as not opened until\nPOST /transcripts/{id}/opened. Only this flag changes.",
+        "operationId": "mark_transcript_unopened_transcripts__transcript_id__opened_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Transcript Unopened",
+        "tags": [
+          "transcripts"
+        ]
+      },
       "post": {
         "description": "The user opened the transcript. Only this flag changes; GET /transcripts/{id}\nleaves it alone, so repeated loads do not set it.",
         "operationId": "mark_transcript_opened_transcripts__transcript_id__opened_post",
