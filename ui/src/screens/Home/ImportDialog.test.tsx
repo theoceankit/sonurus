@@ -226,14 +226,15 @@ describe('importing', () => {
 })
 
 describe('title, model and language', () => {
-  test('a file renamed in the list goes with its title, trimmed; its extension stays', async () => {
+  test('a file renamed in the list goes with its title, trimmed; its extension stays and is hidden while editing', async () => {
     const client = await setup({}, { chosen: ['/in/a.mp3', '/in/Team call.m4a'] })
     await openImport()
     await chooseFiles()
     await userEvent.click(screen.getByRole('button', { name: 'Rename Team call.m4a' }))
     const title = screen.getByRole('textbox', { name: 'Title of Team call.m4a' }) as HTMLInputElement
-    // Only the name: the extension stands after the field and cannot be changed.
+    // Only the name: the extension is out of sight while it is edited and cannot be changed.
     expect(title.value).toBe('Team call')
+    expect(title.closest('li')?.textContent).not.toContain('.m4a')
     await userEvent.clear(title)
     await userEvent.type(title, '  Weekly sync {Enter}')
     expect(listed()).toEqual(['a.mp3', 'Weekly sync.m4a'])

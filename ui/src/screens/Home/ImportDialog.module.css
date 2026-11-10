@@ -62,7 +62,7 @@
   color: var(--color-text-secondary);
 }
 
-/* The title, a button that edits it, and the extension after it. */
+/* The title, a button that edits it, and the extension after it; the field alone while editing. */
 .fileName {
   display: flex;
   flex: 1;

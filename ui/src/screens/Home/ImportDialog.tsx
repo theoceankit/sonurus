@@ -86,7 +86,7 @@ interface FileRowProps {
 }
 
 // A file of the list: its title, which a click on it edits, and its extension, which
-// stays as it is.
+// stays as it is and is out of sight while the title is edited.
 function FileRow({ file, disabled, onRename, onRemove }: FileRowProps) {
   const [editing, setEditing] = useState(false)
   const { stem, extension } = splitName(file.name)
@@ -104,7 +104,6 @@ function FileRow({ file, disabled, onRename, onRemove }: FileRowProps) {
               if (next !== null) onRename(next)
             }}
           />
-          <span className={styles.extension}>{extension}</span>
         </span>
       ) : (
         <button type="button" className={styles.fileName} title={file.path} aria-label={`Rename ${file.name}`} disabled={disabled} onClick={() => setEditing(true)}>
