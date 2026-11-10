@@ -13,7 +13,7 @@ import type { ImportDialogProps } from './ImportDialog'
 import type { NewRecordingDialogProps } from './NewRecordingDialog'
 import { refusalOf, type Refusal } from '../../transcribe/refusals'
 import {
-  addFiles, defaultTitle, fileName, importingMessage, queueTitles, skippedMessage, watchFileDrags, type ImportFile,
+  addFiles, defaultTitle, fileName, importingMessage, queueTitles, renameFile, skippedMessage, watchFileDrags, type ImportFile,
 } from './import-files'
 
 type Dialog = 'record' | 'import'
@@ -28,8 +28,8 @@ interface State {
   // Files were dragged over New recording: it comes back if they leave undropped.
   dragFrom: Dialog | null
   files: ImportFile[]
-  // Title, model and language are the same in both: picked in one, they are there in
-  // the other.
+  // Typed in New recording. Model and language are the same in both dialogs; the title
+  // goes to the first file added to Import files.
   title: string
   // Model and language picked for this run; the defaults until the user picks.
   picked: Picked
@@ -106,9 +106,14 @@ export function useNewTranscription() {
     const current = latest.current
     // A drop with nothing open starts a new list.
     const base = current.open ? current : opening(current, 'import', true)
-    const { files, skipped } = addFiles(current.open === 'import' ? current.files : [], incoming)
-    update({ ...base, open: 'import', sticky: true, dragFrom: null, files, failure: null })
-    if (skipped.length > 0) toast({ message: skippedMessage(skipped) })
+    const listed = current.open === 'import' ? current.files : []
+    const added = addFiles(listed, incoming)
+    let { files } = added
+    // A title typed in New recording names the first file added, and only that one.
+    const typed = base.title.trim()
+    if (typed && listed.length === 0 && files.length > 0) files = renameFile(files, files[0].path, typed)
+    update({ ...base, open: 'import', sticky: true, dragFrom: null, files, title: files.length > 0 ? '' : base.title, failure: null })
+    if (added.skipped.length > 0) toast({ message: skippedMessage(added.skipped) })
   }, [])
 
   // A drop that is not for the dialog is still taken by watchFileDrags, so the window
@@ -148,10 +153,10 @@ export function useNewTranscription() {
   const pick = useCallback((change: Partial<Picked>) => setState(current => ({ ...current, picked: { ...current.picked, ...change }, failure: null })), [])
 
   const importFiles = useCallback(async () => {
-    const { files, title } = latest.current
+    const { files } = latest.current
     const { model, language, checking, blocked } = latestChoice.current
     if (checking || blocked) return
-    const titles = queueTitles(files, title)
+    const titles = queueTitles(files)
     importing.current = true
     try {
       await addToQueue({
@@ -181,9 +186,6 @@ export function useNewTranscription() {
   }
 
   const shared = {
-    title: state.title,
-    defaultTitle: defaultTitle(openedAt),
-    onTitleChange: (title: string) => setState(current => ({ ...current, title })),
     choice,
     onModelChange: (model: string) => pick({ model }),
     onLanguageChange: (language: string) => pick({ language }),
@@ -194,6 +196,9 @@ export function useNewTranscription() {
   const record: NewRecordingDialogProps = {
     ...shared,
     open: state.open === 'record',
+    title: state.title,
+    defaultTitle: defaultTitle(openedAt),
+    onTitleChange: title => setState(current => ({ ...current, title })),
     record: recording.setup,
     onStartRecording: startRecording,
     onImportFiles: toImport,
@@ -202,6 +207,7 @@ export function useNewTranscription() {
     ...shared,
     open: state.open === 'import',
     files: state.files,
+    onRename: (path, title) => setState(current => ({ ...current, files: renameFile(current.files, path, title) })),
     failure: state.failure,
     importing: isPending,
     onChooseFiles: () => void chooseFiles(),

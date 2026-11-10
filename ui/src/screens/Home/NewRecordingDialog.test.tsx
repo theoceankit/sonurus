@@ -25,14 +25,14 @@ describe('what it has', () => {
     expect(within(dialog).getByRole('button', { name: 'Import files' })).toBeTruthy()
   })
 
-  test('Diarize speakers is the only switch, still not there', async () => {
+  test('closes by its cross alone, and has no Diarize speakers', async () => {
     await setup()
     const dialog = await openRecording()
+    expect(within(dialog).queryByRole('button', { name: 'Cancel' })).toBeNull()
+    expect(within(dialog).queryByRole('button', { name: 'Diarize speakers' })).toBeNull()
     expect(within(dialog).queryAllByRole('switch')).toHaveLength(0)
-    const diarize = within(dialog).getByRole('button', { name: 'Diarize speakers' })
-    expect(diarize.getAttribute('data-not-implemented')).toBe('new-transcription.diarize')
-    expect(diarize.getAttribute('aria-pressed')).toBeNull()
-    expect(JSON.stringify(await window.electronAPI!.readSettings())).not.toContain('SaveAudio')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(recordDialog()).toBeNull())
   })
 })
 

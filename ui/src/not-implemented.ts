@@ -25,7 +25,6 @@ export const NOT_IMPLEMENTED = [
   'speaker-card.merge',
   'speakers.new-speaker',
   'speakers.recently-added',
-  'new-transcription.diarize',
   'titlebar.back',
   'titlebar.forward',
   'titlebar.search',

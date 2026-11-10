@@ -18,9 +18,7 @@ const meta: Meta<typeof ImportDialog> = {
     open: true,
     preview: true,
     files: [],
-    title: '',
-    defaultTitle: '5 Oct 14:30 Meeting',
-    onTitleChange: noop,
+    onRename: noop,
     choice: choiceWith(DEFAULT_INSTALLED),
     onModelChange: noop,
     onLanguageChange: noop,
@@ -47,7 +45,8 @@ export const Empty: Story = {}
 export const FilesOverZone: Story = { args: { over: true } }
 export const WithFiles: Story = { args: { files: FILES } }
 export const FilesOverZoneWithList: Story = { args: { files: FILES, over: true } }
-export const OneFileWithTitle: Story = { args: { files: FILES.slice(0, 1), title: 'Weekly sync, 5 October' } }
+// A file renamed in the list: its title, then its extension.
+export const RenamedFile: Story = { args: { files: [{ ...FILES[0], title: 'Weekly sync, 5 October' }, FILES[1]] } }
 // Until GET /models answers the model waits and Import is off.
 export const CheckingModels: Story = { args: { files: FILES, choice: choiceWith(undefined) } }
 export const NoWhisperModel: Story = { args: { files: FILES, choice: choiceWith(['diarize']) } }

@@ -95,6 +95,13 @@ export const openImport = async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Import files' }))
   return screen.findByRole('dialog', { name: 'Import files' })
 }
+// Renames a listed file by its name: a click on the name, the title typed, Enter.
+export async function rename(name: string, title: string) {
+  await userEvent.click(screen.getByRole('button', { name: `Rename ${name}` }))
+  const field = screen.getByRole('textbox', { name: `Title of ${name}` })
+  await userEvent.clear(field)
+  await userEvent.type(field, `${title}{Enter}`)
+}
 export const chooseFiles = () => userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
 export const importButton = () => screen.getByRole('button', { name: 'Import' }) as HTMLButtonElement
 // A select is named by its label and its value.

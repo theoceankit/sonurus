@@ -10,7 +10,7 @@ import { TITLE_MAX_LENGTH } from '../../api/types'
 import type { TranscribeChoice } from '../../transcribe/choice'
 import type { RecordingSetup } from '../../recording/useRecordingSetup'
 import { BOTH_OFF } from '../../recording/sources'
-import { TranscribeFields } from './TranscribeFields'
+import { MissingModelNotice, TranscribeFields } from './TranscribeFields'
 import styles from './NewRecordingDialog.module.css'
 
 export interface NewRecordingDialogProps {
@@ -54,40 +54,42 @@ export function NewRecordingDialog({
             maxLength={TITLE_MAX_LENGTH}
             onChange={event => onTitleChange(event.target.value)}
           />
-          <TranscribeFields choice={choice} onModelChange={onModelChange} onLanguageChange={onLanguageChange} onOpenSettings={onOpenSettings}>
-            <Stack gap={1} role="group" aria-label="Record">
-              <span className={styles.label}>Record</span>
-              {record.recording && <span className={styles.recordingNotice}>A recording is already in progress.</span>}
-              <div className={styles.sources}>
-                <SourceToggle
-                  icon="microphone"
-                  name="Microphone"
-                  on={record.sources.mic}
-                  onToggle={() => record.onToggle('mic')}
-                  devices={record.micDevices}
-                  device={record.micDevice}
-                  onDeviceChange={record.onMicDeviceChange}
-                  disabled={record.recording}
-                />
-                <SourceToggle
-                  icon="system-audio"
-                  name="System audio"
-                  on={record.sources.system}
-                  onToggle={() => record.onToggle('system')}
-                  devices={record.systemDevices}
-                  device={record.systemDevice}
-                  onDeviceChange={record.onSystemDeviceChange}
-                  disabled={record.recording}
-                  unavailable={record.systemUnavailable}
-                />
-              </div>
-              {record.blocked === BOTH_OFF && <span className={styles.hint}>{BOTH_OFF}</span>}
-            </Stack>
-          </TranscribeFields>
+          <TranscribeFields choice={choice} onModelChange={onModelChange} onLanguageChange={onLanguageChange} />
+          <Stack gap={1} role="group" aria-label="Record">
+            <span className={styles.label}>Record</span>
+            {record.recording && <span className={styles.recordingNotice}>A recording is already in progress.</span>}
+            <div className={styles.sources}>
+              <SourceToggle
+                icon="microphone"
+                name="Microphone"
+                on={record.sources.mic}
+                onToggle={() => record.onToggle('mic')}
+                devices={record.micDevices}
+                device={record.micDevice}
+                onDeviceChange={record.onMicDeviceChange}
+                disabled={record.recording}
+              />
+              <SourceToggle
+                icon="system-audio"
+                name="System audio"
+                on={record.sources.system}
+                onToggle={() => record.onToggle('system')}
+                devices={record.systemDevices}
+                device={record.systemDevice}
+                onDeviceChange={record.onSystemDeviceChange}
+                disabled={record.recording}
+                unavailable={record.systemUnavailable}
+              />
+            </div>
+            {record.blocked === BOTH_OFF && <span className={styles.hint}>{BOTH_OFF}</span>}
+          </Stack>
+          <MissingModelNotice choice={choice} onOpenSettings={onOpenSettings} />
         </Stack>
       </ModalBody>
       <ModalFooter
         leading={<Button variant="ghost" icon="folder" onClick={onImportFiles}>Import files</Button>}
+        // The cross closes it: a Cancel would be the same.
+        cancel={null}
         confirm={{ children: 'Start recording', disabled: !!record.blocked || !ready, onClick: onStartRecording }}
       />
     </Modal>

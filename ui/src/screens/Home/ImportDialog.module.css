@@ -62,11 +62,53 @@
   color: var(--color-text-secondary);
 }
 
+/* The title, a button that edits it, and the extension after it. */
 .fileName {
+  display: flex;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
   font: var(--font-body);
+  text-align: start;
+  cursor: text;
+}
+
+.fileName:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: var(--border-width-focus) solid var(--color-focus);
+}
+
+.fileName:disabled {
+  cursor: default;
+}
+
+.stem {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.extension {
+  flex: none;
+  color: var(--color-text-secondary);
+}
+
+.titleInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+  outline: var(--border-width-focus) solid var(--color-focus);
+}
+
+.titleInput::selection {
+  background: var(--color-selection);
 }

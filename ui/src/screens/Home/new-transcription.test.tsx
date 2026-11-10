@@ -28,19 +28,23 @@ const SETTINGS = { settings: { transcribeModel: 'small', transcribeModelHistory:
 
 describe('Import files in New recording', () => {
   test('takes its place, with the title, model and language picked there', async () => {
-    const client = await setup({}, { ...SETTINGS, chosen: ['/in/a.mp3'] })
+    const client = await setup({}, { ...SETTINGS, chosen: ['/in/a.mp3', '/in/b.mp3'] })
     await openRecording()
     await pickInRecording()
     await userEvent.click(screen.getByRole('button', { name: 'Import files' }))
     const dialog = await screen.findByRole('dialog', { name: 'Import files' })
     await waitFor(() => expect(recordDialog()).toBeNull())
     expect(dialog.contains(document.activeElement)).toBe(true)
-    expect(title().value).toBe('Standup')
     expect(field('Model').textContent?.trim()).toBe('Whisper Large v3')
     expect(field('Language').textContent?.trim()).toBe('English')
+    // The title typed there goes to the first file added.
     await chooseFiles()
+    expect(listed()).toEqual(['Standup.mp3', 'b.mp3'])
     await userEvent.click(importButton())
-    await waitFor(async () => expect(await jobs(client)).toEqual([{ title: 'Standup', model: 'large-v3', language: 'en' }]))
+    await waitFor(async () => expect(await jobs(client)).toEqual([
+      { title: 'Standup', model: 'large-v3', language: 'en' },
+      { title: 'b', model: 'large-v3', language: 'en' },
+    ]))
   })
 
   test('closed, the next New recording starts afresh', async () => {
@@ -67,7 +71,6 @@ describe('files dragged over New recording', () => {
     await userEvent.click(toggle('Microphone'))
     drag('dragenter')
     await screen.findByRole('dialog', { name: 'Import files' })
-    expect(title().value).toBe('Standup')
     expect(field('Model').textContent?.trim()).toBe('Whisper Large v3')
     drag('dragleave')
     await screen.findByRole('dialog', { name: 'New recording' })
@@ -79,17 +82,18 @@ describe('files dragged over New recording', () => {
     expect(toggle('System audio').getAttribute('aria-pressed')).toBe('true')
   })
 
-  test('dropped, Import files stays with them', async () => {
+  test('dropped, Import files stays with them, the first named as New recording was', async () => {
     await setup()
     await openRecording()
+    await userEvent.type(title(), 'Standup')
     drag('dragenter')
     await screen.findByRole('dialog', { name: 'Import files' })
-    drag('drop', { files: ['a.mp3'] })
+    drag('drop', { files: ['a.mp3', 'b.mp3'] })
     drag('dragenter')
     drag('dragleave')
     expect(importDialog()).toBeTruthy()
     expect(recordDialog()).toBeNull()
-    expect(listed()).toEqual(['a.mp3'])
+    expect(listed()).toEqual(['Standup.mp3', 'b.mp3'])
   })
 
   test('under Settings, nothing changes and the drop adds nothing', async () => {

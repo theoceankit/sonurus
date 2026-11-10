@@ -6,7 +6,7 @@ import { createFixtureClient, NO_MODELS } from '../../api/fixtures/fixture-clien
 import { dismissAllToasts } from '../../components/Toast/toast-store'
 import {
   chooseFiles, drag, field, importButton, importDialog, importDialogUnder, jobs, listed, openImport, option, recordDialog,
-  recordingControl, setup,
+  recordingControl, rename, setup,
 } from './new-transcription.test-utils'
 
 afterEach(() => {
@@ -26,10 +26,12 @@ describe('opening', () => {
     await waitFor(() => expect(importDialog()).toBeNull())
   })
 
-  test('it has no subtitle and nothing of a recording', async () => {
+  test('it has no subtitle, no title field, no Diarize speakers and nothing of a recording', async () => {
     await setup()
     const dialog = await openImport()
     expect(within(dialog).queryByText('Make sure all participants have agreed to be recorded.')).toBeNull()
+    expect(within(dialog).queryByRole('textbox', { name: 'Title' })).toBeNull()
+    expect(within(dialog).queryByRole('button', { name: 'Diarize speakers' })).toBeNull()
     expect(within(dialog).queryByRole('group', { name: 'Record' })).toBeNull()
     expect(within(dialog).queryByRole('button', { name: 'Start recording' })).toBeNull()
   })
@@ -78,7 +80,7 @@ describe('over other windows', () => {
     await setup({ overrides: { addQueueJob: () => Promise.reject(new ApiError(400, NO_MODELS, 'whisper_model_missing')) } }, { chosen: ['/in/a.mp3'] })
     await openImport()
     await chooseFiles()
-    await userEvent.type(screen.getByRole('textbox', { name: 'Title' }), 'Standup')
+    await rename('a.mp3', 'Standup')
     await userEvent.click(importButton())
     await userEvent.click(within(await screen.findByRole('alert')).getByRole('button', { name: 'Open Settings' }))
     expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
@@ -88,8 +90,7 @@ describe('over other windows', () => {
     await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
     expect(importDialog()).toBeTruthy()
-    expect(listed()).toEqual(['a.mp3'])
-    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveProperty('value', 'Standup')
+    expect(listed()).toEqual(['Standup.mp3'])
   })
 })
 
@@ -225,33 +226,54 @@ describe('importing', () => {
 })
 
 describe('title, model and language', () => {
-  test('one file keeps a typed title, trimmed', async () => {
-    const client = await setup({}, { chosen: ['/in/a.mp3'] })
+  test('a file renamed in the list goes with its title, trimmed; its extension stays', async () => {
+    const client = await setup({}, { chosen: ['/in/a.mp3', '/in/Team call.m4a'] })
     await openImport()
     await chooseFiles()
-    await userEvent.type(screen.getByRole('textbox', { name: 'Title' }), '  Weekly sync ')
+    await userEvent.click(screen.getByRole('button', { name: 'Rename Team call.m4a' }))
+    const title = screen.getByRole('textbox', { name: 'Title of Team call.m4a' }) as HTMLInputElement
+    // Only the name: the extension stands after the field and cannot be changed.
+    expect(title.value).toBe('Team call')
+    await userEvent.clear(title)
+    await userEvent.type(title, '  Weekly sync {Enter}')
+    expect(listed()).toEqual(['a.mp3', 'Weekly sync.m4a'])
     await userEvent.click(importButton())
-    await waitFor(async () => expect((await jobs(client))[0]?.title).toBe('Weekly sync'))
+    await waitFor(async () => expect((await jobs(client)).map(job => job.title)).toEqual(['a', 'Weekly sync']))
   })
 
-  test('the title field shows the date as a hint, and untouched the file is named after itself', async () => {
-    const client = await setup({}, { chosen: ['/in/Team call.m4a'] })
+  test('Escape keeps the name it had, and a blank name gives the file its own again', async () => {
+    await setup({}, { chosen: ['/in/a.mp3'] })
     await openImport()
-    const title = screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement
-    expect(title.value).toBe('')
-    expect(title.placeholder).toBe('5 Oct 12:00 Meeting')
     await chooseFiles()
-    await userEvent.click(importButton())
-    await waitFor(async () => expect((await jobs(client))[0]?.title).toBe('Team call'))
+    await rename('a.mp3', 'Retro')
+    await userEvent.click(screen.getByRole('button', { name: 'Rename a.mp3' }))
+    await userEvent.type(screen.getByRole('textbox', { name: 'Title of a.mp3' }), ' 2{Escape}')
+    expect(listed()).toEqual(['Retro.mp3'])
+    // Escape ends the rename, not the dialog.
+    expect(importDialog()).toBeTruthy()
+    await rename('a.mp3', '   ')
+    expect(listed()).toEqual(['a.mp3'])
   })
 
-  test('several files are each named after their file, and the title field is off', async () => {
+  test('files not renamed are each named after their file', async () => {
     const client = await setup({}, { chosen: ['/in/b.mp3', '/in/a.wav'] })
     await openImport()
     await chooseFiles()
-    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveProperty('disabled', true)
     await userEvent.click(importButton())
     await waitFor(async () => expect((await jobs(client)).map(job => job.title)).toEqual(['b', 'a']))
+  })
+
+  test('the files come before the zone, and what is wrong comes last', async () => {
+    await setup({ noModels: true }, { chosen: ['/in/a.mp3'] })
+    const dialog = await openImport()
+    await chooseFiles()
+    const list = within(dialog).getByRole('list', { name: 'Files to import' })
+    const zone = within(dialog).getByText('Drop audio or video files here')
+    const notice = within(dialog).getByRole('status')
+    const before = (a: Node, b: Node) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(before(field('Language'), list)).toBe(true)
+    expect(before(list, zone)).toBe(true)
+    expect(before(zone, notice)).toBe(true)
   })
 
   test('model and language start from the defaults; a choice here is for this import and is not saved', async () => {
@@ -346,12 +368,5 @@ describe('title, model and language', () => {
     await chooseFiles()
     await userEvent.click(importButton())
     await waitFor(async () => expect((await jobs(client))[0]?.language).toBeNull())
-  })
-
-  test('Diarize speakers is there, off and marked as not there yet', async () => {
-    await setup()
-    await openImport()
-    const diarize = screen.getByRole('button', { name: 'Diarize speakers' })
-    expect(diarize.getAttribute('data-not-implemented')).toBe('new-transcription.diarize')
   })
 })
