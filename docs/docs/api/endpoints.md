@@ -463,7 +463,7 @@ Renames the transcript. `title` is trimmed and must be 1–200 characters (`422`
 
 ### `POST /transcripts/{id}/opened`
 
-Marks the transcript as opened by the user. No body. Only this flag changes: speakers, segments and the title are untouched. Calling it again is fine. Returns `204`, or `404` for an unknown id. `GET /transcripts/{id}` does not set it, so loading a transcript for any other reason leaves it new. The UI calls it once a recording has loaded on the screen; the old renderer does not.
+Marks the transcript as opened by the user. No body. Only this flag changes: speakers, segments and the title are untouched. Calling it again is fine. Returns `204`, or `404` for an unknown id. `GET /transcripts/{id}` does not set it, so loading a transcript for any other reason leaves it new. The UI calls it once a recording has loaded on the screen.
 
 ### `DELETE /transcripts/{id}`
 
