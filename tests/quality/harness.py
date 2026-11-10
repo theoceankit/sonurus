@@ -124,8 +124,8 @@ def _speaker_embeddings(transcript, hyp_to_ref) -> dict[str, np.ndarray]:
 
 def evaluate(pipeline: Pipeline, variant: Variant, work: Path) -> dict:
     """Run the variant's clips on a fresh memory; per-clip scores and totals."""
-    from app.api.routers.transcripts import reassign_speaker
-    from app.api.schemas import ReassignRequest
+    from app.api.routers.transcripts import assign_speaker
+    from app.api.schemas import SpeakerAssignmentRequest
     from app.services.commit_service import CommitService
     from app.services.speaker_memory_service import SpeakerMemoryService
     from app.services.transcript_storage_service import TranscriptStorageService
@@ -187,9 +187,9 @@ def evaluate(pipeline: Pipeline, variant: Variant, work: Path) -> dict:
             # The editor's "assign to a new speaker by name", for every diarised speaker.
             for hyp_id, ref_name in hyp_to_ref.items():
                 if ref_name:
-                    reassign_speaker(transcript.db_id, ReassignRequest(
-                        from_speaker_id=hyp_id, to_speaker_name=ref_name), storage, memory)
-                    named[ref_name] = next(i for i in memory.speaker_ids() if memory.get_name(i) == ref_name)
+                    starts = [s.start for s in transcript.segments if effective_speaker(s) == hyp_id]
+                    named[ref_name] = assign_speaker(transcript.db_id, SpeakerAssignmentRequest(
+                        segment_starts=starts, speaker_name=ref_name), storage, memory).speaker_id
         else:
             hyp_to_known = {h: memory.get_name(h) for h in hyp_to_ref}
             rec = metrics.recognition(hyp_to_ref, hyp_to_known)

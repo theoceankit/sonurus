@@ -13,7 +13,7 @@ It recomputes speaker embeddings from all segments stored in the database and up
 ## Position in the pipeline
 
 ```
-User review (speaker_final set by user or via reassign)
+User review (speaker assigned in the editor)
     ↓
 CommitService.commit(transcript)
     ↓ queries all DB segments per speaker
@@ -76,13 +76,7 @@ Calls `memory.save()` only if at least one speaker was updated.
 
 Recomputes embedding for a single speaker from all their DB segments.
 
-Called from `POST /transcripts/{id}/reassign` to avoid re-counting all speakers on every reassign call.
-
----
-
-### `commit_new_speakers(transcript)`
-
-Commits embeddings for speakers in the transcript that are **not yet in memory**.
+Called from `POST /transcripts/{id}/speaker-assignments` for the speaker the segments go to, so an assignment does not re-count every speaker.
 
 ---
 

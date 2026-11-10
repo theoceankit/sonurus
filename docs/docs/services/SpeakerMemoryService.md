@@ -145,7 +145,7 @@ Called only from `CommitService`.
 
 ### `save_names_only()`
 
-Persists names changed by `set_name()` since the last save (including speakers without an embedding) to `speaker_names` without touching `speaker_embeddings`. Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and the reassign-by-name path.
+Persists names changed by `set_name()` since the last save (including speakers without an embedding) to `speaker_names` without touching `speaker_embeddings`. Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and the assign-by-name path.
 
 ---
 
@@ -163,7 +163,7 @@ Every speaker memory knows about: with a voice profile (`known_speakers`), a nam
 
 ### `get_color_index(spk_id) → int | None` / `set_color(spk_id, color_index)`
 
-Read / persist the palette slot. `set_color()` raises `ValueError` outside `0..PALETTE_SIZE-1` and writes `speaker_meta` immediately. Called from `PATCH /speakers/{id}` and from the assign endpoints (`PATCH /transcripts/{id}/segments/{start}/speaker`, `POST /transcripts/{id}/reassign`) when they create a speaker by name with `color_index`.
+Read / persist the palette slot. `set_color()` raises `ValueError` outside `0..PALETTE_SIZE-1` and writes `speaker_meta` immediately. Called from `PATCH /speakers/{id}` and from `POST /transcripts/{id}/speaker-assignments` when it creates a speaker by name with `color_index`.
 
 ---
 
@@ -189,7 +189,7 @@ Creates `speaker_embeddings`, `speaker_names`, and `_meta` tables if missing. Ru
 
 ### `create_named_speaker(name, label="display") → str`
 
-Creates a new UUID4 speaker ID, sets its display name and persists it via `save_names_only()`. Does not write an embedding: `CommitService` adds one once segments with embeddings are assigned to the new ID. Used by `POST /transcripts/{id}/reassign` (`to_speaker_name`) and `PATCH …/segments/{start}/speaker` (`speaker_name`).
+Creates a new UUID4 speaker ID, sets its display name and persists it via `save_names_only()`. Does not write an embedding: `CommitService` adds one once segments with embeddings are assigned to the new ID. Used by `POST /transcripts/{id}/speaker-assignments` (`speaker_name`).
 
 ---
 

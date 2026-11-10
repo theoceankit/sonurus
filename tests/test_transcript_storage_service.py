@@ -1,6 +1,6 @@
 """
-Tests for TranscriptStorageService — save(), load(), update_segments_speaker(),
-update_segment_speaker(), list_all(), update_segment_text(), delete_segment(),
+Tests for TranscriptStorageService — save(), load(), set_segments_speaker(),
+list_all(), update_segment_text(), delete_segment(),
 and get_embeddings_grouped_by_transcript().
 """
 
@@ -188,69 +188,41 @@ def test_load_raises_on_missing_id(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# update_segments_speaker()
+# set_segments_speaker()
 # ---------------------------------------------------------------------------
 
-def test_update_segments_speaker_reassigns_all_matching(tmp_path):
+def test_set_segments_speaker_changes_only_the_listed_segments(tmp_path):
     svc = make_service(tmp_path)
-    segments = [
+    db_id = svc.save(make_transcript([
         Segment(0.0, 2.0, "Hi",    "SPEAKER_00", speaker_resolved="Alice"),
         Segment(2.0, 4.0, "Hello", "SPEAKER_00", speaker_resolved="Alice"),
-    ]
-    db_id = svc.save(make_transcript(segments=segments))
+        Segment(4.0, 6.0, "Bye",   "SPEAKER_01", speaker_resolved="Bob"),
+    ]))
 
-    svc.update_segments_speaker(db_id, "Alice", "Carol")
+    svc.set_segments_speaker(db_id, [(0.0, 2.0), (4.0, 6.0)], "Carol")
 
-    loaded = svc.load(db_id)
-    assert all(s.speaker_resolved == "Carol" for s in loaded.segments)
-
-
-def test_update_segments_speaker_leaves_other_speakers_unchanged(tmp_path):
-    svc = make_service(tmp_path)
-    db_id = svc.save(make_transcript())
-
-    svc.update_segments_speaker(db_id, "Alice", "Carol")
-
-    loaded = svc.load(db_id)
-    speakers = {s.speaker_resolved for s in loaded.segments}
-    assert "Bob" in speakers
-    assert "Alice" not in speakers
-    assert "Carol" in speakers
+    assert [s.speaker_resolved for s in svc.load(db_id).segments] == ["Carol", "Alice", "Carol"]
 
 
-def test_update_segments_speaker_only_affects_given_transcription(tmp_path):
+def test_set_segments_speaker_only_affects_given_transcription(tmp_path):
     svc = make_service(tmp_path)
     db_id_1 = svc.save(make_transcript(audio_path="files/a.wav"))
     db_id_2 = svc.save(make_transcript(audio_path="files/b.wav"))
 
-    svc.update_segments_speaker(db_id_1, "Alice", "Carol")
+    svc.set_segments_speaker(db_id_1, [(0.0, 2.0)], "Carol")
 
-    loaded_2 = svc.load(db_id_2)
-    assert loaded_2.segments[0].speaker_resolved == "Alice"
+    assert svc.load(db_id_2).segments[0].speaker_resolved == "Alice"
 
 
-# ---------------------------------------------------------------------------
-# update_segment_speaker()
-# ---------------------------------------------------------------------------
-
-def test_update_segment_speaker_changes_one_segment(tmp_path):
+def test_set_segments_speaker_to_unassigned_sets_the_flag_and_no_id(tmp_path):
     svc = make_service(tmp_path)
     db_id = svc.save(make_transcript())
 
-    svc.update_segment_speaker(db_id, start=0.0, end=2.0, new_speaker="Carol")
+    svc.set_segments_speaker(db_id, [(0.0, 2.0)], UNASSIGNED)
 
-    loaded = svc.load(db_id)
-    assert loaded.segments[0].speaker_resolved == "Carol"
-
-
-def test_update_segment_speaker_leaves_other_segments_unchanged(tmp_path):
-    svc = make_service(tmp_path)
-    db_id = svc.save(make_transcript())
-
-    svc.update_segment_speaker(db_id, start=0.0, end=2.0, new_speaker="Carol")
-
-    loaded = svc.load(db_id)
-    assert loaded.segments[1].speaker_resolved == "Bob"
+    seg = svc.load(db_id).segments[0]
+    assert seg.unassigned is True
+    assert seg.speaker_resolved is None
 
 
 # ---------------------------------------------------------------------------
@@ -715,33 +687,16 @@ def test_save_round_trips_unassigned_flag(tmp_path):
     assert loaded.speaker_resolved is None
 
 
-def test_single_segment_reassign_clears_unassigned_flag(tmp_path):
+def test_assigning_a_speaker_clears_unassigned_flag(tmp_path):
     svc = make_service(tmp_path)
     db_id = svc.save(make_transcript())
     svc.unassign_speaker("Alice")
 
-    svc.update_segment_speaker(db_id, 0.0, 2.0, "Carol")
+    svc.set_segments_speaker(db_id, [(0.0, 2.0)], "Carol")
 
     seg = svc.load(db_id).segments[0]
     assert seg.unassigned is False
     assert seg.speaker_resolved == "Carol"
-
-
-def test_bulk_reassign_from_unassigned_moves_only_flagged_segments(tmp_path):
-    svc = make_service(tmp_path)
-    db_id = svc.save(make_transcript([
-        Segment(0.0, 1.0, "A", "SPEAKER_00", speaker_resolved="Alice"),
-        Segment(1.0, 2.0, "B", "SPEAKER_01", speaker_resolved="Bob"),
-        Segment(2.0, 3.0, "C", "SPEAKER_00", speaker_resolved="Alice"),
-        Segment(3.0, 4.0, "D", "SPEAKER_02"),  # raw fallback, not unassigned
-    ]))
-    svc.unassign_speaker("Alice")
-
-    svc.update_segments_speaker(db_id, UNASSIGNED, "Carol")
-
-    segs = svc.load(db_id).segments
-    assert [s.speaker_resolved for s in segs] == ["Carol", "Bob", "Carol", None]
-    assert not any(s.unassigned for s in segs)
 
 
 def test_unassigned_segments_are_not_listed_as_transcript_speakers(tmp_path):
@@ -871,13 +826,12 @@ def test_v6_migration_unassigns_segments_without_a_diarization_speaker(tmp_path)
     assert all(s.speaker_resolved is None for s in segs)
 
 
-def test_bulk_reassign_works_for_a_migrated_raw_speaker(tmp_path):
+def test_assigning_works_for_a_migrated_raw_speaker(tmp_path):
     db = str(tmp_path / "old.db")
     _v5_database(db, [(1, None, "SPEAKER_02", 0), (1, None, "SPEAKER_02", 0)])
     svc = TranscriptStorageService(db_path=db)
-    old = svc.load(1).segments[0].speaker_resolved
 
-    svc.update_segments_speaker(1, old, "Carol")
+    svc.set_segments_speaker(1, [(s.start, s.end) for s in svc.load(1).segments], "Carol")
 
     assert [s.speaker_resolved for s in svc.load(1).segments] == ["Carol", "Carol"]
 

@@ -232,9 +232,9 @@ def test_migration_adds_embedding_column_to_legacy_db(tmp_path):
 # Update methods must preserve embeddings
 # ---------------------------------------------------------------------------
 
-def test_update_segments_speaker_preserves_embeddings(tmp_path):
+def test_set_segments_speaker_preserves_embeddings(tmp_path):
     """
-    update_segments_speaker() changes speaker_id but must not clear the
+    set_segments_speaker() changes speaker_id but must not clear the
     embedding column for affected rows.
     """
     svc = make_storage(tmp_path)
@@ -246,32 +246,14 @@ def test_update_segments_speaker_preserves_embeddings(tmp_path):
     ]
     db_id = svc.save(make_transcript(segments=segments))
 
-    svc.update_segments_speaker(db_id, "Alice", "Carol")
+    svc.set_segments_speaker(db_id, [(0.0, 2.0), (2.0, 4.0)], "Carol")
 
     loaded = svc.load(db_id)
     assert np.allclose(loaded.segments[0].embedding, EMB_4D), (
-        "Embedding for first segment must survive update_segments_speaker()"
+        "Embedding for first segment must survive set_segments_speaker()"
     )
     assert np.allclose(loaded.segments[1].embedding, EMB_4D_B), (
-        "Embedding for second segment must survive update_segments_speaker()"
-    )
-
-
-def test_update_segment_speaker_preserves_embedding(tmp_path):
-    """
-    update_segment_speaker() changes one segment's speaker_id but must not
-    clear that segment's embedding.
-    """
-    svc = make_storage(tmp_path)
-    seg = Segment(0.0, 2.0, "Hi", "SPEAKER_00", speaker_resolved="Alice",
-                  embedding=EMB_4D)
-    db_id = svc.save(make_transcript(segments=[seg]))
-
-    svc.update_segment_speaker(db_id, start=0.0, end=2.0, new_speaker="Carol")
-
-    loaded = svc.load(db_id)
-    assert np.allclose(loaded.segments[0].embedding, EMB_4D), (
-        "Embedding must survive update_segment_speaker()"
+        "Embedding for second segment must survive set_segments_speaker()"
     )
 
 
@@ -316,7 +298,7 @@ def test_reassignment_on_loaded_transcript_updates_speaker_memory(tmp_path):
 
     # Step 4: user assigns the speaker
     loaded.segments[0].speaker_final = "carol"
-    storage.update_segment_speaker(db_id, 0.0, 2.0, "carol")
+    storage.set_segments_speaker(db_id, [(0.0, 2.0)], "carol")
 
     # Step 5: commit
     CommitService(memory, storage).commit(loaded)

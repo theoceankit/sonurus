@@ -94,14 +94,6 @@ class SpeakerTranscriptItem(BaseModel):
     has_audio: bool
 
 
-class SpeakerSuggestion(BaseModel):
-    """GET /transcripts/{id}/speaker-suggestions: the known speaker closest to
-    an unrecognized one."""
-    speaker_id: str
-    name: str
-    score: float
-
-
 class SpeakerCandidate(ResponseModel):
     """A known speaker that an unknown voice may be. score is cosine similarity,
     not below 0. Only the first candidate can be suggested."""
@@ -233,9 +225,10 @@ class RenameRequest(BaseModel):
         return v.strip() if isinstance(v, str) else v
 
 
-class SegmentSpeakerRequest(BaseModel):
-    """Exactly one of: an existing speaker_id, or speaker_name to create a new speaker.
-    color_index sets the new speaker's palette color (only with speaker_name)."""
+class SpeakerAssignmentRequest(BaseModel):
+    """The segments that change, all together, by their start, and exactly one of:
+    an existing speaker_id, or speaker_name to create a new speaker. color_index
+    sets the new speaker's palette color (only with speaker_name)."""
     speaker_id: str | None = None
     speaker_name: str | None = Field(default=None, min_length=1, max_length=128)
     color_index: int | None = None
@@ -245,9 +238,6 @@ class SegmentSpeakerRequest(BaseModel):
     def strip_name(cls, v):
         return v.strip() if isinstance(v, str) else v
 
-
-class SpeakerAssignmentRequest(SegmentSpeakerRequest):
-    """The segments that change, all together, by their start."""
     segment_starts: list[float] = Field(min_length=1)
 
 
@@ -291,14 +281,6 @@ ModelInfo = Annotated[TranscriptionModelInfo | AlignmentModelInfo, Field(discrim
 
 class DownloadRequest(BaseModel):
     hf_token: str | None = None
-
-
-class ReassignRequest(BaseModel):
-    """color_index sets the new speaker's palette color (only with to_speaker_name)."""
-    from_speaker_id: str
-    to_speaker_id: str | None = None
-    to_speaker_name: str | None = None
-    color_index: int | None = None
 
 
 class DataResetResponse(BaseModel):

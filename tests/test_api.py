@@ -22,6 +22,7 @@ from app.api.main import app
 from app.api.dependencies import get_memory_service, get_storage_service
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.speaker_memory_service import SpeakerMemoryService
+from app.services.commit_service import CommitService
 from app.models.transcript import Transcript
 from app.models.segment import Segment
 
@@ -146,52 +147,6 @@ def test_delete_transcript_not_found(client):
     assert r.status_code == 404
 
 
-# ── Segment speaker ───────────────────────────────────────────────────────────
-
-def test_update_segment_speaker(client):
-    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    memory = app.dependency_overrides[get_memory_service]()
-    spk_uuid = str(uuid_module.uuid4())
-    memory.update_embedding(spk_uuid, emb)
-    memory.save()
-
-    db_id = _saved_id(client)
-    r = client.patch(
-        f"/transcripts/{db_id}/segments/0.0/speaker",
-        json={"speaker_id": spk_uuid},
-    )
-    assert r.status_code == 204
-    segs = client.get(f"/transcripts/{db_id}").json()["segments"]
-    assert segs[0]["speaker_resolved"] == spk_uuid
-
-
-def test_update_segment_speaker_not_found(client):
-    db_id = _saved_id(client)
-    r = client.patch(
-        f"/transcripts/{db_id}/segments/99.0/speaker",
-        json={"speaker_id": str(uuid_module.uuid4())},
-    )
-    assert r.status_code == 404
-
-
-def test_update_segment_speaker_invalid_uuid(client):
-    db_id = _saved_id(client)
-    r = client.patch(
-        f"/transcripts/{db_id}/segments/0.0/speaker",
-        json={"speaker_id": "not-a-uuid"},
-    )
-    assert r.status_code == 400
-
-
-def test_update_segment_speaker_unknown_uuid(client):
-    db_id = _saved_id(client)
-    r = client.patch(
-        f"/transcripts/{db_id}/segments/0.0/speaker",
-        json={"speaker_id": str(uuid_module.uuid4())},
-    )
-    assert r.status_code == 400
-
-
 # ── Segment text ──────────────────────────────────────────────────────────────
 
 def test_update_segment_text(client):
@@ -263,99 +218,6 @@ def test_rename_speaker(client):
 def test_rename_speaker_not_found(client):
     r = client.post("/speakers/ghost/rename", json={"name": "Ghost"})
     assert r.status_code == 404
-
-
-# ── Bulk reassign ─────────────────────────────────────────────────────────────
-
-def test_reassign_speaker_bulk(client):
-    """Bulk reassign using to_speaker_name creates a UUID and updates all matching segments.
-
-    After reassign, segments previously owned by spk_abc must carry the new UUID
-    (not the literal name "Alice"). The untouched segment keeps its original speaker.
-    """
-    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    storage = app.dependency_overrides[get_storage_service]()
-    memory = app.dependency_overrides[get_memory_service]()
-    # Pre-register "Bob" as a UUID so we can look it up after the reassign
-    bob_emb = np.array([0.0, 1.0, 0.0], dtype=np.float32)
-    memory.update_embedding("spk_bob", bob_emb)
-    memory.save()
-    memory.set_name("spk_bob", "Bob")
-    memory.save_names_only()
-
-    t = Transcript(
-        audio_path="files/test.wav",
-        language="en",
-        segments=[
-            Segment(0.0, 2.0, "Hi",    "SPEAKER_00", speaker_resolved="spk_abc", embedding=emb),
-            Segment(2.0, 4.0, "Hello", "SPEAKER_00", speaker_resolved="spk_abc", embedding=emb),
-            Segment(4.0, 6.0, "Bye",   "SPEAKER_01", speaker_resolved="spk_bob", embedding=bob_emb),
-        ],
-    )
-    db_id = storage.save(t)
-    r = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_abc",
-        "to_speaker_name": "Alice",
-    })
-    assert r.status_code == 204
-
-    memory2 = app.dependency_overrides[get_memory_service]()
-    alice_uuid = memory2.find_by_name("Alice")
-    assert alice_uuid is not None, "Alice UUID must be created in memory after reassign"
-    assert _is_valid_uuid(alice_uuid), f"Expected a valid UUID, got {alice_uuid!r}"
-
-    segs = client.get(f"/transcripts/{db_id}").json()["segments"]
-    assert segs[0]["speaker_resolved"] == alice_uuid
-    assert segs[1]["speaker_resolved"] == alice_uuid
-    bob_uuid = memory2.find_by_name("Bob")
-    assert segs[2]["speaker_resolved"] == bob_uuid
-
-
-def test_reassign_speaker_not_found(client):
-    """POST /reassign on a nonexistent transcript returns 404."""
-    r = client.post("/transcripts/999/reassign", json={
-        "from_speaker_id": "spk_abc",
-        "to_speaker_name": "Alice",
-    })
-    assert r.status_code == 404
-
-
-def test_two_sequential_reassigns_leave_no_ghost_speaker(client):
-    """Two sequential reassigns must leave exactly two UUID speakers in memory.
-
-    The original spk_aaa and spk_bbb must be removed; only the two newly
-    created UUID speakers (one for Alice, one for Bob) should remain.
-    Both resulting keys must start with spk_ and be resolvable by name.
-    """
-    emb_a = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    emb_b = np.array([0.0, 1.0, 0.0], dtype=np.float32)
-    storage = app.dependency_overrides[get_storage_service]()
-    t = Transcript(
-        audio_path="files/test.wav",
-        language="en",
-        segments=[
-            Segment(0.0, 2.0, "Hi",  "SPEAKER_00", speaker_resolved="spk_aaa", embedding=emb_a),
-            Segment(2.0, 4.0, "Bye", "SPEAKER_01", speaker_resolved="spk_bbb", embedding=emb_b),
-        ],
-    )
-    db_id = storage.save(t)
-
-    client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_aaa",
-        "to_speaker_name": "Alice",
-    })
-    client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_bbb",
-        "to_speaker_name": "Bob",
-    })
-
-    memory = app.dependency_overrides[get_memory_service]()
-    keys = list(memory.known_speakers.keys())
-    assert len(keys) == 2, f"Expected exactly 2 speakers in memory, got {keys!r}"
-    for k in keys:
-        assert _is_valid_uuid(k), f"Expected a valid UUID key, got {k!r}"
-    assert memory.find_by_name("Alice") is not None, "Alice must be resolvable by name"
-    assert memory.find_by_name("Bob") is not None, "Bob must be resolvable by name"
 
 
 def _client_with_shared_memory(tmp_path):
@@ -476,306 +338,6 @@ def test_rename_does_not_inflate_count(tmp_path):
         app.dependency_overrides.clear()
 
 
-def test_sequential_reassigns_do_not_inflate_speaker_counts(client):
-    """Each named speaker should be committed exactly once even when multiple
-    reassigns are performed on the same transcript.
-
-    After two sequential reassigns the first speaker (Alice) must have count == 1,
-    not 2. Speaker IDs in memory must be UUIDs (spk_*), not display names.
-    """
-    emb_a = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    emb_b = np.array([0.0, 1.0, 0.0], dtype=np.float32)
-    storage = app.dependency_overrides[get_storage_service]()
-    t = Transcript(
-        audio_path="files/test.wav",
-        language="en",
-        segments=[
-            Segment(0.0, 2.0, "Hi",  "SPEAKER_00", speaker_resolved="spk_aaa", embedding=emb_a),
-            Segment(2.0, 4.0, "Bye", "SPEAKER_01", speaker_resolved="spk_bbb", embedding=emb_b),
-        ],
-    )
-    db_id = storage.save(t)
-
-    # First reassign: spk_aaa → Alice
-    r1 = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_aaa",
-        "to_speaker_name": "Alice",
-    })
-    assert r1.status_code == 204
-
-    # Second reassign: spk_bbb → Bob  (must NOT re-commit Alice)
-    r2 = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_bbb",
-        "to_speaker_name": "Bob",
-    })
-    assert r2.status_code == 204
-
-    memory = app.dependency_overrides[get_memory_service]()
-    alice_uuid = memory.find_by_name("Alice")
-    bob_uuid = memory.find_by_name("Bob")
-    assert alice_uuid is not None, "Alice must be resolvable by name"
-    assert bob_uuid is not None, "Bob must be resolvable by name"
-    # Each named speaker must appear exactly once in memory — count == 1
-    assert memory.known_counts.get(alice_uuid) == 1, (
-        f"Alice.count should be 1 but got {memory.known_counts.get(alice_uuid)}"
-    )
-    assert memory.known_counts.get(bob_uuid) == 1, (
-        f"Bob.count should be 1 but got {memory.known_counts.get(bob_uuid)}"
-    )
-
-
-# ── New reassign contract tests ───────────────────────────────────────────────
-
-def test_reassign_to_new_speaker_by_name_creates_uuid(client):
-    """POST /reassign with to_speaker_name creates a new UUID4 in memory.
-
-    The segment's speaker_resolved must be updated to the new UUID,
-    not to the literal name string. The UUID must be findable via find_by_name().
-    """
-    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    storage = app.dependency_overrides[get_storage_service]()
-    t = Transcript(
-        audio_path="files/test.wav",
-        language="en",
-        segments=[
-            Segment(0.0, 2.0, "Hello", "SPEAKER_00", speaker_resolved="spk_aaa", embedding=emb),
-        ],
-    )
-    db_id = storage.save(t)
-
-    r = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_aaa",
-        "to_speaker_name": "Carlos",
-    })
-    assert r.status_code == 204
-
-    memory = app.dependency_overrides[get_memory_service]()
-    found_uuid = memory.find_by_name("Carlos")
-    assert found_uuid is not None, "find_by_name('Carlos') must return a UUID after reassign"
-    assert _is_valid_uuid(found_uuid), f"UUID must be a valid UUID, got {found_uuid!r}"
-    assert found_uuid in memory.known_speakers, "UUID must be present in known_speakers"
-
-    segs = client.get(f"/transcripts/{db_id}").json()["segments"]
-    assert segs[0]["speaker_resolved"] == found_uuid, (
-        f"Segment speaker_resolved must be UUID {found_uuid!r}, "
-        f"not literal name. Got {segs[0]['speaker_resolved']!r}"
-    )
-
-
-def test_reassign_to_existing_speaker_by_id(client):
-    """POST /reassign with to_speaker_id merges onto an existing UUID from memory.
-
-    The source UUID (spk_source) is an unrecognized temp speaker and must be
-    removed from memory after reassign. The target UUID (spk_existing) must
-    remain, the segment must carry it, and its embedding count must reflect
-    the number of DB segments now assigned to spk_existing.
-    """
-    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    emb_source = np.array([0.9, 0.1, 0.0], dtype=np.float32)
-    memory = app.dependency_overrides[get_memory_service]()
-    memory.update_embedding("spk_existing", emb)
-    memory.save()
-
-    storage = app.dependency_overrides[get_storage_service]()
-    t = Transcript(
-        audio_path="files/test.wav",
-        language="en",
-        segments=[
-            Segment(0.0, 2.0, "Hello", "SPEAKER_00", speaker_resolved="spk_source", embedding=emb_source),
-        ],
-    )
-    db_id = storage.save(t)
-
-    r = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_source",
-        "to_speaker_id": "spk_existing",
-    })
-    assert r.status_code == 204
-
-    memory2 = app.dependency_overrides[get_memory_service]()
-    segs = client.get(f"/transcripts/{db_id}").json()["segments"]
-    assert segs[0]["speaker_resolved"] == "spk_existing", (
-        f"Segment must carry to_speaker_id UUID, got {segs[0]['speaker_resolved']!r}"
-    )
-    assert "spk_source" not in memory2.known_speakers, (
-        "spk_source must be removed from memory after reassign"
-    )
-    assert "spk_existing" in memory2.known_speakers, (
-        "spk_existing must remain in memory after reassign"
-    )
-    count_after = memory2.known_counts.get("spk_existing", 0)
-    assert count_after == 1, (
-        f"spk_existing count must equal the number of DB segments (1) after absorbing spk_source's segment; "
-        f"got {count_after}"
-    )
-
-
-def test_reassign_two_speakers_same_name_creates_distinct_uuids(client):
-    """Two different speakers reassigned to the same display name get distinct UUIDs.
-
-    After two separate reassigns with to_speaker_name="Maria", memory must contain
-    exactly 2 entries, both starting with spk_, and both findable by name "Maria".
-    """
-    emb_a = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    emb_b = np.array([0.0, 1.0, 0.0], dtype=np.float32)
-    storage = app.dependency_overrides[get_storage_service]()
-    t = Transcript(
-        audio_path="files/test.wav",
-        language="en",
-        segments=[
-            Segment(0.0, 2.0, "One", "SPEAKER_00", speaker_resolved="spk_aaa", embedding=emb_a),
-            Segment(2.0, 4.0, "Two", "SPEAKER_01", speaker_resolved="spk_bbb", embedding=emb_b),
-        ],
-    )
-    db_id = storage.save(t)
-
-    r1 = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_aaa",
-        "to_speaker_name": "Maria",
-    })
-    assert r1.status_code == 204
-
-    r2 = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_bbb",
-        "to_speaker_name": "Maria",
-    })
-    assert r2.status_code == 204
-
-    memory = app.dependency_overrides[get_memory_service]()
-    keys = list(memory.known_speakers.keys())
-    assert len(keys) == 2, f"Expected exactly 2 speakers in memory, got {keys!r}"
-    assert keys[0] != keys[1], "Two reassigns to same name must create distinct UUIDs"
-    for k in keys:
-        assert _is_valid_uuid(k), f"Expected a valid UUID, got {k!r}"
-    maria_uuid = memory.find_by_name("Maria")
-    assert maria_uuid is not None, "At least one speaker named Maria must be findable"
-
-
-def test_reassign_from_recognized_speaker_keeps_it_in_memory(client):
-    """Reassigning FROM a recognized (named) speaker must not delete it from memory.
-
-    If spk_named is a recognized speaker with a display name, and we reassign
-    segments FROM it to a new name, spk_named itself must remain in known_speakers
-    because it is a recognized identity (not a temporary UNRECOGNIZED UUID).
-    """
-    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    emb_b = np.array([0.0, 1.0, 0.0], dtype=np.float32)
-    memory = app.dependency_overrides[get_memory_service]()
-    memory.update_embedding("spk_named", emb)
-    memory.save()
-    memory.set_name("spk_named", "Alex")
-    memory.save_names_only()
-
-    storage = app.dependency_overrides[get_storage_service]()
-    t = Transcript(
-        audio_path="files/test.wav",
-        language="en",
-        segments=[
-            Segment(0.0, 2.0, "Named",   "SPEAKER_00", speaker_resolved="spk_named",   embedding=emb),
-            Segment(2.0, 4.0, "Unknown", "SPEAKER_01", speaker_resolved="spk_unknown", embedding=emb_b),
-        ],
-    )
-    db_id = storage.save(t)
-
-    r = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_named",
-        "to_speaker_name": "Bob",
-    })
-    assert r.status_code == 204
-
-    memory2 = app.dependency_overrides[get_memory_service]()
-    assert "spk_named" in memory2.known_speakers, (
-        "spk_named is a recognized speaker and must NOT be removed from memory "
-        "when it is the source of a reassign"
-    )
-
-
-def test_reassign_missing_to_field_returns_400(client):
-    """POST /reassign with neither to_speaker_id nor to_speaker_name returns 400."""
-    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    storage = app.dependency_overrides[get_storage_service]()
-    t = Transcript(
-        audio_path="files/test.wav",
-        language="en",
-        segments=[
-            Segment(0.0, 2.0, "Hello", "SPEAKER_00", speaker_resolved="spk_aaa", embedding=emb),
-        ],
-    )
-    db_id = storage.save(t)
-
-    r = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_aaa",
-    })
-    assert r.status_code == 400, (
-        f"Expected 400 when neither to_speaker_id nor to_speaker_name is provided, "
-        f"got {r.status_code}"
-    )
-
-
-def test_reassign_both_to_fields_returns_400(client):
-    """POST /reassign with both to_speaker_id and to_speaker_name returns 400."""
-    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    storage = app.dependency_overrides[get_storage_service]()
-    t = Transcript(
-        audio_path="files/test.wav",
-        language="en",
-        segments=[
-            Segment(0.0, 2.0, "Hello", "SPEAKER_00", speaker_resolved="spk_aaa", embedding=emb),
-        ],
-    )
-    db_id = storage.save(t)
-
-    r = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_aaa",
-        "to_speaker_id": "spk_bbb",
-        "to_speaker_name": "Alice",
-    })
-    assert r.status_code == 400, (
-        f"Expected 400 when both to_speaker_id and to_speaker_name are provided, "
-        f"got {r.status_code}"
-    )
-
-
-def test_reassign_one_speaker_also_commits_the_other(client):
-    """Reassigning only one speaker should still persist the other speaker's
-    embedding in memory so they can be recognised in the next session.
-
-    Bug: reassign_speaker calls commit_speaker(t, to_speaker_id) which only
-    commits the newly assigned speaker.  The other speaker's embedding is never
-    written to memory.known_speakers, so they will be unrecognised next time.
-    """
-    emb_a = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    emb_b = np.array([0.0, 1.0, 0.0], dtype=np.float32)  # orthogonal to emb_a
-    storage = app.dependency_overrides[get_storage_service]()
-    t = Transcript(
-        audio_path="files/test.wav",
-        language="en",
-        segments=[
-            Segment(0.0, 2.0, "Hi",  "SPEAKER_00", speaker_resolved="spk_aaa", embedding=emb_a),
-            Segment(2.0, 4.0, "Bye", "SPEAKER_01", speaker_resolved="spk_bbb", embedding=emb_b),
-        ],
-    )
-    db_id = storage.save(t)
-
-    # Only reassign one of the two speakers
-    r = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "spk_aaa",
-        "to_speaker_name": "Alice",
-    })
-    assert r.status_code == 204
-
-    memory = app.dependency_overrides[get_memory_service]()
-    # The assigned speaker must be in memory (stored under a UUID)
-    alice_uuid = memory.find_by_name("Alice")
-    assert alice_uuid is not None, "Alice should be committed to memory after reassign"
-    assert alice_uuid in memory.known_speakers
-    # The unassigned speaker's embedding must also be in memory so they can be
-    # recognised in the next session — this is the bug being tested
-    assert "spk_bbb" in memory.known_speakers, (
-        "spk_bbb embedding should be committed to memory even though it was not reassigned"
-    )
-
-
 # ── Deleting audio must be reflected in speaker memory (invariant I4) ────────
 
 _ALICE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
@@ -800,8 +362,8 @@ def _setup_two_transcripts():
     ])
     id1, id2 = storage.save(t1), storage.save(t2)
     commit = CommitService(memory, storage)
-    commit.commit_new_speakers(t1)
-    commit.commit_new_speakers(t2)
+    commit.commit_speaker(_ALICE)
+    commit.commit_speaker(_BOB)
     memory.set_name(_ALICE, "Alice")
     memory.save_names_only()
     return id1, id2
@@ -842,36 +404,6 @@ def test_delete_segment_removes_unnamed_speaker_with_no_segments_left(client):
 
 
 # ── Single-segment reassign to a NEW named speaker ───────────────────────────
-
-def _transcript_with_two_alice_segments():
-    storage = app.dependency_overrides[get_storage_service]()
-    t = Transcript(audio_path="c.wav", segments=[
-        Segment(0.0, 2.0, "one", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(1.0, 0.0, 0.0)),
-        Segment(2.0, 4.0, "two", "SPEAKER_00", speaker_resolved=_ALICE, embedding=_emb(0.0, 1.0, 0.0)),
-    ])
-    return storage.save(t)
-
-
-def test_segment_speaker_by_name_moves_only_that_segment(client):
-    db_id = _transcript_with_two_alice_segments()
-
-    r = client.patch(f"/transcripts/{db_id}/segments/2.0/speaker", json={"speaker_name": "Carol"})
-    assert r.status_code == 204, r.text
-
-    segs = client.get(f"/transcripts/{db_id}").json()["segments"]
-    first, second = (s["speaker_final"] or s["speaker_resolved"] for s in segs)
-    assert first == _ALICE, "the other segment of the speaker must stay untouched"
-    assert second != _ALICE and _is_valid_uuid(second)
-    names = {s["id"]: s["name"] for s in client.get("/speakers").json()}
-    assert names.get(second) == "Carol"
-
-
-def test_segment_speaker_requires_exactly_one_of_id_or_name(client):
-    db_id = _transcript_with_two_alice_segments()
-    url = f"/transcripts/{db_id}/segments/0.0/speaker"
-    assert client.patch(url, json={}).status_code == 400
-    assert client.patch(url, json={"speaker_id": _ALICE, "speaker_name": "X"}).status_code == 400
-
 
 # ── POST /data/reset ──────────────────────────────────────────────────────────
 
@@ -1320,61 +852,6 @@ def test_delete_speaker_returns_409_while_capture_runs(reset_env):
     assert client.delete(f"/speakers/{_ALICE}").status_code == 409
 
 
-def test_bulk_reassign_unassigned_segments(reset_env):
-    client, *_ = reset_env
-    first, _ = _speakers_fixture()
-    client.delete(f"/speakers/{_ALICE}")
-
-    r = client.post(f"/transcripts/{first}/reassign",
-                    json={"from_speaker_id": "UNASSIGNED", "to_speaker_name": "Dana"})
-
-    assert r.status_code == 204, r.text
-    seg = client.get(f"/transcripts/{first}").json()["segments"][0]
-    assert seg["unassigned"] is False
-    dana = seg["speaker_final"] or seg["speaker_resolved"]
-    assert _speaker_rows(client)[dana]["name"] == "Dana"
-    assert dana in _fresh_memory().known_speakers, "Dana's profile is built from the reassigned segment"
-
-
-def test_single_segment_reassign_of_unassigned_segment(reset_env):
-    client, *_ = reset_env
-    first, _ = _speakers_fixture()
-    client.delete(f"/speakers/{_ALICE}")
-
-    r = client.patch(f"/transcripts/{first}/segments/0.0/speaker", json={"speaker_id": _BOB})
-
-    assert r.status_code == 204, r.text
-    seg = client.get(f"/transcripts/{first}").json()["segments"][0]
-    assert seg["unassigned"] is False and seg["speaker_resolved"] == _BOB
-
-
-def test_suggestions_give_the_best_named_speaker_for_each_unrecognized_one(client):
-    first, _ = _speakers_fixture()
-    r = client.get(f"/transcripts/{first}/speaker-suggestions")
-    assert r.status_code == 200
-    # Alice is named, Carol has no embedding: only Bob gets a suggestion.
-    assert r.json() == {_BOB: {"speaker_id": _ALICE, "name": "Alice", "score": 0.0}}
-
-
-def test_suggestions_are_empty_with_no_named_speaker(client):
-    storage = app.dependency_overrides[get_storage_service]()
-    transcript_id = storage.save(Transcript(audio_path="a.wav", segments=[
-        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(0.0, 1.0, 0.0)),
-    ]))
-    r = client.get(f"/transcripts/{transcript_id}/speaker-suggestions")
-    assert r.status_code == 200
-    assert r.json() == {}
-
-
-def test_suggestions_skip_unassigned_segments(reset_env):
-    client, *_ = reset_env
-    first, _ = _speakers_fixture()
-    client.delete(f"/speakers/{_ALICE}")
-    r = client.get(f"/transcripts/{first}/speaker-suggestions")
-    assert r.status_code == 200
-    assert "UNASSIGNED" not in r.json()
-
-
 _DAN = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
 _ERIN = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
 _FRANK = "ffffffff-ffff-4fff-8fff-ffffffffffff"
@@ -1401,20 +878,6 @@ def _alice_carol_dan():
 def _save_voice(segments, audio_path="a.wav"):
     storage = app.dependency_overrides[get_storage_service]()
     return storage.save(Transcript(audio_path=str(audio_path), segments=segments))
-
-
-def test_suggestions_still_answer_as_the_old_renderer_reads_them(client):
-    # speaker-card.js treats every entry as a suggestion and reads these three
-    # fields. A speaker with no voice, or no candidate, must not get an entry.
-    _alice_carol_dan()
-    transcript_id = _save_voice([
-        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
-        Segment(2.0, 3.0, "b", "SPEAKER_01", speaker_resolved=_ERIN),
-        Segment(3.0, 4.0, "c", "SPEAKER_02", speaker_resolved=_ALICE, embedding=_emb(0.6, 0.8, 0.0)),
-    ])
-    r = client.get(f"/transcripts/{transcript_id}/speaker-suggestions")
-    assert r.status_code == 200
-    assert r.json() == {_BOB: {"speaker_id": _DAN, "name": "Dan", "score": 0.8}}
 
 
 def test_candidates_are_sorted_and_at_most_three(client):
@@ -1637,114 +1100,6 @@ def test_speaker_sample_404_without_audio(client, tmp_path):
 
 def test_speaker_sample_404_for_unknown_speaker(client):
     assert client.get(f"/speakers/{_BOB}/sample").status_code == 404
-
-
-# ── New speaker color (Add new speaker modal) ─────────────────────────────────
-
-def _speaker_by_name(client, name):
-    return next(s for s in client.get("/speakers").json() if s["name"] == name)
-
-
-def test_update_segment_speaker_new_name_with_color(client):
-    """PATCH segment speaker with speaker_name + color_index gives the new speaker that color."""
-    db_id = _saved_id(client)
-    r = client.patch(
-        f"/transcripts/{db_id}/segments/0.0/speaker",
-        json={"speaker_name": "Dana", "color_index": 3},
-    )
-    assert r.status_code == 204
-    assert _speaker_by_name(client, "Dana")["color_index"] == 3
-
-
-def test_reassign_new_name_with_color(client):
-    """POST /reassign with to_speaker_name + color_index gives the new speaker that color."""
-    db_id = _saved_id(client)
-    r = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "Alice",
-        "to_speaker_name": "Erin",
-        "color_index": 2,
-    })
-    assert r.status_code == 204
-    assert _speaker_by_name(client, "Erin")["color_index"] == 2
-
-
-@pytest.mark.parametrize("color", [-1, 5])
-def test_new_speaker_color_out_of_palette_is_rejected(client, color):
-    """An out-of-palette color_index is a 400 and creates no speaker."""
-    db_id = _saved_id(client)
-    r1 = client.patch(
-        f"/transcripts/{db_id}/segments/0.0/speaker",
-        json={"speaker_name": "Dana", "color_index": color},
-    )
-    r2 = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "Alice", "to_speaker_name": "Erin", "color_index": color,
-    })
-    assert (r1.status_code, r2.status_code) == (400, 400)
-    names = {s["name"] for s in client.get("/speakers").json()}
-    assert not names & {"Dana", "Erin"}
-
-
-def test_color_index_with_existing_speaker_id_is_rejected(client):
-    """color_index only applies to a new speaker; with an existing id it is a 400."""
-    memory = app.dependency_overrides[get_memory_service]()
-    spk_uuid = str(uuid_module.uuid4())
-    memory.update_embedding(spk_uuid, np.array([1.0, 0.0, 0.0], dtype=np.float32))
-    memory.save()
-    db_id = _saved_id(client)
-    r1 = client.patch(
-        f"/transcripts/{db_id}/segments/0.0/speaker",
-        json={"speaker_id": spk_uuid, "color_index": 1},
-    )
-    r2 = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "Alice", "to_speaker_id": spk_uuid, "color_index": 1,
-    })
-    assert (r1.status_code, r2.status_code) == (400, 400)
-
-
-# ── Named speaker without a voice profile ─────────────────────────────────────
-# A speaker created by name on segments too short for an embedding has a name but
-# no profile. It is offered in the picker, so it must be assignable.
-
-def _named_speaker_without_profile(name="Carol") -> str:
-    memory = app.dependency_overrides[get_memory_service]()
-    spk_id = memory.create_named_speaker(name)
-    assert spk_id not in memory.known_speakers
-    return spk_id
-
-
-def _saved_id_with_embeddings() -> int:
-    storage = app.dependency_overrides[get_storage_service]()
-    emb = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    return storage.save(Transcript(
-        audio_path="files/test.wav", language="en",
-        segments=[
-            Segment(0.0, 2.0, "Hello", "SPEAKER_00", speaker_resolved="Alice", embedding=emb),
-            Segment(2.0, 4.0, "World", "SPEAKER_01", speaker_resolved="Bob", embedding=emb),
-        ],
-    ))
-
-
-def test_update_segment_speaker_to_named_speaker_without_profile(client):
-    """PATCH segment speaker accepts a named speaker that has no voice profile yet,
-    and builds its profile from the newly assigned segment."""
-    carol = _named_speaker_without_profile()
-    db_id = _saved_id_with_embeddings()
-    r = client.patch(f"/transcripts/{db_id}/segments/0.0/speaker", json={"speaker_id": carol})
-    assert r.status_code == 204, r.text
-    segs = client.get(f"/transcripts/{db_id}").json()["segments"]
-    assert segs[0]["speaker_final"] == carol or segs[0]["speaker_resolved"] == carol
-    assert carol in app.dependency_overrides[get_memory_service]().known_speakers
-
-
-def test_reassign_to_named_speaker_without_profile(client):
-    """POST /reassign accepts a named speaker that has no voice profile yet."""
-    carol = _named_speaker_without_profile()
-    db_id = _saved_id_with_embeddings()
-    r = client.post(f"/transcripts/{db_id}/reassign", json={
-        "from_speaker_id": "Alice", "to_speaker_id": carol,
-    })
-    assert r.status_code == 204, r.text
-    assert carol in app.dependency_overrides[get_memory_service]().known_speakers
 
 
 # ── Transcript title ──────────────────────────────────────────────────────────
@@ -2027,6 +1382,87 @@ def test_assign_rejects_a_wrong_request(client, body, status):
     db_id = _recording(client, [voice])
     assert client.post(f"/transcripts/{db_id}/speaker-assignments", json=body).status_code == status
     assert _speakers_of(client, db_id) == [voice]
+
+
+def test_assign_color_index_with_an_existing_speaker_is_rejected(client):
+    voice, alice = str(uuid_module.uuid4()), _named("Alice")
+    db_id = _recording(client, [voice])
+    r = client.post(f"/transcripts/{db_id}/speaker-assignments", json={
+        "segment_starts": [0.0], "speaker_id": alice, "color_index": 1,
+    })
+    assert r.status_code == 400
+    assert _speakers_of(client, db_id) == [voice]
+
+
+def test_assign_out_of_palette_color_creates_no_speaker(client):
+    voice = str(uuid_module.uuid4())
+    db_id = _recording(client, [voice])
+    r = client.post(f"/transcripts/{db_id}/speaker-assignments", json={
+        "segment_starts": [0.0], "speaker_name": "Dana", "color_index": -1,
+    })
+    assert r.status_code == 400
+    assert "Dana" not in {s["name"] for s in client.get("/speakers").json()}
+
+
+def test_sequential_assignments_leave_no_ghost_speaker_and_count_once(client):
+    storage = app.dependency_overrides[get_storage_service]()
+    first, second = str(uuid_module.uuid4()), str(uuid_module.uuid4())
+    db_id = storage.save(Transcript(audio_path="files/test.wav", language="en", segments=[
+        Segment(0.0, 1.0, "Hi", "SPEAKER_00", speaker_resolved=first, embedding=_voice(1.0, 0.0, 0.0)),
+        Segment(1.0, 2.0, "Bye", "SPEAKER_01", speaker_resolved=second, embedding=_voice(0.0, 1.0, 0.0)),
+    ]))
+    CommitService(app.dependency_overrides[get_memory_service](), storage).commit_speaker(first)
+
+    alice = client.post(f"/transcripts/{db_id}/speaker-assignments", json={
+        "segment_starts": [0.0], "speaker_name": "Alice",
+    }).json()["speaker_id"]
+    bob = client.post(f"/transcripts/{db_id}/speaker-assignments", json={
+        "segment_starts": [1.0], "speaker_name": "Bob",
+    }).json()["speaker_id"]
+
+    memory = app.dependency_overrides[get_memory_service]()
+    assert sorted(memory.known_speakers) == sorted([alice, bob])
+    assert memory.known_counts[alice] == 1 and memory.known_counts[bob] == 1
+
+
+def test_two_new_speakers_with_one_name_get_distinct_ids(client):
+    first, second = str(uuid_module.uuid4()), str(uuid_module.uuid4())
+    db_id = _recording(client, [first, second])
+
+    ids = [
+        client.post(f"/transcripts/{db_id}/speaker-assignments", json={
+            "segment_starts": [start], "speaker_name": "Maria",
+        }).json()["speaker_id"]
+        for start in (0.0, 1.0)
+    ]
+
+    assert ids[0] != ids[1]
+    assert all(_is_valid_uuid(i) for i in ids)
+    assert _speakers_of(client, db_id) == ids
+
+
+def test_assign_away_from_a_named_speaker_keeps_it_in_memory(client):
+    memory = app.dependency_overrides[get_memory_service]()
+    alex = memory.create_named_speaker("Alex")
+    memory.update_embedding(alex, _voice(1.0, 0.0, 0.0))
+    memory.save()
+    db_id = _recording(client, [alex])
+
+    client.post(f"/transcripts/{db_id}/speaker-assignments", json={"segment_starts": [0.0], "speaker_name": "Bob"})
+
+    assert alex in app.dependency_overrides[get_memory_service]().known_speakers
+
+
+def test_assign_to_a_named_speaker_without_profile_builds_it(client):
+    voice = str(uuid_module.uuid4())
+    carol = _named("Carol")
+    assert carol not in app.dependency_overrides[get_memory_service]().known_speakers
+    db_id = _recording(client, [voice])
+
+    r = client.post(f"/transcripts/{db_id}/speaker-assignments", json={"segment_starts": [0.0], "speaker_id": carol})
+
+    assert r.status_code == 200, r.text
+    assert carol in app.dependency_overrides[get_memory_service]().known_speakers
 
 
 def test_assign_unknown_transcript(client):

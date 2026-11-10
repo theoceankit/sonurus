@@ -59,33 +59,6 @@ class TranscriptStorageService:
         transcript.db_id = db_id
         return db_id
 
-    def update_segments_speaker(self, db_id: int, from_spk: str, to_spk: str) -> None:
-        """Reassign all segments of from_spk to to_spk within a transcription.
-        from_spk may be UNASSIGNED to assign every unassigned segment."""
-        with self._connect() as conn:
-            if from_spk == UNASSIGNED:
-                conn.execute(
-                    "UPDATE segments SET speaker_id = ?, unassigned = 0 "
-                    "WHERE transcription_id = ? AND unassigned = 1",
-                    (to_spk, db_id),
-                )
-            else:
-                conn.execute(
-                    "UPDATE segments SET speaker_id = ? WHERE transcription_id = ? AND speaker_id = ?",
-                    (to_spk, db_id, from_spk),
-                )
-        log.info(f"UPDATE segments speaker_id={to_spk} where transcription={db_id} from={from_spk}")
-
-    def update_segment_speaker(self, db_id: int, start: float, end: float, new_speaker: str) -> None:
-        """Reassign a single segment's speaker identified by its time range."""
-        with self._connect() as conn:
-            conn.execute(
-                "UPDATE segments SET speaker_id = ?, unassigned = 0 "
-                "WHERE transcription_id = ? AND start = ? AND end = ?",
-                (new_speaker, db_id, start, end),
-            )
-        log.info(f"UPDATE segments speaker_id={new_speaker} at [{start:.2f}-{end:.2f}] for transcription={db_id}")
-
     def set_segments_speaker(self, db_id: int, ranges: list[tuple[float, float]], speaker_id: str) -> None:
         """Give segments, identified by their time ranges, one speaker in one transaction.
         speaker_id may be UNASSIGNED, which is a flag and never a stored id."""

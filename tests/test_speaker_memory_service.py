@@ -368,7 +368,7 @@ def test_save_names_only_persists_name_without_touching_embedding(tmp_path):
 def test_save_names_only_persists_name_without_embedding(tmp_path):
     """save_names_only() must persist names even when no embedding exists for the speaker yet.
 
-    This is the name-only path used by reassign_speaker when a brand-new speaker is
+    This is the name-only path used by a speaker assignment when a brand-new speaker is
     created by display name before any segment embedding is available.  The name must
     survive a server restart (i.e. be readable from a fresh SpeakerMemoryService).
     """

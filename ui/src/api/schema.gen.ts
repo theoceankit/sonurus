@@ -624,23 +624,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/transcripts/{transcript_id}/reassign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Reassign Speaker */
-        post: operations["reassign_speaker_transcripts__transcript_id__reassign_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/transcripts/{transcript_id}/segments/{start}": {
         parameters: {
             query?: never;
@@ -656,23 +639,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/transcripts/{transcript_id}/segments/{start}/speaker": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Update Segment Speaker */
-        patch: operations["update_segment_speaker_transcripts__transcript_id__segments__start__speaker_patch"];
         trace?: never;
     };
     "/transcripts/{transcript_id}/segments/{start}/text": {
@@ -746,26 +712,6 @@ export interface paths {
          *     with the closest voice and a clip to hear it. Reads speaker memory only.
          */
         get: operations["get_speaker_candidates_transcripts__transcript_id__speaker_candidates_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/transcripts/{transcript_id}/speaker-suggestions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Speaker Suggestions
-         * @description For each unrecognized speaker in the transcript, return the best matching known speaker.
-         */
-        get: operations["get_speaker_suggestions_transcripts__transcript_id__speaker_suggestions_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1025,20 +971,6 @@ export interface components {
              */
             type: "snapshot";
         };
-        /**
-         * ReassignRequest
-         * @description color_index sets the new speaker's palette color (only with to_speaker_name).
-         */
-        ReassignRequest: {
-            /** Color Index */
-            color_index?: number | null;
-            /** From Speaker Id */
-            from_speaker_id: string;
-            /** To Speaker Id */
-            to_speaker_id?: string | null;
-            /** To Speaker Name */
-            to_speaker_name?: string | null;
-        };
         /** RecordingUploadResponse */
         RecordingUploadResponse: {
             /** File Path */
@@ -1083,19 +1015,6 @@ export interface components {
              */
             unassigned: boolean;
         };
-        /**
-         * SegmentSpeakerRequest
-         * @description Exactly one of: an existing speaker_id, or speaker_name to create a new speaker.
-         *     color_index sets the new speaker's palette color (only with speaker_name).
-         */
-        SegmentSpeakerRequest: {
-            /** Color Index */
-            color_index?: number | null;
-            /** Speaker Id */
-            speaker_id?: string | null;
-            /** Speaker Name */
-            speaker_name?: string | null;
-        };
         /** SegmentTextRequest */
         SegmentTextRequest: {
             /** Text */
@@ -1103,7 +1022,9 @@ export interface components {
         };
         /**
          * SpeakerAssignmentRequest
-         * @description The segments that change, all together, by their start.
+         * @description The segments that change, all together, by their start, and exactly one of:
+         *     an existing speaker_id, or speaker_name to create a new speaker. color_index
+         *     sets the new speaker's palette color (only with speaker_name).
          */
         SpeakerAssignmentRequest: {
             /** Color Index */
@@ -1200,19 +1121,6 @@ export interface components {
             text: string;
             /** Transcript Id */
             transcript_id: number;
-        };
-        /**
-         * SpeakerSuggestion
-         * @description GET /transcripts/{id}/speaker-suggestions: the known speaker closest to
-         *     an unrecognized one.
-         */
-        SpeakerSuggestion: {
-            /** Name */
-            name: string;
-            /** Score */
-            score: number;
-            /** Speaker Id */
-            speaker_id: string;
         };
         /** SpeakerTranscriptItem */
         SpeakerTranscriptItem: {
@@ -2443,39 +2351,6 @@ export interface operations {
             };
         };
     };
-    reassign_speaker_transcripts__transcript_id__reassign_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                transcript_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReassignRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     delete_segment_transcripts__transcript_id__segments__start__delete: {
         parameters: {
             query?: never;
@@ -2487,40 +2362,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_segment_speaker_transcripts__transcript_id__segments__start__speaker_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                transcript_id: number;
-                start: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SegmentSpeakerRequest"];
-            };
-        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -2661,39 +2502,6 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: components["schemas"]["UnknownSpeakerCandidates"];
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_speaker_suggestions_transcripts__transcript_id__speaker_suggestions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                transcript_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: components["schemas"]["SpeakerSuggestion"];
                     };
                 };
             };

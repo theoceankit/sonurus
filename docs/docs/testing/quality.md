@@ -53,7 +53,7 @@ The tests also skip when the ML libraries are the CI stubs or the set is not bui
 
 Each **variant** is one way the audio reaches the models (`VARIANTS` in `tests/quality/harness.py`). Its three clips run through `TranscriptionController.run_pipeline()` on a fresh speaker memory, in order:
 
-1. the first clip's diarised speakers are mapped to the reference speakers and named after them, the way the editor does it (`reassign_speaker` to a new speaker by name);
+1. the first clip's diarised speakers are mapped to the reference speakers and named after them, the way the editor does it (`assign_speaker`, the route `POST /transcripts/{id}/speaker-assignments`, with all of a speaker's segments to a new speaker by name);
 2. the next clips are transcribed with that memory; after each the transcript is saved and `commit_recognized_speakers()` runs, as the queue does after a job.
 
 Metrics (`tests/quality/metrics.py`, unit-tested in `tests/test_quality_metrics.py`):
