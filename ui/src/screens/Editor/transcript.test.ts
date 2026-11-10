@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { UNASSIGNED, type Segment, type Speaker, type Transcript } from '../../api/types'
 import {
-  buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave, unknownSpeakerNames,
+  buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave, transcriptText, unknownSpeakerNames,
 } from './transcript'
 
 const segment = (start: number, end: number, speaker: string | null, changes: Partial<Segment> = {}) => ({
@@ -129,4 +129,27 @@ test('formatRecordingDate: as on the boards, nothing for a bad date', () => {
   expect(formatRecordingDate('2026-10-04T02:33:00')).toBe('4 Oct 2026, 02:33')
   expect(formatRecordingDate('not a date')).toBe('')
   expect(formatRecordingDate(undefined)).toBe('')
+})
+
+describe('transcriptText', () => {
+  test('each turn is its speaker and start time, then a line per paragraph; turns apart by an empty line', () => {
+    const turns = buildTurns([
+      segment(12, 14, 'mark', { text: 'So the budget.' }),
+      segment(14, 16, 'mark', { text: 'Three items today.' }),
+      segment(3725, 3730, 'gone', { text: 'Sure, go ahead.' }),
+      segment(3730, 3731, 'anna', { text: 'Late.', unassigned: true }),
+    ], SPEAKERS)
+    expect(transcriptText(turns)).toBe(
+      'Mark 00:12\nSo the budget.\nThree items today.\n\nUnknown speaker 1 1:02:05\nSure, go ahead.\n\nUnassigned 1:02:10\nLate.',
+    )
+  })
+
+  test('the user\'s correction of the speaker and the edited text are what is copied', () => {
+    const turns = buildTurns([segment(0, 1, 'anna', { speaker_final: 'mark', text: 'Edited.' })], SPEAKERS)
+    expect(transcriptText(turns)).toBe('Mark 00:00\nEdited.')
+  })
+
+  test('no turns, no text', () => {
+    expect(transcriptText([])).toBe('')
+  })
 })

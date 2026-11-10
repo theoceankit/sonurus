@@ -103,3 +103,19 @@ test('the field stops at the longest title the API takes', async () => {
   await userEvent.click(title())
   expect(field().maxLength).toBe(200)
 })
+
+test.each([false, true])('sticky %s: Copy transcript sits between Pin and Export and copies', async sticky => {
+  const onCopy = vi.fn()
+  setup({ sticky, onCopy })
+  const names = screen.getAllByRole('button').map(button => button.getAttribute('aria-label')).filter(Boolean)
+  expect(names).toEqual(['Pin', 'Copy transcript', 'Export', 'More'])
+  await userEvent.click(screen.getByRole('button', { name: 'Copy transcript' }))
+  expect(onCopy).toHaveBeenCalledOnce()
+})
+
+test.each([false, true])('sticky %s: with nothing to copy, Copy transcript is there but disabled', sticky => {
+  setup({ sticky })
+  const copy = screen.getByRole('button', { name: 'Copy transcript' }) as HTMLButtonElement
+  expect(copy.disabled).toBe(true)
+  expect(copy.dataset.notImplemented).toBeUndefined()
+})
