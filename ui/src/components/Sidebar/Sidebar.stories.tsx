@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { IconButton } from '../IconButton/IconButton'
+import { MenuAction, MenuDivider } from '../Menu/Menu'
 import { QueueRow } from '../QueueRow/QueueRow'
 import { ScrollBar } from '../ScrollBar/ScrollBar'
 import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
@@ -95,3 +96,18 @@ export const WithLongQueue: Story = {
     top: queue(Array.from({ length: 12 }, (_, i) => `Recording to transcribe ${i + 1}`)),
   },
 }
+
+const rowMenu = ({ isNew }: SidebarRecording) => (
+  <>
+    <MenuAction icon="edit">Rename</MenuAction>
+    <MenuAction icon="eye">{isNew ? 'Mark as read' : 'Mark as unread'}</MenuAction>
+    <MenuAction icon="pin">Pin</MenuAction>
+    <MenuDivider />
+    <MenuAction icon="delete">Delete recording</MenuAction>
+  </>
+)
+
+// Right click a row, or focus it and press the Menu key or Shift+F10.
+export const WithRowMenu: Story = { args: { sections: [PINNED, WEEK, earlier(4)], selectedId: 1, rowMenu } }
+
+export const Renaming: Story = { args: { sections: [PINNED, WEEK, earlier(4)], selectedId: 1, renamingId: 4 } }

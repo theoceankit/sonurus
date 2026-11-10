@@ -77,6 +77,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     ).levels,
     updateTranscriptTitle: (id, title) => send(http.PATCH('/transcripts/{transcript_id}', { ...transcript(id), body: { title } })),
     markTranscriptOpened: id => send(http.POST('/transcripts/{transcript_id}/opened', transcript(id))),
+    markTranscriptUnopened: id => send(http.DELETE('/transcripts/{transcript_id}/opened', transcript(id))),
     deleteTranscript: id => send(http.DELETE('/transcripts/{transcript_id}', transcript(id))),
     updateSegmentText: (id, start, text) => send(http.PATCH('/transcripts/{transcript_id}/segments/{start}/text', { ...segment(id, start), body: { text } })),
     deleteSegment: (id, start) => send(http.DELETE('/transcripts/{transcript_id}/segments/{start}', segment(id, start))),

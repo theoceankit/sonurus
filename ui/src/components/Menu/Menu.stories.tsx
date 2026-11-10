@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Button } from '../Button/Button'
 import { IconButton } from '../IconButton/IconButton'
 import { Inline } from '../Inline/Inline'
-import { Menu, MenuAction, MenuDivider, MenuOption, MenuOptions, MenuSection, MenuSurface } from './Menu'
+import { ContextMenu, Menu, MenuAction, MenuDivider, MenuOption, MenuOptions, MenuSection, MenuSurface } from './Menu'
 
 const meta: Meta<typeof Menu> = {
   component: Menu,
@@ -83,4 +83,9 @@ export const NarrowAbove: Story = {
 
 export const Surface: Story = {
   render: () => <MenuSurface><span>Any content, such as a search field and a list</span></MenuSurface>,
+}
+
+// Right click the button, or focus it and press the Menu key or Shift+F10.
+export const Context: Story = {
+  render: () => <ContextMenu content={items}><Button>Right click me</Button></ContextMenu>,
 }

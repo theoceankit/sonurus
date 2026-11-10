@@ -8,6 +8,7 @@
 // them: what follows them is awaited, never read at once.
 
 const test   = require('node:test')
+const assert = require('node:assert')
 const { startApp, assertEventually, api } = require('./harness')
 
 test('the editor plays, changes a speaker with Undo, and edits the title and the text', async t => {
@@ -57,4 +58,54 @@ test('the editor plays, changes a speaker with Undo, and edits the title and the
     const { segments } = await api('GET', `/transcripts/${saved.id}`)
     return segments.some(segment => segment.text === 'The installers are ready for review.')
   }, 'the backend has the new title and text')
+})
+
+test('the menu of a recording in the list renames it and marks it unread and read', async t => {
+  const app = await startApp()
+  t.after(app.stop)
+  const { page } = app
+  const main = page.getByRole('main', { name: 'Transcript' })
+  const list = page.getByRole('complementary', { name: 'Recordings' })
+  await main.getByRole('heading', { name: 'Weekly sync' }).waitFor()
+  const row = name => list.getByRole('button', { name: new RegExp(name) })
+  const menu = page.getByRole('menu')
+
+  // A right click opens the menu and not the recording.
+  await row('Design review').click({ button: 'right' })
+  await menu.getByRole('menuitem', { name: 'Rename' }).click()
+  await list.getByRole('textbox', { name: 'Recording title' }).fill('Design review, round 2')
+  await page.keyboard.press('Enter')
+  await row('Design review, round 2').waitFor()
+  await main.getByRole('heading', { name: 'Weekly sync' }).waitFor()
+
+  // The open recording keeps its dot until it is opened again.
+  await row('Weekly sync').click({ button: 'right' })
+  await menu.getByRole('menuitem', { name: 'Mark as unread' }).click()
+  await row('Weekly sync').getByRole('img', { name: 'New' }).waitFor()
+  await assertEventually(async () => (await api('GET', '/transcripts')).find(item => item.title === 'Weekly sync')?.opened === false,
+    'the backend has Weekly sync not opened')
+
+  // From the keyboard, Mark as read takes it away. The pointer goes aside first: an
+  // item that comes up under it takes the focus back from the keys, as in any menu.
+  await menu.waitFor({ state: 'detached' })
+  await page.mouse.move(900, 700)
+  await row('Weekly sync').focus()
+  await page.keyboard.press('Shift+F10')
+  await menu.getByRole('menuitem', { name: 'Mark as read' }).waitFor()
+  // The menu stands on its first item, or on itself when the pointer moved since the
+  // key (Radix): down to Mark as read either way. Radix moves the focus in a timer,
+  // which a window in the background runs late.
+  const focused = () => page.evaluate(() => document.activeElement.textContent.trim())
+  if (await focused() !== 'Rename') {
+    await page.keyboard.press('ArrowDown')
+    await assertEventually(async () => await focused() === 'Rename', 'Rename has the focus')
+  }
+  await page.keyboard.press('ArrowDown')
+  await assertEventually(async () => await focused() === 'Mark as read', 'Mark as read has the focus')
+  await page.keyboard.press('Enter')
+  await assertEventually(async () => await row('Weekly sync').getByRole('img', { name: 'New' }).count() === 0,
+    'the dot of Weekly sync is gone')
+  await assertEventually(async () => (await api('GET', '/transcripts')).find(item => item.title === 'Weekly sync')?.opened === true,
+    'the backend has Weekly sync opened')
+  assert.strictEqual(await list.getByText('Design review, round 2').count(), 1)
 })

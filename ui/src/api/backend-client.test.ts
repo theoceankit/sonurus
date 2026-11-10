@@ -69,6 +69,9 @@ describe('requests', () => {
     const { client, sent } = setup()
     await client.markTranscriptOpened(7)
     expect(sent).toEqual([{ url: 'http://localhost:8000/transcripts/7/opened', method: 'POST' }])
+    sent.length = 0
+    await client.markTranscriptUnopened(7)
+    expect(sent).toEqual([{ url: 'http://localhost:8000/transcripts/7/opened', method: 'DELETE' }])
   })
 
   test('segment text and removal', async () => {

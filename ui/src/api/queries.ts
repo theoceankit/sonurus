@@ -143,8 +143,10 @@ export function useMarkOpened(transcriptId: number | null, loaded: boolean) {
   const asked = useRef<number | null>(null)
 
   useEffect(() => {
-    if (transcriptId === null || !loaded || !item || item.opened || asked.current === transcriptId) return
+    if (transcriptId === null || !loaded || !item || asked.current === transcriptId) return
+    // Also when it was opened before: one marked unread while open keeps its dot.
     asked.current = transcriptId
+    if (item.opened) return
     queries.setQueryData<TranscriptListItem[]>(queryKeys.transcripts, items => items?.map(row => (row.id === transcriptId ? { ...row, opened: true } : row)))
     // Only the list: the key as a prefix would load the recording again.
     void api.markTranscriptOpened(transcriptId).catch(() => {}).finally(() => queries.invalidateQueries({ queryKey: queryKeys.transcripts, exact: true }))
@@ -153,6 +155,28 @@ export function useMarkOpened(transcriptId: number | null, loaded: boolean) {
   useEffect(() => {
     if (asked.current !== transcriptId) asked.current = null
   }, [transcriptId])
+}
+
+// Mark as read or unread from the menu of a recording: the dot changes at once and
+// comes back as it was if the request fails.
+export function useSetOpened() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: ({ transcriptId, opened }: { transcriptId: number; opened: boolean }) =>
+      (opened ? api.markTranscriptOpened(transcriptId) : api.markTranscriptUnopened(transcriptId)),
+    onMutate: async ({ transcriptId, opened }) => {
+      await queries.cancelQueries({ queryKey: queryKeys.transcripts, exact: true })
+      const listBefore = queries.getQueryData<TranscriptListItem[]>(queryKeys.transcripts)
+      if (listBefore) queries.setQueryData(queryKeys.transcripts, listBefore.map(item => (item.id === transcriptId ? { ...item, opened } : item)))
+      return { listBefore }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.listBefore) queries.setQueryData(queryKeys.transcripts, context.listBefore)
+    },
+    // Only the list: the key as a prefix would load the recording again.
+    onSettled: () => queries.invalidateQueries({ queryKey: queryKeys.transcripts, exact: true }),
+  })
 }
 
 export function useDeleteTranscript() {

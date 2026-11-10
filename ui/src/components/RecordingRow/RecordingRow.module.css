@@ -51,3 +51,37 @@
 .speakers {
   flex: none;
 }
+
+/* A menu of the row is open: the row stays as under the pointer. */
+.menuOpen::before {
+  background: var(--color-fill-hover);
+}
+
+/* The row of a field: nothing to press. */
+.renaming {
+  cursor: default;
+}
+
+.renaming::before {
+  display: none;
+}
+
+/* In place of the title, its text where the title's was. */
+.input {
+  flex: 1;
+  min-width: 0;
+  height: var(--size-control-sm);
+  margin-inline: calc(var(--space-1) * -1);
+  padding: 0 var(--space-1);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  font: var(--font-body);
+  outline: var(--border-width-focus) solid var(--color-focus);
+  outline-offset: calc(var(--border-width-focus) * -1);
+}
+
+.input::selection {
+  background: var(--color-selection);
+}
