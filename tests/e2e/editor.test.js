@@ -28,10 +28,12 @@ test('the editor plays, changes a speaker with Undo, and edits the title and the
   // A turn of Mark Ellis goes to Anna Petrova, then back.
   await text.getByRole('button', { name: 'Mark Ellis' }).first().click()
   await page.getByRole('dialog', { name: 'Change speaker' }).getByRole('option', { name: /Anna Petrova/ }).click()
-  await page.getByText('Assigned to Anna Petrova').waitFor()
+  // Radix also puts the toast's text in a live region outside the toasts for a second.
+  const toasts = page.getByRole('region', { name: /Notifications/ })
+  await toasts.getByText('Assigned to Anna Petrova').waitFor()
   await assertEventually(async () => await text.getByRole('button', { name: 'Mark Ellis' }).count() === 1,
     'one turn of Mark Ellis is left')
-  await page.getByRole('region', { name: /Notifications/ }).getByRole('button', { name: 'Undo' }).click()
+  await toasts.getByRole('button', { name: 'Undo' }).click()
   await text.getByRole('button', { name: 'Mark Ellis' }).nth(1).waitFor()
 
   // The title, in the editor and in the list.
