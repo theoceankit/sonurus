@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { Button } from './components/Button/Button'
+import { Menu, MenuAction } from './components/Menu/Menu'
+import { Select } from './components/Select/Select'
 import { Tab } from './components/Tab/Tab'
 import { TabPanel, Tabs } from './components/Tabs/Tabs'
 import { dismissAllToasts } from './components/Toast/toast-store'
@@ -64,6 +66,25 @@ test('a click inside a marked container is stopped too', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Export' }))
   expect(toastShown()).toBe(true)
   expect(onClick).not.toHaveBeenCalled()
+})
+
+test.each(['{ArrowDown}', '{ArrowUp}', '{Enter}', ' '])('%s opens neither a marked select nor a marked menu', async key => {
+  render(
+    <>
+      <div {...notImplementedProps('settings.theme')}>
+        <Select aria-label="Theme" value="system" options={[{ value: 'system', label: 'System' }, { value: 'dark', label: 'Dark' }]} onValueChange={() => {}} />
+      </div>
+      <div {...notImplementedProps('transcript.export')}>
+        <Menu trigger={<Button>Export</Button>}><MenuAction>Text</MenuAction></Menu>
+      </div>
+    </>,
+  )
+  screen.getByRole('combobox', { name: 'Theme' }).focus()
+  await userEvent.keyboard(key)
+  expect(screen.queryByRole('listbox')).toBeNull()
+  screen.getByRole('button', { name: 'Export' }).focus()
+  await userEvent.keyboard(key)
+  expect(screen.queryByRole('menu')).toBeNull()
 })
 
 test('a click elsewhere passes through untouched', async () => {

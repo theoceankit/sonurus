@@ -338,7 +338,7 @@ A control whose feature does not exist yet is not hidden and does not pretend to
 
 The control stays visible and focusable, dimmed with `--opacity-disabled`, with the default cursor and `aria-disabled`. Activating it shows "Not available yet" and reaches none of its handlers, nor those of the controls inside a marked container.
 
-The function returns props instead of relying on a global click guard, because Radix does not wait for a click: tabs switch on mousedown and on focus, menus act on pointerup and on the keydown of Enter and Space. Capture handlers stop all of these.
+The function returns props instead of relying on a global click guard, because Radix does not wait for a click: tabs switch on mousedown and on focus, menus act on pointerup and on the keydown of Enter and Space, and a select or a menu button opens on ArrowDown and ArrowUp. Capture handlers stop all of these; the arrows only on a control that opens a popup, so that they still move past a marked tab.
 
 `NOT_IMPLEMENTED` lists the ids, and an id that is not in it is a compile error. `not-implemented.test.tsx` fails when an id has no call or several, when a call has no id or a computed one, and on a control's own "not available" text; stories and tests do not count. The list holds only what the UI already renders. Stories use `notImplementedProps()`, which takes any string.
 
