@@ -675,53 +675,6 @@
         "title": "QueueSnapshot",
         "type": "object"
       },
-      "ReassignRequest": {
-        "description": "color_index sets the new speaker's palette color (only with to_speaker_name).",
-        "properties": {
-          "color_index": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Color Index"
-          },
-          "from_speaker_id": {
-            "title": "From Speaker Id",
-            "type": "string"
-          },
-          "to_speaker_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "To Speaker Id"
-          },
-          "to_speaker_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "To Speaker Name"
-          }
-        },
-        "required": [
-          "from_speaker_id"
-        ],
-        "title": "ReassignRequest",
-        "type": "object"
-      },
       "RecordingUploadResponse": {
         "properties": {
           "file_path": {
@@ -836,48 +789,6 @@
         "title": "SegmentResponse",
         "type": "object"
       },
-      "SegmentSpeakerRequest": {
-        "description": "Exactly one of: an existing speaker_id, or speaker_name to create a new speaker.\ncolor_index sets the new speaker's palette color (only with speaker_name).",
-        "properties": {
-          "color_index": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Color Index"
-          },
-          "speaker_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Speaker Id"
-          },
-          "speaker_name": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Speaker Name"
-          }
-        },
-        "title": "SegmentSpeakerRequest",
-        "type": "object"
-      },
       "SegmentTextRequest": {
         "properties": {
           "text": {
@@ -892,7 +803,7 @@
         "type": "object"
       },
       "SpeakerAssignmentRequest": {
-        "description": "The segments that change, all together, by their start.",
+        "description": "The segments that change, all together, by their start, and exactly one of:\nan existing speaker_id, or speaker_name to create a new speaker. color_index\nsets the new speaker's palette color (only with speaker_name).",
         "properties": {
           "color_index": {
             "anyOf": [
@@ -1124,30 +1035,6 @@
           "text"
         ],
         "title": "SpeakerSampleResponse",
-        "type": "object"
-      },
-      "SpeakerSuggestion": {
-        "description": "GET /transcripts/{id}/speaker-suggestions: the known speaker closest to\nan unrecognized one.",
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "score": {
-            "title": "Score",
-            "type": "number"
-          },
-          "speaker_id": {
-            "title": "Speaker Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "speaker_id",
-          "name",
-          "score"
-        ],
-        "title": "SpeakerSuggestion",
         "type": "object"
       },
       "SpeakerTranscriptItem": {
@@ -2903,51 +2790,6 @@
         ]
       }
     },
-    "/transcripts/{transcript_id}/reassign": {
-      "post": {
-        "operationId": "reassign_speaker_transcripts__transcript_id__reassign_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "transcript_id",
-            "required": true,
-            "schema": {
-              "title": "Transcript Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReassignRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Reassign Speaker",
-        "tags": [
-          "transcripts"
-        ]
-      }
-    },
     "/transcripts/{transcript_id}/segments/{start}": {
       "delete": {
         "operationId": "delete_segment_transcripts__transcript_id__segments__start__delete",
@@ -2987,60 +2829,6 @@
           }
         },
         "summary": "Delete Segment",
-        "tags": [
-          "transcripts"
-        ]
-      }
-    },
-    "/transcripts/{transcript_id}/segments/{start}/speaker": {
-      "patch": {
-        "operationId": "update_segment_speaker_transcripts__transcript_id__segments__start__speaker_patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "transcript_id",
-            "required": true,
-            "schema": {
-              "title": "Transcript Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "start",
-            "required": true,
-            "schema": {
-              "title": "Start",
-              "type": "number"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SegmentSpeakerRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Update Segment Speaker",
         "tags": [
           "transcripts"
         ]
@@ -3241,53 +3029,6 @@
           }
         },
         "summary": "Get Speaker Candidates",
-        "tags": [
-          "transcripts"
-        ]
-      }
-    },
-    "/transcripts/{transcript_id}/speaker-suggestions": {
-      "get": {
-        "description": "For each unrecognized speaker in the transcript, return the best matching known speaker.",
-        "operationId": "get_speaker_suggestions_transcripts__transcript_id__speaker_suggestions_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "transcript_id",
-            "required": true,
-            "schema": {
-              "title": "Transcript Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "$ref": "#/components/schemas/SpeakerSuggestion"
-                  },
-                  "title": "Response Get Speaker Suggestions Transcripts  Transcript Id  Speaker Suggestions Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Speaker Suggestions",
         "tags": [
           "transcripts"
         ]

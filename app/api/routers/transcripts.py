@@ -2,8 +2,6 @@ import os
 import uuid as _uuid
 from pathlib import Path
 
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity as _cos_sim
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
@@ -16,8 +14,7 @@ from app.api.dependencies import get_memory_service, get_storage_service
 from app.models.segment import UNASSIGNED
 from app.api.schemas import (
     TranscriptListItem, TranscriptResponse, SegmentResponse, TranscriptUpdateRequest,
-    SegmentSpeakerRequest, SegmentTextRequest, ReassignRequest, SpeakerSuggestion,
-    SpeakerCandidate, UnknownSpeakerCandidates, VoiceClip, SpeakerAssignmentRequest,
+    SegmentTextRequest, SpeakerCandidate, UnknownSpeakerCandidates, VoiceClip, SpeakerAssignmentRequest,
     SpeakerAssignmentResponse, SpeakerAssignmentUndoRequest, WaveformResponse,
 )
 from app.services.audio_store import discard_levels
@@ -208,58 +205,6 @@ def get_transcript_waveform(
     return WaveformResponse(levels=bar_levels(db, bars, start, end))
 
 
-@router.get("/{transcript_id}/speaker-suggestions", response_model=dict[str, SpeakerSuggestion])
-def get_speaker_suggestions(
-    transcript_id: int,
-    storage: TranscriptStorageService = Depends(get_storage_service),
-    memory: SpeakerMemoryService = Depends(get_memory_service),
-):
-    """For each unrecognized speaker in the transcript, return the best matching known speaker."""
-    try:
-        t = storage.load(transcript_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Transcript not found")
-
-    recognized = {
-        spk_id: memory.get_name(spk_id)
-        for spk_id in memory.known_speakers
-        if memory.get_name(spk_id) is not None
-    }
-    if not recognized:
-        return {}
-
-    embeddings_by_speaker: dict[str, list] = {}
-    for seg in t.segments:
-        spk_id = _effective_speaker(seg)
-        # Unassigned segments may mix several voices — no single suggestion.
-        if not spk_id or spk_id == UNASSIGNED or spk_id in recognized:
-            continue
-        if seg.embedding is not None:
-            embeddings_by_speaker.setdefault(spk_id, []).append(seg.embedding)
-
-    if not embeddings_by_speaker:
-        return {}
-
-    rec_ids = list(recognized.keys())
-    rec_matrix = np.stack([memory.known_speakers[k] for k in rec_ids])
-
-    result = {}
-    for spk_id, embs in embeddings_by_speaker.items():
-        centroid = np.mean(embs, axis=0)
-        norm = float(np.linalg.norm(centroid))
-        if norm > 0:
-            centroid = centroid / norm
-        scores = _cos_sim(centroid.reshape(1, -1), rec_matrix)[0]
-        best_idx = int(np.argmax(scores))
-        result[spk_id] = {
-            "speaker_id": rec_ids[best_idx],
-            "name": recognized[rec_ids[best_idx]],
-            "score": round(float(scores[best_idx]), 2),
-        }
-
-    return result
-
-
 @router.get("/{transcript_id}/speaker-candidates", response_model=dict[str, UnknownSpeakerCandidates])
 def get_speaker_candidates(
     transcript_id: int,
@@ -331,36 +276,6 @@ def delete_transcript(
     storage.delete(transcript_id)
     _recompute_after_delete({_effective_speaker(s) for s in t.segments}, memory, storage)
     _delete_owned_recording(t.audio_path, storage)
-
-
-@router.patch("/{transcript_id}/segments/{start}/speaker", status_code=204)
-def update_segment_speaker(
-    transcript_id: int,
-    start: float,
-    body: SegmentSpeakerRequest,
-    storage: TranscriptStorageService = Depends(get_storage_service),
-    memory: SpeakerMemoryService = Depends(get_memory_service),
-):
-    if (body.speaker_id is None) == (body.speaker_name is None):
-        raise HTTPException(status_code=400, detail="Provide exactly one of speaker_id or speaker_name")
-    _check_new_speaker_color(body.color_index, body.speaker_name is not None)
-    try:
-        t = storage.load(transcript_id, with_embeddings=False)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Transcript not found")
-    seg = next((s for s in t.segments if s.start == start), None)
-    if seg is None:
-        raise HTTPException(status_code=404, detail="Segment not found")
-    if body.speaker_id is not None:
-        _check_known_speaker(memory, body.speaker_id)
-        to_spk_id = body.speaker_id
-    else:
-        to_spk_id = _create_speaker(memory, body.speaker_name, body.color_index)
-    from_spk_id = _effective_speaker(seg)
-    storage.update_segment_speaker(transcript_id, start, seg.end, to_spk_id)
-    commit_svc = CommitService(memory, storage)
-    commit_svc.commit_speaker(to_spk_id)
-    commit_svc.recompute_or_remove(from_spk_id)
 
 
 @router.post("/{transcript_id}/speaker-assignments", response_model=SpeakerAssignmentResponse)
@@ -456,43 +371,3 @@ def delete_segment(
         raise HTTPException(status_code=404, detail="Segment not found")
     storage.delete_segment(transcript_id, start, seg.end)
     _recompute_after_delete({_effective_speaker(seg)}, memory, storage)
-
-
-@router.post("/{transcript_id}/reassign", status_code=204)
-def reassign_speaker(
-    transcript_id: int,
-    body: ReassignRequest,
-    storage: TranscriptStorageService = Depends(get_storage_service),
-    memory: SpeakerMemoryService = Depends(get_memory_service),
-):
-    has_id = body.to_speaker_id is not None
-    has_name = body.to_speaker_name is not None
-    if has_id == has_name:
-        raise HTTPException(status_code=400, detail="Provide exactly one of to_speaker_id or to_speaker_name")
-    _check_new_speaker_color(body.color_index, has_name)
-
-    try:
-        t = storage.load(transcript_id, with_embeddings=False)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Transcript not found")
-
-    if not any(_effective_speaker(seg) == body.from_speaker_id for seg in t.segments):
-        raise HTTPException(status_code=400, detail="from_speaker_id not found in transcript segments")
-
-    if has_id:
-        to_uuid = body.to_speaker_id
-        if to_uuid not in memory.speaker_ids():
-            raise HTTPException(status_code=404, detail="Speaker not found")
-    else:
-        to_uuid = _create_speaker(memory, body.to_speaker_name, body.color_index)
-
-    storage.update_segments_speaker(transcript_id, body.from_speaker_id, to_uuid)
-    for seg in t.segments:
-        effective = _effective_speaker(seg)
-        if effective == body.from_speaker_id:
-            seg.speaker_final = to_uuid
-
-    commit_svc = CommitService(memory, storage)
-    commit_svc.commit_speaker(to_uuid)
-    commit_svc.commit_new_speakers(t)
-    commit_svc.recompute_or_remove(body.from_speaker_id)

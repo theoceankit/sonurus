@@ -24,14 +24,14 @@ No code other than `CommitService` may call `SpeakerMemoryService.update_embeddi
 
 Permitted exceptions that do not write embeddings:
 - `SpeakerMemoryService.save_names_only()` — writes only `speaker_names` (display names). Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and via `create_named_speaker()` when a user assigns segments to a new name.
-- `SpeakerMemoryService.set_color()` — writes only `speaker_meta` (palette color). Called from `PATCH /speakers/{id}` and, with the optional `color_index`, when `PATCH /transcripts/{id}/segments/{start}/speaker` or `POST /transcripts/{id}/reassign` creates a speaker by name.
+- `SpeakerMemoryService.set_color()` — writes only `speaker_meta` (palette color). Called from `PATCH /speakers/{id}` and, with the optional `color_index`, when `POST /transcripts/{id}/speaker-assignments` creates a speaker by name.
 - `SpeakerMemoryService.remove_speaker()` — deletes a speaker (embedding, names, color) from memory and DB. Called only through `CommitService`: `recompute_or_remove()` drops unnamed speakers left without segments, and `delete_speaker()` (`DELETE /speakers/{id}`) first unassigns the speaker's segments so nothing can recompute the profile back.
 - `SpeakerMemoryService.remove_embedding()` — forgets a speaker's voice and keeps the name and color. Called only through `CommitService.undo_assignment()`, for a named speaker left with no segments to compute a voice from, so that an undone voice does not stay as their profile.
 - `SpeakerMemoryService.clear()` — deletes every speaker (embeddings, names, colors) and drops the in-memory state. Called only from `POST /data/reset` (full data reset), which runs `TranscriptStorageService.clear()` first, so no segments remain to recompute from.
 
 **Why:** Centralising embedding writes to `CommitService` makes it possible to reason about when and why voice profiles change. Name management and cleanup are deliberately separated from embedding updates.
 
-**In code:** `app/services/commit_service.py` — `commit()`, `commit_speaker()`, `commit_new_speakers()` and `undo_assignment()` (through `commit_speaker()`) are the only paths that call `update_embedding()` + `save()`.
+**In code:** `app/services/commit_service.py` — `commit()`, `commit_speaker()`, `commit_recognized_speakers()` and `undo_assignment()` (through `commit_speaker()`) are the only paths that call `update_embedding()` + `save()`.
 
 **Target state:** The principle stays. If multi-user support or streaming transcription is added, `CommitService` should become a write coordinator with a queue or transaction log — but it remains the single entry point for embedding writes.
 

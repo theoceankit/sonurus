@@ -165,22 +165,3 @@ class CommitService:
             updated += 1
         if updated:
             self.memory.save()
-
-    def commit_new_speakers(self, transcript):
-        """Commit embeddings for speakers NOT yet in memory."""
-        new_ids = {
-            (seg.speaker_final or seg.speaker_resolved)
-            for seg in transcript.segments
-            if (seg.speaker_final or seg.speaker_resolved)
-            and not (seg.speaker_final or seg.speaker_resolved).startswith('SPEAKER_')
-            and (seg.speaker_final or seg.speaker_resolved) not in self.memory.known_speakers
-        }
-        updated = 0
-        for spk_id in new_ids:
-            avg, count = self._avg_from_db(spk_id)
-            if avg is None:
-                continue
-            self.memory.update_embedding(spk_id, avg, count)
-            updated += 1
-        if updated:
-            self.memory.save()

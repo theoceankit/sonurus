@@ -414,22 +414,6 @@ Heights for the player's waveform: `bars` (1–2000) evenly over `start`…`end`
 
 Each level is from `0` (silence) to `1` (the loud part of the whole recording), so a quiet recording fills the height and a clip has the scale of its recording. The loudness comes from ffmpeg and is cached next to the audio ([Waveform](../services/Waveform.md)); the first request for a recording without the cache waits for it, a few seconds for three hours. Returns `404` for an unknown id or when the audio is gone, `422` for `bars` out of range or `end` not after `start`, `500` when ffmpeg cannot read the audio.
 
-### `GET /transcripts/{id}/speaker-suggestions`
-
-For each unrecognized speaker in the transcript, the known named speaker with the closest voice. `score` is the cosine similarity, rounded to two digits. Empty when there is nothing to suggest; unassigned segments get no suggestion.
-
-```json
-{
-  "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb": {
-    "speaker_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    "name": "Alice",
-    "score": 0.8
-  }
-}
-```
-
-No screen of the UI uses it: it reads `speaker-candidates`.
-
 ### `GET /transcripts/{id}/speaker-candidates`
 
 For each speaker without a display name in the transcript: the known speakers whose voice is closest, and a clip to hear the voice. Reads speaker memory only. Returns `404` for an unknown id.
@@ -477,23 +461,9 @@ Deletes transcript and all its segments, then calls `CommitService.recompute_or_
 
 Returns `204`.
 
-### `PATCH /transcripts/{id}/segments/{start}/speaker`
-
-```json
-// Assign to an existing speaker:
-{ "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca" }
-
-// Assign to a new speaker (creates a UUID with this display name):
-{ "speaker_name": "Carol", "color_index": 2 }
-```
-
-Exactly one of `speaker_id` (a UUID4 of a known speaker — one with a voice profile or a display name) or `speaker_name` (1–128 chars, trimmed) must be provided, otherwise `400`. Optional `color_index` (`0`–`4`) sets the new speaker's palette color; it is only accepted together with `speaker_name` and inside the palette, otherwise `400` (nothing is created). Without it a color is assigned automatically. Returns `204`.
-
-Reassigns only this one segment (unlike `POST /reassign` which is bulk). After updating the DB, immediately recomputes embeddings for both the new speaker (`commit_speaker`) and the previous speaker (`recompute_or_remove`).
-
 ### `POST /transcripts/{id}/speaker-assignments`
 
-Gives the listed segments one speaker, all or none. The UI uses it for a turn, a paragraph and all segments of a voice; `PATCH /segments/{start}/speaker` and `POST /reassign` remain, unused by the UI.
+Gives the listed segments one speaker, all or none. The UI uses it for a turn, a paragraph and all segments of a voice.
 
 ```json
 // An existing speaker:
@@ -503,7 +473,7 @@ Gives the listed segments one speaker, all or none. The UI uses it for a turn, a
 { "segment_starts": [12.5, 18.0], "speaker_name": "Carol", "color_index": 2 }
 ```
 
-`speaker_id`, `speaker_name` and `color_index` follow the rules of `PATCH /segments/{start}/speaker`. An empty list is `422`. An unknown transcript or a start with no segment is `404`, and then nothing changes and no speaker is created. Returns `200`:
+Exactly one of `speaker_id` (a UUID4 of a known speaker — one with a voice profile or a display name) or `speaker_name` (1–128 chars, trimmed) must be provided, otherwise `400`. Optional `color_index` (`0`–`4`) sets the new speaker's palette color; it is only accepted together with `speaker_name` and inside the palette, otherwise `400`. Without it a color is assigned automatically. An empty list is `422`. An unknown transcript or a start with no segment is `404`, and then nothing changes and no speaker is created. Returns `200`:
 
 ```json
 { "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca" }
@@ -513,7 +483,7 @@ The segments change in one transaction, and their flag `unassigned` clears. Then
 
 ### `POST /transcripts/{id}/speaker-assignments/undo`
 
-Puts segments back under the speaker they had before an assignment. A reverse assignment would not do: `POST /reassign` also takes the segments the new speaker had before, and a voice left with no segments is gone from memory.
+Puts segments back under the speaker they had before an assignment. A reverse assignment would not do: the speaker given back may be a voice the assignment removed from memory, and a new speaker it created would stay behind.
 
 ```json
 {
@@ -534,29 +504,6 @@ Returns `204`, or `404` for an unknown transcript.
 ### `DELETE /transcripts/{id}/segments/{start}`
 
 Deletes one segment, then calls `recompute_or_remove()` for its speaker (same rules as transcript deletion). Returns `204`.
-
-### `POST /transcripts/{id}/reassign`
-
-Bulk-reassigns **all** segments of one speaker to another across the transcript, then recomputes embeddings.
-
-`from_speaker_id` may be `"UNASSIGNED"` to assign every unassigned segment of the transcript.
-
-Exactly one of `to_speaker_id` or `to_speaker_name` must be provided:
-
-```json
-// Assign to a new person (creates a new UUID; color_index is optional):
-{ "from_speaker_id": "7e251ba6-...", "to_speaker_name": "Alice", "color_index": 1 }
-
-// Merge into an existing recognized speaker:
-{ "from_speaker_id": "7e251ba6-...", "to_speaker_id": "385dbc1d-..." }
-```
-
-- `to_speaker_name` — generates a new UUID4, saves the display name to `speaker_names`, recomputes the embedding from all DB segments. Optional `color_index` sets its palette color, with the same rules as for `PATCH /segments/{start}/speaker` (`400` with `to_speaker_id` or outside the palette).
-- `to_speaker_id` — must be a known speaker: in `speaker_embeddings` or with a display name in `speaker_names` (a speaker created on segments too short for an embedding has no profile yet), otherwise `404`. Recomputes that speaker's embedding from all their DB segments, creating it if the speaker had none.
-- Also commits embeddings for any other unrecognized speakers in the transcript not yet in memory.
-- Recomputes `from_speaker_id` embedding from their remaining segments, or removes them from memory if no segments remain and they have no display name.
-
-Returns `204`.
 
 ---
 
