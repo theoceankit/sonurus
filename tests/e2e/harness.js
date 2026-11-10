@@ -5,8 +5,12 @@
 // Electron with a profile in the same directory. Nothing touches real data.
 //
 //   const app = await startApp({ seed: 'full' })
+//   t.after(app.stop)
 //   ... app.page is the window (Playwright Page)
-//   await app.stop()
+//
+// As a hook, stop() gets the test: when it failed, the window's screenshot and
+// accessibility tree go into the data directory, which is kept, and the test's
+// output names it next to backend.log.
 
 const { spawn, spawnSync } = require('child_process')
 const fs   = require('fs')
@@ -83,10 +87,13 @@ async function startApp({ seed: profile = 'full' } = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sonorus-e2e-'))
   let backend = null
   let app = null
-  const stop = async () => {
+  const stop = async test => {
+    const failed = test?.passed === false
+    if (failed) await keepEvidence(app, dataDir)
     await app?.close().catch(() => {})
     await stopProcess(backend)
-    if (!process.env.SONORUS_E2E_KEEP) fs.rmSync(dataDir, { recursive: true, force: true })
+    if (failed) test.diagnostic(`Data, backend.log, window.png and window.aria.yml kept in ${dataDir}`)
+    else if (!process.env.SONORUS_E2E_KEEP) fs.rmSync(dataDir, { recursive: true, force: true })
   }
   try {
     seed(dataDir, profile)
@@ -111,6 +118,15 @@ async function startApp({ seed: profile = 'full' } = {}) {
     await stop()
     throw err
   }
+}
+
+// What the window showed when a test failed. Best effort: the window may be gone.
+async function keepEvidence(app, dataDir) {
+  const page = app?.windows()[0]
+  if (!page) return
+  await page.screenshot({ path: path.join(dataDir, 'window.png') }).catch(() => {})
+  const tree = await page.locator('body').ariaSnapshot().catch(error => `No snapshot: ${error.message}`)
+  fs.writeFileSync(path.join(dataDir, 'window.aria.yml'), tree)
 }
 
 // What the main process saved in settings.json.
