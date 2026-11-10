@@ -46,9 +46,21 @@ async function waitFor(check, what, timeoutMs = START_TIMEOUT_MS) {
   throw new Error(`${what} within ${timeoutMs / 1000} s`)
 }
 
+// The newest change to what goes into ui/dist.
+function newestUiSource(file = path.join(ROOT, 'ui', 'src')) {
+  const stat = fs.statSync(file, { throwIfNoEntry: false })
+  if (!stat) return 0
+  if (!stat.isDirectory()) return stat.mtimeMs
+  return Math.max(0, ...fs.readdirSync(file).map(name => newestUiSource(path.join(file, name))))
+}
+
 async function preflight() {
-  if (!fs.existsSync(path.join(ROOT, 'ui', 'dist', 'index.html'))) {
-    throw new Error('ui/dist is not built. Run: npm run build:ui')
+  const built = fs.statSync(path.join(ROOT, 'ui', 'dist', 'index.html'), { throwIfNoEntry: false })
+  if (!built) throw new Error('ui/dist is not built. Run: npm run build:ui')
+  // An old build fails the tests in ways that look like bugs.
+  const sources = ['src', 'public', 'index.html', 'vite.config.ts', 'package.json'].map(name => path.join(ROOT, 'ui', name))
+  if (Math.max(...sources.map(file => newestUiSource(file))) > built.mtimeMs) {
+    throw new Error('ui/dist is older than its sources in ui/. Run: npm run build:ui')
   }
   if (!fs.existsSync(PYTHON)) throw new Error(`No Python at ${PYTHON}. See docs/docs/environment/setup.md`)
   // Electron reuses a development backend on the port: the test would run on its data.

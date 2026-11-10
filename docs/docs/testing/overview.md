@@ -72,7 +72,7 @@ npm run build:ui
 npm run test:e2e        # one file at a time: the backend is always on port 8000
 ```
 
-The tests refuse to start while something answers on port 8000, as Electron would use that backend and its data. They need the development `.venv` (the backend imports its ML libraries at start), so CI does not run them. Layout is still checked by eye: see [Development](../ui/electron/development.md#checking-on-isolated-data).
+The tests refuse to start while something answers on port 8000, as Electron would use that backend and its data, and while `ui/dist` is older than its sources in `ui/`: an old build fails them in ways that look like bugs. They need the development `.venv` (the backend imports its ML libraries at start), so CI does not run them. Layout is still checked by eye: see [Development](../ui/electron/development.md#checking-on-isolated-data).
 
 ### Quality tests
 
