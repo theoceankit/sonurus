@@ -27,6 +27,7 @@ function atWidth(width: number) {
   vi.stubGlobal('ResizeObserver', class {
     constructor(callback: () => void) { observers.push(callback) }
     observe() {}
+    unobserve() {}
     disconnect() {}
   })
   return (next: number) => {

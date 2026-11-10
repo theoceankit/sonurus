@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
@@ -118,4 +118,13 @@ test.each([false, true])('sticky %s: with nothing to copy, Copy transcript is th
   const copy = screen.getByRole('button', { name: 'Copy transcript' }) as HTMLButtonElement
   expect(copy.disabled).toBe(true)
   expect(copy.dataset.notImplemented).toBeUndefined()
+})
+
+test.each([false, true])('sticky %s: Pin, Copy transcript, Export and More name themselves in tooltips', async sticky => {
+  setup({ sticky, onCopy: () => {} })
+  for (const name of ['Pin', 'Copy transcript', 'Export', 'More']) {
+    await userEvent.hover(screen.getByRole('button', { name }))
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toContain(name))
+    await userEvent.unhover(screen.getByRole('button', { name }))
+  }
 })

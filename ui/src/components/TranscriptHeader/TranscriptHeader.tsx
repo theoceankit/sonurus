@@ -2,9 +2,10 @@ import { useEffect, useRef, useState, type ComponentPropsWithRef } from 'react'
 import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
 import { Icon } from '../Icon/Icon'
-import { IconButton } from '../IconButton/IconButton'
+import { IconButton, type IconButtonProps } from '../IconButton/IconButton'
 import { Menu, MenuAction } from '../Menu/Menu'
 import { MetaItem } from '../MetaItem/MetaItem'
+import { Tooltip, TooltipGroup } from '../Tooltip/Tooltip'
 import styles from './TranscriptHeader.module.css'
 
 type TranscriptHeaderProps = Omit<ComponentPropsWithRef<'header'>, 'title' | 'children'> & {
@@ -22,15 +23,24 @@ type TranscriptHeaderProps = Omit<ComponentPropsWithRef<'header'>, 'title' | 'ch
   initialRenaming?: boolean
 }
 
+const Action = ({ label, ...props }: IconButtonProps) => (
+  <Tooltip text={label}>
+    <IconButton label={label} {...props} />
+  </Tooltip>
+)
+
+// A disabled button gets no pointer events, so Copy transcript has no tooltip with nothing to copy.
 const Actions = ({ onDelete, onCopy }: { onDelete?: () => void; onCopy?: () => void }) => (
-  <div className={styles.actions}>
-    <IconButton icon="pin" label="Pin" {...markNotImplemented('transcript.pin')} />
-    <IconButton icon="copy" label="Copy transcript" disabled={!onCopy} onClick={onCopy} />
-    <IconButton icon="export" label="Export" {...markNotImplemented('transcript.export')} />
-    <Menu align="end" trigger={<IconButton icon="more" label="More" />}>
-      <MenuAction icon="delete" onSelect={onDelete}>Delete recording</MenuAction>
-    </Menu>
-  </div>
+  <TooltipGroup>
+    <div className={styles.actions}>
+      <Action icon="pin" label="Pin" {...markNotImplemented('transcript.pin')} />
+      <Action icon="copy" label="Copy transcript" disabled={!onCopy} onClick={onCopy} />
+      <Action icon="export" label="Export" {...markNotImplemented('transcript.export')} />
+      <Menu align="end" trigger={<Tooltip text="More"><IconButton icon="more" label="More" /></Tooltip>}>
+        <MenuAction icon="delete" onSelect={onDelete}>Delete recording</MenuAction>
+      </Menu>
+    </div>
+  </TooltipGroup>
 )
 
 export function TranscriptHeader({ title, date, language, sticky, onRename, onDelete, onCopy, initialRenaming = false, className, ...props }: TranscriptHeaderProps) {
