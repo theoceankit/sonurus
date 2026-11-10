@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { holdWindowDim } from '../../platform/window-dim'
 import { ExitSignal } from '../../presence'
 import { cx } from '../../styles/cx'
+import { returnFocus } from '../Tooltip/Tooltip'
 import styles from './Modal.module.css'
 import { holdOpenModal, useOpenModalCount } from './open-modals'
 
@@ -123,8 +124,9 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
         event.preventDefault()
         // What opened it may be gone by now, such as the row of a deleted model, or a
         // window that closed to open this one: then the window still open under it.
-        if (returnTo.current?.isConnected) returnTo.current.focus()
-        else openWindowUnder(content.current)?.focus()
+        // Focus given back does not show the tooltip of what opened it.
+        const back = returnTo.current?.isConnected ? returnTo.current : openWindowUnder(content.current)
+        if (back) returnFocus(back)
       }}
     >
       <ExitSignal onExited={onExited} />

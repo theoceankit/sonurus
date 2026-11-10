@@ -4,6 +4,7 @@ import { cx } from '../../styles/cx'
 import { MenuItem, type MenuItemProps } from '../MenuItem/MenuItem'
 import { SectionHeader } from '../SectionHeader/SectionHeader'
 import { Stack } from '../Stack/Stack'
+import { markFocusGivenBack } from '../Tooltip/Tooltip'
 import styles from './Menu.module.css'
 
 // The panel of a menu, for a menu that is not this list of actions, such as one
@@ -37,6 +38,13 @@ const OFFSET = 4
 const pointerInput = (event: PointerEvent<HTMLElement>) => { event.currentTarget.dataset.input = 'pointer' }
 const keyboardInput = (event: KeyboardEvent<HTMLElement>) => { delete event.currentTarget.dataset.input }
 
+// Focus the menu gives back to its button shows no tooltip, as after a modal.
+const givingFocusBack = (own?: (event: Event) => void) => (event: Event) => {
+  own?.(event)
+  const button = document.getElementById((event.currentTarget as Element).getAttribute('aria-labelledby') ?? '')
+  if (button && !event.defaultPrevented) markFocusGivenBack(button)
+}
+
 // Not modal: a modal menu locks the scroll and shifts the page behind it, and an
 // outside click closes this one all the same.
 export function Menu({ trigger, children, align = 'start', side = 'bottom', offset = OFFSET, size = 'default', onCloseAutoFocus, ...props }: MenuProps) {
@@ -44,7 +52,7 @@ export function Menu({ trigger, children, align = 'start', side = 'bottom', offs
     <RadixMenu.Root modal={false} {...props}>
       <RadixMenu.Trigger asChild>{trigger}</RadixMenu.Trigger>
       <RadixMenu.Portal>
-        <RadixMenu.Content asChild align={align} side={side} sideOffset={offset} onCloseAutoFocus={onCloseAutoFocus} onPointerMove={pointerInput} onKeyDownCapture={keyboardInput}>
+        <RadixMenu.Content asChild align={align} side={side} sideOffset={offset} onCloseAutoFocus={givingFocusBack(onCloseAutoFocus)} onPointerMove={pointerInput} onKeyDownCapture={keyboardInput}>
           <MenuSurface className={size === 'narrow' ? styles.narrow : undefined}>{children}</MenuSurface>
         </RadixMenu.Content>
       </RadixMenu.Portal>
