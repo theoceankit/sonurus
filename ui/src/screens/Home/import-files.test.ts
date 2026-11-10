@@ -120,7 +120,7 @@ describe('watchFileDrags', () => {
 describe('titles', () => {
   const files = (...names: string[]) => names.map(name => ({ name, path: `/in/${name}` }))
 
-  test('the hint is the date and time of the opening, as the old UI had it', () => {
+  test('the hint is the date and time of the opening', () => {
     expect(defaultTitle(new Date(2026, 10, 5, 9, 7))).toBe('5 Nov 09:07 Meeting')
   })
 

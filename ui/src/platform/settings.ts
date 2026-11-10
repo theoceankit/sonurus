@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import type { ElectronAPI, ElectronSettings } from './electron-api'
 
-// Electron's settings file, shared with the old UI. writeSettings writes it whole,
+// Electron's settings file (settings.json in userData). writeSettings writes it whole,
 // so every change here goes through one queue: each write reads the file again and
 // puts the change on top, and a change made elsewhere in the meantime stays.
 
@@ -15,7 +15,6 @@ export const DEFAULT_SETTINGS: ElectronSettings = {
   recordingAudioSource: 'both',
   recordingMicDevice: null,
   recordingSystemDevice: null,
-  recordingUseMic: true,
   hfToken: '',
   recentTranscriptIds: [],
 }
@@ -101,7 +100,7 @@ export function useSettings(): ElectronSettings | null {
   return settings
 }
 
-// The old UI applies the saved scale on start (loadSettings); so does this one.
+// The saved interface scale applies from the start.
 export async function applySavedScale() {
   const settings = await settingsStore().read()
   await bridge()?.setZoom(settings.scale / 100).catch(() => {})

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 'use strict'
 
-// Fails the build when the app archive lacks the built new UI or carries its
-// sources or Storybook. Run after electron-builder:
+// Fails the build when the app archive lacks the built UI or carries its
+// sources, Storybook or the old renderer. Run after electron-builder:
 //   node scripts/check-packaged-ui.js [dist]
 
 const fs   = require('fs')
 const path = require('path')
 
 const REQUIRED  = '/ui/dist/index.html'
-const FORBIDDEN = [/^\/ui\/(?!dist(\/|$))/, /\.stories\./, /storybook/i]
+const FORBIDDEN = [/^\/ui\/(?!dist(\/|$))/, /\.stories\./, /storybook/i, /^\/electron\/renderer(\/|$)/, /^\/electron\/assets\/icons(\/|$)/]
 
 // files: archive paths as @electron/asar lists them, with a leading slash.
 function packagedUiProblems(files) {

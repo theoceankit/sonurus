@@ -13,8 +13,15 @@ pytest tests/ -v
 # Single file
 pytest tests/test_commit_service.py -v
 
-# Renderer unit tests (Node >= 22, no dependencies)
-node --test 'tests/renderer/*.test.js'
+# Electron main process tests (Node >= 22, no dependencies)
+node --test 'tests/electron/*.test.js'
+
+# UI unit tests and types (Node >= 22.22.2)
+npm --prefix ui test
+npm --prefix ui run typecheck
+
+# End-to-end tests of the built app (needs .venv, ui/dist and a free port 8000)
+npm run test:e2e
 
 # Build tests: packaged dependencies and installer checks (Node >= 22)
 node --test 'tests/build/*.test.js'
@@ -41,7 +48,7 @@ python3.12 -m venv /tmp/ci-venv
 
 ### API schema and types
 
-The new UI's types come from the API schema ([New UI data](../ui/electron/new-ui-data.md)). `tests/test_openapi_schema.py` fails when `ui/src/api/openapi.json` differs from what the code gives, and holds the WebSocket events of the queue to their models. CI then checks that `ui/src/api/schema.gen.ts` matches that file:
+The UI's types come from the API schema ([Data](../ui/electron/data.md)). `tests/test_openapi_schema.py` fails when `ui/src/api/openapi.json` differs from what the code gives, and holds the WebSocket events of the queue to their models. CI then checks that `ui/src/api/schema.gen.ts` matches that file:
 
 ```bash
 npm --prefix ui/tools/openapi-types ci
@@ -50,35 +57,46 @@ npm --prefix ui/tools/openapi-types run check
 
 Both pass in the CI environment: the schema is taken with the ML libraries stubbed. `npm run gen:api` regenerates both files.
 
-### Renderer tests
+### Electron tests
 
-Renderer scripts are classic browser scripts (no modules). `tests/renderer/load-renderer.js` evaluates them in a `node:vm` context, so their top-level function declarations (e.g. `fileUrl()` from `utils.js`) can be tested with `node:test` without a browser. Pass stubs for browser globals via the second argument of `loadRenderer(files, globals)`. Views that build DOM (modals, Settings rows, the queue job modal) run against the permissive fake DOM in `tests/renderer/fake-dom.js`; `tests/renderer/models-fixture.js` provides a `GET /models` catalog. Layout and visual behaviour are verified manually in the running app.
+`tests/electron/` tests the main process (`electron/`) with `node:test` and no dependencies: which backend may be reused, the folder of the file dialog, the GPU pack, the app version on its way to the backend and the window, and that the app makes no third-party requests and captures no system audio in the window.
+
+### End-to-end tests
+
+`tests/e2e/` runs the built app as the user gets it: Electron with `ui/dist`, the main process and a real backend, driven by Playwright's `_electron`. `harness.js` makes a temporary data directory, seeds it with `seed.py` (two recordings with named and unnamed speakers, a tone as their audio), starts the backend on it and Electron with a profile in the same directory, and removes it all afterwards (`SONORUS_E2E_KEEP=1` keeps it, with `backend.log`). Whisper Small and the diarization model only look installed, and the queue starts paused on manual start, so nothing is transcribed and no model is loaded. The main process's file dialog is replaced by `stubOpenFiles()`.
+
+```bash
+npm run build:ui
+npm run test:e2e        # one file at a time: the backend is always on port 8000
+```
+
+The tests refuse to start while something answers on port 8000, as Electron would use that backend and its data. They need the development `.venv` (the backend imports its ML libraries at start), so CI does not run them. Layout is still checked by eye: see [Development](../ui/electron/development.md#checking-on-isolated-data).
 
 ### Quality tests
 
 `tests/quality/` runs the real models on a fixed set of AMI meeting recordings and scores the transcripts; it is skipped unless `SONORUS_QUALITY=1` (and always in CI). See [Quality Tests](quality.md).
 
-### New UI tests
+### UI tests
 
-`ui/` has its own tests next to the components, on Vitest and Testing Library in jsdom: `npm --prefix ui test`, plus `npm --prefix ui run typecheck`. CI runs both and builds `ui/dist` before the build tests. The tests of tokens and raw values walk the sources: see [New UI foundations](../ui/electron/new-ui-foundations.md#raw-values). So does `ui/src/not-implemented.test.tsx`, which compares the list of unimplemented controls with the calls: see [Unimplemented controls](../ui/electron/new-ui-foundations.md#unimplemented-controls). Vitest blanks CSS by default, including `?raw` imports, so `ui/vite.config.ts` turns that off. This needs Node.js 22.22.2+ (jsdom); the other suites work from 22.12.
+`ui/` has its own tests next to the components, on Vitest and Testing Library in jsdom: `npm --prefix ui test`, plus `npm --prefix ui run typecheck`. CI runs both and builds `ui/dist` before the build tests. The tests of tokens and raw values walk the sources: see [Foundations](../ui/electron/foundations.md#raw-values). So does `ui/src/not-implemented.test.tsx`, which compares the list of unimplemented controls with the calls: see [Unimplemented controls](../ui/electron/foundations.md#unimplemented-controls). Vitest blanks CSS by default, including `?raw` imports, so `ui/vite.config.ts` turns that off. It needs Node.js 22.22.2+ (jsdom), as does the whole `ui/` package.
 
 ### Build tests
 
-`tests/build/` checks the packaging inputs without building anything: the new UI's window entry, CSP and packaging rules, the per-platform lock files and GPU manifests in `locks/`, the pruning of the bundled Python and the bundled import check (see [Packaging](../distribution/packaging.md#python-packages-lock-files)), the installer size check, the absence of a first-run setup in the Electron main process, the Electron version (native Wayland), the Visual C++ runtime copied into the Windows build and the app icons (PNG, ICNS and ICO are read with Node built-ins, since CI has no `node_modules`). Installers themselves are verified by building and running them.
+`tests/build/` checks the packaging inputs without building anything: the UI's window entry, CSP and packaging rules, the per-platform lock files and GPU manifests in `locks/`, the pruning of the bundled Python and the bundled import check (see [Packaging](../distribution/packaging.md#python-packages-lock-files)), the installer size check, the absence of a first-run setup in the Electron main process, the Electron version (native Wayland), the Visual C++ runtime copied into the Windows build and the app icons (PNG, ICNS and ICO are read with Node built-ins, since CI has no `node_modules`). Installers themselves are verified by building and running them.
 
 ---
 
 ## Current coverage
 
-One row per test file: Python unit and API tests (`tests/test_*.py`, no ML models are loaded), renderer tests (`tests/renderer/*.test.js`, `node:test`) and build tests (`tests/build/*.test.js`, `node:test`). Test counts are not kept here — run the suites for them. `test_testing_docs.py` fails when a test file has no row or a row names a file that does not exist.
+One row per test file: Python unit and API tests (`tests/test_*.py`, no ML models are loaded), Electron tests (`tests/electron/*.test.js`, `node:test`), build tests (`tests/build/*.test.js`, `node:test`) and end-to-end tests (`tests/e2e/*.test.js`). The tests of `ui/` sit next to their code and are not listed here. Test counts are not kept here — run the suites for them. `test_testing_docs.py` fails when a test file has no row or a row names a file that does not exist.
 
 | File | What it covers |
 |---|---|
 | `test_cors.py` | `cors_origins()`: the local origins by default, the dev server's on request, never for a packaged backend; preflights for `null` and the dev server |
-| `tests/build/ui-alignment-catalog.test.js` | The alignment models the new UI names are the backend's `ALIGNMENT_CATALOG`, in its order |
-| `tests/build/ui-entry.test.js` | What the window loads for each switch, mode and dev URL; a packaged app ignores the URL; `main.js` uses it and keeps its security settings |
-| `tests/build/window-chrome.test.js` | The old UI's window gets nothing; the new UI has no system frame, and its window buttons match `tokens.css` in colours and height |
-| `tests/build/ui-package.test.js` | New UI: same CSP as the old UI (in the build too, when there is one), dev additions limited to the dev server, Storybook telemetry off, fonts kept as files with their licence, stories for every component, no remote content in sources, only `ui/dist` packaged, build and checks in every build script and CI job, the archive check in `check-packaged-ui.js` |
+| `tests/build/ui-alignment-catalog.test.js` | The alignment models the UI names are the backend's `ALIGNMENT_CATALOG`, in its order |
+| `tests/build/ui-entry.test.js` | The window loads `ui/dist` in both modes, the dev server only in development; `main.js` uses it, has no UI switch and keeps its security settings |
+| `tests/build/window-chrome.test.js` | The window has no system frame, its window buttons match `tokens.css` in colours and height, and their strip dims with a modal's scrim |
+| `tests/build/ui-package.test.js` | The CSP (in the build too, when there is one), dev additions limited to the dev server, Storybook telemetry off, fonts kept as files with their licence, stories for every component, no remote content in sources, only `ui/dist` packaged, no old renderer in `electron/`, Playwright only a dev dependency, build and checks in every build script and CI job, the archive check in `check-packaged-ui.js` (sources, Storybook and the old renderer refused) |
 | `test_api.py` | End-to-end API routes: transcripts CRUD, speaker rename, delete → speaker recompute, single-segment reassign, live-recording and import-copy cleanup on `DELETE /transcripts/{id}` (originals/escaping/symlinked/shared files kept), orphan import copies removed at startup (copies of transcripts and queued jobs kept), `POST /data/reset` (DB + files, imported files kept, 409 while a job runs), Speakers section (`GET /speakers` with unnamed speakers and statistics, `PATCH` name/color (shared names allowed), `DELETE` → unassigned segments and 409 while a job runs, `GET /speakers/{id}/transcripts`, `GET /speakers/{id}/sample`, reassigning unassigned segments), `color_index` for a speaker created by name, assigning a named speaker without a voice profile, `PATCH /transcripts/{id}` title (trimmed, 404, 422 for blank / over 200 chars), `GET /health` reports `data_dir` (absolute), `packaged` and `pid`, `GET /transcripts/{id}/audio` (whole file, Range, 404 for no transcript, no file or an empty path) |
 | `test_transcript_storage_service.py` | `save()`, `load()`, `update_*` (incl. `update_title()`), `list_all()`, `audio_files()`, `delete_segment()`, `clear()`, `count_by_audio_file()`, `get_embeddings_grouped_by_transcript()`, segment indexes, `load(with_embeddings=False)`, unassigned segments + schema v5 migration, schema v6 (raw labels → UUID / unassigned), `speaker_stats()`, `transcripts_for_speaker()` |
 | `test_speaker_memory_service.py` | `resolve()` purity, `set_name()` / `get_name()`, persistence, `save_names_only()`, `find_by_name()`, UUID migration, `clear()` (DB + in-memory + dirty sets), `speaker_ids()`, `set_color()`, removing name-only speakers |
@@ -118,55 +136,31 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 | `test_embedding_service.py` | `EmbeddingService.extract_all()` single-pass invariant |
 | `test_version.py` | `get_version()`: `SONORUS_VERSION` wins over `package.json`, blank env ignored, missing / broken / version-less `package.json` → `unknown`, the repo's `package.json` by default; OpenAPI `info.version` is the product version |
 | `test_testing_docs.py` | This page: every test file has exactly one row in the coverage table, no row for a missing file, no test-count column |
-| `tests/renderer/utils.test.js` | `fileUrl()`, `fileBaseName()`, `isUnrecognized()`, `buildKnownMap()`, `listSystemAudioSources()` (backend on every OS, no Stereo Mix / VB-Cable inputs), `uploadRecording()`, `captureStartError()` (Screen Recording hint only on macOS) |
-| `tests/renderer/avatar.test.js` | `makeAvatar()` (initials, palette color, size class; unrecognized speaker is a grey `?`; size presets only, from CSS), `makeNameAvatar()`, `setAvatarName()`, `makeAvatarStack()` (max avatars, hover titles); initials drawn only by the avatar component, old per-place classes gone, initials not selectable, a CSS rule per size preset |
-| `tests/renderer/not-implemented.test.js` | `NOT_IMPLEMENTED` registry, one toast text, `markNotImplemented()`, `notImplementedClick()` (marked control or container stopped, other clicks pass), capture-phase guard; call sites (each id marks one control, no id outside the registry), no ad-hoc "not implemented" toasts or TODO markers, load order in `index.html`, `app.js` installs the guard |
-| `tests/renderer/app-version.test.js` | `formatAppVersion()` (with / without a version); the main process answers `get-app-version`, preload exposes `getAppVersion`, the backend gets `SONORUS_VERSION`, Settings shows the version line |
-| `tests/renderer/recording-modal-toggles.test.js` | The Recording modal has only the "Diarize speakers" toggle; Start passes no `saveAudio`, an old `recordingSaveAudio` setting is ignored, no renderer source mentions it |
-| `tests/renderer/settings-reset.test.js` | `defaultSettingsPatch()`, `dataResetBlockReason()`, `formatDataResetSummary()` |
-| `tests/renderer/sidebar-delete.test.js` | `withoutRecording()`, `deleteTranscriptPrompt()` |
-| `tests/renderer/speakers.test.js` | `filterSpeakers()`, `duplicateNameIds()`, `speakerDisplayName()`, `speakerStatsLine()`, `deleteSpeakerPrompt()`, `buildKnownMap()` skipping unnamed rows, `effectiveSpeaker()` for unassigned segments |
-| `tests/renderer/new-speaker.test.js` | `leastUsedColorIndex()`, `hasSpeakerNamed()`, `speakerAssignRequest()` (one segment vs all segments, by id vs new name + color) |
-| `tests/renderer/transcript-language.test.js` | `transcriptLanguageLabel()` (name from the language list, unknown code as is, no label for `unknown` / `auto` / missing) |
-| `tests/renderer/transcript-title.test.js` | `titleToSave()` (trim, blank / unchanged / over 200 chars skipped), `transcriptTitleRequest()` |
-| `tests/renderer/editor-scroll.test.js` | `preserveScroll()` — the editor keeps its scroll position when it rebuilds after an edit |
-| `tests/renderer/editor-player-state.test.js` | `playerClock()` (time, duration, play state from the audio element; unknown duration), `activeSegmentIndex()` (inside, at start / end, between, before / after segments) |
-| `tests/renderer/segment-row-layout.test.js` | A segment row's layout does not depend on its speaker: no speaker-change marker, one-line speaker name of fixed height |
-| `tests/renderer/file-drop.test.js` | `isSupportedAudio()`, `dropDecision()` (home / editor import, settings / speakers / open modal ignore, a live recording does not block, unsupported files skipped), `importRequest()` |
-| `tests/renderer/queue-edit.test.js` | `canEditJob()`, `jobEditPatch()` (only changed fields, trimmed title, `auto` language ↔ null, blank / over 200 chars refused), `jobEditRequest()`, `reorderJobIds()` (before / after, onto itself, unknown ids, input unchanged), `dropPlace()` |
-| `tests/renderer/queue.test.js` | `queueStateLabel()`, `queueToggle()`, `queueJobCount()`, `jobStatusText()` (step, waiting / paused, first error line, missing alignment model), `deleteJobPrompt()` (import vs live recording), `importRequest()` → `POST /queue/jobs`, `dataResetBlockReason()` asks to pause the queue |
-| `tests/renderer/modal-import.test.js` | `modalImportItems()` (typed / default / blank title, several files, unsupported skipped, order), `importStartToast()` / `skippedFilesToast()`; the New Recording modal with a fake DOM: drop of several files, only unsupported files keep it open, dialog with several files, typed vs default title, cancelled dialog; drags without files show no drop zone and are left alone |
-| `tests/renderer/transcribe-defaults.test.js` | Transcription defaults with a permissive fake DOM (`fake-dom.js`): the language picked in Settings is saved; the New Recording modal starts from the defaults, and its own model / language choice reaches the import or recording without being saved |
-| `tests/renderer/file-drop-events.test.js` | `initFileDrop()` with stub `window` / `document`: overlay show / hide, a drop already handled by the modal is not imported again, non-file drags untouched, drop effect per view |
-| `tests/renderer/settings-models.test.js` | Settings rows build without errors (fake DOM): `makeModelRow()` for Whisper (installed / not) and diarization, `makeAlignmentModelRow()`, `makeSectionHeader()` |
-| `tests/renderer/icons.test.js` | `icon()` / `hydrateIcons()` markup; every icon name used in the renderer has a file in `electron/assets/icons/`; files are kebab-case with `xmlns` + `viewBox`; no inline SVG icons; no local variable named `icon`; renderer scripts still parse |
+| `tests/electron/app-version.test.js` | The main process answers `get-app-version`, preload exposes `getAppVersion`, the backend gets `SONORUS_VERSION` |
 | `tests/build/packaged-deps.test.js` | Lock files for every build platform (`BUILD_TARGETS`): every package pinned with a hash, direct dependencies match `requirements.packaged.txt` (no `+cpu` on macOS), no CUDA packages, no `EXCLUDED_PACKAGES` (normalized names, none the backend needs), PyTorch CPU index named; `oversized()` installer size check; the cached Python tarball is filtered out of the installers; no pip / `python-packages` in `backend.js`, no setup screen, IPC or preload API |
 | `tests/build/gpu-manifest.test.js` | GPU manifests (`locks/gpu-*.json`) for Linux and Windows only; cu128 build of the bundled `torch` / `torchaudio` (and of `torchvision`, which the installer leaves out), driver 570 and compute capability 7.0 minimums; only CUDA-family packages that differ from the CPU lock; every wheel with https URL, sha256 and size, `total_size`; `gpuRequirements()`, `gpuConstraints()`, `parsePylock()`, `pickWheel()`, `buildGpuManifest()` (keeps only changed packages, `HEAD` size when missing, skips excluded packages, refuses drift outside the CUDA family); `copyGpuManifest()` ships the manifest and removes a stale one on macOS |
-| `tests/renderer/gpu-pack.test.js` | `electron/gpu-pack.js`: `applyPendingOps()` (nothing, removal, finished download replaces the pack as `unchecked`, unfinished download cleared), `prepareGpuStart()` (no pack, new pack checked and used / failed check recorded, checked pack used without a check, app update checks again, error or stale pack neither used nor checked, removal applied), `markPackError()`, `gpuBackendEnv()` (pack on `PYTHONPATH` only when used), `gpuSupported()`, `runProbe()` with `node` stand-ins (passing / failing JSON, crash with exit code and stderr, timeout, missing interpreter) |
-| `tests/renderer/gpu-acceleration.test.js` | `gpu-acceleration.js` with stub `fetch` / `WebSocket` / timers: `gpuSectionView()` for every state (macOS hidden, development build, no NVIDIA / old driver / old GPU, not installed with size, downloading / installing, waiting by reason, removing, restarting, on, check failed, update needed, removal with a GPU that no longer qualifies); download → progress → done → restart loop waits for the transcription → `restartBackend()` → toast; failed check after the restart; cancel; failed download toast; removal with and without restart; 409 stops the loop; a failing restart is reported; `buildGpuSection()` in every state; Settings lists the section |
-| `tests/renderer/backend-identity.test.js` | `electron/backend-identity.js`: `devUserDataPath()` (dev → `sonorus-dev`, packaged and `--user-data-dir` keep the default), `servesDataDir()` (trailing separator, case ignored on macOS/Windows only, no `data_dir` → not ours), `reuseDecision()` (nothing → spawn; packaged reuses only its own data dir and refuses dev, another packaged dir, an older backend or another program with a message naming the port and the dir; dev reuses a manual `uvicorn` and refuses the packaged backend or another program) |
-| `tests/renderer/dialog-folder.test.js` | `dialogFolder()` / `rememberDialogFolder()` (`electron/dialog-folder.js`): nothing saved, folder of the picked file kept on disk, a later pick replaces it, deleted folder or damaged file → OS decides; `main.js` passes it as `defaultPath` and remembers the pick |
-| `tests/renderer/system-audio-path.test.js` | No renderer-side system audio left in `electron/`: no `getDisplayMedia`, `setDisplayMediaRequestHandler`, `desktopCapturer`, `__desktop__`, `display-capture`; `app.js` has no `win32` special case for capture |
-| `tests/renderer/no-third-party-requests.test.js` | `electron/main.js` turns spell checking off in the window and the session and sets no spell checker languages before the backend starts (no dictionary download from Google); no `crashReporter` and no remote URLs (other than the local backend) in `electron/` |
+| `tests/electron/gpu-pack.test.js` | `electron/gpu-pack.js`: `applyPendingOps()` (nothing, removal, finished download replaces the pack as `unchecked`, unfinished download cleared), `prepareGpuStart()` (no pack, new pack checked and used / failed check recorded, checked pack used without a check, app update checks again, error or stale pack neither used nor checked, removal applied), `markPackError()`, `gpuBackendEnv()` (pack on `PYTHONPATH` only when used), `gpuSupported()`, `runProbe()` with `node` stand-ins (passing / failing JSON, crash with exit code and stderr, timeout, missing interpreter) |
+| `tests/electron/backend-identity.test.js` | `electron/backend-identity.js`: `devUserDataPath()` (dev → `sonorus-dev`, packaged and `--user-data-dir` keep the default), `servesDataDir()` (trailing separator, case ignored on macOS/Windows only, no `data_dir` → not ours), `reuseDecision()` (nothing → spawn; packaged reuses only its own data dir and refuses dev, another packaged dir, an older backend or another program with a message naming the port and the dir; dev reuses a manual `uvicorn` and refuses the packaged backend or another program) |
+| `tests/electron/dialog-folder.test.js` | `dialogFolder()` / `rememberDialogFolder()` (`electron/dialog-folder.js`): nothing saved, folder of the picked file kept on disk, a later pick replaces it, deleted folder or damaged file → OS decides; `main.js` passes it as `defaultPath` and remembers the pick |
+| `tests/electron/system-audio-path.test.js` | No window-side system audio in `electron/` or `ui/src`: no `getDisplayMedia`, `setDisplayMediaRequestHandler`, `desktopCapturer`, `__desktop__`, `display-capture` |
+| `tests/electron/no-third-party-requests.test.js` | `electron/main.js` turns spell checking off in the window and the session and sets no spell checker languages before the backend starts (no dictionary download from Google); no `crashReporter` and no remote URLs (other than the local backend) in `electron/` |
+| `tests/e2e/home.test.js` | End to end, empty library: the empty state of the sidebar and the centre, its Settings link opens Settings on Models |
+| `tests/e2e/import-queue.test.js` | End to end: a file from the (stubbed) file dialog goes into the paused queue with the default model, its title changes in Transcription settings, Delete from queue removes the job and keeps the original file |
+| `tests/e2e/editor.test.js` | End to end: the newest recording opens at start; Play moves the clock; a turn changes speaker and back with Undo; the title changes in the editor and the list; a paragraph's text is edited and saved |
+| `tests/e2e/speakers.test.js` | End to end: a speaker renamed in the Speakers window has the new name in the transcript |
+| `tests/e2e/settings.test.js` | End to end: the interface scale zooms the window and is saved in `settings.json`; Reset preferences puts it back to 100 % |
 | `tests/build/nltk-data.test.js` | `bundle-backend.js` installs `punkt_tab` with the bundled Python after pip, archive cached in `backend-dist/` and left out of the installers (`!*.zip`); `check-bundled-imports.js` loads it for every WhisperX language with NLTK limited to the bundled data |
 | `tests/build/bundle-prune.test.js` | `pruneSitePackages()` removes library test suites, `torch/include` and the torch test programs, keeps `torch_shm_manager`, `torch/testing`, `numpy/testing` and regular modules, returns the bytes removed; `check-bundled-imports.js` imports the API, the pipeline and its libraries and checks every excluded package and that third-party telemetry is off (incl. the onnxruntime switch); every CI build job runs it right after bundling |
 | `tests/build/vc-runtime.test.js` | Windows build ships the Visual C++ runtime: `VC_RUNTIME_DLLS` covers `msvcp140*`, `vcruntime140*`, `concrt140`, `vcomp140`; `copyVcRuntime()` copies them next to `python.exe` (replacing the archive's `vcruntime140*.dll`) and fails naming the missing DLLs and the Redistributable; `main()` copies from `System32` on Windows |
 | `tests/build/electron-version.test.js` | Electron 38+ in `package.json` and `package-lock.json` (native Wayland by default, needed for drops from Wayland file managers), no ozone workarounds in `electron/`, no stale `allowScripts` entry for Electron, clipboard writes awaited in the main process |
 | `tests/build/capture-helper.test.js` | Windows capture helper: source in `native/windows/`, shipped as `win/sonorus-capture.exe` (`extraResources`), built by `build:win` and CI `build-win` before electron-builder, compiled with mingw-w64 in the CI test job; MSVC command links the C runtime statically, mingw command is static + Unicode; an existing helper is kept without a compiler only if not older than its source; `backend.js` passes the path; binary gitignored |
 | `tests/build/app-icons.test.js` | App icons: `package.json` points macOS, Windows and Linux at their icon; the macOS master has its plate at 824 with margin 100, the Windows / Linux master at 896 with margin 64 (8 px up); `icon.icns` has 128–1024 px images and its 1024 px image equals the macOS master; `icon.ico` has 16, 24, 32, 48 and 256 px images with the plate where the Windows / Linux master has it |
-| `tests/renderer/default-model.test.js` | Default transcription model: `resolveTranscribeModel()` (kept, previous from the history, most accurate installed, none), `pushModelHistory()`, `noModelMessage()` / `settingsModelHint()`; `syncTranscribeModel()` on a stub `fetch` (first download, deleted default, last model deleted, saved but not installed, backend down), `selectTranscribeModel()`, `dropImportOptions()`; the New Recording modal (checking / no model / no diarization: Start and Import off, notice, modal drop refused; disabled options; fresh catalog; a model picked in the modal is kept); Settings (hint, **In use** only when installed, Use saves history); no hard-coded default model. Catalog from `models-fixture.js` |
-| `tests/renderer/model-delete.test.js` | Deleting a model the queue needs: `queuedJobsUsingModel()`, `modelInUseByRunningJob()`, `modelDeletePrompt()`; Settings (confirmation with the job count, Cancel deletes nothing, no jobs → delete at once, button off while the running job uses the model, 409 toast); `jobStatusText()` for a missing Whisper / diarization model (names the model the job failed on, not an edited one); queue job modal (models not downloaded disabled, the job's deleted model stays shown) |
-| `tests/renderer/default-language.test.js` | Default language without its alignment model: `missingAlignmentModel()`, `jobBlockMessage()` (Whisper → diarization → language), queued / running jobs counted by language; window drop refused with a toast; New Recording modal (languages without a model disabled, default language blocks Start / Import and drops, Detect unblocks); Settings (warning with Download, none when not needed or installed, deleting the default language's model resets it to Detect, confirmation / disabled delete for alignment models) |
-| `tests/renderer/alignment-modal.test.js` | `alignment-modal.js`: one dialog per language (another language gets its own), Dismiss then a new failure opens it again, Download through `startModelDownload()` (one download, a second failure meanwhile starts none), a download started in Settings shows as progress, done → **Retry N transcriptions** retries only failed `alignment_model_missing` jobs of that language in queue order, already installed → ready at once, a failed download offers Download again, Cancel deletes the download and closes; `app.js` opens it via `showAlignmentModal()` and refreshes it on snapshots |
-| `tests/renderer/model-downloads.test.js` | `model-downloads.js` with a stub `WebSocket`: start (token, job WS, progress to subscribers), done re-resolves the default with its toast, error / cancelled, cancel (also before the backend answered), leaving Settings keeps the download and coming back shows its progress |
-| `tests/renderer/dropdown.test.js` | `makeDropdown()`: a disabled option is marked and cannot be picked; other options work as before |
-| `tests/renderer/toast-layer.test.js` | `#toast-stack` has the highest `z-index` in `styles/*.css`, so toasts stay above modals and overlays |
 
 ---
 
 ## File structure
 
-Every `test_*.py` and `renderer/*.test.js` file is listed in [Current coverage](#current-coverage); the tree shows the shared helpers.
+Every `test_*.py`, `electron/`, `build/` and `e2e/` test file is listed in [Current coverage](#current-coverage); the tree shows the shared helpers.
 
 ```
 tests/
@@ -176,11 +170,12 @@ tests/
 ├── capture_workers.py                 # App-free stand-in for the Windows capture helper (sonorus-capture.exe)
 ├── queue_helpers.py                   # Stand-in pipeline runner + wait_for for queue tests
 ├── test_*.py                          # Python unit and API tests
-└── renderer/
-    ├── load-renderer.js               # Evaluates renderer scripts in a node:vm context
-    ├── fake-dom.js                    # Permissive fake DOM for views and modals
-    ├── models-fixture.js              # GET /models catalog for model-related tests
-    └── *.test.js                      # node:test renderer tests
+├── electron/*.test.js                 # node:test tests of the Electron main process
+├── build/*.test.js                    # node:test tests of the packaging inputs
+└── e2e/
+    ├── seed.py                        # Data directory with recordings, speakers and stand-in models
+    ├── harness.js                     # Backend + Electron on that directory, through Playwright
+    └── *.test.js                      # End-to-end scenarios (npm run test:e2e)
 ```
 
 ---

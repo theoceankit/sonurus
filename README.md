@@ -13,7 +13,7 @@ Transcribes audio files using WhisperX, automatically matches speakers against a
 | [WhisperX](https://github.com/m-bain/whisperX) | ASR + word-level timestamp alignment |
 | [PyAnnote](https://github.com/pyannote/pyannote-audio) | Speaker diarization + embedding extraction |
 | FastAPI + uvicorn | REST + WebSocket backend |
-| Electron + Vanilla JS | Desktop UI |
+| Electron + React | Desktop UI |
 | SQLite | Speaker memory and transcript storage |
 
 ---
@@ -30,7 +30,7 @@ instructions: `docs/docs/build-and-install/`.
 ## Requirements (from source)
 
 - Python 3.12
-- Node.js 22.12+
+- Node.js 22.22.2+
 - ffmpeg (for audio decoding)
 - A [HuggingFace token](https://huggingface.co/settings/tokens) with access to the gated PyAnnote models
 - CUDA optional (CPU works, slower)
@@ -77,6 +77,7 @@ For other configurations see [pytorch.org/get-started/locally](https://pytorch.o
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/fetch_nltk_data.py   # sentence data for alignment (NLTK punkt_tab), into the venv
 npm ci
+npm --prefix ui ci && npm run build:ui   # the interface, which npm start loads
 ```
 
 On macOS, live recording also needs the system audio helper (requires Xcode Command Line Tools):
@@ -108,19 +109,18 @@ apart from an installed Sonorus: in `~/.config/sonorus-dev` on Linux, in Electro
 on other platforms. Download a transcription model in **Settings → Models** before the first
 transcription.
 
-### New UI
+### Working on the interface
 
-A rewrite on React lives in `ui/` next to the current interface. It needs Node.js 22.22.2+ and opens
-only when asked for:
+The interface is a React and TypeScript app in `ui/`, built into `ui/dist`. Run `npm run build:ui` after
+changing it, or work with hot reload:
 
 ```bash
-npm --prefix ui ci              # once
-npm run dev:ui                  # the app with the new UI and hot reload
+npm run dev:ui                  # the app with hot reload
 VITE_SONORUS_FIXTURES=1 npm run dev:ui  # the same on fixtures, without real data
 npm --prefix ui run storybook   # component catalog at http://localhost:6006
 ```
 
-Details: [New UI](docs/docs/ui/electron/overview.md#new-ui).
+Details: [Electron UI](docs/docs/ui/electron/overview.md).
 
 To run the backend alone (API work), put the token in `.env` (`cp .env.example .env`, set `HF_TOKEN`)
 and start:
@@ -151,8 +151,10 @@ copy audio → transcribe → extract embeddings → resolve speakers → build 
 
 ```bash
 .venv/bin/python -m pytest tests/ -v
-node --test 'tests/renderer/*.test.js'
+node --test 'tests/electron/*.test.js'
 node --test 'tests/build/*.test.js'
+npm --prefix ui test
+npm run test:e2e        # the built app end to end on seeded data
 ```
 
 Tests do not require ML models or audio files. See [CONTRIBUTING.md](CONTRIBUTING.md#tests).

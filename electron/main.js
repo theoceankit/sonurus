@@ -34,10 +34,8 @@ let mainWin = null
 let titleBarDimmer = null
 
 function createWindow() {
-  const newUi = app.commandLine.hasSwitch('new-ui')
   const entry = uiEntry({
     isPackaged: app.isPackaged,
-    newUi,
     devUrl: process.env.SONORUS_UI_DEV_URL,
     electronDir: __dirname,
   })
@@ -54,7 +52,7 @@ function createWindow() {
     minHeight: 600,
     backgroundColor: '#FFFFFF',
     icon: path.join(__dirname, 'assets', 'icon.png'),
-    ...windowChrome({ newUi }),
+    ...windowChrome(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -66,7 +64,7 @@ function createWindow() {
 
   // macOS draws its own window buttons, with no strip to colour.
   const win = mainWin
-  if (newUi && process.platform !== 'darwin') {
+  if (process.platform !== 'darwin') {
     titleBarDimmer = overlayDimmer(overlay => { if (!win.isDestroyed()) win.setTitleBarOverlay(overlay) })
   }
   // A page that loads again has no modal open, whatever the last one said.
@@ -103,7 +101,6 @@ const DEFAULT_SETTINGS = {
   recordingAudioSource: 'both',
   recordingMicDevice: null,
   recordingSystemDevice: null,
-  recordingUseMic: true,
   hfToken: '',
   recentTranscriptIds: [],
 }
@@ -139,7 +136,7 @@ ipcMain.handle('open-files', async () => {
   return filePaths
 })
 
-// A modal of the new UI is open or closed: the window buttons dim with its scrim.
+// A modal is open or closed: the window buttons dim with its scrim.
 ipcMain.on('window-dimmed', (event, dimmed, startedAt) => {
   if (event.sender === mainWin?.webContents) titleBarDimmer?.set(Boolean(dimmed), Number(startedAt))
 })

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict'
 
-// The new UI with hot reload: starts the Vite dev server, then Electron with
-// --new-ui pointed at it. Arguments are passed on to Electron, e.g.
+// The UI with hot reload: starts the Vite dev server, then Electron pointed at
+// it. Arguments are passed on to Electron, e.g.
 //   npm run dev:ui -- --user-data-dir=/tmp/sonorus-ui
 
 const { spawn } = require('child_process')
@@ -41,7 +41,7 @@ async function waitForViteReady() {
 }
 
 waitForViteReady().then(() => {
-  electronProc = spawn(require('electron'), ['.', '--new-ui', ...process.argv.slice(2)], {
+  electronProc = spawn(require('electron'), ['.', ...process.argv.slice(2)], {
     cwd: ROOT,
     stdio: 'inherit',
     env: { ...process.env, SONORUS_UI_DEV_URL: DEV_ORIGIN, SONORUS_DEV_UI_ORIGIN: DEV_ORIGIN },

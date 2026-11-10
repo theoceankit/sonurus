@@ -10,7 +10,7 @@ Key state machines in the system — places where explicit states exist, transit
 
 ## 1. App Session
 
-The Electron app routes between views via the view router in `app.js`. Transcription jobs run in the background and never block navigation — there is no dedicated "Transcribing" view state.
+The window keeps one screen, the Editor, with the Speakers and Settings windows over it. Transcription jobs run in the background and never block navigation — there is no dedicated "Transcribing" view state.
 
 ```mermaid
 stateDiagram-v2
@@ -25,7 +25,7 @@ stateDiagram-v2
 
 **Reviewing** — `EditorView` is shown with a real `Transcript`. User can edit speakers and reassign speaker identity. Clicking any recording in the left sidebar loads it from the database and replaces the current editor. Available from both Idle and Reviewing.
 
-**Transcription queue (orthogonal to navigation state)** — The backend runs queued jobs one at a time while the user navigates. The renderer keeps the latest snapshot from `WS /ws/queue` in `app._queue` and shows it as cards in the sidebar queue section above the recordings list, with Pause / Start, Retry and delete. On completion a toast is shown and the sidebar refreshes. See [Electron UI → Transcription queue](../ui/electron/overview.md#transcription-queue).
+**Transcription queue (orthogonal to navigation state)** — The backend runs queued jobs one at a time while the user navigates. The UI keeps the latest snapshot from `WS /ws/queue` and shows it as rows in the sidebar queue section above the recordings list, with Pause / Resume, Retry, the job's settings and delete. On completion a toast offers to open the recording and the sidebar refreshes. See [Transcription → The queue](../ui/electron/transcribe.md).
 
 ---
 

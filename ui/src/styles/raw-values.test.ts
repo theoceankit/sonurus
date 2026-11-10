@@ -110,7 +110,7 @@ describe('findRawInlineStyles', () => {
 const moduleCss = import.meta.glob<string>('../**/*.module.css', { query: '?raw', import: 'default', eager: true })
 const sources = import.meta.glob<string>(['../**/*.tsx', '!../**/*.test.tsx'], { query: '?raw', import: 'default', eager: true })
 
-describe('the sources of the new UI', () => {
+describe('the sources of the UI', () => {
   test('the walk finds the components', () => {
     expect(Object.keys(moduleCss)).toContain('../components/Button/Button.module.css')
     expect(Object.keys(sources)).toContain('../components/Button/Button.tsx')

@@ -1,5 +1,5 @@
-"""The API schema the new UI generates its types from: FastAPI's own schema
-plus what it cannot see. See docs/docs/ui/electron/new-ui-data.md."""
+"""The API schema the UI generates its types from: FastAPI's own schema
+plus what it cannot see. See docs/docs/ui/electron/data.md."""
 import copy
 
 from pydantic.json_schema import models_json_schema

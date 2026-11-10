@@ -3,7 +3,7 @@ import { languageName } from './languages'
 
 // The default Whisper model. Settings keep it (transcribeModel) with the models that
 // were the default before it (transcribeModelHistory, oldest first). There is no
-// built-in default: with no Whisper model installed there is none. The new UI works
+// built-in default: with no Whisper model installed there is none. The UI works
 // the default out from GET /models every time and does not save it.
 
 export const MODEL_HISTORY_LIMIT = 5
@@ -64,7 +64,7 @@ export function missingAlignmentModel(language: string | null, models: readonly 
   return row && !row.installed ? row : null
 }
 
-// The default as the old UI kept it: the saved model when it is installed, else none.
+// The default as saved: the saved model when it is installed, else none.
 function savedIfInstalled(saved: Partial<SavedModel>, models: readonly ModelInfo[]): string | null {
   const id = saved.transcribeModel ?? null
   return id && installedWhisperModels(models).includes(id) ? id : null

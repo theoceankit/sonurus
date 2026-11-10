@@ -9,7 +9,7 @@ export type SourceSetting = ElectronSettings['recordingAudioSource']
 // A device in a menu: an input's deviceId or a backend source id.
 export type { DeviceOption }
 
-// The default microphone. Saved as null, as the old UI does.
+// The default microphone. Saved as null.
 export const DEFAULT_MIC = 'default-microphone'
 
 export const BOTH_OFF = 'Turn on the microphone or system audio to record.'

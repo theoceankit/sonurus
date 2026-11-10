@@ -4,82 +4,73 @@ sidebar_position: 1
 
 # Electron UI
 
-Cross-platform desktop interface built with Electron + Vanilla JS. Communicates with the Python FastAPI server over HTTP and WebSocket.
+A desktop window built with Electron. The main process (`electron/`) starts the backend and opens the window; the window shows the UI, a React and TypeScript app in `ui/`, a separate npm package built into `ui/dist`. The UI talks to the Python FastAPI server over HTTP and WebSocket.
 
 ---
 
 ## Running in dev mode
 
 ```bash
-npm start
+npm --prefix ui ci                  # once; needs Node.js 22.22.2+
+npm run build:ui                    # build into ui/dist
+npm start                           # Electron with the build
+npm run dev:ui                      # Vite and Electron, hot reload (arguments go to Electron)
+VITE_SONORUS_FIXTURES=1 npm run dev:ui  # the same on fixtures
+npm --prefix ui run storybook       # http://localhost:6006
+npm --prefix ui test                # Vitest
+npm --prefix ui run typecheck
+npm run test:e2e                    # the built app end to end, see Testing
 ```
 
-`electron/backend.js` automatically starts the FastAPI server before the window opens. If a server is already listening on port 8000, the spawn is skipped.
+`electron/backend.js` starts the FastAPI server before the window opens. If a server is already listening on port 8000, the spawn is skipped.
 
-To start the backend manually (e.g. for isolated API testing):
+To start the backend by hand (e.g. for isolated API testing):
 ```bash
 # Do NOT add --reload — watchfiles triggers on .py files in .models/ and kills downloads
 .venv/bin/uvicorn app.api.main:app --host 127.0.0.1 --port 8000
 ```
 
----
-
-## New UI
-
-A rewrite on React and TypeScript lives in `ui/`, a separate npm package next to the old renderer. It has the Editor so far, on the base described in [New UI foundations](new-ui-foundations.md). Without a switch the app opens the old UI, in development and in installers; nothing in the interface leads to the new one.
-
-```bash
-npm --prefix ui ci                  # once; needs Node.js 22.22.2+
-npm run dev:ui                      # Vite and Electron, hot reload (arguments go to Electron)
-VITE_SONORUS_FIXTURES=1 npm run dev:ui  # the same on fixtures
-npm run build:ui                    # build into ui/dist
-npm start -- --new-ui               # the build in development
-./dist/Sonorus-*.AppImage --new-ui  # the build in an installed app
-npm --prefix ui run storybook       # http://localhost:6006
-npm --prefix ui test                # Vitest
-npm --prefix ui run typecheck
-```
-
-Screens get their data through one client, on the backend or on fixtures: see [New UI data](new-ui-data.md). The Speakers button of the titlebar opens the Speakers window: see [New UI speakers](new-ui-speakers.md).
-
-Where a run keeps its data, how to check a change on isolated data, when to restart Vite or Storybook and what the tests cannot show: see [New UI development](new-ui-development.md).
+Screens get their data through one client, on the backend or on fixtures: see [UI data](data.md). Where a run keeps its data, how to check a change on isolated data, when to restart Vite or Storybook and what the tests cannot show: see [Development](development.md). The base of every screen (tokens, font, icons, overlays, motion) is in [Foundations](foundations.md).
 
 Every component lives in `ui/src/components/<Name>/` and has `<Name>.stories.tsx` with a story for each of its states. Storybook finds these files by itself; a component without one is simply absent from it, so a build test checks that the file exists. Whether the stories cover all states is checked by review.
 
 The stories under `Redesign/Editor` reproduce the Editor design boards at 1200×800 and carry their names, so a story can be compared with its board. A test holds the list of names.
 
-`electron/ui-entry.js` decides what the window loads:
+---
 
-| Switch | Environment | Development | Packaged |
-|---|---|---|---|
-| none | any | `electron/renderer/index.html` | `electron/renderer/index.html` |
-| `--new-ui` | — | `ui/dist/index.html` | `ui/dist/index.html` |
-| `--new-ui` | `SONORUS_UI_DEV_URL` | that URL | `ui/dist/index.html` |
+## What the window loads
 
-`--new-ui` without a build stops with an error dialog naming `npm run build:ui`.
+`electron/ui-entry.js` decides:
 
-Security settings are the same for both UIs. `ui/index.html` carries the CSP string of the old `index.html` with one difference, so the build loads through `file://` under the same rules: media comes from `http://localhost:8000` and not from `file:`. Hot reload needs an inline script and the dev server's WebSocket: a plugin in `ui/vite.config.ts` adds `script-src 'self' 'unsafe-inline'` and `ws://localhost:5173` on the dev server only.
+| Environment | Development | Packaged |
+|---|---|---|
+| — | `ui/dist/index.html` | `ui/dist/index.html` |
+| `SONORUS_UI_DEV_URL` | that URL | `ui/dist/index.html` |
+
+A missing build stops with an error dialog naming `npm run build:ui`. `npm run dev:ui` (`scripts/dev-ui.js`) starts Vite and sets `SONORUS_UI_DEV_URL` for Electron.
+
+`ui/index.html` carries the CSP: requests and the WebSocket go to `http://localhost:8000` only, media comes from there or from `blob:` and never from `file:`, and no workers. Hot reload needs an inline script and the dev server's WebSocket: a plugin in `ui/vite.config.ts` adds `script-src 'self' 'unsafe-inline'` and `ws://localhost:5173` on the dev server only. A build test keeps the CSP of the source and of a build.
 
 The dev server's origin is not one the backend accepts, so `npm run dev:ui` sets `SONORUS_DEV_UI_ORIGIN`. A backend started earlier without it, e.g. with `uvicorn`, refuses requests from the dev page.
 
-### Window and Editor shell
+---
 
-With `--new-ui` the window has no system frame (`electron/window-chrome.js`; without the switch it adds nothing, and the old UI keeps its window). The system's window buttons stay and stand over the page, in the colours of the light theme. Which side they are on depends on the system and the desktop, so `Titlebar` reads the free area from `env(titlebar-area-*)` and keeps its controls clear of it. The window is dragged by the free parts of the title bar: the strip has `-webkit-app-region: drag`, its buttons and the search field `no-drag`.
+## Window and Editor shell
+
+The window has no system frame (`electron/window-chrome.js`). The system's window buttons stay and stand over the page, in the colours of the light theme. Which side they are on depends on the system and the desktop, so `Titlebar` reads the free area from `env(titlebar-area-*)` and keeps its controls clear of it. The window is dragged by the free parts of the title bar: the strip has `-webkit-app-region: drag`, its buttons and the search field `no-drag`.
 
 The system draws the strip of the window buttons over the page, so a modal's scrim does not reach it. While a modal is open, the window dims the strip itself to the colour of the page under the scrim (`--color-scrim` over `--color-bg-sunken`, and over `--color-text-primary` for the symbols), in 200 ms on the enter curve and back in 150 ms on the exit curve, as the scrim does. `Modal` holds the dim through `holdWindowDim()` in `ui/src/platform/window-dim.ts`, which sends `setWindowDimmed` of the preload only when the first modal opens and the last one closes, after the changes of one render: a window that takes over from another keeps the strip dimmed, and a preview does not dim it. With the change it sends the time of the next animation frame, when the scrim starts to move. In the main process `overlayDimmer()` of `electron/window-chrome.js` moves the colours with `setTitleBarOverlay` about every 16 ms, counting from that time rather than from when the message arrived (at most 50 ms back), so the strip keeps pace with the scrim; it starts from wherever the strip is, so closing halfway does not jump; a build test keeps its colours, durations and curves equal to the tokens. A page that loads again starts undimmed. macOS draws its own window buttons with no strip, so they stay as they are there.
 
-`ui/src/screens/Editor/EditorScreen.tsx` lays out the window: `Titlebar`, `Sidebar`, and the transcript, inspector and player panels. The inspector takes its content as a prop and is empty for now. The transcript panel shows `TranscriptPanel` ([New UI transcript](new-ui-transcript.md)) and the player panel `EditorPlayer` ([New UI player](new-ui-player.md)) unless given other content; the screen holds the playback both follow.
+`ui/src/screens/Editor/EditorScreen.tsx` lays out the window: `Titlebar`, `Sidebar`, and the transcript, inspector and player panels. The transcript panel shows `TranscriptPanel` ([Transcript](transcript.md)), the inspector `InspectorPanel` ([Inspector](inspector.md)) and the player panel `EditorPlayer` ([Player](player.md)); the screen holds the playback they follow. With no recording open the centre shows the empty state ([Home](home.md)). The Speakers button of the titlebar opens the Speakers window ([Speakers](speakers.md)), the Settings button the Settings dialog ([Settings](settings.md)).
 
 | Window width | Side panels |
 |---|---|
 | 1112 and more | Both; the centre takes what is left, at least 480 |
 | Below 1112 | One. The sidebar stays and the inspector goes; opening either one hides the other |
 
-The width is that of the screen, so a story can show any size. A panel the user closed stays closed when the window widens; one hidden for lack of room comes back. While the inspector is hidden, a button next to Settings opens it. What is open is not remembered between runs. The rules are pure functions in `panels.ts`. A panel moves on its button and not when the window is resized: see [Motion](new-ui-foundations.md#motion).
+The width is that of the screen, so a story can show any size. A panel the user closed stays closed when the window widens; one hidden for lack of room comes back. While the inspector is hidden, a button next to Settings opens it. What is open is not remembered between runs. The rules are pure functions in `panels.ts`. A panel moves on its button and not when the window is resized: see [Motion](foundations.md#motion).
 
-`Sidebar` shows the recordings in the sections Pinned, This week and Earlier, worked out on the client in `recordings.ts` rather than taken from `section` of the API: This week is today and the seven calendar days before it, and a section with nothing in it is left out. The API has no pinned recordings yet, so in the app the section does not appear; `EditorScreen` takes them as a prop, and the story Screens / Editor / Board uses it to match the design. A recording the user has not opened yet shows a dot, labelled New (`opened` of the API). A speaker with no name shows as the unknown avatar in the row, not as the dot. Rows show three avatars at most. The list has no scrollbar: it would narrow the rows, and the fade at the bottom says there is more.
-
-A recording row shows at most three avatars, with no count of the others.
+`Sidebar` shows the recordings in the sections Pinned, This week and Earlier, worked out on the client in `recordings.ts` rather than taken from `section` of the API: This week is today and the seven calendar days before it, and a section with nothing in it is left out. The API has no pinned recordings yet, so in the app the section does not appear; `EditorScreen` takes them as a prop, and the story Screens / Editor / Board uses it to match the design. A recording the user has not opened yet shows a dot, labelled New (`opened` of the API). A speaker with no name shows as the unknown avatar in the row, not as the dot. Rows show three avatars at most, with no count of the others. The list has no scrollbar: it would narrow the rows, and the fade at the bottom says there is more. Above the recordings stand the live recording ([Live recording](live-recording.md)) and the transcription queue ([Transcription](transcribe.md)).
 
 ---
 
@@ -87,7 +78,7 @@ A recording row shows at most three avatars, with no count of the others.
 
 `electron/backend.js` manages the server process:
 
-1. `checkHealth()` — polls `GET /health`. If already responding, skips spawn.
+1. `checkHealth()` — polls `GET /health`. If already responding, skips spawn (`electron/backend-identity.js` decides whether that backend may be reused: see [Configuration](../../environment/configuration.md#sonorus_data_dir)).
 2. Spawns `uvicorn` with the bundled interpreter (packaged: `resources/backend/python-dist`, which
    already contains every library — see [Packaging](../../distribution/packaging.md); dev: `.venv`) and env
    `HF_TOKEN`, `SONORUS_DATA_DIR`, `LOG_FILE`, `SONORUS_VERSION`; packaged builds also put the bundled
@@ -95,7 +86,7 @@ A recording row shows at most three avatars, with no count of the others.
 3. `waitForReady()` — polls `/health` up to 60s, logs `[backend] ready in N ms`, then `main.js` opens the window.
 4. `stopBackend()` — kills the process on `will-quit`.
 
-There is no first-run setup: every launch, packaged or dev, goes straight to `index.html`.
+There is no first-run setup: every launch, packaged or dev, goes straight to the window.
 
 ---
 
@@ -104,51 +95,38 @@ There is no first-run setup: every launch, packaged or dev, goes straight to `in
 ```
 electron/
   main.js              — BrowserWindow, IPC handlers, backend lifecycle orchestration
-  backend.js           — Backend process spawn, health check
+  backend.js           — Backend process spawn, health check, restart
+  backend-identity.js  — Dev and packaged data dirs; whether a running backend may be reused
   dialog-folder.js     — Folder the file dialog opens in (last picked file, dialog-state.json)
-  ui-entry.js          — What the window loads: old UI, new UI build or dev server
+  gpu-pack.js          — The GPU pack: applying downloads and removals, its check at start
+  ui-entry.js          — What the window loads: the build or the dev server
+  window-chrome.js     — Frameless window, window buttons and their dimming
   preload.js           — contextBridge: exposes electronAPI.*
   assets/
     icon.png           — app icon master for Windows and Linux, 1024×1024 (see Packaging → Icons)
     icon-macos.png     — app icon master for macOS, 1024×1024
-    logo.png           — transparent S logo: titlebar, favicon
-    icons/             — every UI icon as <name>.svg (see Icons page)
-  renderer/
-    index.html         — App shell: left sidebar + main panel
-    icons.js           — icon(name, size), hydrateIcons: renders files from assets/icons/
-    utils.js           — API_BASE, WS_BASE, speaker helpers, fmtTime, speaker avatars (makeAvatar, makeAvatarStack)
-    transcription-model.js — default Whisper model: syncTranscribeModel, noModelMessage, dropImportOptions
-    model-downloads.js — model downloads owned by the app (start, cancel, progress, subscribe)
-    not-implemented.js — registry + marking of controls whose feature does not exist yet (see Components)
-    components.js      — makeDropdown (shared UI component; options can be disabled), openConfirmDialog
-    data.js            — LANGUAGES (static), MODELS (fallback), ALIGNMENT_MODELS (source of truth)
-    file-drop.js       — initFileDrop: window drag-and-drop of audio files + drop overlay
-    app.js             — appSettings, loadSettings/saveSettings, view router, sidebar
-    styles/
-      base.css         — Design tokens, resets
-      layout.css       — Sidebar + main panel layout
-      import.css       — Import/recording/progress view styles
-      editor.css       — Transcript editor styles
-      settings.css     — Settings screen styles
-      speakers.css     — Sidebar section tabs, speaker list, speaker page
-      views.css        — Toasts (#toast-stack above every other layer, modals included), misc shared view styles
-      modal.css        — Modal overlay styles
-    views/
-      new-recording-modal.js  — Recording setup modal (source picker, model/language, toggles)
-      alignment-modal.js      — Alignment model download + retry (one dialog per language, on alignment_model_missing)
-      editor-view.js          — Transcript editor entry point
-      settings-view.js        — Settings screen
-      speakers-view.js        — Speakers section: sidebar list items + speaker page
-      editor/                 — Editor sub-components
-        tooltip.js, speaker-picker.js, new-speaker-modal.js, segment-row.js,
-        speaker-card.js, waveform.js, player-bar.js, right-panel.js
+    logo.png           — transparent S logo
+ui/
+  index.html           — the page and its CSP
+  src/main.tsx         — entry: settings, saved scale, providers, App
+  src/App.tsx          — the window: Editor screen, toasts, queue and recording providers
+  src/screens/         — Editor, Home, Queue, Settings, Speakers
+  src/components/      — one folder per component, with its stories
+  src/api/             — the API client, its generated types and fixtures
+  src/platform/        — the preload bridge, settings.json, window dimming
+  src/media/           — playback of the recording, clips and voice samples
+  src/transcribe/      — models, default model, downloads, languages
+  src/recording/       — live recording
+  src/styles/          — tokens, motion, shared styles
+  src/assets/          — font and icons
+  dist/                — the build Electron loads (npm run build:ui)
 ```
 
 ---
 
 ## IPC bridge
 
-`preload.js` exposes the following via `contextBridge` as `window.electronAPI`:
+`preload.js` exposes the following via `contextBridge` as `window.electronAPI`; `ui/src/platform/electron-api.ts` holds its type, and a build test keeps the two in step:
 
 | Method | Description |
 |---|---|
@@ -158,7 +136,8 @@ electron/
 | `writeSettings(data)` | Write `settings.json` to `app.getPath('userData')` |
 | `setZoom(factor)` | Call `webContents.setZoomFactor(factor)` |
 | `writeClipboard(text)` | Write text to the system clipboard |
-| `restartBackend()` | Restart the backend to apply a GPU download or removal (asked by `gpu-acceleration.js` once `POST /gpu/restart` says `ready`); resolves when the new backend is up. See [GPU acceleration](./gpu-acceleration.md) |
+| `restartBackend()` | Restart the backend to apply a GPU download or removal (asked once `POST /gpu/restart` says `ready`); resolves when the new backend is up. See [GPU acceleration](./gpu-acceleration.md) |
+| `setWindowDimmed(dimmed, startedAt)` | Dim or undim the strip of the window buttons with a modal's scrim (see [Window and Editor shell](#window-and-editor-shell)) |
 | `getPlatform()` | Returns `process.platform` (`'win32'`, `'darwin'`, `'linux'`) |
 | `getAppVersion()` | Returns `app.getVersion()` — the `version` field of `package.json` |
 
@@ -166,240 +145,26 @@ electron/
 
 ## Settings
 
-Settings are stored in `app.getPath('userData')/settings.json` — `sonorus` in the OS app data folder for the installed app, `sonorus-dev` in dev mode, or the `--user-data-dir` given (see [Configuration](../../environment/configuration.md#sonorus_data_dir)). The main process reads this file before spawning the backend to extract `hfToken`.
+Settings are stored in `app.getPath('userData')/settings.json` — `sonorus` in the OS app data folder for the installed app, `sonorus-dev` in dev mode, or the `--user-data-dir` given (see [Configuration](../../environment/configuration.md#sonorus_data_dir)). The main process reads this file before spawning the backend to extract `hfToken`, so a changed token reaches the transcription pipeline only after an app restart. The start mode of the queue is not here: the backend stores it (`PUT /queue/settings`).
 
-Default values are defined in `DEFAULT_SETTINGS` in `main.js` (used when `settings.json` is missing) and in `DEFAULT_APP_SETTINGS` in `app.js`. The renderer starts `appSettings` as a copy of `DEFAULT_APP_SETTINGS` and merges saved values on top via `Object.assign(appSettings, saved)`. The new UI keeps `recentTranscriptIds` in the same file, the recordings it opened last ([New UI home](new-ui-home.md#which-recording-is-open)); the old UI carries the field along without reading it.
+Default values are `DEFAULT_SETTINGS` in `main.js` (used when `settings.json` is missing) and the same `DEFAULT_SETTINGS` in `ui/src/platform/settings.ts`, which fill in what a file lacks; a build test compares them. A file written by an older version may hold fields no longer used (`recordingUseMic`, `recordingDiarize`, `recordingSaveAudio`); they are read and written along and change nothing.
 
-The new UI reads and writes the file only through `settingsStore()` in `ui/src/platform/settings.ts`. Its `DEFAULT_SETTINGS` are those of `main.js` (a build test compares them) and fill in what a file lacks. `patch(change)` shows the change at once and queues the write: each write reads the file again and puts only its change on top, one after another, so that neither a second writer in the new UI nor the old UI loses a field. `useSettings()` re-renders on every change. Like the old UI, the new one applies the saved `scale` with `setZoom` on start (`applySavedScale()` in `main.tsx`). Without Electron, in Storybook and tests, the settings start from the defaults and stay in memory.
-
-Settings → **Export**, Interface → **App language** and Audio devices → **Include microphone** have no effect yet and are marked as [unimplemented controls](components/not-implemented.md).
-
-The last two sections of the Settings screen are destructive and use the same two-step confirmation (`Reset…` / `Delete…` → `Cancel` + a red confirm button):
-
-- **Reset to defaults** writes `DEFAULT_APP_SETTINGS` back to `settings.json` via `defaultSettingsPatch()` (`utils.js`), keeping `hfToken`, re-applies the zoom and re-renders the page. Transcripts, models and recordings are not touched.
-- **Delete all data** calls `POST /data/reset`, then clears `_activeTranscriptId`, reloads the sidebar (transcripts and the Speakers list) and shows a toast built by `formatDataResetSummary()`. The trigger button is disabled (with the reason from `dataResetBlockReason()` as its tooltip) while a background transcription job or a live recording is running; the backend enforces the same rule with `409`. Models, preferences and the user's original imported files are kept (the app's copies in `recordings/` are removed).
-
-Below the last section a muted line shows the product version, "Sonorus 0.2.0" (`.st-version`, text from `formatAppVersion()` in `utils.js` with `electronAPI.getAppVersion()`; just "Sonorus" if the version is unknown). It can be selected and copied.
-
-`hfToken` is part of `appSettings` in the renderer (Settings → API Keys edits it, and it is sent as `hf_token` with model download requests). `main.js` reads it once at startup to set `HF_TOKEN` for the backend process, so a changed token reaches the transcription pipeline only after an app restart.
+The UI reads and writes the file only through `settingsStore()` in `ui/src/platform/settings.ts`. `patch(change)` shows the change at once and queues the write: each write reads the file again and puts only its change on top, one after another, so that no field is lost to a second writer. `useSettings()` re-renders on every change. The saved `scale` applies with `setZoom` on start (`applySavedScale()` in `main.tsx`). Without Electron, in Storybook and tests, the settings start from the defaults and stay in memory. The Settings dialog and what each section changes: [Settings](settings.md).
 
 ---
 
-## Model management
+## Dropping files on Linux
 
-Settings → **ML Models** lists the Whisper models and the diarization models; Settings → **Alignment Models** lists the per-language wav2vec2 models. Install status comes from `GET /models`. Each row downloads (`POST /models/{id}/download`, with `hf_token` from `appSettings`), shows progress from `WS /ws/models/{job_id}`, can cancel a running download (`DELETE /models/{id}/download/{job_id}`) and deletes an installed model (`DELETE /models/{id}`).
-
-**Deleting a model the queue needs.** If waiting or failed jobs need the model (their Whisper model; every job needs the diarization model; an alignment model the jobs with that explicit language), `openConfirmDialog()` asks first ("2 jobs in the queue use Whisper Small. Delete anyway?", `modelDeletePrompt()` in `transcription-model.js`); the jobs keep their model and fail with `whisper_model_missing` / `diarization_model_missing` / `alignment_model_missing` when they start, before any transcription. The delete button of a model the running transcription needs is disabled ("In use by the running transcription"); rows follow every queue snapshot (`_onQueue` of the open view), and the backend refuses with `409` too.
-
-Downloads belong to the app, not to the Settings page (`model-downloads.js`): leaving Settings keeps the WebSocket open, and coming back shows the running download with its progress (`GET /models` does not report running downloads). A download started before an app restart is not followed; its model shows up as installed once it is finished.
-
-**Default model.** There is no built-in default: until a Whisper model is installed, `transcribeModel` in `settings.json` is `null`. Picking an installed model with **Use** saves it as `transcribeModel` and appends it to `transcribeModelHistory` (the last five defaults). A saved model that is not installed counts as no model: no row shows **In use** and it is never used for a job. `syncTranscribeModel()` (`transcription-model.js`) re-resolves the default every time `GET /models` is fetched — at app start, when Settings or the New Recording modal opens, on a window drop, after a finished download and after a delete:
-
-- the default is kept while it is installed;
-- otherwise it becomes the latest model from the history that is still installed, else the most accurate installed model (catalog order), else `null`;
-- when the effective default changes (installed before vs. now), a toast says which model is now the default, or that no model is installed. So the first downloaded model becomes the default by itself, and deleting the default switches back to the previous one.
-
-New jobs need a default model and the diarization model. Without one of them Settings shows a hint above the model list, the New Recording modal turns off **Start recording** and **Import** with a notice linking to Settings, and a window drop queues nothing (toast with **Open Settings**, `dropImportOptions()`).
-
-The **Transcription language** dropdown saves `transcribeLang`. A language with an alignment model in the catalog (ru, uk, zh, ja — `missingAlignmentModel()`) can be picked before its model is downloaded; a warning below the dropdown then offers **Download** (through `model-downloads.js`, with progress and Cancel) and disappears once the model is installed. Without it the New Recording modal and window drops start nothing (`jobBlockMessage()`: Whisper model, then diarization, then the language's alignment model). Deleting the default language's alignment model resets the default to Detect automatically, with a toast. en, es, de and fr need no catalog model. Model and language are the defaults for new jobs: window drops use them as is, and the New Recording modal starts from them. A model or language picked in the modal applies to that recording or import only and is not saved; the defaults change only in Settings.
-
-`POST /queue/jobs` refuses a job whose Whisper, diarization or (explicit-language) alignment model is not installed. With auto-detected language a missing alignment model fails the job with `alignment_model_missing`, handled by `alignment-modal.js` (see [Transcription queue](#transcription-queue)). See [API → Models](../../api/endpoints.md) for the catalog.
-
----
-
-## Audio playback
-
-The transcript editor creates a single persistent `Audio` element per editor session. Its `src` is set to `fileUrl(transcript.audio_path)` (`utils.js`) — a `file://` URL built from the filesystem path returned by the API, with every path segment percent-encoded so spaces, non-ASCII characters, `#` and `?` survive, and Windows drive letters handled. The encoded form is stable under browser URL normalisation, so the `audio.src !== audioSrc` check does not reset playback on every editor rebuild. This works because the renderer page is loaded via `file://`, so `file:` is covered by the `default-src 'self'` CSP directive (explicitly enumerated as `media-src 'self' file:` in `index.html`).
-
-The audio element survives editor rebuilds (triggered by speaker rename, segment edit, etc.) so playback is not interrupted. A cleanup hook on the root element pauses the audio and aborts all listeners when the user navigates to a different view.
-
----
-
-## Transcript editor
-
-The titlebar **Back** button returns to the home view (`app.showHome()`); it is disabled on the home view itself.
-
-Each segment row shows its actions on hover (`views/editor/segment-row.js`):
-
-| Action | Behaviour |
-|---|---|
-| Play | Seeks the editor audio to the segment start and plays |
-| Edit | Inline `contenteditable`; ⌘/Ctrl+Enter, the ✓ button or moving focus away saves (`PATCH /transcripts/{id}/segments/{start}/text`), Escape or ✕ cancels; unchanged or empty text is not sent |
-| Bookmark | Not implemented — marked (see [Unimplemented controls](components/not-implemented.md)) |
-| Copy | Copies the segment text to the clipboard |
-| Delete | `DELETE /transcripts/{id}/segments/{start}`; the row fades out and the editor reloads |
-
-Assigning a speaker or deleting a segment reloads the editor: `reload()` rebuilds the whole view and keeps the scroll position (`preserveScroll()`). So that no row moves, a segment row's layout does not depend on its speaker — there is no extra gap where the speaker changes, and the speaker name is one line of fixed height (a long name ends with …). The editor's `Audio` element survives the rebuild; the new player bar takes its time, duration and play state from it (`playerClock()`), and the playing row is marked again at once (`activeSegmentIndex()`) once playback or a seek has marked one.
-
----
-
-## Live recording lifecycle
-
-Recording runs entirely in the background — no dedicated recording view. Capture per platform, sources and the backend side are described in [Live Recording](./live-recording.md). The flow is:
-
-1. User clicks **+** → `new-recording-modal.js` opens (source picker, model/language)
-2. "Start recording" → modal closes; `app._startLiveRecording(settings)` runs. It first sends `POST /queue/recording/start`: the queue pauses and a running transcription stops at once, so the recording gets the CPU/GPU
-3. The **Record button** appears in the titlebar with a live elapsed timer (`0:00`, `1:23`, …)
-4. User navigates freely while recording continues in the background
-5. Clicking the **Record button** → `app._stopLiveRecording()` → saves file → `POST /queue/jobs` → the recording joins the end of the transcription queue
-
-**Source modes** (selected in `new-recording-modal.js`):
-
-| `audioSource` | What is recorded |
-|---|---|
-| `mic` | Browser `getUserMedia` mic stream only |
-| `system` | Backend `AudioCaptureService` (every OS: ScreenCaptureKit helper, `parec`, WASAPI helper) |
-| `both` | Mic in the browser (`MediaRecorder`) + system audio from the backend; the backend levels and mixes them at stop |
-
-**State in `app._liveSession`** (null when idle):
-
-```js
-{ recorder, audioCtx, micStream,
-  captureJobId, chunks, timerInterval,
-  settings: { title, model, language } }
-```
-
-`captureJobId` holds the backend job id from `POST /audio/capture/start`. Stop dispatches to `POST /audio/capture/stop/{captureJobId}`.
-
-**Stop cases handled by `_stopLiveRecording()`:**
-
-| Condition | Stop logic |
-|---|---|
-| `captureJobId && recorder` | Stop recorder → upload mic blob (`POST /audio/recordings`) → `POST capture/stop` with `mic_path` → merged `file_path` |
-| `captureJobId` only | `POST capture/stop {}` → returns `file_path` |
-| `recorder` only | Stop recorder → upload blob (`POST /audio/recordings`) → returned `file_path` |
-
-The file is queued with `app._importFiles()` (`POST /queue/jobs`). Afterwards — also after an error (toast) — `_setRecordingActive(false)` and `POST /queue/recording/stop`: the queue resumes by itself only in the automatic start mode and only if the recording paused it. A recording that fails to start sends `recording/stop` too.
-
-Clicking **+** while a session is active opens the modal for imports only: "Start recording" is disabled (tooltip "A recording is already in progress"). Imports and drops during a recording are queued and wait.
-
-The new UI follows the same flow with its own state and interface: see [Live recording → New UI](./live-recording.md#new-ui).
-
----
-
-## Renaming a transcript
-
-Below the title a meta row shows the speaker avatars, the speaker count and the transcript language as separate items — its name from the language list via `transcriptLanguageLabel()` (`transcription-model.js`), the code itself for a language outside the list, nothing for `unknown`.
-
-The editor title (`.focus-title`) is editable: a click, or Enter while it has focus, swaps it for an input (`.focus-title-input`, text selected). Enter or leaving the field saves, Escape cancels. `titleToSave()` (`utils.js`) skips a blank or unchanged title or one over 200 characters; otherwise `PATCH /transcripts/{id}` is sent via `transcriptTitleRequest()`. The new title is shown at once and the sidebar reloads on success; on an error the old title comes back with a toast. The title is always set with `textContent`.
-
----
-
-## Deleting a transcript
-
-Hovering a transcript in the sidebar (Transcripts tab) replaces its time with a trash icon (`.rec-item-delete`, a `span role="button"` because the item itself is a `<button>`). Clicking it opens `openConfirmDialog()` (`components.js`) with the text from `deleteTranscriptPrompt()` (`utils.js`); Escape or a backdrop click cancels. On confirm, `app._deleteTranscript()` calls `DELETE /transcripts/{id}` (a `404` counts as already deleted), removes the item via `withoutRecording()`, goes home if that transcript was open (`_activeTranscriptId`), reloads the sidebar and shows a toast. The backend also deletes the app-owned audio for that transcript (live recording or copy of an imported file); the user's original imported file is kept.
-
----
-
-## Speakers section
-
-The sidebar header has two tabs, **Transcripts** and **Speakers** (`.sb-tab`), each with its own pane (`#sb-pane-transcripts`, `#sb-pane-speakers`). `app._showSection()` only toggles the tab and pane; `showSpeakers()` / `showSpeaker(id)` also render the main panel. Opening a transcript (`showEditor`) or going home switches back to the Transcripts tab; switching back by hand reopens the last transcript.
-
-- **List** — every `GET /speakers` row (`app._speakers`, loaded by `_loadSidebar()` together with the transcripts). Search matches the display name case-insensitively; the **All / Named / Unnamed** filter narrows it (`filterSpeakers()` in `utils.js`, unnamed speakers never match a non-empty query). Speakers that share a name get a *same name* badge (`duplicateNameIds()`); the speaker picker in the editor shows their usage line (`speakerStatsLine()`) next to the name so they can be told apart.
-- **Speaker page** (`renderSpeakerDetail()` in `speakers-view.js`) — inline name field (Enter or **Save** sends `PATCH /speakers/{id}`, Escape reverts; a name another speaker also has is saved and noted under the field), color swatches (named speakers only — unnamed ones are always grey), statistics, and **Appears in** (`GET /speakers/{id}/transcripts`; clicking a row opens the editor).
-- **Voice sample** — the page header plays the most characteristic segment (`GET /speakers/{id}/sample`) with its text as a quote; each **Appears in** row has its own ▶ that fetches a sample from that transcript on first click. One `Audio` element per page (`makeSamplePlayer()`), one sample at a time, a preview stops at the segment end or after 15 s, and playback stops when the page is left (`_cleanup`). Missing audio shows "Audio unavailable".
-- **Delete** — **Delete speaker…** opens `openConfirmDialog()` with `deleteSpeakerPrompt()` (it says how many segments in how many transcripts become Unassigned) and calls `DELETE /speakers/{id}`. Like *Delete all data*, the button is disabled with the `dataResetBlockReason()` tooltip while a transcription job or live recording runs; the backend answers `409` in that case too.
-
-After a change the sidebar is reloaded so transcript avatars and the editor pick up new names and colors.
-
-Every speaker avatar (sidebar, editor, Speakers section, New speaker dialog) is one component with four size presets: [Speaker avatar](./components/speaker-avatar.md).
-
-### Assigning a speaker in the editor
-
-The speaker picker (`speaker-picker.js`) opens from a segment's speaker name (assigns that segment only) or from a right-panel card's **Assign speaker** (assigns every segment of that speaker in the transcript). Its search filters the named speakers; clicking one or pressing Enter assigns it. The request is built by `speakerAssignRequest()` (`utils.js`): `PATCH /transcripts/{id}/segments/{start}/speaker` for one segment, `POST /transcripts/{id}/reassign` for all.
-
-The footer button **Add new speaker…** (or Enter when nothing matches the search) closes the picker and opens `openNewSpeakerModal()` (`new-speaker-modal.js`):
-
-- **Name** — required (**Add speaker** is disabled while empty), prefilled with the picker search text. A name another speaker already has is allowed and noted under the field (`hasSpeakerNamed()`).
-- **Color** — palette swatches; the default is the color the fewest named speakers use (`leastUsedColorIndex()`). Sent as `color_index` with the name, so the speaker is created with it in one request.
-- **Assign to** — opened from a segment row: a toggle between *This segment* and *All segments of “X”*; opened from a card: a note that all segments of that speaker are assigned.
-
-Enter submits, Escape / backdrop / Cancel close it. A failed request keeps the dialog open and shows the error under the name.
-
-### Editor reload
-
-Every edit in the editor (assigning a speaker, confirming a suggestion, editing or deleting a segment) calls `reload()` in `editor-view.js`, which fetches the transcript, speakers and suggestions again and rebuilds the editor with `buildEditor()`. The rebuild replaces the segment list and the right panel, so `reload()` wraps it in `preserveScroll()` (`utils.js`) to keep the scroll position of `.seg-list` and `.right-content`.
-
-### Unassigned segments in the editor
-
-`effectiveSpeaker()` returns `UNASSIGNED` for a segment with `unassigned: true`. The editor treats it as one group: labelled **Unassigned** in segment rows and the waveform tooltip, excluded from the `Unknown N` numbering and from the header speaker count, and shown in its own right-panel section whose **Assign speaker** reassigns all of them (`POST /transcripts/{id}/reassign` with `from_speaker_id: "UNASSIGNED"`). A single segment is assigned from its speaker-name button as usual.
-
----
-
-## Transcription queue
-
-The backend owns the queue ([Transcription Queue](../../services/TranscriptionQueue.md)); the renderer only shows it and sends commands. The main panel is never replaced by a progress view.
-
-**Connection:** `app._connectQueue()` (in `init()`) opens `WS /ws/queue` and keeps the latest snapshot in `app._queue`. The socket reconnects every 2 s while the backend is away (restart); its first snapshot shows the new state (paused if jobs were left waiting).
-
-**Events** (`app._onQueueEvent()`):
-
-| Event | Renderer |
-|---|---|
-| `snapshot` | `app._queue` = snapshot; `_renderJobQueue()` |
-| `job_done` | Sidebar reloads; toast `✓ title`; no auto-navigation |
-| `job_failed` | Toast `Transcription failed: title` — or, for `alignment_model_missing`, `showAlignmentModal(language)`: one dialog per language (a further failure for that language reuses the open one, after Dismiss the next failure opens it again). The download goes through `model-downloads.js` (one per model; its progress also shows in Settings, and a download started there shows in the dialog). Once the model is installed, **Retry N transcriptions** sends `POST /queue/jobs/{id}/retry` for every job that failed with `alignment_model_missing` for that language, in queue order (`alignmentRetryJobs()`, refreshed on every snapshot); a failed download offers Download again, Cancel stops it and closes the dialog. A model downloaded from Settings retries nothing by itself |
-
-**Sidebar queue section** (`#job-queue`, above the recordings list, hidden while the queue is empty):
-
-- Header: `Queue · N`, the state from `queueStateLabel()` (`Running` in green, `Paused`, `Paused while recording`) and a **Pause** / **Start** button (`queueToggle()` → `POST /queue/pause|start`). Start is allowed during a recording too.
-- One card per job, in queue order:
-
-| Job | Icon | Status line (`jobStatusText()`) | Buttons |
-|---|---|---|---|
-| Running | Spinner | The snapshot's `step` (`Loading models…`, `Transcribing audio…`, …) | × |
-| Waiting | Empty circle | `Waiting`, or `Waiting · queue paused` | Edit, × |
-| Failed | Red `!`, red card | First line of the error (full text in the tooltip); a missing alignment, Whisper or diarization model is named — the Whisper model the job failed on (from the error), even if Edit picked another one since | Edit, Retry (`retry` icon), × |
-
-- **×** opens `openConfirmDialog()` with `deleteJobPrompt()`: an import says the app's copy goes and the original is kept; a live recording says it is deleted for good. Confirm → `DELETE /queue/jobs/{id}` (a running job is stopped first).
-- **Edit** (`edit` icon, every job except the running one — `canEditJob()`) opens `openJobEditModal()` (`views/queue-job-modal.js`): title, Whisper model (models not downloaded are disabled options, "Not installed"; the job's own model stays shown even if deleted, until another is picked) and language (`Detect automatically` = null). `jobEditPatch()` sends only the changed fields (`PATCH /queue/jobs/{id}`); a blank title or one over 200 characters is refused in the dialog, and a server error (e.g. the model is not installed, or the job started meanwhile → 409) keeps the dialog open with the message.
-- **Order:** drag a card onto another (`app._attachJobDrag()`); the upper / lower half of the target decides before / after (`dropPlace()`), `reorderJobIds()` builds the new order and `PUT /queue/order` stores it. The insertion line is a shadow, so no card moves while dragging. Snapshots that arrive during a drag are kept and drawn at `dragend`, because rebuilding the cards would end the drag. Only drags carrying a job id (`application/x-sonorus-job`) are handled; file drops stay with `file-drop.js`.
-- Queue calls go through `app._queueRequest()`: an error becomes a toast.
-
-**Adding jobs:** `app._importFiles(entries, options)` posts `importRequest()` (`POST /queue/jobs`) one file at a time, in order; the card appears with the next snapshot. An entry is a path (titled by `options.title`) or `{ filePath, title }`. Used by the New Recording modal, window drops and a stopped recording.
-
-**Start mode:** Settings → ML Models → **Start transcription** (`Automatically` / `Manually`), stored by the backend (`PUT /queue/settings`), not in `settings.json`.
-
-**Delete all data** is disabled while a job is running ("Pause the transcription queue first."); queued jobs are removed by the reset.
-
----
-
-## Dropping files to transcribe
-
-Audio files dropped on the window go straight to the transcription queue — no modal. `initFileDrop()` (`file-drop.js`) listens on `window` and touches only drags that carry files (`dataTransfer.types` includes `Files`), so text drags keep working. What a drop does is decided by `dropDecision()` (`utils.js`) from `app._fileDropState()`:
-
-| Situation | Result |
-|---|---|
-| Home or editor (`_currentView` `import` / `editor`) | Overlay over `#main-panel` (`.fd-overlay`); on drop every supported file is queued |
-| Settings or Speakers | Ignored: no overlay, drop effect `none` |
-| Any modal open (`.nr-overlay`) | Ignored — the New Recording modal handles its own drop |
-
-A live recording does not block drops: it pauses the queue, so dropped files wait at the end of it.
-
-- Supported types are `SUPPORTED_AUDIO_EXTENSIONS` (`utils.js`, same list as the file dialog filter in `main.js`), checked by `isSupportedAudio()`. Other files are skipped with a toast ("Skipped N unsupported files"); the New Recording modal skips them the same way (`skippedFilesToast()`).
-- Several files are sent one `POST /queue/jobs` at a time by `app._importFiles()` (shared with the modal), in drop order. Each request waits while the backend copies the file into `recordings/`, so a toast ("Importing N files…", `importStartToast()`) is shown right away.
-- Model and language are the defaults (`dropImportOptions()`: the default model after `syncTranscribeModel()`, and `transcribeLang`), sent by `importRequest()`; the title is left `null`, so the backend uses the file name without its extension (the job card shows the same). Without a default model or the diarization model nothing is queued and a toast offers **Open Settings** (see [Model management](#model-management)).
-- A drop that a drop zone below already handled (`defaultPrevented`, i.e. the modal) is skipped, otherwise the modal — already closed by then — would be imported twice.
-- The **New Recording modal** imports several files too: dropped on it, or picked in its file dialog (`openFiles()`). `modalImportItems()` (`utils.js`) keeps the supported files in order and sets the titles: one file keeps a title typed in the modal; the untouched default title, a blank one or several files leave it `null`, so each job gets its file name. The modal's model and language apply to every file; with no supported file the modal stays open.
-- The modal opens with the last known `GET /models` answer and refreshes it in the background ("Checking models…" until the backend has answered once). Whisper models that are not downloaded and languages whose alignment model is not installed are disabled options ("Not installed"); a default language without its model stays selected and blocks Start / Import until another language is picked. Without a default model or the diarization model **Start recording** and **Import** are off, a drop on the modal queues nothing, and a notice links to Settings.
-- `dragover` / `drop` with files are always cancelled, in every view: an unhandled file drop makes Electron open the file in the window.
-- The New Recording modal, like the window, reacts only to drags that carry files: no drop zone for text or links.
-- Linux: drops need the window to run as a native Wayland app in a Wayland session (Electron 38+ default). Under XWayland a file dragged from a Wayland file manager arrives with an empty `dataTransfer` (no `Files`, no paths), so nothing could be queued.
-
----
-
-## Icons
-
-Every UI icon is a file in `electron/assets/icons/`, rendered by `icons.js` as a CSS mask over
-`currentColor`. Usage, file rules and where each icon is used: [Icons](./components/icons.md).
+Drops need the window to run as a native Wayland app in a Wayland session (Electron 38+ default). Under XWayland a file dragged from a Wayland file manager arrives with an empty `dataTransfer` (no `Files`, no paths), so nothing could be imported. What a drop does: [Home](home.md).
 
 ---
 
 ## Security
 
 - `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
-- Only `electronAPI.*` methods are exposed to the renderer
-- CORS in FastAPI is restricted to `null`, `127.0.0.1`, `localhost`, plus `SONORUS_DEV_UI_ORIGIN` in development ([New UI](#new-ui))
+- Only `electronAPI.*` methods are exposed to the page
+- The CSP of `ui/index.html` (see [What the window loads](#what-the-window-loads))
+- CORS in FastAPI is restricted to `null`, `127.0.0.1`, `localhost`, plus `SONORUS_DEV_UI_ORIGIN` in development
 - Media permissions granted only for `permission === 'media'` (microphone)
-- `will-navigate` is cancelled for the main window: the page never navigates itself
+- `will-navigate` is cancelled for the main window: the page never navigates itself, so a file dropped outside a drop zone does not replace the app
 - Spell checking off (`spellcheck: false`, session spell checker disabled with no languages): Chromium downloads no dictionaries from Google — see [Privacy](../../privacy.md)

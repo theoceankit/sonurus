@@ -48,7 +48,7 @@ jobs:
       - name: Check bundled imports
         run: node scripts/check-bundled-imports.js
 
-      - name: Build new UI
+      - name: Build UI
         run: |
           npm --prefix ui ci
           npm run build:ui
@@ -102,7 +102,7 @@ jobs:
       - name: Check bundled imports
         run: node scripts/check-bundled-imports.js
 
-      - name: Build new UI
+      - name: Build UI
         run: |
           npm --prefix ui ci
           npm run build:ui
@@ -151,7 +151,7 @@ jobs:
       - name: Check bundled imports
         run: node scripts/check-bundled-imports.js
 
-      - name: Build new UI
+      - name: Build UI
         run: |
           npm --prefix ui ci
           npm run build:ui

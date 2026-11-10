@@ -1,4 +1,4 @@
-"""The schema in ui/src/api/openapi.json, which the new UI's types come from,
+"""The schema in ui/src/api/openapi.json, which the UI's types come from,
 stays what the code serves."""
 import json
 from pathlib import Path

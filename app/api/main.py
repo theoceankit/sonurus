@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 
 def cors_origins(env=os.environ) -> list[str]:
     origins = ["null", "http://127.0.0.1", "http://localhost"]
-    # npm run dev:ui serves the new UI from the Vite dev server. Never for a
+    # npm run dev:ui serves the UI from the Vite dev server. Never for a
     # packaged backend: any page on that port could then call it.
     dev_origin = env.get("SONORUS_DEV_UI_ORIGIN")
     if dev_origin and env.get("SONORUS_PACKAGED") != "1":

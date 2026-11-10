@@ -19,6 +19,16 @@ test('a file without a setting gets its default', async () => {
   expect(await createSettingsStore(bridge).read()).toEqual({ ...DEFAULT_SETTINGS, scale: 90 })
 })
 
+test('a file written by an older version, with settings no longer used, is read and written as usual', async () => {
+  const old = { ...DEFAULT_SETTINGS, scale: 110, recordingUseMic: false, recordingDiarize: true, recordingSaveAudio: false }
+  const bridge = createMockElectronAPI()
+  await bridge.writeSettings(old as never)
+  const store = createSettingsStore(bridge)
+  expect(await store.read()).toMatchObject({ ...DEFAULT_SETTINGS, scale: 110 })
+  await store.patch({ scale: 120 })
+  expect(await bridge.readSettings()).toMatchObject({ ...DEFAULT_SETTINGS, scale: 120 })
+})
+
 test('a file that cannot be read gives the defaults', async () => {
   const bridge = createMockElectronAPI({ readSettings: async () => { throw new Error('broken') } })
   expect(await createSettingsStore(bridge).read()).toEqual(DEFAULT_SETTINGS)
@@ -28,7 +38,7 @@ test('a change shows at once and goes on top of the file as it is then', async (
   const bridge = createMockElectronAPI()
   const store = createSettingsStore(bridge)
   await store.read()
-  // Written by the old UI or another window in the meantime.
+  // Written by another window in the meantime.
   await bridge.writeSettings({ ...DEFAULT_SETTINGS, hfToken: 'hf_other' })
   const listener = vi.fn()
   store.subscribe(listener)

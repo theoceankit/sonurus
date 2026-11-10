@@ -1,7 +1,7 @@
 'use strict'
 
-// The new UI (ui/) keeps the old UI's security settings when packaged, is part
-// of every build, and leaves its sources and Storybook out of the installers.
+// The UI (ui/) keeps its security settings when packaged, is part of every
+// build, and leaves its sources and Storybook out of the installers.
 
 const test   = require('node:test')
 const assert = require('node:assert/strict')
@@ -16,16 +16,17 @@ const read = (...parts) => fs.readFileSync(path.join(ROOT, ...parts), 'utf8')
 const pkg  = JSON.parse(read('package.json'))
 const csp  = html => html.match(/http-equiv="Content-Security-Policy"\s+content="([^"]+)"/)[1]
 
-// The one difference: the new UI plays audio from the backend, the old one from file://.
-const NEW_UI_CSP = csp(read('electron', 'renderer', 'index.html')).replace("media-src 'self' file: blob:", "media-src 'self' http://localhost:8000 blob:")
+// Only the backend on this machine: requests, its WebSocket and the audio it serves.
+const UI_CSP = "default-src 'self'; connect-src http://localhost:8000 ws://localhost:8000; " +
+  "style-src 'self' 'unsafe-inline'; media-src 'self' http://localhost:8000 blob:; worker-src 'none'"
 
-test('the new UI has the CSP of the old one, with audio from the backend and not from files', () => {
-  assert.equal(csp(read('ui', 'index.html')), NEW_UI_CSP)
-  assert.doesNotMatch(NEW_UI_CSP, /file:/)
+test('the UI talks to the local backend only and plays no files from disk', () => {
+  assert.equal(csp(read('ui', 'index.html')), UI_CSP)
+  assert.doesNotMatch(UI_CSP, /file:/)
 })
 
 test('a build that exists has the same CSP too: the dev server additions stay out', { skip: !fs.existsSync(path.join(ROOT, 'ui', 'dist', 'index.html')) }, () => {
-  assert.equal(csp(read('ui', 'dist', 'index.html')), NEW_UI_CSP)
+  assert.equal(csp(read('ui', 'dist', 'index.html')), UI_CSP)
 })
 
 test('the dev server additions apply to the dev server only', () => {
@@ -61,7 +62,7 @@ test('every component has stories', () => {
   }
 })
 
-test('the new UI sources contain no remote content', () => {
+test('the UI sources contain no remote content', () => {
   const sources = [path.join(ROOT, 'ui', 'index.html')]
   const walk = dir => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -78,7 +79,7 @@ test('the new UI sources contain no remote content', () => {
   }
 })
 
-test('no two modules in the new UI differ only in case', () => {
+test('no two modules in the UI differ only in case', () => {
   // macOS and Windows resolve imports case-insensitively: ./Toast next to toast.ts
   // picks whichever extension the resolver tries first. What git tracks is what a
   // checkout there gets, not what lies in this one (build output, untracked files).
@@ -94,14 +95,26 @@ test('no two modules in the new UI differ only in case', () => {
   assert.deepEqual(clashes, [])
 })
 
-test('only the build of the new UI is packaged', () => {
+test('only the build of the UI is packaged', () => {
   assert.ok(pkg.build.files.includes('ui/dist/**/*'))
   assert.ok(!pkg.build.files.some(f => f === 'ui/**/*' || f === 'ui/**'))
   assert.ok(pkg.build.files.includes('electron/**/*'))
-  assert.equal(pkg.dependencies.react, undefined, 'React is bundled into ui/dist')
+  assert.equal(pkg.dependencies?.react, undefined, 'React is bundled into ui/dist')
 })
 
-test('every build script and CI job builds the new UI first', () => {
+test('the old renderer is gone: electron/ holds the main process alone', () => {
+  for (const gone of ['renderer', path.join('assets', 'icons')]) {
+    assert.ok(!fs.existsSync(path.join(ROOT, 'electron', gone)), `electron/${gone} is back`)
+  }
+})
+
+test('test tools are no runtime dependency, so they stay out of the installers', () => {
+  for (const name of ['playwright', 'playwright-core']) {
+    assert.equal(pkg.dependencies?.[name], undefined, `${name} is in dependencies`)
+  }
+})
+
+test('every build script and CI job builds the UI first', () => {
   for (const name of ['build:mac', 'build:win', 'build:linux', 'build:all']) {
     assert.match(pkg.scripts[name], /npm run build:ui && .*electron-builder/, name)
   }
@@ -114,7 +127,7 @@ test('every build script and CI job builds the new UI first', () => {
   assert.equal(count(/node scripts\/check-packaged-ui\.js dist/g), jobs)
 })
 
-test('CI runs the type check and the unit tests of the new UI', () => {
+test('CI runs the type check and the unit tests of the UI', () => {
   const workflow = read('.github', 'workflows', 'tests.yml')
   assert.match(workflow, /npm --prefix ui ci/)
   assert.match(workflow, /npm --prefix ui run typecheck/)
@@ -139,7 +152,7 @@ test('the type of the Electron bridge lists what the preload script exposes', ()
   assert.deepEqual(declared, exposed)
 })
 
-test('the new UI has the default settings of the main process', () => {
+test('the UI has the default settings of the main process', () => {
   const literal = (text, pattern) => new Function(`return {${text.match(pattern)[1]}}`)()
   const main = literal(read('electron', 'main.js'), /const DEFAULT_SETTINGS = \{([\s\S]*?)\n\}/)
   const ui = literal(read('ui', 'src', 'platform', 'settings.ts'), /export const DEFAULT_SETTINGS: ElectronSettings = \{([\s\S]*?)\n\}/)
@@ -160,6 +173,13 @@ test('the archive check accepts the build alone', () => {
 
 test('the archive check reports a missing build', () => {
   assert.deepEqual(packagedUiProblems(['/package.json', '/electron/main.js']), ['missing: /ui/dist/index.html'])
+})
+
+test('the archive check reports the old renderer and its icons', () => {
+  for (const file of ['/electron/renderer/index.html', '/electron/assets/icons/play.svg']) {
+    assert.deepEqual(packagedUiProblems(['/ui/dist/index.html', file]), [`must not be packaged: ${file}`])
+  }
+  assert.deepEqual(packagedUiProblems(['/ui/dist/index.html', '/electron/assets/icon.png']), [])
 })
 
 test('the archive check reports sources and Storybook', () => {

@@ -57,4 +57,4 @@ spell checker disabled and no languages. With a language set, Chromium on Window
 Hunspell dictionaries from Google (`redirector.gvt1.com`) at start-up; an empty language list is what
 stops that download. macOS uses the system spell checker and downloads nothing.
 
-`tests/renderer/no-third-party-requests.test.js` covers this.
+`tests/electron/no-third-party-requests.test.js` covers this.

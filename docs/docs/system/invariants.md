@@ -98,7 +98,7 @@ A speaker is **RECOGNIZED** if and only if they have a display name entry in `sp
 
 The display name is **never** stored as the speaker ID. All IDs in `speaker_embeddings` and `segments.speaker_id` are UUID4 strings (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
 
-**In the UI:** `isUnrecognized(spkId, knownMap)` in `utils.js` — `knownMap` is built from the named rows of `GET /speakers` (`buildKnownMap()` skips `name: null`). A speaker is unrecognized if absent from `knownMap`, if their ID starts with `SPEAKER_`, or for the `UNASSIGNED` pseudo-id.
+**In the UI:** a speaker is unrecognized when `GET /speakers` has no row with a name for their id (`namedSpeaker()` in `ui/src/screens/Editor/transcript.ts`; `stackSpeakers()` in `recordings.ts` for the sidebar), which also covers a raw `SPEAKER_XX` label. Such speakers are numbered Unknown speaker N in order of first appearance; the `UNASSIGNED` pseudo-id is shown as Unassigned and takes no number.
 
 **Why:** Decoupling identity (UUID) from display name means renaming a speaker only updates `speaker_names` without touching segment data or embeddings. Display names are not unique: two different people named "Alice" coexist as two UUIDs, and assigning segments to a new name always creates a new UUID. The UI marks speakers that share a name and shows their usage to tell them apart.
 

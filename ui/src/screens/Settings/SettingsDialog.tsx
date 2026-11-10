@@ -40,7 +40,7 @@ const PANELS: Record<SettingsSection, ComponentType> = {
   data: DataSection,
 }
 
-// macOS has no GPU acceleration: no section for it, as the old UI hid its card.
+// macOS has no GPU acceleration: no section for it.
 function useGpuHidden() {
   const [platform, setPlatform] = useState<string | null>(null)
   const { state } = useGpu()

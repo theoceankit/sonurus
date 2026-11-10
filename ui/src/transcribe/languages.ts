@@ -1,6 +1,6 @@
 // The languages a transcription can be asked for, and the alignment models some of
 // them need. GET /models gives alignment models only an id and whether they are
-// installed, so their names and sizes are kept here, as in the old UI's data.js.
+// installed, so their names and sizes are kept here.
 
 export type Language = { code: string; label: string; sub: string }
 

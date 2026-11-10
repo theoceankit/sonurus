@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ResponseModel(BaseModel):
     """A field with a default is still always in the response, so the schema
-    the new UI's types come from lists it as required."""
+    the UI's types come from lists it as required."""
     model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
 
@@ -24,7 +24,7 @@ class TranscriptListItem(BaseModel):
     title: str
     created_at: str
     status: str
-    # False until the user opens the transcript: the new UI marks it as new.
+    # False until the user opens the transcript: the UI marks it as new.
     opened: bool
     speakers: list[str]
     section: str

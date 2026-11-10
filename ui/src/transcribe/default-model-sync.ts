@@ -5,7 +5,7 @@ import { toast } from '../components/Toast/toast-store'
 import { settingsStore } from '../platform/settings'
 import { defaultModelChange, defaultModelMessage } from './models'
 
-// As syncTranscribeModel in the old UI: every new answer of GET /models works the
+// Every new answer of GET /models works the
 // default model out again, so "the first model downloaded" and "the default was
 // deleted" are the same step. A change is saved with its history and said in a toast.
 // The app's root calls it once; its first answer is the baseline.
