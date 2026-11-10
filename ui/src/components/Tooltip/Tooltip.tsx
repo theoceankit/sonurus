@@ -106,7 +106,7 @@ function replace(shown: Shown): From {
 
 let returning: Element | null = null
 
-// Focus given back to a control, as a window does on closing, shows no tooltip: the
+// Focus given back to a control, as a window or a menu does on closing, shows no tooltip: the
 // person did not come to the control, and the tooltip would stay with no pointer on
 // it until focus moves on. Coming to it from the keyboard again shows it as always.
 export function returnFocus(element: HTMLElement) {
@@ -116,6 +116,15 @@ export function returnFocus(element: HTMLElement) {
   } finally {
     returning = null
   }
+}
+
+// The same for focus that Radix gives back right after this, as a menu does to its
+// button on closing.
+export function markFocusGivenBack(element: Element) {
+  returning = element
+  queueMicrotask(() => {
+    if (returning === element) returning = null
+  })
 }
 
 // What is left goes to the trigger, so a menu can open from a control with a tooltip.

@@ -229,7 +229,7 @@ The topmost layer takes Escape, except a toast: with a modal open, Escape closes
 
 ### Tooltip
 
-`placement` is `above`, `below` or `none`, which has no arrow and shows above. Without room on the chosen side it takes the other one. A pointer waits 300 ms (`--delay-tooltip`), the next tooltip within 300 ms (`--delay-tooltip-skip`) shows at once, and keyboard focus shows it at once. Focus given back to a control, as a modal does on closing, shows no tooltip: the pointer is no longer on the control, so the tooltip would stay until focus moves on. Coming back to the control with Tab shows it as always. The text is a string. Other props go to the trigger, so a menu can open from a control with a tooltip.
+`placement` is `above`, `below` or `none`, which has no arrow and shows above. Without room on the chosen side it takes the other one. A pointer waits 300 ms (`--delay-tooltip`), the next tooltip within 300 ms (`--delay-tooltip-skip`) shows at once, and keyboard focus shows it at once. Focus given back to a control, as a modal or a menu does on closing, shows no tooltip: the pointer is no longer on the control, so the tooltip would stay until focus moves on. Coming back to the control with Tab shows it as always. The text is a string. Other props go to the trigger, so a menu can open from a control with a tooltip.
 
 #### Neighbours share one tooltip
 

@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
 import { Button } from '../Button/Button'
+import { Menu, MenuAction } from '../Menu/Menu'
 import { Tooltip, TooltipGroup, type TooltipPlacement } from './Tooltip'
 
 afterEach(() => { vi.useRealTimers() })
@@ -49,6 +50,42 @@ test('Escape hides it', async () => {
   await userEvent.tab()
   await userEvent.keyboard('{Escape}')
   expect(screen.queryByRole('tooltip')).toBeNull()
+})
+
+describe('focus a menu gives back to its button', () => {
+  const withMenu = () => render(
+    <OverlayProvider>
+      <Menu trigger={<Tooltip text="More actions"><Button>More</Button></Tooltip>}>
+        <MenuAction>Rename</MenuAction>
+      </Menu>
+      <Button>Elsewhere</Button>
+    </OverlayProvider>,
+  )
+  const more = () => screen.getByRole('button', { name: 'More' })
+  const shown = () => screen.queryByRole('tooltip', { hidden: true })?.textContent ?? null
+
+  test.each([
+    ['Escape', () => userEvent.keyboard('{Escape}')],
+    ['an item', () => userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))],
+  ])('shows no tooltip after %s', async (_, close) => {
+    withMenu()
+    await userEvent.click(more())
+    await close()
+    await waitFor(() => expect(document.activeElement).toBe(more()))
+    await act(() => new Promise(resolve => setTimeout(resolve, 0)))
+    expect(shown()).toBeNull()
+  })
+
+  test('keyboard focus on it afterwards shows the tooltip', async () => {
+    withMenu()
+    await userEvent.click(more())
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(document.activeElement).toBe(more()))
+    await userEvent.tab()
+    await userEvent.tab({ shift: true })
+    expect(document.activeElement).toBe(more())
+    expect(shown()).toBe('More actions')
+  })
 })
 
 test.each([
