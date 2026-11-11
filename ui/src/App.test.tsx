@@ -27,7 +27,7 @@ test('a finished job is a toast whose Open opens the recording; the queue shows 
   act(() => { client.playEvents({ ...EVENT_SCRIPTS.transcribing, steps: EVENT_SCRIPTS.transcribing.steps.map(s => ({ ...s, afterMs: 10 })) }) })
   const queue = await screen.findByRole('region', { name: 'Transcription queue' })
   expect(within(queue).getByRole('button', { name: /Planning call$/ })).toBeTruthy()
-  const open = await screen.findByRole('button', { name: 'Open' }, { timeout: 10_000 })
+  const open = await screen.findByRole('button', { name: 'Open' })
   expect(screen.getAllByText('"Planning call" is ready').length).toBeGreaterThan(0)
   await waitFor(() => expect(screen.queryByRole('region', { name: 'Transcription queue' })).toBeNull())
   await userEvent.click(open)
@@ -35,7 +35,7 @@ test('a finished job is a toast whose Open opens the recording; the queue shows 
     const current = screen.getAllByRole('button').filter(button => button.getAttribute('aria-current') === 'true')
     expect(current.map(button => button.textContent).join()).toMatch(/^Planning call/)
   })
-}, 15_000) // The whole app, through a job's every step: slow under the full suite.
+})
 
 test('the toast of a finished job goes once its recording is no longer in the list', async () => {
   const client = createFixtureClient()
@@ -97,4 +97,4 @@ test('a job picked in the queue takes the centre; a recording picked in the list
   await within(centre).findByRole('heading', { name: 'Old call' })
   act(() => { client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot() }] }) })
   await waitFor(() => expect(within(centre).queryByRole('heading', { name: 'Old call' })).toBeNull())
-}, 15_000)
+})
