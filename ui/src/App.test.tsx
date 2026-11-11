@@ -27,7 +27,9 @@ test('a finished job is a toast whose Open opens the recording; the queue shows 
   act(() => { client.playEvents({ ...EVENT_SCRIPTS.transcribing, steps: EVENT_SCRIPTS.transcribing.steps.map(s => ({ ...s, afterMs: 10 })) }) })
   const queue = await screen.findByRole('region', { name: 'Transcription queue' })
   expect(within(queue).getByRole('button', { name: /Planning call$/ })).toBeTruthy()
-  const open = await screen.findByRole('button', { name: 'Open' })
+  // The whole app through every step of a job: 2 s alone, and under the full
+  // suite the toast comes later than the default second of findByRole.
+  const open = await screen.findByRole('button', { name: 'Open' }, { timeout: 5_000 })
   expect(screen.getAllByText('"Planning call" is ready').length).toBeGreaterThan(0)
   await waitFor(() => expect(screen.queryByRole('region', { name: 'Transcription queue' })).toBeNull())
   await userEvent.click(open)

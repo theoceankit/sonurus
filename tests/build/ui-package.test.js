@@ -189,3 +189,25 @@ test('the archive check reports sources and Storybook', () => {
     assert.deepEqual(packagedUiProblems(['/ui/dist/index.html', file]), [`must not be packaged: ${file}`])
   }
 })
+
+// CI installs only ui/ before it checks the UI's types. Locally tsc also finds
+// @types/node in the root node_modules, so a missing one passes there and fails
+// on CI.
+test('the UI brings its own Node types for what it imports from node:', () => {
+  const files = []
+  const walk = dir => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name)
+      if (e.isDirectory()) walk(p)
+      else if (/\.(ts|tsx|mts)$/.test(e.name)) files.push(p)
+    }
+  }
+  walk(path.join(ROOT, 'ui', 'src'))
+  walk(path.join(ROOT, 'ui', '.storybook'))
+  files.push(path.join(ROOT, 'ui', 'vite.config.ts'))
+  const importers = files.filter(f => /from ['"]node:/.test(fs.readFileSync(f, 'utf8')))
+  if (importers.length === 0) return
+  const ui = JSON.parse(read('ui', 'package.json'))
+  assert.ok(ui.devDependencies && ui.devDependencies['@types/node'],
+    `ui/package.json has no @types/node, needed by ${importers.map(f => path.relative(ROOT, f)).join(', ')}`)
+})
