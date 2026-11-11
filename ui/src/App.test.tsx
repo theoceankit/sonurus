@@ -37,7 +37,7 @@ test('a finished job is a toast whose Open opens the recording; the queue shows 
     const current = screen.getAllByRole('button').filter(button => button.getAttribute('aria-current') === 'true')
     expect(current.map(button => button.textContent).join()).toMatch(/^Planning call/)
   })
-})
+}, 15_000) // On two CI cores the whole test runs past the default 5 s.
 
 test('the toast of a finished job goes once its recording is no longer in the list', async () => {
   const client = createFixtureClient()
