@@ -1,8 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
-import { queryKeys, useSpeakers, useTranscripts } from '../../api/queries'
-import { Sidebar, type SidebarSection } from '../../components/Sidebar/Sidebar'
+import { queryKeys, useSetOpened, useSpeakers, useTranscripts, useUpdateTranscriptTitle } from '../../api/queries'
+import { MenuAction, MenuDivider } from '../../components/Menu/Menu'
+import { Sidebar, type SidebarRecording, type SidebarSection } from '../../components/Sidebar/Sidebar'
+import { toast } from '../../components/Toast/toast-store'
+import { markNotImplemented } from '../../not-implemented'
 import { Titlebar } from '../../components/Titlebar/Titlebar'
 import { prefersReducedMotion, useLingering } from '../../presence'
 import { cx } from '../../styles/cx'
@@ -24,6 +27,7 @@ import { InspectorPanel } from './InspectorPanel'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
 import { goneFromList, groupRecordings, stackSpeakers } from './recordings'
 import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
+import { titleToSave } from './transcript'
 import { TranscriptPanel, type SpeakerMenuTarget } from './TranscriptPanel'
 import { useSpeakerChange } from './useSpeakerChange'
 import styles from './EditorScreen.module.css'
@@ -93,6 +97,33 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   const [highlight] = useState(() => createKeyStore<string | null>(initialHighlight ?? null))
   const speakerDialog = useLingering(speakerRequest)
   const deleteDialog = useLingering(toDelete)
+  const [renamingId, setRenamingId] = useState<number | null>(null)
+  const { mutate: rename } = useUpdateTranscriptTitle()
+  const { mutate: setOpened } = useSetOpened()
+
+  // The menu of a recording in the sidebar. A right click does not open it.
+  const rowMenu = useCallback(({ id, title, isNew }: SidebarRecording) => (
+    <>
+      <MenuAction icon="edit" onSelect={() => setRenamingId(id)}>Rename</MenuAction>
+      <MenuAction
+        icon="eye"
+        onSelect={() => setOpened({ transcriptId: id, opened: isNew }, {
+          onError: error => toast({ message: `Could not mark as ${isNew ? 'read' : 'unread'}: ${error.message}`, type: 'error' }),
+        })}
+      >
+        {isNew ? 'Mark as read' : 'Mark as unread'}
+      </MenuAction>
+      <MenuAction icon="pin" {...markNotImplemented('sidebar.pin')}>Pin</MenuAction>
+      <MenuDivider />
+      <MenuAction icon="delete" onSelect={() => setToDelete({ id, title })}>Delete recording</MenuAction>
+    </>
+  ), [setOpened])
+  const renameDone = (id: number, typed: string | null) => {
+    setRenamingId(null)
+    const current = transcripts.data?.find(item => item.id === id)?.title ?? ''
+    const next = typed === null ? null : titleToSave(typed, current)
+    if (next) rename({ transcriptId: id, title: next }, { onError: error => toast({ message: `Failed to rename: ${error.message}`, type: 'error' }) })
+  }
   const { change: changeSpeaker } = useSpeakerChange()
   const latestChange = useRef(changeSpeaker)
   latestChange.current = changeSpeaker
@@ -218,6 +249,9 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
                 setJobId(null)
                 setSelectedId(id)
               }}
+              rowMenu={rowMenu}
+              renamingId={renamingId}
+              onRenameDone={renameDone}
               top={<><LiveRecordingSection /><QueueSection selectedJobId={jobId} onSelectJob={setJobId} /></>}
               onRetry={() => {
                 if (transcripts.isError) transcripts.refetch()
@@ -274,7 +308,8 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
           key={deleteDialog.key}
           recording={deleteDialog.value}
           open={deleteDialog.open}
-          onDeleted={() => setSelectedId(null)}
+          // Another recording than the open one leaves it open.
+          onDeleted={() => setSelectedId(current => (current === deleteDialog.value!.id ? null : current))}
           onClose={() => setToDelete(null)}
           onExited={deleteDialog.exited}
         />

@@ -51,7 +51,7 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `undoSpeakerAssignment({ transcriptId, segmentStarts, speakerId, createdSpeakerId })` puts segments back under the speaker they had before an assignment. `createdSpeakerId` names a speaker the assignment made, who goes with nothing left. See `POST /transcripts/{id}/speaker-assignments/undo` in the [API](../../api/endpoints.md).
 
-`markTranscriptOpened(id)` tells the backend the user has opened a recording, so it is no longer new in the sidebar (`opened` in the list). Loading it with `getTranscript` does not.
+`markTranscriptOpened(id)` tells the backend the user has opened a recording, so it is no longer new in the sidebar (`opened` in the list). Loading it with `getTranscript` does not. `markTranscriptUnopened(id)` makes it new again, for Mark as unread.
 
 `addQueueJob({ audioPath, whisperModel, language, title })` puts a file into the transcription queue: `POST /queue/jobs`. The backend copies the file into `recordings/` and answers the waiting job; with no title it is named after the file. A null model or language is the backend's own: its default model, and the language detected from the audio. A model the job needs that is not installed, or a file it cannot read, is a 400 whose message says what is wrong; for a missing model it ends with "Download it in Settings.".
 
@@ -97,7 +97,9 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 
 `queries.ts` has one hook per read and per change. A change refreshes what it affects. Queries do not retry and do not refetch on window focus: the backend is local, and data changes only through this app and the queue events.
 
-`useMarkOpened(id, loaded)` is called by `TranscriptPanel`. Once the recording has loaded and the list says it is not opened, it sets `opened` in the list at once and calls `markTranscriptOpened`, then refreshes the list only, not the recording. A failure says nothing: the next list brings the dot back. It asks once per opening, because after a failure the list says not opened again and it would ask forever.
+`useMarkOpened(id, loaded)` is called by `TranscriptPanel`. Once the recording has loaded and the list says it is not opened, it sets `opened` in the list at once and calls `markTranscriptOpened`, then refreshes the list only, not the recording. A failure says nothing: the next list brings the dot back. It asks once per opening, because after a failure the list says not opened again and it would ask forever; a recording opened before counts as asked, so one marked unread while open keeps its dot.
+
+`useSetOpened()` is Mark as read and Mark as unread in the [menu of a recording](overview.md#menu-of-a-recording): it sets `opened` in the list at once, calls `markTranscriptOpened` or `markTranscriptUnopened`, puts the list back if that fails, and then refreshes the list only.
 
 `useModels()` reads the catalog and asks again every time a screen that uses it mounts, as models are downloaded and deleted elsewhere (Settings, the Alignment model dialog).
 

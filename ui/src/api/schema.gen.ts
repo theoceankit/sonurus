@@ -618,7 +618,12 @@ export interface paths {
          *     leaves it alone, so repeated loads do not set it.
          */
         post: operations["mark_transcript_opened_transcripts__transcript_id__opened_post"];
-        delete?: never;
+        /**
+         * Mark Transcript Unopened
+         * @description The user marked the transcript unread: it is listed as not opened until
+         *     POST /transcripts/{id}/opened. Only this flag changes.
+         */
+        delete: operations["mark_transcript_unopened_transcripts__transcript_id__opened_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2323,6 +2328,35 @@ export interface operations {
         };
     };
     mark_transcript_opened_transcripts__transcript_id__opened_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_transcript_unopened_transcripts__transcript_id__opened_delete: {
         parameters: {
             query?: never;
             header?: never;

@@ -1178,6 +1178,38 @@ def test_post_opened_leaves_speaker_memory_and_segments_alone(client, monkeypatc
     assert client.get(f"/transcripts/{db_id}").json() == before
 
 
+def test_delete_opened_marks_the_transcript_not_opened_and_can_repeat(client):
+    db_id = _saved_id(client)
+    other = _saved_id(client)
+    client.post(f"/transcripts/{db_id}/opened")
+    client.post(f"/transcripts/{other}/opened")
+
+    assert client.delete(f"/transcripts/{db_id}/opened").status_code == 204
+    assert client.delete(f"/transcripts/{db_id}/opened").status_code == 204
+
+    listed = {row["id"]: row for row in client.get("/transcripts").json()}
+    assert listed[db_id]["opened"] is False
+    assert listed[other]["opened"] is True
+
+
+def test_delete_opened_unknown_id_returns_404(client):
+    assert client.delete("/transcripts/999/opened").status_code == 404
+
+
+def test_delete_opened_leaves_speaker_memory_and_segments_alone(client, monkeypatch):
+    db_id = _saved_id(client)
+    client.post(f"/transcripts/{db_id}/opened")
+    before = client.get(f"/transcripts/{db_id}").json()
+
+    def no_write(*args, **kwargs):
+        raise AssertionError("marking a transcript not opened must not write speaker memory")
+    monkeypatch.setattr(SpeakerMemoryService, "save", no_write)
+    monkeypatch.setattr(SpeakerMemoryService, "update_embedding", no_write)
+
+    assert client.delete(f"/transcripts/{db_id}/opened").status_code == 204
+    assert client.get(f"/transcripts/{db_id}").json() == before
+
+
 
 def test_delete_transcript_removes_its_imported_copy(client, recordings_dir, tmp_path):
     original = tmp_path / "imported" / "interview.wav"

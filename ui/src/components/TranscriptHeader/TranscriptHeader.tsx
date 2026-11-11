@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type ComponentPropsWithRef } from 'react'
+import { useRef, useState, type ComponentPropsWithRef } from 'react'
 import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
 import { Icon } from '../Icon/Icon'
 import { IconButton, type IconButtonProps } from '../IconButton/IconButton'
 import { Menu, MenuAction } from '../Menu/Menu'
 import { MetaItem } from '../MetaItem/MetaItem'
+import { TitleField } from '../TitleField/TitleField'
 import { Tooltip, TooltipGroup } from '../Tooltip/Tooltip'
 import styles from './TranscriptHeader.module.css'
 
@@ -78,6 +79,8 @@ export function TranscriptHeader({ title, date, language, sticky, onRename, onDe
         {renaming && (
           <TitleField
             title={title}
+            label="Transcript title"
+            className={styles.input}
             onDone={next => {
               if (next !== null) onRename?.(next)
               stopRenaming()
@@ -92,42 +95,5 @@ export function TranscriptHeader({ title, date, language, sticky, onRename, onDe
         </div>
       )}
     </header>
-  )
-}
-
-function TitleField({ title, onDone }: { title: string; onDone: (next: string | null) => void }) {
-  const [value, setValue] = useState(title)
-  const input = useRef<HTMLInputElement>(null)
-  // Taking the field away moves the focus, and that must not finish twice.
-  const finished = useRef(false)
-
-  useEffect(() => { input.current!.select() }, [])
-
-  const finish = (next: string | null) => {
-    if (finished.current) return
-    finished.current = true
-    onDone(next)
-  }
-
-  return (
-    <input
-      ref={input}
-      autoFocus
-      aria-label="Transcript title"
-      maxLength={200}
-      className={styles.input}
-      value={value}
-      onChange={event => setValue(event.target.value)}
-      onBlur={() => finish(value)}
-      onKeyDown={event => {
-        if (event.key === 'Enter') {
-          event.preventDefault()
-          finish(value)
-        } else if (event.key === 'Escape') {
-          event.preventDefault()
-          finish(null)
-        }
-      }}
-    />
   )
 }

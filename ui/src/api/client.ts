@@ -50,6 +50,8 @@ export interface ApiClient {
   updateTranscriptTitle(transcriptId: number, title: string): Promise<void>
   // The recording is no longer new. Loading it does not do this.
   markTranscriptOpened(transcriptId: number): Promise<void>
+  // Mark as unread: listed as not opened until markTranscriptOpened.
+  markTranscriptUnopened(transcriptId: number): Promise<void>
   deleteTranscript(transcriptId: number): Promise<void>
   updateSegmentText(transcriptId: number, segmentStart: number, text: string): Promise<void>
   deleteSegment(transcriptId: number, segmentStart: number): Promise<void>

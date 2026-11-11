@@ -23,7 +23,7 @@ const MANY: StackSpeaker[] = [...SPEAKERS, { id: 'lena', name: 'Lena Kovacs', co
 
 const STATES = ['Default', 'Hover', 'Focus'] as const
 
-const row = (label: string, props: { isNew?: boolean; selected?: boolean }) => ({
+const row = (label: string, props: { isNew?: boolean; selected?: boolean; menuOpen?: boolean }) => ({
   label,
   render: () => <div className={styles.column}><RecordingRow title="Weekly product sync" speakers={SPEAKERS} {...props} /></div>,
 })
@@ -38,6 +38,8 @@ export const Matrix: Story = {
         row('None Selected', { selected: true }),
         row('New', { isNew: true }),
         row('New Selected', { isNew: true, selected: true }),
+        row('Menu open', { menuOpen: true }),
+        row('Menu open Selected', { menuOpen: true, selected: true }),
       ]}
     />
   ),
@@ -52,6 +54,17 @@ export const Contents: Story = {
       <RecordingRow title="One speaker" speakers={SPEAKERS.slice(0, 1)} />
       <RecordingRow title="More than three" speakers={MANY} />
       <RecordingRow title="A title long enough that it has to be cut at the end of the row" speakers={MANY} isNew />
+    </Stack>
+  ),
+}
+
+// Renamed from the menu of the row: Enter or leaving the field saves, Escape cancels.
+export const Renaming: Story = {
+  render: () => (
+    <Stack gap="half" align="stretch">
+      <RecordingRow title="Renamed in its row" speakers={SPEAKERS} renaming />
+      <RecordingRow title="Selected while renamed" speakers={SPEAKERS} isNew selected renaming />
+      <RecordingRow title="A title long enough that it has to scroll inside the field" speakers={MANY} renaming />
     </Stack>
   ),
 }

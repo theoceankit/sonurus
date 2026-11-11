@@ -5,7 +5,7 @@ import { notImplementedProps, NOT_IMPLEMENTED_TOAST } from '../../not-implemente
 import { OverlayProvider } from '../../OverlayProvider'
 import { Button } from '../Button/Button'
 import { dismissAllToasts } from '../Toast/toast-store'
-import { Menu, MenuAction, MenuDivider, MenuOption, MenuOptions, MenuSection, MenuSurface } from './Menu'
+import { ContextMenu, Menu, MenuAction, MenuDivider, MenuOption, MenuOptions, MenuSection, MenuSurface } from './Menu'
 import css from './Menu.module.css?raw'
 
 afterEach(() => act(() => dismissAllToasts()))
@@ -137,4 +137,60 @@ test('the focus ring shows only after the keyboard', async () => {
 test('the surface stands alone', () => {
   render(<MenuSurface data-testid="surface">Content</MenuSurface>)
   expect(screen.getByTestId('surface').className).toContain('surface')
+})
+
+// ── Context menu ──────────────────────────────────────────────────────────────
+
+const contextMenu = (onSelect = () => {}, onOpenChange = () => {}) => render(
+  <OverlayProvider>
+    <ContextMenu
+      onOpenChange={onOpenChange}
+      content={<>
+        <MenuAction onSelect={onSelect}>Rename</MenuAction>
+        <MenuDivider />
+        <MenuAction onSelect={onSelect} {...notImplementedProps('segment.bookmark')}>Bookmark</MenuAction>
+      </>}
+    >
+      <Button>Target</Button>
+    </ContextMenu>
+  </OverlayProvider>,
+)
+const target = () => screen.getByRole('button', { name: 'Target' })
+
+test('a context menu opens on the contextmenu event of its target, not on a click', async () => {
+  const onOpenChange = vi.fn()
+  contextMenu(undefined, onOpenChange)
+  await userEvent.click(target())
+  expect(screen.queryByRole('menu')).toBeNull()
+  fireEvent.contextMenu(target(), { clientX: 40, clientY: 20 })
+  expect(screen.getByRole('menu')).toBeTruthy()
+  expect(onOpenChange).toHaveBeenLastCalledWith(true)
+  expect(screen.getByRole('separator')).toBeTruthy()
+})
+
+test('an item of a context menu selects and closes it', async () => {
+  const onSelect = vi.fn()
+  contextMenu(onSelect)
+  fireEvent.contextMenu(target())
+  await userEvent.click(item('Rename'))
+  expect(onSelect).toHaveBeenCalledTimes(1)
+  expect(screen.queryByRole('menu')).toBeNull()
+})
+
+test('a context menu takes the keyboard and Escape closes it', async () => {
+  contextMenu()
+  fireEvent.contextMenu(target())
+  await userEvent.keyboard('{ArrowDown}')
+  expect(document.activeElement).toBe(item('Rename'))
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('menu')).toBeNull()
+})
+
+test('a marked item of a context menu only shows the toast', async () => {
+  const onSelect = vi.fn()
+  contextMenu(onSelect)
+  fireEvent.contextMenu(target())
+  await userEvent.click(item('Bookmark'))
+  expect(onSelect).not.toHaveBeenCalled()
+  expect(screen.getByRole('menu')).toBeTruthy()
 })

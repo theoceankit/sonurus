@@ -89,6 +89,14 @@ class TranscriptStorageService:
             ).rowcount
         return bool(updated)
 
+    def mark_unopened(self, db_id: int) -> bool:
+        """Mark the transcript as not opened yet, as the user asked. Returns False if it does not exist."""
+        with self._connect() as conn:
+            updated = conn.execute(
+                "UPDATE transcriptions SET opened = 0 WHERE id = ?", (db_id,)
+            ).rowcount
+        return bool(updated)
+
     def update_segment_text(self, db_id: int, start: float, end: float, new_text: str) -> None:
         with self._connect() as conn:
             conn.execute(

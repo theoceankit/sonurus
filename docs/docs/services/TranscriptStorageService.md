@@ -125,6 +125,12 @@ Sets `transcriptions.opened`. Returns `False` if no transcript has that id. Feed
 
 ---
 
+### `mark_unopened(db_id) → bool`
+
+Clears `transcriptions.opened`, so the transcript is listed as new again. Returns `False` if no transcript has that id. Feeds `DELETE /transcripts/{id}/opened`.
+
+---
+
 ### `update_segment_text(db_id, start, end, new_text)`
 
 Updates the text for a single segment identified by its time range.

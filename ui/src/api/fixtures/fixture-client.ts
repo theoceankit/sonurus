@@ -334,6 +334,11 @@ export function createFixtureClient({
       const item = listItem(id)
       if (item) item.opened = true
     }),
+    markTranscriptUnopened: id => answer(() => {
+      transcript(id)
+      const item = listItem(id)
+      if (item) item.opened = false
+    }),
     deleteTranscript: id => answer(() => {
       transcript(id)
       data.details = data.details.filter(t => t.id !== id)

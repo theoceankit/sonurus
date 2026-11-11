@@ -263,6 +263,17 @@ def mark_transcript_opened(
         raise HTTPException(status_code=404, detail="Transcript not found")
 
 
+@router.delete("/{transcript_id}/opened", status_code=204)
+def mark_transcript_unopened(
+    transcript_id: int,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """The user marked the transcript unread: it is listed as not opened until
+    POST /transcripts/{id}/opened. Only this flag changes."""
+    if not storage.mark_unopened(transcript_id):
+        raise HTTPException(status_code=404, detail="Transcript not found")
+
+
 @router.delete("/{transcript_id}", status_code=204)
 def delete_transcript(
     transcript_id: int,

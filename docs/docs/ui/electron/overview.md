@@ -72,6 +72,15 @@ The width is that of the screen, so a story can show any size. A panel the user 
 
 `Sidebar` shows the recordings in the sections Pinned, This week and Earlier, worked out on the client in `recordings.ts` rather than taken from `section` of the API: This week is today and the seven calendar days before it, and a section with nothing in it is left out. The API has no pinned recordings yet, so in the app the section does not appear; `EditorScreen` takes them as a prop, and the story Screens / Editor / Board uses it to match the design. A recording the user has not opened yet shows a dot, labelled New (`opened` of the API). A speaker with no name shows as the unknown avatar in the row, not as the dot. Rows show three avatars at most, with no count of the others. The list has no scrollbar: it would narrow the rows, and the fade at the bottom says there is more. Above the recordings stand the live recording ([Live recording](live-recording.md)) and the transcription queue ([Transcription](transcribe.md)).
 
+### Menu of a recording
+
+A right click on a row, or the Menu key or Shift+F10 on a focused one, opens its menu (`ContextMenu`, [Foundations](foundations.md#menu)); it does not open the recording. While the menu is open the row looks as under the pointer. There is no More button in the row: the avatars keep their place. `Sidebar` takes the items as `rowMenu` and the row being renamed as `renamingId`; `EditorScreen` puts in:
+
+- **Rename.** The title becomes a field in the row (`TitleField`, shared with the [transcript header](transcript.md)), with the text selected; the dot and the avatars stay. Enter and leaving the field save, Escape cancels, and the focus goes back to the row. As in the header the title is trimmed, and a blank or unchanged one is not sent; the new title shows at once in the list and in the header of the open recording, and goes back with a toast if the request fails.
+- **Mark as unread**, or **Mark as read** on a recording with the dot. The dot changes at once (`useSetOpened()`: `DELETE` or `POST /transcripts/{id}/opened`) and comes back as it was, with a toast, if the request fails. On the open recording the dot stays until it is opened again: `useMarkOpened` asks once per opening, also for one that was opened before.
+- **Pin**, not available yet.
+- **Delete recording**, below a divider. The same `DeleteRecordingDialog` as in the header: deleting the open recording does what it does there ([Home](home.md#which-recording-is-open)); deleting another one leaves the open one.
+
 ---
 
 ## Backend lifecycle

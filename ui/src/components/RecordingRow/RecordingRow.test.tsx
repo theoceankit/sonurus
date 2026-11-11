@@ -48,3 +48,31 @@ test('a recording without speakers has no stack', () => {
   render(<RecordingRow title="A" />)
   expect(screen.getByRole('button').querySelector('[class*="stack"]')).toBeNull()
 })
+
+test('a row whose menu is open looks as under the pointer', () => {
+  const { rerender } = render(<RecordingRow title="A" />)
+  expect(screen.getByRole('button').className).not.toMatch(/menuOpen/)
+  rerender(<RecordingRow title="A" menuOpen />)
+  expect(screen.getByRole('button').className).toMatch(/menuOpen/)
+})
+
+test('renaming puts a field with the title in place of the row button', async () => {
+  const onRenameDone = vi.fn()
+  render(<RecordingRow title="Weekly sync" isNew speakers={speakers} renaming onRenameDone={onRenameDone} />)
+  expect(screen.queryByRole('button')).toBeNull()
+  const field = screen.getByRole('textbox', { name: 'Recording title' }) as HTMLInputElement
+  expect(field.value).toBe('Weekly sync')
+  expect(document.activeElement).toBe(field)
+  // The dot and the avatars stay where they were.
+  expect(screen.getByRole('img', { name: 'New' })).toBeTruthy()
+  expect(screen.getByText('AP')).toBeTruthy()
+  await userEvent.keyboard('Renamed{Enter}')
+  expect(onRenameDone).toHaveBeenCalledExactlyOnceWith('Renamed')
+})
+
+test('Escape in the field gives nothing', async () => {
+  const onRenameDone = vi.fn()
+  render(<RecordingRow title="Weekly sync" renaming onRenameDone={onRenameDone} />)
+  await userEvent.keyboard('Renamed{Escape}')
+  expect(onRenameDone).toHaveBeenCalledExactlyOnceWith(null)
+})

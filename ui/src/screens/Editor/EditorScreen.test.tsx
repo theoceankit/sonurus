@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
@@ -66,7 +66,8 @@ const newDot = (name: RegExp) => within(sidebarRow(name)).queryByRole('img', { n
 
 describe('the dot of a new recording', () => {
   test('shows on a recording not opened yet, not on one with an unnamed speaker', async () => {
-    setup()
+    // Not Design review: open at startup, it would lose its dot as soon as it loads.
+    setup({ initialSelectedId: WEEKLY_SYNC_ID })
     await screen.findByRole('region', { name: 'This week' })
     expect(newDot(/Design review/)).toBeTruthy()
     expect(newDot(/Weekly product sync/)).toBeNull()
@@ -293,6 +294,119 @@ describe('deleting the open recording', () => {
     expect(await screen.findByText('Could not delete: Server error 500')).toBeTruthy()
     expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(within(panel()).getByRole('heading', { level: 1 })).toBeTruthy()
+  })
+})
+
+describe('the menu of a recording in the sidebar', () => {
+  const menuOf = async (name: RegExp) => {
+    fireEvent.contextMenu(await waitFor(() => sidebarRow(name)))
+    return screen.findByRole('menu')
+  }
+  const choose = async (name: RegExp, item: string) => userEvent.click(within(await menuOf(name)).getByRole('menuitem', { name: item }))
+  const panelTitle = () => within(screen.getByRole('main', { name: 'Transcript' })).getByRole('heading', { level: 1 }).textContent
+  const open = async (options: FixtureOptions = {}) => {
+    atWidth(1200)
+    setup({ initialSelectedId: WEEKLY_SYNC_ID }, options)
+    await screen.findByRole('heading', { level: 1 })
+  }
+
+  test('has Rename, Mark as unread, Pin and Delete recording, and a right click opens nothing', async () => {
+    await open()
+    const menu = await menuOf(/Call with Mark/)
+    expect(within(menu).getAllByRole('menuitem').map(item => item.textContent!.trim())).toEqual(['Rename', 'Mark as unread', 'Pin', 'Delete recording'])
+    expect(within(menu).getByRole('separator')).toBeTruthy()
+    expect(within(menu).getByRole('menuitem', { name: 'Pin' }).getAttribute('aria-disabled')).toBe('true')
+    expect(panelTitle()).toBe('Weekly product sync')
+  })
+
+  test('a recording not opened yet offers Mark as read, which takes the dot away', async () => {
+    const client = createFixtureClient()
+    const opened = vi.spyOn(client, 'markTranscriptOpened')
+    atWidth(1200)
+    render(<ApiProvider client={client}><OverlayProvider><EditorScreen initialSelectedId={WEEKLY_SYNC_ID} /></OverlayProvider></ApiProvider>)
+    await screen.findByRole('heading', { level: 1 })
+    await choose(/Design review/, 'Mark as read')
+    await waitFor(() => expect(newDot(/Design review/)).toBeNull())
+    expect(opened).toHaveBeenCalledWith(DESIGN_REVIEW_ID)
+    expect(panelTitle()).toBe('Weekly product sync')
+  })
+
+  test('Mark as unread brings the dot back, also on the open recording until it opens again', async () => {
+    const client = createFixtureClient()
+    const unopened = vi.spyOn(client, 'markTranscriptUnopened')
+    atWidth(1200)
+    render(<ApiProvider client={client}><OverlayProvider><EditorScreen initialSelectedId={WEEKLY_SYNC_ID} /></OverlayProvider></ApiProvider>)
+    await screen.findByRole('heading', { level: 1 })
+    await choose(/Weekly product sync/, 'Mark as unread')
+    await waitFor(() => expect(newDot(/Weekly product sync/)).toBeTruthy())
+    expect(unopened).toHaveBeenCalledWith(WEEKLY_SYNC_ID)
+    // The list is read again and the open recording is not marked opened by itself.
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(newDot(/Weekly product sync/)).toBeTruthy()
+    await userEvent.click(sidebarRow(/Call with Mark/))
+    await userEvent.click(sidebarRow(/Weekly product sync/))
+    await waitFor(() => expect(newDot(/Weekly product sync/)).toBeNull())
+  })
+
+  test('a failed mark puts the dot back as it was and says so', async () => {
+    await open({ overrides: { markTranscriptUnopened: () => Promise.reject(new ApiError(500, 'Server error 500')) } })
+    await choose(/Call with Mark/, 'Mark as unread')
+    expect(await screen.findByText('Could not mark as unread: Server error 500')).toBeTruthy()
+    expect(newDot(/Call with Mark/)).toBeNull()
+  })
+
+  test('Rename puts a field in the row; Enter saves, and the open recording shows the new title', async () => {
+    await open()
+    await choose(/Weekly product sync/, 'Rename')
+    const field = await screen.findByRole('textbox', { name: 'Recording title' })
+    await waitFor(() => expect(document.activeElement).toBe(field))
+    await userEvent.keyboard('  Weekly sync  {Enter}')
+    await waitFor(() => expect(sidebarRow(/^Weekly sync/)).toBeTruthy())
+    expect(screen.queryByRole('textbox', { name: 'Recording title' })).toBeNull()
+    await waitFor(() => expect(panelTitle()).toBe('Weekly sync'))
+  })
+
+  test('Rename of another recording leaves the open one; Escape and a blank title change nothing', async () => {
+    const updateTranscriptTitle = vi.fn(() => Promise.resolve())
+    await open({ overrides: { updateTranscriptTitle } })
+    await choose(/Call with Mark/, 'Rename')
+    await screen.findByRole('textbox', { name: 'Recording title' })
+    await userEvent.keyboard('Other{Escape}')
+    await choose(/Call with Mark/, 'Rename')
+    await screen.findByRole('textbox', { name: 'Recording title' })
+    await userEvent.keyboard('{Backspace}   {Enter}')
+    expect(updateTranscriptTitle).not.toHaveBeenCalled()
+    expect(sidebarRow(/Call with Mark/)).toBeTruthy()
+    expect(panelTitle()).toBe('Weekly product sync')
+  })
+
+  test('a failed rename says so and the title goes back', async () => {
+    await open({ overrides: { updateTranscriptTitle: () => Promise.reject(new ApiError(500, 'Server error 500')) } })
+    await choose(/Call with Mark/, 'Rename')
+    await screen.findByRole('textbox', { name: 'Recording title' })
+    await userEvent.keyboard('Renamed{Enter}')
+    expect(await screen.findByText('Failed to rename: Server error 500')).toBeTruthy()
+    await waitFor(() => expect(sidebarRow(/Call with Mark/)).toBeTruthy())
+  })
+
+  // Only Weekly product sync and Design review have details in the fixtures.
+  test('Delete recording of another recording asks first and leaves the open one', async () => {
+    await open()
+    await choose(/Design review/, 'Delete recording')
+    const dialog = await screen.findByRole('alertdialog')
+    expect(within(dialog).getByText('Delete "Design review"?')).toBeTruthy()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(within(screen.getByLabelText('Recordings')).queryByText('Design review')).toBeNull())
+    expect(panelTitle()).toBe('Weekly product sync')
+  })
+
+  test('Delete recording of the open one opens the one opened before', async () => {
+    await open()
+    await userEvent.click(sidebarRow(/Design review/))
+    await waitFor(() => expect(panelTitle()).toBe('Design review'))
+    await choose(/Design review/, 'Delete recording')
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(panelTitle()).toBe('Weekly product sync'))
   })
 })
 

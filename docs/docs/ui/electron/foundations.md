@@ -268,6 +268,8 @@ Rows are `MenuItem`. A menu is not modal: a modal one locks the scroll and shift
 
 Radix focuses the item under the pointer, and Chromium takes that focus for a keyboard one when nothing had focus before. So `Menu` remembers the last input in `data-input`, and the ring shows only after a key.
 
+`ContextMenu` is the same menu at the pointer, opened by the `contextmenu` event of its target (`content` holds the items, the target is its child): a right click, the Menu key or Shift+F10, where Chromium places it at the focused element and the first item takes the focus. The items above work in both: each takes the Radix parts of the menu it is in. `disabled` keeps the target and its menu mounted and opens nothing, so the browser's own menu shows instead, as in a text field put in the target's place. Built on `@radix-ui/react-context-menu`.
+
 ### Select
 
 `Select` is one value of a short list in a field that looks like `TextField`, with its label above it. It is a `Menu` of radio options: the same surface, rows and keyboard, and the list is as wide as the field. An option can be off with a reason at the end of its row (`meta`), such as "Not installed"; a value that is none of the options shows `placeholder`. The field is named by its label, or its `aria-label`, and its value, as a native select is read ("Model Whisper Small"); the list keeps the roles of a menu.
