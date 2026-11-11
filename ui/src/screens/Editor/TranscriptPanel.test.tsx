@@ -199,7 +199,7 @@ describe('a long recording', () => {
   test('a tick inside a segment commits nothing, a change renders two paragraphs', async () => {
     const onCommit = vi.fn()
     const { change } = setup(longOptions, LONG_ID, panel => <Profiler id="panel" onRender={onCommit}>{panel}</Profiler>)
-    await screen.findByRole('heading', { name: 'Long recording, 3 hours' }, { timeout: 10000 })
+    await screen.findByRole('heading', { name: 'Long recording, 3 hours' })
     const [first, second] = longSegments()
 
     act(() => change({ currentTime: first.start + 0.1 }))
@@ -215,7 +215,7 @@ describe('a long recording', () => {
 
     act(() => change({ currentTime: second.start }))
     expect(paragraphRenders.count).toBe(2)
-  }, 30000)
+  })
 
   test('an edit renders only its paragraph once the data is back', async () => {
     setup()
@@ -285,7 +285,7 @@ describe('highlighting a speaker', () => {
   test('on a long recording it commits nothing and renders no paragraph', async () => {
     const onCommit = vi.fn()
     const { highlight } = setup({ board: 'longRecording' }, 1000, panel => <Profiler id="panel" onRender={onCommit}>{panel}</Profiler>)
-    await screen.findByRole('heading', { name: 'Long recording, 3 hours' }, { timeout: 10000 })
+    await screen.findByRole('heading', { name: 'Long recording, 3 hours' })
     const ids = [...new Set(longSegments().map(effectiveSpeaker))]
     onCommit.mockClear()
     paragraphRenders.count = 0
@@ -293,7 +293,7 @@ describe('highlighting a speaker', () => {
     act(() => highlight.set(null))
     expect(onCommit).not.toHaveBeenCalled()
     expect(paragraphRenders.count).toBe(0)
-  }, 30000)
+  })
 })
 
 describe('editing', () => {
@@ -701,6 +701,6 @@ test('opening another recording starts clean', async () => {
   render(<ApiProvider client={client}><OverlayProvider><Switch /></OverlayProvider></ApiProvider>)
   await userEvent.dblClick(await text(MARK_SECOND))
   await userEvent.click(screen.getByRole('button', { name: 'other' }))
-  await screen.findByRole('heading', { name: 'Long recording, 3 hours' }, { timeout: 10000 })
+  await screen.findByRole('heading', { name: 'Long recording, 3 hours' })
   expect(screen.queryByRole('textbox', { name: 'Paragraph text' })).toBeNull()
-}, 30000)
+})

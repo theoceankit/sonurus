@@ -201,7 +201,7 @@ describe('panel states', () => {
   test('failed: says so and retries', async () => {
     const listSpeakers = vi.fn(() => Promise.reject(new ApiError(500, 'Server error 500')))
     setup(WEEKLY_SYNC_ID, { overrides: { listSpeakers } })
-    await userEvent.click(await screen.findByRole('button', { name: 'Retry' }, { timeout: 3000 }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Retry' }))
     await waitFor(() => expect(listSpeakers.mock.calls.length).toBeGreaterThan(1))
   })
 

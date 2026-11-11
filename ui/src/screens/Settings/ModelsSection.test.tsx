@@ -77,7 +77,7 @@ test('a download shows its progress, goes on after Settings close, and its model
   await userEvent.keyboard('{Escape}')
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
   await openSection('Models')
-  await waitFor(() => expect(inRow('Whisper Tiny', 'Delete Whisper Tiny')).toBeTruthy(), { timeout: 2000 })
+  await waitFor(() => expect(inRow('Whisper Tiny', 'Delete Whisper Tiny')).toBeTruthy())
   expect(inRow('Whisper Tiny', 'Use')).toBeTruthy()
 })
 
@@ -130,7 +130,7 @@ test('Alignment downloads a model', async () => {
   await setup({ installedModels: ['small', 'diarize'] })
   await openSection('Languages')
   await userEvent.click((await within(settings()).findByRole('group', { name: 'Czech' })).querySelector('button')!)
-  await waitFor(() => expect(inRow('Czech', 'Delete Czech')).toBeTruthy(), { timeout: 2000 })
+  await waitFor(() => expect(inRow('Czech', 'Delete Czech')).toBeTruthy())
 })
 
 test('the empty screen opens Settings on Models', async () => {
