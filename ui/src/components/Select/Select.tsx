@@ -1,5 +1,5 @@
-import * as RadixMenu from '@radix-ui/react-dropdown-menu'
-import { useId, type KeyboardEvent, type PointerEvent } from 'react'
+import * as RadixSelect from '@radix-ui/react-select'
+import { useId, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { cx } from '../../styles/cx'
 import field from '../../styles/field.module.css'
 import { Icon } from '../Icon/Icon'
@@ -33,37 +33,41 @@ interface SelectProps {
 const OFFSET = 4
 
 // As in Menu: Chromium takes the focus of the row under the pointer for a keyboard one.
+// The list also starts on the chosen row, focused, so it starts with the input that
+// opened it: a click after a key would otherwise ring the row.
 const pointerInput = (event: PointerEvent<HTMLElement>) => { event.currentTarget.dataset.input = 'pointer' }
 const keyboardInput = (event: KeyboardEvent<HTMLElement>) => { delete event.currentTarget.dataset.input }
 
-// One value of a short list, in a field like TextField. The list is as wide as the
+// One value of a short list, in a field like TextField: a combobox named by its label,
+// with a listbox of options, as a native select is read. The list is as wide as the
 // field and stays inside the window it is in: it opens upwards when there is more
 // room there and scrolls when it does not fit either way.
 export function Select({ label, 'aria-label': ariaLabel, value, options, onValueChange, placeholder, disabled, className }: SelectProps) {
   const { boundary } = useModal()
   const labelId = useId()
-  const valueId = useId()
   const current = options.find(option => option.value === value)
+  const [openedBy, setOpenedBy] = useState<'pointer' | undefined>()
   return (
     <Stack gap={1} align="stretch" className={cx(styles.select, disabled && styles.disabled, className)}>
       {label
         ? <span id={labelId} className={styles.label}>{label}</span>
         : <span id={labelId} hidden>{ariaLabel}</span>}
-      <RadixMenu.Root modal={false}>
-        <RadixMenu.Trigger asChild disabled={disabled}>
-          <button
-            type="button"
-            className={cx(field.field, styles.trigger)}
-            // Named by the label and the value, as a native select is read.
-            aria-labelledby={`${labelId} ${valueId}`}
-          >
-            <span id={valueId} className={cx(styles.value, !current && styles.placeholder)}>{current?.label ?? placeholder ?? ''}</span>
-            <Icon name="chevron-down" size={12} className={styles.chevron} />
-          </button>
-        </RadixMenu.Trigger>
-        <RadixMenu.Portal>
-          <RadixMenu.Content
+      <RadixSelect.Root value={current ? value : ''} onValueChange={onValueChange} disabled={disabled}>
+        <RadixSelect.Trigger
+          className={cx(field.field, styles.trigger)}
+          aria-labelledby={labelId}
+          onPointerDown={() => setOpenedBy('pointer')}
+          onKeyDown={() => setOpenedBy(undefined)}
+        >
+          <span className={cx(styles.value, !current && styles.placeholder)}>{current?.label ?? placeholder ?? ''}</span>
+          <Icon name="chevron-down" size={12} className={styles.chevron} />
+        </RadixSelect.Trigger>
+        <RadixSelect.Portal>
+          <RadixSelect.Content
             asChild
+            position="popper"
+            aria-labelledby={labelId}
+            data-input={openedBy}
             align="start"
             sideOffset={OFFSET}
             collisionBoundary={boundary}
@@ -72,19 +76,27 @@ export function Select({ label, 'aria-label': ariaLabel, value, options, onValue
             onKeyDownCapture={keyboardInput}
           >
             <MenuSurface className={styles.list}>
-              <RadixMenu.RadioGroup asChild value={value} onValueChange={onValueChange}>
-                <Stack gap="half" align="stretch">
+              <RadixSelect.Viewport asChild>
+                <Stack gap="half" align="stretch" className={styles.viewport}>
                   {options.map(option => (
-                    <RadixMenu.RadioItem key={option.value} asChild value={option.value} disabled={option.disabled}>
+                    <RadixSelect.Item
+                      key={option.value}
+                      asChild
+                      value={option.value}
+                      disabled={option.disabled}
+                      textValue={option.label}
+                      // Named by the whole row, so the reason an option is off is read with it.
+                      aria-labelledby={undefined}
+                    >
                       <MenuItem disabled={option.disabled} selected={option.value === value} meta={option.meta}>{option.label}</MenuItem>
-                    </RadixMenu.RadioItem>
+                    </RadixSelect.Item>
                   ))}
                 </Stack>
-              </RadixMenu.RadioGroup>
+              </RadixSelect.Viewport>
             </MenuSurface>
-          </RadixMenu.Content>
-        </RadixMenu.Portal>
-      </RadixMenu.Root>
+          </RadixSelect.Content>
+        </RadixSelect.Portal>
+      </RadixSelect.Root>
     </Stack>
   )
 }

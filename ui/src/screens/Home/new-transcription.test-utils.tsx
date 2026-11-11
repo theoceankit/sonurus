@@ -105,8 +105,8 @@ export async function rename(name: string, title: string) {
 export const chooseFiles = () => userEvent.click(screen.getByRole('button', { name: 'Choose files' }))
 export const importButton = () => screen.getByRole('button', { name: 'Import' }) as HTMLButtonElement
 // A select is named by its label and its value.
-export const field = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}( |$)`) })
-export const option = (name: RegExp) => screen.getByRole('menuitemradio', { name })
+export const field = (name: string) => screen.getByRole('combobox', { name })
+export const option = (name: RegExp) => screen.getByRole('option', { name })
 export const jobs = async (client: ApiClient) => (await client.getQueue()).jobs.map(job => ({
   title: job.title, model: job.whisper_model, language: job.language,
 }))

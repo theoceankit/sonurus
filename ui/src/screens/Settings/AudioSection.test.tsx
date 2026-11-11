@@ -30,14 +30,14 @@ async function setup(options: FixtureOptions = {}, saved: object = {}) {
   return bridge
 }
 // A select is named by its label and its value.
-const field = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}( |$)`) })
+const field = (name: string) => screen.getByRole('combobox', { name })
 
 test('shows the saved devices and saves a new one for the next recording', async () => {
   const bridge = await setup({}, { recordingSystemDevice: 'bluez_output.58_18_62_38_72_FA.1.monitor' })
   expect(field('Microphone').textContent).toContain('Default microphone')
   await waitFor(() => expect(field('System audio source').textContent).toContain('WH-1000XM5'))
   await userEvent.click(field('System audio source'))
-  await userEvent.click(screen.getByRole('menuitemradio', { name: /System audio \(default\)/ }))
+  await userEvent.click(screen.getByRole('option', { name: /System audio \(default\)/ }))
   await waitFor(async () => expect((await bridge.readSettings()).recordingSystemDevice).toBe('@DEFAULT_MONITOR@'))
 })
 

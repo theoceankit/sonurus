@@ -45,8 +45,9 @@ const stop = (event: SyntheticEvent) => {
 }
 
 // Radix does not wait for a click: tabs switch on mousedown and on focus, menus
-// act on pointerup and on the keydown of Enter and Space. So each of these stops
-// on the way down, before the control or anything inside a marked container.
+// act on pointerup and on the keydown of Enter and Space, and selects and menu
+// buttons open on the arrows as well. So each of these stops on the way down,
+// before the control or anything inside a marked container.
 // Stopping focus does not stop the browser from moving it.
 export function notImplementedProps(id: string) {
   return {
@@ -59,6 +60,9 @@ export function notImplementedProps(id: string) {
     onKeyDownCapture: (event: SyntheticEvent) => {
       const { key } = event.nativeEvent as KeyboardEvent
       if (key === 'Enter' || key === ' ') event.stopPropagation()
+      // A select and a menu button open on the arrows too; a tab moves past on them.
+      const opensPopup = (event.target as Element).matches('[role="combobox"], [aria-haspopup]:not([aria-haspopup="false"])')
+      if (opensPopup && (key === 'ArrowDown' || key === 'ArrowUp')) event.stopPropagation()
     },
     onClickCapture: (event: SyntheticEvent) => {
       stop(event)

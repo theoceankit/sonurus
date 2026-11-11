@@ -272,7 +272,7 @@ Radix focuses the item under the pointer, and Chromium takes that focus for a ke
 
 ### Select
 
-`Select` is one value of a short list in a field that looks like `TextField`, with its label above it. It is a `Menu` of radio options: the same surface, rows and keyboard, and the list is as wide as the field. An option can be off with a reason at the end of its row (`meta`), such as "Not installed"; a value that is none of the options shows `placeholder`. The field is named by its label, or its `aria-label`, and its value, as a native select is read ("Model Whisper Small"); the list keeps the roles of a menu.
+`Select` is one value of a short list in a field that looks like `TextField`, with its label above it. It is a Radix Select with the surface and rows of `Menu`, and the list is as wide as the field. An option can be off with a reason at the end of its row (`meta`), such as "Not installed"; a value that is none of the options shows `placeholder`. It is read as a native select: the field is a `combobox` named by its label, or its `aria-label`, with the chosen option as its text; the list is a `listbox` of the same name, and each row an `option` named by its label and its `meta`. The keyboard opens the list on the chosen option and skips the ones that are off; Escape closes it and returns to the field. While the list is open, the rest of the window is hidden from assistive technology and its scroll is held, as for a modal.
 
 Inside a `Modal` the list does not go past the window: `Modal` hands its window to popups as their boundary (`useModal().boundary`), and the list opens upwards when there is more room there and scrolls when it fits neither way. Outside a modal the boundary is the viewport.
 
@@ -340,7 +340,7 @@ A control whose feature does not exist yet is not hidden and does not pretend to
 
 The control stays visible and focusable, dimmed with `--opacity-disabled`, with the default cursor and `aria-disabled`. Activating it shows "Not available yet" and reaches none of its handlers, nor those of the controls inside a marked container.
 
-The function returns props instead of relying on a global click guard, because Radix does not wait for a click: tabs switch on mousedown and on focus, menus act on pointerup and on the keydown of Enter and Space. Capture handlers stop all of these.
+The function returns props instead of relying on a global click guard, because Radix does not wait for a click: tabs switch on mousedown and on focus, menus act on pointerup and on the keydown of Enter and Space, and a select or a menu button opens on ArrowDown and ArrowUp. Capture handlers stop all of these; the arrows only on a control that opens a popup, so that they still move past a marked tab.
 
 `NOT_IMPLEMENTED` lists the ids, and an id that is not in it is a compile error. `not-implemented.test.tsx` fails when an id has no call or several, when a call has no id or a computed one, and on a control's own "not available" text; stories and tests do not count. The list holds only what the UI already renders. Stories use `notImplementedProps()`, which takes any string.
 
