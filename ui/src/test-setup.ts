@@ -1,6 +1,7 @@
 import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 import { resetMemorySettings } from './platform/settings'
+import './test-css-prefilter'
 
 afterEach(cleanup)
 afterEach(resetMemorySettings)
