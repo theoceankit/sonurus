@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 import app.config as config
 from app.api.dependencies import get_transcription_queue
-from app.api.schemas import DownloadRequest, ModelInfo
+from app.api.schemas import DownloadRequest, ModelInfo, ModelsFolder
 from app.services.model_service import ModelDownloadError, ModelService, WHISPER_CATALOG, DIARIZATION_CATALOG, ALIGNMENT_CATALOG
 from app.logger import get_logger
 
@@ -79,6 +79,12 @@ def _make_service() -> ModelService:
 @router.get("/models", response_model=list[ModelInfo])
 def list_models():
     return _make_service().list_models()
+
+
+@router.get("/models/folder", response_model=ModelsFolder)
+def models_folder():
+    # The folder of all three kinds; it appears with the first download.
+    return {"path": str(config.MODELS_DIR), "exists": config.MODELS_DIR.is_dir()}
 
 
 @router.delete("/models/{model_id}")

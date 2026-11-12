@@ -279,6 +279,12 @@ class AlignmentModelInfo(BaseModel):
 ModelInfo = Annotated[TranscriptionModelInfo | AlignmentModelInfo, Field(discriminator="kind")]
 
 
+class ModelsFolder(BaseModel):
+    """GET /models/folder: where this backend keeps every downloaded model."""
+    path: str
+    exists: bool
+
+
 class DownloadRequest(BaseModel):
     hf_token: str | None = None
 

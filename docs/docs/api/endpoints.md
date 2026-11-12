@@ -223,6 +223,14 @@ Returns the full catalog with install status for every model: 5 Whisper + 1 Diar
 
 Alignment rows have only `id`, `installed` and `kind`.
 
+### `GET /models/folder`
+
+Where this backend keeps the models: `.models/` in its data dir, the folder of all three kinds, as an absolute path. Settings → Models shows it. `exists` is `false` until the first download creates the folder; the request does not create it.
+
+```json
+{ "path": "/home/user/.config/sonorus/.models", "exists": true }
+```
+
 ### `POST /models/{model_id}/download`
 
 Starts a background download via `huggingface_hub.snapshot_download`. Returns a `job_id` immediately.

@@ -615,3 +615,28 @@ def test_two_connections_get_the_same_events(client, quick_heartbeats):
 def test_a_job_that_never_was_is_unknown(client):
     with client.websocket_connect("/ws/models/no-such-job") as ws:
         assert ws.receive_json() == {"type": "error", "message": "Unknown job"}
+
+
+# ── GET /models/folder ────────────────────────────────────────────────────────
+
+@pytest.fixture
+def models_dir(tmp_path, monkeypatch):
+    import app.config as config
+    folder = tmp_path / "data" / ".models"
+    monkeypatch.setattr(config, "MODELS_DIR", folder)
+    return folder
+
+
+def test_models_folder_is_the_real_folder_of_the_backend(client, models_dir):
+    """The path is the backend's own MODELS_DIR, absolute, as the UI shows it."""
+    models_dir.mkdir(parents=True)
+    r = client.get("/models/folder")
+    assert r.status_code == 200
+    assert r.json() == {"path": str(models_dir), "exists": True}
+
+
+def test_models_folder_does_not_exist_before_the_first_download(client, models_dir):
+    """Nothing downloaded yet: the path is known, the folder is not there, and the
+    request does not create it."""
+    assert client.get("/models/folder").json() == {"path": str(models_dir), "exists": False}
+    assert not models_dir.exists()
