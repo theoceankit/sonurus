@@ -122,7 +122,7 @@ test('Alignment lists the models of the languages, and which need none', async (
   expect(inRow('Russian', 'Delete Russian')).toBeTruthy()
   expect(row('Russian').textContent).not.toMatch(/Русский|wav2vec2|Installed/)
   expect(inRow('Czech', 'Download')).toBeTruthy()
-  expect(inRow('Czech', 'Use')).toBeNull()
+  expect(settings().textContent).toContain(`Download a model for each language you transcribe. Not needed for English, Español, Deutsch and Français.`)
   expect(settings().textContent).toContain(`Not needed for English, Español, Deutsch and Français.`)
   expect(alignedWithoutModel()).toEqual(['English', 'Español', 'Deutsch', 'Français'])
 })
