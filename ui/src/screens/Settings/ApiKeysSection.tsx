@@ -38,7 +38,7 @@ function HuggingFaceToken({ saved }: { saved: string }) {
         <TextField
           aria-label="HuggingFace token"
           type={visible ? 'text' : 'password'}
-          placeholder="hf_..."
+          placeholder="hf_…"
           autoComplete="off"
           spellCheck={false}
           value={token}

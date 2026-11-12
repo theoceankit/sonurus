@@ -153,7 +153,8 @@ App rules:
 - A control whose feature does not exist yet is marked with `markNotImplemented()`
   (`ui/src/not-implemented.ts`, as props on the control)
   — never hidden and never faked. When the feature lands, remove its id and the call.
-- UI text: no `·` separators, no all-caps labels. Straight quotes.
+- UI text: no `·` separators, no all-caps labels. Straight quotes. An ellipsis `…` only for something in
+  progress or a name cut to fit, never on a command (`docs/docs/ui/electron/foundations.md`).
 - Screens get data only through `useApi()` and the hooks in `ui/src/api/queries.ts`, never `fetch`. A test fails
   until `npm run gen:api` follows a change to the API.
 - Every component in `ui/src/components/<Name>/` has `<Name>.stories.tsx` with a story for each of its
