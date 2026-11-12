@@ -48,9 +48,51 @@
   padding-right: max(var(--space-5), calc(var(--inset-end) + var(--space-2)));
 }
 
-/* Comes from the side the inspector leaves to, on the panel's curve, and settles in
-   the frame the panel does. A fifth of the way held back: at once it would be over
-   before the eye gets there. */
+/* Its line moves towards the frame while the sidebar is open, away from it while closed. */
+.sidebarToggle {
+  composes: panelLine from '../../styles/motion.module.css';
+}
+
+.sidebarToggle[aria-expanded='true'] {
+  --panel-line-shift: var(--panel-line-to-start);
+}
+
+.sidebarToggle[aria-expanded='false'] {
+  --panel-line-shift: var(--panel-line-from-start);
+}
+
+/* Its line moves away from the frame: the inspector will open. The room before it
+   is its own, so that the room can open and close. */
+.showInspector {
+  composes: panelLine from '../../styles/motion.module.css';
+  --panel-line-shift: var(--panel-line-from-end);
+  flex: none;
+  margin-left: var(--space-1);
+}
+
+/* The room of Show inspector, always there: it opens and closes with the panel's
+   move, so Speakers and Settings slide aside rather than jump. The button keeps its
+   place at the start of it and runs out past its end, the side it comes and goes by.
+   The gap of the row before it is taken back while it is closed. */
+.inspectorRoom {
+  display: flex;
+  flex: none;
+  width: 0;
+  margin-left: calc(var(--space-1) * -1);
+  transition: width var(--duration-move) var(--ease-standard);
+}
+
+.inspectorRoom[data-open] {
+  width: calc(var(--size-control-sm) + var(--space-1));
+}
+
+/* Nothing travels: the room is there or not at once. */
+@media (prefers-reduced-motion: reduce) {
+  .inspectorRoom {
+    transition: none;
+  }
+}
+
 /* The gaps between these buttons are not for dragging: their tooltip stays over them. */
 .nav {
   display: flex;
@@ -58,6 +100,9 @@
   gap: var(--space-1);
 }
 
+/* Comes from the side the inspector leaves to, on the panel's curve, and settles in
+   the frame the panel does. A fifth of the way held back: at once it would be over
+   before the eye gets there. */
 .appear {
   composes: appear from '../../styles/motion.module.css';
   --motion-delay: calc(var(--duration-move) / 5);
@@ -66,3 +111,8 @@
   animation-timing-function: var(--ease-standard);
 }
 
+/* Goes back the way it came, to the side the inspector comes from, as the inspector opens. */
+.disappear {
+  composes: disappear from '../../styles/motion.module.css';
+  --motion-to-shift: var(--motion-shift-md) 0;
+}

@@ -31,6 +31,12 @@ test('the button closes the panel', async () => {
   expect(onClose).toHaveBeenCalledOnce()
 })
 
+test('the button names itself in a tooltip, as the sidebar button does', async () => {
+  panel()
+  await userEvent.hover(screen.getByRole('button', { name: 'Close inspector' }))
+  expect((await screen.findByRole('tooltip')).textContent).toContain('Close inspector')
+})
+
 test('review off: no dock', () => {
   panel()
   expect(screen.queryByRole('region', { name: 'Review speakers' })).toBeNull()

@@ -7,6 +7,7 @@ import { Sidebar, type SidebarRecording, type SidebarSection } from '../../compo
 import { toast } from '../../components/Toast/toast-store'
 import { markNotImplemented } from '../../not-implemented'
 import { Titlebar } from '../../components/Titlebar/Titlebar'
+import { returnFocus } from '../../components/Tooltip/Tooltip'
 import { prefersReducedMotion, useLingering } from '../../presence'
 import { cx } from '../../styles/cx'
 import { createKeyStore } from '../../media/active-segment'
@@ -181,6 +182,34 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
     setPanels(current => togglePanel(current, panel, width))
   }
 
+  // The inspector's two buttons each go as the panel moves, and the focus they had would
+  // go with them. Focus from the keyboard goes on to the one that brings the panel back;
+  // after a click there is no focus to keep.
+  const focusNext = useRef<{ from: Element; to: string } | null>(null)
+  const toggleInspector = () => {
+    const from = document.activeElement
+    if (from instanceof HTMLButtonElement && from.matches(':focus-visible')) focusNext.current = { from, to: visible.inspector ? 'Show inspector' : 'Close inspector' }
+    toggle('inspector')
+  }
+  // The opening panel stays hidden for the first frame of its move (visibility, which
+  // cannot take focus), so the focus waits for it. Anything else taking the focus first wins.
+  useEffect(() => {
+    const next = focusNext.current
+    focusNext.current = null
+    const to = next && element.current?.querySelector<HTMLElement>(`button[aria-label="${next.to}"]:not([inert])`)
+    if (!next || !to) return
+    let frame = 0
+    let frames = 0
+    const tryFocus = () => {
+      const now = document.activeElement
+      if (now !== next.from && now !== document.body && now !== null) return
+      returnFocus(to)
+      if (document.activeElement !== to && ++frames < 30) frame = requestAnimationFrame(tryFocus)
+    }
+    tryFocus()
+    return () => cancelAnimationFrame(frame)
+  }, [visible.inspector])
+
   const sections = useMemo<SidebarSection[]>(() => {
     if (!transcripts.data || !speakers.data) return []
     const known = speakers.data
@@ -229,7 +258,7 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
         sidebarOpen={visible.sidebar}
         onToggleSidebar={() => toggle('sidebar')}
         inspectorOpen={visible.inspector}
-        onOpenInspector={() => toggle('inspector')}
+        onOpenInspector={toggleInspector}
         onNewTranscription={newTranscription.openRecording}
         onOpenSettings={() => settingsDialog.open()}
         onOpenSpeakers={() => setSpeakersOpen(true)}
@@ -268,7 +297,7 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
                 transcriptId={shownId}
                 playback={playback}
                 open={visible.inspector}
-                onClose={() => toggle('inspector')}
+                onClose={toggleInspector}
                 onChooseSpeaker={setSpeakerRequest}
                 possibleMatches={possibleMatches}
                 initialSpeakerId={initialSpeakerId}

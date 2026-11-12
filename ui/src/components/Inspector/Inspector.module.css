@@ -18,7 +18,10 @@
   padding-inline: var(--space-2);
 }
 
+/* Its line moves towards the frame: the panel will narrow to nothing. */
 .close {
+  composes: panelLine from '../../styles/motion.module.css';
+  --panel-line-shift: var(--panel-line-to-end);
   position: absolute;
   inset-block-start: 0;
   inset-inline-end: var(--space-2);
