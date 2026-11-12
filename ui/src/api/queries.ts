@@ -17,6 +17,8 @@ export const queryKeys = {
   waveform: (id: number, { bars, start, end }: WaveformStretch) => ['waveform', id, bars, start, end],
   queue: ['queue'],
   models: ['models'],
+  // Under the models: what changes them (a download, a delete) may make the folder.
+  modelsFolder: ['models', 'folder'],
   captureSources: ['captureSources'],
   connected: ['connected'],
 } satisfies Record<string, QueryKey | ((...args: never[]) => QueryKey)>
@@ -85,6 +87,11 @@ export function useSpeakerTranscripts(speakerId: string | null) {
 export function useModels() {
   const api = useApi()
   return useQuery({ queryKey: queryKeys.models, queryFn: () => api.listModels(), refetchOnMount: 'always' })
+}
+
+export function useModelsFolder() {
+  const api = useApi()
+  return useQuery({ queryKey: queryKeys.modelsFolder, queryFn: () => api.getModelsFolder() })
 }
 
 export function useQueue() {

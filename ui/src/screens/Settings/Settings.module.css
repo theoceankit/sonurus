@@ -106,3 +106,18 @@
   border-radius: var(--radius-sm);
   outline: var(--border-width-focus) solid var(--color-focus);
 }
+
+/* Under a card's description, on a line of its own. */
+.folderLine {
+  display: block;
+}
+
+/* The name of a folder whose path is in its tooltip. */
+.folderName {
+  color: var(--color-text-primary);
+}
+
+.folderName:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: var(--border-width-focus) solid var(--color-focus);
+}

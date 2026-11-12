@@ -93,6 +93,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     deleteSpeaker: speaker_id => send(http.DELETE('/speakers/{speaker_id}', { params: { path: { speaker_id } } })),
     getRecordingAudioUrl: id => `${baseUrl}/transcripts/${id}/audio`,
     listModels: () => send(http.GET('/models')),
+    getModelsFolder: () => send(http.GET('/models/folder')),
     startModelDownload: async (model_id, hfToken) => {
       // The schema leaves the answer untyped: it is { job_id }.
       const answer = await send(http.POST('/models/{model_id}/download', { params: { path: { model_id } }, body: { hf_token: hfToken } }))

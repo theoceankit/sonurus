@@ -57,6 +57,8 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `listModels()` is `GET /models`: every model of the catalog with `installed`. Whisper and diarization rows carry a name, size, speed and accuracy; alignment rows only `id`, `kind` and `installed`, and the UI names them itself ([Transcription](transcribe.md#models)).
 
+`getModelsFolder()` is `GET /models/folder`: where the backend keeps every model, and whether the folder exists yet. The fixtures answer `FIXTURE_MODELS_DIR`, which exists once a model is installed and stays after the models are deleted ([Settings](settings.md#models)).
+
 `startModelDownload(id, hfToken)` starts downloading a model, or joins its running download, and answers the job id; `cancelModelDownload(id, jobId)` stops it; `watchModelDownload(jobId, listener)` follows `WS /ws/models/{job_id}` until the download ends with `done`, `cancelled` or `error`. That socket is not in the OpenAPI schema, so its events are typed in `model-download-events.ts`; a connection that drops before the end counts as an error. Screens use them through `useModelDownloads()` ([Transcription](transcribe.md#downloads)).
 
 `updateQueueJob(jobId, update)` changes the title, model or language of a job that is not running: `PATCH /queue/jobs/{id}` with only the fields given. A model or alignment model that is not installed is a 400, a running job a 409. The fixtures do the same.

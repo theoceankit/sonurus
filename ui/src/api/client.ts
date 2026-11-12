@@ -1,5 +1,5 @@
 import type {
-  AudioSource, DataResetSummary, GpuStatus, ModelInfo, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
+  AudioSource, DataResetSummary, GpuStatus, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
@@ -71,6 +71,8 @@ export interface ApiClient {
   getRecordingAudioUrl(transcriptId: number): string | null
   // Every model of the catalog with whether it is downloaded.
   listModels(): Promise<ModelInfo[]>
+  // Where the backend keeps every model; it does not exist before the first download.
+  getModelsFolder(): Promise<ModelsFolder>
   // Starts downloading a model, or joins its download already running, and answers the
   // job. The token is for gated models on HuggingFace.
   startModelDownload(modelId: string, hfToken: string | null): Promise<string>

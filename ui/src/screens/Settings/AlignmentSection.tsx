@@ -6,7 +6,7 @@ import { useLingering } from '../../presence'
 import { ConfirmDialog } from './ConfirmDialog'
 import { useModelDelete } from './model-delete-action'
 import { useModelDownloads } from '../../transcribe/model-downloads'
-import { Loading, rowState } from './ModelsSection'
+import { Loading, ModelsFolderLine, rowState } from './ModelsSection'
 
 // The languages of the list that need no model of their own, from the catalog.
 export function alignedWithoutModel(): string[] {
@@ -27,7 +27,7 @@ export function AlignmentSection() {
   return (
     <SectionCard
       title="Word timings"
-      description={`Not needed for ${list(alignedWithoutModel())}. Other languages need their model, which places each word in time: download one for each language you transcribe.`}
+      description={<>{`Not needed for ${list(alignedWithoutModel())}. Other languages need their model, which places each word in time: download one for each language you transcribe.`}<ModelsFolderLine /></>}
     >
       {known.map(model => (
         <ModelRow

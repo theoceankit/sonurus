@@ -63,6 +63,20 @@ export const ModelsDownloadFails: Story = { args: { section: 'models' }, paramet
 export const ModelsDownloadNeedsToken: Story = { args: { section: 'models' }, parameters: { api: { installedModels: ['small'], downloadStepMs: 300, downloadFails: 'no_token' } } }
 export const ModelsDownloadNoAccess: Story = { args: { section: 'models' }, parameters: { api: { installedModels: ['small'], downloadStepMs: 300, downloadFails: 'no_access' } } }
 
+// .models clicked: the file manager could not open the folder, said in a toast.
+export const ModelsFolderDoesNotOpen: Story = {
+  args: { section: 'models' },
+  // Inside withSettings, which gives each story a bridge of its own when it renders.
+  decorators: [Story => {
+    window.electronAPI!.showModelsFolder = async () => 'No application is registered as handling this file'
+    return <Story />
+  }],
+}
+// A models folder deep in the disk: the whole path in the tooltip of .models.
+export const ModelsFolderLongPath: Story = {
+  args: { section: 'models' },
+  parameters: { api: { overrides: { getModelsFolder: async () => ({ path: '/home/me/Documents/Work/Projects/Interviews/2026/sonorus-portable-data/.models', exists: true }) } } },
+}
 export const ModelsLoading: Story = { args: { section: 'models' }, parameters: { api: { overrides: { listModels: () => new Promise(() => {}) } } } }
 
 // The devices a new recording starts with; the backend's system audio sources.
