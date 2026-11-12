@@ -217,6 +217,58 @@ test('a narrow window hides the inspector, its button opens it instead of the si
   expect(shown('Inspector')).toBe(false)
 })
 
+describe('focus on the inspector buttons', () => {
+  // jsdom does not work out :focus-visible: here every focus counts as from the keyboard.
+  const fromKeyboard = () => {
+    const matches = Element.prototype.matches
+    vi.spyOn(Element.prototype, 'matches').mockImplementation(function (this: Element, selector: string) {
+      return selector === ':focus-visible' || matches.call(this, selector)
+    })
+  }
+
+  test('from the keyboard it goes to the button that brings the inspector back', async () => {
+    atWidth(1200)
+    setup()
+    fromKeyboard()
+    await screen.findByRole('region', { name: 'This week' })
+    screen.getByRole('button', { name: 'Close inspector' }).focus()
+    await userEvent.keyboard('{Enter}')
+    expect(shown('Inspector')).toBe(false)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Show inspector' }))
+    await userEvent.keyboard('{Enter}')
+    expect(shown('Inspector')).toBe(true)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close inspector' }))
+  })
+
+  test('it waits for the opening panel, which takes no focus on the first frame of its move', async () => {
+    atWidth(1200)
+    setup()
+    fromKeyboard()
+    await screen.findByRole('region', { name: 'This week' })
+    screen.getByRole('button', { name: 'Close inspector' }).focus()
+    await userEvent.keyboard('{Enter}')
+    // As visibility: hidden does, the first try on Close inspector is refused.
+    const focus = HTMLElement.prototype.focus
+    let refused = false
+    vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, options?: FocusOptions) {
+      if (!refused && this.getAttribute('aria-label') === 'Close inspector') { refused = true; return }
+      focus.call(this, options)
+    })
+    await userEvent.keyboard('{Enter}')
+    expect(refused).toBe(true)
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close inspector' })))
+  })
+
+  test('a click leaves focus alone', async () => {
+    atWidth(1200)
+    setup()
+    await screen.findByRole('region', { name: 'This week' })
+    await userEvent.click(screen.getByRole('button', { name: 'Close inspector' }))
+    expect(shown('Inspector')).toBe(false)
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Show inspector' }))
+  })
+})
+
 test('resizing the window changes what fits', async () => {
   const resize = atWidth(1200)
   setup()
