@@ -8,6 +8,7 @@ import { ScrollBar } from '../ScrollBar/ScrollBar'
 import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
 import { Tab } from '../Tab/Tab'
 import { TabPanel, Tabs } from '../Tabs/Tabs'
+import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './Inspector.module.css'
 
 export type InspectorReview =
@@ -46,7 +47,9 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, classNa
           </>
         )}
       >
-        <IconButton icon="inspector" size="small" label="Close inspector" className={styles.close} onClick={onClose} />
+        <Tooltip text="Close inspector" placement="below">
+          <IconButton icon="inspector" size="small" label="Close inspector" className={styles.close} onClick={onClose} />
+        </Tooltip>
         <TabPanel value="speakers" className={styles.panel}>
           <div className={styles.scrollArea}>
             <div ref={scrollRef} className={styles.scroll}>{children}</div>

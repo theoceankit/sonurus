@@ -14,6 +14,12 @@ type Story = StoryObj<typeof Titlebar>
 
 export const Default: Story = { decorators: frame() }
 export const SidebarClosed: Story = { args: { sidebarOpen: false }, decorators: frame() }
+// The pointer on a panel's button: the line of its icon moves the way the panel
+// will go. Towards the frame while the sidebar is open, away from it while closed.
+const hovered = (label: string) => ({ pseudo: { hover: [`button[aria-label="${label}"]`] } })
+export const SidebarToggleHover: Story = { decorators: frame(), parameters: hovered('Toggle sidebar') }
+export const SidebarClosedToggleHover: Story = { args: { sidebarOpen: false }, decorators: frame(), parameters: hovered('Toggle sidebar') }
+export const ShowInspectorHover: Story = { args: { inspectorOpen: false }, decorators: frame(), parameters: hovered('Show inspector') }
 export const InspectorClosed: Story = { args: { inspectorOpen: false }, decorators: frame() }
 
 // The window buttons are the system's, so here their place is only reserved.

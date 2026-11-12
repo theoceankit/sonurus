@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
 import { IconButton, type IconButtonProps } from '../IconButton/IconButton'
@@ -28,6 +28,60 @@ const Tool = ({ label, ...props }: IconButtonProps) => (
   </Tooltip>
 )
 
+// After a click the sidebar has done what the icon showed, so the icon rests until
+// the pointer leaves rather than at once show the way back (data-settled).
+function SidebarToggle({ open, onToggle }: { open: boolean; onToggle?: () => void }) {
+  const [settled, setSettled] = useState(false)
+  return (
+    <Tool
+      icon="sidebar-toggle"
+      label="Toggle sidebar"
+      aria-expanded={open}
+      className={styles.sidebarToggle}
+      data-settled={settled || undefined}
+      onPointerLeave={() => setSettled(false)}
+      onClick={() => {
+        setSettled(true)
+        onToggle?.()
+      }}
+    />
+  )
+}
+
+// Shows only while the inspector is closed. When it opens the button goes back the
+// way it came: it stays until its animations have finished.
+function ShowInspector({ shown, onOpen }: { shown: boolean; onOpen?: () => void }) {
+  const [leaving, setLeaving] = useState(false)
+  const [wasShown, setWasShown] = useState(shown)
+  if (shown !== wasShown) {
+    setWasShown(shown)
+    setLeaving(!shown)
+  }
+  const ref = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!leaving) return
+    let gone = false
+    const animations = ref.current?.getAnimations?.() ?? []
+    // A cancelled animation, as when the inspector closes again at once, also ends it.
+    Promise.allSettled(animations.map(a => a.finished)).then(() => { if (!gone) setLeaving(false) })
+    return () => { gone = true }
+  }, [leaving])
+  return (
+    <span className={styles.inspectorRoom} data-open={shown || undefined}>
+      {(shown || leaving) && (
+        <Tool
+          ref={ref}
+          icon="inspector"
+          label="Show inspector"
+          className={cx(styles.showInspector, leaving ? styles.disappear : styles.appear)}
+          inert={leaving || undefined}
+          onClick={onOpen}
+        />
+      )}
+    </span>
+  )
+}
+
 // The strip the window is dragged by. The system's window buttons stand over it,
 // on either side: env(titlebar-area-*) in the styles keeps the controls clear of them.
 export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = true, onOpenInspector, onNewTranscription, onOpenSettings, onOpenSpeakers, status, className }: TitlebarProps) {
@@ -36,7 +90,7 @@ export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = 
       <div className={styles.brand}>
         <TooltipGroup>
           <span className={styles.nav}>
-            <Tool icon="sidebar-toggle" label="Toggle sidebar" aria-expanded={sidebarOpen} onClick={onToggleSidebar} />
+            <SidebarToggle open={sidebarOpen} onToggle={onToggleSidebar} />
             <Tool icon="arrow-left" label="Back" {...markNotImplemented('titlebar.back')} />
             <Tool icon="arrow-right" label="Forward" {...markNotImplemented('titlebar.forward')} />
           </span>
@@ -53,7 +107,7 @@ export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = 
           <span className={styles.nav}>
             <Tool icon="speakers" label="Speakers" onClick={onOpenSpeakers} />
             <Tool icon="settings" label="Settings" onClick={onOpenSettings} />
-            {!inspectorOpen && <Tool icon="inspector" label="Show inspector" className={styles.appear} onClick={onOpenInspector} />}
+            <ShowInspector shown={!inspectorOpen} onOpen={onOpenInspector} />
           </span>
         </TooltipGroup>
       </div>

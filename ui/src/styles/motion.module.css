@@ -32,6 +32,17 @@
   animation: enter var(--motion-in) var(--ease-enter) var(--motion-delay) backwards;
 }
 
+/* Its way back: what goes with no state of its own to play out, as the button
+   that shows only while something else is hidden, once that shows. The component
+   unmounts it on animationend; on the way it takes no pointer. */
+:where(.disappear) {
+  --motion-out: var(--duration-base);
+  --motion-to-scale: var(--motion-scale);
+  --motion-to-shift: 0 0;
+  animation: leave var(--motion-out) var(--ease-exit) forwards;
+  pointer-events: none;
+}
+
 /* Over everything else and tied to a control: grows from where it hangs. */
 :where(.popup) {
   --motion-in: var(--duration-base);
@@ -40,11 +51,43 @@
   transform-origin: var(--radix-dropdown-menu-content-transform-origin, var(--radix-popover-content-transform-origin));
 }
 
+/* The button of a side panel, whose icon is a frame with a line for the panel's
+   edge as its second shape (sidebar-toggle, inspector). Under the pointer the line
+   moves the way the panel will go; the component sets --panel-line-shift to one
+   of the four below. Distances are in the icon's 24-unit grid: 1.5 units are 1 px
+   at 16 px, so the line stays on whole pixels. Towards the frame it goes 1 px
+   only, as further it meets the frame's edge and the two read as one.
+   After a click the panel has done what the line showed: data-settled holds the
+   line at rest until the pointer leaves, instead of showing the way back. */
+:where(.panelLine) {
+  --panel-line-to-start: calc(var(--motion-shift-sm) * -0.75);
+  --panel-line-from-start: calc(var(--motion-shift-sm) * 1.5);
+  --panel-line-to-end: calc(var(--motion-shift-sm) * 0.75);
+  --panel-line-from-end: calc(var(--motion-shift-sm) * -1.5);
+  --panel-line-shift: 0px;
+}
+
+:where(.panelLine) svg > :nth-child(2) {
+  transition: translate var(--duration-fast) var(--ease-standard);
+}
+
+:where(.panelLine:hover:not([data-settled])) svg > :nth-child(2) {
+  translate: var(--panel-line-shift) 0;
+}
+
 @keyframes enter {
   from {
     opacity: 0;
     scale: var(--motion-from-scale);
     translate: var(--motion-from-shift);
+  }
+}
+
+@keyframes leave {
+  to {
+    opacity: 0;
+    scale: var(--motion-to-scale);
+    translate: var(--motion-to-shift);
   }
 }
 
