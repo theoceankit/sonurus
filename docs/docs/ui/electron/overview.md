@@ -146,7 +146,7 @@ ui/
 | `setZoom(factor)` | Call `webContents.setZoomFactor(factor)` |
 | `writeClipboard(text)` | Write text to the system clipboard |
 | `restartBackend()` | Restart the backend to apply a GPU download or removal (asked once `POST /gpu/restart` says `ready`); resolves when the new backend is up. See [GPU acceleration](./gpu-acceleration.md) |
-| `showModelsFolder()` | Open the models folder in the file manager (Settings → Models). Takes no path: main asks the backend (`GET /models/folder`, `models-folder.js`) and opens that folder with `shell.openPath`, so the window cannot open anything else. Resolves to `''` once opened, else why not: the backend does not answer, the folder does not exist yet, or the error of `shell.openPath` |
+| `showModelsFolder()` | Open the models folder in the file manager (Settings → Models). Takes no path: main asks the backend (`GET /models/folder`, `models-folder.js`) and opens that folder with `shell.openPath`, so the window cannot open anything else. Main opens only an absolute path to an existing folder named `.models`: `shell.openPath` runs a file with its default application, so not even what answers on the port can have it open anything else. Resolves to `''` once opened, else why not: the backend does not answer, the folder does not exist yet, the path is not a models folder, or the error of `shell.openPath` |
 | `setWindowDimmed(dimmed, startedAt)` | Dim or undim the strip of the window buttons with a modal's scrim (see [Window and Editor shell](#window-and-editor-shell)) |
 | `getPlatform()` | Returns `process.platform` (`'win32'`, `'darwin'`, `'linux'`) |
 | `getAppVersion()` | Returns `app.getVersion()` — the `version` field of `package.json` |
