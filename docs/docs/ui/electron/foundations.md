@@ -377,6 +377,7 @@ The player also keeps unknown speakers grey on the waveform and its speed button
 
 - Type scale 11, 13, 15, 18 and 22 px, weights 400 and 600 only, through the `--font-*` tokens.
 - No `·` separators and no all-caps labels: separate values are separate elements with a gap, a list inside a phrase uses commas, a number next to a title is a counter. Straight quotes. All text in the UI and in stories is English.
+- An ellipsis means one of two things: something is in progress (Transcribing audio…, Checking models…, Cancelling…), or a long name is cut by `text-overflow: ellipsis` where it does not fit. Commands never get one, in menus, on buttons or in tooltips, even when they open a dialog or a file picker: Change speaker, Import files, Transcription settings. It is always the single character `…`, never three dots.
 - A control whose feature does not exist yet stays visible with the default cursor ([Unimplemented controls](#unimplemented-controls)); it is never hidden or faked.
 - Secondary actions of a row, such as Play and Assign on a speaker, appear on hover and focus of that row. A gap between hover targets is covered by a hit area, not by a timer, so the highlight does not drop between rows.
 - Delays and durations in scripts come from the tokens through `ui/src/styles/motion.ts`, never as literals. A highlight under the pointer waits `--delay-hover`, the next one comes at once.
