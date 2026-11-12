@@ -28,6 +28,7 @@ export type JobFailedEvent = Schemas['JobFailedEvent']
 export type HeartbeatEvent = Schemas['HeartbeatEvent']
 // A row of GET /models. Alignment models carry only their id and whether they are there.
 export type ModelInfo = Schemas['TranscriptionModelInfo'] | Schemas['AlignmentModelInfo']
+export type ModelsFolder = Schemas['ModelsFolder']
 
 // What WS /ws/queue sends. Heartbeats only keep the connection alive, so
 // subscribers get the rest.

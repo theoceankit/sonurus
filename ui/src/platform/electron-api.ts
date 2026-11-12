@@ -25,6 +25,8 @@ export type ElectronAPI = {
   setZoom: (factor: number) => Promise<void>
   writeClipboard: (text: string) => Promise<void>
   restartBackend: () => Promise<void>
+  // '' once the file manager opened the models folder, else why it did not.
+  showModelsFolder: () => Promise<string>
   setWindowDimmed: (dimmed: boolean, startedAt: number) => void
 }
 

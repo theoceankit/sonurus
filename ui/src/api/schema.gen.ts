@@ -217,6 +217,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/models/folder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Models Folder */
+        get: operations["models_folder_models_folder_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/models/{model_id}": {
         parameters: {
             query?: never;
@@ -911,6 +928,16 @@ export interface components {
             /** Whisper Model */
             whisper_model?: string | null;
         };
+        /**
+         * ModelsFolder
+         * @description GET /models/folder: where this backend keeps every downloaded model.
+         */
+        ModelsFolder: {
+            /** Exists */
+            exists: boolean;
+            /** Path */
+            path: string;
+        };
         /** QueueJob */
         QueueJob: {
             /** Audio Path */
@@ -1559,6 +1586,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": (components["schemas"]["TranscriptionModelInfo"] | components["schemas"]["AlignmentModelInfo"])[];
+                };
+            };
+        };
+    };
+    models_folder_models_folder_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelsFolder"];
                 };
             };
         };

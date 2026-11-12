@@ -4,7 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { ApiError } from '../../api/client'
 import { QUEUE_JOB, queueSnapshot } from '../../api/fixtures/data'
-import { createFixtureClient, type FixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
+import { createFixtureClient, FIXTURE_MODELS_DIR, type FixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import type { QueueJob, QueueSnapshot } from '../../api/types'
 import { App } from '../../App'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
@@ -13,6 +13,7 @@ import type { ElectronSettings } from '../../platform/electron-api'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../../platform/settings'
 import { alignedWithoutModel } from './AlignmentSection'
+import { folderName } from './ModelsSection'
 
 afterEach(() => {
   dismissAllToasts()
@@ -121,7 +122,7 @@ test('Alignment lists the models of the languages, and which need none', async (
   expect(inRow('Russian', 'Delete Russian')).toBeTruthy()
   expect(row('Russian').textContent).not.toMatch(/Русский|wav2vec2|Installed/)
   expect(inRow('Czech', 'Download')).toBeTruthy()
-  expect(inRow('Czech', 'Use')).toBeNull()
+  expect(settings().textContent).toContain(`Download a model for each language you transcribe. Not needed for English, Español, Deutsch and Français.`)
   expect(settings().textContent).toContain(`Not needed for English, Español, Deutsch and Français.`)
   expect(alignedWithoutModel()).toEqual(['English', 'Español', 'Deutsch', 'Français'])
 })
@@ -237,4 +238,75 @@ test('the diarization card says a HuggingFace token is needed, and API Keys open
   await userEvent.click(within(card).getByRole('button', { name: 'API Keys' }))
   expect(within(settings()).getByRole('tab', { name: 'API Keys', selected: true })).toBeTruthy()
   expect(within(settings()).getByLabelText('HuggingFace token', { selector: 'input' })).toBeTruthy()
+})
+
+// The cards whose description ends in the line of the models folder.
+const card = (name: string) => within(settings()).getByRole('region', { name })
+const folderLink = (name = 'Transcription') => within(card(name)).queryByRole('button', { name: '.models' })
+
+test('the Transcription card names the models folder, and the name opens it', async () => {
+  const { bridge } = await setup({ installedModels: ['small', 'diarize'] })
+  const show = vi.fn(async () => '')
+  bridge.showModelsFolder = show
+  await openSection('Models')
+  await waitFor(() => expect(folderLink()).toBeTruthy())
+  expect(card('Transcription').textContent).toContain('Every downloaded model is kept in the .models folder.')
+  expect(card('Transcription').textContent).not.toContain(FIXTURE_MODELS_DIR)
+  await userEvent.click(folderLink()!)
+  expect(show).toHaveBeenCalledWith()
+  expect(screen.queryByRole('alert')).toBeNull()
+})
+
+test('the whole path of the models folder is in the tooltip of its name', async () => {
+  await setup({ installedModels: ['small', 'diarize'] })
+  await openSection('Models')
+  await waitFor(() => expect(folderLink()).toBeTruthy())
+  await userEvent.hover(folderLink()!)
+  expect((await screen.findByRole('tooltip')).textContent).toBe(FIXTURE_MODELS_DIR)
+  expect(folderLink()!.hasAttribute('title')).toBe(false)
+})
+
+test('before the first download the folder does not exist: the name is text, with the path in its tooltip', async () => {
+  await setup({ noModels: true })
+  await openSection('Models')
+  await waitFor(() => expect(card('Transcription').textContent).toContain('Downloaded models will be kept in the .models folder.'))
+  expect(folderLink()).toBeNull()
+  await userEvent.hover(within(card('Transcription')).getByText('.models'))
+  expect((await screen.findByRole('tooltip')).textContent).toBe(FIXTURE_MODELS_DIR)
+})
+
+test('the folder appears with the first download, and its name becomes a link', async () => {
+  await setup({ noModels: true })
+  await openSection('Models')
+  await waitFor(() => expect(card('Transcription').textContent).toContain('will be kept'))
+  await userEvent.click(inRow('Whisper Tiny', 'Download')!)
+  await waitFor(() => expect(folderLink()).toBeTruthy())
+})
+
+test('a folder that does not open is said in a toast with the reason', async () => {
+  const { bridge } = await setup({ installedModels: ['small', 'diarize'] })
+  bridge.showModelsFolder = async () => 'Failed to open path'
+  await openSection('Models')
+  await waitFor(() => expect(folderLink()).toBeTruthy())
+  await userEvent.click(folderLink()!)
+  expect(await screen.findByText('Could not open the models folder: Failed to open path')).toBeTruthy()
+})
+
+test('Languages names the models folder the same way, and the name opens it', async () => {
+  const { bridge } = await setup({ installedModels: ['small', 'diarize', 'ru'] })
+  const show = vi.fn(async () => '')
+  bridge.showModelsFolder = show
+  await openSection('Languages')
+  await waitFor(() => expect(folderLink('Word timings')).toBeTruthy())
+  expect(card('Word timings').textContent).toContain('Every downloaded model is kept in the .models folder.')
+  await userEvent.click(folderLink('Word timings')!)
+  expect(show).toHaveBeenCalledWith()
+})
+
+test.each([
+  ['/home/me/.config/sonorus/.models', '.models'],
+  ['/home/me/.config/sonorus/.models/', '.models'],
+  ['C:\\Users\\me\\AppData\\Roaming\\sonorus\\.models', '.models'],
+])('the folder of %s is named %s', (path, name) => {
+  expect(folderName(path)).toBe(name)
 })

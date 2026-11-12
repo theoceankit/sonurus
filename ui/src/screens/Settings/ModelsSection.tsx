@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react'
-import { useModels } from '../../api/queries'
+import { useModels, useModelsFolder } from '../../api/queries'
 import type { ModelInfo } from '../../api/types'
 import { Icon } from '../../components/Icon/Icon'
 import { Inline } from '../../components/Inline/Inline'
 import { ModelRow, type ModelRowState } from '../../components/ModelRow/ModelRow'
 import { SectionCard } from '../../components/SectionCard/SectionCard'
+import { toast } from '../../components/Toast/toast-store'
+import { Tooltip } from '../../components/Tooltip/Tooltip'
 import { useSettings } from '../../platform/settings'
 import { selectTranscribeModel } from '../../platform/transcribe-defaults'
 import { useLingering } from '../../presence'
@@ -38,6 +40,38 @@ export function rowState(installed: boolean, modelId: string, downloads: ModelDo
 
 export function Loading({ models }: { models: ReturnType<typeof useModels> }) {
   return <p className={styles.quiet}>{models.isError ? 'The transcription service does not answer.' : 'Checking models…'}</p>
+}
+
+// The last part of a path, on any OS: .models of the data directory.
+export const folderName = (path: string) => path.split(/[\\/]/).filter(Boolean).at(-1) ?? path
+
+// Where the backend keeps every model, on a line of its own under a card's
+// description: the folder by its name, the whole path in the tooltip. The name
+// opens the folder; main opens the folder the backend names, the window passes
+// no path. Before the first download there is no folder to open, and the name is
+// only text.
+export function ModelsFolderLine() {
+  const folder = useModelsFolder().data
+  if (!folder) return null
+  const bridge = typeof window === 'undefined' ? undefined : window.electronAPI
+  const show = async () => {
+    const error = await bridge!.showModelsFolder()
+    if (error) toast({ message: `Could not open the models folder: ${error}`, type: 'error' })
+  }
+  const name = folderName(folder.path)
+  const opens = folder.exists && !!bridge
+  return (
+    <span className={styles.folderLine}>
+      {folder.exists ? 'Every downloaded model is kept in the ' : 'Downloaded models will be kept in the '}
+      <Tooltip text={folder.path}>
+        {opens
+          ? <button type="button" className={styles.link} onClick={() => void show()}>{name}</button>
+          // Focusable, so the keyboard reaches the path in the tooltip too.
+          : <span className={styles.folderName} tabIndex={0}>{name}</span>}
+      </Tooltip>
+      {' folder.'}
+    </span>
+  )
 }
 
 export function ModelsSection() {
@@ -78,7 +112,10 @@ export function ModelsSection() {
           <span>{hint}</span>
         </Inline>
       )}
-      <SectionCard title="Transcription" description="Whisper turns speech into text. The default one is used for new transcriptions.">
+      <SectionCard
+        title="Transcription"
+        description={<>Whisper turns speech into text. The default one is used for new transcriptions.<ModelsFolderLine /></>}
+      >
         {rows.filter(model => model.kind === 'whisper').map(row)}
       </SectionCard>
       <SectionCard

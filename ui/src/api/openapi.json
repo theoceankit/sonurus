@@ -480,6 +480,25 @@
         "title": "JobUpdateRequest",
         "type": "object"
       },
+      "ModelsFolder": {
+        "description": "GET /models/folder: where this backend keeps every downloaded model.",
+        "properties": {
+          "exists": {
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "exists"
+        ],
+        "title": "ModelsFolder",
+        "type": "object"
+      },
       "QueueJob": {
         "properties": {
           "audio_path": {
@@ -1751,6 +1770,27 @@
           }
         },
         "summary": "List Models",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/models/folder": {
+      "get": {
+        "operationId": "models_folder_models_folder_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelsFolder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Models Folder",
         "tags": [
           "models"
         ]

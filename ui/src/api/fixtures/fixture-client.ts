@@ -82,6 +82,7 @@ export const BROKEN_SOURCE = 'broken.monitor'
 export const BROKEN_SOURCE_ERROR = 'System audio capture needs parec. Install pulseaudio-utils and try again.'
 
 const RECORDINGS_DIR = '/home/me/.config/sonorus/recordings'
+export const FIXTURE_MODELS_DIR = '/home/me/.config/sonorus/.models'
 
 const EMPTY: FixtureData = { transcripts: [], details: [], speakers: [], candidates: {} }
 
@@ -94,6 +95,8 @@ export function createFixtureClient({
   const captures = new Set<string>()
   const audioUrls = new Map<number, string>()
   const models = fixtureModels(noModels ? [] : installedModels)
+  // The first download makes the models folder; deleting the models leaves it.
+  let modelsFolderMade = false
   const data = structuredClone(scenario === 'empty' ? EMPTY : BOARDS[board])
   let queue: QueueSnapshot = queueSnapshot()
   const listeners = new Set<(event: QueueUpdate) => void>()
@@ -385,6 +388,10 @@ export function createFixtureClient({
       return audioUrls.get(id)!
     },
     listModels: () => answer(() => models),
+    getModelsFolder: () => answer(() => {
+      modelsFolderMade ||= models.some(model => model.installed)
+      return { path: FIXTURE_MODELS_DIR, exists: modelsFolderMade }
+    }),
     startModelDownload: modelId => answer(() => startDownload(modelId)),
     resetData: () => answer(() => {
       if (queue.running_job_id) throw new ApiError(409, 'A transcription is in progress')

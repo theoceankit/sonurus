@@ -1,9 +1,10 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { BackendRefusedError, restartBackend, startBackend, stopBackend } = require('./backend')
 const { devUserDataPath } = require('./backend-identity')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
+const { showModelsFolder } = require('./models-folder')
 const { uiEntry } = require('./ui-entry')
 const { windowChrome, overlayDimmer } = require('./window-chrome')
 
@@ -145,6 +146,8 @@ ipcMain.handle('get-platform', () => process.platform)
 ipcMain.handle('get-app-version', () => app.getVersion())
 
 ipcMain.handle('write-clipboard', async (_e, text) => { await clipboard.writeText(text) })
+
+ipcMain.handle('show-models-folder', () => showModelsFolder({ openPath: p => shell.openPath(p) }))
 
 function savedHfToken() {
   try {

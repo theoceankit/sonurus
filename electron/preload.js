@@ -11,5 +11,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setZoom:         (factor) => ipcRenderer.invoke('set-zoom', factor),
   writeClipboard:  (text) => ipcRenderer.invoke('write-clipboard', text),
   restartBackend:  () => ipcRenderer.invoke('restart-backend'),
+  showModelsFolder: () => ipcRenderer.invoke('show-models-folder'),
   setWindowDimmed: (dimmed, startedAt) => ipcRenderer.send('window-dimmed', dimmed, startedAt),
 })
