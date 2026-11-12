@@ -18,6 +18,7 @@ export function createMockElectronAPI(changes: Partial<ElectronAPI> = {}): MockE
     setZoom: async () => {},
     writeClipboard: async text => { clipboard = text },
     restartBackend: async () => {},
+    showModelsFolder: async () => '',
     setWindowDimmed: () => {},
     clipboard: () => clipboard,
     ...changes,
