@@ -93,9 +93,6 @@
   }
 }
 
-/* Comes from the side the inspector leaves to, on the panel's curve, and settles in
-   the frame the panel does. A fifth of the way held back: at once it would be over
-   before the eye gets there. */
 /* The gaps between these buttons are not for dragging: their tooltip stays over them. */
 .nav {
   display: flex;
@@ -103,6 +100,9 @@
   gap: var(--space-1);
 }
 
+/* Comes from the side the inspector leaves to, on the panel's curve, and settles in
+   the frame the panel does. A fifth of the way held back: at once it would be over
+   before the eye gets there. */
 .appear {
   composes: appear from '../../styles/motion.module.css';
   --motion-delay: calc(var(--duration-move) / 5);
