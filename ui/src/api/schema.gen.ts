@@ -487,6 +487,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/speakers/handle-format": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Handle Format */
+        get: operations["get_handle_format_speakers_handle_format_get"];
+        /**
+         * Set Handle Format
+         * @description For speakers named from now on; handles already given stay.
+         */
+        put: operations["set_handle_format_speakers_handle_format_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/speakers/handle-suggestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Handle Suggestion
+         * @description The handle a speaker named name gets now: in the handle format, numbered
+         *     when taken. exclude: the speaker being renamed, whose own handle is free to it.
+         */
+        get: operations["handle_suggestion_speakers_handle_suggestion_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/speakers/{speaker_id}": {
         parameters: {
             query?: never;
@@ -871,6 +913,22 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HandleFormatBody
+         * @description How a handle is made from a name: ivan.petrov, i.petrov or ivan.p.
+         */
+        HandleFormatBody: {
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "first.last" | "f.last" | "first.l";
+        };
+        /** HandleSuggestionResponse */
+        HandleSuggestionResponse: {
+            /** Handle */
+            handle: string;
+        };
         /** HeartbeatEvent */
         HeartbeatEvent: {
             /**
@@ -1015,15 +1073,16 @@ export interface components {
         };
         /**
          * RefusalResponse
-         * @description A refusal of the queue's job routes (400, and 409 for a job that started):
-         *     a message for the user and what it is about.
+         * @description A refusal of the queue's job routes (400, and 409 for a job that started)
+         *     and of a speaker's handle (400, and 409 for a taken one): a message for the
+         *     user and what it is about.
          */
         RefusalResponse: {
             /**
              * Code
              * @enum {string}
              */
-            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed" | "job_running";
+            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed" | "job_running" | "handle_invalid" | "handle_taken" | "handle_needs_name";
             /** Detail */
             detail: string;
         };
@@ -1061,13 +1120,16 @@ export interface components {
          * SpeakerAssignmentRequest
          * @description The segments that change, all together, by their start, and exactly one of:
          *     an existing speaker_id, or speaker_name to create a new speaker. color_index
-         *     sets the new speaker's palette color (only with speaker_name).
+         *     sets the new speaker's palette color and speaker_handle its handle instead of
+         *     the one made from the name (both only with speaker_name).
          */
         SpeakerAssignmentRequest: {
             /** Color Index */
             color_index?: number | null;
             /** Segment Starts */
             segment_starts: number[];
+            /** Speaker Handle */
+            speaker_handle?: string | null;
             /** Speaker Id */
             speaker_id?: string | null;
             /** Speaker Name */
@@ -1116,7 +1178,9 @@ export interface components {
         };
         /**
          * SpeakerResponse
-         * @description A speaker in the Speakers section. name is None for unnamed speakers.
+         * @description A speaker in the Speakers section. name is None for unnamed speakers, and
+         *     so is handle: only a named speaker has one. handle_manual: set by hand, so it
+         *     stays when the name changes.
          */
         SpeakerResponse: {
             /** Color Index */
@@ -1126,6 +1190,13 @@ export interface components {
              * @default 0
              */
             duration_sec: number;
+            /** Handle */
+            handle: string | null;
+            /**
+             * Handle Manual
+             * @default false
+             */
+            handle_manual: boolean;
             /** Id */
             id: string;
             /**
@@ -1176,11 +1247,14 @@ export interface components {
         };
         /**
          * SpeakerUpdateRequest
-         * @description At least one of name / color_index.
+         * @description At least one of name / color_index / handle. handle: one set by hand (a
+         *     leading @ and the case do not matter), or "" for the one made from the name.
          */
         SpeakerUpdateRequest: {
             /** Color Index */
             color_index?: number | null;
+            /** Handle */
+            handle?: string | null;
             /** Name */
             name?: string | null;
         };
@@ -2065,6 +2139,91 @@ export interface operations {
             };
         };
     };
+    get_handle_format_speakers_handle_format_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandleFormatBody"];
+                };
+            };
+        };
+    };
+    set_handle_format_speakers_handle_format_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandleFormatBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandleFormatBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    handle_suggestion_speakers_handle_suggestion_get: {
+        parameters: {
+            query: {
+                name: string;
+                exclude?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandleSuggestionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_speaker_speakers__speaker_id__delete: {
         parameters: {
             query?: never;
@@ -2118,6 +2277,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpeakerResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2523,6 +2700,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpeakerAssignmentResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
                 };
             };
             /** @description Validation Error */

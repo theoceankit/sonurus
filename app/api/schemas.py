@@ -50,9 +50,13 @@ class TranscriptUpdateRequest(BaseModel):
 
 
 class SpeakerResponse(ResponseModel):
-    """A speaker in the Speakers section. name is None for unnamed speakers."""
+    """A speaker in the Speakers section. name is None for unnamed speakers, and
+    so is handle: only a named speaker has one. handle_manual: set by hand, so it
+    stays when the name changes."""
     id: str
     name: str | None
+    handle: str | None = None
+    handle_manual: bool = False
     color_index: int
     segments: int = 0
     transcripts: int = 0
@@ -61,9 +65,11 @@ class SpeakerResponse(ResponseModel):
 
 
 class SpeakerUpdateRequest(BaseModel):
-    """At least one of name / color_index."""
+    """At least one of name / color_index / handle. handle: one set by hand (a
+    leading @ and the case do not matter), or "" for the one made from the name."""
     name: str | None = Field(default=None, min_length=1, max_length=128)
     color_index: int | None = None
+    handle: str | None = Field(default=None, max_length=64)
 
     @field_validator('name', mode='before')
     @classmethod
@@ -126,12 +132,25 @@ class UnknownSpeakerCandidates(ResponseModel):
 RefusalCode = Literal[
     "whisper_model_missing", "diarization_model_missing", "alignment_model_missing",
     "audio_not_found", "audio_not_readable", "audio_copy_failed", "job_running",
+    "handle_invalid", "handle_taken", "handle_needs_name",
 ]
+
+HandleFormat = Literal["first.last", "f.last", "first.l"]
+
+
+class HandleFormatBody(BaseModel):
+    """How a handle is made from a name: ivan.petrov, i.petrov or ivan.p."""
+    format: HandleFormat
+
+
+class HandleSuggestionResponse(BaseModel):
+    handle: str
 
 
 class RefusalResponse(BaseModel):
-    """A refusal of the queue's job routes (400, and 409 for a job that started):
-    a message for the user and what it is about."""
+    """A refusal of the queue's job routes (400, and 409 for a job that started)
+    and of a speaker's handle (400, and 409 for a taken one): a message for the
+    user and what it is about."""
     detail: str
     code: RefusalCode
 
@@ -228,10 +247,12 @@ class RenameRequest(BaseModel):
 class SpeakerAssignmentRequest(BaseModel):
     """The segments that change, all together, by their start, and exactly one of:
     an existing speaker_id, or speaker_name to create a new speaker. color_index
-    sets the new speaker's palette color (only with speaker_name)."""
+    sets the new speaker's palette color and speaker_handle its handle instead of
+    the one made from the name (both only with speaker_name)."""
     speaker_id: str | None = None
     speaker_name: str | None = Field(default=None, min_length=1, max_length=128)
     color_index: int | None = None
+    speaker_handle: str | None = Field(default=None, max_length=64)
 
     @field_validator('speaker_name', mode='before')
     @classmethod

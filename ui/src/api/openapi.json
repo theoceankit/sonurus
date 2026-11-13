@@ -333,6 +333,38 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HandleFormatBody": {
+        "description": "How a handle is made from a name: ivan.petrov, i.petrov or ivan.p.",
+        "properties": {
+          "format": {
+            "enum": [
+              "first.last",
+              "f.last",
+              "first.l"
+            ],
+            "title": "Format",
+            "type": "string"
+          }
+        },
+        "required": [
+          "format"
+        ],
+        "title": "HandleFormatBody",
+        "type": "object"
+      },
+      "HandleSuggestionResponse": {
+        "properties": {
+          "handle": {
+            "title": "Handle",
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "title": "HandleSuggestionResponse",
+        "type": "object"
+      },
       "HeartbeatEvent": {
         "properties": {
           "type": {
@@ -714,7 +746,7 @@
         "type": "object"
       },
       "RefusalResponse": {
-        "description": "A refusal of the queue's job routes (400, and 409 for a job that started):\na message for the user and what it is about.",
+        "description": "A refusal of the queue's job routes (400, and 409 for a job that started)\nand of a speaker's handle (400, and 409 for a taken one): a message for the\nuser and what it is about.",
         "properties": {
           "code": {
             "enum": [
@@ -724,7 +756,10 @@
               "audio_not_found",
               "audio_not_readable",
               "audio_copy_failed",
-              "job_running"
+              "job_running",
+              "handle_invalid",
+              "handle_taken",
+              "handle_needs_name"
             ],
             "title": "Code",
             "type": "string"
@@ -828,7 +863,7 @@
         "type": "object"
       },
       "SpeakerAssignmentRequest": {
-        "description": "The segments that change, all together, by their start, and exactly one of:\nan existing speaker_id, or speaker_name to create a new speaker. color_index\nsets the new speaker's palette color (only with speaker_name).",
+        "description": "The segments that change, all together, by their start, and exactly one of:\nan existing speaker_id, or speaker_name to create a new speaker. color_index\nsets the new speaker's palette color and speaker_handle its handle instead of\nthe one made from the name (both only with speaker_name).",
         "properties": {
           "color_index": {
             "anyOf": [
@@ -848,6 +883,18 @@
             "minItems": 1,
             "title": "Segment Starts",
             "type": "array"
+          },
+          "speaker_handle": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Handle"
           },
           "speaker_id": {
             "anyOf": [
@@ -975,7 +1022,7 @@
         "type": "object"
       },
       "SpeakerResponse": {
-        "description": "A speaker in the Speakers section. name is None for unnamed speakers.",
+        "description": "A speaker in the Speakers section. name is None for unnamed speakers, and\nso is handle: only a named speaker has one. handle_manual: set by hand, so it\nstays when the name changes.",
         "properties": {
           "color_index": {
             "title": "Color Index",
@@ -985,6 +1032,22 @@
             "default": 0.0,
             "title": "Duration Sec",
             "type": "number"
+          },
+          "handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handle"
+          },
+          "handle_manual": {
+            "default": false,
+            "title": "Handle Manual",
+            "type": "boolean"
           },
           "id": {
             "title": "Id",
@@ -1020,6 +1083,8 @@
         "required": [
           "id",
           "name",
+          "handle",
+          "handle_manual",
           "color_index",
           "segments",
           "transcripts",
@@ -1101,7 +1166,7 @@
         "type": "object"
       },
       "SpeakerUpdateRequest": {
-        "description": "At least one of name / color_index.",
+        "description": "At least one of name / color_index / handle. handle: one set by hand (a\nleading @ and the case do not matter), or \"\" for the one made from the name.",
         "properties": {
           "color_index": {
             "anyOf": [
@@ -1113,6 +1178,18 @@
               }
             ],
             "title": "Color Index"
+          },
+          "handle": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handle"
           },
           "name": {
             "anyOf": [
@@ -2372,6 +2449,126 @@
         ]
       }
     },
+    "/speakers/handle-format": {
+      "get": {
+        "operationId": "get_handle_format_speakers_handle_format_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandleFormatBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Handle Format",
+        "tags": [
+          "speakers"
+        ]
+      },
+      "put": {
+        "description": "For speakers named from now on; handles already given stay.",
+        "operationId": "set_handle_format_speakers_handle_format_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandleFormatBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandleFormatBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Handle Format",
+        "tags": [
+          "speakers"
+        ]
+      }
+    },
+    "/speakers/handle-suggestion": {
+      "get": {
+        "description": "The handle a speaker named name gets now: in the handle format, numbered\nwhen taken. exclude: the speaker being renamed, whose own handle is free to it.",
+        "operationId": "handle_suggestion_speakers_handle_suggestion_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandleSuggestionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Handle Suggestion",
+        "tags": [
+          "speakers"
+        ]
+      }
+    },
     "/speakers/{speaker_id}": {
       "delete": {
         "operationId": "delete_speaker_speakers__speaker_id__delete",
@@ -2446,6 +2643,26 @@
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {
@@ -3003,6 +3220,26 @@
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {

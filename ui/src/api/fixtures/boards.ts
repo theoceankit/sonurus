@@ -61,7 +61,7 @@ export const BOARDS: Record<FixtureBoard, FixtureData> = {
   sameNames: {
     transcripts: TRANSCRIPTS.map(t => (t.id === 10 || t.id === 14 ? { ...t, speakers: [...t.speakers, SPEAKER_IDS.mark2] } : t)),
     details: [weeklySync(), designReview()],
-    speakers: SPEAKERS.flatMap(s => (s.id === mark ? [s, speaker(SPEAKER_IDS.mark2, 'Mark Ellis', 2, 2, '2026-09-18T17:00:00')] : [s])),
+    speakers: SPEAKERS.flatMap(s => (s.id === mark ? [s, speaker(SPEAKER_IDS.mark2, 'Mark Ellis', 2, 2, '2026-09-18T17:00:00', 'mark.ellis2')] : [s])),
     candidates: { [WEEKLY_SYNC_ID]: CANDIDATES, [DESIGN_REVIEW_ID]: DESIGN_REVIEW_CANDIDATES },
   },
 }

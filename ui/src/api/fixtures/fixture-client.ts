@@ -9,6 +9,7 @@ import type { ModelDownloadEvent } from '../model-download-events'
 import type { DownloadFailure } from '../../transcribe/download-errors'
 import { createTestAudioUrl } from './test-audio'
 import { fixtureLevels } from './waveform'
+import { baseHandle, uniqueHandle } from './handles'
 
 export type FixtureScenario = 'default' | 'loading' | 'empty' | 'error'
 
@@ -135,6 +136,8 @@ export function createFixtureClient({
     const created: Speaker = {
       id: crypto.randomUUID(),
       name: target.name,
+      handle: uniqueHandle(baseHandle(target.name), data.speakers.flatMap(s => (s.handle ? [s.handle] : []))),
+      handle_manual: false,
       color_index: target.colorIndex ?? 0,
       segments: 0,
       transcripts: 1,
