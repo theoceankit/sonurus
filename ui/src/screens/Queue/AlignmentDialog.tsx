@@ -11,6 +11,8 @@ import styles from './AlignmentDialog.module.css'
 export interface AlignmentDialogProps {
   open: boolean
   language: string
+  // The model's download size, as GET /models gives it; none while that is loading.
+  size?: string
   state: AlignmentState
   // While downloading, from 0 to 100.
   pct: number
@@ -40,10 +42,10 @@ const TITLES: Record<AlignmentState, (name: string) => string> = {
 // A job failed because the alignment model of its language is not downloaded: the
 // model can be downloaded here, and the jobs retried, without going to Settings.
 export function AlignmentDialog({
-  open, language, state, pct, retryCount, cancelling, failure, onDownload, onCancel, onRetry, onClose, onOpenSettings, onExited, preview,
+  open, language, size, state, pct, retryCount, cancelling, failure, onDownload, onCancel, onRetry, onClose, onOpenSettings, onExited, preview,
 }: AlignmentDialogProps) {
   const model = alignmentModel(language)
-  const download = { children: model.size ? `Download ${model.size}` : 'Download', icon: 'download' as const, onClick: onDownload }
+  const download = { children: size ? `Download ${size}` : 'Download', icon: 'download' as const, onClick: onDownload }
   const footer = {
     offer: <ModalFooter cancel={{ children: 'Dismiss' }} confirm={download} />,
     downloading: <ModalFooter cancel={{ children: cancelling ? 'Cancelling…' : 'Cancel', disabled: cancelling, onClick: onCancel }} />,

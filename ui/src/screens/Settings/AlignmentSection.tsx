@@ -34,7 +34,7 @@ export function AlignmentSection() {
           key={model.id}
           icon="alignment"
           name={model.name}
-          meta={[model.size]}
+          meta={[catalogRow(model.id).size]}
           {...rowState(installed(model.id), model.id, downloads)}
           onDownload={() => void downloads.start(model.id)}
           onCancel={() => void downloads.cancel(model.id)}

@@ -31,42 +31,44 @@ DIARIZATION_CATALOG = {
     },
 }
 
+# size_bytes: the files an alignment download takes (_alignment_files), from the
+# Hub on 2026-11-13. GET /models gives it to the UI as text (_size_text).
 ALIGNMENT_CATALOG = {
-    "ru": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-russian",       "size_bytes": 1_260_000_000},
-    "zh": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn", "size_bytes": 1_260_000_000},
-    "ja": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-japanese",      "size_bytes": 1_260_000_000},
-    "ko": {"hf_repo": "kresnik/wav2vec2-large-xlsr-korean",                  "size_bytes": 1_260_000_000},
-    "uk": {"hf_repo": "Yehor/wav2vec2-xls-r-300m-uk-with-small-lm",         "size_bytes": 1_260_000_000},
-    "pt": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-portuguese",    "size_bytes": 1_260_000_000},
-    "ar": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-arabic",        "size_bytes": 1_260_000_000},
-    "nl": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-dutch",         "size_bytes": 1_260_000_000},
-    "pl": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-polish",        "size_bytes": 1_260_000_000},
-    "hi": {"hf_repo": "theainerd/Wav2Vec2-large-xlsr-hindi",                 "size_bytes": 1_260_000_000},
-    "cs": {"hf_repo": "comodoro/wav2vec2-xls-r-300m-cs-250",                "size_bytes": 300_000_000},
-    "tr": {"hf_repo": "mpoyraz/wav2vec2-xls-r-300m-cv7-turkish",            "size_bytes": 300_000_000},
-    "hu": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-hungarian",     "size_bytes": 1_260_000_000},
-    "fi": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-finnish",       "size_bytes": 1_260_000_000},
-    "fa": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-persian",       "size_bytes": 1_260_000_000},
-    "el": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-greek",         "size_bytes": 1_260_000_000},
-    "da": {"hf_repo": "saattrupdan/wav2vec2-xls-r-300m-ftspeech",           "size_bytes": 300_000_000},
-    "he": {"hf_repo": "imvladikon/wav2vec2-xls-r-300m-hebrew",              "size_bytes": 300_000_000},
-    "vi": {"hf_repo": "nguyenvulebinh/wav2vec2-base-vi-vlsp2020",            "size_bytes": 360_000_000},
-    "ur": {"hf_repo": "kingabzpro/wav2vec2-large-xls-r-300m-Urdu",          "size_bytes": 300_000_000},
-    "te": {"hf_repo": "anuragshas/wav2vec2-large-xlsr-53-telugu",            "size_bytes": 1_260_000_000},
-    "ca": {"hf_repo": "softcatala/wav2vec2-large-xlsr-catala",               "size_bytes": 1_260_000_000},
-    "ml": {"hf_repo": "gvs/wav2vec2-large-xlsr-malayalam",                   "size_bytes": 1_260_000_000},
-    "no": {"hf_repo": "NbAiLab/nb-wav2vec2-1b-bokmaal-v2",                  "size_bytes": 1_260_000_000},
-    "nn": {"hf_repo": "NbAiLab/nb-wav2vec2-1b-nynorsk",                     "size_bytes": 1_260_000_000},
-    "sk": {"hf_repo": "comodoro/wav2vec2-xls-r-300m-sk-cv8",               "size_bytes": 300_000_000},
-    "sl": {"hf_repo": "anton-l/wav2vec2-large-xlsr-53-slovenian",            "size_bytes": 1_260_000_000},
-    "hr": {"hf_repo": "classla/wav2vec2-xls-r-parlaspeech-hr",              "size_bytes": 1_260_000_000},
-    "ro": {"hf_repo": "gigant/romanian-wav2vec2",                            "size_bytes": 1_260_000_000},
-    "eu": {"hf_repo": "stefan-it/wav2vec2-large-xlsr-53-basque",             "size_bytes": 1_260_000_000},
-    "gl": {"hf_repo": "ifrz/wav2vec2-large-xlsr-galician",                  "size_bytes": 1_260_000_000},
-    "ka": {"hf_repo": "xsway/wav2vec2-large-xlsr-georgian",                  "size_bytes": 1_260_000_000},
-    "lv": {"hf_repo": "jimregan/wav2vec2-large-xlsr-latvian-cv",             "size_bytes": 1_260_000_000},
-    "tl": {"hf_repo": "Khalsuu/filipino-wav2vec2-l-xls-r-300m-official",    "size_bytes": 300_000_000},
-    "sv": {"hf_repo": "KBLab/wav2vec2-large-voxrex-swedish",                "size_bytes": 1_260_000_000},
+    "ru": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-russian",       "size_bytes": 1_262_000_000},
+    "zh": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn", "size_bytes": 1_276_000_000},
+    "ja": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-japanese",      "size_bytes": 1_272_000_000},
+    "ko": {"hf_repo": "kresnik/wav2vec2-large-xlsr-korean",                  "size_bytes": 1_267_000_000},
+    "uk": {"hf_repo": "Yehor/wav2vec2-xls-r-300m-uk-with-small-lm",         "size_bytes": 1_262_000_000},
+    "pt": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-portuguese",    "size_bytes": 1_262_000_000},
+    "ar": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-arabic",        "size_bytes": 1_262_000_000},
+    "nl": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-dutch",         "size_bytes": 1_262_000_000},
+    "pl": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-polish",        "size_bytes": 1_262_000_000},
+    "hi": {"hf_repo": "theainerd/Wav2Vec2-large-xlsr-hindi",                 "size_bytes": 1_262_000_000},
+    "cs": {"hf_repo": "comodoro/wav2vec2-xls-r-300m-cs-250",                "size_bytes": 1_262_000_000},
+    "tr": {"hf_repo": "mpoyraz/wav2vec2-xls-r-300m-cv7-turkish",            "size_bytes": 1_262_000_000},
+    "hu": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-hungarian",     "size_bytes": 1_262_000_000},
+    "fi": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-finnish",       "size_bytes": 1_262_000_000},
+    "fa": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-persian",       "size_bytes": 1_262_000_000},
+    "el": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-greek",         "size_bytes": 1_262_000_000},
+    "da": {"hf_repo": "saattrupdan/wav2vec2-xls-r-300m-ftspeech",           "size_bytes": 1_262_000_000},
+    "he": {"hf_repo": "imvladikon/wav2vec2-xls-r-300m-hebrew",              "size_bytes": 1_262_000_000},
+    "vi": {"hf_repo": "nguyenvulebinh/wav2vec2-base-vi-vlsp2020",            "size_bytes": 385_000_000},
+    "ur": {"hf_repo": "kingabzpro/wav2vec2-large-xls-r-300m-Urdu",          "size_bytes": 1_262_000_000},
+    "te": {"hf_repo": "anuragshas/wav2vec2-large-xlsr-53-telugu",            "size_bytes": 1_262_000_000},
+    "ca": {"hf_repo": "softcatala/wav2vec2-large-xlsr-catala",               "size_bytes": 1_262_000_000},
+    "ml": {"hf_repo": "gvs/wav2vec2-large-xlsr-malayalam",                   "size_bytes": 1_262_000_000},
+    "no": {"hf_repo": "NbAiLab/nb-wav2vec2-1b-bokmaal-v2",                  "size_bytes": 3_850_000_000},
+    "nn": {"hf_repo": "NbAiLab/nb-wav2vec2-1b-nynorsk",                     "size_bytes": 3_850_000_000},
+    "sk": {"hf_repo": "comodoro/wav2vec2-xls-r-300m-sk-cv8",               "size_bytes": 1_262_000_000},
+    "sl": {"hf_repo": "anton-l/wav2vec2-large-xlsr-53-slovenian",            "size_bytes": 1_262_000_000},
+    "hr": {"hf_repo": "classla/wav2vec2-xls-r-parlaspeech-hr",              "size_bytes": 1_262_000_000},
+    "ro": {"hf_repo": "gigant/romanian-wav2vec2",                            "size_bytes": 1_262_000_000},
+    "eu": {"hf_repo": "stefan-it/wav2vec2-large-xlsr-53-basque",             "size_bytes": 1_262_000_000},
+    "gl": {"hf_repo": "ifrz/wav2vec2-large-xlsr-galician",                  "size_bytes": 1_262_000_000},
+    "ka": {"hf_repo": "xsway/wav2vec2-large-xlsr-georgian",                  "size_bytes": 1_262_000_000},
+    "lv": {"hf_repo": "jimregan/wav2vec2-large-xlsr-latvian-cv",             "size_bytes": 1_262_000_000},
+    "tl": {"hf_repo": "Khalsuu/filipino-wav2vec2-l-xls-r-300m-official",    "size_bytes": 1_262_000_000},
+    "sv": {"hf_repo": "KBLab/wav2vec2-large-voxrex-swedish",                "size_bytes": 1_262_000_000},
 }
 
 # Files to download per Whisper model (matches faster-whisper's allow_patterns).
@@ -116,6 +118,13 @@ def _is_repo_complete(cache_dir: Path) -> bool:
         return False
     blobs = cache_dir / "blobs"
     return not (blobs.is_dir() and any(blobs.glob("*.incomplete")))
+
+
+def _size_text(size_bytes: int) -> str:
+    """A download size as the UI shows it: ~1.3 GB, ~385 MB."""
+    if size_bytes >= 1_000_000_000:
+        return f"~{size_bytes / 1e9:.1f} GB"
+    return f"~{round(size_bytes / 1e6)} MB"
 
 
 def _alignment_files(repo_files) -> list[str]:
@@ -339,8 +348,11 @@ class ModelService:
                 "speed": entry["speed"], "acc": entry["acc"],
                 "recommended": entry["recommended"], "kind": entry["kind"],
             })
-        for mid in ALIGNMENT_CATALOG:
-            result.append({"id": mid, "installed": self.is_installed(mid), "kind": "alignment"})
+        for mid, entry in ALIGNMENT_CATALOG.items():
+            result.append({
+                "id": mid, "installed": self.is_installed(mid),
+                "size": _size_text(entry["size_bytes"]), "kind": "alignment",
+            })
         return result
 
     def delete_model(self, model_id: str) -> None:

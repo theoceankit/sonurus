@@ -211,6 +211,15 @@ test('delete: a refusal of the backend is said in a toast, and the model stays',
   expect(inRow('Whisper Small', 'Delete Whisper Small')).toBeTruthy()
 })
 
+test('Languages shows each alignment model with the size GET /models gives', async () => {
+  await setup({ installedModels: ['small', 'diarize'] })
+  await openSection('Languages')
+  await within(settings()).findByRole('group', { name: 'Vietnamese' })
+  expect(row('Vietnamese').textContent).toContain('~385 MB')
+  expect(row('Norwegian').textContent).toContain('~3.9 GB')
+  expect(row('Czech').textContent).toContain('~1.3 GB')
+})
+
 test('delete: the alignment model of the default language sets it to Detect, with a toast', async () => {
   const { bridge } = await setup({ installedModels: ['small', 'diarize', 'ru', 'uk'] }, { transcribeLang: 'ru' })
   await openSection('Languages')

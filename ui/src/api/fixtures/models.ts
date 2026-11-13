@@ -3,7 +3,10 @@ import type { ModelInfo } from '../types'
 import { ALIGNMENT_MODELS } from '../../transcribe/languages'
 
 // GET /models as the backend answers it: Whisper models least to most accurate,
-// the diarization model, then the alignment models with only their ids.
+// the diarization model, then the alignment models with their sizes.
+// The alignment models whose size is not the usual one, as in the backend catalog.
+const ALIGNMENT_SIZES: Record<string, string> = { vi: '~385 MB', no: '~3.9 GB', nn: '~3.9 GB' }
+
 type Row = Omit<components['schemas']['TranscriptionModelInfo'], 'installed'> | Omit<components['schemas']['AlignmentModelInfo'], 'installed'>
 
 const CATALOG: readonly Row[] = [
@@ -13,7 +16,7 @@ const CATALOG: readonly Row[] = [
   { id: 'medium', kind: 'whisper', name: 'Whisper Medium', size: '769 MB', speed: '~2× realtime', acc: 'Very good', recommended: false },
   { id: 'large-v3', kind: 'whisper', name: 'Whisper Large v3', size: '1.55 GB', speed: '~1× realtime', acc: 'Best', recommended: true },
   { id: 'diarize', kind: 'diarization', name: 'Pyannote Community 1', size: '130 MB', speed: '', acc: 'Speaker separation', recommended: false },
-  ...ALIGNMENT_MODELS.map(({ id }) => ({ id, kind: 'alignment' as const })),
+  ...ALIGNMENT_MODELS.map(({ id }) => ({ id, kind: 'alignment' as const, size: ALIGNMENT_SIZES[id] ?? '~1.3 GB' })),
 ]
 
 // What a fixture client has downloaded unless told otherwise: enough to transcribe

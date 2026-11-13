@@ -217,11 +217,11 @@ Returns the full catalog with install status for every model: 5 Whisper + 1 Diar
 [
   { "id": "large-v3", "installed": true, "name": "Whisper Large v3", "size": "1.55 GB", "speed": "~1× realtime", "acc": "Best", "recommended": true, "kind": "whisper" },
   { "id": "diarize", "installed": true, "name": "Pyannote Community 1", "size": "130 MB", "speed": "—", "acc": "Speaker separation", "recommended": false, "kind": "diarization" },
-  { "id": "ru", "installed": false, "kind": "alignment" }
+  { "id": "ru", "installed": false, "size": "~1.3 GB", "kind": "alignment" }
 ]
 ```
 
-Alignment rows have only `id`, `installed` and `kind`.
+Alignment rows have only `id`, `installed`, `size` and `kind`; the UI names the languages itself. `size` is the download, the files an alignment download takes (see below), worked out from the catalog's `size_bytes`: `~1.3 GB`, `~385 MB`.
 
 ### `GET /models/folder`
 

@@ -10,6 +10,6 @@ test('languages: detect first, names for the user, auto is null to the API', () 
 })
 
 test('alignmentModel: the catalog row, or the id alone', () => {
-  expect(alignmentModel('cs')).toEqual({ id: 'cs', name: 'Czech', nativeName: 'Čeština', size: '~300 MB' })
-  expect(alignmentModel('xx')).toEqual({ id: 'xx', name: 'xx', nativeName: '', size: '' })
+  expect(alignmentModel('cs')).toEqual({ id: 'cs', name: 'Czech', nativeName: 'Čeština' })
+  expect(alignmentModel('xx')).toEqual({ id: 'xx', name: 'xx', nativeName: '' })
 })

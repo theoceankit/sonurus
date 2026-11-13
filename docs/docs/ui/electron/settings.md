@@ -43,7 +43,7 @@ While `GET /models` has not answered the section says Checking models…, and th
 
 ## Languages
 
-The alignment models of the catalog (`ALIGNMENT_MODELS`), in its order, with the English name of the language and the size, Download, Cancel and the failed state as in Models. Over them the card asks for a model for each language transcribed and names the languages of the list that need none, worked out from the catalog. Under that the card names the models folder, as the Transcription card does in Models. The section is `alignment` in code, as in the links that open it.
+The alignment models of the catalog (`ALIGNMENT_MODELS`), in its order, with the English name of the language and the size from `GET /models`, Download, Cancel and the failed state as in Models. Over them the card asks for a model for each language transcribed and names the languages of the list that need none, worked out from the catalog. Under that the card names the models folder, as the Transcription card does in Models. The section is `alignment` in code, as in the links that open it.
 
 ## GPU
 

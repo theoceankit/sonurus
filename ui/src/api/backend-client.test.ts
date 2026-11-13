@@ -176,7 +176,7 @@ describe('listModels', () => {
   test('asks GET /models and answers the catalog as it is', async () => {
     const models = [
       { id: 'small', kind: 'whisper', name: 'Whisper Small', size: '244 MB', speed: '', acc: '', recommended: false, installed: true },
-      { id: 'ru', kind: 'alignment', installed: false },
+      { id: 'ru', kind: 'alignment', installed: false, size: '~1.3 GB' },
     ]
     const { client, sent } = setup(() => json(models))
     await expect(client.listModels()).resolves.toEqual(models)

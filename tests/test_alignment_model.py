@@ -494,3 +494,32 @@ def test_progress_total_counts_only_the_alignment_files(tmp_path):
 
     with patch("app.services.model_service.huggingface_hub.model_info", return_value=info):
         assert svc._get_total_bytes("ru") == 2_000 + 1_000 + 1_262_000_000
+
+
+# ---------------------------------------------------------------------------
+# The size of an alignment model, as GET /models gives it to the UI
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("size_bytes, text", [
+    (1_262_000_000, "~1.3 GB"),
+    (3_850_000_000, "~3.9 GB"),
+    (1_000_000_000, "~1.0 GB"),
+    (999_000_000, "~999 MB"),
+    (385_000_000, "~385 MB"),
+])
+def test_size_text(size_bytes, text):
+    from app.services.model_service import _size_text
+    assert _size_text(size_bytes) == text
+
+
+# Sizes of the files an alignment download takes (_alignment_files), from the
+# Hub on 2026-11-13. The catalog's former ~300 MB for the 300m models was the
+# parameter count, not the download.
+@pytest.mark.parametrize("lang, size", [
+    ("ru", "~1.3 GB"), ("cs", "~1.3 GB"), ("tr", "~1.3 GB"), ("da", "~1.3 GB"), ("he", "~1.3 GB"),
+    ("ur", "~1.3 GB"), ("sk", "~1.3 GB"), ("tl", "~1.3 GB"), ("no", "~3.9 GB"), ("nn", "~3.9 GB"),
+    ("vi", "~385 MB"),
+])
+def test_list_models_gives_the_alignment_download_size(tmp_path, lang, size):
+    rows = {row["id"]: row for row in make_service(tmp_path).list_models()}
+    assert rows[lang]["size"] == size

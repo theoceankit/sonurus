@@ -271,8 +271,10 @@ class TranscriptionModelInfo(BaseModel):
 
 
 class AlignmentModelInfo(BaseModel):
+    """GET /models: the alignment model of a language; the UI names the language."""
     id: str
     installed: bool
+    size: str
     kind: Literal["alignment"]
 
 

@@ -1,6 +1,6 @@
 // The languages a transcription can be asked for, and the alignment models some of
-// them need. GET /models gives alignment models only an id and whether they are
-// installed, so their names and sizes are kept here.
+// them need. GET /models gives alignment models an id, whether they are installed
+// and their size, so their names are kept here.
 
 export type Language = { code: string; label: string; sub: string }
 
@@ -27,48 +27,48 @@ export function languageName(code: string): string {
 // The language as the API takes it.
 export const apiLanguage = (code: string): string | null => (code === AUTO_LANGUAGE ? null : code)
 
-export type AlignmentModel = { id: string; name: string; nativeName: string; size: string }
+export type AlignmentModel = { id: string; name: string; nativeName: string }
 
 // Languages that torchaudio aligns by itself (en, fr, de, es, it) are not here.
 // The ids are the backend's ALIGNMENT_CATALOG; a test keeps them the same.
 export const ALIGNMENT_MODELS: readonly AlignmentModel[] = [
-  { id: 'ru', name: 'Russian', nativeName: 'Русский', size: '~1.3 GB' },
-  { id: 'zh', name: 'Chinese', nativeName: '中文', size: '~1.3 GB' },
-  { id: 'ja', name: 'Japanese', nativeName: '日本語', size: '~1.3 GB' },
-  { id: 'ko', name: 'Korean', nativeName: '한국어', size: '~1.3 GB' },
-  { id: 'uk', name: 'Ukrainian', nativeName: 'Українська', size: '~1.3 GB' },
-  { id: 'pt', name: 'Portuguese', nativeName: 'Português', size: '~1.3 GB' },
-  { id: 'ar', name: 'Arabic', nativeName: 'العربية', size: '~1.3 GB' },
-  { id: 'nl', name: 'Dutch', nativeName: 'Nederlands', size: '~1.3 GB' },
-  { id: 'pl', name: 'Polish', nativeName: 'Polski', size: '~1.3 GB' },
-  { id: 'hi', name: 'Hindi', nativeName: 'हिन्दी', size: '~1.3 GB' },
-  { id: 'cs', name: 'Czech', nativeName: 'Čeština', size: '~300 MB' },
-  { id: 'tr', name: 'Turkish', nativeName: 'Türkçe', size: '~300 MB' },
-  { id: 'hu', name: 'Hungarian', nativeName: 'Magyar', size: '~1.3 GB' },
-  { id: 'fi', name: 'Finnish', nativeName: 'Suomi', size: '~1.3 GB' },
-  { id: 'fa', name: 'Persian', nativeName: 'فارسی', size: '~1.3 GB' },
-  { id: 'el', name: 'Greek', nativeName: 'Ελληνικά', size: '~1.3 GB' },
-  { id: 'da', name: 'Danish', nativeName: 'Dansk', size: '~300 MB' },
-  { id: 'he', name: 'Hebrew', nativeName: 'עברית', size: '~300 MB' },
-  { id: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt', size: '~360 MB' },
-  { id: 'ur', name: 'Urdu', nativeName: 'اردو', size: '~300 MB' },
-  { id: 'te', name: 'Telugu', nativeName: 'తెలుగు', size: '~1.3 GB' },
-  { id: 'ca', name: 'Catalan', nativeName: 'Català', size: '~1.3 GB' },
-  { id: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', size: '~1.3 GB' },
-  { id: 'no', name: 'Norwegian', nativeName: 'Norsk', size: '~1.3 GB' },
-  { id: 'nn', name: 'Nynorsk', nativeName: 'Nynorsk', size: '~1.3 GB' },
-  { id: 'sk', name: 'Slovak', nativeName: 'Slovenčina', size: '~300 MB' },
-  { id: 'sl', name: 'Slovenian', nativeName: 'Slovenščina', size: '~1.3 GB' },
-  { id: 'hr', name: 'Croatian', nativeName: 'Hrvatski', size: '~1.3 GB' },
-  { id: 'ro', name: 'Romanian', nativeName: 'Română', size: '~1.3 GB' },
-  { id: 'eu', name: 'Basque', nativeName: 'Euskara', size: '~1.3 GB' },
-  { id: 'gl', name: 'Galician', nativeName: 'Galego', size: '~1.3 GB' },
-  { id: 'ka', name: 'Georgian', nativeName: 'ქართული', size: '~1.3 GB' },
-  { id: 'lv', name: 'Latvian', nativeName: 'Latviešu', size: '~1.3 GB' },
-  { id: 'tl', name: 'Filipino', nativeName: 'Filipino', size: '~300 MB' },
-  { id: 'sv', name: 'Swedish', nativeName: 'Svenska', size: '~1.3 GB' },
+  { id: 'ru', name: 'Russian', nativeName: 'Русский' },
+  { id: 'zh', name: 'Chinese', nativeName: '中文' },
+  { id: 'ja', name: 'Japanese', nativeName: '日本語' },
+  { id: 'ko', name: 'Korean', nativeName: '한국어' },
+  { id: 'uk', name: 'Ukrainian', nativeName: 'Українська' },
+  { id: 'pt', name: 'Portuguese', nativeName: 'Português' },
+  { id: 'ar', name: 'Arabic', nativeName: 'العربية' },
+  { id: 'nl', name: 'Dutch', nativeName: 'Nederlands' },
+  { id: 'pl', name: 'Polish', nativeName: 'Polski' },
+  { id: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+  { id: 'cs', name: 'Czech', nativeName: 'Čeština' },
+  { id: 'tr', name: 'Turkish', nativeName: 'Türkçe' },
+  { id: 'hu', name: 'Hungarian', nativeName: 'Magyar' },
+  { id: 'fi', name: 'Finnish', nativeName: 'Suomi' },
+  { id: 'fa', name: 'Persian', nativeName: 'فارسی' },
+  { id: 'el', name: 'Greek', nativeName: 'Ελληνικά' },
+  { id: 'da', name: 'Danish', nativeName: 'Dansk' },
+  { id: 'he', name: 'Hebrew', nativeName: 'עברית' },
+  { id: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt' },
+  { id: 'ur', name: 'Urdu', nativeName: 'اردو' },
+  { id: 'te', name: 'Telugu', nativeName: 'తెలుగు' },
+  { id: 'ca', name: 'Catalan', nativeName: 'Català' },
+  { id: 'ml', name: 'Malayalam', nativeName: 'മലയാളം' },
+  { id: 'no', name: 'Norwegian', nativeName: 'Norsk' },
+  { id: 'nn', name: 'Nynorsk', nativeName: 'Nynorsk' },
+  { id: 'sk', name: 'Slovak', nativeName: 'Slovenčina' },
+  { id: 'sl', name: 'Slovenian', nativeName: 'Slovenščina' },
+  { id: 'hr', name: 'Croatian', nativeName: 'Hrvatski' },
+  { id: 'ro', name: 'Romanian', nativeName: 'Română' },
+  { id: 'eu', name: 'Basque', nativeName: 'Euskara' },
+  { id: 'gl', name: 'Galician', nativeName: 'Galego' },
+  { id: 'ka', name: 'Georgian', nativeName: 'ქართული' },
+  { id: 'lv', name: 'Latvian', nativeName: 'Latviešu' },
+  { id: 'tl', name: 'Filipino', nativeName: 'Filipino' },
+  { id: 'sv', name: 'Swedish', nativeName: 'Svenska' },
 ]
 
 export function alignmentModel(language: string): AlignmentModel {
-  return ALIGNMENT_MODELS.find(model => model.id === language) ?? { id: language, name: language, nativeName: '', size: '' }
+  return ALIGNMENT_MODELS.find(model => model.id === language) ?? { id: language, name: language, nativeName: '' }
 }

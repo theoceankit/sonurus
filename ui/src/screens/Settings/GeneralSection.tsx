@@ -35,7 +35,7 @@ function TranscriptionLanguage({ language }: { language: string }) {
       </span>
       {download
         ? <Button variant="ghost" size="small" onClick={() => void downloads.cancel(missing.id)}>Cancel</Button>
-        : <Button variant="secondary" size="small" icon="download" onClick={() => void downloads.start(missing.id)}>{`Download (${alignmentModel(missing.id).size})`}</Button>}
+        : <Button variant="secondary" size="small" icon="download" onClick={() => void downloads.start(missing.id)}>{`Download (${missing.size})`}</Button>}
     </Inline>
   )
   return (
