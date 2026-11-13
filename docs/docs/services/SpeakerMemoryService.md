@@ -33,9 +33,12 @@ CREATE TABLE speaker_names (
 )
 
 CREATE TABLE speaker_meta (
-    speaker_id  TEXT PRIMARY KEY,
-    color_index INTEGER NOT NULL DEFAULT 0   -- palette slot 0..4 (schema v3)
+    speaker_id    TEXT PRIMARY KEY,
+    color_index   INTEGER NOT NULL DEFAULT 0,  -- palette slot 0..4 (schema v3)
+    handle        TEXT,                        -- @ivan.petrov without the @; only for named speakers (schema v4)
+    handle_manual INTEGER NOT NULL DEFAULT 0   -- 1: set by hand, stays when the name changes (schema v4)
 )
+CREATE UNIQUE INDEX speaker_meta_handle ON speaker_meta (handle COLLATE NOCASE)
 
 CREATE TABLE _meta (
     key   TEXT PRIMARY KEY,
@@ -44,6 +47,8 @@ CREATE TABLE _meta (
 ```
 
 > The table was historically named `speakers` — `_init_db()` automatically renames it to `speaker_embeddings` if the old name is found.
+
+Every row of `speaker_meta` is written as an upsert of its own columns: a colour save never wipes the handle, nor a handle save the colour. Handles are unique through the index, not through the in-memory state, since the API and a pipeline job each hold their own instance. `_meta` also keeps the handle format (`handle_format`).
 
 Runtime in-memory state:
 ```python
@@ -145,7 +150,21 @@ Called only from `CommitService`.
 
 ### `save_names_only()`
 
-Persists names changed by `set_name()` since the last save (including speakers without an embedding) to `speaker_names` without touching `speaker_embeddings`. Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and the assign-by-name path.
+Persists names changed by `set_name()` since the last save (including speakers without an embedding) to `speaker_names` without touching `speaker_embeddings`. Each of those speakers whose handle was not set by hand then gets the handle made from the new name. Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and the assign-by-name path.
+
+---
+
+### Handles
+
+What a handle is and how one is made: [Speaker handles](../api/endpoints.md#speaker-handles). The generator is `app/services/speaker_handle.py`, pure functions.
+
+- `get_handle(spk_id) → str | None`, `is_handle_manual(spk_id) → bool` — from `known_handles`, loaded with the other state.
+- `set_handle(spk_id, handle | None)` — a handle set by hand, normalized (no `@`, lowercase), or with `None` the one made from the name again. Raises `InvalidHandle`, `HandleTaken` (with `owner_id`) or `HandleNeedsName`.
+- `check_handle(text, exclude_id=None) → str` — the handle `text` stands for if it is valid and free; raises like `set_handle()`. The API calls it before anything is written.
+- `suggest_handle(name, exclude_id=None) → str` — the handle a name gives now, numbered if taken.
+- `get_handle_format()` / `set_handle_format(fmt)` — one of `HANDLE_FORMATS`, otherwise `ValueError`.
+
+A handle is written by `SpeakerRepository.write_handle()` in one `BEGIN IMMEDIATE` transaction that reads the handles taken and writes the new one, so two writers cannot take one handle.
 
 ---
 
@@ -163,13 +182,13 @@ Every speaker memory knows about: with a voice profile (`known_speakers`), a nam
 
 ### `get_color_index(spk_id) → int | None` / `set_color(spk_id, color_index)`
 
-Read / persist the palette slot. `set_color()` raises `ValueError` outside `0..PALETTE_SIZE-1` and writes `speaker_meta` immediately. Called from `PATCH /speakers/{id}` and from `POST /transcripts/{id}/speaker-assignments` when it creates a speaker by name with `color_index`.
+Read / persist the palette slot. `set_color()` raises `ValueError` outside `0..PALETTE_SIZE-1` and writes `speaker_meta.color_index` immediately. Called from `PATCH /speakers/{id}` and from `POST /transcripts/{id}/speaker-assignments` when it creates a speaker by name with `color_index`.
 
 ---
 
 ### `remove_speaker(spk_id)`
 
-Removes a speaker — embedding, names and color — from memory (including pending dirty entries) and from the database. Works for speakers that only have a name; no-op if the speaker is unknown.
+Removes a speaker — embedding, names, color and handle — from memory (including pending dirty entries) and from the database. Works for speakers that only have a name; no-op if the speaker is unknown.
 
 Called only through `CommitService`: `recompute_or_remove()` drops unnamed speakers left without segments, and `delete_speaker()` removes a speaker the user deleted (after its segments were unassigned).
 
@@ -177,19 +196,19 @@ Called only through `CommitService`: `recompute_or_remove()` drops unnamed speak
 
 ### `clear() → int`
 
-Deletes every speaker — named ones included — from `speaker_embeddings`, `speaker_names` and `speaker_meta`, and resets `known_speakers`, `known_counts`, `known_names`, `known_colors` and all dirty sets, so a later `save()` / `save_names_only()` cannot restore anything. `_meta` (schema version, migration flags) is kept. Returns the number of speakers removed. Used only by `POST /data/reset`.
+Deletes every speaker — named ones included — from `speaker_embeddings`, `speaker_names` and `speaker_meta`, and resets `known_speakers`, `known_counts`, `known_names`, `known_colors`, `known_handles` and all dirty sets, so a later `save()` / `save_names_only()` cannot restore anything. Every handle is free again. `_meta` (schema version, migration flags, the handle format) is kept. Returns the number of speakers removed. Used only by `POST /data/reset`.
 
 ---
 
 ### `_init_db()`
 
-Creates `speaker_embeddings`, `speaker_names`, and `_meta` tables if missing. Runs migration `m001_uuid_speakers`: converts any legacy human-name speaker ID to a UUID4, stores the original name in `speaker_names`, and updates all `segments.speaker_id` references.
+Creates `speaker_embeddings`, `speaker_names`, and `_meta` tables if missing and runs the schema migrations up to v4 (`speaker_meta.handle`, `handle_manual` and the unique index). Runs migration `m001_uuid_speakers`: converts any legacy human-name speaker ID to a UUID4, stores the original name in `speaker_names`, and updates all `segments.speaker_id` references. Then every named speaker without a handle gets one in the handle format, the one heard first (earliest transcript of their segments) first, so they keep the handle without a number; speakers without segments come last, by id. On an upgrade to v4 that gives every named speaker a handle; afterwards it finds none to do.
 
 ---
 
-### `create_named_speaker(name, label="display") → str`
+### `create_named_speaker(name, label="display", handle=None) → str`
 
-Creates a new UUID4 speaker ID, sets its display name and persists it via `save_names_only()`. Does not write an embedding: `CommitService` adds one once segments with embeddings are assigned to the new ID. Used by `POST /transcripts/{id}/speaker-assignments` (`speaker_name`).
+Creates a new UUID4 speaker ID, sets its display name and persists it via `save_names_only()`, which gives it the handle made from the name. A `handle` given is checked first (nothing is created if it is refused) and then set by hand. Does not write an embedding: `CommitService` adds one once segments with embeddings are assigned to the new ID. Used by `POST /transcripts/{id}/speaker-assignments` (`speaker_name`).
 
 ---
 

@@ -136,7 +136,8 @@ Domain rules (details in `docs/docs/system/invariants.md`):
 4. **Recompute embeddings from the DB, never increment.** Every `CommitService` method averages from
    `storage.get_embeddings_grouped_by_transcript(spk_id)` from scratch.
 5. **Speaker ids are UUID4, never display names.** Names live only in `speaker_names`; a speaker
-   without a display name is unrecognized. Names need not be unique.
+   without a display name is unrecognized. Names need not be unique; handles
+   (`speaker_meta.handle`) are, and every named speaker has one.
 
 App rules:
 
