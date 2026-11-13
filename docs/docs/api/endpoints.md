@@ -235,6 +235,8 @@ Where this backend keeps the models: `.models/` in its data dir, the folder of a
 
 Starts a background download via `huggingface_hub.snapshot_download`. Returns a `job_id` immediately.
 
+Whisper downloads only the files faster-whisper loads (`_WHISPER_ALLOW_PATTERNS`). An alignment download first lists the repo's files (`huggingface_hub.list_repo_files`) and downloads only what WhisperX loads: `config.json`, `preprocessor_config.json`, `vocab.json`, `tokenizer_config.json`, `special_tokens_map.json` and `added_tokens.json` where the repo has them, and one weights file, `model.safetensors` if there is one, else `pytorch_model.bin`. The repos also hold Flax weights, KenLM language models and training leftovers, which alignment never reads. A repo with neither weights file fails with `failed`. Models downloaded in full by earlier versions stay installed as they are. The progress counts only the files to download (`huggingface_hub.model_info`), or the catalog's `size_bytes` when that fails.
+
 Valid `model_id` values:
 - Whisper: `tiny`, `base`, `small`, `medium`, `large-v3`
 - Diarization: `diarize` (downloads `pyannote/speaker-diarization-community-1` + `pyannote/embedding`)

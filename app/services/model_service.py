@@ -78,6 +78,21 @@ _WHISPER_ALLOW_PATTERNS = [
     "vocabulary.*",
 ]
 
+# What WhisperX loads of an alignment model (Wav2Vec2Processor and
+# Wav2Vec2ForCTC), besides one weights file; not every repo has all of them.
+# The repos also hold Flax weights, KenLM language models, optimizer states
+# and evaluation logs, often more than the model itself.
+_ALIGNMENT_FILES = [
+    "config.json",
+    "preprocessor_config.json",
+    "vocab.json",
+    "tokenizer_config.json",
+    "special_tokens_map.json",
+    "added_tokens.json",
+]
+# transformers loads safetensors first when a repo has both formats.
+_ALIGNMENT_WEIGHTS = ["model.safetensors", "pytorch_model.bin"]
+
 
 # Present in a repo cache dir while a download is in progress. huggingface_hub
 # writes refs/main before fetching any file, so refs/main alone does not mean
@@ -103,9 +118,24 @@ def _is_repo_complete(cache_dir: Path) -> bool:
     return not (blobs.is_dir() and any(blobs.glob("*.incomplete")))
 
 
+def _alignment_files(repo_files) -> list[str]:
+    """The files of an alignment repo to download: what WhisperX loads, and one
+    weights file. A repo without weights cannot align, so its download fails."""
+    files = set(repo_files)
+    weights = next((name for name in _ALIGNMENT_WEIGHTS if name in files), None)
+    if weights is None:
+        raise ModelDownloadError("failed", "The repository has no model weights.")
+    return [name for name in _ALIGNMENT_FILES if name in files] + [weights]
+
+
 def _snapshot(kwargs: dict) -> None:
     kwargs = dict(kwargs)
     repo_id = kwargs.pop("repo_id")
+    if kwargs.pop("alignment", False):
+        # Listed here, in the download's own process, so that a listing that fails
+        # is reported and cancelled like the download itself.
+        kwargs["allow_patterns"] = _alignment_files(
+            huggingface_hub.list_repo_files(repo_id, token=kwargs.get("token")))
     # huggingface_hub caches "symlinks supported" as True *before* testing them,
     # so the other download threads read that early True and call os.symlink —
     # WinError 1314 on Windows without the symlink privilege. Settle the answer
@@ -356,7 +386,8 @@ class ModelService:
             if model_id in ALIGNMENT_CATALOG:
                 hf_repo = ALIGNMENT_CATALOG[model_id]["hf_repo"]
                 info = huggingface_hub.model_info(hf_repo, files_metadata=True, token=os.getenv("HF_TOKEN"))
-                return sum(s.size for s in info.siblings if s.size)
+                wanted = set(_alignment_files(s.rfilename for s in info.siblings))
+                return sum(s.size for s in info.siblings if s.size and s.rfilename in wanted)
         except Exception:
             pass
         if model_id in DIARIZATION_CATALOG:
@@ -461,6 +492,7 @@ class ModelService:
                     repo_id=hf_repo,
                     cache_dir=str(self._alignment_models_dir),
                     token=token,
+                    alignment=True,
                 ), cancel_event)
             finally:
                 self._stop_poller(stop, poller)

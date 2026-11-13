@@ -371,3 +371,126 @@ def test_download_alignment_no_progress_poller_when_on_progress_none(tmp_path):
         f"Expected no background polling threads when on_progress=None, "
         f"but {len(threads_started)} threads were started"
     )
+
+
+# ---------------------------------------------------------------------------
+# Only the files Wav2Vec2Processor and Wav2Vec2ForCTC load are downloaded
+# ---------------------------------------------------------------------------
+
+# The files of jonatasgrosman/wav2vec2-large-xlsr-53-russian: weights in two
+# formats, a KenLM language model and evaluation logs that alignment never reads.
+RU_REPO_FILES = [
+    ".gitattributes", "README.md", "alphabet.json", "config.json", "eval.py",
+    "flax_model.msgpack", "language_model/attrs.json", "language_model/lm.binary",
+    "language_model/unigrams.txt", "log_mozilla-foundation_common_voice_6_0_ru_test_predictions.txt",
+    "preprocessor_config.json", "pytorch_model.bin", "special_tokens_map.json", "vocab.json",
+]
+
+
+def test_alignment_files_take_bin_weights_when_there_are_no_safetensors():
+    from app.services.model_service import _alignment_files
+    assert sorted(_alignment_files(RU_REPO_FILES)) == sorted([
+        "config.json", "preprocessor_config.json", "vocab.json", "special_tokens_map.json", "pytorch_model.bin",
+    ])
+
+
+def test_alignment_files_prefer_safetensors_over_bin():
+    from app.services.model_service import _alignment_files
+    files = _alignment_files(RU_REPO_FILES + ["model.safetensors", "optimizer.pt"])
+    assert "model.safetensors" in files
+    assert "pytorch_model.bin" not in files
+    assert "optimizer.pt" not in files
+
+
+def test_alignment_files_take_safetensors_alone():
+    from app.services.model_service import _alignment_files
+    files = _alignment_files(["config.json", "preprocessor_config.json", "vocab.json", "tokenizer_config.json",
+                              "added_tokens.json", "model.safetensors", "language_model/5gram.bin"])
+    assert sorted(files) == sorted(["config.json", "preprocessor_config.json", "vocab.json", "tokenizer_config.json",
+                                    "added_tokens.json", "model.safetensors"])
+
+
+def test_alignment_files_take_only_files_at_the_repo_root():
+    from app.services.model_service import _alignment_files
+    files = _alignment_files(["config.json", "vocab.json", "pytorch_model.bin", "sub/config.json", "sub/model.safetensors"])
+    assert sorted(files) == ["config.json", "pytorch_model.bin", "vocab.json"]
+
+
+def test_alignment_files_without_weights_are_a_failed_download():
+    from app.services.model_service import _alignment_files, ModelDownloadError
+    with pytest.raises(ModelDownloadError) as error:
+        _alignment_files(["config.json", "vocab.json", "flax_model.msgpack"])
+    assert error.value.code == "failed"
+
+
+def test_download_alignment_asks_only_for_the_files_it_needs(tmp_path):
+    svc = make_service(tmp_path)
+    captured = {}
+
+    def fake_download(repo, **kwargs):
+        captured.update(kwargs)
+
+    with patch("app.services.model_service.huggingface_hub.list_repo_files", return_value=RU_REPO_FILES) as listing, \
+         patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot(fake_download)):
+        svc.download_model("ru", hf_token="hf_test")
+
+    listing.assert_called_once()
+    assert listing.call_args.args[0] == ALIGNMENT_CATALOG["ru"]["hf_repo"]
+    assert listing.call_args.kwargs.get("token") == "hf_test"
+    assert sorted(captured["allow_patterns"]) == sorted([
+        "config.json", "preprocessor_config.json", "vocab.json", "special_tokens_map.json", "pytorch_model.bin",
+    ])
+
+
+def test_download_alignment_without_weights_fails_and_is_not_installed(tmp_path):
+    from app.services.model_service import ModelDownloadError
+    svc = make_service(tmp_path)
+
+    with patch("app.services.model_service.huggingface_hub.list_repo_files", return_value=["config.json", "vocab.json"]), \
+         patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot()) as mock_dl:
+        with pytest.raises(ModelDownloadError) as error:
+            svc.download_model("ru")
+
+    assert error.value.code == "failed"
+    mock_dl.assert_not_called()
+    assert svc.is_installed("ru") is False
+
+
+def test_download_alignment_listing_offline_is_a_network_error(tmp_path):
+    from app.services.model_service import ModelDownloadError
+
+    class ConnectionError(Exception):
+        pass
+
+    svc = make_service(tmp_path)
+    with patch("app.services.model_service.huggingface_hub.list_repo_files", side_effect=ConnectionError("offline")):
+        with pytest.raises(ModelDownloadError) as error:
+            svc.download_model("ru")
+
+    assert error.value.code == "network"
+    assert svc.is_installed("ru") is False
+
+
+def test_whisper_download_does_not_list_repo_files(tmp_path):
+    svc = make_service(tmp_path)
+    with patch("app.services.model_service.huggingface_hub.list_repo_files") as listing, \
+         patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot()):
+        svc.download_model("tiny")
+    listing.assert_not_called()
+
+
+def test_progress_total_counts_only_the_alignment_files(tmp_path):
+    from unittest.mock import MagicMock
+    svc = make_service(tmp_path)
+    sizes = {"config.json": 2_000, "vocab.json": 1_000, "pytorch_model.bin": 1_262_000_000,
+             "flax_model.msgpack": 1_261_000_000, "language_model/lm.binary": 1_487_000_000}
+    siblings = []
+    for name, size in sizes.items():
+        sibling = MagicMock()
+        sibling.rfilename, sibling.size = name, size
+        siblings.append(sibling)
+    info = MagicMock()
+    info.siblings = siblings
+
+    with patch("app.services.model_service.huggingface_hub.model_info", return_value=info):
+        assert svc._get_total_bytes("ru") == 2_000 + 1_000 + 1_262_000_000

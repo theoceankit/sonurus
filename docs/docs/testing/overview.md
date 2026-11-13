@@ -29,7 +29,7 @@ node --test 'tests/build/*.test.js'
 
 ### No network in tests
 
-`tests/conftest.py` replaces `huggingface_hub.snapshot_download` (no-op) and `huggingface_hub.model_info` (raises `OSError`, so download size falls back to the catalog estimate) for the whole session. Download jobs run in background threads that outlive a test's own `patch()`, so a per-test stub is not enough. `ModelService.RUN_DOWNLOADS_IN_SUBPROCESS` is also set to `False`, so tests can patch `snapshot_download` in-process, and `pipeline_process.RUN_PIPELINE_IN_SUBPROCESS` to `False`, so tests can patch `create_controller`. An autouse fixture replaces `get_transcription_queue` in every test with a paused queue on a temporary database, so no test touches the real `DB_PATH` (without `SONORUS_DATA_DIR` that is the project root).
+`tests/conftest.py` replaces `huggingface_hub.snapshot_download` (no-op), `huggingface_hub.model_info` (raises `OSError`, so download size falls back to the catalog estimate) and `huggingface_hub.list_repo_files` (a typical alignment repo: config, preprocessor config, vocab and `pytorch_model.bin`) for the whole session. Download jobs run in background threads that outlive a test's own `patch()`, so a per-test stub is not enough. `ModelService.RUN_DOWNLOADS_IN_SUBPROCESS` is also set to `False`, so tests can patch `snapshot_download` in-process, and `pipeline_process.RUN_PIPELINE_IN_SUBPROCESS` to `False`, so tests can patch `create_controller`. An autouse fixture replaces `get_transcription_queue` in every test with a paused queue on a temporary database, so no test touches the real `DB_PATH` (without `SONORUS_DATA_DIR` that is the project root).
 
 ### CI environment
 
