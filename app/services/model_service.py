@@ -7,7 +7,12 @@ from asyncio import CancelledError
 from pathlib import Path
 
 import huggingface_hub
+from huggingface_hub import constants as hf_constants
 from huggingface_hub import file_download as hf_file_download
+
+from app.logger import get_logger
+
+log = get_logger("ModelService")
 
 WHISPER_CATALOG = {
     "tiny":     {"hf_repo": "Systran/faster-whisper-tiny",     "size_bytes": 41_000_000,    "name": "Whisper Tiny",     "size": "39 MB",   "speed": "~10× realtime", "acc": "Low",               "recommended": False, "kind": "whisper"},
@@ -140,6 +145,12 @@ def _alignment_files(repo_files) -> list[str]:
 def _snapshot(kwargs: dict) -> None:
     kwargs = dict(kwargs)
     repo_id = kwargs.pop("repo_id")
+    # Plain HTTP unless asked for Xet. hf_xet fetches a file's chunks in parallel
+    # and writes them in large bursts, so the bytes on disk the progress bar is
+    # polled from stand still and then jump; a plain download grows steadily and
+    # resumes from a partial blob. huggingface_hub reads the switch at each file,
+    # and this runs in the download's own child process.
+    hf_constants.HF_HUB_DISABLE_XET = not kwargs.pop("use_xet", False)
     if kwargs.pop("alignment", False):
         # Listed here, in the download's own process, so that a listing that fails
         # is reported and cancelled like the download itself.
@@ -156,11 +167,13 @@ def _snapshot(kwargs: dict) -> None:
 
 class ModelDownloadError(RuntimeError):
     """A download that failed. `code` says why, for the interface to say in its own
-    words: no_token, no_access, network or failed. The message is the exception's."""
+    words: no_token, no_access, network or failed. The message is the exception's.
+    `server_refusal` is whether the Hub's server refused it (see is_server_refusal)."""
 
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, server_refusal: bool = False):
         super().__init__(message)
         self.code = code
+        self.server_refusal = server_refusal
 
 
 # By class name, as huggingface_hub raises its own, requests' (and in newer versions
@@ -187,13 +200,23 @@ def download_error_code(exc: BaseException) -> str:
     return "failed"
 
 
+def is_server_refusal(exc: BaseException) -> bool:
+    """Whether the Hub's server answered the download with an HTTP error other than
+    one about the token or access to the model: the case where a plain download is
+    retried through Xet. A failure of the user's network is not one."""
+    if download_error_code(exc) != "failed":
+        return False
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    return isinstance(status, int) and status >= 400
+
+
 def _snapshot_worker(kwargs: dict, conn) -> None:
     """Child-process entry point: run snapshot_download and report the outcome."""
     try:
         _snapshot(kwargs)
         conn.send(("ok",))
     except BaseException as exc:
-        conn.send(("error", type(exc).__name__, str(exc), download_error_code(exc)))
+        conn.send(("error", type(exc).__name__, str(exc), download_error_code(exc), is_server_refusal(exc)))
 
 
 def _run_download(kwargs: dict, cancel_event=None, worker=_snapshot_worker,
@@ -208,7 +231,8 @@ def _run_download(kwargs: dict, cancel_event=None, worker=_snapshot_worker,
         try:
             _snapshot(kwargs)
         except Exception as exc:
-            raise ModelDownloadError(download_error_code(exc), f"{type(exc).__name__}: {exc}") from exc
+            raise ModelDownloadError(download_error_code(exc), f"{type(exc).__name__}: {exc}",
+                                     is_server_refusal(exc)) from exc
         if cancel_event is not None and cancel_event.is_set():
             raise CancelledError()
         return
@@ -240,7 +264,8 @@ def _run_download(kwargs: dict, cancel_event=None, worker=_snapshot_worker,
     if result[0] == "error":
         # A worker that sends no code (the stand-ins of the tests) failed for no known reason.
         code = result[3] if len(result) > 3 else "failed"
-        raise ModelDownloadError(code, f"{result[1]}: {result[2]}")
+        refusal = result[4] if len(result) > 4 else False
+        raise ModelDownloadError(code, f"{result[1]}: {result[2]}", refusal)
 
 def _matches_allow_patterns(filename: str, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatch(filename, p) for p in patterns)
@@ -279,10 +304,13 @@ def _poll_and_emit(
     blocking the caller with network I/O before the download even starts.
     """
     total_bytes = get_total_bytes()
+    shown = 0.0
     while not stop_event.is_set() and not cancel_event.is_set():
         downloaded = _count_cache_bytes(dirs)
         pct = min(99.0, downloaded / total_bytes * 100) if total_bytes > 0 else 0.0
-        on_progress({"type": "progress", "pct": round(pct, 1)})
+        # Never back: a download retried through Xet first removes its partial blob.
+        shown = max(shown, round(pct, 1))
+        on_progress({"type": "progress", "pct": shown})
         stop_event.wait(interval)
 
 
@@ -327,7 +355,18 @@ class ModelService:
         cache_dir.mkdir(parents=True, exist_ok=True)
         marker = cache_dir / _DOWNLOAD_MARKER
         marker.touch()
-        _run_download(kwargs, cancel_event)
+        try:
+            _run_download({**kwargs, "use_xet": False}, cancel_event)
+        except ModelDownloadError as exc:
+            # The Hub may stop serving plain downloads of repos stored in Xet: retry
+            # through Xet once. Its partial blobs go first, as what hf_xet makes of a
+            # partial file written by a plain download is not known.
+            if not exc.server_refusal:
+                raise
+            log.warning("Plain download of %s refused (%s), retrying through Xet", kwargs["repo_id"], exc)
+            for partial in (cache_dir / "blobs").glob("*.incomplete"):
+                partial.unlink(missing_ok=True)
+            _run_download({**kwargs, "use_xet": True}, cancel_event)
         marker.unlink(missing_ok=True)
         if not _is_repo_complete(cache_dir):
             raise ModelDownloadError("failed", f"The download of {kwargs['repo_id']} did not finish.")

@@ -14,7 +14,7 @@ Sonorus goes online only to download what it needs to run:
 
 | Request | When | Where to |
 |---|---|---|
-| Model download (Whisper, diarization, alignment) | You start it in Settings → Models, or the alignment model dialog | Hugging Face Hub, with your Hugging Face token: the list of the repo's files and their sizes (`list_repo_files`, `model_info`), then the files (`snapshot_download`) |
+| Model download (Whisper, diarization, alignment) | You start it in Settings → Models, or the alignment model dialog | Hugging Face Hub, with your Hugging Face token: the list of the repo's files and their sizes (`list_repo_files`, `model_info`), then the files (`snapshot_download`) from the Hub's CDN; only if the Hub refuses that download, the same files from its Xet storage (`cas-server.xethub.hf.co`) |
 | GPU acceleration download | You start it in Settings → GPU acceleration (packaged Linux / Windows) | The wheel URLs of the bundled GPU manifest (`pypi.nvidia.com`, `download-r2.pytorch.org`) |
 
 Transcription itself is offline: the pipeline process runs with `HF_HUB_OFFLINE=1`, so a missing

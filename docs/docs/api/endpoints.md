@@ -237,6 +237,8 @@ Starts a background download via `huggingface_hub.snapshot_download`. Returns a 
 
 Whisper downloads only the files faster-whisper loads (`_WHISPER_ALLOW_PATTERNS`). An alignment download first lists the repo's files (`huggingface_hub.list_repo_files`) and downloads only what WhisperX loads: `config.json`, `preprocessor_config.json`, `vocab.json`, `tokenizer_config.json`, `special_tokens_map.json` and `added_tokens.json` where the repo has them, and one weights file, `model.safetensors` if there is one, else `pytorch_model.bin`. The repos also hold Flax weights, KenLM language models and training leftovers, which alignment never reads. A repo with neither weights file fails with `failed`. Models downloaded in full by earlier versions stay installed as they are. The progress counts only the files to download (`huggingface_hub.model_info`), or the catalog's `size_bytes` when that fails.
 
+Files come as a plain HTTP download from the Hub's CDN, with Xet switched off (`HF_HUB_DISABLE_XET` in the download's child process). hf_xet fetches a file's chunks in parallel and writes them to disk in large bursts, so the bytes the progress is polled from would stand still and then jump; a plain download grows steadily and resumes from a partial blob. If the Hub's server refuses the plain download — an HTTP error other than 401, 403 or a gated repo (`is_server_refusal()`) — that repo's partial blobs are removed and the same download runs once more through Xet; an error of that second try is the download's error. Errors of the network, the token or access to the model are not retried.
+
 Valid `model_id` values:
 - Whisper: `tiny`, `base`, `small`, `medium`, `large-v3`
 - Diarization: `diarize` (downloads `pyannote/speaker-diarization-community-1` + `pyannote/embedding`)
@@ -267,7 +269,7 @@ Streams download progress. Sends heartbeats every 15 s to keep the connection al
 { "type": "error", "message": "...", "code": "no_token" }
 ```
 
-`pct` is computed from filesystem polling of the HuggingFace blob directory — reflects actual bytes written to disk.
+`pct` is computed from filesystem polling of the HuggingFace blob directory — reflects actual bytes written to disk. It never goes down: when a download retries through Xet and its partial blobs are removed, `pct` holds until the bytes catch up.
 
 `message` of an error is the exception as raised, such as `GatedRepoError: 401 Client Error …`. `code` says why, for an interface to say in its own words (`download_error_code()` in `ModelService`, by the class names of huggingface_hub's, requests' and httpx' errors and the HTTP status):
 

@@ -294,3 +294,27 @@ def test_download_model_poller_stops_after_download(tmp_path):
     assert len(events) == count_after, (
         "Poller continued emitting after download_model returned"
     )
+
+
+# ---------------------------------------------------------------------------
+# pct never goes back: before a download retries through Xet its partial blob is
+# removed, and the bytes on disk drop for a moment.
+# ---------------------------------------------------------------------------
+
+def test_poll_and_emit_never_lowers_pct():
+    from app.services import model_service
+
+    readings = iter([50, 10, 60])
+    stop = threading.Event()
+    events = []
+
+    def count(_dirs):
+        value = next(readings, None)
+        if value is None:
+            stop.set()
+            return 60
+        return value
+
+    with patch.object(model_service, "_count_cache_bytes", side_effect=count):
+        model_service._poll_and_emit([], lambda: 100, events.append, stop, threading.Event(), interval=0)
+    assert [e["pct"] for e in events][:3] == [50.0, 50.0, 60.0]
