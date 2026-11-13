@@ -5,6 +5,7 @@ import { effectiveSpeaker, UNASSIGNED, type Segment, type Speaker } from '../../
 import { BAR_COUNT, Player } from '../../components/Player/Player'
 import { createKeyStore, useKey, type KeyStore } from '../../media/active-segment'
 import { useAudioPlayback, usePlayback, type Playback } from '../../media/playback'
+import { useSpaceToggle } from '../../media/space-toggle'
 import { timelineDuration, type Turn } from '../../media/timeline'
 import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 
@@ -46,6 +47,7 @@ export function EditorPlayer({ transcriptId, playback, highlight }: EditorPlayer
   const state = usePlayback(playback)
   const [ownHighlight] = useState(() => createKeyStore<string | null>(null))
   const highlightedSpeaker = useKey(highlight ?? ownHighlight)
+  useSpaceToggle(playback, state.status === 'ready')
   const turns = useMemo(
     () => (transcriptId !== null && transcript ? playerTurns(transcript.segments, speakers ?? []) : []),
     [transcriptId, transcript, speakers],

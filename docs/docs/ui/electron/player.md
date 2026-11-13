@@ -54,3 +54,19 @@ The heights are the loudness of the audio: the `heights` prop, one per bar from 
 - A speaker highlighted in the inspector (`highlightedSpeaker`) keeps a colour only on their bars, in the middle tone whatever has played, and the rest look like pauses; the heights stay as they are, and the playhead still shows where the audio is. Their bars come from `speakerBars()`, which takes every bar a segment of theirs falls in, so a short speaker on a long recording still has one. This works on a disabled player too.
 
 The bubble stands above the panel, so the player panel in `EditorScreen.module.css` does not clip.
+
+## Space
+
+Space plays and pauses the open recording from where the audio is, as the Play button does. `useSpaceToggle()` (`ui/src/media/space-toggle.ts`), called by `EditorPlayer`, listens while the audio is `ready`, so not with no recording open nor with audio missing. It listens on the window on the way down, before React and Radix: a menu button opens on the keydown of Space. A focused button is pressed on the keyup, in Chromium even after a cancelled keydown, so the keyup of a Space taken for the player is cancelled too. `spaceAction()` decides from the key and the element in focus:
+
+| In focus | Space |
+|---|---|
+| Nothing, a paragraph, the transcript, the Position or volume slider | Plays and pauses; the page does not scroll |
+| A text field: the title, a paragraph being edited, a search | Types a space |
+| A button or another control Space presses, reached from the keyboard or given the focus by code after a key | Presses it |
+| The same control left in focus by a click | Plays and pauses, and the control is not pressed again |
+| Anything while a modal window is open (`openModalCount()`), or inside a menu, a select list or a popover | What it does there |
+
+How the focus came is followed apart: the element that takes the focus right after a press of the pointer, or is pressed while it has it, counts as clicked. `:focus-visible` cannot tell, since Chromium turns it on for the focused element at the keydown of any key, Space included. So after a menu closed with Escape, Space opens it again, as on any button reached from the keyboard.
+
+With Ctrl, Alt, Shift or ⌘ held, or while text is being composed, Space is left alone. A held Space plays or pauses once: the repeats are cancelled and do nothing. It plays only the main audio; a voice clip under way stops when the main audio starts, as it does for the Play button. The Play button's tooltip does not name the key.

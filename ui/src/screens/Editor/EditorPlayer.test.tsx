@@ -1,15 +1,19 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { useQueueEventsSync } from '../../api/queries'
 import { WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { UNASSIGNED, type Segment, type Speaker } from '../../api/types'
-import { createPlayback } from '../../media/playback'
+import { holdOpenModal } from '../../components/Modal/open-modals'
+import { createPlayback, type Playback, type PlaybackState } from '../../media/playback'
 import { OverlayProvider } from '../../OverlayProvider'
 import { EditorPlayer, playerTurns, useTranscriptPlayback } from './EditorPlayer'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 const segment = (start: number, end: number, changes: Partial<Segment>) => ({
   start, end, text: '', speaker_raw: 'SPEAKER_00', speaker_resolved: null, speaker_final: null, unassigned: false, ...changes,
@@ -125,4 +129,132 @@ test('levels that fail to come leave the waveform flat', async () => {
   await waitFor(() => expect(getWaveform).toHaveBeenCalled())
   await waitFor(() => expect((track.firstElementChild!.children[0] as HTMLElement).style.background).toContain('speaker-'))
   expect(new Set(heightsOf(track)).size).toBe(1)
+})
+
+// A playback that is ready and only counts what it is asked to do.
+const readyPlayback = (status: PlaybackState['status'] = 'ready') => {
+  const state: PlaybackState = { currentTime: 30, duration: 120, paused: true, rate: 1, volume: 1, status }
+  return {
+    getState: () => state,
+    subscribe: () => () => {},
+    load: vi.fn(), reload: vi.fn(), toggle: vi.fn(), seek: vi.fn(), setRate: vi.fn(), setVolume: vi.fn(),
+  } satisfies Playback
+}
+
+const renderWith = (playback: Playback) => render(
+  <ApiProvider client={createFixtureClient()}><OverlayProvider><EditorPlayer transcriptId={WEEKLY_SYNC_ID} playback={playback} /></OverlayProvider></ApiProvider>,
+)
+
+const pressSpace = (target: EventTarget = document.body, changes: KeyboardEventInit = {}) => {
+  const event = new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true, cancelable: true, ...changes })
+  target.dispatchEvent(event)
+  return event
+}
+
+test('space plays and pauses the open recording, and does not scroll', () => {
+  const playback = readyPlayback()
+  renderWith(playback)
+  const event = pressSpace()
+  expect(playback.toggle).toHaveBeenCalledTimes(1)
+  expect(event.defaultPrevented).toBe(true)
+})
+
+test('a held space plays or pauses once', () => {
+  const playback = readyPlayback()
+  renderWith(playback)
+  pressSpace()
+  const repeat = pressSpace(document.body, { repeat: true })
+  expect(playback.toggle).toHaveBeenCalledTimes(1)
+  expect(repeat.defaultPrevented).toBe(true)
+})
+
+test('space does nothing until the audio is ready', () => {
+  for (const status of ['empty', 'loading', 'error'] as const) {
+    const playback = readyPlayback(status)
+    const { unmount } = renderWith(playback)
+    const event = pressSpace()
+    expect(playback.toggle, status).not.toHaveBeenCalled()
+    expect(event.defaultPrevented, status).toBe(false)
+    unmount()
+  }
+})
+
+test('space does nothing while a modal window is open', () => {
+  const playback = readyPlayback()
+  renderWith(playback)
+  const release = holdOpenModal()
+  try {
+    expect(pressSpace().defaultPrevented).toBe(false)
+    expect(playback.toggle).not.toHaveBeenCalled()
+  } finally {
+    release()
+  }
+})
+
+test('the player gone, space is no longer heard', () => {
+  const playback = readyPlayback()
+  const { unmount } = renderWith(playback)
+  unmount()
+  expect(pressSpace().defaultPrevented).toBe(false)
+  expect(playback.toggle).not.toHaveBeenCalled()
+})
+
+test('a button left in focus by a click is not pressed again by the space', () => {
+  const playback = readyPlayback()
+  renderWith(playback)
+  const rewind = screen.getByRole('button', { name: 'Rewind 15 seconds' })
+  fireEvent.pointerDown(rewind)
+  rewind.focus()
+  const event = pressSpace(rewind)
+  expect(playback.toggle).toHaveBeenCalledTimes(1)
+  expect(event.defaultPrevented).toBe(true)
+  // Stopped on the way down, so the button and Radix never hear it.
+  const heard = vi.fn()
+  rewind.addEventListener('keydown', heard)
+  pressSpace(rewind)
+  expect(heard).not.toHaveBeenCalled()
+})
+
+// Chromium presses a focused button on the keyup of Space even when the keydown
+// was cancelled, so the keyup of a Space that played or paused is cancelled too.
+test('a button reached from the keyboard is pressed by the space as before', () => {
+  const playback = readyPlayback()
+  renderWith(playback)
+  const rewind = screen.getByRole('button', { name: 'Rewind 15 seconds' })
+  fireEvent.pointerDown(document.body)
+  fireEvent.keyDown(document.body, { key: 'Tab' })
+  rewind.focus()
+  expect(pressSpace(rewind).defaultPrevented).toBe(false)
+  expect(playback.toggle).not.toHaveBeenCalled()
+})
+
+test('a button clicked once it had the focus from the keyboard counts as clicked', () => {
+  const playback = readyPlayback()
+  renderWith(playback)
+  const rewind = screen.getByRole('button', { name: 'Rewind 15 seconds' })
+  fireEvent.keyDown(document.body, { key: 'Tab' })
+  rewind.focus()
+  fireEvent.pointerDown(rewind)
+  expect(pressSpace(rewind).defaultPrevented).toBe(true)
+  expect(playback.toggle).toHaveBeenCalledTimes(1)
+})
+
+test('the keyup of a space that played or paused is cancelled, and only that one', () => {
+  const playback = readyPlayback()
+  renderWith(playback)
+  const keyup = (changes: KeyboardEventInit = {}) => {
+    const event = new KeyboardEvent('keyup', { key: ' ', code: 'Space', bubbles: true, cancelable: true, ...changes })
+    document.body.dispatchEvent(event)
+    return event
+  }
+  pressSpace()
+  expect(keyup().defaultPrevented).toBe(true)
+  expect(keyup().defaultPrevented).toBe(false)
+  const release = holdOpenModal()
+  try {
+    pressSpace()
+    expect(keyup().defaultPrevented).toBe(false)
+  } finally {
+    release()
+  }
 })
