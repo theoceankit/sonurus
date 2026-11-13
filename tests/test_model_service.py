@@ -496,3 +496,188 @@ def test_snapshot_does_not_change_download_kwargs(tmp_path):
         _snapshot(kwargs)
     download.assert_called_once_with("pyannote/embedding", cache_dir=str(tmp_path), allow_patterns=["*.bin"])
     assert kwargs["repo_id"] == "pyannote/embedding"
+
+
+# ---------------------------------------------------------------------------
+# Plain download first, Xet only when the Hub refuses it: hf_xet writes a file
+# in large bursts, so bytes on disk (and the progress bar) jump; the plain
+# HTTP download grows steadily. The Hub may close the plain path one day, so a
+# refusal by its server retries the same download through Xet.
+# ---------------------------------------------------------------------------
+
+def test_snapshot_switches_xet_off_by_default(tmp_path):
+    from unittest.mock import patch
+    from app.services import model_service
+
+    seen = []
+    with patch("app.services.model_service.huggingface_hub.snapshot_download",
+               side_effect=lambda repo, **kw: seen.append((model_service.hf_constants.HF_HUB_DISABLE_XET, kw))):
+        model_service._snapshot({"repo_id": "pyannote/embedding", "cache_dir": str(tmp_path)})
+    assert seen == [(True, {"cache_dir": str(tmp_path)})]
+
+
+def test_snapshot_switches_xet_on_when_asked(tmp_path):
+    from unittest.mock import patch
+    from app.services import model_service
+
+    seen = []
+    with patch("app.services.model_service.huggingface_hub.snapshot_download",
+               side_effect=lambda repo, **kw: seen.append((model_service.hf_constants.HF_HUB_DISABLE_XET, kw))):
+        model_service._snapshot({"repo_id": "pyannote/embedding", "cache_dir": str(tmp_path), "use_xet": True})
+    assert seen == [(False, {"cache_dir": str(tmp_path)})]
+
+
+@pytest.mark.parametrize("exc, refusal", [
+    (_http_error("HfHubHTTPError", 503), True),
+    (_http_error("HfHubHTTPError", 500), True),
+    (_http_error("HfHubHTTPError", 404), True),
+    (_http_error("HfHubHTTPError", 429), True),
+    (_http_error("HfHubHTTPError", 401), False),
+    (_http_error("HfHubHTTPError", 403), False),
+    (_http_error("GatedRepoError", 404), False),
+    (_http_error("GatedRepoError", None), False),
+    (_http_error("HfHubHTTPError", None), False),
+    (_named("ConnectionError", _named("RequestException", OSError))("refused"), False),
+    (TimeoutError("slow"), False),
+    (OSError("disk full"), False),
+])
+def test_is_server_refusal(exc, refusal):
+    from app.services.model_service import is_server_refusal
+    assert is_server_refusal(exc) is refusal
+
+
+def test_run_download_passes_on_a_server_refusal():
+    import threading
+    from app.services.model_service import ModelDownloadError, _run_download
+    with pytest.raises(ModelDownloadError) as raised:
+        _run_download({}, cancel_event=threading.Event(), worker=download_workers.refusing_worker, in_subprocess=True)
+    assert raised.value.code == "failed"
+    assert raised.value.server_refusal is True
+
+
+def test_run_download_without_the_refusal_flag_is_no_refusal():
+    import threading
+    from app.services.model_service import ModelDownloadError, _run_download
+    with pytest.raises(ModelDownloadError) as raised:
+        _run_download({}, cancel_event=threading.Event(), worker=download_workers.gated_worker, in_subprocess=True)
+    assert raised.value.server_refusal is False
+
+
+def test_run_download_gives_the_xet_switch_to_the_worker():
+    import threading
+    from app.services.model_service import _run_download
+    _run_download({"use_xet": True}, cancel_event=threading.Event(),
+                  worker=download_workers.refusing_without_xet_worker, in_subprocess=True)
+
+
+def test_run_download_in_process_tells_a_server_refusal(monkeypatch):
+    import threading
+    from app.services import model_service
+    monkeypatch.setattr(model_service, "_snapshot", lambda kwargs: (_ for _ in ()).throw(_http_error("HfHubHTTPError", 503)))
+    with pytest.raises(model_service.ModelDownloadError) as raised:
+        model_service._run_download({}, cancel_event=threading.Event(), in_subprocess=False)
+    assert raised.value.code == "failed"
+    assert raised.value.server_refusal is True
+
+
+def _snapshot_refusing_plain(attempts, error=None):
+    """snapshot_download whose plain download leaves a partial blob and fails with
+    `error` (a 503 by default); through Xet it completes the repo."""
+    from app.services import model_service
+
+    def snapshot(repo, cache_dir, **_kw):
+        cache = Path(cache_dir) / cache_dir_name(repo)
+        blobs = cache / "blobs"
+        xet = not model_service.hf_constants.HF_HUB_DISABLE_XET
+        attempts.append((repo, xet, sorted(p.name for p in blobs.glob("*.incomplete")) if blobs.is_dir() else []))
+        (cache / "refs").mkdir(parents=True, exist_ok=True)
+        (cache / "refs" / "main").write_text("abc123")
+        if not xet:
+            blobs.mkdir(exist_ok=True)
+            (blobs / "abc.incomplete").write_bytes(b"partial")
+            raise error if error is not None else _http_error("HfHubHTTPError", 503)
+    return snapshot
+
+
+@pytest.mark.parametrize("model_id", ["tiny", "ru"])
+def test_download_retries_through_xet_when_the_server_refuses(tmp_path, model_id):
+    from unittest.mock import patch
+    svc = ModelService(tmp_path / "whisper")
+    attempts = []
+    with patch("app.services.model_service.huggingface_hub.snapshot_download",
+               side_effect=_snapshot_refusing_plain(attempts)):
+        svc.download_model(model_id)
+    assert [xet for _repo, xet, _partial in attempts] == [False, True]
+    # The plain download's partial blob is gone before Xet starts on it.
+    assert attempts[1][2] == []
+    assert svc.is_installed(model_id) is True
+
+
+def test_diarization_retries_each_repo_through_xet(tmp_path):
+    from unittest.mock import patch
+    from app.services.model_service import DIARIZATION_CATALOG
+    svc = ModelService(tmp_path / "whisper")
+    attempts = []
+    with patch("app.services.model_service.huggingface_hub.snapshot_download",
+               side_effect=_snapshot_refusing_plain(attempts)):
+        svc.download_model("diarize")
+    repos = DIARIZATION_CATALOG["diarize"]["hf_repos"]
+    assert [(repo, xet) for repo, xet, _partial in attempts] == [(r, x) for r in repos for x in (False, True)]
+    assert svc.is_installed("diarize") is True
+
+
+@pytest.mark.parametrize("error, code", [
+    (_http_error("HfHubHTTPError", 401), "no_token"),
+    (_http_error("GatedRepoError", 403), "no_access"),
+    (_named("ConnectionError", _named("RequestException", OSError))("refused"), "network"),
+    (OSError("disk full"), "failed"),
+])
+def test_download_does_not_retry_through_xet_on_other_errors(tmp_path, error, code):
+    from unittest.mock import patch
+    from app.services.model_service import ModelDownloadError
+    svc = ModelService(tmp_path / "whisper")
+    attempts = []
+    with patch("app.services.model_service.huggingface_hub.snapshot_download",
+               side_effect=_snapshot_refusing_plain(attempts, error)):
+        with pytest.raises(ModelDownloadError) as raised:
+            svc.download_model("tiny")
+    assert raised.value.code == code
+    assert [xet for _repo, xet, _partial in attempts] == [False]
+    assert svc.is_installed("tiny") is False
+
+
+def test_download_through_xet_that_fails_too_reports_that_failure(tmp_path):
+    from unittest.mock import patch
+    from app.services import model_service
+    svc = ModelService(tmp_path / "whisper")
+    attempts = []
+
+    def snapshot(repo, cache_dir, **_kw):
+        attempts.append(not model_service.hf_constants.HF_HUB_DISABLE_XET)
+        raise _http_error("HfHubHTTPError", 401 if attempts[-1] else 503)
+
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=snapshot):
+        with pytest.raises(model_service.ModelDownloadError) as raised:
+            svc.download_model("tiny")
+    assert attempts == [False, True]
+    assert raised.value.code == "no_token"
+    assert svc.is_installed("tiny") is False
+
+
+def test_cancel_after_a_refusal_does_not_retry_through_xet(tmp_path):
+    import threading
+    from asyncio import CancelledError
+    from unittest.mock import patch
+    svc = ModelService(tmp_path / "whisper")
+    cancel = threading.Event()
+    attempts = []
+    refuse = _snapshot_refusing_plain(attempts)
+
+    def snapshot(repo, cache_dir, **kw):
+        cancel.set()  # the user cancels while the plain download fails
+        refuse(repo, cache_dir, **kw)
+
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=snapshot):
+        with pytest.raises(CancelledError):
+            svc.download_model("tiny", cancel_event=cancel)
+    assert [xet for _repo, xet, _partial in attempts] == [False]

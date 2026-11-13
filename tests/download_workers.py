@@ -24,3 +24,16 @@ def crashing_worker(kwargs, conn):
 def gated_worker(kwargs, conn):
     """Reports what the real worker sends for a gated repo without a token."""
     conn.send(("error", "GatedRepoError", "401 Client Error. Cannot access gated repo", "no_token"))
+
+
+def refusing_worker(kwargs, conn):
+    """Reports what the real worker sends when the Hub's server refuses the download."""
+    conn.send(("error", "HfHubHTTPError", "503 Server Error: Service Unavailable", "failed", True))
+
+
+def refusing_without_xet_worker(kwargs, conn):
+    """Refuses a plain download and lets one through Xet, by the switch it is given."""
+    if kwargs.get("use_xet"):
+        conn.send(("ok",))
+    else:
+        conn.send(("error", "HfHubHTTPError", "503 Server Error: Service Unavailable", "failed", True))
