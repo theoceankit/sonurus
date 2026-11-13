@@ -25,9 +25,10 @@ No code other than `CommitService` may call `SpeakerMemoryService.update_embeddi
 Permitted exceptions that do not write embeddings:
 - `SpeakerMemoryService.save_names_only()` — writes only `speaker_names` (display names). Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and via `create_named_speaker()` when a user assigns segments to a new name.
 - `SpeakerMemoryService.set_color()` — writes only `speaker_meta` (palette color). Called from `PATCH /speakers/{id}` and, with the optional `color_index`, when `POST /transcripts/{id}/speaker-assignments` creates a speaker by name.
+- `SpeakerMemoryService.set_handle()` and the handle that `save_names_only()` makes from a new name — write only `speaker_meta` (handle). Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and when a speaker is created by name.
 - `SpeakerMemoryService.remove_speaker()` — deletes a speaker (embedding, names, color) from memory and DB. Called only through `CommitService`: `recompute_or_remove()` drops unnamed speakers left without segments, and `delete_speaker()` (`DELETE /speakers/{id}`) first unassigns the speaker's segments so nothing can recompute the profile back.
 - `SpeakerMemoryService.remove_embedding()` — forgets a speaker's voice and keeps the name and color. Called only through `CommitService.undo_assignment()`, for a named speaker left with no segments to compute a voice from, so that an undone voice does not stay as their profile.
-- `SpeakerMemoryService.clear()` — deletes every speaker (embeddings, names, colors) and drops the in-memory state. Called only from `POST /data/reset` (full data reset), which runs `TranscriptStorageService.clear()` first, so no segments remain to recompute from.
+- `SpeakerMemoryService.clear()` — deletes every speaker (embeddings, names, colors, handles) and drops the in-memory state. Called only from `POST /data/reset` (full data reset), which runs `TranscriptStorageService.clear()` first, so no segments remain to recompute from.
 
 **Why:** Centralising embedding writes to `CommitService` makes it possible to reason about when and why voice profiles change. Name management and cleanup are deliberately separated from embedding updates.
 
@@ -100,7 +101,9 @@ The display name is **never** stored as the speaker ID. All IDs in `speaker_embe
 
 **In the UI:** a speaker is unrecognized when `GET /speakers` has no row with a name for their id (`namedSpeaker()` in `ui/src/screens/Editor/transcript.ts`; `stackSpeakers()` in `recordings.ts` for the sidebar), which also covers a raw `SPEAKER_XX` label. Such speakers are numbered Unknown speaker N in order of first appearance; the `UNASSIGNED` pseudo-id is shown as Unassigned and takes no number.
 
-**Why:** Decoupling identity (UUID) from display name means renaming a speaker only updates `speaker_names` without touching segment data or embeddings. Display names are not unique: two different people named "Alice" coexist as two UUIDs, and assigning segments to a new name always creates a new UUID. The UI marks speakers that share a name and shows their usage to tell them apart.
+**Handles:** every RECOGNIZED speaker has a handle (`speaker_meta.handle`, as in `@alice.smith`) and only they do. Unlike names, handles are unique whatever the case; the database keeps them so with a unique index. A handle is not an identity either: it follows the name unless set by hand, and the speaker stays the same UUID. See [Speaker handles](../api/endpoints.md#speaker-handles).
+
+**Why:** Decoupling identity (UUID) from display name means renaming a speaker only updates `speaker_names` without touching segment data or embeddings. Display names are not unique: two different people named "Alice" coexist as two UUIDs, and assigning segments to a new name always creates a new UUID. The UI marks speakers that share a name and shows their usage and their handles to tell them apart.
 
 **Target state:** The principle stays.
 

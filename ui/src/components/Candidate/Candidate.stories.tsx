@@ -28,6 +28,8 @@ export const Matrix: Story = {
         { label: 'Suggested, selected', render: () => <Candidate speaker={MARK} score={0.82} suggested selected /> },
         { label: 'Recordings', render: () => <Candidate speaker={MARK} usage="8 recordings" /> },
         { label: 'Same name, time', render: () => <Candidate speaker={MARK} usage="8 recordings" time="41:20" badge="same name" /> },
+        { label: 'Handle', render: () => <Candidate speaker={MARK} handle="mark.ellis" usage="8 recordings" time="41:20" /> },
+        { label: 'Handle, same name', render: () => <Candidate speaker={MARK} handle="mark.ellis2" usage="2 recordings" time="10:20" badge="same name" /> },
         { label: 'Unnamed', render: () => <Candidate speaker={{ kind: 'unknown', name: 'Unnamed speaker' }} usage="1 recording" time="5:10" /> },
         { label: 'Add new', render: () => <Candidate kind="add">Add a new speaker</Candidate> },
         { label: 'More', render: () => <Candidate kind="add" icon="more">More speakers</Candidate> },
@@ -42,6 +44,10 @@ export const Selected: Story = { args: { speaker: MARK, score: 0.64, suggested: 
 export const Active: Story = { args: { speaker: MARK, score: 0.41, active: true } }
 export const Recordings: Story = { args: { speaker: MARK, usage: '8 recordings' } }
 export const SameName: Story = { args: { speaker: MARK, usage: '8 recordings', time: '41:20', badge: 'same name' } }
+export const WithHandle: Story = { args: { speaker: MARK, handle: 'mark.ellis', usage: '8 recordings', time: '41:20' } }
+export const SameNameWithHandle: Story = { args: { speaker: MARK, handle: 'mark.ellis2', usage: '2 recordings', time: '10:20', badge: 'same name' } }
+export const HandleWithScore: Story = { args: { speaker: MARK, handle: 'mark.ellis', score: 0.82, suggested: true, selected: true } }
+export const LongHandle: Story = { args: { speaker: { name: 'Alexandra Konstantinopolskaya-Vandenberghe', color: 3 }, handle: 'alexandra.konstantinopolskayava', usage: '1 recording' } }
 export const Unnamed: Story = { args: { speaker: { kind: 'unknown', name: 'Unnamed speaker' }, usage: '1 recording', time: '5:10' } }
 export const AddNew: Story = { args: { kind: 'add', children: 'Add a new speaker' } }
 export const More: Story = { args: { kind: 'add', icon: 'more', children: 'More speakers' } }

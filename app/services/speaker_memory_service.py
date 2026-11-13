@@ -10,6 +10,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from app.config import SPEAKER_SIMILARITY_THRESHOLD
 from app.logger import get_logger
+from app.services.speaker_handle import (
+    DEFAULT_FORMAT, HANDLE_FORMATS, base_handle, is_valid_handle, normalize_handle, unique_handle,
+)
 
 PALETTE_SIZE = 5
 
@@ -25,6 +28,23 @@ def _new_speaker_id() -> str:
     return str(uuid.uuid4())
 
 
+class InvalidHandle(ValueError):
+    """Not a handle: see is_valid_handle()."""
+
+
+class HandleNeedsName(ValueError):
+    """Only a speaker with a name has a handle."""
+
+
+class HandleTaken(ValueError):
+    """Another speaker has this handle (case ignored)."""
+
+    def __init__(self, handle: str, owner_id: str):
+        super().__init__(f"@{handle} is taken")
+        self.handle = handle
+        self.owner_id = owner_id
+
+
 # ---------------------------------------------------------------------------
 # Repository — all SQLite I/O
 # ---------------------------------------------------------------------------
@@ -32,7 +52,7 @@ def _new_speaker_id() -> str:
 class SpeakerRepository:
     """SQLite persistence for speaker embeddings and names."""
 
-    _SCHEMA_VERSION = 3
+    _SCHEMA_VERSION = 4
 
     def __init__(self, db_path: str):
         self.db_path = db_path
@@ -90,6 +110,9 @@ class SpeakerRepository:
                 conn.execute(
                     "INSERT INTO _meta (key, value) VALUES ('m001_uuid_speakers', 'done')"
                 )
+
+            # After m001, which may name legacy speakers.
+            self._assign_missing_handles(conn)
 
     @staticmethod
     def _detect_legacy_version(conn) -> int:
@@ -161,6 +184,18 @@ class SpeakerRepository:
                 )
             """)
             conn.execute("UPDATE _meta SET value = '3' WHERE key = 'schema_version'")
+        if current < 4:
+            # Handles: unique whatever the case, kept by the database itself since
+            # the API and a pipeline job each hold their own SpeakerMemoryService.
+            meta_cols = {r[1] for r in conn.execute("PRAGMA table_info(speaker_meta)").fetchall()}
+            if "handle" not in meta_cols:
+                conn.execute("ALTER TABLE speaker_meta ADD COLUMN handle TEXT")
+            if "handle_manual" not in meta_cols:
+                conn.execute("ALTER TABLE speaker_meta ADD COLUMN handle_manual INTEGER NOT NULL DEFAULT 0")
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS speaker_meta_handle ON speaker_meta (handle COLLATE NOCASE)"
+            )
+            conn.execute("UPDATE _meta SET value = '4' WHERE key = 'schema_version'")
 
     def load(self) -> tuple[dict, dict]:
         with self._connect() as conn:
@@ -219,11 +254,111 @@ class SpeakerRepository:
         return {spk_id: color_index for spk_id, color_index in rows}
 
     def save_colors(self, colors: dict[str, int]):
+        # An upsert: the row also holds the handle, which a colour must not wipe.
         with self._connect() as conn:
             conn.executemany(
-                "INSERT OR REPLACE INTO speaker_meta (speaker_id, color_index) VALUES (?, ?)",
+                "INSERT INTO speaker_meta (speaker_id, color_index) VALUES (?, ?) "
+                "ON CONFLICT(speaker_id) DO UPDATE SET color_index = excluded.color_index",
                 list(colors.items()),
             )
+
+    # --- handles -------------------------------------------------------------
+
+    def load_handles(self) -> dict[str, tuple[str, bool]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT speaker_id, handle, handle_manual FROM speaker_meta WHERE handle IS NOT NULL"
+            ).fetchall()
+        return {spk_id: (handle, bool(manual)) for spk_id, handle, manual in rows}
+
+    @staticmethod
+    def _taken_handles(conn, exclude_id: str | None = None) -> dict[str, str]:
+        """{handle in lowercase: speaker_id} of every speaker but exclude_id."""
+        rows = conn.execute(
+            "SELECT handle, speaker_id FROM speaker_meta WHERE handle IS NOT NULL AND speaker_id IS NOT ?",
+            (exclude_id,),
+        ).fetchall()
+        return {handle.lower(): spk_id for handle, spk_id in rows}
+
+    def taken_handles(self, exclude_id: str | None = None) -> dict[str, str]:
+        with self._connect() as conn:
+            return self._taken_handles(conn, exclude_id)
+
+    @staticmethod
+    def _read_handle_format(conn) -> str:
+        row = conn.execute("SELECT value FROM _meta WHERE key = 'handle_format'").fetchone()
+        return row[0] if row and row[0] in HANDLE_FORMATS else DEFAULT_FORMAT
+
+    def read_handle_format(self) -> str:
+        with self._connect() as conn:
+            return self._read_handle_format(conn)
+
+    def write_handle_format(self, fmt: str):
+        with self._connect() as conn:
+            conn.execute("INSERT OR REPLACE INTO _meta (key, value) VALUES ('handle_format', ?)", (fmt,))
+
+    @staticmethod
+    def _upsert_handle(conn, spk_id: str, handle: str, manual: bool):
+        conn.execute(
+            "INSERT INTO speaker_meta (speaker_id, handle, handle_manual) VALUES (?, ?, ?) "
+            "ON CONFLICT(speaker_id) DO UPDATE SET handle = excluded.handle, handle_manual = excluded.handle_manual",
+            (spk_id, handle, int(manual)),
+        )
+
+    def write_handle(self, spk_id: str, decide) -> tuple[str, bool]:
+        """Write the handle decide(taken, current) returns, in one transaction that
+        holds the write lock, so two writers cannot take one handle. taken is
+        {handle: speaker_id} of the others; current is (handle, manual) or None.
+        decide returns (handle, manual) or raises."""
+        conn = self._connect()
+        conn.isolation_level = None
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                row = conn.execute(
+                    "SELECT handle, handle_manual FROM speaker_meta WHERE speaker_id = ? AND handle IS NOT NULL",
+                    (spk_id,),
+                ).fetchone()
+                current = (row[0], bool(row[1])) if row else None
+                taken = self._taken_handles(conn, spk_id)
+                handle, manual = decide(taken, current)
+                if handle.lower() in taken:
+                    raise HandleTaken(handle, taken[handle.lower()])
+                self._upsert_handle(conn, spk_id, handle, manual)
+                conn.execute("COMMIT")
+            except BaseException:
+                conn.execute("ROLLBACK")
+                raise
+        finally:
+            conn.close()
+        return handle, manual
+
+    def _assign_missing_handles(self, conn):
+        """Every named speaker without a handle gets one, the earliest heard first,
+        so the speaker who came first keeps the handle without a number."""
+        rows = conn.execute(
+            """SELECT n.speaker_id, n.name FROM speaker_names n
+               LEFT JOIN speaker_meta m ON m.speaker_id = n.speaker_id
+               WHERE n.label = 'display' AND m.handle IS NULL"""
+        ).fetchall()
+        if not rows:
+            return
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        first_seen: dict[str, str] = {}
+        if {"segments", "transcriptions"} <= tables:
+            first_seen = dict(conn.execute(
+                """SELECT s.speaker_id, MIN(t.created_at) FROM segments s
+                   JOIN transcriptions t ON t.id = s.transcription_id
+                   WHERE s.speaker_id IS NOT NULL GROUP BY s.speaker_id"""
+            ).fetchall())
+        rows.sort(key=lambda r: (first_seen.get(r[0]) is None, first_seen.get(r[0]) or "", r[0]))
+        fmt = self._read_handle_format(conn)
+        taken = set(self._taken_handles(conn))
+        for spk_id, name in rows:
+            handle = unique_handle(base_handle(name, fmt), taken)
+            taken.add(handle)
+            self._upsert_handle(conn, spk_id, handle, False)
+        log.info(f"Gave handles to {len(rows)} speakers")
 
     def remove(self, spk_id: str):
         with self._connect() as conn:
@@ -325,6 +460,8 @@ class SpeakerMemoryService:
         self.known_speakers, self.known_counts = self._repo.load()
         self.known_names = self._repo.load_names()
         self.known_colors: dict[str, int] = self._repo.load_colors()
+        # {speaker_id: (handle, set by hand)}; only named speakers have one.
+        self.known_handles: dict[str, tuple[str, bool]] = self._repo.load_handles()
         self._dirty: set[str] = set()
         self._dirty_lock = threading.Lock()
         self._dirty_colors: set[str] = set()
@@ -411,10 +548,13 @@ class SpeakerMemoryService:
         self.known_speakers, self.known_counts = self._repo.load()
         self.known_names = self._repo.load_names()
         self.known_colors = self._repo.load_colors()
+        self.known_handles = self._repo.load_handles()
         self._dirty_names = set()
 
     def save_names_only(self):
-        """Persist names changed since the last save without touching speaker_embeddings."""
+        """Persist names changed since the last save without touching speaker_embeddings.
+        A speaker whose handle was not set by hand gets one from the new name."""
+        named = set(self._dirty_names)
         for spk_id in self._dirty_names:
             self._ensure_color(spk_id)
         self._repo.save_names_only(self.known_names, self._dirty_names)
@@ -423,6 +563,8 @@ class SpeakerMemoryService:
             {spk_id: self.known_colors[spk_id] for spk_id in self._dirty_colors if spk_id in self.known_colors}
         )
         self._dirty_colors = set()
+        for spk_id in named:
+            self._follow_name(spk_id)
 
     def find_by_name(self, name: str, label: str = "display") -> str | None:
         """Returns the speaker UUID for the given display name, or None if not found."""
@@ -442,6 +584,7 @@ class SpeakerMemoryService:
         self.known_counts.pop(spk_id, None)
         self.known_names.pop(spk_id, None)
         self.known_colors.pop(spk_id, None)
+        self.known_handles.pop(spk_id, None)
         self._dirty_names.discard(spk_id)
         self._dirty_colors.discard(spk_id)
         with self._dirty_lock:
@@ -467,18 +610,97 @@ class SpeakerMemoryService:
         self.known_counts = {}
         self.known_names = {}
         self.known_colors = {}
+        self.known_handles = {}
         self._dirty_names = set()
         self._dirty_colors = set()
         log.info(f"Cleared all speakers ({removed})")
         return removed
 
-    def create_named_speaker(self, name: str, label: str = "display") -> str:
-        """Create a new speaker ID with a persisted display name.
+    def create_named_speaker(self, name: str, label: str = "display", handle: str | None = None) -> str:
+        """Create a new speaker ID with a persisted display name and a handle: the
+        one given (checked before anything is created), else one from the name.
 
-        Writes speaker_names only; the embedding is added by CommitService once
-        segments with embeddings are assigned to the new ID.
+        Writes speaker_names and speaker_meta only; the embedding is added by
+        CommitService once segments with embeddings are assigned to the new ID.
         """
+        if handle is not None:
+            self.check_handle(handle)
         spk_id = _new_speaker_id()
         self.set_name(spk_id, name, label)
         self.save_names_only()
+        if handle is not None:
+            self.set_handle(spk_id, handle)
         return spk_id
+
+    # --- handles -------------------------------------------------------------
+
+    def get_handle(self, spk_id: str) -> str | None:
+        return self.known_handles.get(spk_id, (None, False))[0]
+
+    def is_handle_manual(self, spk_id: str) -> bool:
+        return self.known_handles.get(spk_id, (None, False))[1]
+
+    def get_handle_format(self) -> str:
+        return self._repo.read_handle_format()
+
+    def set_handle_format(self, fmt: str):
+        """The format of handles made from now on; handles already given stay."""
+        if fmt not in HANDLE_FORMATS:
+            raise ValueError(f"format must be one of {', '.join(HANDLE_FORMATS)}")
+        self._repo.write_handle_format(fmt)
+
+    def suggest_handle(self, name: str, exclude_id: str | None = None) -> str:
+        """The handle a speaker named name would get now, numbered if taken."""
+        return unique_handle(base_handle(name, self.get_handle_format()), set(self._repo.taken_handles(exclude_id)))
+
+    def check_handle(self, text: str, exclude_id: str | None = None) -> str:
+        """The handle text stands for, if it is valid and free. Raises InvalidHandle or HandleTaken."""
+        handle = normalize_handle(text)
+        if not is_valid_handle(handle):
+            raise InvalidHandle(f"@{handle} is not a valid handle" if handle else "The handle is empty")
+        owner = self._repo.taken_handles(exclude_id).get(handle)
+        if owner is not None:
+            raise HandleTaken(handle, owner)
+        return handle
+
+    def set_handle(self, spk_id: str, text: str | None):
+        """Set a handle by hand, or with None go back to the one made from the name."""
+        name = self.get_name(spk_id)
+        if not name:
+            raise HandleNeedsName("Only a speaker with a name has a handle")
+        if text is None:
+            self._write_auto_handle(spk_id, name, keep_manual=False)
+            return
+        handle = normalize_handle(text)
+        if not is_valid_handle(handle):
+            raise InvalidHandle(f"@{handle} is not a valid handle" if handle else "The handle is empty")
+
+        def decide(taken, _current):
+            if handle in taken:
+                raise HandleTaken(handle, taken[handle])
+            return handle, True
+
+        self._store_handle(spk_id, decide)
+
+    def _follow_name(self, spk_id: str):
+        name = self.get_name(spk_id)
+        if name:
+            self._write_auto_handle(spk_id, name, keep_manual=True)
+
+    def _write_auto_handle(self, spk_id: str, name: str, keep_manual: bool):
+        fmt = self.get_handle_format()
+
+        def decide(taken, current):
+            if keep_manual and current and current[1]:
+                return current
+            return unique_handle(base_handle(name, fmt), set(taken)), False
+
+        self._store_handle(spk_id, decide)
+
+    def _store_handle(self, spk_id: str, decide):
+        self._ensure_color(spk_id)
+        self._repo.save_colors(
+            {s: self.known_colors[s] for s in self._dirty_colors if s in self.known_colors}
+        )
+        self._dirty_colors = set()
+        self.known_handles[spk_id] = self._repo.write_handle(spk_id, decide)

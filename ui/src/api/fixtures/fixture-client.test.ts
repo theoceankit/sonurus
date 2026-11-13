@@ -644,3 +644,48 @@ describe('live recording', () => {
     await expect(client.stopQueueRecording()).resolves.toMatchObject({ recording: false, paused: true })
   })
 })
+
+describe('speaker handles', () => {
+  test('named speakers have a handle made from the name, unnamed ones none', async () => {
+    const speakers = await createFixtureClient().listSpeakers()
+    expect(speakers.find(s => s.id === anna)).toMatchObject({ handle: 'anna.petrova', handle_manual: false })
+    expect(speakers.find(s => s.id === unknown1)?.handle).toBeNull()
+  })
+
+  test('a new speaker gets a numbered handle when theirs is taken, or the one given', async () => {
+    const client = createFixtureClient()
+    expect(await client.getHandleSuggestion('Анна Петрова')).toBe('anna.petrova2')
+    expect(await client.getHandleSuggestion('Anna Petrova', anna)).toBe('anna.petrova')
+    const auto = await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5], target: { name: 'Anna Petrova' } })
+    const own = await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [8], target: { name: 'Anna Petrova', handle: '@Annie' } })
+    const speakers = await client.listSpeakers()
+    expect(speakers.find(s => s.id === auto.speakerId)?.handle).toBe('anna.petrova2')
+    expect(speakers.find(s => s.id === own.speakerId)).toMatchObject({ handle: 'annie', handle_manual: true })
+  })
+
+  test('a taken or bad handle is refused with a code and creates no one', async () => {
+    const client = createFixtureClient()
+    const before = (await client.listSpeakers()).length
+    await expect(client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [5], target: { name: 'Ann', handle: 'ANNA.PETROVA' } }))
+      .rejects.toMatchObject({ status: 409, code: 'handle_taken', message: '@anna.petrova is taken by Anna Petrova.' })
+    await expect(client.updateSpeaker(mark, { handle: 'иван' })).rejects.toMatchObject({ status: 400, code: 'handle_invalid' })
+    await expect(client.updateSpeaker(unknown1, { handle: 'tom' })).rejects.toMatchObject({ status: 400, code: 'handle_needs_name' })
+    expect((await client.listSpeakers()).length).toBe(before)
+  })
+
+  test('a rename moves an automatic handle, not one set by hand; an empty one goes back', async () => {
+    const client = createFixtureClient()
+    expect((await client.updateSpeaker(mark, { name: 'Mark Stone' })).handle).toBe('mark.stone')
+    expect(await client.updateSpeaker(mark, { handle: 'marky' })).toMatchObject({ handle: 'marky', handle_manual: true })
+    expect((await client.updateSpeaker(mark, { name: 'Mark Ellis' })).handle).toBe('marky')
+    expect(await client.updateSpeaker(mark, { handle: '' })).toMatchObject({ handle: 'mark.ellis', handle_manual: false })
+  })
+
+  test('the handle format is for speakers named from then on', async () => {
+    const client = createFixtureClient()
+    expect(await client.getHandleFormat()).toBe('first.last')
+    expect(await client.setHandleFormat('f.last')).toBe('f.last')
+    expect(await client.getHandleSuggestion('Olivia Brown')).toBe('o.brown')
+    expect((await client.listSpeakers()).find(s => s.id === anna)?.handle).toBe('anna.petrova')
+  })
+})

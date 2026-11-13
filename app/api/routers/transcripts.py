@@ -11,11 +11,12 @@ from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.speaker_memory_service import PALETTE_SIZE, SpeakerMemoryService
 from app.services.commit_service import CommitService
 from app.api.dependencies import get_memory_service, get_storage_service
+from app.api.routers.speakers import HANDLE_ERRORS, handle_refusal
 from app.models.segment import UNASSIGNED
 from app.api.schemas import (
     TranscriptListItem, TranscriptResponse, SegmentResponse, TranscriptUpdateRequest,
     SegmentTextRequest, SpeakerCandidate, UnknownSpeakerCandidates, VoiceClip, SpeakerAssignmentRequest,
-    SpeakerAssignmentResponse, SpeakerAssignmentUndoRequest, WaveformResponse,
+    SpeakerAssignmentResponse, SpeakerAssignmentUndoRequest, WaveformResponse, RefusalResponse,
 )
 from app.services.audio_store import discard_levels
 from app.services.speaker_candidates import rank_candidates, voice_centroid
@@ -53,8 +54,11 @@ def _check_new_speaker_color(color_index: int | None, creates_speaker: bool) -> 
         raise HTTPException(status_code=400, detail=f"color_index must be in 0..{PALETTE_SIZE - 1}")
 
 
-def _create_speaker(memory: SpeakerMemoryService, name: str, color_index: int | None) -> str:
-    spk_id = memory.create_named_speaker(name)
+def _create_speaker(memory: SpeakerMemoryService, name: str, color_index: int | None, handle: str | None) -> str:
+    try:
+        spk_id = memory.create_named_speaker(name, handle=handle)
+    except HANDLE_ERRORS as exc:
+        raise handle_refusal(exc, memory)
     if color_index is not None:
         memory.set_color(spk_id, color_index)
     return spk_id
@@ -289,7 +293,10 @@ def delete_transcript(
     _delete_owned_recording(t.audio_path, storage)
 
 
-@router.post("/{transcript_id}/speaker-assignments", response_model=SpeakerAssignmentResponse)
+@router.post(
+    "/{transcript_id}/speaker-assignments", response_model=SpeakerAssignmentResponse,
+    responses={400: {"model": RefusalResponse}, 409: {"model": RefusalResponse}},
+)
 def assign_speaker(
     transcript_id: int,
     body: SpeakerAssignmentRequest,
@@ -301,6 +308,8 @@ def assign_speaker(
     if (body.speaker_id is None) == (body.speaker_name is None):
         raise HTTPException(status_code=400, detail="Provide exactly one of speaker_id or speaker_name")
     _check_new_speaker_color(body.color_index, body.speaker_name is not None)
+    if body.speaker_handle is not None and body.speaker_name is None:
+        raise HTTPException(status_code=400, detail="speaker_handle is only allowed when creating a speaker by name")
     try:
         t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
@@ -312,7 +321,7 @@ def assign_speaker(
         _check_known_speaker(memory, body.speaker_id)
         to_spk_id = body.speaker_id
     else:
-        to_spk_id = _create_speaker(memory, body.speaker_name, body.color_index)
+        to_spk_id = _create_speaker(memory, body.speaker_name, body.color_index, body.speaker_handle)
     segments = [by_start[start] for start in body.segment_starts]
     storage.set_segments_speaker(transcript_id, [(seg.start, seg.end) for seg in segments], to_spk_id)
     commit_svc = CommitService(memory, storage)

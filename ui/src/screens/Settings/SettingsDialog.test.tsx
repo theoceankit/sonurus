@@ -108,6 +108,19 @@ test('Start transcription is the queue\'s and changes it', async () => {
   expect(field('Start transcription').textContent).toContain('Manually')
 })
 
+test('Handle format is the backend\'s, shown by example, and changes it', async () => {
+  const { client } = await setup()
+  await client.setHandleFormat('first.l')
+  const settings = await openSettings()
+  expect(within(settings).getByText('Speakers')).toBeTruthy()
+  await waitFor(() => expect(field('Handle format').textContent).toContain('@olivia.b'))
+  await userEvent.click(field('Handle format'))
+  expect(screen.getAllByRole('option').map(o => o.textContent?.trim())).toEqual(['@olivia.brown', '@o.brown', '@olivia.b'])
+  await userEvent.click(option('@o.brown'))
+  await waitFor(async () => expect(await client.getHandleFormat()).toBe('f.last'))
+  expect(field('Handle format').textContent).toContain('@o.brown')
+})
+
 test('Appearance: the theme and the app language are there and not available yet', async () => {
   await setup()
   await openAppearance()

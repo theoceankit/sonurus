@@ -19,6 +19,8 @@ export type ChooseSpeakerCategory = 'all' | 'best' | 'recording'
 export interface ChooseSpeakerRow {
   id: string
   name: string
+  // Under the name: who exactly, when two share a name.
+  handle?: string | null
   colorIndex: number
   score?: number
   suggested?: boolean
@@ -131,6 +133,7 @@ export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, o
                       aria-selected={row.id === chosen}
                       tabIndex={-1}
                       speaker={{ name: row.name, color: speakerColor(row.colorIndex) }}
+                      handle={row.handle}
                       score={row.score}
                       suggested={row.suggested}
                       usage={row.usage}

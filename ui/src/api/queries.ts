@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey 
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
 import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
-import type { QueueJobUpdate, QueueStartMode, QueueUpdate, Speaker, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
+import type { HandleFormat, QueueJobUpdate, QueueStartMode, QueueUpdate, Speaker, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
 // queryKeys.transcripts reaches the list, the details and the candidates.
@@ -13,6 +13,9 @@ export const queryKeys = {
   speakers: ['speakers'],
   sample: (speakerId: string, transcriptId?: number) => ['speakers', speakerId, 'sample', transcriptId],
   speakerTranscripts: (speakerId: string) => ['speakers', speakerId, 'transcripts'],
+  // Under the speakers: a speaker named, renamed or gone changes what is free.
+  handleSuggestion: (name: string, exclude?: string) => ['speakers', 'handle-suggestion', name, exclude],
+  handleFormat: ['handleFormat'],
   // Not under the transcript: edits never change the audio.
   waveform: (id: number, { bars, start, end }: WaveformStretch) => ['waveform', id, bars, start, end],
   queue: ['queue'],
@@ -62,6 +65,38 @@ export function useWaveform(id: number | null, stretch: WaveformStretch) {
 export function useSpeakers() {
   const api = useApi()
   return useQuery({ queryKey: queryKeys.speakers, queryFn: () => api.listSpeakers() })
+}
+
+// The handle a speaker named name would get: numbered when taken. exclude: the
+// speaker being edited. Asked for on every change of the name, so the handle keeps up
+// with the typing (the backend is local); until the answer comes the last one stays.
+// Nothing is asked for a blank name or while disabled.
+export function useHandleSuggestion(name: string, exclude?: string, enabled = true) {
+  const api = useApi()
+  const trimmed = name.trim()
+  return useQuery({
+    queryKey: queryKeys.handleSuggestion(trimmed, exclude),
+    queryFn: () => api.getHandleSuggestion(trimmed, exclude),
+    enabled: enabled && trimmed !== '',
+    placeholderData: previous => previous,
+  })
+}
+
+export function useHandleFormat() {
+  const api = useApi()
+  return useQuery({ queryKey: queryKeys.handleFormat, queryFn: () => api.getHandleFormat() })
+}
+
+export function useSetHandleFormat() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: (format: HandleFormat) => api.setHandleFormat(format),
+    onSuccess: format => {
+      queries.setQueryData(queryKeys.handleFormat, format)
+      void queries.invalidateQueries({ queryKey: ['speakers', 'handle-suggestion'] })
+    },
+  })
 }
 
 export function useSpeakerSample(speakerId: string, transcriptId?: number) {

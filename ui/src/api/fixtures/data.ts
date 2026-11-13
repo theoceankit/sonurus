@@ -1,10 +1,11 @@
 import type {
   GpuStatus, QueueJob, QueueSnapshot, Segment, Speaker, SpeakerCandidates, Transcript, TranscriptListItem,
 } from '../types'
+import { baseHandle } from './handles'
 
 // The data of the Editor boards. It has the shape the API has: what the boards
 // show and the API does not know (pinned recordings, folders, chapters, notes,
-// handles, invitees) is not here.
+// invitees) is not here.
 
 export const SPEAKER_IDS = {
   anna: '0b1a6c52-4f0e-4a39-9d57-3c1e8a7f1001',
@@ -31,9 +32,11 @@ export const SPEAKER_IDS = {
 
 const { anna, mark, lena, priya, oliver, sofia, olga, daniel, emma, hugo, ines, jonas, kate, unknown1, unknown2, unknown3, unknown4, unknown5 } = SPEAKER_IDS
 
-export const speaker = (id: string, name: string | null, colorIndex: number, transcripts: number, lastSeen = '2026-10-04T02:33:00'): Speaker => ({
+export const speaker = (id: string, name: string | null, colorIndex: number, transcripts: number, lastSeen = '2026-10-04T02:33:00', handle = name && baseHandle(name)): Speaker => ({
   id,
   name,
+  handle,
+  handle_manual: false,
   color_index: colorIndex,
   transcripts,
   segments: transcripts * 12,

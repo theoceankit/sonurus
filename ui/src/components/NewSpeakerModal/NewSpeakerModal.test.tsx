@@ -80,14 +80,67 @@ test('Back goes back, it does not close', async () => {
   expect(onClose).not.toHaveBeenCalled()
 })
 
-test('Handle is in sight, and not there yet; there is no Email', async () => {
+const handle = () => screen.getByRole('textbox', { name: 'Handle' }) as HTMLInputElement
+
+test('Handle is in sight and works; there is no Email', () => {
   setup()
   expect(screen.queryByRole('button', { name: 'Optional details' })).toBeNull()
   expect(screen.queryByRole('textbox', { name: 'Email' })).toBeNull()
-  const input = screen.getByRole('textbox', { name: 'Handle' })
-  expect(input.getAttribute('aria-disabled')).toBe('true')
-  await userEvent.click(input)
-  expect((await screen.findAllByText('Not available yet')).length).toBeGreaterThan(0)
+  expect(handle().getAttribute('aria-disabled')).toBeNull()
+  expect(handle().getAttribute('data-not-implemented')).toBeNull()
+})
+
+test('shows the handle the name brings, which is not sent: the backend makes it', async () => {
+  const onNameChange = vi.fn()
+  const { onCreate } = setup({ initialName: 'Olivia Brown', suggestedHandle: 'olivia.brown2', onNameChange })
+  expect(handle().value).toBe('olivia.brown2')
+  await userEvent.type(name(), 'e')
+  expect(onNameChange).toHaveBeenLastCalledWith('Olivia Browne')
+  await userEvent.click(create())
+  expect(onCreate).toHaveBeenCalledWith('Olivia Browne', 0)
+})
+
+test('no name, no handle: the field shows an example', () => {
+  setup({ suggestedHandle: 'stale' })
+  expect(handle().value).toBe('')
+  expect(handle().placeholder).toBe('olivia.brown')
+})
+
+test('a handle typed goes with the speaker, lowercase and without the @', async () => {
+  const { onCreate } = setup({ initialName: 'Olivia Brown', suggestedHandle: 'olivia.brown' })
+  await userEvent.clear(handle())
+  await userEvent.type(handle(), '@Liv')
+  expect(handle().value).toBe('liv')
+  await userEvent.click(create())
+  expect(onCreate).toHaveBeenCalledWith('Olivia Brown', 0, 'liv')
+})
+
+test('an emptied handle shows the one from the name and sends none', async () => {
+  const { onCreate } = setup({ initialName: 'Olivia Brown', suggestedHandle: 'olivia.brown' })
+  await userEvent.clear(handle())
+  expect(handle().placeholder).toBe('olivia.brown')
+  await userEvent.click(create())
+  expect(onCreate).toHaveBeenCalledWith('Olivia Brown', 0)
+})
+
+test('a handle that cannot be had is said, and Create waits', async () => {
+  const checkHandle = (value: string) => (value === 'mark.ellis' ? '@mark.ellis is taken by Mark Ellis.' : undefined)
+  const { onCreate } = setup({ initialName: 'Mark Ellis', suggestedHandle: 'mark.ellis2', checkHandle })
+  await userEvent.clear(handle())
+  await userEvent.type(handle(), 'mark.ellis{Enter}')
+  expect(screen.getByText('@mark.ellis is taken by Mark Ellis.')).toBeTruthy()
+  expect(create().disabled).toBe(true)
+  expect(onCreate).not.toHaveBeenCalled()
+})
+
+test('a refused handle shows under the handle, not the name', async () => {
+  const onCreate = vi.fn(async () => { throw Object.assign(new Error('@liv is taken by Olivia.'), { code: 'handle_taken' }) })
+  setup({ initialName: 'Olivia', onCreate })
+  await userEvent.type(handle(), 'liv')
+  await userEvent.click(create())
+  expect(await screen.findByText('@liv is taken by Olivia.')).toBeTruthy()
+  expect(handle().getAttribute('aria-invalid')).toBe('true')
+  expect(name().getAttribute('aria-invalid')).toBeNull()
 })
 
 test('offers the colours the API keeps: not Gray, which means an unknown speaker', async () => {

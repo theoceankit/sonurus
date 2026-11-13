@@ -7,7 +7,7 @@ import { QUEUE_JOB, SPEAKER_IDS, WEEKLY_SYNC_ID, queueSnapshot } from './fixture
 import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
-  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useDeleteQueueJob, useDeleteSpeaker, useDeleteTranscript, useModels, useQueue, useQueueControl, useQueueEventsSync,
+  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useHandleSuggestion, useDeleteQueueJob, useDeleteSpeaker, useDeleteTranscript, useModels, useQueue, useQueueControl, useQueueEventsSync,
   useReorderQueue, useRetryQueueJob, useSpeakerCandidates, useSpeakers, useSpeakerTranscripts, useTranscript, useTranscripts,
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle, useWaveform,
 } from './queries'
@@ -399,5 +399,25 @@ describe('adding files to the queue', () => {
     expect(failure).toBeInstanceOf(AddToQueueError)
     expect(failure).toMatchObject({ added: 1, message: '"b.mp3" could not be read.', error: { status: 400 } })
     expect(calls).toBe(2)
+  })
+})
+
+describe('handle suggestions', () => {
+  test('each name typed is asked for at once, with no pause after typing', async () => {
+    const client = createFixtureClient()
+    const ask = vi.spyOn(client, 'getHandleSuggestion')
+    const { result, rerender } = renderHook(({ name }) => useHandleSuggestion(name), { wrapper: wrapperFor(client), initialProps: { name: 'O' } })
+    rerender({ name: 'Ol' })
+    rerender({ name: 'Oli' })
+    await waitFor(() => expect(result.current.data).toBe('oli'))
+    expect(ask.mock.calls.map(([name]) => name)).toEqual(['O', 'Ol', 'Oli'])
+  })
+
+  test('a blank name asks nothing', async () => {
+    const client = createFixtureClient()
+    const ask = vi.spyOn(client, 'getHandleSuggestion')
+    renderHook(() => useHandleSuggestion('   '), { wrapper: wrapperFor(client) })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(ask).not.toHaveBeenCalled()
   })
 })

@@ -1,4 +1,5 @@
 import type { QueueSnapshot, Speaker, SpeakerUpdate } from '../../api/types'
+import { normalizeHandle } from './handles'
 
 export type SpeakersCategory = 'all' | 'named' | 'unnamed'
 
@@ -11,13 +12,16 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
 
 export const speakerDisplayName = (speaker: Pick<Speaker, 'name'>) => speaker.name || UNNAMED_SPEAKER
 
-// A search looks at the name alone, so a speaker without one never matches it.
-export function filterSpeakers<T extends Pick<Speaker, 'name'>>(speakers: readonly T[], query: string, category: SpeakersCategory): T[] {
-  const search = nameKey(query)
+// A search looks at the name and the handle (a leading @ in it is left out), so a
+// speaker without a name, who has no handle either, never matches it.
+export function filterSpeakers<T extends Pick<Speaker, 'name'> & { handle?: string | null }>(speakers: readonly T[], query: string, category: SpeakersCategory): T[] {
+  const typed = nameKey(query)
+  const search = typed.replace(/^@+/, '')
   return speakers.filter(speaker => {
     if (category === 'named' && !speaker.name) return false
     if (category === 'unnamed' && speaker.name) return false
-    return !search || nameKey(speaker.name).includes(search)
+    if (!typed) return true
+    return !!speaker.name && (nameKey(speaker.name).includes(search) || (speaker.handle ?? '').includes(search))
   })
 }
 
@@ -73,20 +77,32 @@ export function formatLastSeen(iso: string): string {
   return `${date.getDate()} ${date.toLocaleDateString('en-US', { month: 'short' })} ${date.getFullYear()}`
 }
 
-// What the card holds until Save: the name and colour as edited, of one speaker.
+// What the card holds until Save: the name, colour and handle as edited, of one
+// speaker. handle is null until the handle field is typed in: the card then shows the
+// handle the backend gives, which follows the name unless it was set by hand.
 export interface SpeakerDraft {
   id: string
   name: string
   colorIndex: number
+  handle: string | null
 }
 
-type Saved = Pick<Speaker, 'id' | 'name' | 'color_index'>
+type Saved = Pick<Speaker, 'id' | 'name' | 'color_index' | 'handle' | 'handle_manual'>
 
-export const speakerDraft = (speaker: Saved): SpeakerDraft => ({ id: speaker.id, name: speaker.name ?? '', colorIndex: speaker.color_index })
+export const speakerDraft = (speaker: Saved): SpeakerDraft => ({ id: speaker.id, name: speaker.name ?? '', colorIndex: speaker.color_index, handle: null })
+
+// What Save sends for the handle, or undefined: one typed that differs from the saved
+// one, or '' to go back to the one made from the name when it was set by hand.
+function handleChange(draft: SpeakerDraft, saved: Saved): string | undefined {
+  if (draft.handle === null) return undefined
+  const handle = normalizeHandle(draft.handle)
+  if (!handle) return saved.handle_manual ? '' : undefined
+  return handle !== saved.handle ? handle : undefined
+}
 
 // Anything edited, a blank name too: Cancel and the question on leaving cover it.
 export const draftDirty = (draft: SpeakerDraft, saved: Saved) =>
-  draft.name.trim() !== (saved.name ?? '') || draft.colorIndex !== saved.color_index
+  draft.name.trim() !== (saved.name ?? '') || draft.colorIndex !== saved.color_index || handleChange(draft, saved) !== undefined
 
 // What Save sends, or null when there is nothing it can send. A blank name is not
 // saved: a speaker keeps the name they had.
@@ -96,5 +112,7 @@ export function draftChanges(draft: SpeakerDraft, saved: Saved): SpeakerUpdate |
   const update: SpeakerUpdate = {}
   if (name && name !== saved.name) update.name = name
   if (draft.colorIndex !== saved.color_index) update.color_index = draft.colorIndex
+  const handle = handleChange(draft, saved)
+  if (handle !== undefined) update.handle = handle
   return Object.keys(update).length ? update : null
 }

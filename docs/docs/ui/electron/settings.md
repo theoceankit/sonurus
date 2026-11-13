@@ -22,6 +22,7 @@ Without a provider, as for a screen alone in a story or a test, `open` does noth
 
 - **Transcription language**, `transcribeLang`, the default of new transcriptions; Detect automatically is `auto`. A language whose alignment model is not downloaded gets a notice under the row with Download and the model's size; while it downloads, the percentage and Cancel. The download is the one of the app ([Transcription](transcribe.md#downloads)): it goes on when Settings close. A saved language that is not in the list, such as one an older version offered, is still shown, by the name of its alignment model.
 - **Start transcription**, Automatically or Manually. The backend keeps it with the queue (`PUT /queue/settings`), not in `settings.json`; the field shows the value of the queue snapshot and is off until the queue has answered.
+- **Handle format**, in its own Speakers card: how a new speaker's handle is made from the name, shown by example: `@olivia.brown`, `@o.brown` or `@olivia.b`. The backend keeps it (`PUT /speakers/handle-format`), as it makes the handles; handles already given stay ([Speaker handles](../../api/endpoints.md#speaker-handles)).
 
 ## Appearance
 
@@ -65,7 +66,7 @@ Shown and marked with `markNotImplemented()` as a whole: export does not exist y
 
 ## Data
 
-- **Reset preferences** puts every preference of `DEFAULT_SETTINGS` back (`defaultSettingsPatch`), applies 100% scale and says so in a toast. The HuggingFace token and the recordings opened last are not preferences and stay; so do transcripts, models and recordings. Start transcription belongs to the queue and is not reset.
+- **Reset preferences** puts every preference of `DEFAULT_SETTINGS` back (`defaultSettingsPatch`), applies 100% scale and says so in a toast. The HuggingFace token and the recordings opened last are not preferences and stay; so do transcripts, models and recordings. Start transcription belongs to the queue and is not reset; Handle format is a preference the backend keeps, and goes back to `@olivia.brown`.
 - **Delete all data** sends `POST /data/reset`: every transcript, speaker with its voice profile and recording made in Sonorus goes; imported audio files, models and preferences stay. A toast says what was deleted, "Deleted 3 transcripts, 2 speakers and 4 files." The recordings, speakers and queue are read again, so the window behind shows the empty state. The button is off while a transcription or a live recording runs, with the reason in a tooltip; the backend also refuses then, and its refusal is said in a toast.
 
 Both ask first ([Confirmations](#confirmations)).

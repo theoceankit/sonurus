@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import { queryKeys, useQueue } from '../../api/queries'
+import { DEFAULT_HANDLE_FORMAT } from '../../api/types'
 import { Button } from '../../components/Button/Button'
 import { FieldRow } from '../../components/FieldRow/FieldRow'
 import { SectionCard } from '../../components/SectionCard/SectionCard'
@@ -45,6 +46,10 @@ export function DataSection() {
   const reset = async () => {
     await settingsStore().patch(defaultSettingsPatch(DEFAULT_SETTINGS))
     await bridge()?.setZoom(DEFAULT_SETTINGS.scale / 100).catch(() => {})
+    // The backend keeps this one, as it makes the handles.
+    await api.setHandleFormat(DEFAULT_HANDLE_FORMAT)
+      .then(format => queries.setQueryData(queryKeys.handleFormat, format))
+      .catch(() => {})
     toast({ message: 'Preferences reset to defaults.' })
   }
 

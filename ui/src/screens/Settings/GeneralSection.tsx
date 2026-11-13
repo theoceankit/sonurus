@@ -1,5 +1,5 @@
-import { useModels, useQueue, useSetQueueStartMode } from '../../api/queries'
-import type { QueueStartMode } from '../../api/types'
+import { useHandleFormat, useModels, useQueue, useSetHandleFormat, useSetQueueStartMode } from '../../api/queries'
+import type { HandleFormat, QueueStartMode } from '../../api/types'
 import { Button } from '../../components/Button/Button'
 import { FieldRow } from '../../components/FieldRow/FieldRow'
 import { Inline } from '../../components/Inline/Inline'
@@ -14,6 +14,13 @@ import styles from './Settings.module.css'
 const START_MODES: { value: QueueStartMode; label: string }[] = [
   { value: 'auto', label: 'Automatically' },
   { value: 'manual', label: 'Manually' },
+]
+
+// Each format by the handle it makes of one name.
+const HANDLE_FORMATS: { value: HandleFormat; label: string }[] = [
+  { value: 'first.last', label: '@olivia.brown' },
+  { value: 'f.last', label: '@o.brown' },
+  { value: 'first.l', label: '@olivia.b' },
 ]
 
 
@@ -71,6 +78,27 @@ function StartTranscription() {
   )
 }
 
+// Kept by the backend, which makes the handles.
+function HandleFormatField() {
+  const format = useHandleFormat().data
+  const { mutate } = useSetHandleFormat()
+  return (
+    <FieldRow
+      label="Handle format"
+      hint="How a new speaker's handle is made from the name. Handles already given stay."
+    >
+      <Select
+        aria-label="Handle format"
+        value={format ?? ''}
+        placeholder="Loading…"
+        options={HANDLE_FORMATS}
+        disabled={!format}
+        onValueChange={value => mutate(value as HandleFormat)}
+      />
+    </FieldRow>
+  )
+}
+
 export function GeneralSection() {
   const settings = useSettings()
   if (!settings) return null
@@ -79,6 +107,9 @@ export function GeneralSection() {
       <SectionCard title="Transcription">
         <TranscriptionLanguage language={settings.transcribeLang} />
         <StartTranscription />
+      </SectionCard>
+      <SectionCard title="Speakers">
+        <HandleFormatField />
       </SectionCard>
     </>
   )

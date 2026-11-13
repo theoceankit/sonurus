@@ -78,3 +78,27 @@
 .time {
   font-variant-numeric: tabular-nums;
 }
+
+/* With a handle: the name and its badge on one line, the handle under them, and the
+   rest at the end. */
+.who {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nameLine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.handle {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

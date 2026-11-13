@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import type { SpeakerTarget } from '../../api/client'
-import { useSpeakerCandidates, useSpeakers, useTranscript } from '../../api/queries'
+import { useHandleSuggestion, useSpeakerCandidates, useSpeakers, useTranscript } from '../../api/queries'
 import { effectiveSpeaker } from '../../api/types'
 import { ChooseSpeakerModal } from '../../components/ChooseSpeakerModal/ChooseSpeakerModal'
 import { NewSpeakerModal } from '../../components/NewSpeakerModal/NewSpeakerModal'
 import { toast } from '../../components/Toast/toast-store'
 import { hasSpeakerNamed, leastUsedColorIndex } from './new-speaker'
 import { chooseSpeakerList, preselectedSpeaker } from './speaker-search'
+import { handleProblem } from '../Speakers/handles'
 
 // Someone asks who a speaker is: the review, a row of the inspector or a turn.
 export interface SpeakerRequest {
@@ -34,6 +35,10 @@ export function SpeakerDialogs({ request, open = true, onClose, onExited }: Spea
     start === 'choose' ? { name: 'choose', query: '' } : { name: 'new', speakerName: '' },
   )
   const [busy, setBusy] = useState(false)
+  // The name as typed in New speaker, for the handle it brings.
+  const [typedName, setTypedName] = useState<string | null>(null)
+  const newName = typedName ?? (view.name === 'new' ? view.speakerName : '')
+  const suggestedHandle = useHandleSuggestion(newName, undefined, view.name === 'new').data
   // One window turning into the other is not a new window.
   const [swapped, setSwapped] = useState(false)
 
@@ -43,8 +48,11 @@ export function SpeakerDialogs({ request, open = true, onClose, onExited }: Spea
         initialName={view.speakerName}
         initialColorIndex={leastUsedColorIndex(speakers)}
         isNameTaken={name => hasSpeakerNamed(speakers, name)}
-        onCreate={async (name, colorIndex) => {
-          await onAssign({ name, colorIndex })
+        suggestedHandle={suggestedHandle}
+        onNameChange={setTypedName}
+        checkHandle={handle => handleProblem(handle, speakers)}
+        onCreate={async (name, colorIndex, handle) => {
+          await onAssign(handle ? { name, colorIndex, handle } : { name, colorIndex })
           onClose()
         }}
         onBack={() => {
@@ -81,6 +89,7 @@ export function SpeakerDialogs({ request, open = true, onClose, onExited }: Spea
       }}
       onNewSpeaker={name => {
         setSwapped(true)
+        setTypedName(null)
         setView({ name: 'new', speakerName: name })
       }}
       onClose={onClose}

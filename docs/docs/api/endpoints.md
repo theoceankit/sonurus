@@ -484,10 +484,10 @@ Gives the listed segments one speaker, all or none. The UI uses it for a turn, a
 { "segment_starts": [12.5, 18.0], "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca" }
 
 // A new speaker (creates a UUID with this display name):
-{ "segment_starts": [12.5, 18.0], "speaker_name": "Carol", "color_index": 2 }
+{ "segment_starts": [12.5, 18.0], "speaker_name": "Carol", "color_index": 2, "speaker_handle": "carol.k" }
 ```
 
-Exactly one of `speaker_id` (a UUID4 of a known speaker — one with a voice profile or a display name) or `speaker_name` (1–128 chars, trimmed) must be provided, otherwise `400`. Optional `color_index` (`0`–`4`) sets the new speaker's palette color; it is only accepted together with `speaker_name` and inside the palette, otherwise `400`. Without it a color is assigned automatically. An empty list is `422`. An unknown transcript or a start with no segment is `404`, and then nothing changes and no speaker is created. Returns `200`:
+Exactly one of `speaker_id` (a UUID4 of a known speaker — one with a voice profile or a display name) or `speaker_name` (1–128 chars, trimmed) must be provided, otherwise `400`. Optional `color_index` (`0`–`4`) sets the new speaker's palette color; it is only accepted together with `speaker_name` and inside the palette, otherwise `400`. Without it a color is assigned automatically. Optional `speaker_handle` gives the new speaker a handle set by hand, by the rules of `PATCH /speakers/{id}`; it too is only accepted with `speaker_name`, otherwise `400`, and without it the speaker gets the handle made from the name. A taken or invalid handle is refused (`409` `handle_taken`, `400` `handle_invalid`) before anything changes. An empty list is `422`. An unknown transcript or a start with no segment is `404`, and then nothing changes and no speaker is created. Returns `200`:
 
 ```json
 { "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca" }
@@ -532,6 +532,8 @@ Returns **every** speaker: those with a voice profile (`speaker_embeddings`), a 
   {
     "id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca",
     "name": "Alice",
+    "handle": "alice",
+    "handle_manual": false,
     "color_index": 2,
     "segments": 14,
     "transcripts": 3,
@@ -543,20 +545,29 @@ Returns **every** speaker: those with a voice profile (`speaker_embeddings`), a 
 
 `color_index` is an index (0–4) into the fixed 5-entry palette of speaker colours (`ui/src/styles/speaker-colors.ts`, `--color-speaker-1…5` in `tokens.css`). Assigned once when the speaker is first saved, using the least-used palette slot to minimize collisions; the user can change it with `PATCH /speakers/{id}`. Stored in `speaker_meta` (schema v3).
 
+`handle` is the speaker's unique handle (`@` is not part of it), `null` for an unnamed speaker: every speaker with a name has one and only they do. `handle_manual` is `true` for a handle set by hand, which stays when the name changes; otherwise the handle follows the name. See [Speaker handles](#speaker-handles).
+
 `segments`, `transcripts`, `duration_sec` (sum of segment lengths) and `last_seen` (`created_at` of the newest transcript) count segments whose `speaker_id` is this speaker; unassigned segments are not counted. The editor keeps only the named rows (`buildKnownMap`, `namedSpeakers` in `utils.js`).
 
 ### `PATCH /speakers/{id}`
 
-Changes the display name and/or color. At least one field is required.
+Changes the display name, color and/or handle. At least one field is required.
 
 ```json
-{ "name": "Alice Ivanova", "color_index": 3 }
+{ "name": "Alice Ivanova", "color_index": 3, "handle": "alice.i" }
 ```
 
-- `name` — 1–128 chars, trimmed. Names need not be unique: two people named "Alice" are two speaker ids. The UI marks speakers that share a name.
+- `name` — 1–128 chars, trimmed. Names need not be unique: two people named "Alice" are two speaker ids. The UI marks speakers that share a name. A new name moves a handle that was not set by hand: it becomes the one made from the new name.
 - `color_index` — `0..4`, otherwise `400`.
+- `handle` — a handle set by hand: a leading `@`, spaces around and the case do not matter (it is kept in lowercase). `""` goes back to the handle made from the name. A refusal changes nothing, the name included:
 
-Works for any speaker listed by `GET /speakers`, including one that only has segments (naming it makes it recognized). Returns `200` with the updated `GET /speakers` row, `400` for an empty body, `404` for an unknown id. Never touches the embedding.
+| Condition | Status | `code` | `detail` |
+|---|---|---|---|
+| Not a handle | `400` | `handle_invalid` | `"Use lowercase Latin letters, digits, dots, hyphens and underscores, up to 32, starting with a letter or a digit."` |
+| Another speaker has it, in any case | `409` | `handle_taken` | `"@alice is taken by Alice Smith."` |
+| The speaker has no name and gets none | `400` | `handle_needs_name` | `"Give the speaker a name first."` |
+
+Works for any speaker listed by `GET /speakers`, including one that only has segments (naming it makes it recognized and gives it a handle). Returns `200` with the updated `GET /speakers` row, `400` for an empty body, `404` for an unknown id. Never touches the embedding.
 
 ### `POST /speakers/{id}/rename`
 
@@ -566,7 +577,25 @@ Works for any speaker listed by `GET /speakers`, including one that only has seg
 { "name": "Alice Ivanova" }
 ```
 
-Returns `204`. Returns `404` if speaker is not in `known_speakers`. Only updates `speaker_names` — does not touch the embedding or count. Kept for compatibility; new code uses `PATCH /speakers/{id}`.
+Returns `204`. Returns `404` if speaker is not in `known_speakers`. Only updates `speaker_names` and a handle that follows the name — does not touch the embedding or count. Kept for compatibility; new code uses `PATCH /speakers/{id}`.
+
+### Speaker handles
+
+A handle is the speaker's unique id for people, as in `@ivan.petrov`, next to a display name that may repeat. The backend alone makes handles (`app/services/speaker_handle.py`):
+
+- **Format**: lowercase Latin letters, digits, `.`, `_` and `-`, 1–32 characters, starting with a letter or a digit. Unique among all speakers whatever the case; the database keeps it so (a unique index on `speaker_meta.handle`).
+- **From the name**: the first word is the first name and the last word the last name; the words between are left out, and a single word is the handle by itself. Cyrillic goes by the Russian passport scheme (ж → zh, х → kh, ц → ts, ч → ch, ш → sh, щ → shch, ю → yu, я → ya, й → i; ь and ъ are dropped), other Latin letters lose their accents, and anything else is dropped. A name with no Latin letter left gives `speaker`.
+- **Handle format**: `first.last` (`ivan.petrov`, the default), `f.last` (`i.petrov`) or `first.l` (`ivan.p`). It applies to handles made from now on: changing it changes no handle already given.
+- **Taken**: a handle made from a name that another speaker has gets the smallest free number from 2 on its end: `ivan.petrov2`, `ivan.petrov3`. A number freed by a deleted speaker is used again.
+- **Who gets one**: a speaker gets a handle with a name, and keeps it until they are deleted or the data is reset. A schema v4 upgrade gives every named speaker one, the one heard first (the earliest transcript) without a number.
+
+#### `GET /speakers/handle-suggestion?name=…&exclude=…`
+
+The handle a speaker named `name` gets now, numbered if taken: `{"handle": "ivan.petrov2"}`. `exclude` (optional) is a speaker whose own handle counts as free, for a speaker being renamed. Changes nothing.
+
+#### `GET /speakers/handle-format` and `PUT /speakers/handle-format`
+
+`{"format": "first.last"}` — the handle format, kept in `_meta` (`handle_format`). `PUT` takes the same body; another value is `422`. Delete all data keeps it, as it is a preference.
 
 ### `DELETE /speakers/{id}`
 

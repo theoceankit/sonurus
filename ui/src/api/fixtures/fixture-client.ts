@@ -1,6 +1,6 @@
 import type { GpuDownloadEvent } from '../gpu-events'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
-import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type Speaker, type SpeakerCandidates } from '../types'
+import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type HandleFormat, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_GPU, FIXTURE_NOW, GONE_AUDIO_IDS, queueSnapshot } from './data'
 import { fixtureModels } from './models'
@@ -9,6 +9,7 @@ import type { ModelDownloadEvent } from '../model-download-events'
 import type { DownloadFailure } from '../../transcribe/download-errors'
 import { createTestAudioUrl } from './test-audio'
 import { fixtureLevels } from './waveform'
+import { baseHandle, uniqueHandle } from './handles'
 
 export type FixtureScenario = 'default' | 'loading' | 'empty' | 'error'
 
@@ -130,11 +131,29 @@ export function createFixtureClient({
     return found
   }
 
+  // Speaker handles as the backend keeps them: unique whatever the case, refused with a
+  // code, made from the name in the handle format unless set by hand.
+  let handleFormat: HandleFormat = 'first.last'
+  const takenHandles = (exclude?: string) => data.speakers.flatMap(s => (s.handle && s.id !== exclude ? [s.handle] : []))
+  const autoHandle = (name: string, exclude?: string) => uniqueHandle(baseHandle(name, handleFormat), takenHandles(exclude))
+  const checkHandle = (text: string, exclude?: string) => {
+    const handle = text.trim().replace(/^@+/, '').trim().toLowerCase()
+    if (!/^[a-z0-9][a-z0-9._-]{0,31}$/.test(handle)) {
+      throw new ApiError(400, 'Use lowercase Latin letters, digits, dots, hyphens and underscores, up to 32, starting with a letter or a digit.', 'handle_invalid')
+    }
+    const owner = data.speakers.find(s => s.id !== exclude && s.handle?.toLowerCase() === handle)
+    if (owner) throw new ApiError(409, `@${handle} is taken by ${owner.name ?? 'another speaker'}.`, 'handle_taken')
+    return handle
+  }
+
   const resolveTarget = (target: SpeakerAssignment['target']): string => {
     if ('id' in target) return speaker(target.id).id
+    const handle = target.handle != null ? checkHandle(target.handle) : null
     const created: Speaker = {
       id: crypto.randomUUID(),
       name: target.name,
+      handle: handle ?? autoHandle(target.name),
+      handle_manual: handle != null,
       color_index: target.colorIndex ?? 0,
       segments: 0,
       transcripts: 1,
@@ -364,9 +383,22 @@ export function createFixtureClient({
     listSpeakers: () => answer(() => data.speakers),
     updateSpeaker: (id, update) => answer(() => {
       const found = speaker(id)
-      if (update.name != null) found.name = update.name
+      const handle = update.handle == null ? null : update.handle.trim() ? checkHandle(update.handle, id) : ''
+      if (handle != null && !(update.name ?? found.name)) throw new ApiError(400, 'Give the speaker a name first.', 'handle_needs_name')
+      if (update.name != null) {
+        found.name = update.name
+        if (!found.handle_manual) found.handle = autoHandle(update.name, id)
+      }
       if (update.color_index != null) found.color_index = update.color_index
+      if (handle === '') Object.assign(found, { handle: autoHandle(found.name!, id), handle_manual: false })
+      else if (handle != null) Object.assign(found, { handle, handle_manual: true })
       return found
+    }),
+    getHandleSuggestion: (name, exclude) => answer(() => autoHandle(name, exclude)),
+    getHandleFormat: () => answer(() => handleFormat),
+    setHandleFormat: format => answer(() => {
+      handleFormat = format
+      return handleFormat
     }),
     getSpeakerSample: (id, transcriptId) => answer(() => {
       speaker(id)

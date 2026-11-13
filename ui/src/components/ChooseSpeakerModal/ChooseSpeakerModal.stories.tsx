@@ -11,10 +11,13 @@ const OTHERS: ChooseSpeakerRow[] = [
   ['daniel', 'Daniel Brooks', 3, 4], ['emma', 'Emma Wilson', 4, 4], ['hugo', 'Hugo Martin', 0, 2], ['ines', 'Ines Costa', 1, 2],
 ].map(([id, name, colorIndex, recordings]) => ({ id: id as string, name: name as string, colorIndex: colorIndex as number, usage: `${recordings} ${recordings === 1 ? 'recording' : 'recordings'}` }))
 
+// As in the app, every named speaker has a handle.
+const withHandle = (row: ChooseSpeakerRow): ChooseSpeakerRow => ({ ...row, handle: row.name.toLowerCase().replace(' ', '.') })
+
 const list = (query: string): ChooseSpeakerList => {
   const match = (row: ChooseSpeakerRow) => row.name.toLowerCase().includes(query.trim().toLowerCase())
-  const best = BEST.filter(match)
-  const others = OTHERS.filter(match)
+  const best = BEST.filter(match).map(withHandle)
+  const others = OTHERS.filter(match).map(withHandle)
   return {
     counts: { all: best.length + others.length, best: best.length, recording: others.length && 2 },
     sections: [{ title: 'Best voice matches', rows: best }, { title: 'Other speakers', rows: others }].filter(section => section.rows.length),

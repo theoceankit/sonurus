@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type MutableRefObject } from 'react'
 import { useApi } from '../../api/ApiProvider'
-import { queryKeys, useSpeakerSample, useSpeakerTranscripts, useWaveform } from '../../api/queries'
+import { queryKeys, useHandleSuggestion, useSpeakerSample, useSpeakerTranscripts, useWaveform } from '../../api/queries'
 import type { Speaker } from '../../api/types'
 import { AppearanceRow } from '../../components/AppearanceRow/AppearanceRow'
 import { Avatar } from '../../components/Avatar/Avatar'
@@ -22,6 +22,7 @@ import { formatDuration } from '../../media/timeline'
 import { markNotImplemented } from '../../not-implemented'
 import { ASSIGNABLE_SPEAKER_COLORS, speakerColor } from '../../styles/speaker-colors'
 import { hasSpeakerNamed } from '../Editor/new-speaker'
+import { handleProblem, typedHandle } from './handles'
 import { formatLastSeen, speakerUsage, type SpeakerDraft } from './speakers'
 import styles from './SpeakersDialog.module.css'
 
@@ -39,6 +40,8 @@ interface SpeakerCardProps {
   saving: boolean
   // Why the last Save of a name was refused.
   saveError?: string
+  // Why the last Save of a handle was refused.
+  handleError?: string
   onDraftChange: (draft: SpeakerDraft) => void
   onSave: () => void
   onRevert: () => void
@@ -80,6 +83,44 @@ function NameField({ speaker, others, draft, dirty, saving, saveError, onDraftCh
       helper={repeated ?? sameAlready}
       error={saveError}
       onChange={event => onDraftChange({ ...draft, name: event.target.value })}
+      onKeyDown={event => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          onSave()
+        }
+      }}
+    />
+  )
+}
+
+type HandleFieldProps = Pick<SpeakerCardProps, 'speaker' | 'others' | 'draft' | 'saving' | 'handleError' | 'onDraftChange' | 'onSave'>
+
+// The handle as saved, or as typed. Until the field is typed in, a new name shows the
+// handle it will bring, unless the handle was set by hand and stays. Emptied, the
+// field shows the handle made from the name, which Save brings back.
+function HandleField({ speaker, others, draft, saving, handleError, onDraftChange, onSave }: HandleFieldProps) {
+  const name = draft.name.trim()
+  const named = Boolean(name || speaker.name)
+  const renamed = name !== '' && name !== (speaker.name ?? '')
+  const follows = !speaker.handle_manual && draft.handle === null && renamed
+  const fromName = useHandleSuggestion(name || speaker.name || '', speaker.id, follows || draft.handle === '').data
+  const value = draft.handle ?? (follows ? fromName ?? speaker.handle : speaker.handle) ?? ''
+  const problem = draft.handle ? handleProblem(draft.handle, others) : undefined
+  const hint = !named ? 'Add a name first: the handle is made from it.'
+    : draft.handle === '' ? 'Left empty, the handle is made from the name.'
+      : undefined
+  return (
+    <TextField
+      label="Handle"
+      prefix="@"
+      value={value}
+      placeholder={draft.handle === '' ? fromName ?? '' : undefined}
+      readOnly={saving || !named}
+      helper={hint}
+      error={handleError ?? problem}
+      spellCheck={false}
+      autoCapitalize="off"
+      onChange={event => onDraftChange({ ...draft, handle: typedHandle(event.target.value) })}
       onKeyDown={event => {
         if (event.key === 'Enter') {
           event.preventDefault()
@@ -169,7 +210,7 @@ function AppearsIn({ speaker, sample, onOpenRecording }: Pick<SpeakerCardProps, 
 }
 
 // One speaker, in place of the list: who they are, how they sound and where they talk.
-export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, saveError, onDraftChange, onSave, onRevert, deleteBlocked, onBack, onOpenRecording, onDelete, cancelEdit }: SpeakerCardProps) {
+export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, saveError, handleError, onDraftChange, onSave, onRevert, deleteBlocked, onBack, onOpenRecording, onDelete, cancelEdit }: SpeakerCardProps) {
   const [area, setArea] = useState<HTMLElement | null>(null)
   const usage = speakerUsage(speaker)
   const named = Boolean(speaker.name)
@@ -195,7 +236,7 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
           {named ? <Avatar name={speaker.name!} color={color} size="large" /> : <Avatar kind="unknown" size="large" />}
           <Stack gap={3} className={styles.fields}>
             <NameField speaker={speaker} others={others} draft={draft} dirty={dirty} saving={saving} saveError={saveError} onDraftChange={onDraftChange} onSave={onSave} onRevert={onRevert} cancelEdit={cancelEdit} />
-            <TextField label="Handle" prefix="@" placeholder="olivia.brown" readOnly {...markNotImplemented('speaker-card.handle')} />
+            <HandleField speaker={speaker} others={others} draft={draft} saving={saving} handleError={handleError} onDraftChange={onDraftChange} onSave={onSave} />
           </Stack>
         </Inline>
         <Stack gap={1}>

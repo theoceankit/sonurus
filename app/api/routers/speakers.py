@@ -3,15 +3,18 @@ import os
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.services.commit_service import CommitService
-from app.services.speaker_memory_service import SpeakerMemoryService, PALETTE_SIZE
+from app.services.speaker_memory_service import (
+    HandleNeedsName, HandleTaken, InvalidHandle, SpeakerMemoryService, PALETTE_SIZE,
+)
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.voice_sample import pick_voice_sample
 from app.api.dependencies import (
     get_audio_capture_service, get_memory_service, get_storage_service, get_transcription_queue,
 )
+from app.api.refusals import Refusal
 from app.api.schemas import (
-    SpeakerResponse, RenameRequest, SpeakerUpdateRequest,
-    SpeakerDeleteResponse, SpeakerTranscriptItem, SpeakerSampleResponse,
+    SpeakerResponse, RenameRequest, SpeakerUpdateRequest, HandleFormatBody, HandleSuggestionResponse,
+    RefusalResponse, SpeakerDeleteResponse, SpeakerTranscriptItem, SpeakerSampleResponse,
 )
 
 router = APIRouter(prefix="/speakers", tags=["speakers"])
@@ -21,9 +24,25 @@ def _speaker_response(spk_id, memory, stats) -> SpeakerResponse:
     return SpeakerResponse(
         id=spk_id,
         name=memory.get_name(spk_id),
+        handle=memory.get_handle(spk_id),
+        handle_manual=memory.is_handle_manual(spk_id),
         color_index=memory.get_color_index(spk_id) or 0,
         **stats.get(spk_id, {}),
     )
+
+
+def handle_refusal(exc: ValueError, memory: SpeakerMemoryService) -> Refusal:
+    """The refusal for a handle error of SpeakerMemoryService."""
+    if isinstance(exc, HandleTaken):
+        owner = memory.get_name(exc.owner_id)
+        return Refusal("handle_taken", f"@{exc.handle} is taken by {owner or 'another speaker'}.", 409)
+    if isinstance(exc, HandleNeedsName):
+        return Refusal("handle_needs_name", "Give the speaker a name first.")
+    return Refusal("handle_invalid", "Use lowercase Latin letters, digits, dots, hyphens and underscores, "
+                                     "up to 32, starting with a letter or a digit.")
+
+
+HANDLE_ERRORS = (InvalidHandle, HandleTaken, HandleNeedsName)
 
 
 def _require_speaker(spk_id, memory, stats) -> None:
@@ -50,22 +69,60 @@ def list_speakers(
     return named + unnamed
 
 
-@router.patch("/{speaker_id}", response_model=SpeakerResponse)
+@router.get("/handle-suggestion", response_model=HandleSuggestionResponse)
+def handle_suggestion(
+    name: str,
+    exclude: str | None = None,
+    memory: SpeakerMemoryService = Depends(get_memory_service),
+):
+    """The handle a speaker named name gets now: in the handle format, numbered
+    when taken. exclude: the speaker being renamed, whose own handle is free to it."""
+    return HandleSuggestionResponse(handle=memory.suggest_handle(name, exclude_id=exclude))
+
+
+@router.get("/handle-format", response_model=HandleFormatBody)
+def get_handle_format(memory: SpeakerMemoryService = Depends(get_memory_service)):
+    return HandleFormatBody(format=memory.get_handle_format())
+
+
+@router.put("/handle-format", response_model=HandleFormatBody)
+def set_handle_format(body: HandleFormatBody, memory: SpeakerMemoryService = Depends(get_memory_service)):
+    """For speakers named from now on; handles already given stay."""
+    memory.set_handle_format(body.format)
+    return HandleFormatBody(format=memory.get_handle_format())
+
+
+@router.patch(
+    "/{speaker_id}", response_model=SpeakerResponse,
+    responses={400: {"model": RefusalResponse}, 409: {"model": RefusalResponse}},
+)
 def update_speaker(
     speaker_id: str,
     body: SpeakerUpdateRequest,
     memory: SpeakerMemoryService = Depends(get_memory_service),
     storage: TranscriptStorageService = Depends(get_storage_service),
 ):
-    if body.name is None and body.color_index is None:
-        raise HTTPException(status_code=400, detail="Provide name and/or color_index")
+    if body.name is None and body.color_index is None and body.handle is None:
+        raise HTTPException(status_code=400, detail="Provide name, color_index and/or handle")
     if body.color_index is not None and not 0 <= body.color_index < PALETTE_SIZE:
         raise HTTPException(status_code=400, detail=f"color_index must be in 0..{PALETTE_SIZE - 1}")
     stats = storage.speaker_stats()
     _require_speaker(speaker_id, memory, stats)
-    if body.name is not None:
-        memory.set_name(speaker_id, body.name)
-        memory.save_names_only()
+    # "" (or spaces) is the handle made from the name.
+    handle = body.handle if body.handle is None or body.handle.strip() else ""
+    try:
+        # Checked before anything is written, so a refused handle changes nothing.
+        if handle:
+            memory.check_handle(handle, exclude_id=speaker_id)
+        if handle is not None and body.name is None and not memory.get_name(speaker_id):
+            raise HandleNeedsName("Only a speaker with a name has a handle")
+        if body.name is not None:
+            memory.set_name(speaker_id, body.name)
+            memory.save_names_only()
+        if handle is not None:
+            memory.set_handle(speaker_id, handle or None)
+    except HANDLE_ERRORS as exc:
+        raise handle_refusal(exc, memory)
     if body.color_index is not None:
         memory.set_color(speaker_id, body.color_index)
     return _speaker_response(speaker_id, memory, stats)
