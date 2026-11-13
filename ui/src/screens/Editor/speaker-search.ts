@@ -5,6 +5,7 @@ export type SpeakerCategory = 'all' | 'best' | 'recording'
 export interface SpeakerChoice {
   id: string
   name: string
+  handle?: string | null
   colorIndex: number
   score?: number
   suggested?: boolean
@@ -28,18 +29,19 @@ interface ChooseSpeakerQuery {
 const usage = (recordings: number) => `${recordings} ${recordings === 1 ? 'recording' : 'recordings'}`
 
 const choice = (speaker: Speaker): SpeakerChoice => (
-  { id: speaker.id, name: speaker.name!, colorIndex: speaker.color_index, usage: usage(speaker.transcripts) }
+  { id: speaker.id, name: speaker.name!, handle: speaker.handle, colorIndex: speaker.color_index, usage: usage(speaker.transcripts) }
 )
 
-// Only speakers with a name can be chosen, and a search looks at the name alone.
+// Only speakers with a name can be chosen, and a search looks at the name and the
+// handle (a leading @ in it is left out).
 export function chooseSpeakerList({ speakers, candidates, recordingSpeakers, query, category }: ChooseSpeakerQuery) {
-  const search = query.trim().toLowerCase()
-  const named = speakers.filter(speaker => speaker.name?.toLowerCase().includes(search))
+  const search = query.trim().toLowerCase().replace(/^@+/, '')
+  const named = speakers.filter(speaker => !!speaker.name && (speaker.name.toLowerCase().includes(search) || (speaker.handle ?? '').includes(search)))
   const known = new Map(named.map(speaker => [speaker.id, speaker]))
 
   const best = candidates.flatMap((candidate): SpeakerChoice[] => {
     const speaker = known.get(candidate.speaker_id)
-    return speaker ? [{ id: speaker.id, name: speaker.name!, colorIndex: speaker.color_index, score: candidate.score, suggested: candidate.suggested }] : []
+    return speaker ? [{ id: speaker.id, name: speaker.name!, handle: speaker.handle, colorIndex: speaker.color_index, score: candidate.score, suggested: candidate.suggested }] : []
   })
   const others = named.filter(speaker => !best.some(row => row.id === speaker.id)).map(choice)
   const inRecording = named.filter(speaker => recordingSpeakers.includes(speaker.id)).map(choice)

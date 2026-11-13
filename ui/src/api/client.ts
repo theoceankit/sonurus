@@ -1,5 +1,5 @@
 import type {
-  AudioSource, DataResetSummary, GpuStatus, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
+  AudioSource, DataResetSummary, GpuStatus, HandleFormat, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
@@ -18,8 +18,9 @@ export class ApiError extends Error {
   }
 }
 
-// An existing speaker, or a new one by name.
-export type SpeakerTarget = { id: string } | { name: string; colorIndex?: number }
+// An existing speaker, or a new one by name. A new speaker without a handle gets the
+// one the backend makes from the name.
+export type SpeakerTarget = { id: string } | { name: string; colorIndex?: number; handle?: string }
 
 // The segments that get a speaker, all or none.
 export type SpeakerAssignment = { transcriptId: number; segmentStarts: readonly number[]; target: SpeakerTarget }
@@ -59,7 +60,16 @@ export interface ApiClient {
   undoSpeakerAssignment(undo: SpeakerUndo): Promise<void>
   getSpeakerCandidates(transcriptId: number): Promise<SpeakerCandidates>
   listSpeakers(): Promise<Speaker[]>
+  // A handle in the update is set by hand; an empty one goes back to the one made from
+  // the name. A refused handle (code handle_taken, handle_invalid, handle_needs_name)
+  // changes nothing.
   updateSpeaker(speakerId: string, update: SpeakerUpdate): Promise<Speaker>
+  // The handle a speaker named name gets now, numbered when taken. exclude: the speaker
+  // being edited, whose own handle is free to them.
+  getHandleSuggestion(name: string, exclude?: string): Promise<string>
+  // How handles of speakers named from now on are made.
+  getHandleFormat(): Promise<HandleFormat>
+  setHandleFormat(format: HandleFormat): Promise<HandleFormat>
   getSpeakerSample(speakerId: string, transcriptId?: number): Promise<SpeakerSample>
   // The recordings the speaker talks in, newest first.
   listSpeakerTranscripts(speakerId: string): Promise<SpeakerTranscript[]>

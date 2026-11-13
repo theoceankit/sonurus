@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApi } from './ApiProvider'
 import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
-import type { QueueJobUpdate, QueueStartMode, QueueUpdate, Speaker, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
+import type { HandleFormat, QueueJobUpdate, QueueStartMode, QueueUpdate, Speaker, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
 // queryKeys.transcripts reaches the list, the details and the candidates.
@@ -13,6 +13,9 @@ export const queryKeys = {
   speakers: ['speakers'],
   sample: (speakerId: string, transcriptId?: number) => ['speakers', speakerId, 'sample', transcriptId],
   speakerTranscripts: (speakerId: string) => ['speakers', speakerId, 'transcripts'],
+  // Under the speakers: a speaker named, renamed or gone changes what is free.
+  handleSuggestion: (name: string, exclude?: string) => ['speakers', 'handle-suggestion', name, exclude],
+  handleFormat: ['handleFormat'],
   // Not under the transcript: edits never change the audio.
   waveform: (id: number, { bars, start, end }: WaveformStretch) => ['waveform', id, bars, start, end],
   queue: ['queue'],
@@ -62,6 +65,49 @@ export function useWaveform(id: number | null, stretch: WaveformStretch) {
 export function useSpeakers() {
   const api = useApi()
   return useQuery({ queryKey: queryKeys.speakers, queryFn: () => api.listSpeakers() })
+}
+
+// What a value was a moment ago when it stops changing: a request per pause in typing,
+// not per key.
+function useSettled<T>(value: T, delay: number): T {
+  const [settled, setSettled] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return settled
+}
+
+const SUGGESTION_DELAY_MS = 200
+
+// The handle a speaker named name would get: numbered when taken. exclude: the
+// speaker being edited. Nothing is asked for a blank name or while disabled.
+export function useHandleSuggestion(name: string, exclude?: string, enabled = true) {
+  const api = useApi()
+  const settled = useSettled(name.trim(), SUGGESTION_DELAY_MS)
+  return useQuery({
+    queryKey: queryKeys.handleSuggestion(settled, exclude),
+    queryFn: () => api.getHandleSuggestion(settled, exclude),
+    enabled: enabled && settled !== '',
+    placeholderData: previous => previous,
+  })
+}
+
+export function useHandleFormat() {
+  const api = useApi()
+  return useQuery({ queryKey: queryKeys.handleFormat, queryFn: () => api.getHandleFormat() })
+}
+
+export function useSetHandleFormat() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: (format: HandleFormat) => api.setHandleFormat(format),
+    onSuccess: format => {
+      queries.setQueryData(queryKeys.handleFormat, format)
+      void queries.invalidateQueries({ queryKey: ['speakers', 'handle-suggestion'] })
+    },
+  })
 }
 
 export function useSpeakerSample(speakerId: string, transcriptId?: number) {

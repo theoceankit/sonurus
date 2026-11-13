@@ -40,6 +40,39 @@ describe('assignSpeaker', () => {
   })
 })
 
+describe('speaker handles', () => {
+  test('a new speaker may come with a handle of its own', async () => {
+    const { client, sent } = setup(() => json({ speaker_id: 'n' }))
+    await client.assignSpeaker({ transcriptId: 7, segmentStarts: [0], target: { name: 'Dana', handle: 'dana.s' } })
+    expect(sent[0].body).toEqual({ segment_starts: [0], speaker_name: 'Dana', speaker_handle: 'dana.s' })
+  })
+
+  test('a suggestion asks with the name and the speaker left out', async () => {
+    const { client, sent } = setup(() => json({ handle: 'dana.scully2' }))
+    expect(await client.getHandleSuggestion('Dana Scully', 'abc')).toBe('dana.scully2')
+    await client.getHandleSuggestion('Dana Scully')
+    expect(sent.map(r => r.url)).toEqual([
+      'http://localhost:8000/speakers/handle-suggestion?name=Dana%20Scully&exclude=abc',
+      'http://localhost:8000/speakers/handle-suggestion?name=Dana%20Scully',
+    ])
+  })
+
+  test('the handle format: GET and PUT', async () => {
+    const { client, sent } = setup(() => json({ format: 'f.last' }))
+    expect(await client.getHandleFormat()).toBe('f.last')
+    expect(await client.setHandleFormat('f.last')).toBe('f.last')
+    expect(sent.map(({ url, method, body }) => [method, url, body])).toEqual([
+      ['GET', 'http://localhost:8000/speakers/handle-format', undefined],
+      ['PUT', 'http://localhost:8000/speakers/handle-format', { format: 'f.last' }],
+    ])
+  })
+
+  test('a refused handle carries its code', async () => {
+    const { client } = setup(() => json({ detail: '@x is taken by Y.', code: 'handle_taken' }, 409))
+    await expect(client.updateSpeaker('a', { handle: 'x' })).rejects.toMatchObject({ status: 409, code: 'handle_taken', message: '@x is taken by Y.' })
+  })
+})
+
 describe('undoSpeakerAssignment', () => {
   test('sends the segments and who had them', async () => {
     const { client, sent } = setup(() => new Response(null, { status: 204 }))

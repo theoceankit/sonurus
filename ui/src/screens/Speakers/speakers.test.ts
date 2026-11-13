@@ -5,9 +5,9 @@ import {
 } from './speakers'
 
 const ROWS = [
-  { id: 'a', name: 'Alice Smith' },
-  { id: 'b', name: 'Bob' },
-  { id: 'u', name: null },
+  { id: 'a', name: 'Alice Smith', handle: 'alice.smith' },
+  { id: 'b', name: 'Bob', handle: 'bobby' },
+  { id: 'u', name: null, handle: null },
 ]
 const ids = (rows: { id: string }[]) => rows.map(row => row.id)
 
@@ -25,6 +25,12 @@ describe('filterSpeakers', () => {
 
   test('a speaker without a name never matches a search', () => {
     expect(ids(filterSpeakers(ROWS, 'unnamed', 'unnamed'))).toEqual([])
+  })
+
+  test('a search matches the handle too, with or without the @', () => {
+    expect(ids(filterSpeakers(ROWS, 'bobby', 'all'))).toEqual(['b'])
+    expect(ids(filterSpeakers(ROWS, ' @BOBBY ', 'all'))).toEqual(['b'])
+    expect(ids(filterSpeakers(ROWS, '@', 'all'))).toEqual(['a', 'b'])
   })
 })
 
@@ -89,16 +95,16 @@ test('formatLastSeen', () => {
 })
 
 describe('speaker drafts', () => {
-  const lena = { id: 'lena', name: 'Lena Kovacs', color_index: 3 }
+  const lena = { id: 'lena', name: 'Lena Kovacs', color_index: 3, handle: 'lena.kovacs', handle_manual: false }
 
   test('a fresh draft is the speaker as saved, with nothing to save', () => {
     const draft = speakerDraft(lena)
-    expect(draft).toEqual({ id: 'lena', name: 'Lena Kovacs', colorIndex: 3 })
+    expect(draft).toEqual({ id: 'lena', name: 'Lena Kovacs', colorIndex: 3, handle: null })
     expect(draftChanges(draft, lena)).toBeNull()
   })
 
   test('a speaker without a name starts with an empty one', () => {
-    expect(speakerDraft({ id: 'x', name: null, color_index: 0 }).name).toBe('')
+    expect(speakerDraft({ id: 'x', name: null, color_index: 0, handle: null, handle_manual: false }).name).toBe('')
   })
 
   test('the changes are what differs, the name trimmed', () => {
@@ -115,8 +121,25 @@ describe('speaker drafts', () => {
   })
 
   test('a speaker who had no name and still has none has nothing to save', () => {
-    const unnamed = { id: 'x', name: null, color_index: 0 }
+    const unnamed = { id: 'x', name: null, color_index: 0, handle: null, handle_manual: false }
     expect(draftDirty(speakerDraft(unnamed), unnamed)).toBe(false)
     expect(draftDirty({ ...speakerDraft(unnamed), name: ' ' }, unnamed)).toBe(false)
+  })
+
+  test('a handle typed is sent as kept, and only when it differs', () => {
+    expect(draftChanges({ ...speakerDraft(lena), handle: ' @Lena.K ' }, lena)).toEqual({ handle: 'lena.k' })
+    expect(draftDirty({ ...speakerDraft(lena), handle: 'lena.k' }, lena)).toBe(true)
+    expect(draftChanges({ ...speakerDraft(lena), handle: 'Lena.Kovacs' }, lena)).toBeNull()
+    expect(draftDirty({ ...speakerDraft(lena), handle: 'lena.kovacs' }, lena)).toBe(false)
+    expect(draftChanges({ ...speakerDraft(lena), name: 'Lena K', handle: 'lk' }, lena)).toEqual({ name: 'Lena K', handle: 'lk' })
+  })
+
+  test('an emptied handle goes back to the one made from the name, if it was set by hand', () => {
+    const manual = { ...lena, handle: 'lk', handle_manual: true }
+    expect(draftChanges({ ...speakerDraft(manual), handle: '  ' }, manual)).toEqual({ handle: '' })
+    expect(draftDirty({ ...speakerDraft(manual), handle: '' }, manual)).toBe(true)
+    // Already made from the name: nothing to do.
+    expect(draftChanges({ ...speakerDraft(lena), handle: '' }, lena)).toBeNull()
+    expect(draftDirty({ ...speakerDraft(lena), handle: '' }, lena)).toBe(false)
   })
 })

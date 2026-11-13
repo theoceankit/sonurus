@@ -22,6 +22,7 @@ import { useLingering } from '../../presence'
 import { speakerColor } from '../../styles/speaker-colors'
 import { DeleteSpeakerDialog } from './DeleteSpeakerDialog'
 import { DiscardChangesDialog } from './DiscardChangesDialog'
+import { handleProblem, isHandleRefusal } from './handles'
 import { SpeakerCard } from './SpeakerCard'
 import {
   categoryCounts, deleteBlockReason, draftChanges, draftDirty, duplicateNameIds, filterSpeakers, speakerAfter, speakerDisplayName,
@@ -64,6 +65,7 @@ function SpeakerList({ speakers, query, category, onOpen }: { speakers: Speaker[
             <Candidate
               key={speaker.id}
               speaker={speaker.name ? { name: speaker.name, color: speakerColor(speaker.color_index) } : { kind: 'unknown', name: speakerDisplayName(speaker) }}
+              handle={speaker.handle}
               badge={duplicates.has(speaker.id) ? 'same name' : undefined}
               usage={usage.recordings}
               time={usage.time === null ? undefined : formatDuration(usage.time)}
@@ -102,6 +104,7 @@ export function SpeakersDialog({
   const cancelEdit = useRef<() => boolean>(() => false)
   const [edited, setEdited] = useState<SpeakerDraft | null>(null)
   const [saveError, setSaveError] = useState<string>()
+  const [handleError, setHandleError] = useState<string>()
   const { mutateAsync: update, isPending: saving } = useUpdateSpeaker()
   // Where to go once the edits are discarded.
   const [leaving, setLeaving] = useState<{ go: () => void } | null>(null)
@@ -114,10 +117,13 @@ export function SpeakersDialog({
   const draft = current ? (edited?.id === current.id ? edited : speakerDraft(current)) : null
   const dirty = Boolean(current && draft && draftDirty(draft, current))
   const changes = current && draft ? draftChanges(draft, current) : null
+  // A handle that is not one, or is another speaker's, is not sent.
+  const handleIssue = current && draft?.handle ? handleProblem(draft.handle, rows.filter(speaker => speaker.id !== current.id)) : undefined
 
   const revert = () => {
     setEdited(null)
     setSaveError(undefined)
+    setHandleError(undefined)
   }
   // Leaving a card with edits asks first; without them it just goes.
   const leave = (go: () => void) => {
@@ -125,14 +131,15 @@ export function SpeakersDialog({
     setLeaving({ go })
   }
   const save = async () => {
-    if (!current || !changes || saving) return
+    if (!current || !changes || handleIssue || saving) return
     try {
       // Resolves once the speakers are read again, so the card shows what was saved.
       await update({ speakerId: current.id, update: changes })
       revert()
     } catch (error) {
       const text = (error as Error).message
-      if (changes.name) setSaveError(text)
+      if (isHandleRefusal(error)) setHandleError(text)
+      else if (changes.name) setSaveError(text)
       else toast({ message: `Could not save: ${text}`, type: 'error' })
     }
   }
@@ -204,9 +211,11 @@ export function SpeakersDialog({
                 dirty={dirty}
                 saving={saving}
                 saveError={saveError}
+                handleError={handleError}
                 onDraftChange={next => {
                   setEdited(next)
                   setSaveError(undefined)
+                  setHandleError(undefined)
                 }}
                 onSave={() => void save()}
                 onRevert={revert}
@@ -234,7 +243,7 @@ export function SpeakersDialog({
         <ModalFooter
           leading={<Button variant="ghost" icon="add" {...markNotImplemented('speakers.new-speaker')}>New speaker</Button>}
           cancel={current ? { children: 'Cancel', disabled: !dirty || saving, onClick: revert } : null}
-          confirm={current ? { children: 'Save', disabled: !changes, loading: saving, onClick: () => void save() } : undefined}
+          confirm={current ? { children: 'Save', disabled: !changes || !!handleIssue, loading: saving, onClick: () => void save() } : undefined}
         />
       </Modal>
       {asking.value && (

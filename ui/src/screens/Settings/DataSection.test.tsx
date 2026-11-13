@@ -37,7 +37,8 @@ async function openData() {
 const confirmDialog = () => screen.queryByRole('alertdialog')
 
 test('Reset asks over Settings, then puts every preference back but the token and the recent recordings', async () => {
-  const { bridge, setZoom } = await setup()
+  const { bridge, client, setZoom } = await setup()
+  await client.setHandleFormat('f.last')
   await openData()
   await userEvent.click(within(settings()).getByRole('button', { name: 'Reset' }))
   const confirm = await screen.findByRole('alertdialog', { name: 'Reset preferences?' })
@@ -47,6 +48,7 @@ test('Reset asks over Settings, then puts every preference back but the token an
   expect(await screen.findByText('Preferences reset to defaults.')).toBeTruthy()
   expect(await bridge.readSettings()).toEqual({ ...DEFAULT_SETTINGS, hfToken: 'hf_kept', recentTranscriptIds: [3, 1] })
   expect(setZoom).toHaveBeenLastCalledWith(1)
+  expect(await client.getHandleFormat()).toBe('first.last')
   expect(settings()).toBeTruthy()
 })
 

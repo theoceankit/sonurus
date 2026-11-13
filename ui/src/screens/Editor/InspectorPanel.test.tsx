@@ -473,6 +473,25 @@ describe('speaker windows from the card', () => {
     expect((await client.getTranscript(WEEKLY_SYNC_ID)).segments.some(s => effectiveSpeaker(s) === unknown1)).toBe(true)
   })
 
+  test('New speaker shows the handle the name brings, numbered when taken, and one typed goes with it', async () => {
+    const { client } = setup(WEEKLY_SYNC_ID)
+    await counter('1 of 1')
+    await userEvent.click(within(card()).getByRole('button', { name: 'More speakers' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'New speaker' }))
+    await userEvent.type(await screen.findByRole('textbox', { name: 'Name' }), 'Mark Ellis')
+    const handle = screen.getByRole('textbox', { name: 'Handle' }) as HTMLInputElement
+    await waitFor(() => expect(handle.value).toBe('mark.ellis2'))
+    await userEvent.clear(handle)
+    await userEvent.type(handle, 'mark.ellis')
+    expect(screen.getByText('@mark.ellis is taken by Mark Ellis.')).toBeTruthy()
+    expect((button('Create and assign') as HTMLButtonElement).disabled).toBe(true)
+    await userEvent.clear(handle)
+    await userEvent.type(handle, 'markie')
+    await userEvent.click(button('Create and assign'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect((await client.listSpeakers()).find(s => s.handle === 'markie')).toMatchObject({ name: 'Mark Ellis', handle_manual: true })
+  })
+
   test('a failure while creating shows in the window', async () => {
     setup(WEEKLY_SYNC_ID, { overrides: { assignSpeaker: () => Promise.reject(new ApiError(500, 'Server error 500')) } })
     await counter('1 of 1')

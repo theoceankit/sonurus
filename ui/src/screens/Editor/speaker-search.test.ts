@@ -75,6 +75,20 @@ describe('search', () => {
   test('speakers with no name never match', () => {
     expect(names('unknown')).toEqual([])
   })
+
+  test('matches the handle too, with or without the @', () => {
+    const custom = SPEAKERS.map(s => (s.id === anna ? { ...s, handle: 'annie.p' } : s))
+    const found = (query: string) => chooseSpeakerList({ speakers: custom, candidates, recordingSpeakers: [], query, category: 'all' })
+      .sections.flatMap(section => section.rows).map(row => row.name)
+    expect(found('annie')).toEqual(['Anna Petrova'])
+    expect(found(' @Annie.P ')).toEqual(['Anna Petrova'])
+    expect(found('@')).toHaveLength(13)
+  })
+
+  test('a row carries the handle', () => {
+    expect(list().sections[1].rows.find(row => row.id === anna)).toMatchObject({ handle: 'anna.petrova' })
+    expect(list().sections[0].rows[0]).toMatchObject({ handle: 'mark.ellis' })
+  })
 })
 
 describe('preselectedSpeaker', () => {

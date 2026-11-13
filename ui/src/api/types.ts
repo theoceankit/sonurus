@@ -10,6 +10,7 @@ export type SpeakerSample = Schemas['SpeakerSampleResponse']
 export type SpeakerUpdate = Schemas['SpeakerUpdateRequest']
 // How a handle is made from a name: ivan.petrov, i.petrov or ivan.p.
 export type HandleFormat = Schemas['HandleFormatBody']['format']
+export const DEFAULT_HANDLE_FORMAT: HandleFormat = 'first.last'
 // A recording a speaker talks in, with whether its audio file is still there.
 export type SpeakerTranscript = Schemas['SpeakerTranscriptItem']
 // How many segments, in how many recordings, a deleted speaker left Unassigned.

@@ -12,15 +12,16 @@ type Common = Omit<ComponentPropsWithRef<'button'>, 'children'> & {
 }
 
 export type CandidateProps = Common & (
-  // badge tells apart speakers with the same name; time is how long they talk, after usage.
-  | { kind?: 'speaker'; speaker: LabelledSpeaker; score?: number; suggested?: boolean; usage?: string; time?: string; badge?: string; selected?: boolean; children?: never; icon?: never }
-  | { kind: 'add'; children: ReactNode; icon?: IconName; speaker?: never; score?: never; suggested?: never; usage?: never; time?: never; badge?: never; selected?: never }
+  // badge tells apart speakers with the same name; handle, under the name, says who
+  // exactly; time is how long they talk, after usage.
+  | { kind?: 'speaker'; speaker: LabelledSpeaker; handle?: string | null; score?: number; suggested?: boolean; usage?: string; time?: string; badge?: string; selected?: boolean; children?: never; icon?: never }
+  | { kind: 'add'; children: ReactNode; icon?: IconName; speaker?: never; handle?: never; score?: never; suggested?: never; usage?: never; time?: never; badge?: never; selected?: never }
 )
 
 const percent = (score: number) => `${Math.round(score * 100)}%`
 
 // One answer to who this is: the card lists a few of them, the search all.
-export function Candidate({ kind = 'speaker', speaker, score, suggested, usage, time, badge, selected, active, icon = 'add', children, type = 'button', className, ...props }: CandidateProps) {
+export function Candidate({ kind = 'speaker', speaker, handle, score, suggested, usage, time, badge, selected, active, icon = 'add', children, type = 'button', className, ...props }: CandidateProps) {
   const classes = cx(styles.candidate, selected && styles.selected, active && styles.active, className)
   if (kind === 'add') {
     return (
@@ -33,8 +34,20 @@ export function Candidate({ kind = 'speaker', speaker, score, suggested, usage, 
   return (
     <button type={type} className={classes} {...props}>
       <Avatar {...avatarOf(speaker!)} size="small" />
-      <span className={cx(styles.name, selected && styles.strong)}>{speaker!.name}</span>
-      {badge && <Badge className={styles.badge}>{badge}</Badge>}
+      {handle ? (
+        <span className={styles.who}>
+          <span className={styles.nameLine}>
+            <span className={cx(styles.name, selected && styles.strong)}>{speaker!.name}</span>
+            {badge && <Badge className={styles.badge}>{badge}</Badge>}
+          </span>
+          <span className={styles.handle}>@{handle}</span>
+        </span>
+      ) : (
+        <>
+          <span className={cx(styles.name, selected && styles.strong)}>{speaker!.name}</span>
+          {badge && <Badge className={styles.badge}>{badge}</Badge>}
+        </>
+      )}
       {suggested && <span role="img" aria-label="Suggested" className={styles.mark}><Icon name="sparkle" size={14} /></span>}
       {score !== undefined && <span className={cx(styles.meta, suggested && styles.mark)}>{percent(score)}</span>}
       {usage && <span className={styles.meta}>{usage}</span>}

@@ -49,7 +49,11 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
   const assignSpeaker = async ({ transcriptId, segmentStarts, target }: SpeakerAssignment) => {
     const speaker = 'id' in target
       ? { speaker_id: target.id }
-      : { speaker_name: target.name, ...(target.colorIndex != null ? { color_index: target.colorIndex } : {}) }
+      : {
+          speaker_name: target.name,
+          ...(target.colorIndex != null ? { color_index: target.colorIndex } : {}),
+          ...(target.handle != null ? { speaker_handle: target.handle } : {}),
+        }
     const { speaker_id: speakerId } = await send(http.POST('/transcripts/{transcript_id}/speaker-assignments', {
       ...transcript(transcriptId),
       body: { segment_starts: [...segmentStarts], ...speaker },
@@ -86,6 +90,11 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     getSpeakerCandidates: id => send(http.GET('/transcripts/{transcript_id}/speaker-candidates', transcript(id))),
     listSpeakers: () => send(http.GET('/speakers')),
     updateSpeaker: (speaker_id, body) => send(http.PATCH('/speakers/{speaker_id}', { params: { path: { speaker_id } }, body })),
+    getHandleSuggestion: async (name, exclude) => (await send(http.GET('/speakers/handle-suggestion', {
+      params: { query: { name, ...(exclude ? { exclude } : {}) } },
+    }))).handle,
+    getHandleFormat: async () => (await send(http.GET('/speakers/handle-format'))).format,
+    setHandleFormat: async format => (await send(http.PUT('/speakers/handle-format', { body: { format } }))).format,
     getSpeakerSample: (speaker_id, transcript_id) => send(http.GET('/speakers/{speaker_id}/sample', {
       params: { path: { speaker_id }, query: { transcript_id } },
     })),

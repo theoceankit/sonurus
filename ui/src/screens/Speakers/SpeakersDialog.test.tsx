@@ -42,7 +42,7 @@ const openCard = async (dialog: HTMLElement, name: RegExp) => {
 test('opens from the titlebar on every speaker, named first', async () => {
   const { dialog } = await setup()
   const names = rowNames(dialog)
-  expect(names[0]).toMatch(/^Anna Petrova8 recordings/)
+  expect(names[0]).toMatch(/^Anna Petrova@anna\.petrova8 recordings/)
   expect(names.at(-1)).toMatch(/^Unnamed speaker/)
   expect(within(dialog).getByRole('button', { name: /All speakers/ }).textContent).toContain('18')
 })
@@ -88,7 +88,9 @@ test('a card opens in place of the list and goes back to it', async () => {
   expect((within(dialog).getByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('Lena Kovacs')
   expect(within(dialog).getByText('11 recordings')).toBeTruthy()
   expect(within(dialog).getByText('Last seen 4 Oct 2026')).toBeTruthy()
-  expect(within(dialog).getByRole('textbox', { name: 'Handle' }).getAttribute('data-not-implemented')).toBe('speaker-card.handle')
+  const handle = within(dialog).getByRole('textbox', { name: 'Handle' }) as HTMLInputElement
+  expect(handle.value).toBe('lena.kovacs')
+  expect(handle.getAttribute('data-not-implemented')).toBeNull()
   expect(within(dialog).queryByRole('textbox', { name: 'Email' })).toBeNull()
   await userEvent.click(back)
   expect(within(dialog).getByRole('searchbox', { name: 'Search speakers' })).toBeTruthy()
@@ -254,6 +256,92 @@ test('Merge and Delete follow each other in More, with nothing between them', as
   const menu = await screen.findByRole('menu')
   expect(within(menu).queryByRole('separator')).toBeNull()
   expect(within(menu).getAllByRole('menuitem').map(item => item.textContent?.trim())).toEqual(['Merge into another speaker', 'Delete speaker'])
+})
+
+const handleField = (dialog: HTMLElement) => within(dialog).getByRole('textbox', { name: 'Handle' }) as HTMLInputElement
+
+test('the search finds a speaker by handle, with or without the @', async () => {
+  const { dialog } = await setup()
+  const search = within(dialog).getByRole('searchbox', { name: 'Search speakers' })
+  await userEvent.type(search, '@lena.k')
+  expect(rowNames(dialog)).toEqual([expect.stringMatching(/^Lena Kovacs@lena\.kovacs/)])
+})
+
+test('two people with one name have different handles', async () => {
+  const { dialog } = await setup({ board: 'sameNames' })
+  const list = within(dialog).getByLabelText('Speakers')
+  expect(within(list).getByText('@mark.ellis')).toBeTruthy()
+  expect(within(list).getByText('@mark.ellis2')).toBeTruthy()
+})
+
+test('a new name shows the handle it brings, and Save sends the name alone', async () => {
+  const { client, dialog } = await setup()
+  const update = vi.spyOn(client, 'updateSpeaker')
+  await openCard(dialog, /Lena Kovacs/)
+  const name = within(dialog).getByRole('textbox', { name: 'Name' })
+  await userEvent.clear(name)
+  await userEvent.type(name, 'Анна Петрова')
+  await waitFor(() => expect(handleField(dialog).value).toBe('anna.petrova2'))
+  await userEvent.click(saveButton(dialog))
+  await waitFor(() => expect(update).toHaveBeenCalledWith(SPEAKER_IDS.lena, { name: 'Анна Петрова' }))
+  await waitFor(() => expect(handleField(dialog).value).toBe('anna.petrova2'))
+})
+
+test('a handle typed by hand is saved, lowercase and without the @, and stays through a rename', async () => {
+  const { client, dialog } = await setup()
+  const update = vi.spyOn(client, 'updateSpeaker')
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.clear(handleField(dialog))
+  await userEvent.type(handleField(dialog), '@Lena.K{Enter}')
+  await waitFor(() => expect(update).toHaveBeenCalledWith(SPEAKER_IDS.lena, { handle: 'lena.k' }))
+  const name = within(dialog).getByRole('textbox', { name: 'Name' })
+  await userEvent.clear(name)
+  await userEvent.type(name, 'Lena Stone')
+  expect(handleField(dialog).value).toBe('lena.k')
+  await userEvent.click(saveButton(dialog))
+  await waitFor(() => expect(saveButton(dialog).disabled).toBe(true))
+  expect(handleField(dialog).value).toBe('lena.k')
+})
+
+test('a taken or bad handle is said under the field and cannot be saved', async () => {
+  const { client, dialog } = await setup()
+  const update = vi.spyOn(client, 'updateSpeaker')
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.clear(handleField(dialog))
+  await userEvent.type(handleField(dialog), 'Anna.Petrova')
+  expect(within(dialog).getByText('@anna.petrova is taken by Anna Petrova.')).toBeTruthy()
+  expect(saveButton(dialog).disabled).toBe(true)
+  await userEvent.clear(handleField(dialog))
+  await userEvent.type(handleField(dialog), 'лена{Enter}')
+  expect(within(dialog).getByText(/^Use lowercase Latin letters/)).toBeTruthy()
+  expect(saveButton(dialog).disabled).toBe(true)
+  expect(update).not.toHaveBeenCalled()
+})
+
+test('an emptied handle shows the one made from the name and brings it back', async () => {
+  const { client, dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.clear(handleField(dialog))
+  await userEvent.type(handleField(dialog), 'lk{Enter}')
+  await waitFor(() => expect(saveButton(dialog).disabled).toBe(true))
+  const update = vi.spyOn(client, 'updateSpeaker')
+  await userEvent.clear(handleField(dialog))
+  await waitFor(() => expect(handleField(dialog).placeholder).toBe('lena.kovacs'))
+  expect(within(dialog).getByText('Left empty, the handle is made from the name.')).toBeTruthy()
+  await userEvent.click(saveButton(dialog))
+  await waitFor(() => expect(update).toHaveBeenCalledWith(SPEAKER_IDS.lena, { handle: '' }))
+  await waitFor(() => expect(handleField(dialog).value).toBe('lena.kovacs'))
+})
+
+test('a speaker without a name has no handle until they get one', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Unnamed speaker/)
+  expect(handleField(dialog).value).toBe('')
+  expect(handleField(dialog).readOnly).toBe(true)
+  expect(within(dialog).getByText('Add a name first: the handle is made from it.')).toBeTruthy()
+  await userEvent.type(within(dialog).getByRole('textbox', { name: 'Name' }), 'Tom Hardy')
+  await waitFor(() => expect(handleField(dialog).value).toBe('tom.hardy'))
+  expect(handleField(dialog).readOnly).toBe(false)
 })
 
 test('a card goes: name and colour, what the speaker did, the sample, the recordings', async () => {
