@@ -2,6 +2,7 @@
   "components": {
     "schemas": {
       "AlignmentModelInfo": {
+        "description": "GET /models: the alignment model of a language; the UI names the language.",
         "properties": {
           "id": {
             "title": "Id",
@@ -15,11 +16,16 @@
             "const": "alignment",
             "title": "Kind",
             "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "installed",
+          "size",
           "kind"
         ],
         "title": "AlignmentModelInfo",

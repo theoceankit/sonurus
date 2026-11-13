@@ -17,6 +17,7 @@ const meta: Meta<typeof AlignmentDialog> = {
     open: true,
     preview: true,
     language: 'pt',
+    size: '~1.3 GB',
     state: 'offer',
     pct: 0,
     retryCount: 0,

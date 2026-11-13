@@ -73,9 +73,11 @@ def test_list_models_returns_200(client):
 
 
 def test_list_models_rows_keep_their_exact_keys(client):
-    """Alignment rows carry no catalog fields, not even as null."""
+    """Alignment rows carry their size and no other catalog fields, not even as null."""
     rows = {row["id"]: row for row in client.get("/models").json()}
-    assert rows["ru"] == {"id": "ru", "installed": False, "kind": "alignment"}
+    assert rows["ru"] == {"id": "ru", "installed": False, "size": "~1.3 GB", "kind": "alignment"}
+    assert rows["vi"]["size"] == "~385 MB"
+    assert rows["no"]["size"] == "~3.9 GB"
     assert rows["tiny"] == {
         "id": "tiny", "installed": False, "name": "Whisper Tiny", "size": "39 MB",
         "speed": "~10× realtime", "acc": "Low", "recommended": False, "kind": "whisper",

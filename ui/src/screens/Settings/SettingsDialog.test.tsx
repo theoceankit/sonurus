@@ -81,14 +81,14 @@ test('a language without its alignment model says so; Download starts it, with t
   const notice = await within(settings).findByRole('status')
   expect(notice.textContent).toContain('Alignment model for Czech is not installed')
   const start = vi.spyOn(client, 'startModelDownload')
-  await userEvent.click(within(notice).getByRole('button', { name: 'Download (~300 MB)' }))
+  await userEvent.click(within(notice).getByRole('button', { name: 'Download (~1.3 GB)' }))
   expect(start).toHaveBeenCalledWith('cs', null)
   const status = () => within(settings).getByRole('status')
   await waitFor(() => expect(status().textContent).toContain('downloading 0%'))
   const cancel = vi.spyOn(client, 'cancelModelDownload')
   await userEvent.click(within(status()).getByRole('button', { name: 'Cancel' }))
   await waitFor(() => expect(cancel).toHaveBeenCalled())
-  await waitFor(() => expect(within(status()).getByRole('button', { name: 'Download (~300 MB)' })).toBeTruthy())
+  await waitFor(() => expect(within(status()).getByRole('button', { name: 'Download (~1.3 GB)' })).toBeTruthy())
 })
 
 test('a language whose alignment model is there says nothing', async () => {

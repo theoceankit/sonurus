@@ -8,7 +8,7 @@ What the UI needs to start a transcription: the models of the catalog, which one
 
 ## Models
 
-`useModels()` reads `GET /models` ([Data](data.md#client)). The rows of alignment models have only an id and whether they are installed, so their names and sizes are in `ALIGNMENT_MODELS` in `languages.ts`. A build test (`tests/build/ui-alignment-catalog.test.js`) keeps its ids the same as the backend's `ALIGNMENT_CATALOG`, in its order.
+`useModels()` reads `GET /models` ([Data](data.md#client)). The rows of alignment models have only an id, whether they are installed and the download size, so their names are in `ALIGNMENT_MODELS` in `languages.ts`; every size the UI shows comes from the row. A build test (`tests/build/ui-alignment-catalog.test.js`) keeps its ids the same as the backend's `ALIGNMENT_CATALOG`, in its order.
 
 A job needs a Whisper model, the diarization model and, for some languages, an alignment model. `jobBlockReason(state, language)` says what is missing in the order the backend checks it (`POST /queue/jobs` refuses the job with a 400 otherwise): `{ missing: 'whisper' }`, `{ missing: 'diarization' }` or `{ missing: 'alignment', language }`, or null when the job can start. `blockMessage(reason)` is the text for the user. A language with no row in the catalog needs no model: English, Spanish, German, French and Italian are aligned by torchaudio, and a detected language is known only once the job runs, where a missing model fails it with `alignment_model_missing`.
 

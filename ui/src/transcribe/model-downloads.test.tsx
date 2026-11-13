@@ -83,7 +83,7 @@ test('a download that ends done without the model installed failed', async () =>
       setTimeout(() => listener({ type: 'done' }), 0)
       return () => {}
     },
-    listModels: async () => [{ id: 'cs', kind: 'alignment', installed: false }],
+    listModels: async () => [{ id: 'cs', kind: 'alignment', installed: false, size: '~1.3 GB' }],
   } })
   const downloads = createModelDownloads(client, noToken)
   await downloads.start('cs')

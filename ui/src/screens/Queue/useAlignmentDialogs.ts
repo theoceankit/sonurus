@@ -69,7 +69,8 @@ export function useAlignmentDialogs() {
 
   if (!language) return { onQueueEvent, dialog: null }
 
-  const installed = !!models.data?.some(model => model.kind === 'alignment' && model.id === language && model.installed)
+  const row = models.data?.find(model => model.kind === 'alignment' && model.id === language)
+  const installed = !!row?.installed
   const failed = waiting.watched && !download && downloads.outcome(language) === 'failed'
   const jobs = alignmentRetryJobs(language, queue.data)
 
@@ -88,6 +89,7 @@ export function useAlignmentDialogs() {
   const dialog: AlignmentDialogProps = {
     open: waiting.shown && !waiting.closing,
     language,
+    size: row?.size,
     state: alignmentState({ downloading: !!download, installed, failed }),
     pct: download?.pct ?? 0,
     retryCount: jobs.length,

@@ -69,6 +69,10 @@ def _no_network(*_args, **_kwargs):
 
 _hf.snapshot_download = lambda *_args, **_kwargs: None
 _hf.model_info = _no_network
+# An alignment download lists the repo first to pick its files; a typical repo.
+_hf.list_repo_files = lambda *_args, **_kwargs: [
+    "config.json", "preprocessor_config.json", "vocab.json", "pytorch_model.bin",
+]
 
 
 # The real transcription queue lives in DB_PATH (the project root when no

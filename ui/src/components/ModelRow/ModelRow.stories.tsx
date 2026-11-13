@@ -33,5 +33,5 @@ export const FailedLongError: Story = {
 }
 export const FailedWithoutReason: Story = { args: { state: 'failed' } }
 export const Diarization: Story = { args: { icon: 'diarization-model', name: 'Pyannote Community 1', meta: ['130 MB'], state: 'installed', onUse: undefined } }
-export const Alignment: Story = { args: { icon: 'alignment', name: 'Czech', meta: ['~300 MB'], onUse: undefined } }
+export const Alignment: Story = { args: { icon: 'alignment', name: 'Czech', meta: ['~1.3 GB'], onUse: undefined } }
 

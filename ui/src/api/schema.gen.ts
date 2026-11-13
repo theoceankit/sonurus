@@ -769,7 +769,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** AlignmentModelInfo */
+        /**
+         * AlignmentModelInfo
+         * @description GET /models: the alignment model of a language; the UI names the language.
+         */
         AlignmentModelInfo: {
             /** Id */
             id: string;
@@ -780,6 +783,8 @@ export interface components {
              * @enum {string}
              */
             kind: "alignment";
+            /** Size */
+            size: string;
         };
         /** AudioCaptureStartRequest */
         AudioCaptureStartRequest: {
