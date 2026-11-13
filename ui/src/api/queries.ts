@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
 import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
 import type { HandleFormat, QueueJobUpdate, QueueStartMode, QueueUpdate, Speaker, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
@@ -67,28 +67,17 @@ export function useSpeakers() {
   return useQuery({ queryKey: queryKeys.speakers, queryFn: () => api.listSpeakers() })
 }
 
-// What a value was a moment ago when it stops changing: a request per pause in typing,
-// not per key.
-function useSettled<T>(value: T, delay: number): T {
-  const [settled, setSettled] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setSettled(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-  return settled
-}
-
-const SUGGESTION_DELAY_MS = 200
-
 // The handle a speaker named name would get: numbered when taken. exclude: the
-// speaker being edited. Nothing is asked for a blank name or while disabled.
+// speaker being edited. Asked for on every change of the name, so the handle keeps up
+// with the typing (the backend is local); until the answer comes the last one stays.
+// Nothing is asked for a blank name or while disabled.
 export function useHandleSuggestion(name: string, exclude?: string, enabled = true) {
   const api = useApi()
-  const settled = useSettled(name.trim(), SUGGESTION_DELAY_MS)
+  const trimmed = name.trim()
   return useQuery({
-    queryKey: queryKeys.handleSuggestion(settled, exclude),
-    queryFn: () => api.getHandleSuggestion(settled, exclude),
-    enabled: enabled && settled !== '',
+    queryKey: queryKeys.handleSuggestion(trimmed, exclude),
+    queryFn: () => api.getHandleSuggestion(trimmed, exclude),
+    enabled: enabled && trimmed !== '',
     placeholderData: previous => previous,
   })
 }
