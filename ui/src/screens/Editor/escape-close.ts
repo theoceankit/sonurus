@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { openModalCount } from '../../components/Modal/open-modals'
-import { isTextField, OVERLAY } from '../../keys'
+import { createFocusOrigin, isTextField, OVERLAY } from '../../keys'
 
 export type EscapeKey = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'metaKey' | 'isComposing'>
 
@@ -28,9 +28,15 @@ export function escapeAction(key: EscapeKey, target: Element | null, { overlayOp
 // Escape closes the open recording while enabled. Heard on the window on the way
 // down, before Radix, which closes its layers on an Escape it hears on the
 // document: a toast is one, and it stays when Escape closes the recording.
+// Chromium shows the focus ring at the keydown of any key, so an element focused
+// by a click, such as the row that opened the recording, lets go of the focus;
+// one reached from the keyboard keeps it, and its ring, as before.
 export function useEscapeClose(onClose: () => void, enabled: boolean) {
   const close = useRef(onClose)
   close.current = onClose
+  // Followed from the start, so the click that opened the recording counts.
+  const [origin] = useState(createFocusOrigin)
+  useEffect(() => origin.listen(), [origin])
   useEffect(() => {
     if (!enabled) return
     const onKeyDown = (event: KeyboardEvent) => {
@@ -39,9 +45,11 @@ export function useEscapeClose(onClose: () => void, enabled: boolean) {
       if (escapeAction(event, target, { overlayOpen: openModalCount() > 0, layerShown }) === 'pass') return
       event.preventDefault()
       event.stopPropagation()
+      const clicked = origin.pointerFocused()
+      if (clicked instanceof HTMLElement) clicked.blur()
       close.current()
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [enabled])
+  }, [enabled, origin])
 }

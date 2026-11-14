@@ -691,11 +691,24 @@ describe('closing the open recording with Escape', () => {
     expect(title()).toBe('Weekly product sync')
   })
 
-  test('closes from a sidebar row in focus', async () => {
+  test('closes from a sidebar row reached from the keyboard, which keeps the focus', async () => {
     await open()
     sidebarRow(/Call with Mark/).focus()
     await escape()
     await waitFor(() => expect(emptyShown()).toBe(true))
+    expect(document.activeElement).toBe(sidebarRow(/Call with Mark/))
+  })
+
+  // Chromium shows the focus ring on any key, so the row clicked to open the
+  // recording would light up as Escape closes it.
+  test('the row clicked to open the recording lets go of the focus', async () => {
+    await open()
+    await userEvent.click(sidebarRow(/Design review/))
+    await waitFor(() => expect(title()).toBe('Design review'))
+    expect(document.activeElement).toBe(sidebarRow(/Design review/))
+    await escape()
+    await waitFor(() => expect(emptyShown()).toBe(true))
+    expect(document.activeElement).toBe(document.body)
   })
 
   test('an open menu takes the first Escape, and the next one closes', async () => {
