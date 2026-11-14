@@ -1,9 +1,8 @@
+import { currentOs, type Os } from '../../platform/os'
 import { cx } from '../../styles/cx'
 import styles from './Kbd.module.css'
 
-export type KbdOs = 'mac' | 'other'
-
-const currentOs = (): KbdOs => (/mac/i.test(navigator.platform) ? 'mac' : 'other')
+export type KbdOs = Os
 
 const MODIFIERS: Record<string, Record<KbdOs, string>> = {
   mod: { mac: '⌘', other: 'Ctrl' },

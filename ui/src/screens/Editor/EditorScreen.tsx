@@ -28,6 +28,7 @@ import { InspectorPanel } from './InspectorPanel'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
 import { goneFromList, groupRecordings, leftList, stackSpeakers } from './recordings'
 import { useEscapeClose } from './escape-close'
+import { useHistoryKeys } from './history-keys'
 import { canGoBack, canGoForward, initialSelection, needsPick, selectionReducer, shownRecording } from './selection'
 import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
 import { titleToSave } from './transcript'
@@ -87,6 +88,7 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   const showJob = useCallback((id: string) => select({ type: 'showJob', id }), [])
   const goBack = useCallback(() => select({ type: 'back' }), [])
   const goForward = useCallback(() => select({ type: 'forward' }), [])
+  useHistoryKeys(goBack, goForward)
   // Escape closes the recording or the job in the centre, and the sound stops with it.
   useEscapeClose(() => select({ type: 'close' }), selectedId !== null || jobId !== null)
   const recent = useRecentRecordings()

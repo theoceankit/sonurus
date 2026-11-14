@@ -54,6 +54,16 @@ Back and Forward in the title bar go through the recordings opened, as in a brow
 - **Going to a step** opens the recording as a click in the sidebar does: the sound stops, it starts from the beginning, its row is current, and it goes first in the recent ones.
 - **Nowhere to go.** Each button is disabled while there is no step its way; while a job is shown Back always has somewhere to go. At startup both are.
 
+The keyboard and the mouse do the same as the buttons: Alt+← and Alt+→ on Linux and Windows, ⌘[ and ⌘] on macOS (by the key's place, `event.code`, so the layout does not matter), and the side buttons of a mouse, which Chromium reports as buttons 3 and 4. `useHistoryKeys()` (`ui/src/screens/Editor/history-keys.ts`), called by `EditorScreen`, listens on the window on the way down and takes the key or the button it acts on, so Alt with an arrow on the waveform of the player goes back or forward rather than seeks. `historyKey()` and `historyButton()` decide:
+
+| When | Keys | Side buttons |
+|---|---|---|
+| Nothing in focus, the transcript, a button, a row of the sidebar, the waveform | Back or Forward | Back or Forward |
+| A text field: renaming in the sidebar, a paragraph being edited, a search | What the field does: the arrows move the caret | Back or Forward |
+| A modal window is open, or a menu, a select list or a popover is on the screen | Left to it | Nothing |
+
+With Ctrl or Shift held, or while text is being composed, the keys are left alone. With nowhere to go they do nothing, like the disabled buttons. The Speakers window keeps its own Back to speakers.
+
 The history lives in memory: each run starts with the recording picked at startup. It keeps the last 100 steps, and the oldest go first.
 
 ## Without recordings
