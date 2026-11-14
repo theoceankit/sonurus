@@ -35,10 +35,13 @@ export function Button({
       onClick={handleClick}
       {...props}
     >
-      {loading ? <span className={styles.spinner} aria-hidden /> : icon && <Icon name={icon} />}
+      {/* The spinner takes the place of what the button says rather than a place of
+          its own, so the button keeps its width. A quick action ends before it shows. */}
+      {loading && <span className={styles.spinner} aria-hidden />}
+      {icon && <Icon name={icon} className={loading ? styles.busy : undefined} />}
       {variant === 'record' && <span className={styles.dot} aria-hidden />}
       {variant === 'record' && <span className={styles.timer}>{timer} </span>}
-      <span>{children}</span>
+      <span className={loading ? styles.busy : undefined}>{children}</span>
     </button>
   )
 }

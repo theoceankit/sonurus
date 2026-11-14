@@ -88,6 +88,8 @@ A column and a row. Spacing props accept only the steps of the scale: `'half'`, 
 
 Penpot's Type is the `variant` prop, because `type` on a button is the HTML attribute. Pairs that do not exist on the boards, such as an inverse button at medium size, are type errors. `Tabs`, `ColorPicker` and `Disclosure` are built on Radix Primitives, which bring the arrow keys and the tab order; `Tab` works only inside `Tabs`, `ColorSwatch` only inside a radio group. `Button`, `IconButton` and `MenuItem` pass on `ref` and other attributes, so Radix can wrap them with `asChild`.
 
+A `Button` with `loading` is busy at once: it ignores clicks and says so with `aria-busy`. What it shows changes only after 300 ms (`--delay-busy`), when a spinner takes the place of its icon and label, which stay under it out of sight but still name the button for a screen reader. So a quick action ends with nothing changed, and a long one does not change the width of the button or move its neighbours.
+
 ### States
 
 `ui/src/styles/control.module.css` holds what controls share, taken with `composes`:
@@ -171,6 +173,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | `--delay-hover-skip` | 300 ms | after a highlight, the next one comes at once for this long |
 | `--delay-tooltip` | 300 ms | how long the pointer stays on a control before its tooltip shows |
 | `--delay-tooltip-skip` | 300 ms | after a tooltip, the next one shows at once for this long |
+| `--delay-busy` | 300 ms | how long a busy button looks as before, so a quick action shows no spinner |
 | `--ease-standard` | `cubic-bezier(0.2, 0, 0, 1)` | what stays on screen: panels, height, width, colour |
 | `--ease-enter` | `cubic-bezier(0.16, 1, 0.3, 1)` | what appears |
 | `--ease-exit` | `cubic-bezier(0.4, 0, 1, 1)` | what leaves the screen |

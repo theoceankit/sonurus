@@ -46,3 +46,6 @@ export const Matrix: Story = {
 
 export const Example: Story = {}
 export const WithIcon: Story = { args: { icon: 'add', children: 'New recording' } }
+// The spinner shows after --delay-busy, over the icon and the label, so the width stays.
+export const Loading: Story = { args: { children: 'Import', loading: true } }
+export const LoadingWithIcon: Story = { args: { icon: 'add', children: 'New recording', loading: true } }

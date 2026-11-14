@@ -96,13 +96,43 @@
 }
 
 .spinner {
+  position: absolute;
+  inset: 0;
+  margin: auto;
   box-sizing: border-box;
   width: var(--size-icon-sm);
   height: var(--size-icon-sm);
   border: var(--border-width-strong) solid currentColor;
   border-right-color: transparent;
   border-radius: var(--radius-full);
-  animation: spin var(--duration-spin) linear infinite;
+  animation: spin var(--duration-spin) linear infinite, busy-show var(--delay-busy) step-end both;
+}
+
+/* What the button says stays in place, out of sight, under the spinner. Only out of
+   sight: hidden with opacity, the label still names the button for a screen reader. */
+.busy {
+  animation: busy-hide var(--delay-busy) step-end both;
+}
+
+/* Held for the whole of --delay-busy, then the end at once. */
+@keyframes busy-show {
+  from {
+    visibility: hidden;
+  }
+
+  to {
+    visibility: visible;
+  }
+}
+
+@keyframes busy-hide {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes spin {
