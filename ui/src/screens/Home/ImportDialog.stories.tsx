@@ -47,6 +47,15 @@ export const WithFiles: Story = { args: { files: FILES } }
 export const FilesOverZoneWithList: Story = { args: { files: FILES, over: true } }
 // A file renamed in the list: its title, then its extension.
 export const RenamedFile: Story = { args: { files: [{ ...FILES[0], title: 'Weekly sync, 5 October' }, FILES[1]] } }
+// A title being edited: the field's frame around the text, which stays where the title was.
+const renaming = (name: string): Story => ({
+  args: { files: FILES },
+  play: async ({ canvasElement }) => {
+    canvasElement.ownerDocument.querySelector<HTMLButtonElement>(`button[aria-label="Rename ${name}"]`)!.click()
+  },
+})
+export const RenamingTitle = renaming(FILES[1].name)
+export const RenamingLongTitle = renaming(FILES[2].name)
 // Until GET /models answers the model waits and Import is off.
 export const CheckingModels: Story = { args: { files: FILES, choice: choiceWith(undefined) } }
 export const NoWhisperModel: Story = { args: { files: FILES, choice: choiceWith(['diarize']) } }
