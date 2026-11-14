@@ -27,9 +27,99 @@
     "FEE005": "laptop",
     "MEE006": "bluetooth",
     "MEE007": "quiet",
-    "MEE008": "plain"
+    "MEE008": "plain",
+    "FEE013": "laptop",
+    "MEE014": "bluetooth",
+    "MEO015": "quiet",
+    "FEE016": "plain",
+    "FIE088": "laptop",
+    "FIO087": "bluetooth",
+    "FIO084": "quiet",
+    "FIO089": "plain"
   },
   "uneven_quiet_speaker": "MEE008",
+  "long": {
+    "clips": [
+      {
+        "id": "es2002a-10m",
+        "meeting": "ES2002a",
+        "start": 300,
+        "end": 900
+      },
+      {
+        "id": "es2002b-10m",
+        "meeting": "ES2002b",
+        "start": 1500,
+        "end": 2100
+      },
+      {
+        "id": "es2002c-10m",
+        "meeting": "ES2002c",
+        "start": 1450,
+        "end": 2050
+      },
+      {
+        "id": "es2002d-10m",
+        "meeting": "ES2002d",
+        "start": 50,
+        "end": 650
+      },
+      {
+        "id": "es2002b-full",
+        "meeting": "ES2002b",
+        "start": 0,
+        "end": null
+      },
+      {
+        "id": "es2002c-full",
+        "meeting": "ES2002c",
+        "start": 0,
+        "end": null
+      },
+      {
+        "id": "es2002d-full",
+        "meeting": "ES2002d",
+        "start": 0,
+        "end": null
+      },
+      {
+        "id": "es2004b-10m",
+        "meeting": "ES2004b",
+        "start": 600,
+        "end": 1200
+      },
+      {
+        "id": "es2004c-10m",
+        "meeting": "ES2004c",
+        "start": 600,
+        "end": 1200
+      },
+      {
+        "id": "es2004d-10m",
+        "meeting": "ES2004d",
+        "start": 600,
+        "end": 1200
+      },
+      {
+        "id": "is1009b-10m",
+        "meeting": "IS1009b",
+        "start": 600,
+        "end": 1200
+      },
+      {
+        "id": "is1009c-10m",
+        "meeting": "IS1009c",
+        "start": 600,
+        "end": 1200
+      },
+      {
+        "id": "is1009d-10m",
+        "meeting": "IS1009d",
+        "start": 600,
+        "end": 1200
+      }
+    ]
+  },
   "pcm_sha256": {
     "ES2002b.0.1720-1900": "67ae702b35b611ce9e665c02075183bad6ad93053fd9afc8d06bfe56facd552e",
     "ES2002b.1.1720-1900": "df915e9a6f933fb0f6079997331b27b53e74ea99df782b0a966091e67461a9f2",
@@ -42,6 +132,58 @@
     "ES2002d.0.110-290": "765464d6a9cf3a9c81c60658d7e659d3eeb82d4b4b920c5abc6bced9d11c1bd1",
     "ES2002d.1.110-290": "2f48d592fe948830b732b9909d57187d2bd8a854b818ced6e45829b6b0458e7f",
     "ES2002d.2.110-290": "6a1c3d8864057ec66ecc7cebbcddc67b4ded76bc86a10d8bb8bb47a0eab8a30d",
-    "ES2002d.3.110-290": "de9d74f77ed275092520fa7913bb53940c610d00bc03ee68bfebd9691bb814fb"
+    "ES2002d.3.110-290": "de9d74f77ed275092520fa7913bb53940c610d00bc03ee68bfebd9691bb814fb",
+    "ES2002a.1.300-900": "760e116c2b33b568a7b3d8271f0bedba169e8ca7ab8eb74a9a5609cb7e29b77a",
+    "ES2002a.0.300-900": "377f313b19325bb32c0d33753032906d379699a0caf5e66e9312672fa44b6bab",
+    "ES2002a.2.300-900": "d1aa79ed4d54a1b561f66317c40c0572dbf2923463152aeddf0d0d58fc3d6371",
+    "ES2002a.3.300-900": "5b1b5d0e69ad85870ee3996c887fd437899c6bd2c263742e3c75e4669ab7193b",
+    "ES2002b.1.1500-2100": "a42b9f98c457706ed7b54c866f0c348c51988f86862824e263c2d49d42bd5231",
+    "ES2002b.0.1500-2100": "76a6188e5ac220fb30c281f47cc6d619aca766741a3802d70941ce73493a340b",
+    "ES2002b.2.1500-2100": "b32e608c463ce2cb45f84e158084e3c63e6c448dca12c0ffb49c16a8a8d91db3",
+    "ES2002b.3.1500-2100": "6eb7cea38b44ebcb21a4c29ca41df4e5445dd4d22a3e4857089acfe8b6e1191d",
+    "ES2002c.1.1450-2050": "f2582293f47d633f61d0de8c9dc9d4e4279509e9364fad1b3258a5a7a3326b8c",
+    "ES2002c.0.1450-2050": "7551cb42deec7e00c15aae07d31730c7b81c1cfbd2de48a3a9c6abbbc47946cd",
+    "ES2002c.2.1450-2050": "1e4ffdcc768c52bc4ddb2e39bd60be6e1ab7f965c8a5a3d7373d024070ec2182",
+    "ES2002c.3.1450-2050": "fac385d64d7db3507f4d90c8504dd4e9f56697a68e8e6b4447840d1925ff93a0",
+    "ES2002d.1.50-650": "1281ecd4a1f9d75b43ad78dfeb3fda91e780794efda39bfe6abe60150bd5b7eb",
+    "ES2002d.0.50-650": "bee4255687400161b1ceed29692b636c1ba15758dc5281da4f9ec9ffcfc52d20",
+    "ES2002d.3.50-650": "55b3ae605bd6035fe148e40ad40e6f146b72fe54999ad1e7b5a4d33aad9aa327",
+    "ES2002d.2.50-650": "b320822945c160215d4c757f3b7d315f5e9ed49670ce7cadba7a70e1ee2cbeb4",
+    "ES2002b.1.0-end": "71e2d4aa144b0f764be4b99681e7a308141b6caf6c877fe4aca9bd540d7ab14b",
+    "ES2002b.0.0-end": "b6763eadacfe3f625be2b9fceff33d6773afa8590b868cdaeab4d05e0c17ebda",
+    "ES2002b.2.0-end": "f47a03f412b0ef116fe3eedeee4def600f1f9612e38ec67e7af843e3eb57ee8b",
+    "ES2002b.3.0-end": "95547737bf4f069e62a2983dc7d38cea75d927dfae1e800581e8014f31f7d2cf",
+    "ES2002c.1.0-end": "1d4e98ffef0fdeac54913faccd92aba9657f6f4f8921b903adaf81ffd748578d",
+    "ES2002c.0.0-end": "33571a0a9dc01268128c13ac56d5e64437e0bcdfdebfb721d818c128d9d1fc8f",
+    "ES2002c.2.0-end": "9184212881de5e9a8eb7ec53743d2a33e180f92f53038f050a8440eb35a821d0",
+    "ES2002c.3.0-end": "09309b38b45cadaa060fb51ff42bd3054b6927e88b4bf657cc33d6d78e68a979",
+    "ES2002d.1.0-end": "1ea79fae5c2dfdc0b9d325d081b91fa5ee8589258b5347d3c7c1cca99e4cdea6",
+    "ES2002d.0.0-end": "46ead7bdbd61b9d13dfaf7b71ad7f7d7345a7e57125dc11cfe7c088223fffd41",
+    "ES2002d.3.0-end": "5dbc553aad872c1a343dea5863677428c03846b12e6dc16f285e93ca3dd429f4",
+    "ES2002d.2.0-end": "d6b7c677817bc3b710748098fa9113a944c0924694ec3ed5bacc4b575ef297a0",
+    "ES2004b.1.600-1200": "de039a1204de2c95ad7dd4d5e9cb00f05b2fc71b57239a5feea6db81dadb6c84",
+    "ES2004b.2.600-1200": "d69a33dc6e2ca7a1a341b3154c36351d118b634de50bb515e8233f4325a305a7",
+    "ES2004b.0.600-1200": "933b0fa81a534a5df57dcb01e43c8f5f127cb99101ed1e1a3de380d0e26afb58",
+    "ES2004b.3.600-1200": "52e00d828677c63ffe5d0c45028b143e4ef8a0b4dbad10895f7db780a6095753",
+    "ES2004c.1.600-1200": "56986261c2adf206cc461431654c80d63abb764f6cc187df0eabd17d6a95edb9",
+    "ES2004c.2.600-1200": "ad8d231f8b95c7710251a305b61e418f4bf9f44c1fc17aa4a1a99ce7a1c07e8c",
+    "ES2004c.0.600-1200": "971ed32202900314060ce3ce5deb8af89e6e7ec1ec2e4216ce9412d227106fd9",
+    "ES2004c.3.600-1200": "9260c5db2f2af34ec4c01aa39b5c1bdb05bbb5b528303eb9fc86b306e303455b",
+    "ES2004d.1.600-1200": "a6c2a7f0016427311d2bbd6d13d0daf9bd3fd6c54b7fd295c1b4f2020e927fcb",
+    "ES2004d.2.600-1200": "62bfdfeb5069e6572962839992b5663cda380d70deb53a263f15cbd1758a6372",
+    "ES2004d.0.600-1200": "47545ba39f249a16d9d6aae7a34b3f272419b73f6d772e30a068ca5bf3ca95d9",
+    "ES2004d.3.600-1200": "33b724120115aab8f2db61b8f110d7c7f710c69b4e1b2c562e5cd5aae9f5f0e6",
+    "IS1009b.3.600-1200": "cc4f7875ab17ec10fd120a5510c92101d80383d830b1f17a15c9be67d962b9a4",
+    "IS1009b.1.600-1200": "e96b935d6679e481998b700ec60e037808f0257a68e4ada8096a38c9c0e88c95",
+    "IS1009b.0.600-1200": "1017a0bf0685cf28cce269c94767297d8f8ab01a89f4942a7e696d770c0f09ed",
+    "IS1009b.2.600-1200": "8c225c44cb6175db19dfdf6698aa2c3b69fdd7cd412160bf580c9be93d86bdc3",
+    "IS1009c.3.600-1200": "c48e9f7dc460d54219ce52f420b615489e9b1b4e7728c00ffb0bb70b5b8cf8dc",
+    "IS1009c.1.600-1200": "c8cc8f391cadf76f6757c05b2a60ecb1acfcc61a59e004ec31bbe523bfc7d107",
+    "IS1009c.0.600-1200": "7beff65899e217fb87ff292fa1f23808bb48a0be680ec2fa2bf1da7f13fe3eea",
+    "IS1009c.2.600-1200": "ac141250e40366c438b7183d275328e425ec4d95d61c909e101d83608f585132",
+    "IS1009d.3.600-1200": "accc3a022b0b6622e0c9904a5ea25ab916381c8c5f985224112d8d7a0751b421",
+    "IS1009d.1.600-1200": "dd964c19019ed0281e5242c456ed2b08b49ce4f7c6a4216f4974f1308af5d4c7",
+    "IS1009d.0.600-1200": "7367fc91777e21ecc89072f82ab45cfe31f4c28caa93e626831f9756cacf7663",
+    "IS1009d.2.600-1200": "759ac70cff7c64530bd32c3a4acd29a756b6d3a5315ed22f098f8078987a4836"
   }
 }

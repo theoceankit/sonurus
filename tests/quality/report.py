@@ -1,5 +1,6 @@
 """Report of a quality run: Markdown printed by pytest and saved with the raw
-results as JSON next to the set, in $SONORUS_EVAL_CACHE/reports/."""
+results as JSON next to the set, in $SONORUS_EVAL_CACHE/reports/, and the
+voices of every clip as .npz (scripts/eval/threshold_sweep.py reads them)."""
 import json
 import math
 import time
@@ -29,12 +30,16 @@ adds the three clips up; "Per clip" has one row per clip.
 """
 
 
-def add(result: dict, variant) -> None:
+def add(result: dict, variant, series: str | None = None) -> None:
     if not DEVICES:
         manifest = json.loads((Path(__file__).parent / "ami_manifest.json").read_text())
         DEVICES.update(manifest["devices"])
         DEVICES[manifest["uneven_quiet_speaker"]] += "; −20 dB in uneven"
-    ROWS.append({**result, "what": variant.what, "base": variant.base})
+    ROWS.append({**result, "what": variant.what, "base": variant.base, "series": series})
+
+
+def _name(r) -> str:
+    return f"{r['series']}: {r['variant']}" if r.get("series") else r["variant"]
 
 
 def note(text: str) -> None:
@@ -57,7 +62,7 @@ def markdown() -> str:
               "|---|---|---|---|---|---|---|---|---|"]
     for r in ROWS:
         lines.append(
-            f"| {r['variant']} | {r['base'] or '–'} | {_pct(r['wer'])} | {_pct(r['speaker_acc'])} "
+            f"| {_name(r)} | {r['base'] or '–'} | {_pct(r['wer'])} | {_pct(r['speaker_acc'])} "
             f"| {r['missed']} / {r['utterances']} | {r['missed_short']} / {r['short']} "
             f"| {r['recognised']} / {r['named_total']} "
             f"| {_num(r['similarity'])} / {_num(r['other_similarity'])} | {r['what']} |")
@@ -70,8 +75,21 @@ def markdown() -> str:
                   "| Variant | " + " | ".join(f"{s} ({DEVICES.get(s, '')})" for s in speakers) + " |",
                   "|---|" + "---|" * len(speakers)]
         for r in ROWS:
-            lines.append(f"| {r['variant']} | " + " | ".join(
+            lines.append(f"| {_name(r)} | " + " | ".join(
                 _pct(r["recall_by_speaker"].get(s)) for s in speakers) + " |")
+
+    if any(r.get("series") for r in ROWS):
+        lines += ["", "## Similarity by series", "",
+                  "Recognition over the clips that are not named; wrong also counts false matches in named clips "
+                  "(people of earlier clips already in memory). Own: each person's voice against their own "
+                  "profile, mean and lowest; other: the highest against anyone else's profile, mean and highest.",
+                  "", "| Series | Variant | Recognised | Wrong | Own mean / min | Other mean / max |",
+                  "|---|---|---|---|---|---|"]
+        for r in ROWS:
+            lines.append(
+                f"| {r['series']} | {r['variant']} | {r['recognised']} / {r['named_total']} | {r['wrong']} "
+                f"| {_num(r['similarity'])} / {_num(r['own_min'])} "
+                f"| {_num(r['other_similarity'])} / {_num(r['other_max'])} |")
 
     lines += ["", "## Per clip", "",
               "Three rows per variant, one per clip. In the first clip the speakers are named (no recognition "
@@ -83,9 +101,11 @@ def markdown() -> str:
               "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in ROWS:
         for c in r["clips"]:
-            rec = f"{c['recognised']} / {c['wrong']} / {c['new']}" if "recognised" in c else "named here"
+            rec = f"{c['recognised']} / {c['wrong']} / {c['new']}" if "recognised" in c else "–"
+            if c.get("named_here"):
+                rec += " (named here)" if "recognised" in c else "named here"
             lines.append(
-                f"| {r['variant']} | {c['clip']} | {c['language']} | {_pct(c['wer'])} "
+                f"| {_name(r)} | {c['clip']} | {c['language']} | {_pct(c['wer'])} "
                 f"| {c['sub']} / {c['del']} / {c['ins']} | {c['hyp_speakers']} / {c['ref_speakers']} "
                 f"| {_pct(c['speaker_acc'])} | {c['missed']} / {c['utterances']} "
                 f"| {', '.join(_num(v, 1) for v in c['missed_level']) or '–'} | {_num(c['found_level_median'], 1)} "
@@ -96,8 +116,13 @@ def markdown() -> str:
     for r in ROWS:
         for c in r["clips"]:
             for text, lvl in zip(c["missed_text"], c["missed_level"]):
-                lines.append(f"- {r['variant']}, {c['clip']} ({_num(lvl, 1)} dBFS): {text}")
+                lines.append(f"- {_name(r)}, {c['clip']} ({_num(lvl, 1)} dBFS): {text}")
     return "\n".join(lines) + "\n"
+
+
+def voices_key(series: str | None, variant: str, clip: str, field: str) -> str:
+    """Name of one array in the .npz: <series>|<variant>|<clip>|<field>."""
+    return f"{series or ''}|{variant}|{clip}|{field}"
 
 
 def write(text: str) -> Path:
@@ -106,7 +131,18 @@ def write(text: str) -> Path:
     out = set_dir().parent / "reports"
     out.mkdir(parents=True, exist_ok=True)
     stem = time.strftime("%Y-%m-%d-%H%M%S")
-    (out / f"{stem}.json").write_text(json.dumps({"notes": NOTES, "variants": ROWS}, indent=1, default=float))
+    arrays, rows = {}, []
+    for r in ROWS:
+        clips = []
+        for c in r["clips"]:
+            for field, a in c.get("_voices", {}).items():
+                arrays[voices_key(r.get("series"), r["variant"], c["clip"], field)] = a
+            clips.append({k: v for k, v in c.items() if not k.startswith("_")})
+        rows.append({**r, "clips": clips})
+    (out / f"{stem}.json").write_text(json.dumps({"notes": NOTES, "variants": rows}, indent=1, default=float))
+    if arrays:
+        import numpy as np
+        np.savez_compressed(out / f"{stem}.npz", **arrays)
     path = out / f"{stem}.md"
     path.write_text(text)
     return path

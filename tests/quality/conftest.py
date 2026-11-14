@@ -4,7 +4,8 @@
     SONORUS_QUALITY=1 .venv/bin/python -m pytest tests/quality -v -s
 
 Skipped unless SONORUS_QUALITY=1, when the ML libraries are the CI stubs, and
-when the set is not built. Models are read from SONORUS_MODELS_DIR (default:
+when the set is not built. The long set (test_length.py) runs instead with
+SONORUS_QUALITY_LONG=1. Models are read from SONORUS_MODELS_DIR (default:
 the dev app's ~/.config/sonorus-dev/.models); speaker memory and transcripts
 go to a temporary database, nothing of the user's data is touched.
 """
@@ -25,8 +26,13 @@ def models_dir() -> Path:
     return Path(os.getenv("SONORUS_MODELS_DIR", Path.home() / ".config" / "sonorus-dev" / ".models"))
 
 
-def _skip_reason() -> str | None:
-    if os.getenv("SONORUS_QUALITY") != "1":
+LONG = "test_length.py"
+
+
+def _skip_reason(long: bool) -> str | None:
+    if long and os.getenv("SONORUS_QUALITY_LONG") != "1":
+        return "the long quality set runs only with SONORUS_QUALITY_LONG=1"
+    if not long and os.getenv("SONORUS_QUALITY") != "1":
         return "quality tests run only with SONORUS_QUALITY=1"
     if isinstance(sys.modules.get("whisperx"), MagicMock):
         return "ML libraries are stubs (CI environment)"
@@ -39,15 +45,17 @@ def _skip_reason() -> str | None:
 
 
 def pytest_collection_modifyitems(config, items):
-    reason = None
+    reasons: dict[bool, str] = {}
     for item in items:
-        if HERE not in Path(item.fspath).parents:
+        path = Path(item.fspath)
+        if HERE not in path.parents:
             continue
         item.add_marker(pytest.mark.quality)
-        if reason is None:
-            reason = _skip_reason() or ""
-        if reason:
-            item.add_marker(pytest.mark.skip(reason=reason))
+        long = path.name == LONG
+        if long not in reasons:
+            reasons[long] = _skip_reason(long) or ""
+        if reasons[long]:
+            item.add_marker(pytest.mark.skip(reason=reasons[long]))
 
 
 def pytest_terminal_summary(terminalreporter):
