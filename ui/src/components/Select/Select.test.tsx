@@ -126,7 +126,7 @@ test('the field rings only for a key or while its list is open, not for any focu
   // The field box is the focused control itself here, not a box around a text input.
   expect(field().className).toMatch(/\bfield\b/)
   expect(fieldCss).not.toMatch(/\.field:focus-within \{/)
-  expect(fieldCss).toMatch(/\.field:focus-within:not\(:focus\) \{[^}]*box-shadow: inset 0 0 0 var\(--border-width-focus\) var\(--color-focus\)/)
+  expect(fieldCss).toMatch(/\.field:focus-within:where\(:not\(:focus\)\) \{[^}]*box-shadow: inset 0 0 0 var\(--border-width-focus\) var\(--color-focus\)/)
   expect(css).toMatch(/\.trigger:focus-visible \{[^}]*box-shadow: inset 0 0 0 var\(--border-width-focus\) var\(--color-focus\)/)
   expect(css).toMatch(/\.trigger\[data-state='open'\] \{[^}]*box-shadow: inset 0 0 0 var\(--border-width-focus\) var\(--color-focus\)/)
 })
