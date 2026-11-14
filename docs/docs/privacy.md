@@ -29,7 +29,7 @@ with the libraries' own switches:
 
 | Variable | Value | What it turns off |
 |---|---|---|
-| `PYANNOTE_METRICS_ENABLED` | `false` | pyannote.audio OpenTelemetry metrics (sent to `otel.pyannote.ai`: models and pipelines loaded, duration of processed files) |
+| `PYANNOTE_METRICS_ENABLED` | `false` | pyannote.audio OpenTelemetry telemetry (traces sent to `otel.pyannote.ai`: models and pipelines loaded, duration of processed files) |
 | `OTEL_SDK_DISABLED` | `true` | The OpenTelemetry SDK that pyannote.audio sets up at import — a no-op even if a pyannote release ignores its own switch |
 | `HF_HUB_DISABLE_TELEMETRY` | `1` | Hugging Face Hub and Transformers usage telemetry, model downloads included |
 | `DO_NOT_TRACK` | `1` | The cross-tool opt-out, honoured by `huggingface_hub` and others |

@@ -1,5 +1,5 @@
 """Sonorus sends no usage data to third parties: the telemetry of the libraries
-it runs (pyannote's OpenTelemetry metrics, Hugging Face) is switched off when
+it runs (pyannote's OpenTelemetry traces, Hugging Face) is switched off when
 the app package is imported, before any ML library, whatever the user's
 environment says."""
 import importlib.metadata
@@ -99,7 +99,7 @@ _HAS_REAL_PYANNOTE = _installed("pyannote.audio", "opentelemetry-sdk", "huggingf
 
 
 @pytest.mark.skipif(not _HAS_REAL_PYANNOTE, reason="needs the real pyannote.audio and OpenTelemetry (not in CI)")
-def test_pyannote_exports_no_metrics(tmp_path):
+def test_pyannote_exports_no_telemetry(tmp_path):
     code = (
         "import app\n"
         "import warnings; warnings.filterwarnings('ignore')\n"
@@ -108,7 +108,7 @@ def test_pyannote_exports_no_metrics(tmp_path):
         "m.exporter.export = lambda data, **kw: calls.append(data) or 0\n"
         "class P: _otel_origin = 'pyannote/speaker-diarization'; _otel_name = 'SpeakerDiarization'\n"
         "m.track_model_init(P()); m.track_pipeline_init(P())\n"
-        "m.reader.force_flush()\n"
+        "m.provider.force_flush()\n"
         "print(len(calls))\n"
     )
     assert _python(code, TELEMETRY_ON, tmp_path) == "0"

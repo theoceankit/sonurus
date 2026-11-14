@@ -9,7 +9,7 @@ keeps existing variables) can switch telemetry back on.
 import os
 
 THIRD_PARTY_TELEMETRY_OFF = {
-    # pyannote.audio 4 exports OpenTelemetry metrics to otel.pyannote.ai (models
+    # pyannote.audio 4 exports OpenTelemetry traces to otel.pyannote.ai (models
     # and pipelines loaded, duration of processed files). Read on every call;
     # pyannote sets it to "true" at import when it is missing.
     "PYANNOTE_METRICS_ENABLED": "false",

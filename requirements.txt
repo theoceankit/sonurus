@@ -4,10 +4,10 @@
 torch==2.8.0
 torchaudio==2.8.0
 
-whisperx==3.8.5
+whisperx==3.8.6
 faster-whisper==1.2.1
-ctranslate2==4.7.1
-pyannote-audio==4.0.4
+ctranslate2==4.8.5
+pyannote-audio==4.0.7
 pyannote-core==6.0.1
 pyannote-database==6.1.1
 pyannote-metrics==4.0.0

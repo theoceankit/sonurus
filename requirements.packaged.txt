@@ -3,10 +3,10 @@
 torch==2.8.0+cpu
 torchaudio==2.8.0+cpu
 
-whisperx==3.8.5
+whisperx==3.8.6
 faster-whisper==1.2.1
-ctranslate2==4.7.1
-pyannote-audio==4.0.4
+ctranslate2==4.8.5
+pyannote-audio==4.0.7
 pyannote-core==6.0.1
 pyannote-database==6.1.1
 pyannote-metrics==4.0.0
@@ -25,3 +25,8 @@ fastapi==0.136.1
 uvicorn[standard]==0.46.0
 python-dotenv==1.2.2
 httpx==0.28.1
+
+# Xet fallback of model downloads (app/services/model_service.py). huggingface-hub
+# requires it only where platform_machine is lowercase "amd64"/"x86_64", which
+# Windows ("AMD64") is not, so it is listed here for every platform.
+hf-xet==1.7.0
