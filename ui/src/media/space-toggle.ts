@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { openModalCount } from '../components/Modal/open-modals'
+import { isTextField, OVERLAY } from '../keys'
 import type { Playback } from './playback'
 
 export type SpaceKey = Pick<KeyboardEvent, 'key' | 'repeat' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'metaKey' | 'isComposing'>
@@ -8,9 +9,6 @@ export type SpaceKey = Pick<KeyboardEvent, 'key' | 'repeat' | 'ctrlKey' | 'altKe
 // at all; pass: the space does what it did before, untouched.
 export type SpaceAction = 'toggle' | 'swallow' | 'pass'
 
-// Inside these the space has its own job: a menu, a select list, a popover.
-const OVERLAY = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]'
-const NOT_TEXT = new Set(['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'])
 // What the space presses by itself.
 const PRESSED = [
   'button', 'summary', 'select', 'input[type="checkbox"]', 'input[type="radio"]', 'input[type="button"]',
@@ -18,12 +16,6 @@ const PRESSED = [
   ...['button', 'checkbox', 'switch', 'radio', 'tab', 'menuitem', 'menuitemcheckbox', 'menuitemradio', 'option', 'combobox']
     .map(role => `[role="${role}"]`),
 ].join(', ')
-
-const isTextField = (element: Element) =>
-  (element instanceof HTMLInputElement && !NOT_TEXT.has(element.type))
-  || element instanceof HTMLTextAreaElement
-  || (element instanceof HTMLElement && element.isContentEditable)
-  || element.closest('[contenteditable=""], [contenteditable="true"]') !== null
 
 export interface SpaceContext {
   // A modal window is open.
