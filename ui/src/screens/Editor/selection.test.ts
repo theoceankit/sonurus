@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { initialSelection, needsPick, selectionReducer, shownRecording, type Selection, type SelectionAction } from './selection'
+import { currentStep } from './history'
+import { canGoBack, canGoForward, initialSelection, needsPick, selectionReducer, shownRecording, type Selection, type SelectionAction } from './selection'
 
 const run = (state: Selection, ...actions: SelectionAction[]) => actions.reduce(selectionReducer, state)
 const open = (id: number): SelectionAction => ({ type: 'open', id })
@@ -8,11 +9,15 @@ const showJob = (id: string): SelectionAction => ({ type: 'showJob', id })
 const gone = (id: number): SelectionAction => ({ type: 'gone', id })
 const jobGone: SelectionAction = { type: 'jobGone' }
 const close: SelectionAction = { type: 'close' }
+const back: SelectionAction = { type: 'back' }
+const forward: SelectionAction = { type: 'forward' }
+// What the centre shows, without the history.
+const centre = ({ recordingId, jobId, closed }: Selection) => ({ recordingId, jobId, closed })
 
 describe('opening', () => {
   test('starts with nothing open, waiting for a pick', () => {
     const state = initialSelection()
-    expect(state).toEqual({ recordingId: null, jobId: null, closed: false })
+    expect(centre(state)).toEqual({ recordingId: null, jobId: null, closed: false })
     expect(needsPick(state)).toBe(true)
   })
 
@@ -27,7 +32,7 @@ describe('opening', () => {
 
   test('opening a recording takes the centre from a job', () => {
     const state = run(initialSelection(1), showJob('j'), open(2))
-    expect(state).toEqual({ recordingId: 2, jobId: null, closed: false })
+    expect(centre(state)).toEqual({ recordingId: 2, jobId: null, closed: false })
     expect(shownRecording(state)).toBe(2)
   })
 })
@@ -62,14 +67,14 @@ describe('a recording deleted', () => {
 describe('closing', () => {
   test('leaves nothing in the centre, and nothing is picked', () => {
     const state = run(initialSelection(1), close)
-    expect(state).toEqual({ recordingId: null, jobId: null, closed: true })
+    expect(centre(state)).toEqual({ recordingId: null, jobId: null, closed: true })
     expect(shownRecording(state)).toBeNull()
     expect(needsPick(state)).toBe(false)
     expect(run(state, pick(2))).toBe(state)
   })
 
   test('closes a job and the recording under it', () => {
-    expect(run(initialSelection(1), showJob('j'), close)).toEqual({ recordingId: null, jobId: null, closed: true })
+    expect(centre(run(initialSelection(1), showJob('j'), close))).toEqual({ recordingId: null, jobId: null, closed: true })
   })
 
   test('with nothing open changes nothing', () => {
@@ -79,19 +84,83 @@ describe('closing', () => {
 
   test('a delete or a job gone afterwards opens nothing', () => {
     const closed = run(initialSelection(1), close)
-    expect(run(closed, gone(1), gone(2), jobGone)).toBe(closed)
+    const after = run(closed, gone(1), gone(2), jobGone)
+    expect(centre(after)).toEqual(centre(closed))
+    expect(needsPick(after)).toBe(false)
   })
 
   test('the user opens a recording or a job again', () => {
     const closed = run(initialSelection(1), close)
-    expect(run(closed, open(2))).toEqual({ recordingId: 2, jobId: null, closed: false })
+    expect(centre(run(closed, open(2)))).toEqual({ recordingId: 2, jobId: null, closed: false })
   })
 
   test('a job shown afterwards goes back to nothing', () => {
     const job = run(initialSelection(1), close, showJob('j'))
     expect(job.jobId).toBe('j')
     const after = run(job, jobGone)
-    expect(after).toEqual({ recordingId: null, jobId: null, closed: true })
+    expect(centre(after)).toEqual({ recordingId: null, jobId: null, closed: true })
     expect(needsPick(after)).toBe(false)
+  })
+})
+
+describe('Back and Forward', () => {
+  test('go through the recordings opened, the first pick of the app the first step', () => {
+    const state = run(initialSelection(), pick(1), open(2), open(3))
+    expect(canGoForward(state)).toBe(false)
+    expect(run(state, back).recordingId).toBe(2)
+    expect(run(state, back, back).recordingId).toBe(1)
+    expect(canGoBack(run(state, back, back))).toBe(false)
+    expect(run(state, back, back, forward).recordingId).toBe(2)
+  })
+
+  test('with nowhere to go change nothing', () => {
+    const state = initialSelection(1)
+    expect(canGoBack(state)).toBe(false)
+    expect(canGoForward(state)).toBe(false)
+    expect(selectionReducer(state, back)).toBe(state)
+    expect(selectionReducer(state, forward)).toBe(state)
+  })
+
+  test('Back after a close opens the closed recording, Forward closes it again', () => {
+    const closed = run(initialSelection(1), open(2), close)
+    expect(centre(run(closed, back))).toEqual({ recordingId: 2, jobId: null, closed: false })
+    expect(centre(run(closed, back, forward))).toEqual({ recordingId: null, jobId: null, closed: true })
+  })
+
+  test('Back to nothing open picks nothing', () => {
+    const state = run(initialSelection(1), close, open(2), back)
+    expect(centre(state)).toEqual({ recordingId: null, jobId: null, closed: true })
+    expect(needsPick(state)).toBe(false)
+  })
+
+  test('a job of the queue is not a step: Back takes it away, Forward goes on from under it', () => {
+    const withJob = run(initialSelection(1), open(2), back, showJob('j'))
+    expect(canGoBack(withJob)).toBe(true)
+    expect(centre(run(withJob, back))).toEqual({ recordingId: 1, jobId: null, closed: false })
+    expect(centre(run(withJob, forward))).toEqual({ recordingId: 2, jobId: null, closed: false })
+    expect(run(withJob, back).history).toBe(withJob.history)
+  })
+
+  test('a job shown and gone leaves the history as it was', () => {
+    const state = run(initialSelection(1), open(2))
+    expect(run(state, showJob('j'), jobGone).history).toBe(state.history)
+  })
+
+  test('a recording deleted is skipped', () => {
+    const state = run(initialSelection(1), open(2), open(3), gone(2))
+    expect(run(state, back).recordingId).toBe(1)
+  })
+
+  test('the pick after the open one is deleted takes its place, with no step of its own', () => {
+    const state = run(initialSelection(1), open(2), open(3), gone(3), pick(4))
+    expect(state.recordingId).toBe(4)
+    expect(canGoForward(state)).toBe(false)
+    expect(run(state, back).recordingId).toBe(2)
+  })
+
+  test('the same recording opened again is no step', () => {
+    const state = run(initialSelection(1), open(2))
+    expect(run(state, open(2)).history).toBe(state.history)
+    expect(currentStep(state.history)).toBe(2)
   })
 })

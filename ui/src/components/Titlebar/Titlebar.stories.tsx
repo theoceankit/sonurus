@@ -13,6 +13,9 @@ export default meta
 type Story = StoryObj<typeof Titlebar>
 
 export const Default: Story = { decorators: frame() }
+// Back and Forward: off while there is nowhere to go, as at startup.
+export const CanGoBack: Story = { args: { canGoBack: true }, decorators: frame() }
+export const CanGoBackAndForward: Story = { args: { canGoBack: true, canGoForward: true }, decorators: frame() }
 export const SidebarClosed: Story = { args: { sidebarOpen: false }, decorators: frame() }
 // The pointer on a panel's button: the line of its icon moves the way the panel
 // will go. Towards the frame while the sidebar is open, away from it while closed.

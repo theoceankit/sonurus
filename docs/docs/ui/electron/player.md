@@ -47,7 +47,7 @@ The heights are the loudness of the audio: the `heights` prop, one per bar from 
 - The cursor over the waveform shows a second playhead in the hover look and lights up the turn under it; the real playhead stays where it is.
 - The clock on the left is the time played, the one on the right the time left, with no sign. Both count whole seconds, so they add up to the length. A recording of an hour or more keeps the hours in the time left to the end (`0:59:59`), so the clock does not change width and the waveform stays in place. The time left never goes below `00:00`, also when audio with no length plays on past the last segment. The slider reads out the time played of the whole length.
 - Pressing seeks, and dragging keeps seeking. While dragging, the only playhead is in the hover look.
-- The waveform is a `role="slider"`: the arrow keys move by 5 seconds, Home and End go to the ends.
+- The waveform is a `role="slider"`: the arrow keys move by 5 seconds, Home and End go to the ends; Alt with an arrow goes [back or forward](home.md#back-and-forward) instead.
 - Previous and next speaker go to the start of the neighbouring run of one speaker, and do nothing at the ends. A pause belongs to the run before it.
 - The speed button opens a list above it: 0.5, 1, 1.2, 1.5 and 2. The button has a fixed width, wider than on the board, so the waveform stays in place.
 - Volume 0 mutes and dims the button. There is no separate mute.
