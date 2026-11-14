@@ -108,7 +108,8 @@
   animation: spin var(--duration-spin) linear infinite, busy-show var(--delay-busy) step-end both;
 }
 
-/* What the button says stays in place, out of sight, under the spinner. */
+/* What the button says stays in place, out of sight, under the spinner. Only out of
+   sight: hidden with opacity, the label still names the button for a screen reader. */
 .busy {
   animation: busy-hide var(--delay-busy) step-end both;
 }
@@ -126,11 +127,11 @@
 
 @keyframes busy-hide {
   from {
-    visibility: visible;
+    opacity: 1;
   }
 
   to {
-    visibility: hidden;
+    opacity: 0;
   }
 }
 

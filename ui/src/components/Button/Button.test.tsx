@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
 import { expect, test, vi } from 'vitest'
 import { Button } from './Button'
+import css from './Button.module.css?raw'
 
 test('renders its label and does not submit forms by default', () => {
   render(<Button>Save</Button>)
@@ -51,6 +52,15 @@ test('while loading the icon and the label keep their place and the spinner take
   rerender(<Button icon="copy" loading>Copy</Button>)
   expect(container.querySelector('svg')).not.toBeNull()
   expect(getComputedStyle(container.querySelector('.spinner')!).position).toBe('absolute')
+})
+
+// jsdom runs no animations, so the end of busy-hide is checked in the source: with
+// visibility or display the label would leave the accessibility tree, and a busy
+// button would be read out with no name once the spinner shows.
+test('a busy button keeps its name: the label is hidden from sight only', () => {
+  const hide = css.match(/@keyframes busy-hide \{([\s\S]*?)\n\}/)![1]
+  expect(hide).toMatch(/opacity: 0/)
+  expect(hide).not.toMatch(/visibility|display/)
 })
 
 test('record shows the timer next to what a click does', () => {

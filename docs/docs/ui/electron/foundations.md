@@ -88,7 +88,7 @@ A column and a row. Spacing props accept only the steps of the scale: `'half'`, 
 
 Penpot's Type is the `variant` prop, because `type` on a button is the HTML attribute. Pairs that do not exist on the boards, such as an inverse button at medium size, are type errors. `Tabs`, `ColorPicker` and `Disclosure` are built on Radix Primitives, which bring the arrow keys and the tab order; `Tab` works only inside `Tabs`, `ColorSwatch` only inside a radio group. `Button`, `IconButton` and `MenuItem` pass on `ref` and other attributes, so Radix can wrap them with `asChild`.
 
-A `Button` with `loading` is busy at once: it ignores clicks and says so with `aria-busy`. What it shows changes only after 300 ms (`--delay-busy`), when a spinner takes the place of its icon and label, which stay under it out of sight. So a quick action ends with nothing changed, and a long one does not change the width of the button or move its neighbours.
+A `Button` with `loading` is busy at once: it ignores clicks and says so with `aria-busy`. What it shows changes only after 300 ms (`--delay-busy`), when a spinner takes the place of its icon and label, which stay under it out of sight but still name the button for a screen reader. So a quick action ends with nothing changed, and a long one does not change the width of the button or move its neighbours.
 
 ### States
 
