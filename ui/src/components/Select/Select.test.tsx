@@ -7,6 +7,7 @@ import { ModalBody } from '../ModalBody/ModalBody'
 import { ModalHeader } from '../ModalHeader/ModalHeader'
 import { Select, type SelectOption } from './Select'
 import css from './Select.module.css?raw'
+import fieldCss from '../../styles/field.module.css?raw'
 
 const OPTIONS: SelectOption[] = [
   { value: 'tiny', label: 'Whisper Tiny', meta: 'Not installed', disabled: true },
@@ -117,4 +118,15 @@ test('the list is as wide as the field and never taller than the room it has', (
   expect(css).toMatch(/\.list \{[^}]*width: var\(--radix-select-trigger-width\)/)
   expect(css).toMatch(/\.list \{[^}]*max-height: var\(--radix-select-content-available-height\)/)
   expect(css).toMatch(/\.list \{[^}]*overflow-y: auto/)
+})
+
+// jsdom does not work out :focus-visible: what is checked is the rules that draw the ring.
+test('the field rings only for a key or while its list is open, not for any focus', () => {
+  render(<Controlled />)
+  // The field box is the focused control itself here, not a box around a text input.
+  expect(field().className).toMatch(/\bfield\b/)
+  expect(fieldCss).not.toMatch(/\.field:focus-within \{/)
+  expect(fieldCss).toMatch(/\.field:focus-within:not\(:focus\) \{[^}]*box-shadow: inset 0 0 0 var\(--border-width-focus\) var\(--color-focus\)/)
+  expect(css).toMatch(/\.trigger:focus-visible \{[^}]*box-shadow: inset 0 0 0 var\(--border-width-focus\) var\(--color-focus\)/)
+  expect(css).toMatch(/\.trigger\[data-state='open'\] \{[^}]*box-shadow: inset 0 0 0 var\(--border-width-focus\) var\(--color-focus\)/)
 })
