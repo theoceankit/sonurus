@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { QUEUE_JOB, queueSnapshot } from '../../api/fixtures/data'
 import type { GpuStatus } from '../../api/types'
 import { Button } from '../../components/Button/Button'
+import { waitFor } from '../Editor/story-helpers'
 import { SettingsDialog, type SettingsDialogProps } from './SettingsDialog'
 import { SettingsProvider, useSettingsDialog } from './SettingsProvider'
 import type { SettingsSection } from './sections'
@@ -132,14 +133,7 @@ export const ApiKeys: Story = { args: { section: 'apiKeys' }, decorators: [withS
 export const ApiKeysTokenShown: Story = {
   args: { section: 'apiKeys' },
   decorators: [withSettings({ hfToken: 'hf_storybookExampleToken' })],
-  play: async () => {
-    let button: HTMLButtonElement | null = null
-    for (let i = 0; i < 50 && !button; i++) {
-      button = document.querySelector('button[aria-label="Show token"]')
-      if (!button) await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    button?.click()
-  },
+  play: async () => { (await waitFor(() => document.querySelector('button[aria-label="Show token"]'))).click() },
 }
 
 export const ApiKeysEmpty: Story = { args: { section: 'apiKeys' } }
