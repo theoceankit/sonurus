@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { ApiError } from '../../api/client'
-import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
+import { DESIGN_REVIEW_ID, QUEUE_JOB, queueSnapshot, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { effectiveSpeaker } from '../../api/types'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
@@ -658,5 +658,158 @@ describe('the recording open at startup', () => {
     setup({}, { scenario: 'empty' })
     await screen.findByText('No recordings yet')
     expect(within(screen.getByRole('main', { name: 'Transcript' })).queryByRole('heading', { level: 1 })).toBeNull()
+  })
+})
+
+describe('closing the open recording with Escape', () => {
+  const panel = () => screen.getByRole('main', { name: 'Transcript' })
+  const title = () => within(panel()).queryByRole('heading', { level: 1 })?.textContent ?? null
+  const emptyShown = () => within(panel()).queryByText(/To make a new transcription/) !== null
+  const play = () => within(screen.getByRole('region', { name: 'Player' })).getByRole('button', { name: 'Play' })
+  const open = async (options: FixtureOptions = {}) => {
+    atWidth(1200)
+    const view = setup({ initialSelectedId: WEEKLY_SYNC_ID }, options)
+    await within(panel()).findByRole('heading', { level: 1 })
+    return view
+  }
+  const escape = () => userEvent.keyboard('{Escape}')
+
+  test('leaves the empty state, with no row current and the inspector and player empty', async () => {
+    await open()
+    expect(sidebarRow(/Weekly product sync/).getAttribute('aria-current')).toBe('true')
+    await escape()
+    await waitFor(() => expect(emptyShown()).toBe(true))
+    expect(title()).toBeNull()
+    expect(sidebarRow(/Weekly product sync/).getAttribute('aria-current')).toBeNull()
+    expect(within(screen.getByRole('region', { name: 'Inspector' })).getByRole('tabpanel').textContent).toBe('')
+    expect(play().hasAttribute('disabled')).toBe(true)
+  })
+
+  test('with a modifier it closes nothing', async () => {
+    await open()
+    await userEvent.keyboard('{Shift>}{Escape}{/Shift}{Control>}{Escape}{/Control}')
+    expect(title()).toBe('Weekly product sync')
+  })
+
+  test('closes from a sidebar row reached from the keyboard, which keeps the focus', async () => {
+    await open()
+    sidebarRow(/Call with Mark/).focus()
+    await escape()
+    await waitFor(() => expect(emptyShown()).toBe(true))
+    expect(document.activeElement).toBe(sidebarRow(/Call with Mark/))
+  })
+
+  // Chromium shows the focus ring on any key, so the row clicked to open the
+  // recording would light up as Escape closes it.
+  test('the row clicked to open the recording lets go of the focus', async () => {
+    await open()
+    await userEvent.click(sidebarRow(/Design review/))
+    await waitFor(() => expect(title()).toBe('Design review'))
+    expect(document.activeElement).toBe(sidebarRow(/Design review/))
+    await escape()
+    await waitFor(() => expect(emptyShown()).toBe(true))
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  test('an open menu takes the first Escape, and the next one closes', async () => {
+    await open()
+    await userEvent.click((await screen.findAllByRole('button', { name: 'More' }))[0])
+    await screen.findByRole('menu')
+    await escape()
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+    expect(title()).toBe('Weekly product sync')
+    await escape()
+    await waitFor(() => expect(emptyShown()).toBe(true))
+  })
+
+  test('an open dialog takes Escape and the recording stays', async () => {
+    await open()
+    await userEvent.click((await screen.findAllByRole('button', { name: 'More' }))[0])
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete recording' }))
+    await screen.findByRole('alertdialog')
+    await escape()
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    expect(title()).toBe('Weekly product sync')
+  })
+
+  test('Escape in the rename field takes back the rename and the recording stays', async () => {
+    const updateTranscriptTitle = vi.fn(() => Promise.resolve())
+    await open({ overrides: { updateTranscriptTitle } })
+    fireEvent.contextMenu(sidebarRow(/Call with Mark/))
+    await userEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Rename' }))
+    const field = await screen.findByRole('textbox', { name: 'Recording title' })
+    await waitFor(() => expect(document.activeElement).toBe(field))
+    await userEvent.keyboard('Other')
+    await escape()
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Recording title' })).toBeNull())
+    expect(updateTranscriptTitle).not.toHaveBeenCalled()
+    expect(title()).toBe('Weekly product sync')
+  })
+
+  test('with nothing open, nothing opens by itself: not on a refresh, not after a delete', async () => {
+    atWidth(1200)
+    const client = createFixtureClient()
+    let queries: QueryClient | null = null
+    function Grab() {
+      queries = useQueryClient()
+      return null
+    }
+    render(<ApiProvider client={client}><OverlayProvider><Grab /><EditorScreen initialSelectedId={WEEKLY_SYNC_ID} /></OverlayProvider></ApiProvider>)
+    await within(panel()).findByRole('heading', { level: 1 })
+    await escape()
+    await waitFor(() => expect(emptyShown()).toBe(true))
+    await client.deleteTranscript(DESIGN_REVIEW_ID)
+    await act(async () => { await queries!.invalidateQueries({ queryKey: ['transcripts'] }) })
+    await waitFor(() => expect(within(screen.getByLabelText('Recordings')).queryByText('Design review')).toBeNull())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(emptyShown()).toBe(true)
+    expect(title()).toBeNull()
+  })
+
+  test('a click opens a recording again, and Escape closes it again', async () => {
+    await open()
+    await escape()
+    await waitFor(() => expect(emptyShown()).toBe(true))
+    await userEvent.click(sidebarRow(/Design review/))
+    await waitFor(() => expect(title()).toBe('Design review'))
+    expect(emptyShown()).toBe(false)
+    await escape()
+    await waitFor(() => expect(emptyShown()).toBe(true))
+  })
+
+  test('the recent ones stay as they were, so the next start opens the closed one', async () => {
+    const bridge = createMockElectronAPI()
+    await bridge.writeSettings({ ...await bridge.readSettings(), recentTranscriptIds: [WEEKLY_SYNC_ID, DESIGN_REVIEW_ID] })
+    vi.stubGlobal('electronAPI', bridge)
+    atWidth(1200)
+    const view = setup()
+    await waitFor(() => expect(title()).toBe('Weekly product sync'))
+    await escape()
+    await waitFor(() => expect(emptyShown()).toBe(true))
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect((await bridge.readSettings()).recentTranscriptIds).toEqual([WEEKLY_SYNC_ID, DESIGN_REVIEW_ID])
+    view.unmount()
+    setup()
+    await waitFor(() => expect(title()).toBe('Weekly product sync'))
+  })
+
+  test('a job of the queue in the centre closes too, and the recording under it with it', async () => {
+    atWidth(1200)
+    const client = createFixtureClient()
+    client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot({ jobs: [{ ...QUEUE_JOB, id: 'q', title: 'Queued call' }] }) }] })
+    await vi.waitFor(async () => expect((await client.getQueue()).jobs).toHaveLength(1))
+    function Synced() {
+      useQueueEventsSync()
+      return <EditorScreen initialSelectedId={WEEKLY_SYNC_ID} />
+    }
+    render(<ApiProvider client={client}><OverlayProvider><Synced /></OverlayProvider></ApiProvider>)
+    await within(panel()).findByRole('heading', { level: 1 })
+    const queue = await screen.findByRole('region', { name: 'Transcription queue' })
+    await userEvent.click(within(queue).getByRole('button', { name: /Queued call$/ }))
+    await waitFor(() => expect(within(queue).getByRole('button', { name: /Queued call$/ }).getAttribute('aria-current')).toBe('true'))
+    await escape()
+    await waitFor(() => expect(emptyShown()).toBe(true))
+    expect(within(queue).getByRole('button', { name: /Queued call$/ }).getAttribute('aria-current')).toBeNull()
+    expect(title()).toBeNull()
   })
 })

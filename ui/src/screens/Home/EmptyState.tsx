@@ -2,8 +2,9 @@ import { Icon } from '../../components/Icon/Icon'
 import { Stack } from '../../components/Stack/Stack'
 import styles from './EmptyState.module.css'
 
-// The centre of the window when there are no recordings at all. Not while the list
-// loads or the backend does not answer: the sidebar says so then.
+// The centre of the window when there are no recordings at all, or when the user
+// closed the open one with Escape. Not while the list loads or the backend does not
+// answer: the sidebar says so then.
 export function EmptyState({ onOpenSettings }: { onOpenSettings?: () => void }) {
   return (
     <div className={styles.emptyState}>

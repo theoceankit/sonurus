@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import { queryKeys, useSetOpened, useSpeakers, useTranscripts, useUpdateTranscriptTitle } from '../../api/queries'
 import { MenuAction, MenuDivider } from '../../components/Menu/Menu'
@@ -27,6 +27,8 @@ import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
 import { InspectorPanel } from './InspectorPanel'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
 import { goneFromList, groupRecordings, stackSpeakers } from './recordings'
+import { useEscapeClose } from './escape-close'
+import { initialSelection, needsPick, selectionReducer, shownRecording } from './selection'
 import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
 import { titleToSave } from './transcript'
 import { TranscriptPanel, type SpeakerMenuTarget } from './TranscriptPanel'
@@ -77,11 +79,14 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   const queries = useQueryClient()
   const transcripts = useTranscripts()
   const speakers = useSpeakers()
-  const [selectedId, setSelectedId] = useState(initialSelectedId)
-  // A job picked in the queue takes the centre; the recording comes back when it goes.
-  const [jobId, setJobId] = useState<string | null>(null)
-  const shownId = jobId === null ? selectedId : null
-  const clearJob = useCallback(() => setJobId(null), [])
+  const [selection, select] = useReducer(selectionReducer, initialSelectedId, initialSelection)
+  const { recordingId: selectedId, jobId } = selection
+  const shownId = shownRecording(selection)
+  const clearJob = useCallback(() => select({ type: 'jobGone' }), [])
+  const openRecording = useCallback((id: number) => select({ type: 'open', id }), [])
+  const showJob = useCallback((id: string) => select({ type: 'showJob', id }), [])
+  // Escape closes the recording or the job in the centre, and the sound stops with it.
+  useEscapeClose(() => select({ type: 'close' }), selectedId !== null || jobId !== null)
   const recent = useRecentRecordings()
   const newTranscription = useNewTranscription()
   const settingsDialog = useSettingsDialog()
@@ -143,24 +148,23 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
     if (goneFromList(selectedId, listedIds.current, ids)) {
       queries.removeQueries({ queryKey: queryKeys.transcript(selectedId!) })
       queries.removeQueries({ queryKey: ['waveform', selectedId] })
-      setSelectedId(null)
+      select({ type: 'gone', id: selectedId! })
     }
     listedIds.current = ids
   }, [transcripts.data, selectedId, queries])
 
-  // With recordings there is always one open: at startup and after the open one is
-  // deleted, the last one opened that is left.
+  // With recordings there is always one open unless the user closed it: at startup
+  // and after the open one is deleted, the last one opened that is left.
+  const pickNeeded = needsPick(selection)
   useEffect(() => {
-    if (selectedId !== null || !transcripts.data || recent.ids === null) return
+    if (!pickNeeded || !transcripts.data || recent.ids === null) return
     const next = pickRecording(transcripts.data, recent.ids)
-    if (next !== null) setSelectedId(next)
-  }, [selectedId, transcripts.data, recent.ids])
+    if (next !== null) select({ type: 'pick', id: next })
+  }, [pickNeeded, transcripts.data, recent.ids])
 
   useEffect(() => {
-    if (!openRequest) return
-    setJobId(null)
-    setSelectedId(openRequest.id)
-  }, [openRequest])
+    if (openRequest) openRecording(openRequest.id)
+  }, [openRequest, openRecording])
 
   const { remember, prune } = recent
   useEffect(() => {
@@ -238,14 +242,15 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   // Moving a panel asks nothing new of the transcript, and on a long recording it is the
   // most expensive thing to render.
   // Only an answer with no recordings is empty: loading and failing are the sidebar's to say.
-  const noRecordings = transcripts.data?.length === 0
+  // A recording closed by the user leaves the same: how to make a new one.
+  const empty = transcripts.data?.length === 0 || selection.closed
   const center = useMemo(
     () => transcript ?? (jobId !== null
       ? <QueueJobPanel jobId={jobId} onGone={clearJob} />
-      : noRecordings
+      : empty
         ? <EmptyState onOpenSettings={() => settingsDialog.open('models')} />
         : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />),
-    [transcript, jobId, clearJob, noRecordings, selectedId, playback, highlight, showAllSpeakers, settingsDialog],
+    [transcript, jobId, clearJob, empty, selectedId, playback, highlight, showAllSpeakers, settingsDialog],
   )
 
   // A refresh that fails leaves what was loaded on the screen.
@@ -274,14 +279,11 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
               state={failed ? 'error' : ready ? 'ready' : 'loading'}
               sections={sections}
               selectedId={shownId}
-              onSelect={id => {
-                setJobId(null)
-                setSelectedId(id)
-              }}
+              onSelect={openRecording}
               rowMenu={rowMenu}
               renamingId={renamingId}
               onRenameDone={renameDone}
-              top={<><LiveRecordingSection /><QueueSection selectedJobId={jobId} onSelectJob={setJobId} /></>}
+              top={<><LiveRecordingSection /><QueueSection selectedJobId={jobId} onSelectJob={showJob} /></>}
               onRetry={() => {
                 if (transcripts.isError) transcripts.refetch()
                 if (speakers.isError) speakers.refetch()
@@ -326,10 +328,7 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
           playback={playback}
           onClose={() => setSpeakersOpen(false)}
           onExited={speakersWindow.exited}
-          onOpenRecording={id => {
-            setJobId(null)
-            setSelectedId(id)
-          }}
+          onOpenRecording={openRecording}
         />
       )}
       {deleteDialog.value && (
@@ -338,7 +337,7 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
           recording={deleteDialog.value}
           open={deleteDialog.open}
           // Another recording than the open one leaves it open.
-          onDeleted={() => setSelectedId(current => (current === deleteDialog.value!.id ? null : current))}
+          onDeleted={() => select({ type: 'gone', id: deleteDialog.value!.id })}
           onClose={() => setToDelete(null)}
           onExited={deleteDialog.exited}
         />
