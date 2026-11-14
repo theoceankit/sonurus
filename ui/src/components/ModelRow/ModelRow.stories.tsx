@@ -32,6 +32,6 @@ export const FailedLongError: Story = {
   args: { state: 'failed', error: "Your HuggingFace token has no access to this model. Accept the model's terms in your HuggingFace account and try again, or check the token in API Keys." },
 }
 export const FailedWithoutReason: Story = { args: { state: 'failed' } }
-export const Diarization: Story = { args: { icon: 'diarization-model', name: 'Pyannote Community 1', meta: ['130 MB'], state: 'installed', onUse: undefined } }
+export const Diarization: Story = { args: { icon: 'diarization-model', name: 'Pyannote Community 1', meta: ['34 MB'], state: 'installed', onUse: undefined } }
 export const Alignment: Story = { args: { icon: 'alignment', name: 'Czech', meta: ['~1.3 GB'], onUse: undefined } }
 

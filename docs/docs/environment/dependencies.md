@@ -15,17 +15,19 @@ All models are downloaded via HuggingFace Hub and cached in `~/.cache/huggingfac
 | Model | HuggingFace ID | Size | License | Access |
 |---|---|---|---|---|
 | Whisper large-v3 (CTranslate2) | `Systran/faster-whisper-large-v3` | ~3.1 GB | MIT | Public |
-| Speaker Diarization | `pyannote/speaker-diarization-community-1` | ~100 MB | MIT | **Gated** — requires HF_TOKEN |
-| Speaker Embedding | `pyannote/embedding` | ~70 MB | MIT | **Gated** — requires HF_TOKEN |
+| Speaker Diarization | `pyannote/speaker-diarization-community-1` | ~34 MB | CC-BY-4.0 | **Gated** — requires HF_TOKEN |
+| Speaker Embedding (speaker memory) | `embedding` subfolder of `pyannote/speaker-diarization-community-1` — WeSpeaker ResNet34-LM | (included above) | CC-BY-4.0 | Comes with diarization |
 | Voice Activity Detection | `pyannote/segmentation` | ~20 MB | MIT | **Gated** — requires HF_TOKEN |
 | Alignment EN (torchaudio) | `WAV2VEC2_ASR_BASE_960H` | ~360 MB | MIT | Public (torchaudio) |
 | Alignment RU | `jonatasgrosman/wav2vec2-large-xlsr-53-russian` | ~1.2 GB | Apache 2.0 | Public |
+
+> The speaker embedding model is WeSpeaker ResNet34-LM trained on VoxCeleb: H. Wang, C. Liang, S. Wang, Z. Chen, B. Zhang, X. Xiang, Y. Deng, Y. Qian, "Wespeaker: A research and production oriented speaker embedding learning toolkit", ICASSP 2023. Its weights follow the VoxCeleb licence, CC-BY-4.0. The app does not ship any model weights: they are downloaded from HuggingFace with the user's token.
 
 > Alignment models are loaded dynamically based on the detected audio language. Full language list: `whisperx/alignment.py` → `DEFAULT_ALIGN_MODELS_HF`.
 
 ### Gated PyAnnote Models
 
-The three PyAnnote models require:
+The gated PyAnnote models require:
 1. A registered account at [huggingface.co](https://huggingface.co)
 2. Accepting the terms of use on each model's page
 3. A valid `HF_TOKEN` in `.env`

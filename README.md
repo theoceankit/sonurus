@@ -88,10 +88,9 @@ npm run build:capture
 
 ### 4. HuggingFace access
 
-Accept the terms of use on each gated PyAnnote model page ("Agree and access repository"):
+Accept the terms of use on the gated PyAnnote model page ("Agree and access repository"):
 
 - [pyannote/speaker-diarization-community-1](https://hf.co/pyannote/speaker-diarization-community-1)
-- [pyannote/embedding](https://hf.co/pyannote/embedding)
 
 Then create a read token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
 and enter it in the app under **Settings → API Keys**.
