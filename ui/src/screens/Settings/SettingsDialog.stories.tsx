@@ -128,6 +128,20 @@ export const GpuDevelopmentBuild: Story = gpuStory({ blocked_reason: 'not_packag
 
 export const ApiKeys: Story = { args: { section: 'apiKeys' }, decorators: [withSettings({ hfToken: 'hf_storybookExampleToken' })] }
 
+// The token shown: the eye button has been clicked, and its eye is open.
+export const ApiKeysTokenShown: Story = {
+  args: { section: 'apiKeys' },
+  decorators: [withSettings({ hfToken: 'hf_storybookExampleToken' })],
+  play: async () => {
+    let button: HTMLButtonElement | null = null
+    for (let i = 0; i < 50 && !button; i++) {
+      button = document.querySelector('button[aria-label="Show token"]')
+      if (!button) await new Promise(resolve => setTimeout(resolve, 50))
+    }
+    button?.click()
+  },
+}
+
 export const ApiKeysEmpty: Story = { args: { section: 'apiKeys' } }
 
 export const Export: Story = { args: { section: 'export' } }
