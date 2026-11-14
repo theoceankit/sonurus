@@ -382,6 +382,7 @@ The player also keeps unknown speakers grey on the waveform and its speed button
 - Secondary actions of a row, such as Play and Assign on a speaker, appear on hover and focus of that row. A gap between hover targets is covered by a hit area, not by a timer, so the highlight does not drop between rows.
 - Delays and durations in scripts come from the tokens through `ui/src/styles/motion.ts`, never as literals. A highlight under the pointer waits `--delay-hover`, the next one comes at once.
 - Neighbouring controls with tooltips share one tooltip through `TooltipGroup`; a `Toolbar` always is one.
+- A control at the top edge of a window or a panel, as in the title bar, the transcript header or the inspector, shows its tooltip below it (`placement="below"`); the default is above.
 - A scroll area shows its own `ScrollBar`; system scrollbars are off.
 - A delete prompt has no icon; a danger modal starts on Cancel.
 - Content stays where it is when something about it changes: a paragraph does not move when its speaker changes, and widths of clocks and counters do not change while they count.
