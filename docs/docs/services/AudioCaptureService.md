@@ -198,7 +198,7 @@ npm run build:capture:win
 # produces: electron/resources/win/sonorus-capture.exe
 ```
 
-`scripts/build-capture-win.js` uses MSVC on Windows (`cl` from a Developer prompt, or found with `vswhere`; `/MT`, so the helper needs no VC++ runtime) and mingw-w64 elsewhere (`x86_64-w64-mingw32-g++ -static`; Arch: `mingw-w64-gcc`, Debian/Ubuntu: `g++-mingw-w64-x86-64`). `npm run build:win` and the CI Windows build run it first; the CI test job compiles it with mingw-w64 on every push (it cannot run there). The binary is gitignored.
+`scripts/build-capture-win.js` uses MSVC on Windows (`cl` from a Developer prompt, or found with `vswhere`; `/MT`, so the helper needs no VC++ runtime) and mingw-w64 elsewhere (`x86_64-w64-mingw32-g++ -static`; Arch: `mingw-w64-gcc`, Debian/Ubuntu: `g++-mingw-w64-x86-64`). `npm run build:win` and the CI Windows build run it first. Like the macOS helper, it is compiled only by release builds, not by the test job. The binary is gitignored.
 
 ---
 
