@@ -8,7 +8,7 @@ import uuid
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-from app.config import SPEAKER_SIMILARITY_THRESHOLD
+from app.config import EMBEDDING_MODEL_ID, SPEAKER_SIMILARITY_THRESHOLD
 from app.logger import get_logger
 from app.services.speaker_handle import (
     DEFAULT_FORMAT, HANDLE_FORMATS, base_handle, is_valid_handle, normalize_handle, unique_handle,
@@ -113,6 +113,36 @@ class SpeakerRepository:
 
             # After m001, which may name legacy speakers.
             self._assign_missing_handles(conn)
+
+            self._reset_voices_of_another_model(conn)
+
+    @staticmethod
+    def _reset_voices_of_another_model(conn):
+        """Voices of another embedding model cannot be compared with this one's:
+        drop every segment embedding and voice profile computed by it. Names,
+        handles, colours and the speaker of every segment stay. Not a schema
+        change: the model is a value in _meta, so no schema version is taken."""
+        row = conn.execute("SELECT value FROM _meta WHERE key='embedding_model'").fetchone()
+        if row is not None and row[0] == EMBEDDING_MODEL_ID:
+            return
+        # Speaker memory may open a database before the transcript schema has
+        # created the segments table or its embedding column.
+        seg_cols = {r[1] for r in conn.execute("PRAGMA table_info(segments)")}
+        segments = 0
+        if "embedding" in seg_cols:
+            segments = conn.execute(
+                "UPDATE segments SET embedding = NULL WHERE embedding IS NOT NULL"
+            ).rowcount
+        profiles = conn.execute("DELETE FROM speaker_embeddings").rowcount
+        conn.execute(
+            "INSERT OR REPLACE INTO _meta (key, value) VALUES ('embedding_model', ?)",
+            (EMBEDDING_MODEL_ID,),
+        )
+        if segments or profiles:
+            log.info(
+                f"Embedding model is now {EMBEDDING_MODEL_ID}: dropped {profiles} voice profiles "
+                f"and {segments} segment embeddings of the previous one"
+            )
 
     @staticmethod
     def _detect_legacy_version(conn) -> int:

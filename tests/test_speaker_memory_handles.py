@@ -252,7 +252,8 @@ def _make_v3_db(db_path: str) -> None:
     with sqlite3.connect(db_path) as conn:
         conn.executescript("""
             CREATE TABLE _meta (key TEXT PRIMARY KEY, value TEXT);
-            INSERT INTO _meta VALUES ('schema_version', '3'), ('m001_uuid_speakers', 'done');
+            INSERT INTO _meta VALUES ('schema_version', '3'), ('m001_uuid_speakers', 'done'),
+                                     ('embedding_model', 'wespeaker-resnet34-lm');
             CREATE TABLE speaker_embeddings (id TEXT PRIMARY KEY, embedding BLOB NOT NULL, count INTEGER NOT NULL DEFAULT 1);
             CREATE TABLE speaker_names (id INTEGER PRIMARY KEY AUTOINCREMENT, speaker_id TEXT NOT NULL, label TEXT NOT NULL, name TEXT NOT NULL);
             CREATE TABLE speaker_meta (speaker_id TEXT PRIMARY KEY, color_index INTEGER NOT NULL DEFAULT 0);

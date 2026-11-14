@@ -138,7 +138,8 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 | `test_speaker_candidates.py` | `rank_candidates()` and `voice_centroid()`: order, limit, rounding, negative similarity, the suggestion threshold |
 | `test_waveform.py` | Waveform levels: `bar_levels()` (scale of the loud part of the recording, mean power, silence and past the end of the audio, clips, bars narrower than a window), the `.levels` cache next to the audio (computed once, also with two requests at once, a broken cache computed again, none on failure, none for audio outside `recordings/`), `compute_levels()` with the real ffmpeg (skipped without it) and without one |
 | `test_voice_sample.py` | `pick_voice_sample()`: closest to the voice profile, longest fallback, ≥ 2 s preference, missing audio files skipped |
-| `test_embedding_service.py` | `EmbeddingService.extract_all()` single-pass invariant |
+| `test_embedding_service.py` | `EmbeddingService.extract_all()` single-pass invariant, the model it loads (WeSpeaker from community-1) |
+| `test_embedding_model_reset.py` | Voices of another embedding model are dropped on start; names, handles, colours and segment speakers stay; the model mark in `_meta` |
 | `test_version.py` | `get_version()`: `SONORUS_VERSION` wins over `package.json`, blank env ignored, missing / broken / version-less `package.json` → `unknown`, the repo's `package.json` by default; OpenAPI `info.version` is the product version |
 | `test_testing_docs.py` | This page: every test file has exactly one row in the coverage table, no row for a missing file, no test-count column |
 | `tests/electron/app-version.test.js` | The main process answers `get-app-version`, preload exposes `getAppVersion`, the backend gets `SONORUS_VERSION` |

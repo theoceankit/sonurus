@@ -6,6 +6,8 @@ sidebar_position: 1
 
 `EmbeddingService` extracts speaker embeddings from audio using diarization output.
 
+The model is WeSpeaker ResNet34-LM (256 values per embedding) — the embedding model of the diarization pipeline itself, read from the `embedding` subfolder of `pyannote/speaker-diarization-community-1`, which the diarization download already brings. No other repo is needed and nothing is fetched at run time (`config.EMBEDDING_REPO`, `EMBEDDING_SUBFOLDER`).
+
 Converts speech segments into voice vector representations (`np.array`) used for:
 - matching speakers within a session
 - comparing voices across sessions
@@ -22,7 +24,7 @@ The service provides two embedding representations:
 | Aggregated (per `SPEAKER_XX`) | `extract_all()` | `SpeakerMemoryService.resolve()` |
 | Per-segment (per diarization span) | `extract_all()` | `TranscriptBuilder.attach_embeddings()` |
 
-`extract_all()` is the only public method — a single pyannote pass returns both representations. A diarization speaker whose spans are all shorter than `min_duration` gets no aggregated embedding; `TranscriptBuilder` then gives it a new UUID without a voice profile.
+`extract_all()` is the only public method — a single pass of the model returns both representations. A diarization speaker whose spans are all shorter than `min_duration` gets no aggregated embedding; `TranscriptBuilder` then gives it a new UUID without a voice profile.
 
 ---
 
@@ -56,7 +58,7 @@ diarize_segments — DataFrame: start | end | speaker
 
 ### `__init__(device, sample_rate=EMBEDDING_SAMPLE_RATE, min_duration=EMBEDDING_MIN_DURATION, models_dir=MODELS_DIR)`
 
-Initialises the service and loads the `pyannote/embedding` model from `models_dir`.
+Initialises the service and loads WeSpeaker ResNet34-LM with `Model.from_pretrained(EMBEDDING_REPO, subfolder="embedding", cache_dir=models_dir / "hf")`, wrapped in `Inference(window="whole")`: one embedding per audio slice. A model that cannot be loaded raises `RuntimeError`.
 
 **Parameters:**
 - `device` — torch device (`cuda` / `cpu`)
@@ -67,7 +69,7 @@ Initialises the service and loads the `pyannote/embedding` model from `models_di
 
 ### `extract_all(audio, diarize_segments)`
 
-Primary method. Single pyannote pass — returns both representations.
+Primary method. Single pass of the model — returns both representations.
 
 ```python
 aggregated, segments = embedding_service.extract_all(audio, diarization)
@@ -102,7 +104,7 @@ Converts a per-segment list into an aggregated dict:
 
 ### `_get_embedding(audio, start, end)`
 
-Low-level method. Slices the audio chunk, converts to `torch.Tensor` of shape `(1, time)`, and passes it to `pyannote.Inference`.
+Low-level method. Slices the audio chunk, converts to `torch.Tensor` of shape `(1, time)`, and passes it to the model's `pyannote.audio.Inference`.
 
 Returns `None` if `len(chunk) < sample_rate` — the model requires at least ~1 second of data (shorter input can cause `max_pool1d()` errors).
 
@@ -126,6 +128,12 @@ Recommended values:
 - `0.5` — more data, but noisier embeddings
 - `1.0` — balanced (default)
 - `2.0` — only high-confidence segments
+
+---
+
+## Changing the model
+
+Embeddings of different models cannot be compared (they do not even have the same length: the previous model, `pyannote/embedding`, gave 512 values). The database therefore records which model computed its voices, as `_meta.embedding_model` = `config.EMBEDDING_MODEL_ID`. When `SpeakerMemoryService` opens a database without that mark or with another model in it, it drops every segment embedding and every voice profile and writes the mark; names, handles, colours and the speaker of every segment stay (see [SpeakerMemoryService](SpeakerMemoryService.md) → `_init_db`). Recognition then starts over from new recordings. A new model needs a new `EMBEDDING_MODEL_ID`.
 
 ---
 
