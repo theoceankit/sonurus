@@ -3,7 +3,7 @@
 // Windows captures system audio with the bundled WASAPI loopback helper
 // (native/windows/sonorus-capture). It is built before packaging, shipped as
 // resources/win/sonorus-capture.exe and handed to the backend like the macOS
-// helper. CI cannot run it, so the Linux test job at least compiles it.
+// helper. Like the macOS helper, it is compiled only by the release build.
 
 const test   = require('node:test')
 const assert = require('node:assert/strict')
@@ -31,7 +31,7 @@ test('npm run build:win builds the helper first', () => {
   assert.ok(pkg.scripts['build:win'].startsWith('npm run build:capture:win && '))
 })
 
-test('CI builds the helper before packaging Windows and compiles it in the test job', () => {
+test('CI builds the helper only before packaging Windows, not in the test job', () => {
   const build = read('.github/workflows/build.yml')
   const win = build.slice(build.indexOf('build-win:'))
   const helper = win.indexOf('npm run build:capture:win')
@@ -39,8 +39,7 @@ test('CI builds the helper before packaging Windows and compiles it in the test 
   assert.ok(helper < win.indexOf('electron-builder --win'), 'helper must be built before electron-builder')
 
   const tests = read('.github/workflows/tests.yml')
-  assert.ok(tests.includes('mingw-w64'), 'tests.yml does not install mingw-w64')
-  assert.ok(tests.includes('build:capture:win'), 'tests.yml does not compile the helper')
+  assert.ok(!tests.includes('build:capture'), 'tests.yml compiles a capture helper; it is built only for releases')
 })
 
 test('MSVC build links the C runtime statically (no VC++ runtime needed)', () => {
