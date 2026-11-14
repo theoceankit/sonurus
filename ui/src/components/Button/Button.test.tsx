@@ -42,11 +42,15 @@ test('a loading button stays focusable, says it is busy and ignores clicks', () 
   expect(onClick).not.toHaveBeenCalled()
 })
 
-test('the spinner replaces the icon while loading', () => {
-  const { container, rerender } = render(<Button icon="copy">Copy</Button>)
-  expect(container.querySelector('svg')).not.toBeNull()
+test('while loading the icon and the label keep their place and the spinner takes none, so the width stays', () => {
+  const { container, rerender } = render(<Button loading>Import</Button>)
+  const spinner = container.querySelector('.spinner')!
+  expect(getComputedStyle(spinner).position).toBe('absolute')
+  expect(screen.getByRole('button').textContent).toBe('Import')
+
   rerender(<Button icon="copy" loading>Copy</Button>)
-  expect(container.querySelector('svg')).toBeNull()
+  expect(container.querySelector('svg')).not.toBeNull()
+  expect(getComputedStyle(container.querySelector('.spinner')!).position).toBe('absolute')
 })
 
 test('record shows the timer next to what a click does', () => {
