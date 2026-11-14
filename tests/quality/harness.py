@@ -196,15 +196,18 @@ def evaluate(pipeline: Pipeline, variant: Variant, work: Path) -> dict:
             # Similarity of each person's voice here to their own profile and,
             # for comparison, the highest one to someone else's profile.
             profiles = {n: memory.known_speakers[i] for n, i in named.items() if i in memory.known_speakers}
-            own, other = [], []
+            own, other, scores = [], [], {}
             for ref_name, emb in _speaker_embeddings(transcript, hyp_to_ref).items():
                 if ref_name in profiles:
                     own.append(metrics.cosine(emb, profiles[ref_name]))
                     other.append(max((metrics.cosine(emb, p) for n, p in profiles.items() if n != ref_name),
                                      default=float("nan")))
+                    scores[ref_name] = {"own": own[-1], "other": other[-1]}
+            # scores: per person, for choosing thresholds from the JSON later.
             row.update(recognised=rec.correct, wrong=rec.wrong, new=rec.new,
                        similarity=float(np.mean(own)) if own else float("nan"),
-                       other_similarity=float(np.nanmean(other)) if other else float("nan"))
+                       other_similarity=float(np.nanmean(other)) if other else float("nan"),
+                       scores=scores)
             # as the queue does after every job
             CommitService(memory, storage).commit_recognized_speakers(transcript)
         clips.append(row)

@@ -145,21 +145,21 @@ def test_get_total_bytes_falls_back_to_catalog_on_api_error(tmp_path):
     assert total == WHISPER_CATALOG["small"]["size_bytes"]
 
 
-def test_get_total_bytes_diarize_sums_both_repos(tmp_path):
+def test_get_total_bytes_diarize_sums_the_repo_files(tmp_path):
     svc = _make_service(tmp_path)
-    repos = DIARIZATION_CATALOG["diarize"]["hf_repos"]
 
-    info_a = MagicMock()
-    info_a.siblings = [_make_sibling("config.yaml", 1_000), _make_sibling("pytorch_model.bin", 50_000_000)]
-    info_b = MagicMock()
-    info_b.siblings = [_make_sibling("pytorch_model.bin", 60_000_000)]
+    info = MagicMock()
+    info.siblings = [
+        _make_sibling("config.yaml", 1_000),
+        _make_sibling("segmentation/pytorch_model.bin", 6_000_000),
+        _make_sibling("embedding/pytorch_model.bin", 27_000_000),
+    ]
 
-    call_results = [info_a, info_b]
-
-    with patch("app.services.model_service.huggingface_hub.model_info", side_effect=call_results):
+    with patch("app.services.model_service.huggingface_hub.model_info", return_value=info) as model_info:
         total = svc._get_total_bytes("diarize")
 
-    assert total == 1_000 + 50_000_000 + 60_000_000
+    assert total == 1_000 + 6_000_000 + 27_000_000
+    assert [c.args[0] for c in model_info.call_args_list] == ["pyannote/speaker-diarization-community-1"]
 
 
 def test_get_total_bytes_diarize_falls_back_to_catalog_on_error(tmp_path):

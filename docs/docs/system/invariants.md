@@ -29,6 +29,7 @@ Permitted exceptions that do not write embeddings:
 - `SpeakerMemoryService.remove_speaker()` — deletes a speaker (embedding, names, color) from memory and DB. Called only through `CommitService`: `recompute_or_remove()` drops unnamed speakers left without segments, and `delete_speaker()` (`DELETE /speakers/{id}`) first unassigns the speaker's segments so nothing can recompute the profile back.
 - `SpeakerMemoryService.remove_embedding()` — forgets a speaker's voice and keeps the name and color. Called only through `CommitService.undo_assignment()`, for a named speaker left with no segments to compute a voice from, so that an undone voice does not stay as their profile.
 - `SpeakerMemoryService.clear()` — deletes every speaker (embeddings, names, colors, handles) and drops the in-memory state. Called only from `POST /data/reset` (full data reset), which runs `TranscriptStorageService.clear()` first, so no segments remain to recompute from.
+- The embedding-model reset in `SpeakerMemoryService._init_db()` — when the database's voices were computed by another embedding model (`_meta.embedding_model`), deletes every `speaker_embeddings` row together with every `segments.embedding`, so no segments remain to recompute from either. Names, colours and handles stay.
 
 **Why:** Centralising embedding writes to `CommitService` makes it possible to reason about when and why voice profiles change. Name management and cleanup are deliberately separated from embedding updates.
 

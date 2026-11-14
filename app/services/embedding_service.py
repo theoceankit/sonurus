@@ -4,7 +4,9 @@ from collections import defaultdict
 from pathlib import Path
 from pyannote.audio import Model, Inference
 
-from app.config import MODELS_DIR, EMBEDDING_SAMPLE_RATE, EMBEDDING_MIN_DURATION
+from app.config import (
+    MODELS_DIR, EMBEDDING_REPO, EMBEDDING_SUBFOLDER, EMBEDDING_SAMPLE_RATE, EMBEDDING_MIN_DURATION,
+)
 from app.logger import get_logger
 
 log = get_logger("EmbeddingService")
@@ -17,20 +19,20 @@ class EmbeddingService:
         self.sample_rate = sample_rate
         self.min_duration = min_duration
 
-        log.info(f"Loading pyannote embedding model (device={device})")
+        log.info(f"Loading WeSpeaker embedding model (device={device})")
         try:
             model = Model.from_pretrained(
-                "pyannote/embedding",
-                strict=False,
+                EMBEDDING_REPO,
+                subfolder=EMBEDDING_SUBFOLDER,
                 cache_dir=str(models_dir / "hf"),
             )
             self.inference = Inference(model, window="whole")
             self.inference.to(torch.device(device))
         except (OSError, RuntimeError) as exc:
-            raise RuntimeError(f"Failed to load PyAnnote embedding model: {exc}") from exc
+            raise RuntimeError(f"Failed to load the speaker embedding model: {exc}") from exc
 
     def extract_all(self, audio, diarize_segments):
-        """Returns (aggregated_dict, segments_list) in a single pyannote pass."""
+        """Returns (aggregated_dict, segments_list) in a single pass of the model."""
         segments = self._extract_segments(audio, diarize_segments)
         aggregated = self._aggregate_from_segments(segments)
         log.info(f"Extracted embeddings — {len(aggregated)} speakers, {len(segments)} segments")
@@ -68,7 +70,7 @@ class EmbeddingService:
         return self._aggregate(speaker_embeddings)
 
     def _get_embedding(self, audio, start, end):
-        """Extracts pyannote embedding for a single audio slice. Returns None if too short."""
+        """Extracts the embedding of a single audio slice. Returns None if too short."""
         start_idx = int(start * self.sample_rate)
         end_idx = int(end * self.sample_rate)
 

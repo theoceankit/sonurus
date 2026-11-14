@@ -52,7 +52,7 @@ class Segment:
 | `speaker_raw` | `str` | Raw diarization ID (`SPEAKER_00`, …) |
 | `speaker_resolved` | `str \| None` | ID after matching against memory (UUID4) |
 | `speaker_final` | `str \| None` | ID after user correction |
-| `embedding` | `np.ndarray \| None` | Per-segment pyannote embedding |
+| `embedding` | `np.ndarray \| None` | Per-segment speaker embedding (WeSpeaker ResNet34-LM, 256 values) |
 
 ### Speaker ID priority
 
@@ -68,7 +68,7 @@ This priority is applied everywhere: in `CommitService`, `TranscriptStorageServi
 
 Populated by `TranscriptBuilder.attach_embeddings()` via overlap-based matching with diarization results. Used only by `CommitService.commit()` to update speaker embeddings in memory.
 
-May be `None` for very short segments that had no overlapping diarization span.
+May be `None` for very short segments that had no overlapping diarization span, and for segments saved before the embedding model changed: those embeddings are dropped when the database is opened (see [EmbeddingService](services/EmbeddingService.md) → Changing the model).
 
 ---
 

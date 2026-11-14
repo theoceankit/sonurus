@@ -41,7 +41,13 @@ if DEVICE == "cuda":
     except Exception:
         pass
 
-# EmbeddingService
+# EmbeddingService: WeSpeaker ResNet34-LM (256 values), the embedding model of
+# the diarization pipeline, read from its subfolder of the diarization repo.
+EMBEDDING_REPO = "pyannote/speaker-diarization-community-1"
+EMBEDDING_SUBFOLDER = "embedding"
+# Stored in the database next to the voices it computed: voices of another
+# model cannot be compared with these (SpeakerMemoryService resets them).
+EMBEDDING_MODEL_ID = "wespeaker-resnet34-lm"
 EMBEDDING_SAMPLE_RATE = 16000
 EMBEDDING_MIN_DURATION = 1.0
 

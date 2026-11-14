@@ -105,7 +105,7 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 | `test_model_service.py` | `WHISPER_CATALOG`, `list_models()`, `is_installed()`, `download_model()`, `delete_model()` for Whisper models; symlink support settled for the repo folder before `snapshot_download` starts its threads (Windows without the symlink privilege) |
 | `test_alignment_model.py` | `ALIGNMENT_CATALOG`, `is_installed()`, `download_model()`, `delete_model()`, API routes for alignment models |
 | `test_commit_service.py` | `CommitService` API contract, `commit()`, `commit_speaker()`, `commit_recognized_speakers()`, `recompute_or_remove()`, `delete_speaker()`, `UNASSIGNED` never committed |
-| `test_diarization_model.py` | `DIARIZATION_CATALOG`, `is_installed()`, `download_model()`, `delete_model()`, API routes for diarize model |
+| `test_diarization_model.py` | `DIARIZATION_CATALOG` (community-1 only), `is_installed()`, `download_model()`, `delete_model()` (old `pyannote/embedding` left alone), API routes for diarize model |
 | `test_speaker_handle.py` | Handles made from a name: transliteration, the three formats, numbers for a taken handle, the 32-character limit, validation |
 | `test_speaker_handles_api.py` | Handles through the API: the speakers list, `PATCH` with a handle set by hand or cleared, refusals (`handle_taken` with the owner, `handle_invalid`, `handle_needs_name`) that change nothing, renames, a new speaker with or without its own handle, suggestions, the handle format |
 | `test_speaker_memory_handles.py` | Handles in speaker memory: who gets one, uniqueness in the database, renames, handles set by hand, the format setting, schema v4 migration by first appearance, colour saves that must not wipe a handle |
@@ -138,7 +138,8 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 | `test_speaker_candidates.py` | `rank_candidates()` and `voice_centroid()`: order, limit, rounding, negative similarity, the suggestion threshold |
 | `test_waveform.py` | Waveform levels: `bar_levels()` (scale of the loud part of the recording, mean power, silence and past the end of the audio, clips, bars narrower than a window), the `.levels` cache next to the audio (computed once, also with two requests at once, a broken cache computed again, none on failure, none for audio outside `recordings/`), `compute_levels()` with the real ffmpeg (skipped without it) and without one |
 | `test_voice_sample.py` | `pick_voice_sample()`: closest to the voice profile, longest fallback, ≥ 2 s preference, missing audio files skipped |
-| `test_embedding_service.py` | `EmbeddingService.extract_all()` single-pass invariant |
+| `test_embedding_service.py` | `EmbeddingService.extract_all()` single-pass invariant, the model it loads (WeSpeaker from community-1) |
+| `test_embedding_model_reset.py` | Voices of another embedding model are dropped on start; names, handles, colours and segment speakers stay; the model mark in `_meta` |
 | `test_version.py` | `get_version()`: `SONORUS_VERSION` wins over `package.json`, blank env ignored, missing / broken / version-less `package.json` → `unknown`, the repo's `package.json` by default; OpenAPI `info.version` is the product version |
 | `test_testing_docs.py` | This page: every test file has exactly one row in the coverage table, no row for a missing file, no test-count column |
 | `tests/electron/app-version.test.js` | The main process answers `get-app-version`, preload exposes `getAppVersion`, the backend gets `SONORUS_VERSION` |

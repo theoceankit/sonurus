@@ -98,3 +98,29 @@ def test_extract_all_segments_match_extract_segments():
         assert a["end"] == b["end"]
         assert a["speaker"] == b["speaker"]
         assert np.allclose(a["embedding"], b["embedding"])
+
+
+def test_model_is_wespeaker_from_the_community_one_snapshot(tmp_path):
+    """Speaker memory uses the WeSpeaker ResNet34-LM in the embedding subfolder
+    of the diarization repo, read from the app's own model cache."""
+    from app.services import embedding_service
+
+    with patch.object(embedding_service, "Model") as model, \
+            patch.object(embedding_service, "Inference"):
+        embedding_service.EmbeddingService("cpu", models_dir=tmp_path)
+
+    model.from_pretrained.assert_called_once_with(
+        "pyannote/speaker-diarization-community-1",
+        subfolder="embedding",
+        cache_dir=str(tmp_path / "hf"),
+    )
+
+
+def test_model_load_failure_is_a_runtime_error(tmp_path):
+    from app.services import embedding_service
+
+    with patch.object(embedding_service, "Model") as model, \
+            patch.object(embedding_service, "Inference"):
+        model.from_pretrained.side_effect = OSError("not in cache")
+        with pytest.raises(RuntimeError, match="embedding model"):
+            embedding_service.EmbeddingService("cpu", models_dir=tmp_path)

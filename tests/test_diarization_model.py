@@ -26,7 +26,7 @@ def make_service(tmp_path: Path) -> ModelService:
 
 
 def _install_diarize(hf_dir: Path) -> None:
-    """Simulate a fully installed diarization model (both repos)."""
+    """Simulate a fully installed diarization model."""
     for repo in DIARIZATION_CATALOG["diarize"]["hf_repos"]:
         refs = hf_dir / ("models--" + repo.replace("/", "--")) / "refs"
         refs.mkdir(parents=True, exist_ok=True)
@@ -89,20 +89,21 @@ def test_diarization_catalog_includes_community_one_repo():
     )
 
 
-def test_diarization_catalog_has_exactly_two_repos():
-    """DIARIZATION_CATALOG['diarize']['hf_repos'] must have exactly 2 entries."""
+def test_diarization_catalog_is_community_one_only():
+    """Diarization and the speaker-memory embeddings both come from community-1
+    (its embedding subfolder), so it is the only repo to download."""
     repos = DIARIZATION_CATALOG["diarize"]["hf_repos"]
-    assert len(repos) == 2, (
-        f"Expected 2 repos in DIARIZATION_CATALOG['diarize']['hf_repos'], got {len(repos)}: {repos}"
-    )
+    assert repos == ["pyannote/speaker-diarization-community-1"]
 
 
-def test_diarization_catalog_includes_embedding_repo():
-    """DIARIZATION_CATALOG must include pyannote/embedding for EmbeddingService."""
-    repos = DIARIZATION_CATALOG["diarize"]["hf_repos"]
-    assert "pyannote/embedding" in repos, (
-        f"Expected 'pyannote/embedding' in hf_repos, got: {repos}"
-    )
+def test_diarization_catalog_no_longer_downloads_old_embedding_model():
+    assert "pyannote/embedding" not in DIARIZATION_CATALOG["diarize"]["hf_repos"]
+
+
+def test_diarization_catalog_size_is_community_one():
+    entry = DIARIZATION_CATALOG["diarize"]
+    assert entry["size"] == "34 MB"
+    assert 30_000_000 < entry["size_bytes"] < 40_000_000
 
 
 # ---------------------------------------------------------------------------
@@ -114,16 +115,25 @@ def test_is_installed_diarize_false_when_hf_dir_empty(tmp_path):
     assert svc.is_installed("diarize") is False
 
 
-def test_is_installed_diarize_false_when_only_one_repo_present(tmp_path):
-    """Returns False when only 1 of the 2 required repos is installed."""
-    hf_dir = tmp_path / "hf"
-    first_repo = DIARIZATION_CATALOG["diarize"]["hf_repos"][0]
-    refs = hf_dir / ("models--" + first_repo.replace("/", "--")) / "refs"
-    refs.mkdir(parents=True)
-    (refs / "main").write_text("abc123")
+def _install_repo(hf_dir: Path, repo: str) -> Path:
+    cache = hf_dir / ("models--" + repo.replace("/", "--"))
+    (cache / "refs").mkdir(parents=True, exist_ok=True)
+    (cache / "refs" / "main").write_text("abc123")
+    return cache
 
+
+def test_is_installed_diarize_false_with_only_the_old_embedding_model(tmp_path):
+    """A cache that holds only the old pyannote/embedding is not a diarization install."""
+    _install_repo(tmp_path / "hf", "pyannote/embedding")
     svc = make_service(tmp_path)
     assert svc.is_installed("diarize") is False
+
+
+def test_is_installed_diarize_true_with_community_one_alone(tmp_path):
+    """community-1 alone is a full install: the old embedding model is not needed."""
+    _install_repo(tmp_path / "hf", "pyannote/speaker-diarization-community-1")
+    svc = make_service(tmp_path)
+    assert svc.is_installed("diarize") is True
 
 
 def test_is_installed_diarize_true_when_all_repos_present(tmp_path):
@@ -172,7 +182,7 @@ def test_list_models_diarize_installed_true_when_on_disk(tmp_path):
 # ModelService.download_model("diarize")
 # ---------------------------------------------------------------------------
 
-def test_download_diarize_calls_snapshot_for_both_repos(tmp_path):
+def test_download_diarize_downloads_community_one_only(tmp_path):
     svc = make_service(tmp_path)
     downloaded = []
 
@@ -182,8 +192,7 @@ def test_download_diarize_calls_snapshot_for_both_repos(tmp_path):
     with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot(fake_download)):
         svc.download_model("diarize")
 
-    expected = DIARIZATION_CATALOG["diarize"]["hf_repos"]
-    assert downloaded == expected, f"Expected {expected}, got {downloaded}"
+    assert downloaded == ["pyannote/speaker-diarization-community-1"]
 
 
 def test_download_diarize_passes_hf_models_dir_as_cache(tmp_path):
@@ -215,28 +224,11 @@ def test_download_diarize_respects_cancel_event_before_first_repo(tmp_path):
         mock_dl.assert_not_called()
 
 
-def test_download_diarize_respects_cancel_event_between_repos(tmp_path):
-    from asyncio import CancelledError
-    svc = make_service(tmp_path)
-    cancel = threading.Event()
-    call_count = [0]
-
-    def fake_download(repo, **kwargs):
-        call_count[0] += 1
-        cancel.set()
-
-    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=fake_download):
-        with pytest.raises(CancelledError):
-            svc.download_model("diarize", cancel_event=cancel)
-
-    assert call_count[0] == 1, "Should have aborted after the first repo when cancel is set"
-
-
 # ---------------------------------------------------------------------------
 # ModelService.delete_model("diarize")
 # ---------------------------------------------------------------------------
 
-def test_delete_diarize_removes_both_cache_dirs(tmp_path):
+def test_delete_diarize_removes_its_cache_dir(tmp_path):
     hf_dir = tmp_path / "hf"
     _install_diarize(hf_dir)
 
@@ -249,6 +241,15 @@ def test_delete_diarize_removes_both_cache_dirs(tmp_path):
     for repo in DIARIZATION_CATALOG["diarize"]["hf_repos"]:
         cache = hf_dir / ("models--" + repo.replace("/", "--"))
         assert not cache.exists(), f"{cache} should be removed after delete"
+
+
+def test_delete_diarize_leaves_the_old_embedding_model_alone(tmp_path):
+    """Files of the old pyannote/embedding are not the app's to delete any more."""
+    hf_dir = tmp_path / "hf"
+    _install_diarize(hf_dir)
+    old = _install_repo(hf_dir, "pyannote/embedding")
+    make_service(tmp_path).delete_model("diarize")
+    assert old.exists()
 
 
 def test_delete_diarize_raises_file_not_found_when_not_installed(tmp_path):

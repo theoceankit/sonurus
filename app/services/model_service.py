@@ -24,15 +24,16 @@ WHISPER_CATALOG = {
 
 # whisperx uses pyannote/speaker-diarization-community-1 by default (single repo
 # with segmentation and embedding stored as subfolders — no separate sub-repos).
-# pyannote/embedding is downloaded separately for EmbeddingService.
+# EmbeddingService reads the same embedding subfolder (WeSpeaker), so this repo
+# is all speaker separation and speaker memory need. size_bytes: all its files,
+# 2026-11-14.
 DIARIZATION_CATALOG = {
     "diarize": {
         "hf_repos": [
             "pyannote/speaker-diarization-community-1",
-            "pyannote/embedding",
         ],
-        "size_bytes": 136_000_000,
-        "name": "Pyannote Community 1", "size": "130 MB", "speed": "—", "acc": "Speaker separation", "recommended": False, "kind": "diarization",
+        "size_bytes": 33_700_000,
+        "name": "Pyannote Community 1", "size": "34 MB", "speed": "—", "acc": "Speaker separation", "recommended": False, "kind": "diarization",
     },
 }
 

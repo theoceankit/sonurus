@@ -491,11 +491,11 @@ def test_snapshot_does_not_change_download_kwargs(tmp_path):
     from unittest.mock import patch
     from app.services.model_service import _snapshot
 
-    kwargs = {"repo_id": "pyannote/embedding", "cache_dir": str(tmp_path), "allow_patterns": ["*.bin"]}
+    kwargs = {"repo_id": "pyannote/speaker-diarization-community-1", "cache_dir": str(tmp_path), "allow_patterns": ["*.bin"]}
     with patch("app.services.model_service.huggingface_hub.snapshot_download") as download:
         _snapshot(kwargs)
-    download.assert_called_once_with("pyannote/embedding", cache_dir=str(tmp_path), allow_patterns=["*.bin"])
-    assert kwargs["repo_id"] == "pyannote/embedding"
+    download.assert_called_once_with("pyannote/speaker-diarization-community-1", cache_dir=str(tmp_path), allow_patterns=["*.bin"])
+    assert kwargs["repo_id"] == "pyannote/speaker-diarization-community-1"
 
 
 # ---------------------------------------------------------------------------
@@ -512,7 +512,7 @@ def test_snapshot_switches_xet_off_by_default(tmp_path):
     seen = []
     with patch("app.services.model_service.huggingface_hub.snapshot_download",
                side_effect=lambda repo, **kw: seen.append((model_service.hf_constants.HF_HUB_DISABLE_XET, kw))):
-        model_service._snapshot({"repo_id": "pyannote/embedding", "cache_dir": str(tmp_path)})
+        model_service._snapshot({"repo_id": "pyannote/speaker-diarization-community-1", "cache_dir": str(tmp_path)})
     assert seen == [(True, {"cache_dir": str(tmp_path)})]
 
 
@@ -523,7 +523,7 @@ def test_snapshot_switches_xet_on_when_asked(tmp_path):
     seen = []
     with patch("app.services.model_service.huggingface_hub.snapshot_download",
                side_effect=lambda repo, **kw: seen.append((model_service.hf_constants.HF_HUB_DISABLE_XET, kw))):
-        model_service._snapshot({"repo_id": "pyannote/embedding", "cache_dir": str(tmp_path), "use_xet": True})
+        model_service._snapshot({"repo_id": "pyannote/speaker-diarization-community-1", "cache_dir": str(tmp_path), "use_xet": True})
     assert seen == [(False, {"cache_dir": str(tmp_path)})]
 
 

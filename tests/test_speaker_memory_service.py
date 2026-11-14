@@ -17,6 +17,7 @@ import uuid as uuid_module
 
 import numpy as np
 import pytest
+from app.config import EMBEDDING_MODEL_ID
 from app.services.speaker_memory_service import SpeakerMemoryService
 
 
@@ -459,8 +460,12 @@ def test_find_by_name_returns_none_for_wrong_label(tmp_path):
 # ---------------------------------------------------------------------------
 
 def _make_legacy_db(db_path: str) -> None:
-    """Create the pre-migration legacy schema."""
+    """Create the pre-migration legacy schema. Its voices count as ones of the
+    current embedding model, so that the model reset (tested in
+    test_embedding_model_reset.py) keeps them and m001 can be seen at work."""
     with sqlite3.connect(db_path) as conn:
+        conn.execute("CREATE TABLE _meta (key TEXT PRIMARY KEY, value TEXT)")
+        conn.execute("INSERT INTO _meta VALUES ('embedding_model', ?)", (EMBEDDING_MODEL_ID,))
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS speaker_embeddings (
                 id      TEXT PRIMARY KEY,
