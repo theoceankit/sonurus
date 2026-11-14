@@ -26,9 +26,9 @@ import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecording
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
 import { InspectorPanel } from './InspectorPanel'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
-import { goneFromList, groupRecordings, stackSpeakers } from './recordings'
+import { goneFromList, groupRecordings, leftList, stackSpeakers } from './recordings'
 import { useEscapeClose } from './escape-close'
-import { initialSelection, needsPick, selectionReducer, shownRecording } from './selection'
+import { canGoBack, canGoForward, initialSelection, needsPick, selectionReducer, shownRecording } from './selection'
 import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
 import { titleToSave } from './transcript'
 import { TranscriptPanel, type SpeakerMenuTarget } from './TranscriptPanel'
@@ -85,6 +85,8 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   const clearJob = useCallback(() => select({ type: 'jobGone' }), [])
   const openRecording = useCallback((id: number) => select({ type: 'open', id }), [])
   const showJob = useCallback((id: string) => select({ type: 'showJob', id }), [])
+  const goBack = useCallback(() => select({ type: 'back' }), [])
+  const goForward = useCallback(() => select({ type: 'forward' }), [])
   // Escape closes the recording or the job in the centre, and the sound stops with it.
   useEscapeClose(() => select({ type: 'close' }), selectedId !== null || jobId !== null)
   const recent = useRecentRecordings()
@@ -140,7 +142,8 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   useEffect(() => () => clearTimeout(stopMoving.current), [])
 
   // A recording deleted elsewhere lets go: nothing of it stays on the screen or in the
-  // cache, and the effect below opens another one.
+  // cache, and the effect below opens another one. Any other one gone from the list
+  // leaves the history of Back and Forward.
   const listedIds = useRef<number[] | null>(null)
   useEffect(() => {
     if (!transcripts.data) return
@@ -148,8 +151,8 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
     if (goneFromList(selectedId, listedIds.current, ids)) {
       queries.removeQueries({ queryKey: queryKeys.transcript(selectedId!) })
       queries.removeQueries({ queryKey: ['waveform', selectedId] })
-      select({ type: 'gone', id: selectedId! })
     }
+    for (const id of leftList(listedIds.current, ids)) select({ type: 'gone', id })
     listedIds.current = ids
   }, [transcripts.data, selectedId, queries])
 
@@ -262,6 +265,10 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
       <Titlebar
         sidebarOpen={visible.sidebar}
         onToggleSidebar={() => toggle('sidebar')}
+        canGoBack={canGoBack(selection)}
+        canGoForward={canGoForward(selection)}
+        onBack={goBack}
+        onForward={goForward}
         inspectorOpen={visible.inspector}
         onOpenInspector={toggleInspector}
         onNewTranscription={newTranscription.openRecording}

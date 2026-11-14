@@ -102,12 +102,26 @@ test('Speakers works', async () => {
   expect(onOpenSpeakers).toHaveBeenCalledOnce()
 })
 
-test.each(['Back', 'Forward'])('%s says it is not available yet', async name => {
+test('Back and Forward go where they can', async () => {
+  const onBack = vi.fn()
+  const onForward = vi.fn()
+  setup({ canGoBack: true, canGoForward: true, onBack, onForward })
+  await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Forward' }))
+  expect(onBack).toHaveBeenCalledOnce()
+  expect(onForward).toHaveBeenCalledOnce()
+})
+
+test('Back and Forward are off with nowhere to go, as they are by default', async () => {
+  const onBack = vi.fn()
+  setup({ canGoForward: true, onBack })
+  const back = screen.getByRole('button', { name: 'Back' }) as HTMLButtonElement
+  expect(back.disabled).toBe(true)
+  expect((screen.getByRole('button', { name: 'Forward' }) as HTMLButtonElement).disabled).toBe(false)
+  await userEvent.click(back)
+  expect(onBack).not.toHaveBeenCalled()
   setup()
-  const button = screen.getByRole('button', { name })
-  expect(button.getAttribute('aria-disabled')).toBe('true')
-  await userEvent.click(button)
-  expect((await screen.findAllByText(NOT_IMPLEMENTED_TOAST)).length).toBeGreaterThan(0)
+  expect(screen.getAllByRole('button', { name: 'Forward' }).at(-1)).toHaveProperty('disabled', true)
 })
 
 test('search says it is not available yet and takes no text', async () => {
@@ -122,6 +136,8 @@ test('search says it is not available yet and takes no text', async () => {
 test('the working controls are not marked', () => {
   setup({ inspectorOpen: false })
   expect(screen.getByRole('button', { name: 'Toggle sidebar' }).getAttribute('data-not-implemented')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Back' }).getAttribute('data-not-implemented')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Forward' }).getAttribute('data-not-implemented')).toBeNull()
   expect(screen.getByRole('button', { name: 'Show inspector' }).getAttribute('data-not-implemented')).toBeNull()
   expect(screen.getByRole('button', { name: 'New recording' }).getAttribute('data-not-implemented')).toBeNull()
   expect(screen.getByRole('button', { name: 'Speakers' }).getAttribute('data-not-implemented')).toBeNull()

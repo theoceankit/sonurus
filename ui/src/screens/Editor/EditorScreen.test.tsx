@@ -813,3 +813,114 @@ describe('closing the open recording with Escape', () => {
     expect(title()).toBeNull()
   })
 })
+
+describe('Back and Forward', () => {
+  const panel = () => screen.getByRole('main', { name: 'Transcript' })
+  // The recording open, by its current row in the sidebar: not every fixture has a transcript.
+  const openRow = () => within(screen.getByLabelText('Recordings'))
+    .queryAllByRole('button').find(row => row.getAttribute('aria-current') === 'true' && !row.closest('[aria-label="Transcription queue"]'))
+  const title = () => openRow()?.textContent ?? null
+  const emptyShown = () => within(panel()).queryByText(/To make a new transcription/) !== null
+  const button = (name: 'Back' | 'Forward') => screen.getByRole('button', { name }) as HTMLButtonElement
+  const go = (name: 'Back' | 'Forward') => userEvent.click(button(name))
+  const opened = async (row: RegExp) => {
+    await userEvent.click(sidebarRow(row))
+    await waitFor(() => expect(title()).toMatch(row))
+  }
+  const start = async () => {
+    atWidth(1200)
+    setup({ initialSelectedId: WEEKLY_SYNC_ID })
+    await waitFor(() => expect(title()).toMatch(/Weekly product sync/))
+  }
+
+  test('go through the recordings opened, and what was forward goes when another opens', async () => {
+    await start()
+    expect(button('Back').disabled).toBe(true)
+    expect(button('Forward').disabled).toBe(true)
+    await opened(/Design review/)
+    await opened(/Call with Mark/)
+    await go('Back')
+    await waitFor(() => expect(title()).toMatch(/Design review/))
+    expect(sidebarRow(/Design review/).getAttribute('aria-current')).toBe('true')
+    await go('Back')
+    await waitFor(() => expect(title()).toMatch(/Weekly product sync/))
+    expect(button('Back').disabled).toBe(true)
+    await go('Forward')
+    await waitFor(() => expect(title()).toMatch(/Design review/))
+    expect(button('Forward').disabled).toBe(false)
+    await opened(/Customer call, Acme/)
+    expect(button('Forward').disabled).toBe(true)
+    await go('Back')
+    await waitFor(() => expect(title()).toMatch(/Design review/))
+  })
+
+  test('the recording open already adds no step, nor does a window opened and closed', async () => {
+    await start()
+    await opened(/Design review/)
+    await userEvent.click(sidebarRow(/Design review/))
+    await userEvent.click(screen.getByRole('button', { name: 'Speakers' }))
+    await screen.findByRole('dialog')
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await go('Back')
+    await waitFor(() => expect(title()).toMatch(/Weekly product sync/))
+    expect(button('Back').disabled).toBe(true)
+  })
+
+  test('Back after Escape opens the closed recording, and Forward closes it again', async () => {
+    await start()
+    await opened(/Design review/)
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(emptyShown()).toBe(true))
+    expect(button('Back').disabled).toBe(false)
+    await go('Back')
+    await waitFor(() => expect(title()).toMatch(/Design review/))
+    await go('Forward')
+    await waitFor(() => expect(emptyShown()).toBe(true))
+    expect(sidebarRow(/Design review/).getAttribute('aria-current')).toBeNull()
+  })
+
+  test('a recording deleted is skipped, and the open one deleted adds no step', async () => {
+    atWidth(1200)
+    const client = createFixtureClient()
+    let queries: QueryClient | null = null
+    function Grab() {
+      queries = useQueryClient()
+      return null
+    }
+    render(<ApiProvider client={client}><OverlayProvider><Grab /><EditorScreen initialSelectedId={WEEKLY_SYNC_ID} /></OverlayProvider></ApiProvider>)
+    await waitFor(() => expect(title()).toMatch(/Weekly product sync/))
+    await opened(/Design review/)
+    await opened(/Call with Mark/)
+    await client.deleteTranscript(DESIGN_REVIEW_ID)
+    await act(async () => { await queries!.invalidateQueries({ queryKey: ['transcripts'] }) })
+    await waitFor(() => expect(within(screen.getByLabelText('Recordings')).queryByText('Design review')).toBeNull())
+    await go('Back')
+    await waitFor(() => expect(title()).toMatch(/Weekly product sync/))
+    expect(button('Back').disabled).toBe(true)
+    await client.deleteTranscript(WEEKLY_SYNC_ID)
+    await act(async () => { await queries!.invalidateQueries({ queryKey: ['transcripts'] }) })
+    await waitFor(() => expect(title()).toMatch(/Call with Mark/))
+    expect(button('Back').disabled).toBe(true)
+  })
+
+  test('a job of the queue is no step: Back gives back the recording under it', async () => {
+    atWidth(1200)
+    const client = createFixtureClient()
+    client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot({ jobs: [{ ...QUEUE_JOB, id: 'q', title: 'Queued call' }] }) }] })
+    await vi.waitFor(async () => expect((await client.getQueue()).jobs).toHaveLength(1))
+    function Synced() {
+      useQueueEventsSync()
+      return <EditorScreen initialSelectedId={WEEKLY_SYNC_ID} />
+    }
+    render(<ApiProvider client={client}><OverlayProvider><Synced /></OverlayProvider></ApiProvider>)
+    await waitFor(() => expect(title()).toMatch(/Weekly product sync/))
+    const queue = await screen.findByRole('region', { name: 'Transcription queue' })
+    await userEvent.click(within(queue).getByRole('button', { name: /Queued call$/ }))
+    await waitFor(() => expect(title()).toBeNull())
+    expect(button('Back').disabled).toBe(false)
+    await go('Back')
+    await waitFor(() => expect(title()).toMatch(/Weekly product sync/))
+    expect(button('Back').disabled).toBe(true)
+  })
+})

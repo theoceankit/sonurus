@@ -4,13 +4,13 @@ sidebar_position: 8
 
 # Home
 
-What the UI shows before the user picks anything, and how files get in: which recording is open when the app starts and after the open one is deleted, closing it with Escape, the centre without recordings, and how a new transcription starts: New recording, which records live, and Import files, which takes files chosen or dragged over the window.
+What the UI shows before the user picks anything, and how files get in: which recording is open when the app starts and after the open one is deleted, closing it with Escape, going back and forward through the recordings opened, the centre without recordings, and how a new transcription starts: New recording, which records live, and Import files, which takes files chosen or dragged over the window.
 
 ## Which recording is open
 
 With recordings in the list, one is always open, unless the user closed it with [Escape](#closing-with-escape). `EditorScreen` picks one whenever none is and the user has not closed it: when the list first loads and after the open recording is deleted. It waits for the list; while the list loads or the backend does not answer, nothing is picked.
 
-What the centre shows is one state in `EditorScreen`, changed only by `selectionReducer()` in `ui/src/screens/Editor/selection.ts`, a pure function: the recording open, a job of the queue over it, and whether the user closed the recording. Each way in or out is an action: `open` (a click in the sidebar, Open on the toast of a finished job, a recording opened from the Speakers window), `pick` (the app's own choice below, only with nothing open and nothing closed), `showJob` and `jobGone` (a job picked in the queue takes the centre, and the recording comes back when it goes), `gone` (the open recording was deleted) and `close`.
+What the centre shows is one state in `EditorScreen`, changed only by `selectionReducer()` in `ui/src/screens/Editor/selection.ts`, a pure function: the recording open, a job of the queue over it, and whether the user closed the recording. Each way in or out is an action: `open` (a click in the sidebar, Open on the toast of a finished job, a recording opened from the Speakers window), `pick` (the app's own choice below, only with nothing open and nothing closed), `showJob` and `jobGone` (a job picked in the queue takes the centre, and the recording comes back when it goes), `gone` (a recording was deleted), `close`, and `back` and `forward` ([Back and Forward](#back-and-forward)).
 
 The pick is `pickRecording(list, recent)` in `ui/src/screens/Home/last-opened.ts`, a pure function:
 
@@ -42,6 +42,19 @@ Escape closes what the centre shows, the open recording or a job of the queue ov
 With Ctrl, Alt, Shift or ⌘ held, or while text is being composed, Escape is left alone. What counts as a text field and as a window, menu, select list or popover is the same as for Space (`ui/src/keys.ts`). Chromium turns the focus ring on for the element in focus at the keydown of any key, so the element focused by a click, such as the sidebar row that opened the recording, lets go of the focus as Escape closes the recording, and no ring lights up on it. One reached from the keyboard keeps the focus and its ring, so the keyboard does not lose its place. How the focus came is told apart as for [Space](player.md#space), by `createFocusOrigin()` in the same module. A toast on the screen does not take Escape: the recording closes and the toast stays until it goes by itself.
 
 A closed recording stays closed until the user opens one: a refresh of the list, such as when a job of the queue finishes, or a delete of another recording opens nothing. A job picked in the queue meanwhile goes back to the empty state when it goes. Closing does not touch the recent ones, so the next start opens the recording opened last, the one just closed included.
+
+## Back and Forward
+
+Back and Forward in the title bar go through the recordings opened, as in a browser: after A, B and C, Back opens B, then A, and Forward B again. A recording opened from there, D, drops what was forward of it, C. The history is part of the state in `selectionReducer()`, so each action above that changes what is open changes it too; its rules are pure functions in `ui/src/screens/Editor/history.ts`.
+
+- **What is a step.** Only a recording, however it was opened: a click in the sidebar, Open on the toast of a finished job, the Speakers window (`open`). Opening the one open already adds no step. Windows, menus and toasts go nowhere near the state, so opening or closing them leaves the history as it is, and Back does not close them. The recording the app [picks](#which-recording-is-open) at startup is the first step.
+- **Escape.** Nothing open after [Escape](#closing-with-escape) is a step too: Back from the empty state opens the closed recording again, and Forward from it closes it again. A step back to nothing open picks nothing, as after Escape.
+- **A job of the queue** is not a step. While one takes the centre, Back takes it away and gives back what is under it, a recording or nothing; Forward goes on to the next step.
+- **A recording deleted**, here or elsewhere, leaves the history: every recording that leaves the list of recordings (`leftList()` in `recordings.ts`) is a `gone`. Steps that come to meet and are the same are one: A, B, A after B is deleted is A. In place of the open recording deleted stays a hole that the app's pick fills, so that recording takes its place rather than being a step of its own; Back or Forward from the hole drops it.
+- **Going to a step** opens the recording as a click in the sidebar does: the sound stops, it starts from the beginning, its row is current, and it goes first in the recent ones.
+- **Nowhere to go.** Each button is disabled while there is no step its way; while a job is shown Back always has somewhere to go. At startup both are.
+
+The history lives in memory: each run starts with the recording picked at startup. It keeps the last 100 steps, and the oldest go first.
 
 ## Without recordings
 

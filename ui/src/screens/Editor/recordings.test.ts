@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { TRANSCRIPTS, SPEAKERS, SPEAKER_IDS, FIXTURE_NOW, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import type { Speaker, TranscriptListItem } from '../../api/types'
-import { deleteRecordingPrompt, goneFromList, groupRecordings, stackSpeakers } from './recordings'
+import { deleteRecordingPrompt, goneFromList, groupRecordings, leftList, stackSpeakers } from './recordings'
 
 const item = (id: number, created_at: string, speakers: string[] = []): TranscriptListItem => ({
   id, created_at, speakers, title: `Recording ${id}`, status: 'done', opened: true, section: '', duration: '',
@@ -93,5 +93,16 @@ describe('goneFromList', () => {
     expect(goneFromList(7, [4, 5], [4, 5])).toBe(false)
     expect(goneFromList(5, null, [4])).toBe(false)
     expect(goneFromList(null, [4, 5], [4])).toBe(false)
+  })
+})
+
+describe('leftList', () => {
+  test('the recordings on the list before and not now', () => {
+    expect(leftList([4, 5, 6], [4, 6, 7])).toEqual([5])
+    expect(leftList([4, 5], [4, 5])).toEqual([])
+  })
+
+  test('none before the list first loads', () => {
+    expect(leftList(null, [4])).toEqual([])
   })
 })

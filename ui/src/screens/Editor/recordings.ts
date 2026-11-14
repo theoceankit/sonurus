@@ -49,3 +49,8 @@ export const deleteRecordingPrompt = (title: string) => ({
 export function goneFromList(openId: number | null, before: readonly number[] | null, now: readonly number[]): boolean {
   return openId !== null && !!before?.includes(openId) && !now.includes(openId)
 }
+
+// The recordings in the list before and not now; none before the list first loads.
+export function leftList(before: readonly number[] | null, now: readonly number[]): number[] {
+  return before ? before.filter(id => !now.includes(id)) : []
+}

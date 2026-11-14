@@ -9,6 +9,11 @@ import styles from './Titlebar.module.css'
 interface TitlebarProps {
   sidebarOpen?: boolean
   onToggleSidebar?: () => void
+  // Through the recordings opened. Each button is off while there is nowhere to go.
+  canGoBack?: boolean
+  canGoForward?: boolean
+  onBack?: () => void
+  onForward?: () => void
   // The inspector closes from inside its panel, so only opening it is here.
   inspectorOpen?: boolean
   onOpenInspector?: () => void
@@ -84,15 +89,15 @@ function ShowInspector({ shown, onOpen }: { shown: boolean; onOpen?: () => void 
 
 // The strip the window is dragged by. The system's window buttons stand over it,
 // on either side: env(titlebar-area-*) in the styles keeps the controls clear of them.
-export function Titlebar({ sidebarOpen = true, onToggleSidebar, inspectorOpen = true, onOpenInspector, onNewTranscription, onOpenSettings, onOpenSpeakers, status, className }: TitlebarProps) {
+export function Titlebar({ sidebarOpen = true, onToggleSidebar, canGoBack = false, canGoForward = false, onBack, onForward, inspectorOpen = true, onOpenInspector, onNewTranscription, onOpenSettings, onOpenSpeakers, status, className }: TitlebarProps) {
   return (
     <header className={cx(styles.titlebar, className)}>
       <div className={styles.brand}>
         <TooltipGroup>
           <span className={styles.nav}>
             <SidebarToggle open={sidebarOpen} onToggle={onToggleSidebar} />
-            <Tool icon="arrow-left" label="Back" {...markNotImplemented('titlebar.back')} />
-            <Tool icon="arrow-right" label="Forward" {...markNotImplemented('titlebar.forward')} />
+            <Tool icon="arrow-left" label="Back" disabled={!canGoBack} onClick={onBack} />
+            <Tool icon="arrow-right" label="Forward" disabled={!canGoForward} onClick={onForward} />
           </span>
         </TooltipGroup>
         <span className={styles.spacer} />
