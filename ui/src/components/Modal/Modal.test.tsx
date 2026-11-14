@@ -1,6 +1,6 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { notImplementedProps } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
@@ -104,6 +104,61 @@ test('a form starts on its first field', async () => {
   render(<Example><TextField label="Name" /></Example>)
   await opened()
   expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Name' }))
+})
+
+// jsdom does not work out :focus-visible: what is checked is how the focus is given.
+describe('the ring on the control the window starts on', () => {
+  const focusOptions = (spy: ReturnType<typeof vi.spyOn>, element: Element) =>
+    spy.mock.calls.filter((_: unknown, index: number) => spy.mock.contexts[index] === element).at(-1)?.[0]
+
+  test('is not drawn for a window opened by files dragged over the window', async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+    function DraggedOver() {
+      const [open, setOpen] = useState(false)
+      useEffect(() => {
+        const open = () => setOpen(true)
+        window.addEventListener('dragenter', open)
+        return () => window.removeEventListener('dragenter', open)
+      }, [])
+      return (
+        <OverlayProvider>
+          <Modal open={open} onOpenChange={setOpen}>
+            <ModalHeader title="Title" />
+            <ModalBody><TextField label="Name" /></ModalBody>
+          </Modal>
+        </OverlayProvider>
+      )
+    }
+    // The window of the test before gives focus back a tick after it is gone.
+    await act(() => new Promise(resolve => setTimeout(resolve)))
+    render(<DraggedOver />)
+    act(() => { window.dispatchEvent(new Event('dragenter')) })
+    const field = await screen.findByRole('textbox', { name: 'Name' })
+    await waitFor(() => expect(document.activeElement).toBe(field))
+    expect(focusOptions(focus, field)).toEqual({ focusVisible: false })
+    focus.mockRestore()
+  })
+
+  test('is not drawn for a window opened by a click', async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+    render(<Example><TextField label="Name" /></Example>)
+    await opened()
+    const field = screen.getByRole('textbox', { name: 'Name' })
+    expect(document.activeElement).toBe(field)
+    expect(focusOptions(focus, field)).toEqual({ focusVisible: false })
+    focus.mockRestore()
+  })
+
+  test('is left to the browser for a window opened from the keyboard', async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+    render(<Example><TextField label="Name" /></Example>)
+    button('Open').focus()
+    await userEvent.keyboard('{Enter}')
+    const field = await screen.findByRole('textbox', { name: 'Name' })
+    expect(document.activeElement).toBe(field)
+    expect(focusOptions(focus, field)).toBeUndefined()
+    focus.mockRestore()
+  })
 })
 
 test('danger is an alert dialog, starts on Cancel and has a red confirm', async () => {

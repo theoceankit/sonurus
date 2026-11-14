@@ -10,8 +10,11 @@
   box-shadow: inset 0 0 0 var(--border-width-default) var(--color-border-strong);
 }
 
-/* Hovering a focused field changes nothing. */
-.field:focus-within {
+/* Hovering a focused field changes nothing. The ring is for the input inside the box:
+   a box that takes the focus itself, as the field of Select, rings only as a control
+   does, from the keyboard (its own :focus-visible rule). In :where, so that the ring
+   of an error, below, still wins. */
+.field:focus-within:where(:not(:focus)) {
   --state-hover: transparent;
   box-shadow: inset 0 0 0 var(--border-width-focus) var(--color-focus);
 }

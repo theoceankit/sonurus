@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createRef } from 'react'
 import { expect, test, vi } from 'vitest'
+import fieldCss from '../../styles/field.module.css?raw'
 import { TextField } from './TextField'
 
 test('the label names the input and a click on it focuses the input', async () => {
@@ -64,4 +65,19 @@ test('passes the ref and other attributes to the input', () => {
   const ref = createRef<HTMLInputElement>()
   render(<TextField ref={ref} label="Name" maxLength={10} />)
   expect(ref.current?.maxLength).toBe(10)
+})
+
+// jsdom does not work out the cascade: what is checked is the weight of the rules.
+test('a field with an error keeps its red ring in focus', () => {
+  const rule = (colour: string) => {
+    const found = [...fieldCss.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .find(([, , body]) => body.includes(`box-shadow: inset 0 0 0 var(--border-width-focus) var(${colour})`))
+    return { selector: found![1].replace(/\/\*[\s\S]*?\*\//g, '').trim(), at: found!.index! }
+  }
+  const focus = rule('--color-focus')
+  const error = rule('--color-danger-fg')
+  // The blue ring weighs no more than the red one, which comes after it and wins.
+  expect(focus.selector.replace(/:where\([^)]*\)+/g, '')).toBe('.field:focus-within')
+  expect(error.selector).toBe('.error:focus-within')
+  expect(error.at).toBeGreaterThan(focus.at)
 })
