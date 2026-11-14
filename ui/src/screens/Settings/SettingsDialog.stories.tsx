@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { QUEUE_JOB, queueSnapshot } from '../../api/fixtures/data'
 import type { GpuStatus } from '../../api/types'
 import { Button } from '../../components/Button/Button'
+import { waitFor } from '../Editor/story-helpers'
 import { SettingsDialog, type SettingsDialogProps } from './SettingsDialog'
 import { SettingsProvider, useSettingsDialog } from './SettingsProvider'
 import type { SettingsSection } from './sections'
@@ -127,6 +128,13 @@ export const GpuNoNvidia: Story = gpuStory({ blocked_reason: 'no_nvidia', gpu: n
 export const GpuDevelopmentBuild: Story = gpuStory({ blocked_reason: 'not_packaged', device: 'cuda', torch: '2.8.0+cu128' })
 
 export const ApiKeys: Story = { args: { section: 'apiKeys' }, decorators: [withSettings({ hfToken: 'hf_storybookExampleToken' })] }
+
+// The token shown: the eye button has been clicked, and its eye is open.
+export const ApiKeysTokenShown: Story = {
+  args: { section: 'apiKeys' },
+  decorators: [withSettings({ hfToken: 'hf_storybookExampleToken' })],
+  play: async () => { (await waitFor(() => document.querySelector('button[aria-label="Show token"]'))).click() },
+}
 
 export const ApiKeysEmpty: Story = { args: { section: 'apiKeys' } }
 

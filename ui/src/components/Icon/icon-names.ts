@@ -2,7 +2,7 @@
 export const iconNames = [
   'add', 'alert', 'alignment', 'analytics', 'api-keys', 'archive', 'arrow-left', 'arrow-right',
   'assign-speaker', 'bookmark', 'calendar', 'change-speaker', 'check', 'chevron-down', 'chevron-right', 'clock', 'close',
-  'copy', 'delete', 'diarization-model', 'download', 'edit', 'export', 'eye', 'folder',
+  'copy', 'delete', 'diarization-model', 'download', 'edit', 'export', 'eye', 'eye-off', 'folder',
   'forward', 'globe', 'highlight', 'info', 'inspector', 'interface', 'microphone', 'microphone-and-system',
   'models', 'more', 'pause', 'pin', 'play', 'play-outline', 'privacy',
   'retry', 'rewind', 'search', 'settings', 'share', 'sidebar-toggle', 'skip-back', 'skip-forward',

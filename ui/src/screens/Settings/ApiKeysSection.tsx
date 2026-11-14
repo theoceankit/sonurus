@@ -47,7 +47,7 @@ function HuggingFaceToken({ saved }: { saved: string }) {
           onKeyDown={event => { if (event.key === 'Enter') save() }}
           className={styles.grow}
         />
-        <IconButton icon="eye" variant="ghost" label={visible ? 'Hide token' : 'Show token'} selected={visible} onClick={() => setVisible(!visible)} />
+        <IconButton icon={visible ? 'eye' : 'eye-off'} variant="ghost" label={visible ? 'Hide token' : 'Show token'} selected={visible} onClick={() => setVisible(!visible)} />
       </Inline>
     </FieldRow>
   )

@@ -4,6 +4,8 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { createFixtureClient } from '../../api/fixtures/fixture-client'
 import { App } from '../../App'
+import { Icon } from '../../components/Icon/Icon'
+import type { IconName } from '../../components/Icon/icon-names'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
@@ -40,6 +42,25 @@ test('the HuggingFace token is hidden until shown', async () => {
   expect(field.type).toBe('text')
   await userEvent.click(within(settings).getByRole('button', { name: 'Hide token' }))
   expect(field.type).toBe('password')
+})
+
+// The shapes an icon draws, to tell which one a button shows.
+function shapes(name: IconName) {
+  const { container, unmount } = render(<Icon name={name} />)
+  const markup = container.querySelector('svg')!.innerHTML
+  unmount()
+  return markup
+}
+
+test('the eye button shows the state of the token: a crossed-out eye while hidden, an open one while shown', async () => {
+  await setup('hf_saved')
+  const settings = await openSection('API Keys')
+  const icon = (name: string) => within(settings).getByRole('button', { name }).querySelector('svg')!.innerHTML
+  expect(icon('Show token')).toBe(shapes('eye-off'))
+  await userEvent.click(within(settings).getByRole('button', { name: 'Show token' }))
+  expect(icon('Hide token')).toBe(shapes('eye'))
+  await userEvent.click(within(settings).getByRole('button', { name: 'Hide token' }))
+  expect(icon('Show token')).toBe(shapes('eye-off'))
 })
 
 test('the token is saved without spaces around it once the field is left', async () => {
