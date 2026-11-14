@@ -27,6 +27,7 @@ import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
 import { InspectorPanel } from './InspectorPanel'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
 import { goneFromList, groupRecordings, stackSpeakers } from './recordings'
+import { useEscapeClose } from './escape-close'
 import { initialSelection, needsPick, selectionReducer, shownRecording } from './selection'
 import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
 import { titleToSave } from './transcript'
@@ -84,6 +85,8 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   const clearJob = useCallback(() => select({ type: 'jobGone' }), [])
   const openRecording = useCallback((id: number) => select({ type: 'open', id }), [])
   const showJob = useCallback((id: string) => select({ type: 'showJob', id }), [])
+  // Escape closes the recording or the job in the centre, and the sound stops with it.
+  useEscapeClose(() => select({ type: 'close' }), selectedId !== null || jobId !== null)
   const recent = useRecentRecordings()
   const newTranscription = useNewTranscription()
   const settingsDialog = useSettingsDialog()
@@ -150,8 +153,8 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
     listedIds.current = ids
   }, [transcripts.data, selectedId, queries])
 
-  // With recordings there is always one open: at startup and after the open one is
-  // deleted, the last one opened that is left.
+  // With recordings there is always one open unless the user closed it: at startup
+  // and after the open one is deleted, the last one opened that is left.
   const pickNeeded = needsPick(selection)
   useEffect(() => {
     if (!pickNeeded || !transcripts.data || recent.ids === null) return
@@ -239,14 +242,15 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   // Moving a panel asks nothing new of the transcript, and on a long recording it is the
   // most expensive thing to render.
   // Only an answer with no recordings is empty: loading and failing are the sidebar's to say.
-  const noRecordings = transcripts.data?.length === 0
+  // A recording closed by the user leaves the same: how to make a new one.
+  const empty = transcripts.data?.length === 0 || selection.closed
   const center = useMemo(
     () => transcript ?? (jobId !== null
       ? <QueueJobPanel jobId={jobId} onGone={clearJob} />
-      : noRecordings
+      : empty
         ? <EmptyState onOpenSettings={() => settingsDialog.open('models')} />
         : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />),
-    [transcript, jobId, clearJob, noRecordings, selectedId, playback, highlight, showAllSpeakers, settingsDialog],
+    [transcript, jobId, clearJob, empty, selectedId, playback, highlight, showAllSpeakers, settingsDialog],
   )
 
   // A refresh that fails leaves what was loaded on the screen.

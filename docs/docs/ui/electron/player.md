@@ -70,3 +70,5 @@ Space plays and pauses the open recording from where the audio is, as the Play b
 How the focus came is followed apart: the element that takes the focus right after a press of the pointer, or is pressed while it has it, counts as clicked. `:focus-visible` cannot tell, since Chromium turns it on for the focused element at the keydown of any key, Space included. So after a menu closed with Escape, Space opens it again, as on any button reached from the keyboard.
 
 With Ctrl, Alt, Shift or ⌘ held, or while text is being composed, Space is left alone. A held Space plays or pauses once: the repeats are cancelled and do nothing. It plays only the main audio; a voice clip under way stops when the main audio starts, as it does for the Play button. The Play button's tooltip does not name the key.
+
+What counts as a text field and as a window, menu, select list or popover is shared with Escape, which closes the open recording ([Home → Closing with Escape](home.md#closing-with-escape)): both read it from `ui/src/keys.ts`. Escape stops the sound with the recording it closes.

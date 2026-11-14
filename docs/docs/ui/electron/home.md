@@ -4,11 +4,13 @@ sidebar_position: 8
 
 # Home
 
-What the UI shows before the user picks anything, and how files get in: which recording is open when the app starts and after the open one is deleted, the centre without recordings, and how a new transcription starts: New recording, which records live, and Import files, which takes files chosen or dragged over the window.
+What the UI shows before the user picks anything, and how files get in: which recording is open when the app starts and after the open one is deleted, closing it with Escape, the centre without recordings, and how a new transcription starts: New recording, which records live, and Import files, which takes files chosen or dragged over the window.
 
 ## Which recording is open
 
-With recordings in the list, one is always open. `EditorScreen` picks one whenever none is: when the list first loads and after the open recording is deleted. It waits for the list; while the list loads or the backend does not answer, nothing is picked.
+With recordings in the list, one is always open, unless the user closed it with [Escape](#closing-with-escape). `EditorScreen` picks one whenever none is and the user has not closed it: when the list first loads and after the open recording is deleted. It waits for the list; while the list loads or the backend does not answer, nothing is picked.
+
+What the centre shows is one state in `EditorScreen`, changed only by `selectionReducer()` in `ui/src/screens/Editor/selection.ts`, a pure function: the recording open, a job of the queue over it, and whether the user closed the recording. Each way in or out is an action: `open` (a click in the sidebar, Open on the toast of a finished job, a recording opened from the Speakers window), `pick` (the app's own choice below, only with nothing open and nothing closed), `showJob` and `jobGone` (a job picked in the queue takes the centre, and the recording comes back when it goes), `gone` (the open recording was deleted) and `close`.
 
 The pick is `pickRecording(list, recent)` in `ui/src/screens/Home/last-opened.ts`, a pure function:
 
@@ -24,9 +26,26 @@ The open recording can also go from elsewhere: Delete all data in Settings, or a
 
 The backend is not involved: what was opened last is a setting of the interface, not data of a recording.
 
+## Closing with Escape
+
+Escape closes what the centre shows, the open recording or a job of the queue over it, and leaves the [empty state](#without-recordings): the sidebar has no row current, and the inspector and the player are empty, as without recordings. The sound stops, since the player lets the audio go as it does when the open recording is deleted; a recording opened again starts from the beginning. With nothing open, Escape does nothing.
+
+`useEscapeClose()` (`ui/src/screens/Editor/escape-close.ts`), called by `EditorScreen` while a recording or a job is open, listens on the window on the way down, as [Space](player.md#space) does, before Radix, which closes its layers on an Escape it hears on the document. `escapeAction()` decides from the key, the element in focus and what is on the screen:
+
+| When | Escape |
+|---|---|
+| Nothing in focus, the transcript, a button or a row of the sidebar, also with text selected in the transcript | Closes the recording or the job |
+| A modal window is open (`openModalCount()`), such as New recording, Import files, Settings, Speakers, Delete recording or a speaker dialog | Closes the window, as before |
+| A menu, a select list, a popover or a tooltip is on the screen, wherever the focus is | Closes it, as before; the next Escape closes the recording |
+| A text field: renaming in the sidebar, a paragraph being edited, a search | What the field does with it: takes back the edit or clears the search |
+
+With Ctrl, Alt, Shift or ⌘ held, or while text is being composed, Escape is left alone. What counts as a text field and as a window, menu, select list or popover is the same as for Space (`ui/src/keys.ts`). A toast on the screen does not take Escape: the recording closes and the toast stays until it goes by itself.
+
+A closed recording stays closed until the user opens one: a refresh of the list, such as when a job of the queue finishes, or a delete of another recording opens nothing. A job picked in the queue meanwhile goes back to the empty state when it goes. Closing does not touch the recent ones, so the next start opens the recording opened last, the one just closed included.
+
 ## Without recordings
 
-When the backend answers with no recordings at all, the centre shows `EmptyState` (`ui/src/screens/Home/EmptyState.tsx`): how to make a new transcription, with the plus in the sentence on a chip as a key in a shortcut hint, centred on the capitals rather than the lowercase letters, then "Or drop audio or video files into the window.", and a line that transcribing needs models, which are downloaded in Settings. Settings there opens [Settings](settings.md). The sidebar says No recordings yet as before. While the list loads, or when the backend does not answer, the centre stays empty and the sidebar says so: that is not the empty state.
+When the backend answers with no recordings at all, or the user [closed](#closing-with-escape) the open one, the centre shows `EmptyState` (`ui/src/screens/Home/EmptyState.tsx`): how to make a new transcription, with the plus in the sentence on a chip as a key in a shortcut hint, centred on the capitals rather than the lowercase letters, then "Or drop audio or video files into the window.", and a line that transcribing needs models, which are downloaded in Settings. Settings there opens [Settings](settings.md). Without recordings the sidebar says No recordings yet as before. While the list loads, or when the backend does not answer, the centre stays empty and the sidebar says so: that is not the empty state.
 
 ## New recording dialog
 
