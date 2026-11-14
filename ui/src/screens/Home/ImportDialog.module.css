@@ -97,16 +97,20 @@
   color: var(--color-text-secondary);
 }
 
+/* As renaming in the sidebar: the frame grows out around the title, whose text stays where it was. */
 .titleInput {
   flex: 1;
   min-width: 0;
-  padding: 0;
+  height: var(--size-control-sm);
+  margin-inline: calc(var(--space-1) * -1);
+  padding: 0 var(--space-1);
   border: none;
   border-radius: var(--radius-sm);
   background: var(--color-bg-raised);
   color: var(--color-text-primary);
   font: inherit;
   outline: var(--border-width-focus) solid var(--color-focus);
+  outline-offset: calc(var(--border-width-focus) * -1);
 }
 
 .titleInput::selection {
