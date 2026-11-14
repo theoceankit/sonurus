@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
@@ -51,6 +51,16 @@ test.each([false, true])('sticky %s: More offers to delete the recording', async
   await userEvent.click(screen.getByRole('button', { name: 'More' }))
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete recording' }))
   expect(onDelete).toHaveBeenCalledOnce()
+})
+
+// The header stands at the top of the transcript: its tooltips hang below the buttons.
+test.each([false, true])('sticky %s: the tooltips of the buttons show below them', async sticky => {
+  setup({ sticky, onCopy: vi.fn() })
+  for (const name of ['Pin', 'Copy transcript', 'Export', 'More']) {
+    fireEvent.pointerMove(screen.getByRole('button', { name }))
+    await waitFor(() => expect(screen.getByRole('tooltip').textContent).toBe(name))
+    expect(screen.getByRole('tooltip').closest('[data-side]')?.getAttribute('data-side')).toBe('bottom')
+  }
 })
 
 test('sticky: the title on one line, no date', () => {

@@ -24,8 +24,9 @@ type TranscriptHeaderProps = Omit<ComponentPropsWithRef<'header'>, 'title' | 'ch
   initialRenaming?: boolean
 }
 
+// The header stands at the top of the transcript: its tooltips hang below.
 const Action = ({ label, ...props }: IconButtonProps) => (
-  <Tooltip text={label}>
+  <Tooltip text={label} placement="below">
     <IconButton label={label} {...props} />
   </Tooltip>
 )
@@ -37,7 +38,7 @@ const Actions = ({ onDelete, onCopy }: { onDelete?: () => void; onCopy?: () => v
       <Action icon="pin" label="Pin" {...markNotImplemented('transcript.pin')} />
       <Action icon="copy" label="Copy transcript" disabled={!onCopy} onClick={onCopy} />
       <Action icon="export" label="Export" {...markNotImplemented('transcript.export')} />
-      <Menu align="end" trigger={<Tooltip text="More"><IconButton icon="more" label="More" /></Tooltip>}>
+      <Menu align="end" trigger={<Tooltip text="More" placement="below"><IconButton icon="more" label="More" /></Tooltip>}>
         <MenuAction icon="delete" onSelect={onDelete}>Delete recording</MenuAction>
       </Menu>
     </div>
