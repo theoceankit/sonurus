@@ -40,10 +40,10 @@ Without a token, loading will fail with `401 Unauthorized`.
 
 | Package | Version | Role |
 |---|---|---|
-| `whisperx` | 3.8.5 | ASR pipeline — wrapper around faster-whisper + PyAnnote |
+| `whisperx` | 3.8.6 | ASR pipeline — wrapper around faster-whisper + PyAnnote |
 | `faster-whisper` | 1.2.1 | Fast Whisper inference via CTranslate2 |
-| `ctranslate2` | 4.7.1 | Quantized inference engine |
-| `pyannote-audio` | 4.0.4 | Speaker diarization and embedding extraction |
+| `ctranslate2` | 4.8.5 | Quantized inference engine |
+| `pyannote-audio` | 4.0.7 | Speaker diarization and embedding extraction |
 | `torch` | 2.8.0 | Model inference — CPU and CUDA |
 | `torchaudio` | 2.8.0 | Alignment models for EN/FR/DE/ES/IT |
 | `transformers` | 4.57.6 | HuggingFace alignment model loading |
