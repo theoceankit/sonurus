@@ -20,7 +20,7 @@
   justify-content: center;
   border-radius: var(--radius-full);
   background: var(--color-scrim);
-  color: var(--color-text-on-inverse);
+  color: var(--color-text-on-scrim);
   opacity: 0;
   transition: opacity var(--duration-base) var(--ease-standard);
 }

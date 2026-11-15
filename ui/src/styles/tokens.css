@@ -388,6 +388,8 @@
   --color-text-on-danger: var(--gray-0);
   --color-text-on-inverse: var(--gray-0);
   --color-text-on-inverse-muted: var(--white-a72);
+  /* Over --color-scrim, which is black in both themes. */
+  --color-text-on-scrim: var(--gray-0);
   --color-text-placeholder: var(--gray-400);
   --color-text-primary: var(--gray-900);
   --color-text-secondary: var(--gray-600);
@@ -487,6 +489,7 @@
   --color-text-on-danger: var(--gray-0);
   --color-text-on-inverse: var(--gray-950);
   --color-text-on-inverse-muted: var(--black-a64);
+  --color-text-on-scrim: var(--gray-0);
   --color-text-placeholder: var(--gray-500);
   --color-text-primary: var(--gray-100);
   --color-text-secondary: var(--gray-400);

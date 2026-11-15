@@ -306,6 +306,8 @@ One stop for Tab, arrows move inside it. The screen decides where it stands and 
 
 An error toast takes its text from `--color-text-on-danger`, not `--color-text-on-inverse` as on the Penpot board. In the light theme they are the same; in the dark theme the second is dark on red.
 
+What stands on `--color-scrim`, such as the pencil and the bin of `AvatarButton`, takes `--color-text-on-scrim`: the scrim is black in both themes, so it stays light in both.
+
 ### ScrollFade
 
 ```tsx
