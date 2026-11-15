@@ -1,4 +1,5 @@
-/* One line, a control's height; the arrow is apart from the button by a hairline. */
+/* One line, a control's height; the arrow is apart from the button by a hairline.
+   Regular text and a hairline ring when on: the fill and the colour say it, not the weight. */
 .sourceToggle {
   display: flex;
   min-width: 0;
@@ -10,7 +11,7 @@
 
 .on {
   background: var(--color-accent-bg);
-  box-shadow: inset 0 0 0 var(--border-width-focus) var(--color-accent-fg);
+  box-shadow: inset 0 0 0 var(--border-width-default) var(--color-accent-fg);
   color: var(--color-accent-fg);
 }
 
@@ -28,7 +29,7 @@
 
 .name {
   overflow: hidden;
-  font: var(--font-body-strong);
+  font: var(--font-body);
   color: var(--color-text-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
