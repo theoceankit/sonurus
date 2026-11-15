@@ -35,6 +35,13 @@ body {
   background: none;
 }
 
+/* A change of theme cross-fades the page (theme.ts), still with reduced motion. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--duration-move);
+  animation-timing-function: var(--ease-standard);
+}
+
 /* ScrollBar stands in for the system bar, which draws arrows on Linux. */
 * {
   scrollbar-width: none;

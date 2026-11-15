@@ -93,3 +93,43 @@ test('until the root has a theme the page draws no background, so the window\'s 
   // light values the page has before followTheme() would flash for a frame or two.
   expect(base).toMatch(/:root:not\(\[data-theme\]\) body \{\s*background: none;\s*\}/)
 })
+
+// document.startViewTransition as Chromium has it: the change runs inside it.
+function stubTransition() {
+  const start = vi.fn((update: () => void) => { update() })
+  Object.defineProperty(document, 'startViewTransition', { value: start, configurable: true })
+  return start
+}
+
+afterEach(() => {
+  delete (document as { startViewTransition?: unknown }).startViewTransition
+})
+
+test('a change of theme cross-fades the page, the first theme does not', () => {
+  const scheme = stubScheme(false)
+  const start = stubTransition()
+  followTheme()
+  expect(start).not.toHaveBeenCalled()
+  scheme.change(true)
+  expect(start).toHaveBeenCalledTimes(1)
+  expect(theme()).toBe('dark')
+})
+
+test('a media query that fires without a change of theme starts no cross-fade', () => {
+  const scheme = stubScheme(true)
+  const start = stubTransition()
+  followTheme()
+  scheme.change(true)
+  expect(start).not.toHaveBeenCalled()
+})
+
+test('without View Transitions the theme changes at once', () => {
+  const scheme = stubScheme(false)
+  followTheme()
+  scheme.change(true)
+  expect(theme()).toBe('dark')
+})
+
+test('the cross-fade has the timing of the motion tokens', () => {
+  expect(base).toMatch(/::view-transition-old\(root\),\s*::view-transition-new\(root\) \{\s*animation-duration: var\(--duration-move\);\s*animation-timing-function: var\(--ease-standard\);/)
+})

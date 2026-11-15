@@ -64,7 +64,7 @@ test('main.js applies the chrome after its own settings and keeps the window siz
 // over the page. The main process darkens the strip to the colour of the page under
 // the scrim, with the scrim's timing.
 
-const { dimmedOverlay, cubicBezier, overlayDimmer, DIM } = require(path.join(ROOT, 'electron', 'window-chrome.js'))
+const { dimmedOverlay, cubicBezier, overlayDimmer, DIM, THEME_FADE } = require(path.join(ROOT, 'electron', 'window-chrome.js'))
 
 const bezier = name => token(name).match(/cubic-bezier\(([^)]+)\)/)[1].split(',').map(Number)
 
@@ -180,22 +180,53 @@ test('asking for the state the strip is in does nothing', () => {
   assert.equal(running(), false)
 })
 
-test('a theme that changes repaints the strip where it is, dimmed or not', () => {
-  let dark = false
-  const applied = []
-  const dimmer = overlayDimmer(overlay => applied.push(overlay), { isDark: () => dark, setTimer: () => 1, clearTimer: () => {} })
-  dark = true
-  dimmer.refresh()
+test('a change of theme moves the strip to the new colours with the page\'s cross-fade', () => {
+  assert.equal(`${THEME_FADE.ms}ms`, token('--duration-move'))
+  assert.deepEqual(THEME_FADE.ease, bezier('--ease-standard'))
+  const { dimmer, applied, tick, running } = clock()
+  dimmer.setTheme(true)
+  assert.ok(running())
+  while (running()) tick(16)
   assert.deepEqual(applied.at(-1), dimmedOverlay(0, true))
+  assert.ok(applied.length >= 250 / 16 - 1 && applied.length <= 250 / 16 + 2, `${applied.length} frames`)
+  // Halfway between, never a jump to either end.
+  const middle = applied[Math.floor(applied.length / 2)]
+  assert.notEqual(middle.color, dimmedOverlay(0).color)
+  assert.notEqual(middle.color, dimmedOverlay(0, true).color)
 })
 
-test('a theme that changes while the strip moves leaves it to the next frame', () => {
-  const { dimmer, applied, running } = clock()
+test('the colours between the themes run from one to the other', () => {
+  assert.deepEqual(dimmedOverlay(0, 0), dimmedOverlay(0, false))
+  assert.deepEqual(dimmedOverlay(1, 1), dimmedOverlay(1, true))
+  // #F6F6F9 and #101012 halfway.
+  assert.equal(dimmedOverlay(0, 0.5).color, '#838386')
+})
+
+test('a modal that opens while the theme changes dims the strip as it moves', () => {
+  const { dimmer, applied, tick, running } = clock()
+  dimmer.setTheme(true)
+  tick(16); tick(16)
   dimmer.set(true)
-  const before = applied.length
   assert.ok(running())
-  dimmer.refresh()
-  assert.equal(applied.length, before)
+  while (running()) tick(16)
+  assert.deepEqual(applied.at(-1), dimmedOverlay(1, true))
+})
+
+test('a theme the strip is already in, or is moving to, changes nothing', () => {
+  const { dimmer, applied, running } = clock()
+  dimmer.setTheme(false)
+  assert.equal(applied.length, 0)
+  assert.equal(running(), false)
+})
+
+test('a strip that starts dark stays dark until the theme changes', () => {
+  const applied = []
+  const dimmer = overlayDimmer(overlay => applied.push(overlay), { dark: true, now: () => 0, setTimer: () => 1, clearTimer: () => {} })
+  dimmer.setTheme(true)
+  assert.equal(applied.length, 0)
+  // The first frame of a modal opening, in the dark colours.
+  dimmer.set(true)
+  assert.deepEqual(applied[0], dimmedOverlay(0, true))
 })
 
 test('main.js follows the saved theme and the system', () => {
@@ -204,7 +235,8 @@ test('main.js follows the saved theme and the system', () => {
   assert.match(main, /app\.whenReady\(\)\.then\(async \(\) => \{[\s\S]*nativeTheme\.themeSource = themeSource\(savedSettings\(\)\.theme\)[\s\S]*createWindow\(\)/)
   assert.match(main, /ipcMain\.handle\('set-theme', \(_e, source\) => \{\s*nativeTheme\.themeSource = themeSource\(source\)/)
   assert.match(main, /nativeTheme\.on\('updated'/)
-  assert.match(main, /isDark: \(\) => nativeTheme\.shouldUseDarkColors/)
+  assert.match(main, /dark: nativeTheme\.shouldUseDarkColors,/)
+  assert.match(main, /titleBarDimmer\?\.setTheme\(nativeTheme\.shouldUseDarkColors\)/)
   const preload = fs.readFileSync(path.join(ROOT, 'electron', 'preload.js'), 'utf8')
   assert.match(preload, /setTheme:\s*\(source\) => ipcRenderer\.invoke\('set-theme', source\)/)
 })

@@ -21,7 +21,7 @@ What every component of the UI in `ui/` builds on: tokens, the theme mechanism, 
 
 ## Theme
 
-The `data-theme` attribute selects the semantic values: `light` or `dark`. A root without it has the light values. In the app `followTheme()` of `ui/src/platform/theme.ts` sets it on the root from `prefers-color-scheme` before the first render, and again whenever the media query changes. The media query follows `nativeTheme.themeSource`, which the main process sets from the Theme setting ([Settings](settings.md#appearance)), so System follows the OS as it changes and Light or Dark hold whatever the OS says. Until the attribute is there, `base.css` gives the page no background, so for the frame or two before `followTheme()` runs the window's own background shows, which the main process has already set in the theme; the light values would otherwise flash on a dark start. Without Electron, on fixtures in a browser, a choice of Light or Dark is kept in the page and wins over the media query. The Storybook toolbar switches themes for the stories.
+The `data-theme` attribute selects the semantic values: `light` or `dark`. A root without it has the light values. In the app `followTheme()` of `ui/src/platform/theme.ts` sets it on the root from `prefers-color-scheme` before the first render, and again whenever the media query changes. The media query follows `nativeTheme.themeSource`, which the main process sets from the Theme setting ([Settings](settings.md#appearance)), so System follows the OS as it changes and Light or Dark hold whatever the OS says. Until the attribute is there, `base.css` gives the page no background, so for the frame or two before `followTheme()` runs the window's own background shows, which the main process has already set in the theme; the light values would otherwise flash on a dark start. Without Electron, on fixtures in a browser, a choice of Light or Dark is kept in the page and wins over the media query. A change after the first cross-fades the page: `followTheme()` sets the attribute inside `document.startViewTransition()` ([Motion](#motion)). The Storybook toolbar switches themes for the stories.
 
 Colours change only in the theme blocks of `tokens.css`: a screen that looks wrong in one theme is fixed in that theme's semantic values, never in a component.
 
@@ -161,7 +161,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 1. Motion says where a thing came from and where it went. It decorates nothing.
 2. An action shows on the first frame, and input does not wait for an animation to end. What is opening can be closed.
 3. Most of the way is covered at the start: the curves decelerate hard, so a thing is nearly in place after the first few frames.
-4. Nothing takes longer than 200 ms, except panels (250 ms, the furthest travel), the spinner and the bar of the playing segment.
+4. Nothing takes longer than 200 ms, except panels (250 ms, the furthest travel), a change of theme (250 ms, the whole window), the spinner and the bar of the playing segment.
 5. Closing is shorter than opening, except for what travels as far as a panel, which takes the panel's time both ways. Duration follows distance.
 6. Only `opacity` and `transform` move. Size changes only for a panel, for what opens in place, for the bubble of the player and for a tooltip passing to its neighbour.
 7. Nothing loops unless it reports a process, as the spinner does.
@@ -173,7 +173,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | `--duration-fast` | 100 ms | hover, tooltip, closing a menu |
 | `--duration-base` | 150 ms | opening a menu, closing a modal or a toast |
 | `--duration-slow` | 200 ms | opening a modal or a toast, what opens in place |
-| `--duration-move` | 250 ms | panels, which travel the furthest |
+| `--duration-move` | 250 ms | panels, which travel the furthest; the cross-fade of a change of theme |
 | `--duration-shimmer` | 3200 ms | one cycle of the glint on text that is being worked on: half crossing, half resting |
 | `--duration-pulse` | 2400 ms | one breath of the live dot of a recording, with `--ease-pulse` down to `--opacity-pulse-low` (0.6) and back |
 | `--delay-hover` | 150 ms | how long the pointer stays on a speaker before it is highlighted |
@@ -208,6 +208,7 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | Text being worked on: the running job's title and status | — | — | a lighter band crosses it, then it rests, over and over (`shimmer.module.css`, over the element's `--shimmer-color`, primary text unless set); plain in that colour with reduced motion |
 | The live dot of a recording | — | — | its opacity breathes, never its size: a 6 px dot that scales lands on half pixels (`live.module.css`); still with reduced motion |
 | Stop on the recording's row | 150 | 150 | its room opens as the time moves aside, and it fades and slides in 2 px |
+| A change of theme | 250 | — | the whole page cross-fades from the old theme to the new on `--ease-standard` (View Transitions, `base.css`), and the strip of the window buttons moves to the new colours on the same timing; the first theme at start comes at once. Still with reduced motion: it only fades |
 
 Pressed and the focus ring change at once. So do the text and data of the transcript, the playhead and the waveform, scrolling, changing recording, tabs and editing a paragraph.
 

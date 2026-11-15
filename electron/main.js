@@ -67,7 +67,7 @@ function createWindow() {
   const win = mainWin
   if (process.platform !== 'darwin') {
     titleBarDimmer = overlayDimmer(overlay => { if (!win.isDestroyed()) win.setTitleBarOverlay(overlay) }, {
-      isDark: () => nativeTheme.shouldUseDarkColors,
+      dark: nativeTheme.shouldUseDarkColors,
     })
   }
   // A page that loads again has no modal open, whatever the last one said.
@@ -115,12 +115,12 @@ ipcMain.handle('set-theme', (_e, source) => {
   nativeTheme.themeSource = themeSource(source)
 })
 
-// The OS or the setting changed the theme: the window behind the page and the strip
-// of the window buttons follow.
+// The OS or the setting changed the theme: the window behind the page takes it, and
+// the strip of the window buttons moves to it as the page cross-fades.
 nativeTheme.on('updated', () => {
   if (!mainWin || mainWin.isDestroyed()) return
   mainWin.setBackgroundColor(windowChrome(nativeTheme.shouldUseDarkColors).backgroundColor)
-  titleBarDimmer?.refresh()
+  titleBarDimmer?.setTheme(nativeTheme.shouldUseDarkColors)
 })
 
 ipcMain.handle('set-zoom', (_e, factor) => {

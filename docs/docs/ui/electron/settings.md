@@ -26,7 +26,7 @@ Without a provider, as for a screen alone in a story or a test, `open` does noth
 
 ## Appearance
 
-- **Theme**, System, Light or Dark; System at first. The window takes a choice at once, frame and window buttons too: the UI calls `setTheme` of the bridge, which sets `nativeTheme.themeSource`, and saves `theme`. The main process applies the saved theme before the window opens, so it never starts in the other one. System follows the OS as it changes. How the page follows it: [Theme](foundations.md#theme).
+- **Theme**, System, Light or Dark; System at first. The window cross-fades to a choice at once, frame and window buttons too: the UI calls `setTheme` of the bridge, which sets `nativeTheme.themeSource`, and saves `theme`. The main process applies the saved theme before the window opens, so it never starts in the other one. System follows the OS as it changes. How the page follows it: [Theme](foundations.md#theme).
 - **App language** is marked with `markNotImplemented()`: the interface has one language.
 - **Interface scale**, 50 to 200% in steps of 5, with marks at 50, 100, 150 and 200%. The slider follows the pointer; when it lets go, or a key is released, the window zooms (`setZoom`) and `scale` is saved. The UI applies the saved scale on start.
 
