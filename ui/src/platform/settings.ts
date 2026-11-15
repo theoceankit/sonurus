@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS: ElectronSettings = {
   recordingSystemDevice: null,
   hfToken: '',
   recentTranscriptIds: [],
+  theme: 'system',
 }
 
 export type SettingsStore = {

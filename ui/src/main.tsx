@@ -1,3 +1,4 @@
+import { followTheme } from './platform/theme'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ApiProvider } from './api/ApiProvider'
@@ -19,6 +20,8 @@ async function createClient(): Promise<ApiClient> {
   return createBackendClient()
 }
 
+// First, so nothing draws in the other theme.
+followTheme()
 void applySavedScale()
 
 createClient().then(client => {

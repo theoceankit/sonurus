@@ -71,15 +71,15 @@ test('a click inside a marked container is stopped too', async () => {
 test.each(['{ArrowDown}', '{ArrowUp}', '{Enter}', ' '])('%s opens neither a marked select nor a marked menu', async key => {
   render(
     <>
-      <div {...notImplementedProps('settings.theme')}>
-        <Select aria-label="Theme" value="system" options={[{ value: 'system', label: 'System' }, { value: 'dark', label: 'Dark' }]} onValueChange={() => {}} />
+      <div {...notImplementedProps('settings.app-language')}>
+        <Select aria-label="App language" value="en" options={[{ value: 'en', label: 'English' }, { value: 'de', label: 'German' }]} onValueChange={() => {}} />
       </div>
       <div {...notImplementedProps('transcript.export')}>
         <Menu trigger={<Button>Export</Button>}><MenuAction>Text</MenuAction></Menu>
       </div>
     </>,
   )
-  screen.getByRole('combobox', { name: 'Theme' }).focus()
+  screen.getByRole('combobox', { name: 'App language' }).focus()
   await userEvent.keyboard(key)
   expect(screen.queryByRole('listbox')).toBeNull()
   screen.getByRole('button', { name: 'Export' }).focus()

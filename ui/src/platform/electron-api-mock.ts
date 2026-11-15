@@ -16,6 +16,7 @@ export function createMockElectronAPI(changes: Partial<ElectronAPI> = {}): MockE
     readSettings: async () => structuredClone(settings),
     writeSettings: async data => { settings = structuredClone(data) },
     setZoom: async () => {},
+    setTheme: async () => {},
     writeClipboard: async text => { clipboard = text },
     restartBackend: async () => {},
     showModelsFolder: async () => '',

@@ -388,6 +388,8 @@
   --color-text-on-danger: var(--gray-0);
   --color-text-on-inverse: var(--gray-0);
   --color-text-on-inverse-muted: var(--white-a72);
+  /* Over --color-scrim, which is black in both themes. */
+  --color-text-on-scrim: var(--gray-0);
   --color-text-placeholder: var(--gray-400);
   --color-text-primary: var(--gray-900);
   --color-text-secondary: var(--gray-600);
@@ -404,7 +406,7 @@
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --color-accent-bg: var(--iris-dark-a24);
+  --color-accent-bg: var(--iris-dark-a16);
   --color-accent-border: var(--iris-dark-a34);
   --color-accent-fg: var(--iris-400);
   --color-accent-on-inverse: var(--iris-600);
@@ -487,6 +489,7 @@
   --color-text-on-danger: var(--gray-0);
   --color-text-on-inverse: var(--gray-950);
   --color-text-on-inverse-muted: var(--black-a64);
+  --color-text-on-scrim: var(--gray-0);
   --color-text-placeholder: var(--gray-500);
   --color-text-primary: var(--gray-100);
   --color-text-secondary: var(--gray-400);

@@ -26,6 +26,22 @@ body {
   background: var(--color-bg-window);
 }
 
+/*
+ * Until theme.ts has put data-theme on the root, the page would draw the light
+ * values whatever the theme. It draws no background then: the window's own
+ * shows, which the main process has set in the theme (electron/window-chrome.js).
+ */
+:root:not([data-theme]) body {
+  background: none;
+}
+
+/* A change of theme cross-fades the page (theme.ts), still with reduced motion. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--duration-move);
+  animation-timing-function: var(--ease-standard);
+}
+
 /* ScrollBar stands in for the system bar, which draws arrows on Linux. */
 * {
   scrollbar-width: none;

@@ -18,11 +18,12 @@ afterEach(() => {
 async function setup(options: FixtureOptions = {}, saved: Partial<ElectronSettings> = {}) {
   const client = createFixtureClient({ downloadStepMs: 5, ...options })
   const setZoom = vi.fn(async () => {})
-  const bridge = createMockElectronAPI({ setZoom, getAppVersion: async () => '0.3.0' })
+  const setTheme = vi.fn(async () => {})
+  const bridge = createMockElectronAPI({ setZoom, setTheme, getAppVersion: async () => '0.3.0' })
   await bridge.writeSettings({ ...DEFAULT_SETTINGS, ...saved })
   vi.stubGlobal('electronAPI', bridge)
   render(<ApiProvider client={client}><OverlayProvider><App /></OverlayProvider></ApiProvider>)
-  return { client, bridge, setZoom }
+  return { client, bridge, setZoom, setTheme }
 }
 
 const openSettings = async () => {
@@ -121,12 +122,35 @@ test('Handle format is the backend\'s, shown by example, and changes it', async 
   expect(field('Handle format').textContent).toContain('@o.brown')
 })
 
-test('Appearance: the theme and the app language are there and not available yet', async () => {
+test('Appearance: the app language is there and not available yet', async () => {
   await setup()
   await openAppearance()
   expect(field('App language').closest('[data-not-implemented]')?.getAttribute('data-not-implemented')).toBe('settings.app-language')
-  expect(field('Theme').closest('[data-not-implemented]')?.getAttribute('data-not-implemented')).toBe('settings.theme')
+})
+
+test('Appearance: the theme is System at first, and a choice applies at once and is saved', async () => {
+  const { bridge, setTheme } = await setup()
+  await openAppearance()
+  expect(field('Theme').closest('[data-not-implemented]')).toBeNull()
   expect(field('Theme').textContent).toContain('System')
+  await userEvent.click(field('Theme'))
+  expect(screen.getAllByRole('option').map(o => o.textContent?.trim())).toEqual(['System', 'Light', 'Dark'])
+  await userEvent.click(option('Dark'))
+  expect(setTheme).toHaveBeenCalledWith('dark')
+  await waitFor(async () => expect((await bridge.readSettings()).theme).toBe('dark'))
+  expect(field('Theme').textContent).toContain('Dark')
+})
+
+test('Appearance: the saved theme is shown', async () => {
+  await setup({}, { theme: 'light' })
+  await openAppearance()
+  await waitFor(() => expect(field('Theme').textContent).toContain('Light'))
+})
+
+test('Appearance: a saved theme the app does not know reads as System', async () => {
+  await setup({}, { theme: 'sepia' as never })
+  await openAppearance()
+  await waitFor(() => expect(field('Theme').textContent).toContain('System'))
 })
 
 test('opening puts the focus on the section, not on its first control', async () => {
