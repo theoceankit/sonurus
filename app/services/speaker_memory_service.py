@@ -4,6 +4,7 @@ import re
 import sqlite3
 import threading
 import uuid
+from pathlib import Path
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -13,6 +14,7 @@ from app.logger import get_logger
 from app.services.speaker_handle import (
     DEFAULT_FORMAT, HANDLE_FORMATS, base_handle, is_valid_handle, normalize_handle, unique_handle,
 )
+from app.services.speaker_photos import delete_photo, save_photo
 
 PALETTE_SIZE = 5
 
@@ -36,6 +38,10 @@ class HandleNeedsName(ValueError):
     """Only a speaker with a name has a handle."""
 
 
+class PhotoNeedsName(ValueError):
+    """Only a speaker with a name has a photo."""
+
+
 class HandleTaken(ValueError):
     """Another speaker has this handle (case ignored)."""
 
@@ -52,7 +58,7 @@ class HandleTaken(ValueError):
 class SpeakerRepository:
     """SQLite persistence for speaker embeddings and names."""
 
-    _SCHEMA_VERSION = 4
+    _SCHEMA_VERSION = 5
 
     def __init__(self, db_path: str):
         self.db_path = db_path
@@ -226,6 +232,12 @@ class SpeakerRepository:
                 "CREATE UNIQUE INDEX IF NOT EXISTS speaker_meta_handle ON speaker_meta (handle COLLATE NOCASE)"
             )
             conn.execute("UPDATE _meta SET value = '4' WHERE key = 'schema_version'")
+        if current < 5:
+            # The file name of the speaker's photo in the photos dir.
+            meta_cols = {r[1] for r in conn.execute("PRAGMA table_info(speaker_meta)").fetchall()}
+            if "photo" not in meta_cols:
+                conn.execute("ALTER TABLE speaker_meta ADD COLUMN photo TEXT")
+            conn.execute("UPDATE _meta SET value = '5' WHERE key = 'schema_version'")
 
     def load(self) -> tuple[dict, dict]:
         with self._connect() as conn:
@@ -390,18 +402,42 @@ class SpeakerRepository:
             self._upsert_handle(conn, spk_id, handle, False)
         log.info(f"Gave handles to {len(rows)} speakers")
 
-    def remove(self, spk_id: str):
+    # --- photos --------------------------------------------------------------
+
+    def load_photos(self) -> dict[str, str]:
         with self._connect() as conn:
+            rows = conn.execute("SELECT speaker_id, photo FROM speaker_meta WHERE photo IS NOT NULL").fetchall()
+        return dict(rows)
+
+    def write_photo(self, spk_id: str, photo: str | None) -> str | None:
+        """Store the photo's file name (None: no photo) and return the one it
+        replaces. An upsert of this column only: colour and handle stay."""
+        # Photos are written only by the API's instance, so read-then-write is safe.
+        with self._connect() as conn:
+            row = conn.execute("SELECT photo FROM speaker_meta WHERE speaker_id = ?", (spk_id,)).fetchone()
+            conn.execute(
+                "INSERT INTO speaker_meta (speaker_id, photo) VALUES (?, ?) "
+                "ON CONFLICT(speaker_id) DO UPDATE SET photo = excluded.photo",
+                (spk_id, photo),
+            )
+        return row[0] if row else None
+
+    def remove(self, spk_id: str) -> str | None:
+        """Delete the speaker's rows; returns the file name of their photo, if any."""
+        with self._connect() as conn:
+            row = conn.execute("SELECT photo FROM speaker_meta WHERE speaker_id = ?", (spk_id,)).fetchone()
             conn.execute("DELETE FROM speaker_names WHERE speaker_id = ?", (spk_id,))
             conn.execute("DELETE FROM speaker_embeddings WHERE id = ?", (spk_id,))
             conn.execute("DELETE FROM speaker_meta WHERE speaker_id = ?", (spk_id,))
+        return row[0] if row else None
 
     def remove_embedding(self, spk_id: str):
         with self._connect() as conn:
             conn.execute("DELETE FROM speaker_embeddings WHERE id = ?", (spk_id,))
 
     def clear(self) -> int:
-        """Delete every speaker (embeddings, names, colors). _meta is kept."""
+        """Delete every speaker (embeddings, names, colors, handles, photo names).
+        _meta is kept; the photo files go with the data reset's file dirs."""
         with self._connect() as conn:
             ids = {row[0] for row in conn.execute("SELECT id FROM speaker_embeddings")}
             ids |= {row[0] for row in conn.execute("SELECT speaker_id FROM speaker_names")}
@@ -483,8 +519,11 @@ class SpeakerMemoryService:
     Only CommitService.commit() writes to memory via update_embedding() + save().
     """
 
-    def __init__(self, db_path="speaker_memory.db", threshold=SPEAKER_SIMILARITY_THRESHOLD):
+    def __init__(self, db_path="speaker_memory.db", threshold=SPEAKER_SIMILARITY_THRESHOLD, photos_dir=None):
         self.db_path = db_path
+        # Where photo files live. None: this instance never touches them (a
+        # pipeline job); the API's instance owns them.
+        self.photos_dir = Path(photos_dir) if photos_dir is not None else None
         self.threshold = threshold
         self._repo = SpeakerRepository(db_path)
         self.known_speakers, self.known_counts = self._repo.load()
@@ -492,6 +531,8 @@ class SpeakerMemoryService:
         self.known_colors: dict[str, int] = self._repo.load_colors()
         # {speaker_id: (handle, set by hand)}; only named speakers have one.
         self.known_handles: dict[str, tuple[str, bool]] = self._repo.load_handles()
+        # {speaker_id: photo file name}; only named speakers have one.
+        self.known_photos: dict[str, str] = self._repo.load_photos()
         self._dirty: set[str] = set()
         self._dirty_lock = threading.Lock()
         self._dirty_colors: set[str] = set()
@@ -579,6 +620,7 @@ class SpeakerMemoryService:
         self.known_names = self._repo.load_names()
         self.known_colors = self._repo.load_colors()
         self.known_handles = self._repo.load_handles()
+        self.known_photos = self._repo.load_photos()
         self._dirty_names = set()
 
     def save_names_only(self):
@@ -608,18 +650,19 @@ class SpeakerMemoryService:
         return set(self.known_speakers) | set(self.known_names)
 
     def remove_speaker(self, spk_id: str):
-        """Remove a speaker (profile, names, color) from memory and the database.
-        No-op if not present."""
+        """Remove a speaker (profile, names, color, handle, photo) from memory and
+        the database. No-op if not present."""
         self.known_speakers.pop(spk_id, None)
         self.known_counts.pop(spk_id, None)
         self.known_names.pop(spk_id, None)
         self.known_colors.pop(spk_id, None)
         self.known_handles.pop(spk_id, None)
+        self.known_photos.pop(spk_id, None)
         self._dirty_names.discard(spk_id)
         self._dirty_colors.discard(spk_id)
         with self._dirty_lock:
             self._dirty.discard(spk_id)
-        self._repo.remove(spk_id)
+        delete_photo(self._repo.remove(spk_id), self.photos_dir)
 
     def remove_embedding(self, spk_id: str):
         """Forget a speaker's voice and keep their name and color."""
@@ -641,6 +684,7 @@ class SpeakerMemoryService:
         self.known_names = {}
         self.known_colors = {}
         self.known_handles = {}
+        self.known_photos = {}
         self._dirty_names = set()
         self._dirty_colors = set()
         log.info(f"Cleared all speakers ({removed})")
@@ -661,6 +705,39 @@ class SpeakerMemoryService:
         if handle is not None:
             self.set_handle(spk_id, handle)
         return spk_id
+
+    # --- photos --------------------------------------------------------------
+
+    def get_photo(self, spk_id: str) -> str | None:
+        return self.known_photos.get(spk_id)
+
+    def photo_names(self) -> set[str]:
+        return set(self._repo.load_photos().values())
+
+    def set_photo(self, spk_id: str, data: bytes, mime: str) -> str:
+        """Store a new photo for a named speaker and drop the one it replaces.
+        Raises PhotoNeedsName for an unnamed speaker and ValueError for bytes
+        that are not the image mime says. A photo is metadata, like the colour:
+        no embedding is read or written."""
+        if self.photos_dir is None:
+            raise RuntimeError("This memory instance has no photos dir")
+        if not self.get_name(spk_id):
+            raise PhotoNeedsName("Only a speaker with a name has a photo")
+        name = save_photo(data, mime, self.photos_dir)
+        try:
+            old = self._repo.write_photo(spk_id, name)
+        except BaseException:
+            delete_photo(name, self.photos_dir)
+            raise
+        self.known_photos[spk_id] = name
+        if old != name:
+            delete_photo(old, self.photos_dir)
+        return name
+
+    def remove_photo(self, spk_id: str):
+        old = self._repo.write_photo(spk_id, None)
+        self.known_photos.pop(spk_id, None)
+        delete_photo(old, self.photos_dir)
 
     # --- handles -------------------------------------------------------------
 

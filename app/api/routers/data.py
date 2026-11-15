@@ -30,7 +30,7 @@ def reset_data(
     try:
         with queue.hold():
             queue.clear()
-            service = DataResetService(storage, memory, [config.RECORDINGS_DIR])
+            service = DataResetService(storage, memory, [config.RECORDINGS_DIR, config.SPEAKER_PHOTOS_DIR])
             return DataResetResponse(**service.reset())
     except QueueBusy:
         raise HTTPException(status_code=409, detail="A transcription is in progress")

@@ -52,12 +52,14 @@ class TranscriptUpdateRequest(BaseModel):
 class SpeakerResponse(ResponseModel):
     """A speaker in the Speakers section. name is None for unnamed speakers, and
     so is handle: only a named speaker has one. handle_manual: set by hand, so it
-    stays when the name changes."""
+    stays when the name changes. photo: the file name of the speaker's photo
+    (GET /speakers/{id}/photo), new with every upload; only a named speaker has one."""
     id: str
     name: str | None
     handle: str | None = None
     handle_manual: bool = False
     color_index: int
+    photo: str | None = None
     segments: int = 0
     transcripts: int = 0
     duration_sec: float = 0.0
@@ -132,7 +134,7 @@ class UnknownSpeakerCandidates(ResponseModel):
 RefusalCode = Literal[
     "whisper_model_missing", "diarization_model_missing", "alignment_model_missing",
     "audio_not_found", "audio_not_readable", "audio_copy_failed", "job_running",
-    "handle_invalid", "handle_taken", "handle_needs_name",
+    "handle_invalid", "handle_taken", "handle_needs_name", "photo_needs_name",
 ]
 
 HandleFormat = Literal["first.last", "f.last", "first.l"]

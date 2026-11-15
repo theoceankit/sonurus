@@ -17,6 +17,7 @@ from app.api.routers import transcripts, speakers, transcription, models, audio_
 from app.api.refusals import Refusal, refusal_handler
 from app.api.dependencies import get_memory_service, get_storage_service, get_transcription_queue
 from app.services.audio_store import remove_orphan_imports, remove_orphan_levels
+from app.services.speaker_photos import remove_orphan_photos
 from app.version import get_version
 import app.config as config
 
@@ -26,13 +27,14 @@ setup_logging(default_level="info")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     storage = get_storage_service()
-    get_memory_service()
+    memory = get_memory_service()
     queue = get_transcription_queue()
     # Import copies no transcript and no queued job references (e.g. the
     # backend stopped between copying a file and queuing it).
     remove_orphan_imports(config.RECORDINGS_DIR, storage.audio_files() | queue.audio_paths())
     # Waveform levels go with their audio.
     remove_orphan_levels(config.RECORDINGS_DIR)
+    remove_orphan_photos(config.SPEAKER_PHOTOS_DIR, memory.photo_names())
     queue.start_worker()
     yield
     queue.stop_worker()

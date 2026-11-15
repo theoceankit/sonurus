@@ -155,6 +155,7 @@ export function createFixtureClient({
       handle: handle ?? autoHandle(target.name),
       handle_manual: handle != null,
       color_index: target.colorIndex ?? 0,
+      photo: null,
       segments: 0,
       transcripts: 1,
       duration_sec: 0,

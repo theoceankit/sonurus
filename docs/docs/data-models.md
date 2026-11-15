@@ -72,6 +72,20 @@ May be `None` for very short segments that had no overlapping diarization span, 
 
 ---
 
+## Speaker
+
+A speaker is not a dataclass: it is a UUID4 with rows in the speaker memory tables (schema v5, see [SpeakerMemoryService](services/SpeakerMemoryService.md)), read through `SpeakerMemoryService` and listed by `GET /speakers`.
+
+| Data | Where | Who has it |
+|---|---|---|
+| Voice profile | `speaker_embeddings` | written only by `CommitService` |
+| Display name | `speaker_names` | named (recognized) speakers |
+| Palette colour | `speaker_meta.color_index` | every speaker |
+| Handle | `speaker_meta.handle`, `handle_manual` | named speakers |
+| Photo | `speaker_meta.photo`, the file in `$SONORUS_DATA_DIR/speaker_photos/` | named speakers, optional |
+
+---
+
 ## Object lifecycle
 
 ```

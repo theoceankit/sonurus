@@ -12,7 +12,7 @@ import numpy as np
 from app.config import EMBEDDING_MODEL_ID
 from app.models.segment import Segment
 from app.models.transcript import Transcript
-from app.services.speaker_memory_service import SpeakerMemoryService
+from app.services.speaker_memory_service import SpeakerMemoryService, SpeakerRepository
 from app.services.transcript_storage_service import TranscriptStorageService
 
 OLD_DIM, NEW_DIM = 512, 256
@@ -72,9 +72,10 @@ def test_old_voices_are_dropped_and_everything_else_stays(tmp_path):
 
 
 def test_schema_version_is_unchanged(tmp_path):
+    # The reset is no migration: the schema is what the code says, whatever the model.
     db, _, _ = _old_model_db(tmp_path)
     SpeakerMemoryService(db_path=db)
-    assert _meta(db, "schema_version") == "4"
+    assert _meta(db, "schema_version") == str(SpeakerRepository._SCHEMA_VERSION)
 
 
 def test_new_voices_survive_a_restart(tmp_path):
