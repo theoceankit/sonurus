@@ -788,6 +788,60 @@ def test_rename_allows_a_name_another_speaker_has(client):
     assert client.post(f"/speakers/{_BOB}/rename", json={"name": "Alice"}).status_code == 204
 
 
+_NEW_VOICE = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+
+
+def _new_voice_after_a_job():
+    """A voice a queue job did not recognize: segments with embeddings in two
+    transcripts, no voice profile, no name."""
+    storage = app.dependency_overrides[get_storage_service]()
+    storage.save(Transcript(audio_path="first.wav", segments=[
+        Segment(0.0, 2.0, "a", "SPEAKER_00", speaker_resolved=_NEW_VOICE, embedding=_emb(0.0, 0.0, 1.0)),
+    ]))
+    storage.save(Transcript(audio_path="second.wav", segments=[
+        Segment(0.0, 2.0, "b", "SPEAKER_00", speaker_resolved=_NEW_VOICE, embedding=_emb(0.0, 0.2, 1.0)),
+    ]))
+    assert _NEW_VOICE not in _fresh_memory().known_speakers
+
+
+def test_naming_a_speaker_gives_it_a_voice_profile_that_is_recognized(client):
+    _new_voice_after_a_job()
+    assert client.patch(f"/speakers/{_NEW_VOICE}", json={"name": "Erin"}).status_code == 200
+
+    memory = _fresh_memory()
+    assert _NEW_VOICE in memory.known_speakers
+    assert memory.known_counts[_NEW_VOICE] == 2
+    assert memory.resolve({"SPEAKER_00": _emb(0.0, 0.1, 1.0)}) == {"SPEAKER_00": _NEW_VOICE}
+
+
+def test_renaming_a_speaker_recomputes_its_voice_profile_from_the_db(client):
+    _new_voice_after_a_job()
+    memory = _fresh_memory()
+    memory.update_embedding(_NEW_VOICE, _emb(0.0, 0.0, 1.0), count=1)
+    memory.set_name(_NEW_VOICE, "Erin")
+    memory.save()
+
+    assert client.patch(f"/speakers/{_NEW_VOICE}", json={"name": "Erin B."}).status_code == 200
+    assert _fresh_memory().known_counts[_NEW_VOICE] == 2
+
+
+def test_naming_a_speaker_without_embeddings_gives_no_profile(client):
+    _speakers_fixture()  # Carol: segments without embeddings
+    assert client.patch(f"/speakers/{_CAROL}", json={"name": "Carol"}).status_code == 200
+    assert _CAROL not in _fresh_memory().known_speakers
+
+
+def test_recolouring_or_a_handle_leaves_the_voice_profile_alone(client):
+    _new_voice_after_a_job()
+    memory = _fresh_memory()
+    memory.set_name(_NEW_VOICE, "Erin")
+    memory.save_names_only()
+
+    assert client.patch(f"/speakers/{_NEW_VOICE}", json={"color_index": 3}).status_code == 200
+    assert client.patch(f"/speakers/{_NEW_VOICE}", json={"handle": "erin"}).status_code == 200
+    assert _NEW_VOICE not in _fresh_memory().known_speakers
+
+
 def test_speaker_transcripts(client):
     first, second = _speakers_fixture()
     r = client.get(f"/speakers/{_ALICE}/transcripts")

@@ -574,7 +574,7 @@ Changes the display name, color and/or handle. At least one field is required.
 | Another speaker has it, in any case | `409` | `handle_taken` | `"@alice is taken by Alice Smith."` |
 | The speaker has no name and gets none | `400` | `handle_needs_name` | `"Give the speaker a name first."` |
 
-Works for any speaker listed by `GET /speakers`, including one that only has segments (naming it makes it recognized and gives it a handle). Returns `200` with the updated `GET /speakers` row, `400` for an empty body, `404` for an unknown id. Never touches the embedding.
+Works for any speaker listed by `GET /speakers`, including one that only has segments (naming it makes it recognized and gives it a handle). A `name`, new or the same, then has `CommitService.commit_speaker()` recompute the speaker's voice profile from their segments with embeddings, as an assignment in the editor does: a voice no job recognized has segments but no profile, and without one the next recording would not recognize the speaker. A speaker with no such segments gets no profile. `color_index` and `handle` alone never touch the profile. Returns `200` with the updated `GET /speakers` row, `400` for an empty body, `404` for an unknown id.
 
 ### `POST /speakers/{id}/rename`
 
