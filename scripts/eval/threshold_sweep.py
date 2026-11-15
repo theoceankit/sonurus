@@ -11,7 +11,11 @@ profiles are the centroid of per-recording centroids with the threshold as
 guard (CommitService). Only the matching and averaging change; diarization
 and embeddings are those of the run.
 
-    .venv/bin/python scripts/eval/threshold_sweep.py ~/.cache/sonorus-eval/reports/<stem>.json
+    .venv/bin/python scripts/eval/threshold_sweep.py ~/.cache/sonorus-eval/reports/<stem>.json [<stem>.json …]
+
+Several reports are read together (e.g. the fast set and the long set, or a
+long set run in parts); a run of the same series and variant in a later
+report replaces the earlier one.
 
 Methods of averaging embeddings (a recording's voice of a speaker, and the
 per-recording centroid of a profile):
@@ -19,6 +23,10 @@ per-recording centroid of a profile):
   mean        the plain mean of the embeddings (the app today)
   norm        each embedding scaled to length 1 first
   norm+dur    as norm, weighted by the duration of the diarization turn
+  turns       a recording's voice as norm+dur over its diarization turns; a
+              profile's per-recording centroid as norm over the segments that
+              carry an embedding (a turn split into several segments counts
+              that many times) — what the app can do with what the DB holds
 """
 import argparse
 import json
@@ -31,7 +39,10 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-METHODS = ("mean", "norm", "norm+dur")
+METHODS = ("mean", "norm", "norm+dur", "turns")
+# method → (a recording's voice, a profile's per-recording centroid)
+_AVERAGING = {"mean": ("mean", "mean"), "norm": ("norm", "norm"),
+              "norm+dur": ("norm+dur", "norm+dur"), "turns": ("norm+dur", "norm")}
 THRESHOLDS = tuple(round(0.40 + 0.05 * k, 2) for k in range(9))  # 0.40 … 0.80
 
 
@@ -127,9 +138,10 @@ class Outcome:
 def replay(clips: list[Clip], threshold: float, method: str) -> Outcome:
     from app.services.speaker_memory_service import _resolve_speakers
 
-    memory, out = Memory(threshold, method), Outcome()
+    voice, centroid = _AVERAGING[method]
+    memory, out = Memory(threshold, centroid), Outcome()
     for clip in clips:
-        session = clip.session(method)
+        session = clip.session(voice)
         matched = _resolve_speakers(session, memory.profiles, threshold)
         matched = {raw: (m if m in memory.profiles else None) for raw, m in matched.items()}
         for raw, person in matched.items():
@@ -195,15 +207,18 @@ def _q(xs, q):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("report", type=Path, help="<stem>.json of a quality run (the .npz next to it)")
+    parser.add_argument("reports", type=Path, nargs="+",
+                        help="<stem>.json of quality runs (the .npz next to each)")
     parser.add_argument("--thresholds", type=float, nargs="*", default=THRESHOLDS)
     parser.add_argument("--methods", nargs="*", default=METHODS, choices=METHODS)
     args = parser.parse_args()
     from app.config import SPEAKER_SIMILARITY_THRESHOLD
 
-    runs = load(args.report)
+    runs = {}
+    for report in args.reports:
+        runs.update(load(report))
     if not runs:
-        sys.exit(f"no voices in {args.report.with_suffix('.npz')}")
+        sys.exit("no voices in " + ", ".join(str(r.with_suffix(".npz")) for r in args.reports))
     print(f"{len(runs)} runs: " + ", ".join(f"{s or 'fast'}/{v}" for s, v in runs))
 
     print("\n## All runs: recognised / total, wrong\n")
