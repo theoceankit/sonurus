@@ -139,6 +139,27 @@ test('nothing is saved while typing or leaving the field: only Save saves', asyn
   await waitFor(() => expect(saveButton(dialog).disabled).toBe(true))
 })
 
+test('a colour kept from the Avatar window never turns Save and Cancel on, not even for a moment', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  const save = saveButton(dialog)
+  const cancel = cancelButton(dialog)
+  const enabled: string[] = []
+  const watch = new MutationObserver(() => {
+    if (!save.disabled) enabled.push('Save')
+    if (!cancel.disabled) enabled.push('Cancel')
+  })
+  watch.observe(save, { attributes: true })
+  watch.observe(cancel, { attributes: true })
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Change avatar' }))
+  const window = await screen.findByRole('dialog', { name: 'Avatar' })
+  await userEvent.click(within(window).getByRole('radio', { name: 'Blue' }))
+  await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Change avatar', hidden: true }).querySelector('[style*="speaker-1-bg"]')).toBeTruthy())
+  watch.disconnect()
+  expect(enabled).toEqual([])
+  expect(save.disabled).toBe(true)
+})
+
 test('the colour is chosen in the Avatar window and kept at once, edits of the name staying as they were', async () => {
   const { client, dialog } = await setup()
   const update = vi.spyOn(client, 'updateSpeaker')

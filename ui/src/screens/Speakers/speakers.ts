@@ -77,19 +77,18 @@ export function formatLastSeen(iso: string): string {
   return `${date.getDate()} ${date.toLocaleDateString('en-US', { month: 'short' })} ${date.getFullYear()}`
 }
 
-// What the card holds until Save: the name, colour and handle as edited, of one
-// speaker. handle is null until the handle field is typed in: the card then shows the
+// What the card holds until Save: the name and handle as edited, of one speaker. The
+// colour is not here: the Avatar window keeps it at once. handle is null until the handle field is typed in: the card then shows the
 // handle the backend gives, which follows the name unless it was set by hand.
 export interface SpeakerDraft {
   id: string
   name: string
-  colorIndex: number
   handle: string | null
 }
 
-type Saved = Pick<Speaker, 'id' | 'name' | 'color_index' | 'handle' | 'handle_manual'>
+type Saved = Pick<Speaker, 'id' | 'name' | 'handle' | 'handle_manual'>
 
-export const speakerDraft = (speaker: Saved): SpeakerDraft => ({ id: speaker.id, name: speaker.name ?? '', colorIndex: speaker.color_index, handle: null })
+export const speakerDraft = (speaker: Saved): SpeakerDraft => ({ id: speaker.id, name: speaker.name ?? '', handle: null })
 
 // What Save sends for the handle, or undefined: one typed that differs from the saved
 // one, or '' to go back to the one made from the name when it was set by hand.
@@ -102,7 +101,7 @@ function handleChange(draft: SpeakerDraft, saved: Saved): string | undefined {
 
 // Anything edited, a blank name too: Cancel and the question on leaving cover it.
 export const draftDirty = (draft: SpeakerDraft, saved: Saved) =>
-  draft.name.trim() !== (saved.name ?? '') || draft.colorIndex !== saved.color_index || handleChange(draft, saved) !== undefined
+  draft.name.trim() !== (saved.name ?? '') || handleChange(draft, saved) !== undefined
 
 // What Save sends, or null when there is nothing it can send. A blank name is not
 // saved: a speaker keeps the name they had.
@@ -111,7 +110,6 @@ export function draftChanges(draft: SpeakerDraft, saved: Saved): SpeakerUpdate |
   if (!name && saved.name) return null
   const update: SpeakerUpdate = {}
   if (name && name !== saved.name) update.name = name
-  if (draft.colorIndex !== saved.color_index) update.color_index = draft.colorIndex
   const handle = handleChange(draft, saved)
   if (handle !== undefined) update.handle = handle
   return Object.keys(update).length ? update : null

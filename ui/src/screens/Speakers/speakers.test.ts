@@ -99,18 +99,19 @@ describe('speaker drafts', () => {
 
   test('a fresh draft is the speaker as saved, with nothing to save', () => {
     const draft = speakerDraft(lena)
-    expect(draft).toEqual({ id: 'lena', name: 'Lena Kovacs', colorIndex: 3, handle: null })
+    expect(draft).toEqual({ id: 'lena', name: 'Lena Kovacs', handle: null })
     expect(draftChanges(draft, lena)).toBeNull()
   })
 
   test('a speaker without a name starts with an empty one', () => {
-    expect(speakerDraft({ id: 'x', name: null, color_index: 0, handle: null, handle_manual: false }).name).toBe('')
+    expect(speakerDraft({ id: 'x', name: null, handle: null, handle_manual: false }).name).toBe('')
   })
 
   test('the changes are what differs, the name trimmed', () => {
     expect(draftChanges({ ...speakerDraft(lena), name: '  Lena K  ' }, lena)).toEqual({ name: 'Lena K' })
-    expect(draftChanges({ ...speakerDraft(lena), colorIndex: 0 }, lena)).toEqual({ color_index: 0 })
-    expect(draftChanges({ ...speakerDraft(lena), name: 'Lena K', colorIndex: 0 }, lena)).toEqual({ name: 'Lena K', color_index: 0 })
+    // The colour is not the card's to save: the Avatar window keeps it.
+    expect('colorIndex' in speakerDraft(lena)).toBe(false)
+    expect(draftChanges({ ...speakerDraft(lena), name: 'Lena K' }, lena)).toEqual({ name: 'Lena K' })
     expect(draftChanges({ ...speakerDraft(lena), name: ' Lena Kovacs ' }, lena)).toBeNull()
   })
 

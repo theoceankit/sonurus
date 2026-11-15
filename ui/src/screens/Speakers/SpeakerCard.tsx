@@ -21,7 +21,7 @@ import { BAR_COUNT } from '../../components/Waveform/bars'
 import { SAMPLE_MAX_SECONDS, useSampleState, type SamplePlayback } from '../../media/sample-playback'
 import { formatDuration } from '../../media/timeline'
 import { markNotImplemented } from '../../not-implemented'
-import { speakerColor } from '../../styles/speaker-colors'
+import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 import { hasSpeakerNamed } from '../Editor/new-speaker'
 import { handleProblem, typedHandle } from './handles'
 import { formatLastSeen, speakerUsage, type SpeakerDraft } from './speakers'
@@ -210,7 +210,7 @@ function AppearsIn({ speaker, sample, onOpenRecording }: Pick<SpeakerCardProps, 
   )
 }
 
-type AvatarDialogProps = Pick<SpeakerCardProps, 'speaker' | 'draft' | 'onDraftChange'> & {
+type AvatarDialogProps = Pick<SpeakerCardProps, 'speaker'> & {
   open: boolean
   initialFile?: File
   onClose: () => void
@@ -218,19 +218,27 @@ type AvatarDialogProps = Pick<SpeakerCardProps, 'speaker' | 'draft' | 'onDraftCh
 }
 
 // Opened from the avatar. Photo and colour are kept at once, apart from the card's
-// Save; the draft follows the colour, so Save does not bring the old one back.
-function AvatarDialog({ speaker, draft, onDraftChange, open, initialFile, onClose, onExited }: AvatarDialogProps) {
+// Save. The window shows a chosen colour before the speakers are read again; the card
+// follows them.
+function AvatarDialog({ speaker, open, initialFile, onClose, onExited }: AvatarDialogProps) {
   const setPhoto = useSetSpeakerPhoto()
   const removePhoto = useRemoveSpeakerPhoto()
   const update = useUpdateSpeaker()
+  const [chosen, setChosen] = useState<SpeakerColor | null>(null)
   return (
     <AvatarModal
-      speaker={{ name: speaker.name!, color: speakerColor(draft.colorIndex), photo: speaker.photo_url }}
+      speaker={{ name: speaker.name!, color: chosen ?? speakerColor(speaker.color_index), photo: speaker.photo_url }}
       open={open}
       initialFile={initialFile}
       onColorChange={async next => {
-        onDraftChange({ ...draft, colorIndex: next - 1 })
-        await update.mutateAsync({ speakerId: speaker.id, update: { color_index: next - 1 } })
+        const before = chosen
+        setChosen(next)
+        try {
+          await update.mutateAsync({ speakerId: speaker.id, update: { color_index: next - 1 } })
+        } catch (error) {
+          setChosen(before)
+          throw error
+        }
       }}
       onPick={async photo => { await setPhoto.mutateAsync({ speakerId: speaker.id, photo }) }}
       onRemove={async () => { await removePhoto.mutateAsync(speaker.id) }}
@@ -245,7 +253,7 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
   const [area, setArea] = useState<HTMLElement | null>(null)
   const usage = speakerUsage(speaker)
   const named = Boolean(speaker.name)
-  const color = speakerColor(draft.colorIndex)
+  const color = speakerColor(speaker.color_index)
   // The avatar window: open, or closing until it has gone.
   const [avatarWindow, setAvatarWindow] = useState<{ open: boolean; key: number; file?: File } | null>(null)
 
@@ -299,8 +307,6 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
         <AvatarDialog
           key={avatarWindow.key}
           speaker={speaker}
-          draft={draft}
-          onDraftChange={onDraftChange}
           open={avatarWindow.open}
           initialFile={avatarWindow.file}
           onClose={() => setAvatarWindow({ ...avatarWindow, open: false })}
