@@ -37,6 +37,7 @@ export const speaker = (id: string, name: string | null, colorIndex: number, tra
   name,
   handle,
   handle_manual: false,
+  photo: null,
   color_index: colorIndex,
   transcripts,
   segments: transcripts * 12,

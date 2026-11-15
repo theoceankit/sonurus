@@ -4,7 +4,7 @@ sidebar_position: 97
 
 # Privacy
 
-Sonorus runs on your computer. Audio, transcripts and speaker profiles stay in the data directory
+Sonorus runs on your computer. Audio, transcripts, speaker profiles and speaker photos stay in the data directory
 (see [SONORUS_DATA_DIR](environment/configuration.md#sonorus_data_dir)); Sonorus sends no usage data
 to anyone.
 

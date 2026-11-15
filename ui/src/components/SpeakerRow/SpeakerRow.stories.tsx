@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import portrait from '../../api/fixtures/photos/portrait-1.jpg'
 import { StateMatrix } from '../../foundations/StateMatrix'
 import { AvatarStack } from '../AvatarStack/AvatarStack'
 import { SpeakerRow } from './SpeakerRow'
@@ -53,6 +54,7 @@ export const OnlyShows: Story = { args: { speaker: ANNA, time: '0:19' } }
 export const LongName: Story = { args: { speaker: { name: 'Alexandra Konstantinopolskaya-Vandenberghe of the Very Long Name', color: 3 }, time: '1:02:05', onPlay: noop, onAssign: noop } }
 export const ShowMore: Story = { args: { kind: 'show-more', count: 3, onToggle: noop, stack: <AvatarStack speakers={[...HIDDEN]} /> } }
 export const ShowLess: Story = { args: { kind: 'show-more', count: 3, expanded: true, onToggle: noop } }
+export const WithPhoto: Story = { args: { speaker: { ...ANNA, photo: portrait }, time: '0:19', onPlay: noop, onAssign: noop } }
 export const Highlighted: Story = { args: { speaker: ANNA, time: '0:19', highlighted: true, onPlay: noop, onAssign: noop } }
 export const SelectedHighlighted: Story = { args: { speaker: UNKNOWN, time: '0:09', selected: true, highlighted: true, onSelect: noop, onPlay: noop, onAssign: noop } }
 export const ShowMoreHighlighted: Story = { args: { kind: 'show-more', count: 3, highlighted: true, onToggle: noop, stack: <AvatarStack speakers={[...HIDDEN]} /> } }

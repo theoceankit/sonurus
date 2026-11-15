@@ -1,8 +1,9 @@
-import { render } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { describe, expect, test } from 'vitest'
 import { Avatar } from './Avatar'
 import { speakerInitials } from './initials'
 import avatarCss from './Avatar.module.css?raw'
+import tokensCss from '../../styles/tokens.css?raw'
 
 const avatar = (ui: Parameters<typeof render>[0]) => render(ui).container.firstElementChild as HTMLElement
 
@@ -61,8 +62,44 @@ describe('named speaker', () => {
   })
 })
 
+describe('photo', () => {
+  test('covers the initials', () => {
+    const el = avatar(<Avatar name="Alice Brown" color={3} photo="data:image/jpeg;base64,x" />)
+    const img = el.querySelector('img')!
+    expect(img.getAttribute('src')).toBe('data:image/jpeg;base64,x')
+    expect(img.getAttribute('alt')).toBe('')
+    expect(el.querySelector('[data-initials]')).toBeNull()
+    expect(el.hasAttribute('data-photo')).toBe(true)
+  })
+
+  test('one that does not load leaves the initials, and a new one is tried', () => {
+    const { container, rerender } = render(<Avatar name="Alice Brown" color={3} photo="a.jpg" />)
+    fireEvent.error(container.querySelector('img')!)
+    expect(container.textContent).toBe('AB')
+    expect(container.querySelector('img')).toBeNull()
+    rerender(<Avatar name="Alice Brown" color={3} photo="b.jpg" />)
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('b.jpg')
+  })
+
+  test('null or empty is no photo', () => {
+    expect(avatar(<Avatar name="Bob" color={1} photo={null} />).textContent).toBe('BO')
+    expect(avatar(<Avatar name="Bob" color={1} photo="" />).textContent).toBe('BO')
+  })
+
+  test('the photo fills the circle and is cut to it', () => {
+    expect(avatarCss).toMatch(/\.avatar \{[^}]*overflow: hidden/)
+    expect(avatarCss).toMatch(/\.photo \{[^}]*object-fit: cover/)
+  })
+
+  test('only a named speaker has one', () => {
+    // @ts-expect-error an unknown speaker has no photo
+    const wrong = () => <Avatar kind="unknown" photo="a.jpg" />
+    expect(wrong).toBeTypeOf('function')
+  })
+})
+
 test.each(['unknown', 'unassigned'] as const)('%s is a gray "?" at every size', kind => {
-  for (const size of ['xs', 'small', 'medium', 'large'] as const) {
+  for (const size of ['xs', 'small', 'medium', 'large', 'xlarge'] as const) {
     const el = avatar(<Avatar kind={kind} size={size} />)
     expect(el.textContent).toBe('?')
     expect(el.style.background).toBe('var(--color-speaker-6-bg)')
@@ -93,7 +130,7 @@ describe('guards', () => {
   })
 
   test('every size has a rule with its width, height and font', () => {
-    for (const size of ['xs', 'small', 'medium', 'large']) {
+    for (const size of ['xs', 'small', 'medium', 'large', 'xlarge']) {
       const rule = moduleCss['./Avatar.module.css'].match(new RegExp(`\\.${size} \\{([^}]*)\\}`))?.[1]
       expect(rule, size).toBeTruthy()
       for (const prop of ['width', 'height', 'font']) expect(rule).toMatch(new RegExp(`(^|\\s)${prop}:`))
@@ -116,4 +153,23 @@ test('the initials are trimmed to their capitals, so the letters and not the lin
   const { container } = render(<Avatar name="Anna Petrova" color={1} />)
   expect(container.querySelector('[data-initials]')?.textContent).toBe('AP')
   expect(avatarCss).toMatch(/\.initials \{[^}]*text-box: trim-both cap alphabetic;/)
+})
+
+// The letters take the same share of the circle at every size, so a larger avatar
+// is the same avatar, larger.
+test('the initials keep their share of the circle at every size', () => {
+  const token = (name: string) => tokensCss.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1].trim() ?? ''
+  const px = (name: string): number => {
+    const value = token(name)
+    const ref = value.match(/^var\((--[\w-]+)\)$/)
+    return ref ? px(ref[1]) : parseFloat(value)
+  }
+  const fontSize = (font: string) => px(token(font).match(/var\((--type-size-[\w-]+)\)/)![1])
+  const share = (size: string) => {
+    const rule = avatarCss.match(new RegExp(`\\.${size} \\{([^}]*)\\}`))![1]
+    const width = px(rule.match(/width: var\((--[\w-]+)\)/)![1])
+    return fontSize(rule.match(/font: var\((--[\w-]+)\)/)![1]) / width
+  }
+  for (const size of ['small', 'large', 'xlarge']) expect(share(size), size).toBeGreaterThan(0.42)
+  expect(share('xlarge')).toBeCloseTo(share('large'), 1)
 })

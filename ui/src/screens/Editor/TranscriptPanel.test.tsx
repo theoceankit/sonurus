@@ -4,6 +4,7 @@ import { Profiler, useState, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { ApiError } from '../../api/client'
+import { useSetSpeakerPhoto } from '../../api/queries'
 import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { effectiveSpeaker } from '../../api/types'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
@@ -77,6 +78,20 @@ beforeEach(() => new Promise(resolve => setTimeout(resolve)))
 afterEach(() => {
   dismissAllToasts()
   vi.unstubAllGlobals()
+})
+
+function GiveAnnaPhoto() {
+  const setPhoto = useSetSpeakerPhoto()
+  return <button onClick={() => setPhoto.mutate({ speakerId: SPEAKER_IDS.anna, photo: new Blob(['x'], { type: 'image/jpeg' }) })}>Give Anna a photo</button>
+}
+
+test('a photo set while the transcript is open shows in its turns', async () => {
+  setup({}, WEEKLY_SYNC_ID, panel => <>{panel}<GiveAnnaPhoto /></>)
+  await text(FIRST)
+  const anna = () => document.querySelector(`[data-speaker="${SPEAKER_IDS.anna}"]`)!
+  expect(anna().querySelector('img')).toBeNull()
+  await userEvent.click(screen.getByRole('button', { name: 'Give Anna a photo' }))
+  await waitFor(() => expect(anna().querySelector('img')?.getAttribute('src')).toMatch(/^data:image\/jpeg/))
 })
 
 describe('states', () => {

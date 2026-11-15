@@ -4,7 +4,7 @@ import { watchGpuDownload, type GpuRestartAnswer } from './gpu-events'
 import { watchModelDownload } from './model-download-events'
 import { connectQueueEvents } from './queue-events'
 import type { paths } from './schema.gen'
-import type { RefusalCode } from './types'
+import type { RefusalCode, Speaker } from './types'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -45,6 +45,12 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
   const http = createClient<paths>({ baseUrl, fetch: options.fetch })
   const transcript = (transcript_id: number) => ({ params: { path: { transcript_id } } })
   const segment = (transcript_id: number, start: number) => ({ params: { path: { transcript_id, start } } })
+  // photo changes with every upload, so the address is new for a new photo.
+  const withPhotoUrl = (speaker: Speaker): Speaker => ({
+    ...speaker,
+    photo_url: speaker.photo ? `${baseUrl}/speakers/${encodeURIComponent(speaker.id)}/photo?v=${encodeURIComponent(speaker.photo)}` : null,
+  })
+  const speakerPath = (speaker_id: string) => ({ params: { path: { speaker_id } } })
 
   const assignSpeaker = async ({ transcriptId, segmentStarts, target }: SpeakerAssignment) => {
     const speaker = 'id' in target
@@ -88,8 +94,15 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     assignSpeaker,
     undoSpeakerAssignment,
     getSpeakerCandidates: id => send(http.GET('/transcripts/{transcript_id}/speaker-candidates', transcript(id))),
-    listSpeakers: () => send(http.GET('/speakers')),
-    updateSpeaker: (speaker_id, body) => send(http.PATCH('/speakers/{speaker_id}', { params: { path: { speaker_id } }, body })),
+    listSpeakers: async () => (await send(http.GET('/speakers'))).map(withPhotoUrl),
+    updateSpeaker: async (speaker_id, body) => withPhotoUrl(await send(http.PATCH('/speakers/{speaker_id}', { params: { path: { speaker_id } }, body }))),
+    setSpeakerPhoto: async (speaker_id, photo) => withPhotoUrl(await send(http.PUT('/speakers/{speaker_id}/photo', {
+      ...speakerPath(speaker_id),
+      body: photo as never,
+      bodySerializer: (body: unknown) => body as BodyInit,
+      headers: { 'Content-Type': photo.type },
+    }))),
+    removeSpeakerPhoto: async speaker_id => withPhotoUrl(await send(http.DELETE('/speakers/{speaker_id}/photo', speakerPath(speaker_id)))),
     getHandleSuggestion: async (name, exclude) => (await send(http.GET('/speakers/handle-suggestion', {
       params: { query: { name, ...(exclude ? { exclude } : {}) } },
     }))).handle,

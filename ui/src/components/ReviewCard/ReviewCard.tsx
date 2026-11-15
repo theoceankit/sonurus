@@ -13,6 +13,7 @@ export interface ReviewCardCandidate {
   id: string
   name: string
   colorIndex: number
+  photo?: string | null
   score: number
   suggested: boolean
 }
@@ -58,7 +59,7 @@ export function ReviewCard({
         {candidates.map(candidate => (
           <Candidate
             key={candidate.id}
-            speaker={{ name: candidate.name, color: speakerColor(candidate.colorIndex) }}
+            speaker={{ name: candidate.name, color: speakerColor(candidate.colorIndex), photo: candidate.photo }}
             score={candidate.score}
             suggested={candidate.suggested}
             selected={candidate.id === selectedId}

@@ -1,5 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import portrait from '../../api/fixtures/photos/portrait-1.jpg?inline'
 import { NewSpeakerModal } from './NewSpeakerModal'
+
+// The picture as the crop window hands it over.
+const photo = (() => {
+  const [head, body] = portrait.split(',')
+  return new Blob([Uint8Array.from(atob(body), c => c.charCodeAt(0))], { type: head.slice(5, head.indexOf(';')) })
+})()
 
 const meta: Meta<typeof NewSpeakerModal> = {
   component: NewSpeakerModal,
@@ -15,6 +22,7 @@ export const RepeatedName: Story = { args: { isNameTaken: () => true, suggestedH
 export const TypedHandle: Story = { args: { initialHandle: 'liv' } }
 export const TakenHandle: Story = { args: { initialHandle: 'olivia.brown', checkHandle: () => '@olivia.brown is taken by Olivia Brown.' } }
 export const EmptiedHandle: Story = { args: { initialHandle: '' } }
+export const WithPhoto: Story = { args: { initialPhoto: photo } }
 export const Failed: Story = { args: { initialError: 'Server error 500' } }
 export const LongName: Story = { args: { initialName: 'Alexandra Konstantinopolskaya-Vandenberghe of the Very Long Name' } }
 export const Open: Story = { args: { preview: false } }

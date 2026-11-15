@@ -15,6 +15,7 @@ export interface SpeakerMenuRow {
   id: string
   name: string
   colorIndex: number
+  photo?: string | null
   current: boolean
   time?: string
   usage?: string
@@ -118,7 +119,7 @@ export function SpeakerMenu({ anchor, rows: rowsFor, allSpeakers, onSelect, onSh
                   onPointerMove={() => setActive(index)}
                   onClick={() => choose(row)}
                 >
-                  <Avatar size="small" name={row.name} color={speakerColor(row.colorIndex)} />
+                  <Avatar size="small" name={row.name} color={speakerColor(row.colorIndex)} photo={row.photo} />
                   <span className={styles.who}>
                     <span className={styles.name}>{row.name}</span>
                     {row.usage && <span className={styles.usage}>{row.usage}</span>}

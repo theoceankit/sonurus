@@ -4,6 +4,7 @@
   justify-content: center;
   flex: none;
   border-radius: var(--radius-full);
+  overflow: hidden;
   user-select: none;
 }
 
@@ -11,6 +12,14 @@
    centring it leaves the letters a pixel high. */
 .initials {
   text-box: trim-both cap alphabetic;
+}
+
+/* Covers the circle; the colour behind shows only while it loads. */
+.photo {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
 }
 
 .xs {
@@ -35,4 +44,10 @@
   width: var(--size-avatar-lg);
   height: var(--size-avatar-lg);
   font: var(--font-title-lg);
+}
+
+.xlarge {
+  width: var(--size-avatar-xlg);
+  height: var(--size-avatar-xlg);
+  font: var(--font-initials-xl);
 }

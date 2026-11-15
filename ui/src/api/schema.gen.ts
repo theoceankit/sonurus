@@ -547,6 +547,33 @@ export interface paths {
         patch: operations["update_speaker_speakers__speaker_id__patch"];
         trace?: never;
     };
+    "/speakers/{speaker_id}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Speaker Photo
+         * @description The photo file. Its name changes with every upload, so the UI asks for
+         *     ?v=<photo> and the response may be cached for good.
+         */
+        get: operations["speaker_photo_speakers__speaker_id__photo_get"];
+        /**
+         * Set Speaker Photo
+         * @description The speaker's photo: the raw body, already cropped to a square by the UI.
+         *     Only a named speaker has one. The backend is the only writer of the photos dir.
+         */
+        put: operations["set_speaker_photo_speakers__speaker_id__photo_put"];
+        post?: never;
+        /** Remove Speaker Photo */
+        delete: operations["remove_speaker_photo_speakers__speaker_id__photo_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/speakers/{speaker_id}/rename": {
         parameters: {
             query?: never;
@@ -1084,7 +1111,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed" | "job_running" | "handle_invalid" | "handle_taken" | "handle_needs_name";
+            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed" | "job_running" | "handle_invalid" | "handle_taken" | "handle_needs_name" | "photo_needs_name";
             /** Detail */
             detail: string;
         };
@@ -1182,7 +1209,8 @@ export interface components {
          * SpeakerResponse
          * @description A speaker in the Speakers section. name is None for unnamed speakers, and
          *     so is handle: only a named speaker has one. handle_manual: set by hand, so it
-         *     stays when the name changes.
+         *     stays when the name changes. photo: the file name of the speaker's photo
+         *     (GET /speakers/{id}/photo), new with every upload; only a named speaker has one.
          */
         SpeakerResponse: {
             /** Color Index */
@@ -1208,6 +1236,8 @@ export interface components {
             last_seen: string;
             /** Name */
             name: string | null;
+            /** Photo */
+            photo: string | null;
             /**
              * Segments
              * @default 0
@@ -2297,6 +2327,126 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RefusalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    speaker_photo_speakers__speaker_id__photo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                speaker_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_speaker_photo_speakers__speaker_id__photo_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                speaker_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/jpeg": string;
+                "image/png": string;
+                "image/webp": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeakerResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_speaker_photo_speakers__speaker_id__photo_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                speaker_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeakerResponse"];
                 };
             };
             /** @description Validation Error */

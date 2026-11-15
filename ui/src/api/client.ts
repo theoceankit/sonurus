@@ -76,6 +76,10 @@ export interface ApiClient {
   // Every segment of the speaker becomes Unassigned, and their name, colour and voice
   // go. Refused with a 409 while a transcription or a recording runs.
   deleteSpeaker(speakerId: string): Promise<SpeakerDeleteSummary>
+  // A named speaker's photo: a square picture the UI has cropped, replacing the one
+  // they had. Refused for a speaker without a name (code photo_needs_name).
+  setSpeakerPhoto(speakerId: string, photo: Blob): Promise<Speaker>
+  removeSpeakerPhoto(speakerId: string): Promise<Speaker>
   // What an audio element plays for a recording known by its id alone, such as the
   // one a voice sample comes from; null when there is nothing to play.
   getRecordingAudioUrl(transcriptId: number): string | null

@@ -1,0 +1,4 @@
+/* As wide as the body of a small window. */
+.frame {
+  width: var(--size-modal-small);
+}

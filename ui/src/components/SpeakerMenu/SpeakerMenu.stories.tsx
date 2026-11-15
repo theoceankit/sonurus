@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import portrait from '../../api/fixtures/photos/portrait-1.jpg'
 import { useState } from 'react'
 import { Button } from '../Button/Button'
 import { SpeakerMenu, type SpeakerMenuRow } from './SpeakerMenu'
@@ -46,5 +47,6 @@ type Story = StoryObj<typeof SpeakerMenu>
 
 export const Default: Story = { render: () => <Example /> }
 export const SameName: Story = { render: () => <Example rows={SAME_NAME} /> }
+export const WithPhotos: Story = { render: () => <Example rows={ROWS.map((row, i) => (i === 1 ? { ...row, photo: portrait } : row))} /> }
 export const NoResults: Story = { render: () => <Example initialQuery="zz" /> }
 export const NoNamedSpeakers: Story = { render: () => <Example rows={[]} section={null} /> }

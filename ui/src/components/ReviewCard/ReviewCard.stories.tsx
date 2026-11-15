@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import portrait from '../../api/fixtures/photos/portrait-1.jpg'
 import { useState } from 'react'
 import { BOARD_HEIGHTS } from '../Waveform/bars'
 import { ReviewCard, type ReviewCardCandidate } from './ReviewCard'
@@ -42,6 +43,7 @@ export const Playing: Story = { args: { clip: { ...CLIP, playing: true, progress
 export const NoAudio: Story = { args: { clip: { ...CLIP, disabled: true } } }
 export const NoClip: Story = { args: { clip: null } }
 export const NoCandidates: Story = { args: { candidates: [] } }
+export const WithPhotos: Story = { args: { candidates: CANDIDATES.map((candidate, i) => (i === 0 ? { ...candidate, photo: portrait } : candidate)) } }
 export const LongClip: Story = {
   args: {
     initialTextExpanded: true,

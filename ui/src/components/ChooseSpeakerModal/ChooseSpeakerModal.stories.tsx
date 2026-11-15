@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import portrait from '../../api/fixtures/photos/portrait-1.jpg'
 import { ChooseSpeakerModal, type ChooseSpeakerList, type ChooseSpeakerRow } from './ChooseSpeakerModal'
 
 const BEST: ChooseSpeakerRow[] = [
@@ -37,5 +38,14 @@ export const NothingSelected: Story = {}
 export const Searching: Story = { args: { initialQuery: 'Ol', initialSelectedId: 'oliver' } }
 export const NoResults: Story = { args: { initialQuery: 'Zoe' } }
 export const NoSpeakers: Story = { args: { list: () => ({ counts: { all: 0, best: 0, recording: 0 }, sections: [] }) } }
+export const WithPhotos: Story = {
+  args: {
+    initialSelectedId: 'mark',
+    list: query => {
+      const found = list(query)
+      return { ...found, sections: found.sections.map(section => ({ ...section, rows: section.rows.map(row => (row.id === 'mark' || row.id === 'anna' ? { ...row, photo: portrait } : row)) })) }
+    },
+  },
+}
 export const Busy: Story = { args: { initialSelectedId: 'mark', busy: true } }
 export const Open: Story = { args: { initialSelectedId: 'mark', preview: false } }

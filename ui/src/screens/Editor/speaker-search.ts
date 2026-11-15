@@ -7,6 +7,7 @@ export interface SpeakerChoice {
   name: string
   handle?: string | null
   colorIndex: number
+  photo?: string | null
   score?: number
   suggested?: boolean
   usage?: string
@@ -29,7 +30,7 @@ interface ChooseSpeakerQuery {
 const usage = (recordings: number) => `${recordings} ${recordings === 1 ? 'recording' : 'recordings'}`
 
 const choice = (speaker: Speaker): SpeakerChoice => (
-  { id: speaker.id, name: speaker.name!, handle: speaker.handle, colorIndex: speaker.color_index, usage: usage(speaker.transcripts) }
+  { id: speaker.id, name: speaker.name!, handle: speaker.handle, colorIndex: speaker.color_index, photo: speaker.photo_url, usage: usage(speaker.transcripts) }
 )
 
 // Only speakers with a name can be chosen, and a search looks at the name and the
@@ -41,7 +42,7 @@ export function chooseSpeakerList({ speakers, candidates, recordingSpeakers, que
 
   const best = candidates.flatMap((candidate): SpeakerChoice[] => {
     const speaker = known.get(candidate.speaker_id)
-    return speaker ? [{ id: speaker.id, name: speaker.name!, handle: speaker.handle, colorIndex: speaker.color_index, score: candidate.score, suggested: candidate.suggested }] : []
+    return speaker ? [{ id: speaker.id, name: speaker.name!, handle: speaker.handle, colorIndex: speaker.color_index, photo: speaker.photo_url, score: candidate.score, suggested: candidate.suggested }] : []
   })
   const others = named.filter(speaker => !best.some(row => row.id === speaker.id)).map(choice)
   const inRecording = named.filter(speaker => recordingSpeakers.includes(speaker.id)).map(choice)

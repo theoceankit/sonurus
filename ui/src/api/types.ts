@@ -5,7 +5,9 @@ type Schemas = components['schemas']
 export type Segment = Schemas['SegmentResponse']
 export type Transcript = Schemas['TranscriptResponse']
 export type TranscriptListItem = Schemas['TranscriptListItem']
-export type Speaker = Schemas['SpeakerResponse']
+// photo_url: what an img shows as the speaker's photo, added by the client from
+// photo; null without one.
+export type Speaker = Schemas['SpeakerResponse'] & { photo_url?: string | null }
 export type SpeakerSample = Schemas['SpeakerSampleResponse']
 export type SpeakerUpdate = Schemas['SpeakerUpdateRequest']
 // How a handle is made from a name: ivan.petrov, i.petrov or ivan.p.

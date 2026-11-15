@@ -220,6 +220,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
                 id: candidate.speaker_id,
                 name: candidate.name,
                 colorIndex: speakers.find(speaker => speaker.id === candidate.speaker_id)?.color_index ?? 0,
+                photo: speakers.find(speaker => speaker.id === candidate.speaker_id)?.photo_url,
                 score: candidate.score,
                 suggested: candidate.suggested,
               }))}

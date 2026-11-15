@@ -65,6 +65,7 @@ $SONORUS_DATA_DIR/
   speaker_memory.db   ← Speaker memory + transcripts
   recordings/         ← Audio referenced by the DB: live recordings (sonorus-rec-*)
                         and copies of imported files (sonorus-import-*)
+  speaker_photos/     ← Speaker photos, named in speaker_meta.photo
   sonorus.log         ← Backend log (packaged mode)
   settings.json       ← App settings (written by Electron)
 ```

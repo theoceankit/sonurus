@@ -204,6 +204,8 @@
   --size-avatar-sm: 20px;
   --size-avatar-md: 28px;
   --size-avatar-lg: 48px;
+  /* The avatar of the Avatar window, where a photo is chosen. */
+  --size-avatar-xlg: 96px;
 
   --size-menu: 240px;
   --size-menu-narrow: 96px;
@@ -256,6 +258,8 @@
   /* Speakers keep one height, so the list and a card take the same room. */
   --size-speakers-pane: 440px;
   --size-drop-zone: 168px;
+  /* The square a photo is cropped in. */
+  --size-photo-crop: 240px;
   --size-import-list: 184px;
   --size-settings-nav: 184px;
   /* Settings keep one height, so switching sections does not move the window. */
@@ -278,6 +282,8 @@
   --type-size-title: 18px;
   --type-size-title-lg: 22px;
   --type-size-initials: 9px;
+  /* The letters of the xlarge avatar, the share of its circle the large one has. */
+  --type-size-initials-xl: 44px;
 
   --font-caption: var(--type-weight-regular) var(--type-size-caption)/1.4545 var(--type-family-sans);
   --font-caption-strong: var(--type-weight-semibold) var(--type-size-caption)/1.4545 var(--type-family-sans);
@@ -287,6 +293,7 @@
   --font-title: var(--type-weight-semibold) var(--type-size-title)/1.3333 var(--type-family-sans);
   --font-title-lg: var(--type-weight-semibold) var(--type-size-title-lg)/1.2727 var(--type-family-sans);
   --font-initials: var(--type-weight-semibold) var(--type-size-initials)/1.3333 var(--type-family-sans);
+  --font-initials-xl: var(--type-weight-semibold) var(--type-size-initials-xl)/1 var(--type-family-sans);
 }
 
 /*

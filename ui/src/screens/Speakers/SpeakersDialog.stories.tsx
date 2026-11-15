@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { queueSnapshot, SPEAKER_IDS, SPEAKERS } from '../../api/fixtures/data'
+import portrait from '../../api/fixtures/photos/portrait-1.jpg'
+import portrait2 from '../../api/fixtures/photos/portrait-2.jpg'
 import { createPlayback } from '../../media/playback'
 import { waitFor } from '../Editor/story-helpers'
 import { DeleteSpeakerDialog } from './DeleteSpeakerDialog'
@@ -8,6 +10,10 @@ import { DiscardChangesDialog } from './DiscardChangesDialog'
 import { SpeakersDialog, type SpeakersDialogProps } from './SpeakersDialog'
 
 const noop = () => {}
+
+// Anna and Lena have photos.
+const PHOTOS: Record<string, string> = { [SPEAKER_IDS.anna]: portrait2, [SPEAKER_IDS.lena]: portrait }
+const withPhotos = { api: { overrides: { listSpeakers: () => Promise.resolve(SPEAKERS.map(speaker => (PHOTOS[speaker.id] ? { ...speaker, photo: `${speaker.id}.jpg`, photo_url: PHOTOS[speaker.id] } : speaker))) } } }
 
 const meta: Meta<typeof SpeakersDialog> = {
   title: 'Screens/Speakers',
@@ -32,9 +38,11 @@ export const SameNames: Story = { parameters: { api: { board: 'sameNames' } } }
 export const NoSpeakers: Story = { parameters: { api: { scenario: 'empty' } } }
 export const Loading: Story = { parameters: { api: { scenario: 'loading' } } }
 export const Failed: Story = { parameters: { api: { scenario: 'error' } } }
+export const WithPhotos: Story = { parameters: withPhotos }
 
 // A speaker's card. Play, Appears in and the name field work on the fixtures.
 export const Speaker: Story = { args: { initialSpeakerId: SPEAKER_IDS.lena } }
+export const SpeakerWithPhoto: Story = { args: { initialSpeakerId: SPEAKER_IDS.lena }, parameters: withPhotos }
 export const SpeakerWithoutName: Story = { args: { initialSpeakerId: SPEAKER_IDS.unknown2 } }
 export const SpeakerWithSameName: Story = { args: { initialSpeakerId: SPEAKER_IDS.mark2 }, parameters: { api: { board: 'sameNames' } } }
 // Archived partner call has lost its file: its Play is off.
@@ -51,7 +59,7 @@ export const SpeakerSampleLoading: Story = {
 }
 export const AudioUnavailable: Story = { args: { initialSpeakerId: SPEAKER_IDS.lena }, parameters: { api: { noAudio: true } } }
 export const NotInAnyRecording: Story = { args: { initialSpeakerId: SPEAKER_IDS.priya } }
-// An edited name and colour wait for Save; Cancel takes them back.
+// An edited name waits for Save; Cancel takes it back.
 export const SpeakerEdited: Story = {
   args: { initialSpeakerId: SPEAKER_IDS.lena },
   play: async () => {
@@ -59,8 +67,13 @@ export const SpeakerEdited: Story = {
     // React tracks the value it set: go round its setter so the change is seen.
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(name, 'Lena K')
     name.dispatchEvent(new Event('input', { bubbles: true }))
-    ;(await waitFor(() => document.querySelectorAll('[role="radio"]')[0])).click()
   },
+}
+// The Avatar window over the card: photo and colour.
+export const SpeakerAvatarWindow: Story = {
+  args: { initialSpeakerId: SPEAKER_IDS.lena },
+  parameters: withPhotos,
+  play: async () => { (await waitFor(() => document.querySelector('[aria-label="Change avatar"]'))).click() },
 }
 // More holds Merge and Delete. Radix opens a menu on pointer down, not on click.
 const openMore = async () => {

@@ -36,7 +36,8 @@ CREATE TABLE speaker_meta (
     speaker_id    TEXT PRIMARY KEY,
     color_index   INTEGER NOT NULL DEFAULT 0,  -- palette slot 0..4 (schema v3)
     handle        TEXT,                        -- @ivan.petrov without the @; only for named speakers (schema v4)
-    handle_manual INTEGER NOT NULL DEFAULT 0   -- 1: set by hand, stays when the name changes (schema v4)
+    handle_manual INTEGER NOT NULL DEFAULT 0,  -- 1: set by hand, stays when the name changes (schema v4)
+    photo         TEXT                         -- file name in speaker_photos/; only for named speakers (schema v5)
 )
 CREATE UNIQUE INDEX speaker_meta_handle ON speaker_meta (handle COLLATE NOCASE)
 
@@ -48,7 +49,9 @@ CREATE TABLE _meta (
 
 > The table was historically named `speakers` — `_init_db()` automatically renames it to `speaker_embeddings` if the old name is found.
 
-Every row of `speaker_meta` is written as an upsert of its own columns: a colour save never wipes the handle, nor a handle save the colour. Handles are unique through the index, not through the in-memory state, since the API and a pipeline job each hold their own instance. `_meta` also keeps the handle format (`handle_format`).
+Every row of `speaker_meta` is written as an upsert of its own columns: a colour save never wipes the handle or the photo, nor a handle save the colour. Handles are unique through the index, not through the in-memory state, since the API and a pipeline job each hold their own instance. `_meta` also keeps the handle format (`handle_format`).
+
+**Photos.** `speaker_meta.photo` is the name of a file in `$SONORUS_DATA_DIR/speaker_photos/` (`app/services/speaker_photos.py`): a fresh UUID4 hex plus `.jpg`, `.png` or `.webp`, new with every upload. `set_photo()` checks that the bytes are the image their type says, writes the file (temporary file, then rename), stores the name and deletes the file it replaces; `remove_photo()` clears it. Only a named speaker has a photo (`PhotoNeedsName`). The files belong to the instance built with `photos_dir`, the API's: its `remove_speaker()` deletes the speaker's file too. An instance without it (a pipeline job) leaves files alone, and the backend removes files no speaker refers to when it starts (`remove_orphan_photos()`). A photo is metadata like the colour: it never reads or writes an embedding.
 
 Runtime in-memory state:
 ```python

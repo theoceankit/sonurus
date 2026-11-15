@@ -1,0 +1,49 @@
+.body {
+  align-items: center;
+  text-align: center;
+}
+
+/* As tall as the crop with its slider and buttons, which takes its place. */
+.area {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-3);
+  align-self: stretch;
+  height: calc(var(--size-photo-crop) + var(--size-slider-thumb) + var(--size-control-sm) + 2 * var(--space-3));
+}
+
+/* As the drop zone of New recording: the avatar takes a dropped picture. */
+.dropZone {
+  flex: 1;
+  padding: var(--space-4);
+  border: var(--border-width-strong) dashed var(--color-border-strong);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-sunken);
+  user-select: none;
+  transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
+}
+
+.over {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-bg);
+}
+
+.title {
+  color: var(--color-text-primary);
+  font: var(--font-body-strong);
+}
+
+.over .title {
+  color: var(--color-accent-fg);
+}
+
+.hint {
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.colour {
+  align-self: stretch;
+  text-align: start;
+}

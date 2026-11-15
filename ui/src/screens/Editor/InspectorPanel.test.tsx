@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
@@ -490,6 +490,50 @@ describe('speaker windows from the card', () => {
     await userEvent.click(button('Create and assign'))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect((await client.listSpeakers()).find(s => s.handle === 'markie')).toMatchObject({ name: 'Mark Ellis', handle_manual: true })
+  })
+
+  // Choose a picture in New speaker and Save its crop: jsdom draws nothing, so the
+  // picture's size and the canvas are given by hand.
+  async function chooseNewSpeakerPhoto() {
+    URL.createObjectURL = vi.fn(() => 'blob:picture')
+    URL.revokeObjectURL = vi.fn()
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(done => done(new Blob(['photo'], { type: 'image/jpeg' })))
+    await userEvent.click(screen.getByRole('button', { name: 'Change avatar' }))
+    await screen.findByRole('dialog', { name: 'Avatar' })
+    fireEvent.change(screen.getByLabelText('Photo file'), { target: { files: [new File(['x'], 'me.jpg', { type: 'image/jpeg' })] } })
+    const crop = await screen.findByRole('dialog', { name: 'Avatar' })
+    await screen.findByRole('group', { name: 'Photo position' })
+    const picture = crop.querySelector('img')!
+    Object.defineProperty(picture, 'naturalWidth', { value: 300 })
+    Object.defineProperty(picture, 'naturalHeight', { value: 300 })
+    fireEvent.load(picture)
+    await userEvent.click(within(crop).getByRole('button', { name: 'Save photo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Done' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Avatar' })).toBeNull())
+  }
+
+  test('a photo chosen in New speaker goes to the speaker once they exist', async () => {
+    const { client } = setup(WEEKLY_SYNC_ID)
+    await counter('1 of 1')
+    await userEvent.click(within(card()).getByRole('button', { name: 'More speakers' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'New speaker' }))
+    await userEvent.type(await screen.findByRole('textbox', { name: 'Name' }), 'Olivia Brown')
+    await chooseNewSpeakerPhoto()
+    await userEvent.click(button('Create and assign'))
+    await waitFor(async () => expect((await client.listSpeakers()).find(s => s.name === 'Olivia Brown')?.photo_url).toMatch(/^data:image\/jpeg/))
+  })
+
+  test('a photo that is not saved leaves the new speaker, and says so', async () => {
+    const { client } = setup(WEEKLY_SYNC_ID, { overrides: { setSpeakerPhoto: () => Promise.reject(new ApiError(413, 'The photo is larger than 2 MB')) } })
+    await counter('1 of 1')
+    await userEvent.click(within(card()).getByRole('button', { name: 'More speakers' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'New speaker' }))
+    await userEvent.type(await screen.findByRole('textbox', { name: 'Name' }), 'Olivia Brown')
+    await chooseNewSpeakerPhoto()
+    await userEvent.click(button('Create and assign'))
+    expect(await screen.findByText('The photo was not saved: The photo is larger than 2 MB')).toBeTruthy()
+    expect((await client.listSpeakers()).find(s => s.name === 'Olivia Brown')?.photo).toBeFalsy()
   })
 
   test('a failure while creating shows in the window', async () => {

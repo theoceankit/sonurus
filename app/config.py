@@ -17,6 +17,9 @@ ALIGNMENT_MODELS_DIR = MODELS_DIR / "alignment"
 # Must not live in the OS temp dir — it is wiped on reboot on many systems.
 RECORDINGS_DIR = DATA_DIR / "recordings"
 
+# Speaker photos, one file per photo; speaker_meta.photo holds the file name.
+SPEAKER_PHOTOS_DIR = DATA_DIR / "speaker_photos"
+
 # Optional GPU download (packaged app on Linux / Windows, set by Electron):
 # its folder in the app's data dir and the manifest shipped with the build.
 # Unset (dev, macOS) → no download is offered.

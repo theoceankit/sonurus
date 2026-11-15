@@ -8,6 +8,8 @@ export interface TurnHeaderSpeaker {
   kind: 'named' | 'unknown' | 'unassigned'
   name: string
   color: SpeakerColor
+  // A named speaker's photo.
+  photo?: string | null
 }
 
 type TurnHeaderProps = Omit<ComponentPropsWithRef<'div'>, 'children'> & {
@@ -35,7 +37,7 @@ export function TurnHeader({ speaker, time, open, onOpenMenu, onSeek, className,
         onClick={event => onOpenMenu?.(event.currentTarget)}
       >
         {speaker.kind === 'named'
-          ? <Avatar size="small" name={speaker.name} color={speaker.color} aria-hidden />
+          ? <Avatar size="small" name={speaker.name} color={speaker.color} photo={speaker.photo} aria-hidden />
           : <Avatar size="small" kind={speaker.kind} aria-hidden />}
         <span className={styles.label}>{speaker.name}</span>
       </button>

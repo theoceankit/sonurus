@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import portrait from '../../api/fixtures/photos/portrait-1.jpg'
 import { StateMatrix } from '../../foundations/StateMatrix'
 import { TurnHeader, type TurnHeaderSpeaker } from './TurnHeader'
 import styles from './TurnHeader.stories.module.css'
@@ -34,6 +35,7 @@ export const Matrix: Story = {
 
 export const Named: Story = {}
 export const Unknown: Story = { args: { speaker: SPEAKERS.Unknown } }
+export const WithPhoto: Story = { args: { speaker: { ...SPEAKERS.Named, photo: portrait } } }
 export const Unassigned: Story = { args: { speaker: SPEAKERS.Unassigned } }
 export const LongName: Story = { args: { speaker: SPEAKERS['Long name'] } }
 export const LongNameNarrow: Story = {

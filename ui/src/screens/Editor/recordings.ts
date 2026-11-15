@@ -32,7 +32,7 @@ export function stackSpeakers(speakerIds: string[], speakers: Speaker[]): StackS
   return speakerIds.map(id => {
     const found = speakers.find(speaker => speaker.id === id)
     return found?.name
-      ? { id, name: found.name, color: speakerColor(found.color_index), title: found.name }
+      ? { id, name: found.name, color: speakerColor(found.color_index), photo: found.photo_url, title: found.name }
       : { id, kind: 'unknown' }
   })
 }

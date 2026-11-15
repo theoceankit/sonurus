@@ -539,6 +539,7 @@ Returns **every** speaker: those with a voice profile (`speaker_embeddings`), a 
     "handle": "alice",
     "handle_manual": false,
     "color_index": 2,
+    "photo": "3f2a9c0e5b7d4e1f8a6b2c9d0e1f2a3b.jpg",
     "segments": 14,
     "transcripts": 3,
     "duration_sec": 312.4,
@@ -550,6 +551,8 @@ Returns **every** speaker: those with a voice profile (`speaker_embeddings`), a 
 `color_index` is an index (0–4) into the fixed 5-entry palette of speaker colours (`ui/src/styles/speaker-colors.ts`, `--color-speaker-1…5` in `tokens.css`). Assigned once when the speaker is first saved, using the least-used palette slot to minimize collisions; the user can change it with `PATCH /speakers/{id}`. Stored in `speaker_meta` (schema v3).
 
 `handle` is the speaker's unique handle (`@` is not part of it), `null` for an unnamed speaker: every speaker with a name has one and only they do. `handle_manual` is `true` for a handle set by hand, which stays when the name changes; otherwise the handle follows the name. See [Speaker handles](#speaker-handles).
+
+`photo` is the file name of the speaker's photo, `null` without one; only a named speaker has a photo. It changes with every upload, so `GET /speakers/{id}/photo?v=<photo>` is a new address for a new photo. See [Speaker photos](#speaker-photos).
 
 `segments`, `transcripts`, `duration_sec` (sum of segment lengths) and `last_seen` (`created_at` of the newest transcript) count segments whose `speaker_id` is this speaker; unassigned segments are not counted. The editor keeps only the named rows (`buildKnownMap`, `namedSpeakers` in `utils.js`).
 
@@ -601,9 +604,32 @@ The handle a speaker named `name` gets now, numbered if taken: `{"handle": "ivan
 
 `{"format": "first.last"}` — the handle format, kept in `_meta` (`handle_format`). `PUT` takes the same body; another value is `422`. Delete all data keeps it, as it is a preference.
 
+### Speaker photos
+
+A named speaker may have a photo, shown in their avatar instead of the initials. The UI crops and scales it (a 256 px square JPEG) and uploads it; the backend is the only writer of `$SONORUS_DATA_DIR/speaker_photos/` and keeps the file name in `speaker_meta.photo` (schema v5). A photo never touches the voice profile.
+
+#### `PUT /speakers/{id}/photo`
+
+The raw body is the picture, with `Content-Type` `image/jpeg`, `image/png` or `image/webp`. Replaces the speaker's photo (the old file is deleted) and returns `200` with the updated `GET /speakers` row. A refusal stores nothing:
+
+| Condition | Status | `code` / `detail` |
+|---|---|---|
+| Another type, or bytes that are not the image the type says | `415` | `"Unsupported photo type: image/gif"`, `"The file is not a JPG image"` |
+| Larger than 2 MB | `413` | `"The photo is larger than 2 MB"` |
+| The speaker has no name | `400` | `photo_needs_name`, `"Give the speaker a name first."` |
+| Unknown id | `404` | |
+
+#### `DELETE /speakers/{id}/photo`
+
+Removes the photo and its file; returns `200` with the updated row (`"photo": null`), `404` for an unknown id.
+
+#### `GET /speakers/{id}/photo`
+
+The file, with its image type and `Cache-Control: private, max-age=31536000, immutable`: the UI asks for `?v=<photo>`, which changes with the photo. `404` when the speaker has no photo.
+
 ### `DELETE /speakers/{id}`
 
-Deletes a speaker through `CommitService.delete_speaker()`: every segment assigned to it becomes **unassigned** (`speaker_id = NULL`, `unassigned = 1`), then its embedding, names and color are removed. Future recordings no longer match the deleted voice.
+Deletes a speaker through `CommitService.delete_speaker()`: every segment assigned to it becomes **unassigned** (`speaker_id = NULL`, `unassigned = 1`), then its embedding, names, color, handle and photo (the file too) are removed. Future recordings no longer match the deleted voice.
 
 ```json
 { "segments": 12, "transcripts": 3 }
@@ -642,6 +668,7 @@ Deletes all user data and returns the backend to an empty library:
 - every transcription and segment (`transcriptions`, `segments`);
 - every speaker, **named ones included** — `speaker_embeddings`, `speaker_names`, `speaker_meta`;
 - the contents of `$SONORUS_DATA_DIR/recordings/` (live recordings and copies of imported files);
+- the contents of `$SONORUS_DATA_DIR/speaker_photos/` (speaker photos);
 - every job in the transcription queue.
 
 The API memory singleton is emptied too, including its pending dirty sets, so a later `save()` cannot write old speakers back. Schema/version tables (`_meta`, `_ts_schema_version`), downloaded models and `settings.json` are kept. The user's original imported files outside the data directory are never deleted; symlinks inside the cleared directories are removed as links without touching their targets.

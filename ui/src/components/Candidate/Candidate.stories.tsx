@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import portrait from '../../api/fixtures/photos/portrait-1.jpg'
 import { StateMatrix } from '../../foundations/StateMatrix'
 import { Candidate } from './Candidate'
 import styles from './Candidate.stories.module.css'
@@ -47,6 +48,7 @@ export const SameName: Story = { args: { speaker: MARK, usage: '8 recordings', t
 export const WithHandle: Story = { args: { speaker: MARK, handle: 'mark.ellis', usage: '8 recordings', time: '41:20' } }
 export const SameNameWithHandle: Story = { args: { speaker: MARK, handle: 'mark.ellis2', usage: '2 recordings', time: '10:20', badge: 'same name' } }
 export const HandleWithScore: Story = { args: { speaker: MARK, handle: 'mark.ellis', score: 0.82, suggested: true, selected: true } }
+export const WithPhoto: Story = { args: { speaker: { ...MARK, photo: portrait }, handle: 'mark.ellis', usage: '8 recordings', time: '41:20' } }
 export const LongHandle: Story = { args: { speaker: { name: 'Alexandra Konstantinopolskaya-Vandenberghe', color: 3 }, handle: 'alexandra.konstantinopolskayava', usage: '1 recording' } }
 export const Unnamed: Story = { args: { speaker: { kind: 'unknown', name: 'Unnamed speaker' }, usage: '1 recording', time: '5:10' } }
 export const AddNew: Story = { args: { kind: 'add', children: 'Add a new speaker' } }

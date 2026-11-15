@@ -8,7 +8,8 @@ from app.services.transcript_storage_service import TranscriptStorageService
 
 @lru_cache(maxsize=1)
 def get_memory_service() -> SpeakerMemoryService:
-    return SpeakerMemoryService(db_path=DB_PATH)
+    # The API's instance owns the photo files (deletes them with their speaker).
+    return SpeakerMemoryService(db_path=DB_PATH, photos_dir=config.SPEAKER_PHOTOS_DIR)
 
 
 @lru_cache(maxsize=1)

@@ -87,6 +87,13 @@ export const FIXTURE_MODELS_DIR = '/home/me/.config/sonorus/.models'
 
 const EMPTY: FixtureData = { transcripts: [], details: [], speakers: [], candidates: {} }
 
+const readAsDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader()
+  reader.onload = () => resolve(reader.result as string)
+  reader.onerror = () => reject(reader.error)
+  reader.readAsDataURL(blob)
+})
+
 // The same interface as the backend client, on data kept in memory. Each client
 // has its own copy, so stories and tests do not see each other's changes.
 export function createFixtureClient({
@@ -155,6 +162,7 @@ export function createFixtureClient({
       handle: handle ?? autoHandle(target.name),
       handle_manual: handle != null,
       color_index: target.colorIndex ?? 0,
+      photo: null,
       segments: 0,
       transcripts: 1,
       duration_sec: 0,
@@ -414,6 +422,16 @@ export function createFixtureClient({
     }),
     listSpeakerTranscripts: id => answer(() => speakerTranscripts(id)),
     deleteSpeaker: id => answer(() => deleteSpeaker(id)),
+    // Kept as a data URL, so an img shows it without a server.
+    setSpeakerPhoto: async (id, photo) => {
+      const url = await readAsDataUrl(photo)
+      return answer(() => {
+        const found = speaker(id)
+        if (!found.name) throw new ApiError(400, 'Give the speaker a name first.', 'photo_needs_name')
+        return Object.assign(found, { photo: `${crypto.randomUUID().replaceAll('-', '')}.jpg`, photo_url: url })
+      })
+    },
+    removeSpeakerPhoto: id => answer(() => Object.assign(speaker(id), { photo: null, photo_url: null })),
     getRecordingAudioUrl: id => {
       if (!hasAudio(id) || !data.transcripts.some(t => t.id === id)) return null
       if (!audioUrls.has(id)) audioUrls.set(id, createTestAudioUrl(recordingSegments(id)))

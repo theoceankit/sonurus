@@ -64,7 +64,7 @@ function SpeakerList({ speakers, query, category, onOpen }: { speakers: Speaker[
           return (
             <Candidate
               key={speaker.id}
-              speaker={speaker.name ? { name: speaker.name, color: speakerColor(speaker.color_index) } : { kind: 'unknown', name: speakerDisplayName(speaker) }}
+              speaker={speaker.name ? { name: speaker.name, color: speakerColor(speaker.color_index), photo: speaker.photo_url } : { kind: 'unknown', name: speakerDisplayName(speaker) }}
               handle={speaker.handle}
               badge={duplicates.has(speaker.id) ? 'same name' : undefined}
               usage={usage.recordings}

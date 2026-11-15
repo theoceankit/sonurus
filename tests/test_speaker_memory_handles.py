@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from app.services.speaker_memory_service import (
-    HandleNeedsName, HandleTaken, InvalidHandle, SpeakerMemoryService,
+    HandleNeedsName, HandleTaken, InvalidHandle, SpeakerMemoryService, SpeakerRepository,
 )
 
 
@@ -288,7 +288,7 @@ def test_migration_gives_named_speakers_handles_by_first_appearance(tmp_path):
     assert memory.get_color_index("aaaa-later") == 2
     assert memory.get_color_index("bbbb-earlier") == 4
     with sqlite3.connect(db_path) as conn:
-        assert conn.execute("SELECT value FROM _meta WHERE key='schema_version'").fetchone()[0] == "4"
+        assert conn.execute("SELECT value FROM _meta WHERE key='schema_version'").fetchone()[0] == str(SpeakerRepository._SCHEMA_VERSION)
 
 
 def test_migration_runs_once_and_keeps_handles_on_the_next_start(tmp_path):

@@ -84,7 +84,7 @@ A column and a row. Spacing props accept only the steps of the scale: `'half'`, 
 
 ## Base controls
 
-`Button`, `IconButton`, `Avatar`, `AvatarStack`, `Tab`, `Tabs`, `NavTab`, `Toggle`, `Slider`, `TextField`, `SearchField`, `MenuItem`, `Disclosure`, `ColorSwatch`, `ColorPicker`, `Kbd`, `Badge`, `SectionHeader` and `MetaItem`, in `ui/src/components/`, named after their Penpot components.
+`Button`, `IconButton`, `Avatar`, `AvatarStack`, `AvatarButton`, `AvatarModal`, `PhotoCrop`, `Tab`, `Tabs`, `NavTab`, `Toggle`, `Slider`, `TextField`, `SearchField`, `MenuItem`, `Disclosure`, `ColorSwatch`, `ColorPicker`, `Kbd`, `Badge`, `SectionHeader` and `MetaItem`, in `ui/src/components/`, named after their Penpot components.
 
 Penpot's Type is the `variant` prop, because `type` on a button is the HTML attribute. Pairs that do not exist on the boards, such as an inverse button at medium size, are type errors. `Tabs`, `ColorPicker` and `Disclosure` are built on Radix Primitives, which bring the arrow keys and the tab order; `Tab` works only inside `Tabs`, `ColorSwatch` only inside a radio group. `Button`, `IconButton` and `MenuItem` pass on `ref` and other attributes, so Radix can wrap them with `asChild`.
 
@@ -108,11 +108,16 @@ Each component with states has a `Matrix` story from `ui/src/foundations/StateMa
 
 Only `Avatar` works out initials; a test in `Avatar.test.tsx` fails if anything else imports them.
 
-- One word gives its first two letters, several give the first letter of the first and of the last word. `xs` shows one letter. An empty name is a circle without letters.
+- Sizes: `xs`, `small`, `medium`, `large` and `xlarge`, the last only in the Avatar window. The letters take about the same share of the circle at every size; `xlarge` has its own `--font-initials-xl` for that, as the type scale stops at 22 px, and a test keeps the share. One word gives its first two letters, several give the first letter of the first and of the last word. `xs` shows one letter. An empty name is a circle without letters.
 - A colour is a number from 1 to 6. Which speaker gets which is decided by the data layer.
 - `kind="unknown"` and `kind="unassigned"` are a gray "?".
+- `photo`, the address of a named speaker's photo, covers the circle instead of the initials (`object-fit: cover`, cut to the circle). The colour shows behind it while it loads; one that fails to load leaves the initials, and a new address is tried again. An unknown or unassigned speaker takes no photo, a type error. The data layer gives the address: `photo_url` of a speaker from `useSpeakers()`, which the API client makes from `photo`.
 - The initials are trimmed to their capitals with `text-box`, so the letters are what is centred, not the line box, which at these sizes leaves them a pixel high. At 20 px the capitals are an odd height, so they stay within half a pixel of the centre.
-- `AvatarStack` puts the first avatar on top and turns speakers past `max` into "+N".
+- `AvatarStack` puts the first avatar on top and turns speakers past `max` into "+N". A speaker with a photo shows it there too, at `xs` as well.
+
+### Speaker photos
+
+A speaker's photo and colour are changed in one window, opened by a click on their large avatar: `AvatarButton` is that avatar as a button, photo or initials, with a pencil instead of the letters on hover and keyboard focus (or a bin, `icon="delete"`, at `xlarge` in the Avatar window). A picture dropped on it opens the window with the picture to crop, and files over it ring it. `AvatarModal` (Avatar) shows the avatar at `xlarge` (`--size-avatar-xlg`) in a drop zone drawn as the one of New recording: under the avatar Drop a picture here (Drop to add the picture while files are over it), the formats it takes on a line of their own (JPEG, PNG or WebP, up to 20 MB) and Choose file. A photo is removed from the avatar itself: it is then an `AvatarButton` (Remove photo) with a bin over it on hover and focus. The colour, the five speaker colours, is under the zone. The zone and the crop that takes its place share one height (`.area`), so the window keeps its size. Each change is handed over at once and the window stays; Done closes it. A file of another type or over 20 MB is said in the window (`photoProblem()`). A picture is cropped in the same window, in place of the avatar, its title and colour staying (`PhotoCrop`): the picture in a square of `--size-photo-crop`, the part outside the circle dimmed with `--color-scrim`, dragged with the pointer or moved with the arrow keys (`+` and `-` zoom), and a Zoom slider from 1 to 4. At zoom 1 the shorter side fills the square, and the picture always covers it (`crop.ts`). Under it, Cancel leaves the crop and Save photo draws the square on a canvas as a 256 px JPEG, hands it over and shows the avatar again; Done waits until the crop is saved or cancelled. A refusal stays in the window. Drops are handled by `useFileDrop()` (`file-drop.ts`), which keeps them from the window, where a dropped file would be an import. Nothing is uploaded by these components: the screen that uses them does it. The window's CSP allows images from the local backend, `blob:` and `data:` only.
 
 ### Escape in SearchField
 

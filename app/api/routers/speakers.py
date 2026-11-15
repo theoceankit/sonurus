@@ -1,11 +1,13 @@
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse
 
 from app.services.commit_service import CommitService
 from app.services.speaker_memory_service import (
-    HandleNeedsName, HandleTaken, InvalidHandle, SpeakerMemoryService, PALETTE_SIZE,
+    HandleNeedsName, HandleTaken, InvalidHandle, PhotoNeedsName, SpeakerMemoryService, PALETTE_SIZE,
 )
+from app.services.speaker_photos import MAX_PHOTO_BYTES, MEDIA_TYPES, PHOTO_TYPES, photo_path
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.voice_sample import pick_voice_sample
 from app.api.dependencies import (
@@ -27,6 +29,7 @@ def _speaker_response(spk_id, memory, stats) -> SpeakerResponse:
         handle=memory.get_handle(spk_id),
         handle_manual=memory.is_handle_manual(spk_id),
         color_index=memory.get_color_index(spk_id) or 0,
+        photo=memory.get_photo(spk_id),
         **stats.get(spk_id, {}),
     )
 
@@ -191,3 +194,63 @@ def speaker_sample(
     if sample is None:
         raise HTTPException(status_code=404, detail="No audio available for this speaker")
     return SpeakerSampleResponse(**sample)
+
+
+@router.put(
+    "/{speaker_id}/photo", response_model=SpeakerResponse,
+    responses={400: {"model": RefusalResponse}, 413: {}, 415: {}},
+    openapi_extra={"requestBody": {"required": True, "content": {
+        mime: {"schema": {"type": "string", "format": "binary"}} for mime in PHOTO_TYPES
+    }}},
+)
+async def set_speaker_photo(
+    speaker_id: str,
+    request: Request,
+    memory: SpeakerMemoryService = Depends(get_memory_service),
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """The speaker's photo: the raw body, already cropped to a square by the UI.
+    Only a named speaker has one. The backend is the only writer of the photos dir."""
+    mime = request.headers.get("content-type", "").split(";")[0].strip().lower()
+    if mime not in PHOTO_TYPES:
+        raise HTTPException(status_code=415, detail=f"Unsupported photo type: {mime or 'none'}")
+    stats = storage.speaker_stats()
+    _require_speaker(speaker_id, memory, stats)
+    data = bytearray()
+    async for chunk in request.stream():
+        data += chunk
+        if len(data) > MAX_PHOTO_BYTES:
+            raise HTTPException(status_code=413, detail="The photo is larger than 2 MB")
+    try:
+        memory.set_photo(speaker_id, bytes(data), mime)
+    except PhotoNeedsName:
+        raise Refusal("photo_needs_name", "Give the speaker a name first.")
+    except ValueError as e:
+        raise HTTPException(status_code=415, detail=str(e))
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Could not save the photo: {e}")
+    return _speaker_response(speaker_id, memory, stats)
+
+
+@router.delete("/{speaker_id}/photo", response_model=SpeakerResponse)
+def remove_speaker_photo(
+    speaker_id: str,
+    memory: SpeakerMemoryService = Depends(get_memory_service),
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    stats = storage.speaker_stats()
+    _require_speaker(speaker_id, memory, stats)
+    memory.remove_photo(speaker_id)
+    return _speaker_response(speaker_id, memory, stats)
+
+
+@router.get("/{speaker_id}/photo", response_class=FileResponse)
+def speaker_photo(speaker_id: str, memory: SpeakerMemoryService = Depends(get_memory_service)):
+    """The photo file. Its name changes with every upload, so the UI asks for
+    ?v=<photo> and the response may be cached for good."""
+    name = memory.get_photo(speaker_id)
+    path = photo_path(name, memory.photos_dir) if name and memory.photos_dir else None
+    if path is None:
+        raise HTTPException(status_code=404, detail="No photo for this speaker")
+    return FileResponse(path, media_type=MEDIA_TYPES[path.suffix],
+                        headers={"Cache-Control": "private, max-age=31536000, immutable"})

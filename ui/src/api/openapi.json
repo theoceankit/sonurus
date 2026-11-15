@@ -770,7 +770,8 @@
               "job_running",
               "handle_invalid",
               "handle_taken",
-              "handle_needs_name"
+              "handle_needs_name",
+              "photo_needs_name"
             ],
             "title": "Code",
             "type": "string"
@@ -1033,7 +1034,7 @@
         "type": "object"
       },
       "SpeakerResponse": {
-        "description": "A speaker in the Speakers section. name is None for unnamed speakers, and\nso is handle: only a named speaker has one. handle_manual: set by hand, so it\nstays when the name changes.",
+        "description": "A speaker in the Speakers section. name is None for unnamed speakers, and\nso is handle: only a named speaker has one. handle_manual: set by hand, so it\nstays when the name changes. photo: the file name of the speaker's photo\n(GET /speakers/{id}/photo), new with every upload; only a named speaker has one.",
         "properties": {
           "color_index": {
             "title": "Color Index",
@@ -1080,6 +1081,17 @@
             ],
             "title": "Name"
           },
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo"
+          },
           "segments": {
             "default": 0,
             "title": "Segments",
@@ -1097,6 +1109,7 @@
           "handle",
           "handle_manual",
           "color_index",
+          "photo",
           "segments",
           "transcripts",
           "duration_sec",
@@ -2687,6 +2700,162 @@
           }
         },
         "summary": "Update Speaker",
+        "tags": [
+          "speakers"
+        ]
+      }
+    },
+    "/speakers/{speaker_id}/photo": {
+      "delete": {
+        "operationId": "remove_speaker_photo_speakers__speaker_id__photo_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "speaker_id",
+            "required": true,
+            "schema": {
+              "title": "Speaker Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeakerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Speaker Photo",
+        "tags": [
+          "speakers"
+        ]
+      },
+      "get": {
+        "description": "The photo file. Its name changes with every upload, so the UI asks for\n?v=<photo> and the response may be cached for good.",
+        "operationId": "speaker_photo_speakers__speaker_id__photo_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "speaker_id",
+            "required": true,
+            "schema": {
+              "title": "Speaker Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Speaker Photo",
+        "tags": [
+          "speakers"
+        ]
+      },
+      "put": {
+        "description": "The speaker's photo: the raw body, already cropped to a square by the UI.\nOnly a named speaker has one. The backend is the only writer of the photos dir.",
+        "operationId": "set_speaker_photo_speakers__speaker_id__photo_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "speaker_id",
+            "required": true,
+            "schema": {
+              "title": "Speaker Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "image/png": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeakerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "413": {
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Speaker Photo",
         "tags": [
           "speakers"
         ]
