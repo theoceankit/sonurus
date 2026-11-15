@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest'
 import { Avatar } from './Avatar'
 import { speakerInitials } from './initials'
 import avatarCss from './Avatar.module.css?raw'
+import tokensCss from '../../styles/tokens.css?raw'
 
 const avatar = (ui: Parameters<typeof render>[0]) => render(ui).container.firstElementChild as HTMLElement
 
@@ -152,4 +153,23 @@ test('the initials are trimmed to their capitals, so the letters and not the lin
   const { container } = render(<Avatar name="Anna Petrova" color={1} />)
   expect(container.querySelector('[data-initials]')?.textContent).toBe('AP')
   expect(avatarCss).toMatch(/\.initials \{[^}]*text-box: trim-both cap alphabetic;/)
+})
+
+// The letters take the same share of the circle at every size, so a larger avatar
+// is the same avatar, larger.
+test('the initials keep their share of the circle at every size', () => {
+  const token = (name: string) => tokensCss.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1].trim() ?? ''
+  const px = (name: string): number => {
+    const value = token(name)
+    const ref = value.match(/^var\((--[\w-]+)\)$/)
+    return ref ? px(ref[1]) : parseFloat(value)
+  }
+  const fontSize = (font: string) => px(token(font).match(/var\((--type-size-[\w-]+)\)/)![1])
+  const share = (size: string) => {
+    const rule = avatarCss.match(new RegExp(`\\.${size} \\{([^}]*)\\}`))![1]
+    const width = px(rule.match(/width: var\((--[\w-]+)\)/)![1])
+    return fontSize(rule.match(/font: var\((--[\w-]+)\)/)![1]) / width
+  }
+  for (const size of ['small', 'large', 'xlarge']) expect(share(size), size).toBeGreaterThan(0.42)
+  expect(share('xlarge')).toBeCloseTo(share('large'), 1)
 })

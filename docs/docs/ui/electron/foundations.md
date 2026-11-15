@@ -108,7 +108,7 @@ Each component with states has a `Matrix` story from `ui/src/foundations/StateMa
 
 Only `Avatar` works out initials; a test in `Avatar.test.tsx` fails if anything else imports them.
 
-- Sizes: `xs`, `small`, `medium`, `large` and `xlarge`, the last only in the Avatar window. One word gives its first two letters, several give the first letter of the first and of the last word. `xs` shows one letter. An empty name is a circle without letters.
+- Sizes: `xs`, `small`, `medium`, `large` and `xlarge`, the last only in the Avatar window. The letters take about the same share of the circle at every size; `xlarge` has its own `--font-initials-xl` for that, as the type scale stops at 22 px, and a test keeps the share. One word gives its first two letters, several give the first letter of the first and of the last word. `xs` shows one letter. An empty name is a circle without letters.
 - A colour is a number from 1 to 6. Which speaker gets which is decided by the data layer.
 - `kind="unknown"` and `kind="unassigned"` are a gray "?".
 - `photo`, the address of a named speaker's photo, covers the circle instead of the initials (`object-fit: cover`, cut to the circle). The colour shows behind it while it loads; one that fails to load leaves the initials, and a new address is tried again. An unknown or unassigned speaker takes no photo, a type error. The data layer gives the address: `photo_url` of a speaker from `useSpeakers()`, which the API client makes from `photo`.

@@ -282,6 +282,8 @@
   --type-size-title: 18px;
   --type-size-title-lg: 22px;
   --type-size-initials: 9px;
+  /* The letters of the xlarge avatar, the share of its circle the large one has. */
+  --type-size-initials-xl: 44px;
 
   --font-caption: var(--type-weight-regular) var(--type-size-caption)/1.4545 var(--type-family-sans);
   --font-caption-strong: var(--type-weight-semibold) var(--type-size-caption)/1.4545 var(--type-family-sans);
@@ -291,6 +293,7 @@
   --font-title: var(--type-weight-semibold) var(--type-size-title)/1.3333 var(--type-family-sans);
   --font-title-lg: var(--type-weight-semibold) var(--type-size-title-lg)/1.2727 var(--type-family-sans);
   --font-initials: var(--type-weight-semibold) var(--type-size-initials)/1.3333 var(--type-family-sans);
+  --font-initials-xl: var(--type-weight-semibold) var(--type-size-initials-xl)/1 var(--type-family-sans);
 }
 
 /*

@@ -49,5 +49,5 @@
 .xlarge {
   width: var(--size-avatar-xlg);
   height: var(--size-avatar-xlg);
-  font: var(--font-title-lg);
+  font: var(--font-initials-xl);
 }
