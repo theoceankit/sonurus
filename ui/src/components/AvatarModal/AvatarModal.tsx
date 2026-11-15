@@ -3,6 +3,7 @@ import { cx } from '../../styles/cx'
 import field from '../../styles/field.module.css'
 import { ASSIGNABLE_SPEAKER_COLORS, type SpeakerColor } from '../../styles/speaker-colors'
 import { Avatar } from '../Avatar/Avatar'
+import { AvatarButton } from '../AvatarButton/AvatarButton'
 import { Button } from '../Button/Button'
 import { ColorPicker } from '../ColorPicker/ColorPicker'
 import { Inline } from '../Inline/Inline'
@@ -103,6 +104,8 @@ export function AvatarModal({ speaker, open = true, onColorChange, onPick, onRem
     <Modal size="small" scrim="auto" open={open} onExited={onExited} preview={preview} onOpenChange={next => { if (!next) onClose() }}>
       <ModalHeader title="Avatar" />
       <ModalBody className={styles.body}>
+        {/* One height for the drop zone and the crop, so the window keeps its size. */}
+        <div className={styles.area}>
         {src ? (
           <>
             <PhotoCrop
@@ -122,19 +125,19 @@ export function AvatarModal({ speaker, open = true, onColorChange, onPick, onRem
           </>
         ) : (
           <>
-            <Stack gap={3} align="center" className={cx(styles.dropZone, drop.over && styles.over)} data-over={drop.over ? '' : undefined} {...drop.handlers}>
-              <Avatar {...speaker} size="xlarge" />
+            <Stack gap={3} align="center" justify="center" className={cx(styles.dropZone, drop.over && styles.over)} data-over={drop.over ? '' : undefined} {...drop.handlers}>
+              {hasPhoto
+                ? <AvatarButton speaker={speaker} size="xlarge" icon="delete" label="Remove photo" disabled={busy !== null} onClick={() => { void run('remove', onRemove) }} />
+                : <Avatar {...speaker} size="xlarge" />}
               <Stack gap="half" align="center">
                 <span className={styles.title}>{drop.over ? 'Drop to add the picture' : 'Drop a picture here'}</span>
                 <span className={styles.hint}>{PHOTO_FORMATS}</span>
               </Stack>
               <Button size="small" disabled={busy !== null} onClick={() => input.current?.click()}>Choose file</Button>
             </Stack>
-            {hasPhoto && (
-              <Button size="small" variant="ghost" icon="delete" loading={busy === 'remove'} disabled={busy !== null} onClick={() => { void run('remove', onRemove) }}>Remove photo</Button>
-            )}
           </>
         )}
+        </div>
         {errorText}
         <Stack className={styles.colour}>
           <ColorPicker label="Colour" value={speaker.color} colors={ASSIGNABLE_SPEAKER_COLORS} disabled={busy !== null} onValueChange={next => { void Promise.resolve(onColorChange(next)).catch(err => setError(message(err))) }} />

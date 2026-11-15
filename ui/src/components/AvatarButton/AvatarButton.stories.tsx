@@ -20,6 +20,7 @@ export const Matrix: Story = {
       rows={[
         { label: 'Initials', render: () => <AvatarButton speaker={{ name: 'Anna Petrova', color: 1 }} label="Add photo" /> },
         { label: 'Photo', render: () => <AvatarButton speaker={{ name: 'Anna Petrova', color: 1, photo: portrait }} label="Change avatar" /> },
+        { label: 'Remove photo', render: () => <AvatarButton speaker={{ name: 'Anna Petrova', color: 1, photo: portrait }} label="Remove photo" icon="delete" size="xlarge" /> },
       ]}
     />
   ),
@@ -27,6 +28,8 @@ export const Matrix: Story = {
 export const Initials: Story = {}
 export const Photo: Story = { args: { speaker: { name: 'Anna Petrova', color: 1, photo: portrait } } }
 export const Disabled: Story = { args: { disabled: true } }
+// In the Avatar window: a bin over the photo removes it.
+export const RemovePhoto: Story = { args: { speaker: { name: 'Anna Petrova', color: 1, photo: portrait }, label: 'Remove photo', icon: 'delete', size: 'xlarge' } }
 // Files over it, before the drop.
 export const FilesOver: Story = {
   args: { onFileDrop: () => {} },

@@ -47,3 +47,9 @@ test('without onFileDrop a drop passes by', () => {
   fireEvent.dragEnter(button, files(new File(['x'], 'me.jpg', { type: 'image/jpeg' })))
   expect(button.hasAttribute('data-over')).toBe(false)
 })
+
+test('a bin instead of the pencil, at the larger size', () => {
+  render(<AvatarButton speaker={{ name: 'Anna Petrova', color: 1, photo: 'p.jpg' }} label="Remove photo" icon="delete" size="xlarge" />)
+  const button = screen.getByRole('button', { name: 'Remove photo' })
+  expect(button.querySelector('[class*="xlarge"]')).toBeTruthy()
+})

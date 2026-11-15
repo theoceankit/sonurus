@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
 import { AvatarModal, PHOTO_MAX_BYTES, photoProblem } from './AvatarModal'
+import css from './AvatarModal.module.css?raw'
 
 beforeEach(() => {
   URL.createObjectURL = vi.fn(() => 'blob:picture')
@@ -158,4 +159,21 @@ test('a picture that does not open goes back and says so', () => {
   fireEvent.error(screen.getByRole('dialog').querySelector('img')!)
   expect(screen.getByRole('dialog', { name: 'Avatar' })).toBeTruthy()
   expect(screen.getByText('This picture cannot be opened.')).toBeTruthy()
+})
+
+test('the photo is removed from its avatar: a bin comes over it, no button of its own', () => {
+  setup({ speaker: { name: 'Anna Petrova', color: 1, photo: 'p.jpg' } })
+  const remove = screen.getByRole('button', { name: 'Remove photo' })
+  expect(remove.querySelector('img')?.getAttribute('src')).toBe('p.jpg')
+  expect(remove.textContent).not.toContain('Remove photo')
+})
+
+test('without a photo the avatar is no button', () => {
+  setup()
+  expect(screen.queryByRole('button', { name: 'Remove photo' })).toBeNull()
+})
+
+test('the drop zone and the crop share one height, so the window keeps its size', () => {
+  expect(css).toMatch(/\.area \{[^}]*height: calc\(var\(--size-photo-crop\) \+ var\(--size-slider-thumb\) \+ var\(--size-control-sm\) \+ 2 \* var\(--space-3\)\)/)
+  expect(css).toMatch(/\.dropZone \{[^}]*flex: 1/)
 })

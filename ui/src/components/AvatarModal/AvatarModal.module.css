@@ -3,9 +3,19 @@
   text-align: center;
 }
 
+/* As tall as the crop with its slider and buttons, which takes its place. */
+.area {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-3);
+  align-self: stretch;
+  height: calc(var(--size-photo-crop) + var(--size-slider-thumb) + var(--size-control-sm) + 2 * var(--space-3));
+}
+
 /* As the drop zone of New recording: the avatar takes a dropped picture. */
 .dropZone {
-  align-self: stretch;
+  flex: 1;
   padding: var(--space-4);
   border: var(--border-width-strong) dashed var(--color-border-strong);
   border-radius: var(--radius-card);

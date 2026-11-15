@@ -4,6 +4,7 @@ import { cx } from '../../styles/cx'
 import { Avatar, type AvatarSpeaker } from '../Avatar/Avatar'
 import { useFileDrop } from '../AvatarModal/file-drop'
 import { Icon } from '../Icon/Icon'
+import type { IconName } from '../Icon/icon-names'
 import styles from './AvatarButton.module.css'
 
 type AvatarButtonProps = Omit<ComponentPropsWithRef<'button'>, 'children' | 'color'> & {
@@ -12,11 +13,14 @@ type AvatarButtonProps = Omit<ComponentPropsWithRef<'button'>, 'children' | 'col
   label: string
   // A picture dropped on the avatar.
   onFileDrop?: (file: File) => void
+  // What comes over the avatar on hover and focus: the pencil opens, the bin removes.
+  icon?: Extract<IconName, 'edit' | 'delete'>
+  size?: 'large' | 'xlarge'
 }
 
-// A large avatar that opens the speaker's avatar window: a pencil comes over it on hover
-// and focus, and a picture can be dropped on it.
-export function AvatarButton({ speaker, label, onFileDrop, className, type = 'button', ...props }: AvatarButtonProps) {
+// A large avatar as a button: what it does comes over it on hover and focus, a pencil
+// for the avatar window or a bin for the photo, and a picture can be dropped on it.
+export function AvatarButton({ speaker, label, onFileDrop, icon = 'edit', size = 'large', className, type = 'button', ...props }: AvatarButtonProps) {
   const drop = useFileDrop(file => onFileDrop?.(file), Boolean(onFileDrop) && !props.disabled)
   return (
     <button
@@ -27,8 +31,8 @@ export function AvatarButton({ speaker, label, onFileDrop, className, type = 'bu
       {...drop.handlers}
       {...props}
     >
-      <Avatar {...speaker} size="large" />
-      <span className={styles.overlay} aria-hidden><Icon name="edit" size={20} /></span>
+      <Avatar {...speaker} size={size} />
+      <span className={styles.overlay} aria-hidden><Icon name={icon} size={size === 'xlarge' ? 24 : 20} /></span>
     </button>
   )
 }
