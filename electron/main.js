@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, session, clipboard, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, Menu, nativeTheme, session, clipboard, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { BackendRefusedError, restartBackend, startBackend, stopBackend } = require('./backend')
@@ -6,7 +6,7 @@ const { devUserDataPath } = require('./backend-identity')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 const { showModelsFolder } = require('./models-folder')
 const { uiEntry } = require('./ui-entry')
-const { windowChrome, overlayDimmer } = require('./window-chrome')
+const { windowChrome, themeSource, overlayDimmer } = require('./window-chrome')
 
 // Dev mode keeps its data apart from the packaged app (electron/backend-identity.js).
 // Must run before the app is ready: settings, the backend's data dir and logs follow it.
@@ -53,7 +53,7 @@ function createWindow() {
     minHeight: 600,
     backgroundColor: '#FFFFFF',
     icon: path.join(__dirname, 'assets', 'icon.png'),
-    ...windowChrome(),
+    ...windowChrome(nativeTheme.shouldUseDarkColors),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -66,7 +66,9 @@ function createWindow() {
   // macOS draws its own window buttons, with no strip to colour.
   const win = mainWin
   if (process.platform !== 'darwin') {
-    titleBarDimmer = overlayDimmer(overlay => { if (!win.isDestroyed()) win.setTitleBarOverlay(overlay) })
+    titleBarDimmer = overlayDimmer(overlay => { if (!win.isDestroyed()) win.setTitleBarOverlay(overlay) }, {
+      isDark: () => nativeTheme.shouldUseDarkColors,
+    })
   }
   // A page that loads again has no modal open, whatever the last one said.
   win.webContents.on('did-start-loading', () => titleBarDimmer?.set(false))
@@ -104,7 +106,22 @@ const DEFAULT_SETTINGS = {
   recordingSystemDevice: null,
   hfToken: '',
   recentTranscriptIds: [],
+  theme: 'system',
 }
+
+// The theme: 'system' follows the OS. themeSource also sets prefers-color-scheme in
+// the page, which the UI follows (ui/src/platform/theme.ts).
+ipcMain.handle('set-theme', (_e, source) => {
+  nativeTheme.themeSource = themeSource(source)
+})
+
+// The OS or the setting changed the theme: the window behind the page and the strip
+// of the window buttons follow.
+nativeTheme.on('updated', () => {
+  if (!mainWin || mainWin.isDestroyed()) return
+  mainWin.setBackgroundColor(windowChrome(nativeTheme.shouldUseDarkColors).backgroundColor)
+  titleBarDimmer?.refresh()
+})
 
 ipcMain.handle('set-zoom', (_e, factor) => {
   if (mainWin) mainWin.webContents.setZoomFactor(factor)
@@ -149,11 +166,13 @@ ipcMain.handle('write-clipboard', async (_e, text) => { await clipboard.writeTex
 
 ipcMain.handle('show-models-folder', () => showModelsFolder({ openPath: p => shell.openPath(p) }))
 
-function savedHfToken() {
+function savedSettings() {
   try {
-    return JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8')).hfToken || ''
-  } catch { return '' /* settings not yet created */ }
+    return JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8')) ?? {}
+  } catch { return {} /* settings not yet created */ }
 }
+
+const savedHfToken = () => savedSettings().hfToken || ''
 
 // GPU acceleration applied or removed: the renderer asks once the backend
 // said it may restart (POST /gpu/restart → ready).
@@ -162,6 +181,9 @@ ipcMain.handle('restart-backend', async () => {
 })
 
 app.whenReady().then(async () => {
+  // The saved theme before the window exists, so it opens in its colours.
+  nativeTheme.themeSource = themeSource(savedSettings().theme)
+
   // No spell checking: transcripts are in any language, and on Windows and
   // Linux Chromium downloads its dictionaries from Google at start-up. An
   // empty language list is what stops the download; macOS uses the system

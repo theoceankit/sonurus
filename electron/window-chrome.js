@@ -2,26 +2,36 @@
 // over the page. Where they stand differs between systems and desktops, so the
 // page asks for it through env(titlebar-area-*).
 //
-// Values of tokens.css in the light theme, a build test keeps them in step. The
-// dark theme is not enabled yet, so the window buttons have these colours only.
-const BG_SUNKEN = '#F6F6F9'
-const TEXT_PRIMARY = '#242426'
+// The strip and the window behind the page take the title bar's colours of the
+// theme the window is in (nativeTheme.shouldUseDarkColors). Values of tokens.css,
+// a build test keeps them in step: --color-bg-sunken, --color-text-primary and the
+// alpha of --color-scrim.
+const THEMES = {
+  light: { bgSunken: '#F6F6F9', textPrimary: '#242426', scrimAlpha: 0.4 },
+  dark: { bgSunken: '#101012', textPrimary: '#F6F6F9', scrimAlpha: 0.6 },
+}
 const TITLEBAR_HEIGHT = 40
 
-function windowChrome() {
+const themeOf = dark => (dark ? THEMES.dark : THEMES.light)
+
+function windowChrome(dark = false) {
+  const { bgSunken, textPrimary } = themeOf(dark)
   return {
     titleBarStyle: 'hidden',
-    titleBarOverlay: { color: BG_SUNKEN, symbolColor: TEXT_PRIMARY, height: TITLEBAR_HEIGHT },
-    backgroundColor: BG_SUNKEN,
+    titleBarOverlay: { color: bgSunken, symbolColor: textPrimary, height: TITLEBAR_HEIGHT },
+    backgroundColor: bgSunken,
   }
 }
+
+// What settings.json may hold as the theme; anything else follows the system.
+const THEME_SOURCES = ['system', 'light', 'dark']
+const themeSource = value => (THEME_SOURCES.includes(value) ? value : 'system')
 
 // A modal's scrim does not reach the strip of the window buttons, which the system
 // draws over the page. While a modal is open the strip takes the colours of the page
 // under the scrim, with the scrim's timing (--color-scrim, the presence animation of
 // motion.module.css). macOS draws its own buttons and has no such strip to colour.
 const DIM = {
-  scrimAlpha: 0.4,
   inMs: 200,
   outMs: 150,
   easeIn: [0.16, 1, 0.3, 1],
@@ -39,9 +49,10 @@ function darken(color, alpha) {
 }
 
 // amount: 0 for no modal, 1 for the scrim at full strength.
-function dimmedOverlay(amount) {
-  const alpha = DIM.scrimAlpha * amount
-  return { color: darken(BG_SUNKEN, alpha), symbolColor: darken(TEXT_PRIMARY, alpha) }
+function dimmedOverlay(amount, dark = false) {
+  const { bgSunken, textPrimary, scrimAlpha } = themeOf(dark)
+  const alpha = scrimAlpha * amount
+  return { color: darken(bgSunken, alpha), symbolColor: darken(textPrimary, alpha) }
 }
 
 // The CSS cubic-bezier(x1, y1, x2, y2): progress in time → progress of the value.
@@ -63,8 +74,9 @@ function cubicBezier([x1, y1, x2, y2]) {
 
 // Moves the strip between plain and dimmed. A change halfway starts from where the
 // strip is, so it never jumps. The page's scrim starts before the strip hears of it:
-// each frame counts time from when the scrim started.
-function overlayDimmer(apply, { now = () => Date.now(), setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
+// each frame counts time from when the scrim started. A theme that changes repaints
+// the strip where it is (refresh).
+function overlayDimmer(apply, { now = () => Date.now(), setTimer = setTimeout, clearTimer = clearTimeout, isDark = () => false } = {}) {
   let amount = 0
   let target = 0
   let timer = null
@@ -83,10 +95,14 @@ function overlayDimmer(apply, { now = () => Date.now(), setTimer = setTimeout, c
     const frame = () => {
       const progress = Math.min(1, (now() - start) / duration)
       amount = from + (target - from) * ease(progress)
-      apply(dimmedOverlay(amount))
+      apply(dimmedOverlay(amount, isDark()))
       timer = progress < 1 ? setTimer(frame, FRAME_MS) : null
     }
     frame()
+  }
+
+  function refresh() {
+    if (timer === null) apply(dimmedOverlay(amount, isDark()))
   }
 
   function stop() {
@@ -94,7 +110,7 @@ function overlayDimmer(apply, { now = () => Date.now(), setTimer = setTimeout, c
     timer = null
   }
 
-  return { set, stop }
+  return { set, refresh, stop }
 }
 
-module.exports = { windowChrome, dimmedOverlay, cubicBezier, overlayDimmer, DIM }
+module.exports = { windowChrome, themeSource, dimmedOverlay, cubicBezier, overlayDimmer, DIM, THEMES }

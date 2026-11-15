@@ -13,7 +13,11 @@ export type ElectronSettings = {
   hfToken: string
   // The recordings opened last, newest first.
   recentTranscriptIds: number[]
+  // 'system' follows the OS.
+  theme: ThemeSource
 }
+
+export type ThemeSource = 'system' | 'light' | 'dark'
 
 export type ElectronAPI = {
   getPlatform: () => Promise<string>
@@ -23,6 +27,8 @@ export type ElectronAPI = {
   readSettings: () => Promise<ElectronSettings>
   writeSettings: (data: ElectronSettings) => Promise<void>
   setZoom: (factor: number) => Promise<void>
+  // Sets the theme of the window: its frame, and prefers-color-scheme in the page.
+  setTheme: (source: ThemeSource) => Promise<void>
   writeClipboard: (text: string) => Promise<void>
   restartBackend: () => Promise<void>
   // '' once the file manager opened the models folder, else why it did not.
