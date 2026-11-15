@@ -40,6 +40,8 @@ export type SessionDeps = {
   getUserMedia: (constraints: MediaStreamConstraints) => Promise<MediaStream>
   connect: (mic: MediaStream) => AudioGraph
   createRecorder: (stream: MediaStream) => Recorder
+  // The clock the recorder's start time is read from, Date.now() unless given.
+  now?: () => number
 }
 
 export const MIC_TYPE = 'audio/webm;codecs=opus'
@@ -87,6 +89,7 @@ export async function startRecording(request: RecordingRequest, deps: SessionDep
   let graph: AudioGraph | null = null
   let recorder: Recorder | null = null
   let captureJobId: string | null = null
+  let micStartedAt = 0
   const chunks: Blob[] = []
 
   const releaseMic = () => {
@@ -112,6 +115,9 @@ export async function startRecording(request: RecordingRequest, deps: SessionDep
       recorder = deps.createRecorder(graph.stream)
       recorder.ondataavailable = event => { if (event.data.size > 0) chunks.push(event.data) }
       recorder.start(CHUNK_MS)
+      // The system capture is already running: the backend shifts the microphone by
+      // the difference of the two start times, both on this machine's clock.
+      micStartedAt = (deps.now ?? Date.now)()
     }
   } catch (err) {
     releaseMic()
@@ -134,7 +140,7 @@ export async function startRecording(request: RecordingRequest, deps: SessionDep
       let filePath: string
       if (captureJobId && recorder) {
         const micPath = await finishMic(recorder)
-        filePath = await api.stopCapture(captureJobId, micPath)
+        filePath = await api.stopCapture(captureJobId, { path: micPath, startedAt: micStartedAt })
       } else if (captureJobId) {
         releaseMic()
         filePath = await api.stopCapture(captureJobId)

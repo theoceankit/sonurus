@@ -60,12 +60,14 @@ POST /audio/capture/start
   → macOS / Windows: waits up to 5 s for READY (first stdout line read on a thread —
     select() works only on sockets on Windows); Linux: a process that exits within 0.5 s
     → 400 with its stderr
-  → stores { process, output_path, log_path } under job_id
+  → stores { process, output_path, log_path, started_at } under job_id; started_at is
+    time.time() when the track starts: at READY on macOS / Windows (the helper writes
+    from there on), at the spawn on Linux
   → returns job_id
 
 [user records...]
 
-POST /audio/capture/stop/{job_id}  { mic_path?: "..." }
+POST /audio/capture/stop/{job_id}  { mic_path?: "...", mic_started_at?: <Unix time, s> }
   → macOS / Linux: sends SIGINT to the capture process; Windows: writes "stop" to its
     stdin and closes it
   → process.wait(timeout=10), kill() if it does not exit
@@ -73,8 +75,10 @@ POST /audio/capture/stop/{job_id}  { mic_path?: "..." }
   → logs output file size
   → no mic_path: level the loudness of the capture file (ffmpeg dynaudnorm) into
     $SONORUS_DATA_DIR/recordings/sonorus-rec-<job_id>.wav; delete the temp capture file
-  → mic_path: level both tracks and mix them into the same final path; delete the temp
-    capture file and the mic file (only if it lives inside the recordings dir)
+  → mic_path: level both tracks, shift the one that started later by
+    mic_started_at − started_at and mix them into the same final path, ending with the
+    mic; delete the temp capture file and the mic file (only if it lives inside the
+    recordings dir)
   → returns final WAV path
 
 POST /queue/jobs  { audio_path: "<returned path>" }
@@ -245,13 +249,21 @@ Mic + system (`stop_capture(mic_path=...)`):
 ```bash
 ffmpeg -y \
   -i <system.wav> -i <mic.webm> \
-  -filter_complex "[0:a]<level filter>[sys];[1:a]<level filter>[mic];[sys][mic]amix=inputs=2:duration=shortest:normalize=0,alimiter=limit=0.95:level=disabled" \
+  -filter_complex "[0:a]<level filter>[sys];[1:a]<level filter>,aformat=channel_layouts=stereo,adelay=delays=<ms>:all=1[mic];[mic][sys]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95:level=disabled" \
   <merged.wav>
 ```
 
-`normalize=0` sums the tracks instead of dividing each by the number of inputs; `alimiter` keeps the sum from clipping. `duration=shortest` ensures the merged file ends when the shorter track ends, avoiding silence padding if the two recordings differ slightly in length. The result is the same WAV as before (16-bit PCM).
+`normalize=0` sums the tracks instead of dividing each by the number of inputs; `alimiter` keeps the sum from clipping. The result is the same WAV as before (16-bit PCM).
 
-If the levelling run fails (ffmpeg error or ffmpeg not found), a warning is logged and the recording is stored without levelling: the system-only file is moved as captured, the mix is retried with plain `amix=inputs=2:duration=shortest`. Only a failure of that plain mix fails the stop.
+**Lining the tracks up.** The two tracks do not start or stop together. The window starts its `MediaRecorder` only once `POST /audio/capture/start` has answered, so the system track starts first (by at least the 0.5 s start-up check on Linux, by however long the helper took on macOS and Windows). On Stop the window stops the microphone, uploads it, and only then stops the capture, so the system track also runs on past Stop. The window sends when its recorder started (`mic_started_at`, `Date.now()` in seconds) and the service knows when the system track started (`started_at`); both are read from the system clock of the same machine. The mix:
+
+- shifts the track that started later by the difference (`adelay`, after levelling, so the silence put in front of a track takes no part in it): the same moment lines up on both tracks;
+- ends with the microphone (`duration=first`, the microphone is the first input): the recording ends where Stop was pressed, and system audio captured after Stop, while the microphone was being uploaded, is dropped. Nothing said before Stop is lost;
+- upmixes a mono microphone to stereo first: `amix` takes its channel layout from its first input and would otherwise turn the system audio mono.
+
+Without `mic_started_at`, or when it is more than 30 s (`_MAX_START_GAP_SEC`) away from the capture's start — a clock jump, not a real offset — both tracks start at 0 and a warning is logged. The shift is as exact as the two start times: tens of milliseconds, the time between reading the clock and the first sample on each side. On macOS ScreenCaptureKit hands over audio as it comes; the alignment holds only as long as its track has no gaps.
+
+If the levelling run fails (ffmpeg error or ffmpeg not found), a warning is logged and the recording is stored without levelling: the system-only file is moved as captured, the mix is retried with plain `amix=inputs=2:duration=first`, with the same shift. Only a failure of that plain mix fails the stop.
 
 Mic-only recordings (renderer `MediaRecorder`, `POST /audio/recordings`) and imported files are not levelled; Chromium's `getUserMedia` already applies automatic gain control to the mic.
 

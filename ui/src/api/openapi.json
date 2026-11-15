@@ -73,6 +73,17 @@
               }
             ],
             "title": "Mic Path"
+          },
+          "mic_started_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mic Started At"
           }
         },
         "title": "AudioCaptureStopRequest",

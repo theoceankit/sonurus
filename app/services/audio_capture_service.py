@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +23,10 @@ _STOP_TIMEOUT_SEC = 10
 _START_CHECK_SEC = 0.5
 # How long a helper with a handshake (READY on stdout) may take to start.
 _READY_TIMEOUT_SEC = 5.0
+# The microphone starts in the window once the capture runs, at most a few
+# seconds apart. A larger gap between the two start times means a clock jump,
+# not a real offset: then the tracks are mixed from 0 as they are.
+_MAX_START_GAP_SEC = 30.0
 _REPO_ROOT = Path(__file__).parents[2]
 # Windows: the helper is a console program; without this flag every run of it
 # from the windowless backend flashes a console window. 0 on other OSes.
@@ -48,6 +53,9 @@ class _CaptureJob:
     process: subprocess.Popen
     output_path: str
     log_path: str
+    # When the track starts, Unix time (time.time()): the microphone's start time
+    # from the window is on the same clock.
+    started_at: float
     stop_via_stdin: bool = False
 
 
@@ -307,6 +315,7 @@ class AudioCaptureService:
         # stdout is only needed for the READY handshake, stdin only for a stop
         # through stdin (Windows).
         with open(log_path, "wb") as log_file:
+            started_at = time.time()
             process = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE if driver.stop_via_stdin else None,
@@ -317,6 +326,8 @@ class AudioCaptureService:
 
         if driver.handshake:
             line = _read_first_line(process.stdout, _READY_TIMEOUT_SEC)
+            # The helper writes from READY on, however long it took to start.
+            started_at = time.time()
             if line is None:
                 process.kill()
                 process.wait()
@@ -347,10 +358,16 @@ class AudioCaptureService:
 
         with self._lock:
             self._jobs[job_id] = _CaptureJob(process=process, output_path=output_path, log_path=log_path,
-                                             stop_via_stdin=driver.stop_via_stdin)
+                                             started_at=started_at, stop_via_stdin=driver.stop_via_stdin)
         return job_id
 
-    def stop_capture(self, job_id: str, mic_path: str | None = None) -> str:
+    def stop_capture(self, job_id: str, mic_path: str | None = None,
+                     mic_started_at: float | None = None) -> str:
+        """Stop a capture; with mic_path, mix that microphone track in.
+
+        mic_started_at is when the microphone track starts (Unix time): the
+        mix shifts it against the system track by the difference.
+        """
         log = logging.getLogger(__name__)
 
         with self._lock:
@@ -382,7 +399,8 @@ class AudioCaptureService:
         if mic_path is None:
             self._level(job.output_path, str(final))
             return str(final)
-        self._merge(job.output_path, mic_path, str(final))
+        self._merge(job.output_path, mic_path, str(final),
+                    mic_delay=_mic_delay(job.started_at, mic_started_at))
         Path(job.output_path).unlink(missing_ok=True)
         if self._is_own_recording(mic_path):
             Path(mic_path).unlink(missing_ok=True)
@@ -420,10 +438,24 @@ class AudioCaptureService:
         else:
             Path(system_path).unlink(missing_ok=True)
 
-    def _merge(self, system_path: str, mic_path: str, merged: str) -> None:
+    def _merge(self, system_path: str, mic_path: str, merged: str, mic_delay: float = 0.0) -> None:
+        """Mix the microphone into the system track.
+
+        mic_delay: how many seconds after the system track the microphone
+        starts (negative: before it). The later track is shifted by it, so
+        the same moment lines up on both. The mix ends with the microphone,
+        which stops when Stop is pressed: the system capture runs on until
+        the microphone file is uploaded, and that tail is dropped.
+        Levelling runs on each track before the shift, so the silence put
+        in front of a track does not take part in it.
+        """
+        # The mix takes its channel layout from its first input: a mono
+        # microphone would turn the system audio mono too.
+        mic_shift = ",aformat=channel_layouts=stereo" + _shift(max(mic_delay, 0.0))
+        sys_shift = _shift(max(-mic_delay, 0.0))
         levelled = (
-            f"[0:a]{_LEVEL_FILTER}[sys];[1:a]{_LEVEL_FILTER}[mic];"
-            f"[sys][mic]amix=inputs=2:duration=shortest:normalize=0,{_LIMITER}"
+            f"[0:a]{_LEVEL_FILTER}{sys_shift}[sys];[1:a]{_LEVEL_FILTER}{mic_shift}[mic];"
+            f"[mic][sys]amix=inputs=2:duration=first:normalize=0,{_LIMITER}"
         )
         try:
             self._run_ffmpeg(["-i", system_path, "-i", mic_path,
@@ -431,8 +463,31 @@ class AudioCaptureService:
         except (subprocess.CalledProcessError, OSError) as exc:
             logging.getLogger(__name__).warning(
                 "loudness levelling failed (%s); mixing without it", exc)
+            plain = (
+                f"[0:a]anull{sys_shift}[sys];[1:a]anull{mic_shift}[mic];"
+                "[mic][sys]amix=inputs=2:duration=first"
+            )
             self._run_ffmpeg(["-i", system_path, "-i", mic_path,
-                              "-filter_complex", "amix=inputs=2:duration=shortest", merged])
+                              "-filter_complex", plain, merged])
+
+
+def _mic_delay(capture_started_at: float, mic_started_at: float | None) -> float:
+    """Seconds the microphone track starts after the system track; 0 when unknown."""
+    if mic_started_at is None:
+        return 0.0
+    delay = mic_started_at - capture_started_at
+    if abs(delay) > _MAX_START_GAP_SEC:
+        logging.getLogger(__name__).warning(
+            "microphone start time is %.1f s away from the system capture start; "
+            "mixing the tracks without a shift", delay)
+        return 0.0
+    return delay
+
+
+def _shift(seconds: float) -> str:
+    """An adelay that puts this much silence in front of a track ('' for none)."""
+    ms = round(seconds * 1000)
+    return f",adelay=delays={ms}:all=1" if ms > 0 else ""
 
 
 def _monitor_label(name: str) -> str:

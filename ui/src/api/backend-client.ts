@@ -141,9 +141,10 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     setQueueStartMode: start_mode => send(http.PUT('/queue/settings', { body: { start_mode } })),
     listCaptureSources: async () => (await send(http.GET('/audio/capture/sources'))).sources,
     startCapture: async source_id => (await send(http.POST('/audio/capture/start', { body: { source_id } }))).job_id,
-    stopCapture: async (job_id, micPath) => (await send(http.POST('/audio/capture/stop/{job_id}', {
+    stopCapture: async (job_id, mic) => (await send(http.POST('/audio/capture/stop/{job_id}', {
       params: { path: { job_id } },
-      body: micPath ? { mic_path: micPath } : {},
+      // The backend's clock is Unix time in seconds.
+      body: mic ? { mic_path: mic.path, mic_started_at: mic.startedAt / 1000 } : {},
     }))).file_path,
     // The schema has no body for it: the recording goes as it is, with its own type.
     uploadRecording: async blob => (await send(http.POST('/audio/recordings', {

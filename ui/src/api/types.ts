@@ -26,6 +26,9 @@ export type GpuStatus = Schemas['GpuStatus']
 export type DataResetSummary = Schemas['DataResetResponse']
 // A system audio source the backend can capture, by the name of its output device.
 export type AudioSource = Schemas['AudioSource']
+// A microphone recording to mix into captured system audio: its uploaded file and when
+// the recorder started, by Date.now().
+export type MicTrack = { path: string; startedAt: number }
 export type JobDoneEvent = Schemas['JobDoneEvent']
 export type JobFailedEvent = Schemas['JobFailedEvent']
 export type HeartbeatEvent = Schemas['HeartbeatEvent']

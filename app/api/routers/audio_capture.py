@@ -27,6 +27,9 @@ class AudioCaptureStartResponse(BaseModel):
 
 class AudioCaptureStopRequest(BaseModel):
     mic_path: str | None = None
+    # When the microphone recording started, Unix time in seconds: the mix shifts
+    # the microphone against the system audio by the difference of the start times.
+    mic_started_at: float | None = None
 
 
 class AudioCaptureStopResponse(BaseModel):
@@ -62,7 +65,7 @@ def start_capture(body: AudioCaptureStartRequest = AudioCaptureStartRequest(), s
 @router.post("/audio/capture/stop/{job_id}", response_model=AudioCaptureStopResponse)
 def stop_capture(job_id: str, body: AudioCaptureStopRequest = AudioCaptureStopRequest(), service=Depends(get_audio_capture_service)):
     try:
-        file_path = service.stop_capture(job_id, mic_path=body.mic_path)
+        file_path = service.stop_capture(job_id, mic_path=body.mic_path, mic_started_at=body.mic_started_at)
     except ValueError:
         raise HTTPException(status_code=404, detail="Job not found")
     except RuntimeError as e:

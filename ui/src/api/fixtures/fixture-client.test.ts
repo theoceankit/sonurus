@@ -626,7 +626,7 @@ describe('live recording', () => {
   test('a capture runs until it is stopped; a source that cannot run is refused', async () => {
     const client = createFixtureClient()
     const job = await client.startCapture('@DEFAULT_MONITOR@')
-    await expect(client.stopCapture(job, '/data/recordings/mic.webm')).resolves.toMatch(/\.wav$/)
+    await expect(client.stopCapture(job, { path: '/data/recordings/mic.webm', startedAt: 1763170000250 })).resolves.toMatch(/\.wav$/)
     await expect(client.stopCapture(job)).rejects.toMatchObject({ status: 404 })
     await expect(client.startCapture(BROKEN_SOURCE)).rejects.toMatchObject({ status: 400 })
   })

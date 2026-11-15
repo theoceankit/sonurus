@@ -1,5 +1,5 @@
 import type {
-  AudioSource, DataResetSummary, GpuStatus, HandleFormat, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
+  AudioSource, DataResetSummary, GpuStatus, HandleFormat, MicTrack, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
@@ -133,8 +133,9 @@ export interface ApiClient {
   // reason when the capture cannot run (a missing tool, no permission).
   startCapture(sourceId: string): Promise<string>
   // Stops the capture and answers the levelled file; with a microphone track, the two are
-  // mixed into it. 404 for a capture that is not running.
-  stopCapture(jobId: string, micPath?: string): Promise<string>
+  // mixed into it, the microphone shifted by how much later it started. 404 for a capture
+  // that is not running.
+  stopCapture(jobId: string, mic?: MicTrack): Promise<string>
   // Stores a finished microphone recording among the recordings and answers its path.
   uploadRecording(blob: Blob): Promise<string>
   // A recording starts: the queue pauses and the running job stops. When it stops, a
