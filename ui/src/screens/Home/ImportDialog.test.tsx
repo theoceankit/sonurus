@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiError } from '../../api/client'
 import { createFixtureClient, NO_MODELS } from '../../api/fixtures/fixture-client'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
+import { findDialog, queryDialog } from '../../test-queries'
 import {
   chooseFiles, drag, field, importButton, importDialog, importDialogUnder, jobs, listed, openImport, option, recordDialog,
   recordingControl, rename, setup,
@@ -83,12 +84,12 @@ describe('over other windows', () => {
     await rename('a.mp3', 'Standup')
     await userEvent.click(importButton())
     await userEvent.click(within(await screen.findByRole('alert')).getByRole('button', { name: 'Open Settings' }))
-    expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
+    expect(within(await findDialog('Settings')).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
     expect(importDialogUnder()).toBeTruthy()
     drag('dragenter')
     expect(drag('drop', { files: ['b.mp3'] }).defaultPrevented).toBe(true)
     await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
+    await waitFor(() => expect(queryDialog('Settings')).toBeNull())
     expect(importDialog()).toBeTruthy()
     expect(listed()).toEqual(['Standup.mp3'])
   })
@@ -185,7 +186,7 @@ describe('importing', () => {
     expect(importDialog()).toBeTruthy()
     expect(listed()).toEqual(['a.mp3'])
     await userEvent.click(within(alert).getByRole('button', { name: 'Open Settings' }))
-    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy()
+    expect(await findDialog('Settings')).toBeTruthy()
   })
 
   test('a backend that does not answer is said in the dialog, with no link to Settings', async () => {
@@ -353,7 +354,7 @@ describe('title, model and language', () => {
     await setup({ noModels: true })
     await openImport()
     await userEvent.click(within(await screen.findByRole('status')).getByRole('button', { name: 'Download in Settings' }))
-    expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
+    expect(within(await findDialog('Settings')).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
     expect(importDialogUnder()).toBeTruthy()
   })
 

@@ -8,6 +8,12 @@ import { createFixtureClient } from './api/fixtures/fixture-client'
 import { App } from './App'
 import { OverlayProvider } from './OverlayProvider'
 
+// The toasts, and the rows open, found inside their own part of the app: a role
+// query over the whole app costs a quarter of a second in jsdom, too much to poll
+// with (development.md, Tests of a whole screen).
+const toasts = () => within(screen.getByLabelText(/^Notifications/))
+const currentRows = () => [...document.querySelectorAll('button[aria-current="true"]')]
+
 test('says so while the backend is away, and stops when it is back', async () => {
   const client = createFixtureClient()
   render(<ApiProvider client={client}><OverlayProvider><App /></OverlayProvider></ApiProvider>)
@@ -27,17 +33,12 @@ test('a finished job is a toast whose Open opens the recording; the queue shows 
   act(() => { client.playEvents({ ...EVENT_SCRIPTS.transcribing, steps: EVENT_SCRIPTS.transcribing.steps.map(s => ({ ...s, afterMs: 10 })) }) })
   const queue = await screen.findByRole('region', { name: 'Transcription queue' })
   expect(within(queue).getByRole('button', { name: /Planning call$/ })).toBeTruthy()
-  // The whole app through every step of a job: 2 s alone, and under the full
-  // suite the toast comes later than the default second of findByRole.
-  const open = await screen.findByRole('button', { name: 'Open' }, { timeout: 5_000 })
+  const open = await toasts().findByRole('button', { name: 'Open' })
   expect(screen.getAllByText('"Planning call" is ready').length).toBeGreaterThan(0)
-  await waitFor(() => expect(screen.queryByRole('region', { name: 'Transcription queue' })).toBeNull())
+  await waitFor(() => expect(screen.queryByLabelText('Transcription queue')).toBeNull())
   await userEvent.click(open)
-  await waitFor(() => {
-    const current = screen.getAllByRole('button').filter(button => button.getAttribute('aria-current') === 'true')
-    expect(current.map(button => button.textContent).join()).toMatch(/^Planning call/)
-  })
-}, 15_000) // On two CI cores the whole test runs past the default 5 s.
+  await waitFor(() => expect(currentRows().map(button => button.textContent).join()).toMatch(/^Planning call/))
+})
 
 test('the toast of a finished job goes once its recording is no longer in the list', async () => {
   const client = createFixtureClient()
@@ -47,12 +48,12 @@ test('the toast of a finished job goes once its recording is no longer in the li
   act(() => {
     client.playEvents({ steps: [{ afterMs: 0, event: { type: 'job_done', job_id: 'x', title: recording.title, transcript_id: recording.id } }] })
   })
-  await screen.findByRole('button', { name: 'Open' })
+  await toasts().findByRole('button', { name: 'Open' })
   // Deleted elsewhere, such as by Delete all data; the list learns of it on its next refresh.
   await client.deleteTranscript(recording.id)
   act(() => client.setConnected(false))
   act(() => client.setConnected(true))
-  await waitFor(() => expect(screen.queryByRole('button', { name: 'Open' })).toBeNull())
+  await waitFor(() => expect(toasts().queryByRole('button', { name: 'Open' })).toBeNull())
 })
 
 test('a failed job is an error toast; one on a missing alignment model opens its dialog instead', async () => {
@@ -85,7 +86,7 @@ test('a job picked in the queue takes the centre; a recording picked in the list
   expect(within(centre).queryByText(/more of the log/)).toBeNull()
   await userEvent.click(within(centre).getByRole('button', { name: 'Show log' }))
   expect(await within(centre).findByText(/more of the log/)).toBeTruthy()
-  expect(screen.getAllByRole('button').filter(button => button.getAttribute('aria-current') === 'true')).toHaveLength(1)
+  expect(currentRows()).toHaveLength(1)
 
   // Retried, it waits: the centre follows it.
   await userEvent.click(within(centre).getByRole('button', { name: 'Retry' }))

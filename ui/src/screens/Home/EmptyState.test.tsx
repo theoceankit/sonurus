@@ -7,6 +7,7 @@ import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { OverlayProvider } from '../../OverlayProvider'
 import { EditorScreen } from '../Editor/EditorScreen'
 import { SettingsProvider } from '../Settings/SettingsProvider'
+import { findDialog } from '../../test-queries'
 
 afterEach(dismissAllToasts)
 
@@ -22,7 +23,7 @@ test('with no recordings the centre says how to make one and where the models ar
   expect(within(centre()).getByRole('img', { name: 'plus' })).toBeTruthy()
   expect(within(centre()).getByText('Or drop audio or video files into the window.')).toBeTruthy()
   await userEvent.click(within(centre()).getByRole('button', { name: 'Settings' }))
-  expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy()
+  expect(await findDialog('Settings')).toBeTruthy()
 })
 
 test('loading the list is not empty', async () => {

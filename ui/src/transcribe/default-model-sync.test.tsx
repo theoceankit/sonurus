@@ -11,6 +11,7 @@ import { createMockElectronAPI } from '../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../platform/settings'
 import { selectTranscribeModel } from '../platform/transcribe-defaults'
 import { modelDownloadsFor } from './model-downloads'
+import { findDialog, findTitlebarButton } from '../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -62,8 +63,8 @@ test('a backend that stops answering keeps the default it had, with nothing said
   client.listModels = () => (failing ? (refused++, Promise.reject(new Error('Failed to fetch'))) : listModels())
   failing = true
   // Settings read the catalog again when they open.
-  await userEvent.click(await screen.findByRole('button', { name: 'Settings' }))
-  await screen.findByRole('dialog', { name: 'Settings' })
+  await userEvent.click(await findTitlebarButton('Settings'))
+  await findDialog('Settings')
   await waitFor(() => expect(refused).toBeGreaterThan(0))
   await new Promise(resolve => setTimeout(resolve, 30))
   expect(screen.queryByText(/default transcription model/)).toBeNull()

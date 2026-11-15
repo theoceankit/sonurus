@@ -13,6 +13,7 @@ import { useQueueEventsSync } from '../../api/queries'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { OverlayProvider } from '../../OverlayProvider'
 import { EditorScreen } from './EditorScreen'
+import { getTitlebarButton } from '../../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -61,7 +62,9 @@ test('pinned recordings show when given', async () => {
   expect(within(pinned).getAllByRole('button').map(b => b.textContent)[0]).toMatch(/Weekly product sync/)
 })
 
-const sidebarRow = (name: RegExp) => within(screen.getByLabelText('Recordings')).getByRole('button', { name })
+// By the title's text: getByRole would work out the name of every row, which the
+// tests that open one recording after another cannot afford (development.md).
+const sidebarRow = (title: RegExp) => within(screen.getByLabelText('Recordings')).getByText(title).closest('button')!
 const newDot = (name: RegExp) => within(sidebarRow(name)).queryByRole('img', { name: 'New' })
 
 describe('the dot of a new recording', () => {
@@ -83,12 +86,12 @@ describe('the dot of a new recording', () => {
         <OverlayProvider><EditorScreen /></OverlayProvider>
       </ApiProvider>,
     )
-    await userEvent.click(await screen.findByRole('button', { name: /Design review/ }))
+    await userEvent.click(await waitFor(() => sidebarRow(/Design review/)))
     await waitFor(() => expect(newDot(/Design review/)).toBeNull())
     expect(opened).toHaveBeenCalledWith(DESIGN_REVIEW_ID)
     expect((await client.listTranscripts()).find(t => t.id === DESIGN_REVIEW_ID)?.opened).toBe(true)
-    await userEvent.click(screen.getByRole('button', { name: /Call with Mark/ }))
-    await userEvent.click(screen.getByRole('button', { name: /Design review/ }))
+    await userEvent.click(sidebarRow(/Call with Mark/))
+    await userEvent.click(sidebarRow(/Design review/))
     expect(newDot(/Design review/)).toBeNull()
     expect(opened).toHaveBeenCalledTimes(1)
   })
@@ -141,16 +144,17 @@ describe('speakers across the panels', () => {
     const transcript = within(await screen.findByRole('main', { name: 'Transcript' }))
     await userEvent.click((await transcript.findAllByRole('button', { name: 'Mark Ellis' }))[0])
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Change speaker' })).getByText('Show all speakers'))
-    const search = await screen.findByRole('searchbox')
-    await userEvent.type(search, 'Olivia Brown')
-    await userEvent.click(await screen.findByRole('button', { name: /Olivia Brown/ }))
-    await userEvent.click(await screen.findByRole('button', { name: 'Create and assign' }))
+    // Inside the dialog: a role query over the whole Editor costs a quarter of a second.
+    const picker = within(await screen.findByRole('dialog'))
+    await userEvent.type(await picker.findByRole('searchbox'), 'Olivia Brown')
+    await userEvent.click(await picker.findByRole('button', { name: /Olivia Brown/ }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Create and assign' }))
     expect(await screen.findByText('Assigned to Olivia Brown')).toBeTruthy()
     const created = (await client.listSpeakers()).find(s => s.name === 'Olivia Brown')!
     const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
     expect(segments.filter(s => effectiveSpeaker(s) === created.id).map(s => s.start)).toEqual([5, 8])
 
-    await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    await userEvent.click(screen.getByText('Undo'))
     await waitFor(async () => expect((await client.listSpeakers()).some(s => s.id === created.id)).toBe(false))
     const after = (await client.getTranscript(WEEKLY_SYNC_ID)).segments
     expect(after.filter(s => [5, 8].includes(s.start)).map(effectiveSpeaker)).toEqual([SPEAKER_IDS.mark, SPEAKER_IDS.mark])
@@ -817,11 +821,13 @@ describe('closing the open recording with Escape', () => {
 describe('Back and Forward', () => {
   const panel = () => screen.getByRole('main', { name: 'Transcript' })
   // The recording open, by its current row in the sidebar: not every fixture has a transcript.
-  const openRow = () => within(screen.getByLabelText('Recordings'))
-    .queryAllByRole('button').find(row => row.getAttribute('aria-current') === 'true' && !row.closest('[aria-label="Transcription queue"]'))
+  // Polled by waitFor, so found by its attribute: a role query over the whole Editor costs
+  // a quarter of a second in jsdom (development.md, Tests of a whole screen).
+  const openRow = () => Array.from(screen.getByLabelText('Recordings').querySelectorAll('button[aria-current="true"]'))
+    .find(row => !row.closest('[aria-label="Transcription queue"]'))
   const title = () => openRow()?.textContent ?? null
   const emptyShown = () => within(panel()).queryByText(/To make a new transcription/) !== null
-  const button = (name: 'Back' | 'Forward') => screen.getByRole('button', { name }) as HTMLButtonElement
+  const button = (name: 'Back' | 'Forward') => screen.getByLabelText(name, { selector: 'button' }) as HTMLButtonElement
   const go = (name: 'Back' | 'Forward') => userEvent.click(button(name))
   const opened = async (row: RegExp) => {
     await userEvent.click(sidebarRow(row))
@@ -858,7 +864,7 @@ describe('Back and Forward', () => {
     await start()
     await opened(/Design review/)
     await userEvent.click(sidebarRow(/Design review/))
-    await userEvent.click(screen.getByRole('button', { name: 'Speakers' }))
+    await userEvent.click(getTitlebarButton('Speakers'))
     await screen.findByRole('dialog')
     await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())

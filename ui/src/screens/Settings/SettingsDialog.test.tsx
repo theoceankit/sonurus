@@ -9,6 +9,7 @@ import { OverlayProvider } from '../../OverlayProvider'
 import type { ElectronSettings } from '../../platform/electron-api'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../../platform/settings'
+import { findDialog, findTitlebarButton, queryDialog } from '../../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -27,8 +28,8 @@ async function setup(options: FixtureOptions = {}, saved: Partial<ElectronSettin
 }
 
 const openSettings = async () => {
-  await userEvent.click(await screen.findByRole('button', { name: 'Settings' }))
-  return screen.findByRole('dialog', { name: 'Settings' })
+  await userEvent.click(await findTitlebarButton('Settings'))
+  return findDialog('Settings')
 }
 const openAppearance = async () => {
   const settings = await openSettings()
@@ -52,10 +53,10 @@ test('Escape and the close button close it', async () => {
   await setup()
   await openSettings()
   await userEvent.keyboard('{Escape}')
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
+  await waitFor(() => expect(queryDialog('Settings')).toBeNull())
   await openSettings()
   await userEvent.click(screen.getByRole('button', { name: 'Close' }))
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
+  await waitFor(() => expect(queryDialog('Settings')).toBeNull())
 })
 
 test('the interface scale zooms and is saved once the slider lets go', async () => {

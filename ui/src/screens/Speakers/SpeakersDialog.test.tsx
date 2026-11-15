@@ -10,6 +10,7 @@ import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import unknownSpeakerSvg from '../../assets/icons/speaker-unknown.svg?raw'
+import { findDialog, findTitlebarButton, getDialog, queryDialog } from '../../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -20,8 +21,8 @@ async function setup(options: FixtureOptions = {}) {
   const client = createFixtureClient(options)
   vi.stubGlobal('electronAPI', createMockElectronAPI())
   render(<ApiProvider client={client}><OverlayProvider><App /></OverlayProvider></ApiProvider>)
-  await userEvent.click(await screen.findByRole('button', { name: 'Speakers' }))
-  const dialog = await screen.findByRole('dialog', { name: 'Speakers' })
+  await userEvent.click(await findTitlebarButton('Speakers'))
+  const dialog = await findDialog('Speakers')
   await within(dialog).findByRole('button', { name: /Anna Petrova/ })
   return { client, dialog }
 }
@@ -116,7 +117,7 @@ test('Escape in the name takes back the edits and keeps the window; a blank name
   await userEvent.clear(name)
   await userEvent.type(name, 'Someone{Escape}')
   expect(name.value).toBe('Lena Kovacs')
-  expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeTruthy()
+  expect(getDialog('Speakers')).toBeTruthy()
   await userEvent.clear(name)
   expect(saveButton(dialog).disabled).toBe(true)
   await userEvent.type(name, '{Enter}')
@@ -218,7 +219,7 @@ test('closing the window with edits asks first', async () => {
   await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
   const ask = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
   await userEvent.click(within(ask).getByRole('button', { name: 'Discard' }))
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Speakers' })).toBeNull())
+  await waitFor(() => expect(queryDialog('Speakers')).toBeNull())
 })
 
 test('a card without edits leaves without asking', async () => {
@@ -262,7 +263,7 @@ test('Appears in opens a recording in the Editor, and a recording without its fi
   expect(GONE_AUDIO_IDS).toContain(7)
   expect((within(dialog).getByRole('button', { name: 'Audio unavailable' }) as HTMLButtonElement).disabled).toBe(true)
   await userEvent.click(within(dialog).getByText('Design review'))
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Speakers' })).toBeNull())
+  await waitFor(() => expect(queryDialog('Speakers')).toBeNull())
   expect(await screen.findByRole('heading', { name: 'Design review' })).toBeTruthy()
 })
 
@@ -392,23 +393,26 @@ test('the avatar of a speaker without a name opens nothing: a photo comes with a
   expect(within(dialog).queryByRole('button', { name: 'Add photo' })).toBeNull()
 })
 
+// What is in the Avatar window is queried inside it, not over the whole app (test-queries.ts).
+const avatarWindow = () => findDialog('Avatar')
+
 // jsdom draws nothing: the picture's size and the canvas are given by hand.
 async function uploadPhoto() {
   URL.createObjectURL = vi.fn(() => 'blob:picture')
   URL.revokeObjectURL = vi.fn()
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
   vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(done => done(new Blob(['photo'], { type: 'image/jpeg' })))
-  await screen.findByRole('dialog', { name: 'Avatar' })
-  expect(screen.getByText(/JPEG, PNG or WebP, up to 20 MB\./)).toBeTruthy()
-  fireEvent.change(screen.getByLabelText('Photo file'), { target: { files: [new File(['x'], 'me.jpg', { type: 'image/jpeg' })] } })
-  const crop = await screen.findByRole('dialog', { name: 'Avatar' })
-  await screen.findByRole('group', { name: 'Photo position' })
+  const window = await avatarWindow()
+  expect(within(window).getByText(/JPEG, PNG or WebP, up to 20 MB\./)).toBeTruthy()
+  fireEvent.change(within(window).getByLabelText('Photo file'), { target: { files: [new File(['x'], 'me.jpg', { type: 'image/jpeg' })] } })
+  const crop = await avatarWindow()
+  await within(crop).findByRole('group', { name: 'Photo position' })
   const picture = crop.querySelector('img')!
   Object.defineProperty(picture, 'naturalWidth', { value: 300 })
   Object.defineProperty(picture, 'naturalHeight', { value: 300 })
   fireEvent.load(picture)
   await userEvent.click(within(crop).getByRole('button', { name: 'Save photo' }))
-  await waitFor(() => expect(screen.queryByRole('group', { name: 'Photo position' })).toBeNull())
+  await waitFor(() => expect(within(crop).queryByLabelText('Photo position')).toBeNull())
 }
 
 
@@ -417,8 +421,9 @@ test('a click on the avatar opens the Avatar window: a photo kept at once shows 
   await openCard(dialog, /Lena Kovacs/)
   await userEvent.click(within(dialog).getByRole('button', { name: 'Change avatar' }))
   await uploadPhoto()
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Remove photo' })).toBeTruthy())
-  await userEvent.click(screen.getByRole('button', { name: 'Done' }))
+  const window = await avatarWindow()
+  await within(window).findByRole('button', { name: 'Remove photo' })
+  await userEvent.click(within(window).getByRole('button', { name: 'Done' }))
   const lena = (await client.listSpeakers()).find(speaker => speaker.name === 'Lena Kovacs')!
   expect(lena.photo_url).toMatch(/^data:image\/jpeg/)
   await waitFor(() => expect(dialog.querySelector(`img[src="${lena.photo_url}"]`)).toBeTruthy())
@@ -426,9 +431,10 @@ test('a click on the avatar opens the Avatar window: a photo kept at once shows 
   expect(saveButton(dialog).disabled).toBe(true)
 
   await userEvent.click(within(dialog).getByRole('button', { name: 'Change avatar' }))
-  await userEvent.click(await screen.findByRole('button', { name: 'Remove photo' }))
-  await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove photo' })).toBeNull())
-  await userEvent.click(screen.getByRole('button', { name: 'Done' }))
+  const again = await avatarWindow()
+  await userEvent.click(await within(again).findByRole('button', { name: 'Remove photo' }))
+  await waitFor(() => expect(within(again).queryByRole('button', { name: 'Remove photo' })).toBeNull())
+  await userEvent.click(within(again).getByRole('button', { name: 'Done' }))
   expect((await client.listSpeakers()).find(speaker => speaker.name === 'Lena Kovacs')!.photo).toBeNull()
   await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))
   expect(within(dialog).getAllByRole('button', { name: /Lena Kovacs/ })[0].querySelector('img')).toBeNull()

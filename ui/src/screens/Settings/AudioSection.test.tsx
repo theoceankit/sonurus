@@ -13,6 +13,7 @@ import { RecordingProvider, useRecording } from '../../recording/RecordingProvid
 import type { SessionDeps } from '../../recording/session'
 import { SettingsProvider } from './SettingsProvider'
 import { EditorScreen } from '../Editor/EditorScreen'
+import { findDialog, findTitlebarButton, getDialog, getTitlebarButton } from '../../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -25,8 +26,8 @@ async function setup(options: FixtureOptions = {}, saved: object = {}) {
   vi.stubGlobal('electronAPI', bridge)
   render(<ApiProvider client={createFixtureClient(options)}><OverlayProvider><App /></OverlayProvider></ApiProvider>)
   await screen.findByRole('region', { name: 'This week' })
-  await userEvent.click(await screen.findByRole('button', { name: 'Settings' }))
-  await userEvent.click(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Audio devices' }))
+  await userEvent.click(await findTitlebarButton('Settings'))
+  await userEvent.click(within(await findDialog('Settings')).getByRole('tab', { name: 'Audio devices' }))
   return bridge
 }
 // A select is named by its label and its value.
@@ -49,7 +50,7 @@ test('a computer with no system audio says so, and the field is off', async () =
 
 test('Include microphone is not there: the dialog turns the microphone on and off', async () => {
   await setup()
-  expect(within(screen.getByRole('dialog', { name: 'Settings' })).queryByText('Include microphone')).toBeNull()
+  expect(within(getDialog('Settings')).queryByText('Include microphone')).toBeNull()
 })
 
 test('Delete all data waits for a live recording to stop', async () => {
@@ -71,9 +72,9 @@ test('Delete all data waits for a live recording to stop', async () => {
   await screen.findByRole('region', { name: 'This week' })
   act(() => control.start({ mic: false, micDeviceId: null, system: true, systemSourceId: '@DEFAULT_MONITOR@', title: 'Live', model: null, language: null }))
   await waitFor(() => expect(control.phase).toBe('live'))
-  await userEvent.click(screen.getByRole('button', { name: 'Settings' }))
-  await userEvent.click(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Data' }))
-  const remove = within(screen.getByRole('dialog', { name: 'Settings' })).getByRole('button', { name: 'Delete' })
+  await userEvent.click(getTitlebarButton('Settings'))
+  await userEvent.click(within(await findDialog('Settings')).getByRole('tab', { name: 'Data' }))
+  const remove = within(getDialog('Settings')).getByRole('button', { name: 'Delete' })
   expect(remove.getAttribute('aria-disabled') === 'true' || (remove as HTMLButtonElement).disabled).toBe(true)
   await userEvent.hover(remove.parentElement ?? remove)
   expect((await screen.findByRole('tooltip')).textContent).toBe('Stop the live recording first.')
