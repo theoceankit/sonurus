@@ -401,13 +401,14 @@ async function uploadPhoto() {
   await screen.findByRole('dialog', { name: 'Avatar' })
   expect(screen.getByText(/JPEG, PNG or WebP, up to 20 MB\./)).toBeTruthy()
   fireEvent.change(screen.getByLabelText('Photo file'), { target: { files: [new File(['x'], 'me.jpg', { type: 'image/jpeg' })] } })
-  const crop = await screen.findByRole('dialog', { name: 'Crop photo' })
+  const crop = await screen.findByRole('dialog', { name: 'Avatar' })
+  await screen.findByRole('group', { name: 'Photo position' })
   const picture = crop.querySelector('img')!
   Object.defineProperty(picture, 'naturalWidth', { value: 300 })
   Object.defineProperty(picture, 'naturalHeight', { value: 300 })
   fireEvent.load(picture)
-  await userEvent.click(within(crop).getByRole('button', { name: 'Save' }))
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Crop photo' })).toBeNull())
+  await userEvent.click(within(crop).getByRole('button', { name: 'Save photo' }))
+  await waitFor(() => expect(screen.queryByRole('group', { name: 'Photo position' })).toBeNull())
 }
 
 

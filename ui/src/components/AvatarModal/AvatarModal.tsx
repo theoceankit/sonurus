@@ -50,7 +50,7 @@ interface AvatarModalProps {
 }
 
 // The speaker's avatar in one window: a photo, uploaded or dropped and cropped to the
-// circle, or removed, and the speaker's colour.
+// circle in place, or removed, and the speaker's colour.
 export function AvatarModal({ speaker, open = true, onColorChange, onPick, onRemove, onClose, onExited, initialFile, preview, initialSrc, initialError }: AvatarModalProps) {
   const input = useRef<HTMLInputElement>(null)
   const crop = useRef<PhotoCropHandle>(null)
@@ -101,10 +101,10 @@ export function AvatarModal({ speaker, open = true, onColorChange, onPick, onRem
   const hasPhoto = Boolean(speaker.photo)
   return (
     <Modal size="small" scrim="auto" open={open} onExited={onExited} preview={preview} onOpenChange={next => { if (!next) onClose() }}>
-      {src ? (
-        <>
-          <ModalHeader title="Crop photo" />
-          <ModalBody className={styles.body}>
+      <ModalHeader title="Avatar" />
+      <ModalBody className={styles.body}>
+        {src ? (
+          <>
             <PhotoCrop
               key={src.url}
               ref={crop}
@@ -115,17 +115,13 @@ export function AvatarModal({ speaker, open = true, onColorChange, onPick, onRem
                 setError('This picture cannot be opened.')
               }}
             />
-            {errorText}
-          </ModalBody>
-          <ModalFooter
-            cancel={{ children: 'Back', icon: 'arrow-left', disabled: busy !== null, onClick: back }}
-            confirm={{ children: 'Save', disabled: !ready, loading: busy === 'save', onClick: () => { void run('save', async () => onPick(await crop.current!.render())) } }}
-          />
-        </>
-      ) : (
-        <>
-          <ModalHeader title="Avatar" />
-          <ModalBody className={styles.body}>
+            <Inline gap={2} justify="center">
+              <Button size="small" disabled={busy !== null} onClick={back}>Cancel</Button>
+              <Button size="small" variant="primary" disabled={!ready} loading={busy === 'save'} onClick={() => { void run('save', async () => onPick(await crop.current!.render())) }}>Save photo</Button>
+            </Inline>
+          </>
+        ) : (
+          <>
             <div className={styles.dropZone} data-over={drop.over ? '' : undefined} {...drop.handlers}>
               <Avatar {...speaker} size="xlarge" />
               <span className={styles.formats}>{drop.over ? 'Drop the picture to crop it' : `Drop a picture here or upload one. ${PHOTO_FORMATS}`}</span>
@@ -136,14 +132,15 @@ export function AvatarModal({ speaker, open = true, onColorChange, onPick, onRem
                 <Button size="small" variant="ghost" icon="delete" loading={busy === 'remove'} disabled={busy !== null} onClick={() => { void run('remove', onRemove) }}>Remove photo</Button>
               )}
             </Inline>
-            {errorText}
-            <Stack className={styles.colour}>
-              <ColorPicker label="Colour" value={speaker.color} colors={ASSIGNABLE_SPEAKER_COLORS} disabled={busy !== null} onValueChange={next => { void Promise.resolve(onColorChange(next)).catch(err => setError(message(err))) }} />
-            </Stack>
-          </ModalBody>
-          <ModalFooter cancel={null} confirm={{ children: 'Done', onClick: onClose }} />
-        </>
-      )}
+          </>
+        )}
+        {errorText}
+        <Stack className={styles.colour}>
+          <ColorPicker label="Colour" value={speaker.color} colors={ASSIGNABLE_SPEAKER_COLORS} disabled={busy !== null} onValueChange={next => { void Promise.resolve(onColorChange(next)).catch(err => setError(message(err))) }} />
+        </Stack>
+      </ModalBody>
+      {/* A crop in hand is finished there first: Save photo or Cancel. */}
+      <ModalFooter cancel={null} confirm={{ children: 'Done', disabled: src !== null, onClick: onClose }} />
       <input
         ref={input}
         type="file"

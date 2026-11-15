@@ -86,28 +86,29 @@ test('a refused removal says why', async () => {
   expect(await screen.findByText('Server error 500')).toBeTruthy()
 })
 
-test('a chosen picture goes to Crop photo; Save hands the square over and comes back', async () => {
+test('a chosen picture is cropped in the window; Save hands the square over and comes back', async () => {
   const blob = canvas()
   const { onPick, onClose } = setup()
   choose(jpeg())
-  expect(screen.getByRole('dialog', { name: 'Crop photo' })).toBeTruthy()
-  const save = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement
+  expect(screen.getByRole('group', { name: 'Photo position' })).toBeTruthy()
+  const save = screen.getByRole('button', { name: 'Save photo' }) as HTMLButtonElement
   expect(save.disabled).toBe(true)
   loadCrop()
   await userEvent.click(save)
   expect(onPick).toHaveBeenCalledWith(blob)
-  await waitFor(() => expect(screen.getByRole('dialog', { name: 'Avatar' })).toBeTruthy())
+  await waitFor(() => expect(screen.queryByRole('group', { name: 'Photo position' })).toBeNull())
+  expect(screen.getByRole('dialog', { name: 'Avatar' })).toBeTruthy()
   expect(onClose).not.toHaveBeenCalled()
 })
 
-test('a picture dropped on the avatar goes to Crop photo; files over it change what it says', () => {
+test('a picture dropped on the avatar is cropped in the window; files over it change what it says', () => {
   setup()
   const zone = dropZone()
   fireEvent.dragEnter(zone, files(jpeg()))
   expect(zone.hasAttribute('data-over')).toBe(true)
   expect(screen.getByText('Drop the picture to crop it')).toBeTruthy()
   fireEvent.drop(zone, files(jpeg()))
-  expect(screen.getByRole('dialog', { name: 'Crop photo' })).toBeTruthy()
+  expect(screen.getByRole('group', { name: 'Photo position' })).toBeTruthy()
 })
 
 test('a dropped file of another kind says why', () => {
@@ -117,15 +118,24 @@ test('a dropped file of another kind says why', () => {
   expect(screen.getByRole('dialog', { name: 'Avatar' })).toBeTruthy()
 })
 
-test('a picture given at the start opens on Crop photo', () => {
-  setup({ initialFile: jpeg() })
-  expect(screen.getByRole('dialog', { name: 'Crop photo' })).toBeTruthy()
+test('the crop is in the same window, its title and colour staying; Done waits for it', () => {
+  setup()
+  choose(jpeg())
+  expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  expect(screen.getByRole('dialog', { name: 'Avatar' })).toBeTruthy()
+  expect(screen.getByRole('radiogroup', { name: 'Colour' })).toBeTruthy()
+  expect((screen.getByRole('button', { name: 'Done' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
-test('Back returns without saving', async () => {
+test('a picture given at the start opens on its crop', () => {
+  setup({ initialFile: jpeg() })
+  expect(screen.getByRole('group', { name: 'Photo position' })).toBeTruthy()
+})
+
+test('Cancel leaves the crop without saving', async () => {
   const { onPick } = setup()
   choose(jpeg())
-  await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   expect(screen.getByRole('dialog', { name: 'Avatar' })).toBeTruthy()
   expect(onPick).not.toHaveBeenCalled()
 })
@@ -135,9 +145,9 @@ test('a refused photo stays on the crop with why', async () => {
   setup({ onPick: () => Promise.reject(new Error('The photo is larger than 2 MB')) })
   choose(jpeg())
   loadCrop()
-  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Save photo' }))
   expect(await screen.findByText('The photo is larger than 2 MB')).toBeTruthy()
-  expect(screen.getByRole('dialog', { name: 'Crop photo' })).toBeTruthy()
+  expect(screen.getByRole('group', { name: 'Photo position' })).toBeTruthy()
 })
 
 test('a picture that does not open goes back and says so', () => {
