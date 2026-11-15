@@ -499,8 +499,8 @@ describe('speaker windows from the card', () => {
     URL.revokeObjectURL = vi.fn()
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
     vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(done => done(new Blob(['photo'], { type: 'image/jpeg' })))
-    await userEvent.click(screen.getByRole('button', { name: 'Add photo' }))
-    await screen.findByRole('dialog', { name: 'Photo' })
+    await userEvent.click(screen.getByRole('button', { name: 'Change avatar' }))
+    await screen.findByRole('dialog', { name: 'Avatar' })
     fireEvent.change(screen.getByLabelText('Photo file'), { target: { files: [new File(['x'], 'me.jpg', { type: 'image/jpeg' })] } })
     const crop = await screen.findByRole('dialog', { name: 'Crop photo' })
     const picture = crop.querySelector('img')!
@@ -508,8 +508,8 @@ describe('speaker windows from the card', () => {
     Object.defineProperty(picture, 'naturalHeight', { value: 300 })
     fireEvent.load(picture)
     await userEvent.click(within(crop).getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Change photo' })).toBeTruthy())
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Crop photo' })).toBeNull())
+    await userEvent.click(await screen.findByRole('button', { name: 'Done' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Avatar' })).toBeNull())
   }
 
   test('a photo chosen in New speaker goes to the speaker once they exist', async () => {

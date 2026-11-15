@@ -15,7 +15,7 @@ export default meta
 
 type Story = StoryObj<typeof Avatar>
 
-const SIZES = ['XS', 'Small', 'Medium', 'Large'] as const
+const SIZES = ['XS', 'Small', 'Medium', 'Large', 'XLarge'] as const
 const size = (label: (typeof SIZES)[number]) => label.toLowerCase() as AvatarSize
 
 export const Matrix: Story = {

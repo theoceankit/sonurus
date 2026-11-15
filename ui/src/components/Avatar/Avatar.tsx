@@ -4,7 +4,7 @@ import type { SpeakerColor } from '../../styles/speaker-colors'
 import { speakerInitials } from './initials'
 import styles from './Avatar.module.css'
 
-export type AvatarSize = 'xs' | 'small' | 'medium' | 'large'
+export type AvatarSize = 'xs' | 'small' | 'medium' | 'large' | 'xlarge'
 
 // Which colour a speaker gets is decided by the data layer. photo: the address of a
 // named speaker's photo, shown instead of the initials.

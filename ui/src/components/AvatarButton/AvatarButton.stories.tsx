@@ -27,3 +27,13 @@ export const Matrix: Story = {
 export const Initials: Story = {}
 export const Photo: Story = { args: { speaker: { name: 'Anna Petrova', color: 1, photo: portrait } } }
 export const Disabled: Story = { args: { disabled: true } }
+// Files over it, before the drop.
+export const FilesOver: Story = {
+  args: { onFileDrop: () => {} },
+  play: async ({ canvasElement }) => {
+    const button = canvasElement.querySelector('button')!
+    const data = new DataTransfer()
+    data.items.add(new File(['x'], 'me.jpg', { type: 'image/jpeg' }))
+    button.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: data }))
+  },
+}

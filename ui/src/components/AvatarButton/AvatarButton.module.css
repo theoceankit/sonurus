@@ -26,12 +26,20 @@
 }
 
 .avatarButton:not(:disabled):hover .overlay,
-.avatarButton:focus-visible .overlay {
+.avatarButton:focus-visible .overlay,
+.avatarButton[data-over] .overlay {
   opacity: 1;
 }
 
 /* The pencil stands in for the letters; a photo stays under the dimming. */
 .avatarButton:not(:disabled):hover [data-initials],
-.avatarButton:focus-visible [data-initials] {
+.avatarButton:focus-visible [data-initials],
+.avatarButton[data-over] [data-initials] {
   visibility: hidden;
+}
+
+/* Files over it: a ring says a drop will be taken. */
+.avatarButton[data-over] {
+  outline: var(--border-width-strong) solid var(--color-focus);
+  outline-offset: var(--border-width-strong);
 }

@@ -59,7 +59,7 @@ export const SpeakerSampleLoading: Story = {
 }
 export const AudioUnavailable: Story = { args: { initialSpeakerId: SPEAKER_IDS.lena }, parameters: { api: { noAudio: true } } }
 export const NotInAnyRecording: Story = { args: { initialSpeakerId: SPEAKER_IDS.priya } }
-// An edited name and colour wait for Save; Cancel takes them back.
+// An edited name waits for Save; Cancel takes it back.
 export const SpeakerEdited: Story = {
   args: { initialSpeakerId: SPEAKER_IDS.lena },
   play: async () => {
@@ -67,8 +67,13 @@ export const SpeakerEdited: Story = {
     // React tracks the value it set: go round its setter so the change is seen.
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(name, 'Lena K')
     name.dispatchEvent(new Event('input', { bubbles: true }))
-    ;(await waitFor(() => document.querySelectorAll('[role="radio"]')[0])).click()
   },
+}
+// The Avatar window over the card: photo and colour.
+export const SpeakerAvatarWindow: Story = {
+  args: { initialSpeakerId: SPEAKER_IDS.lena },
+  parameters: withPhotos,
+  play: async () => { (await waitFor(() => document.querySelector('[aria-label="Change avatar"]'))).click() },
 }
 // More holds Merge and Delete. Radix opens a menu on pointer down, not on click.
 const openMore = async () => {

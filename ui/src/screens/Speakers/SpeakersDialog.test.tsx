@@ -123,7 +123,7 @@ test('Escape in the name takes back the edits and keeps the window; a blank name
   expect(update).not.toHaveBeenCalled()
 })
 
-test('nothing is saved while typing or leaving the field: only Save saves, name and colour at once', async () => {
+test('nothing is saved while typing or leaving the field: only Save saves', async () => {
   const { client, dialog } = await setup()
   const update = vi.spyOn(client, 'updateSpeaker')
   await openCard(dialog, /Lena Kovacs/)
@@ -133,11 +133,31 @@ test('nothing is saved while typing or leaving the field: only Save saves, name 
   await userEvent.clear(name)
   await userEvent.type(name, 'Lena K')
   await userEvent.tab()
-  await userEvent.click(within(within(dialog).getByRole('radiogroup', { name: 'Colour' })).getAllByRole('radio')[0])
   expect(update).not.toHaveBeenCalled()
   await userEvent.click(saveButton(dialog))
-  await waitFor(() => expect(update).toHaveBeenCalledWith(SPEAKER_IDS.lena, { name: 'Lena K', color_index: 0 }))
+  await waitFor(() => expect(update).toHaveBeenCalledWith(SPEAKER_IDS.lena, { name: 'Lena K' }))
   await waitFor(() => expect(saveButton(dialog).disabled).toBe(true))
+})
+
+test('the colour is chosen in the Avatar window and kept at once, edits of the name staying as they were', async () => {
+  const { client, dialog } = await setup()
+  const update = vi.spyOn(client, 'updateSpeaker')
+  await openCard(dialog, /Lena Kovacs/)
+  expect(within(dialog).queryByRole('radiogroup', { name: 'Colour' })).toBeNull()
+  const name = within(dialog).getByRole('textbox', { name: 'Name' })
+  await userEvent.clear(name)
+  await userEvent.type(name, 'Lena K')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Change avatar' }))
+  const window = await screen.findByRole('dialog', { name: 'Avatar' })
+  await userEvent.click(within(window).getAllByRole('radio')[0])
+  await waitFor(() => expect(update).toHaveBeenCalledWith(SPEAKER_IDS.lena, { color_index: 0 }))
+  await userEvent.click(within(window).getByRole('button', { name: 'Done' }))
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Avatar' })).toBeNull())
+  // The name is still an edit; Save sends it alone and keeps the new colour.
+  expect((within(dialog).getByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('Lena K')
+  await userEvent.click(saveButton(dialog))
+  await waitFor(() => expect(update).toHaveBeenLastCalledWith(SPEAKER_IDS.lena, { name: 'Lena K' }))
+  expect((await client.listSpeakers()).find(s => s.id === SPEAKER_IDS.lena)?.color_index).toBe(0)
 })
 
 test('Cancel takes back the edits', async () => {
@@ -173,7 +193,7 @@ test('leaving a card with edits asks first: Keep editing stays, Discard goes', a
 test('closing the window with edits asks first', async () => {
   const { dialog } = await setup()
   await openCard(dialog, /Lena Kovacs/)
-  await userEvent.click(within(within(dialog).getByRole('radiogroup', { name: 'Colour' })).getAllByRole('radio')[0])
+  await userEvent.type(within(dialog).getByRole('textbox', { name: 'Name' }), ' K')
   await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
   const ask = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
   await userEvent.click(within(ask).getByRole('button', { name: 'Discard' }))
@@ -192,8 +212,8 @@ test('a speaker without a name is grey, and gets a colour with a name', async ()
   const { dialog } = await setup()
   await userEvent.click(within(dialog).getByRole('button', { name: /^Unnamed/ }))
   await openCard(dialog, /Unnamed speaker/)
-  expect(within(dialog).getByText('Speakers without a name are grey. Add a name to choose a colour.')).toBeTruthy()
-  expect(within(dialog).queryByRole('radiogroup', { name: 'Colour' })).toBeNull()
+  expect(within(dialog).getByText('Speakers without a name are grey. Add a name to choose a colour and a photo.')).toBeTruthy()
+  expect(within(dialog).queryByRole('button', { name: 'Change avatar' })).toBeNull()
 })
 
 test('the voice sample is the clip of the Review card: its text opens with the chevron, without quotes', async () => {
@@ -357,8 +377,8 @@ async function uploadPhoto() {
   URL.revokeObjectURL = vi.fn()
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
   vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(done => done(new Blob(['photo'], { type: 'image/jpeg' })))
-  await screen.findByRole('dialog', { name: 'Photo' })
-  expect(screen.getByText('JPEG, PNG or WebP, up to 20 MB.')).toBeTruthy()
+  await screen.findByRole('dialog', { name: 'Avatar' })
+  expect(screen.getByText(/JPEG, PNG or WebP, up to 20 MB\./)).toBeTruthy()
   fireEvent.change(screen.getByLabelText('Photo file'), { target: { files: [new File(['x'], 'me.jpg', { type: 'image/jpeg' })] } })
   const crop = await screen.findByRole('dialog', { name: 'Crop photo' })
   const picture = crop.querySelector('img')!
@@ -369,30 +389,33 @@ async function uploadPhoto() {
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Crop photo' })).toBeNull())
 }
 
-test('a click on the avatar opens the photo: kept at once, it shows on the card and in the list; Remove photo takes it away', async () => {
+
+test('a click on the avatar opens the Avatar window: a photo kept at once shows on the card and in the list; Remove photo takes it away', async () => {
   const { client, dialog } = await setup()
   await openCard(dialog, /Lena Kovacs/)
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Add photo' }))
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Change avatar' }))
   await uploadPhoto()
-  await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Change photo' })).toBeTruthy())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Change photo' })).toBeTruthy())
+  await userEvent.click(screen.getByRole('button', { name: 'Done' }))
   const lena = (await client.listSpeakers()).find(speaker => speaker.name === 'Lena Kovacs')!
   expect(lena.photo_url).toMatch(/^data:image\/jpeg/)
   await waitFor(() => expect(dialog.querySelector(`img[src="${lena.photo_url}"]`)).toBeTruthy())
   // Nothing to Save: the photo is not an edit of the card.
   expect(saveButton(dialog).disabled).toBe(true)
 
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Change photo' }))
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Change avatar' }))
   await userEvent.click(await screen.findByRole('button', { name: 'Remove photo' }))
-  await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Add photo' })).toBeTruthy())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Upload photo' })).toBeTruthy())
+  await userEvent.click(screen.getByRole('button', { name: 'Done' }))
   expect((await client.listSpeakers()).find(speaker => speaker.name === 'Lena Kovacs')!.photo).toBeNull()
   await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))
   expect(within(dialog).getAllByRole('button', { name: /Lena Kovacs/ })[0].querySelector('img')).toBeNull()
 })
 
-test('a card goes: name and colour, what the speaker did, the sample, the recordings', async () => {
+test('a card goes: name and handle, what the speaker did, the sample, the recordings', async () => {
   const { dialog } = await setup()
   await openCard(dialog, /Lena Kovacs/)
-  const order = ['Colour', '11 recordings', 'Voice sample', 'Appears in'].map(text => within(dialog).getByText(text))
+  const order = ['Handle', '11 recordings', 'Voice sample', 'Appears in'].map(text => within(dialog).getByText(text))
   for (let i = 1; i < order.length; i++) {
     expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   }

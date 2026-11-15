@@ -98,7 +98,7 @@ describe('photo', () => {
 })
 
 test.each(['unknown', 'unassigned'] as const)('%s is a gray "?" at every size', kind => {
-  for (const size of ['xs', 'small', 'medium', 'large'] as const) {
+  for (const size of ['xs', 'small', 'medium', 'large', 'xlarge'] as const) {
     const el = avatar(<Avatar kind={kind} size={size} />)
     expect(el.textContent).toBe('?')
     expect(el.style.background).toBe('var(--color-speaker-6-bg)')
@@ -129,7 +129,7 @@ describe('guards', () => {
   })
 
   test('every size has a rule with its width, height and font', () => {
-    for (const size of ['xs', 'small', 'medium', 'large']) {
+    for (const size of ['xs', 'small', 'medium', 'large', 'xlarge']) {
       const rule = moduleCss['./Avatar.module.css'].match(new RegExp(`\\.${size} \\{([^}]*)\\}`))?.[1]
       expect(rule, size).toBeTruthy()
       for (const prop of ['width', 'height', 'font']) expect(rule).toMatch(new RegExp(`(^|\\s)${prop}:`))

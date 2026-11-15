@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
@@ -43,9 +43,19 @@ test('creates with the trimmed name and the colour by its index', async () => {
   expect(onCreate).toHaveBeenCalledWith('Olivia', 2)
 })
 
+// The colour is chosen in the Avatar window, opened from the avatar.
+async function chooseColour(name: string | number) {
+  await userEvent.click(screen.getByRole('button', { name: 'Change avatar' }))
+  const window = await screen.findByRole('dialog', { name: 'Avatar' })
+  const radios = within(window).getAllByRole('radio')
+  await userEvent.click(typeof name === 'number' ? radios[name] : within(window).getByRole('radio', { name }))
+  await userEvent.click(within(window).getByRole('button', { name: 'Done' }))
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Avatar' })).toBeNull())
+}
+
 test('another colour goes with it', async () => {
   const { onCreate } = setup({ initialName: 'Olivia', initialColorIndex: 0 })
-  await userEvent.click(screen.getByRole('radio', { name: 'Tangerine' }))
+  await chooseColour('Tangerine')
   await userEvent.click(create())
   expect(onCreate).toHaveBeenCalledWith('Olivia', 3)
 })
@@ -145,10 +155,13 @@ test('a refused handle shows under the handle, not the name', async () => {
 
 test('offers the colours the API keeps: not Gray, which means an unknown speaker', async () => {
   const { onCreate } = setup({ initialName: 'Zoe' })
-  expect(screen.queryByRole('radio', { name: 'Gray' })).toBeNull()
-  const radios = screen.getAllByRole('radio')
-  expect(radios).toHaveLength(5)
-  await userEvent.click(radios[4])
+  await userEvent.click(screen.getByRole('button', { name: 'Change avatar' }))
+  const window = await screen.findByRole('dialog', { name: 'Avatar' })
+  expect(within(window).queryByRole('radio', { name: 'Gray' })).toBeNull()
+  expect(within(window).getAllByRole('radio')).toHaveLength(5)
+  await userEvent.keyboard('{Escape}')
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Avatar' })).toBeNull())
+  await chooseColour(4)
   await userEvent.click(create())
   expect(onCreate).toHaveBeenCalledWith('Zoe', 4)
 })
@@ -167,9 +180,10 @@ test('a photo can be taken away before creating', async () => {
   URL.createObjectURL = vi.fn(() => 'blob:photo')
   URL.revokeObjectURL = vi.fn()
   const { onCreate } = setup({ initialName: 'Zoe', initialColorIndex: 1, initialPhoto: new Blob(['x'], { type: 'image/jpeg' }) })
-  await userEvent.click(screen.getByRole('button', { name: 'Change photo' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Change avatar' }))
   await userEvent.click(await screen.findByRole('button', { name: 'Remove photo' }))
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Add photo' }).textContent?.trim()).toBe('ZO'))
+  await userEvent.click(screen.getByRole('button', { name: 'Done' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Change avatar' }).textContent?.trim()).toBe('ZO'))
   await userEvent.click(create())
   expect(onCreate).toHaveBeenCalledWith('Zoe', 1)
 })

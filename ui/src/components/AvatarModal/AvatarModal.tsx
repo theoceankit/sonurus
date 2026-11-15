@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { cx } from '../../styles/cx'
 import field from '../../styles/field.module.css'
-import type { SpeakerColor } from '../../styles/speaker-colors'
+import { ASSIGNABLE_SPEAKER_COLORS, type SpeakerColor } from '../../styles/speaker-colors'
 import { Avatar } from '../Avatar/Avatar'
 import { Button } from '../Button/Button'
+import { ColorPicker } from '../ColorPicker/ColorPicker'
+import { Inline } from '../Inline/Inline'
 import { Modal } from '../Modal/Modal'
 import { ModalBody } from '../ModalBody/ModalBody'
 import { ModalFooter } from '../ModalFooter/ModalFooter'
 import { ModalHeader } from '../ModalHeader/ModalHeader'
 import { PhotoCrop, type PhotoCropHandle } from '../PhotoCrop/PhotoCrop'
-import styles from './PhotoModal.module.css'
+import { Stack } from '../Stack/Stack'
+import styles from './AvatarModal.module.css'
+import { useFileDrop } from './file-drop'
 
 export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 // Of the picture as chosen; what is kept is a small square.
@@ -25,15 +29,19 @@ export function photoProblem(file: Pick<File, 'type' | 'size'>): string | undefi
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
-interface PhotoModalProps {
-  // Whose photo, as their avatar shows it now.
+interface AvatarModalProps {
+  // Whose avatar, as it shows now.
   speaker: { name: string; color: SpeakerColor; photo?: string | null }
   open?: boolean
-  // The square cropped from the chosen picture. Rejecting keeps the window open with why.
+  // Each change is the caller's at once; the window shows what it is given back.
+  onColorChange: (color: SpeakerColor) => Promise<void> | void
+  // The square cropped from the chosen picture. Rejecting keeps the crop with why.
   onPick: (photo: Blob) => Promise<void> | void
   onRemove: () => Promise<void> | void
   onClose: () => void
   onExited?: () => void
+  // A picture already chosen, such as one dropped on the avatar that opened the window.
+  initialFile?: File
   // For a story: the window in place.
   preview?: boolean
   // For a story: a picture chosen, on the crop step.
@@ -41,8 +49,9 @@ interface PhotoModalProps {
   initialError?: string
 }
 
-// The speaker's photo in one window: upload one, crop it to the circle, or remove it.
-export function PhotoModal({ speaker, open = true, onPick, onRemove, onClose, onExited, preview, initialSrc, initialError }: PhotoModalProps) {
+// The speaker's avatar in one window: a photo, uploaded or dropped and cropped to the
+// circle, or removed, and the speaker's colour.
+export function AvatarModal({ speaker, open = true, onColorChange, onPick, onRemove, onClose, onExited, initialFile, preview, initialSrc, initialError }: AvatarModalProps) {
   const input = useRef<HTMLInputElement>(null)
   const crop = useRef<PhotoCropHandle>(null)
   // The chosen picture: an object URL made here, or one a story gives.
@@ -61,15 +70,24 @@ export function PhotoModal({ speaker, open = true, onPick, onRemove, onClose, on
     setReady(false)
     setSrc({ url: URL.createObjectURL(file), owned: true })
   }
+  // A picture dropped on the avatar that opened the window.
+  const first = useRef(initialFile)
+  useEffect(() => {
+    if (first.current) choose(first.current)
+    first.current = undefined
+  }, [])
+
+  const drop = useFileDrop(choose, !src && busy === null)
 
   const run = async (kind: 'save' | 'remove', action: () => Promise<void> | void) => {
     setBusy(kind)
     setError(undefined)
     try {
       await action()
-      onClose()
+      setSrc(null)
     } catch (err) {
       setError(message(err))
+    } finally {
       setBusy(null)
     }
   }
@@ -106,18 +124,24 @@ export function PhotoModal({ speaker, open = true, onPick, onRemove, onClose, on
         </>
       ) : (
         <>
-          <ModalHeader title="Photo" />
+          <ModalHeader title="Avatar" />
           <ModalBody className={styles.body}>
-            <Avatar {...speaker} size="large" />
-            <span className={styles.formats}>{PHOTO_FORMATS}</span>
+            <div className={styles.dropZone} data-over={drop.over ? '' : undefined} {...drop.handlers}>
+              <Avatar {...speaker} size="xlarge" />
+              <span className={styles.formats}>{drop.over ? 'Drop the picture to crop it' : `Drop a picture here or upload one. ${PHOTO_FORMATS}`}</span>
+            </div>
+            <Inline gap={2} justify="center">
+              <Button size="small" disabled={busy !== null} onClick={() => input.current?.click()}>{hasPhoto ? 'Change photo' : 'Upload photo'}</Button>
+              {hasPhoto && (
+                <Button size="small" variant="ghost" icon="delete" loading={busy === 'remove'} disabled={busy !== null} onClick={() => { void run('remove', onRemove) }}>Remove photo</Button>
+              )}
+            </Inline>
             {errorText}
+            <Stack className={styles.colour}>
+              <ColorPicker label="Colour" value={speaker.color} colors={ASSIGNABLE_SPEAKER_COLORS} disabled={busy !== null} onValueChange={next => { void Promise.resolve(onColorChange(next)).catch(err => setError(message(err))) }} />
+            </Stack>
           </ModalBody>
-          <ModalFooter
-            leading={hasPhoto && (
-              <Button variant="ghost" icon="delete" loading={busy === 'remove'} disabled={busy !== null} onClick={() => { void run('remove', onRemove) }}>Remove photo</Button>
-            )}
-            confirm={{ children: hasPhoto ? 'Change photo' : 'Upload photo', disabled: busy !== null, onClick: () => input.current?.click() }}
-          />
+          <ModalFooter cancel={null} confirm={{ children: 'Done', onClick: onClose }} />
         </>
       )}
       <input

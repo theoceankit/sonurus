@@ -1,18 +1,17 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type MutableRefObject } from 'react'
 import { useApi } from '../../api/ApiProvider'
-import { queryKeys, useHandleSuggestion, useRemoveSpeakerPhoto, useSetSpeakerPhoto, useSpeakerSample, useSpeakerTranscripts, useWaveform } from '../../api/queries'
+import { queryKeys, useHandleSuggestion, useRemoveSpeakerPhoto, useSetSpeakerPhoto, useSpeakerSample, useSpeakerTranscripts, useUpdateSpeaker, useWaveform } from '../../api/queries'
 import type { Speaker } from '../../api/types'
 import { AppearanceRow } from '../../components/AppearanceRow/AppearanceRow'
 import { Avatar } from '../../components/Avatar/Avatar'
-import { ColorPicker } from '../../components/ColorPicker/ColorPicker'
 import { IconButton } from '../../components/IconButton/IconButton'
 import { Inline } from '../../components/Inline/Inline'
 import { Menu, MenuAction } from '../../components/Menu/Menu'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { MetaItem } from '../../components/MetaItem/MetaItem'
 import { AvatarButton } from '../../components/AvatarButton/AvatarButton'
-import { PhotoModal } from '../../components/PhotoModal/PhotoModal'
+import { AvatarModal } from '../../components/AvatarModal/AvatarModal'
 import { SectionHeader } from '../../components/SectionHeader/SectionHeader'
 import { Stack } from '../../components/Stack/Stack'
 import { TextField } from '../../components/TextField/TextField'
@@ -22,7 +21,7 @@ import { BAR_COUNT } from '../../components/Waveform/bars'
 import { SAMPLE_MAX_SECONDS, useSampleState, type SamplePlayback } from '../../media/sample-playback'
 import { formatDuration } from '../../media/timeline'
 import { markNotImplemented } from '../../not-implemented'
-import { ASSIGNABLE_SPEAKER_COLORS, speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
+import { speakerColor } from '../../styles/speaker-colors'
 import { hasSpeakerNamed } from '../Editor/new-speaker'
 import { handleProblem, typedHandle } from './handles'
 import { formatLastSeen, speakerUsage, type SpeakerDraft } from './speakers'
@@ -211,14 +210,28 @@ function AppearsIn({ speaker, sample, onOpenRecording }: Pick<SpeakerCardProps, 
   )
 }
 
-// Opened from the avatar; kept at once, apart from the card's Save.
-function PhotoDialog({ speaker, color, open, onClose, onExited }: { speaker: Speaker; color: SpeakerColor; open: boolean; onClose: () => void; onExited: () => void }) {
+type AvatarDialogProps = Pick<SpeakerCardProps, 'speaker' | 'draft' | 'onDraftChange'> & {
+  open: boolean
+  initialFile?: File
+  onClose: () => void
+  onExited: () => void
+}
+
+// Opened from the avatar. Photo and colour are kept at once, apart from the card's
+// Save; the draft follows the colour, so Save does not bring the old one back.
+function AvatarDialog({ speaker, draft, onDraftChange, open, initialFile, onClose, onExited }: AvatarDialogProps) {
   const setPhoto = useSetSpeakerPhoto()
   const removePhoto = useRemoveSpeakerPhoto()
+  const update = useUpdateSpeaker()
   return (
-    <PhotoModal
-      speaker={{ name: speaker.name!, color, photo: speaker.photo_url }}
+    <AvatarModal
+      speaker={{ name: speaker.name!, color: speakerColor(draft.colorIndex), photo: speaker.photo_url }}
       open={open}
+      initialFile={initialFile}
+      onColorChange={async next => {
+        onDraftChange({ ...draft, colorIndex: next - 1 })
+        await update.mutateAsync({ speakerId: speaker.id, update: { color_index: next - 1 } })
+      }}
       onPick={async photo => { await setPhoto.mutateAsync({ speakerId: speaker.id, photo }) }}
       onRemove={async () => { await removePhoto.mutateAsync(speaker.id) }}
       onClose={onClose}
@@ -233,8 +246,8 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
   const usage = speakerUsage(speaker)
   const named = Boolean(speaker.name)
   const color = speakerColor(draft.colorIndex)
-  // The photo window: open, or closing until it has gone.
-  const [photo, setPhoto] = useState<{ open: boolean; key: number } | null>(null)
+  // The avatar window: open, or closing until it has gone.
+  const [avatarWindow, setAvatarWindow] = useState<{ open: boolean; key: number; file?: File } | null>(null)
 
   // While it cannot be done, Delete says why instead of asking.
   const remove = () => {
@@ -254,19 +267,22 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
         </Inline>
         <Inline gap={4} align="start">
           {named
-            ? <AvatarButton speaker={{ name: speaker.name!, color, photo: speaker.photo_url }} label={speaker.photo ? 'Change photo' : 'Add photo'} onClick={() => setPhoto({ open: true, key: Date.now() })} />
+            ? (
+                <AvatarButton
+                  speaker={{ name: speaker.name!, color, photo: speaker.photo_url }}
+                  label="Change avatar"
+                  disabled={saving}
+                  onClick={() => setAvatarWindow({ open: true, key: Date.now() })}
+                  onFileDrop={file => setAvatarWindow({ open: true, key: Date.now(), file })}
+                />
+              )
             : <Avatar kind="unknown" size="large" />}
           <Stack gap={3} className={styles.fields}>
             <NameField speaker={speaker} others={others} draft={draft} dirty={dirty} saving={saving} saveError={saveError} onDraftChange={onDraftChange} onSave={onSave} onRevert={onRevert} cancelEdit={cancelEdit} />
             <HandleField speaker={speaker} others={others} draft={draft} saving={saving} handleError={handleError} onDraftChange={onDraftChange} onSave={onSave} />
           </Stack>
         </Inline>
-        <Stack gap={1}>
-          <SectionHeader title="Colour" />
-          {named
-            ? <ColorPicker aria-label="Colour" value={color} colors={ASSIGNABLE_SPEAKER_COLORS} disabled={saving} onValueChange={next => onDraftChange({ ...draft, colorIndex: next - 1 })} />
-            : <p className={styles.hint}>Speakers without a name are grey. Add a name to choose a colour.</p>}
-        </Stack>
+        {!named && <p className={styles.hint}>Speakers without a name are grey. Add a name to choose a colour and a photo.</p>}
         <Inline gap={4} wrap>
           <MetaItem icon="microphone">{usage.recordings}</MetaItem>
           {usage.time !== null && <MetaItem icon="clock">{formatDuration(usage.time)}</MetaItem>}
@@ -279,8 +295,17 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
         <AppearsIn speaker={speaker} sample={sample} onOpenRecording={onOpenRecording} />
       </Stack>
       <ScrollBar area={area} />
-      {photo && named && (
-        <PhotoDialog key={photo.key} speaker={speaker} color={color} open={photo.open} onClose={() => setPhoto({ ...photo, open: false })} onExited={() => setPhoto(null)} />
+      {avatarWindow && named && (
+        <AvatarDialog
+          key={avatarWindow.key}
+          speaker={speaker}
+          draft={draft}
+          onDraftChange={onDraftChange}
+          open={avatarWindow.open}
+          initialFile={avatarWindow.file}
+          onClose={() => setAvatarWindow({ ...avatarWindow, open: false })}
+          onExited={() => setAvatarWindow(null)}
+        />
       )}
     </>
   )

@@ -1,12 +1,11 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
-import { ASSIGNABLE_SPEAKER_COLORS, speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
-import { ColorPicker } from '../ColorPicker/ColorPicker'
+import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 import { Modal } from '../Modal/Modal'
 import { ModalBody } from '../ModalBody/ModalBody'
 import { ModalFooter } from '../ModalFooter/ModalFooter'
 import { ModalHeader } from '../ModalHeader/ModalHeader'
 import { AvatarButton } from '../AvatarButton/AvatarButton'
-import { PhotoModal } from '../PhotoModal/PhotoModal'
+import { AvatarModal } from '../AvatarModal/AvatarModal'
 import { Stack } from '../Stack/Stack'
 import { TextField } from '../TextField/TextField'
 import styles from './NewSpeakerModal.module.css'
@@ -55,7 +54,7 @@ export function NewSpeakerModal({
   // Kept here until the speaker exists; the avatar shows it meanwhile.
   const [photo, setPhoto] = useState<Blob | null>(initialPhoto ?? null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
-  const [photoWindow, setPhotoWindow] = useState<{ open: boolean; key: number } | null>(null)
+  const [avatarWindow, setAvatarWindow] = useState<{ open: boolean; key: number; file?: File } | null>(null)
   useEffect(() => {
     if (!photo) return setPhotoUrl(null)
     const url = URL.createObjectURL(photo)
@@ -98,9 +97,10 @@ export function NewSpeakerModal({
       <ModalBody className={styles.body}>
         <AvatarButton
           speaker={{ name: trimmed, color, photo: photoUrl }}
-          label={photo ? 'Change photo' : 'Add photo'}
+          label="Change avatar"
           disabled={busy}
-          onClick={() => setPhotoWindow({ open: true, key: Date.now() })}
+          onClick={() => setAvatarWindow({ open: true, key: Date.now() })}
+          onFileDrop={file => setAvatarWindow({ open: true, key: Date.now(), file })}
         />
         <Stack gap={3} className={styles.fields}>
           <TextField
@@ -134,22 +134,23 @@ export function NewSpeakerModal({
             }}
             onKeyDown={enter}
           />
-          <ColorPicker label="Colour" value={color} onValueChange={setColor} colors={ASSIGNABLE_SPEAKER_COLORS} />
         </Stack>
       </ModalBody>
       <ModalFooter
         cancel={{ children: 'Back', icon: 'arrow-left', onClick: onBack }}
         confirm={{ children: 'Create and assign', disabled: !trimmed || !!handleIssue, loading: busy, onClick: () => { void submit() } }}
       />
-      {photoWindow && (
-        <PhotoModal
-          key={photoWindow.key}
+      {avatarWindow && (
+        <AvatarModal
+          key={avatarWindow.key}
           speaker={{ name: trimmed, color, photo: photoUrl }}
-          open={photoWindow.open}
+          open={avatarWindow.open}
+          initialFile={avatarWindow.file}
+          onColorChange={setColor}
           onPick={setPhoto}
           onRemove={() => setPhoto(null)}
-          onClose={() => setPhotoWindow({ ...photoWindow, open: false })}
-          onExited={() => setPhotoWindow(null)}
+          onClose={() => setAvatarWindow({ ...avatarWindow, open: false })}
+          onExited={() => setAvatarWindow(null)}
         />
       )}
     </Modal>

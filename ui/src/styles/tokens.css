@@ -204,6 +204,8 @@
   --size-avatar-sm: 20px;
   --size-avatar-md: 28px;
   --size-avatar-lg: 48px;
+  /* The avatar of the Avatar window, where a photo is chosen. */
+  --size-avatar-xlg: 96px;
 
   --size-menu: 240px;
   --size-menu-narrow: 96px;
