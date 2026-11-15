@@ -14,8 +14,8 @@ test('a button named by its label, with the avatar inside', async () => {
 })
 
 test('shows the photo when there is one', () => {
-  render(<AvatarButton speaker={{ name: 'Anna Petrova', color: 1, photo: 'p.jpg' }} label="Change photo" />)
-  expect(screen.getByRole('button', { name: 'Change photo' }).querySelector('img')?.getAttribute('src')).toBe('p.jpg')
+  render(<AvatarButton speaker={{ name: 'Anna Petrova', color: 1, photo: 'p.jpg' }} label="Change avatar" />)
+  expect(screen.getByRole('button', { name: 'Change avatar' }).querySelector('img')?.getAttribute('src')).toBe('p.jpg')
 })
 
 test('the pencil comes on hover and keyboard focus only', () => {

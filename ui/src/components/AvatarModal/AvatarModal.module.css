@@ -3,33 +3,37 @@
   text-align: center;
 }
 
-/* The avatar takes a dropped picture; the ring says it will. */
+/* As the drop zone of New recording: the avatar takes a dropped picture. */
 .dropZone {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-3);
+  align-self: stretch;
+  padding: var(--space-4);
   border: var(--border-width-strong) dashed var(--color-border-strong);
-  border-radius: var(--radius-md);
-  transition: border-color var(--duration-base) var(--ease-standard), background var(--duration-base) var(--ease-standard);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-sunken);
+  user-select: none;
+  transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
 
-.dropZone[data-over] {
-  border-color: var(--color-focus);
+.over {
+  border-color: var(--color-accent-border);
   background: var(--color-accent-bg);
 }
 
-.formats {
+.title {
+  color: var(--color-text-primary);
+  font: var(--font-body-strong);
+}
+
+.over .title {
+  color: var(--color-accent-fg);
+}
+
+.hint {
   color: var(--color-text-secondary);
   font: var(--font-caption);
 }
 
-/* The colour, under a rule, apart from the photo. */
 .colour {
   align-self: stretch;
-  padding-top: var(--space-3);
-  border-top: var(--border-width-default) solid var(--color-border-default);
   text-align: start;
 }

@@ -417,7 +417,7 @@ test('a click on the avatar opens the Avatar window: a photo kept at once shows 
   await openCard(dialog, /Lena Kovacs/)
   await userEvent.click(within(dialog).getByRole('button', { name: 'Change avatar' }))
   await uploadPhoto()
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Change photo' })).toBeTruthy())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Remove photo' })).toBeTruthy())
   await userEvent.click(screen.getByRole('button', { name: 'Done' }))
   const lena = (await client.listSpeakers()).find(speaker => speaker.name === 'Lena Kovacs')!
   expect(lena.photo_url).toMatch(/^data:image\/jpeg/)
@@ -427,7 +427,7 @@ test('a click on the avatar opens the Avatar window: a photo kept at once shows 
 
   await userEvent.click(within(dialog).getByRole('button', { name: 'Change avatar' }))
   await userEvent.click(await screen.findByRole('button', { name: 'Remove photo' }))
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Upload photo' })).toBeTruthy())
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove photo' })).toBeNull())
   await userEvent.click(screen.getByRole('button', { name: 'Done' }))
   expect((await client.listSpeakers()).find(speaker => speaker.name === 'Lena Kovacs')!.photo).toBeNull()
   await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))

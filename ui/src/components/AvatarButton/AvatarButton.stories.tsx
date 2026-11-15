@@ -5,7 +5,7 @@ import { AvatarButton } from './AvatarButton'
 
 const meta: Meta<typeof AvatarButton> = {
   component: AvatarButton,
-  args: { speaker: { name: 'Anna Petrova', color: 1 }, label: 'Change photo' },
+  args: { speaker: { name: 'Anna Petrova', color: 1 }, label: 'Change avatar' },
 }
 export default meta
 
@@ -19,7 +19,7 @@ export const Matrix: Story = {
       states={STATES}
       rows={[
         { label: 'Initials', render: () => <AvatarButton speaker={{ name: 'Anna Petrova', color: 1 }} label="Add photo" /> },
-        { label: 'Photo', render: () => <AvatarButton speaker={{ name: 'Anna Petrova', color: 1, photo: portrait }} label="Change photo" /> },
+        { label: 'Photo', render: () => <AvatarButton speaker={{ name: 'Anna Petrova', color: 1, photo: portrait }} label="Change avatar" /> },
       ]}
     />
   ),

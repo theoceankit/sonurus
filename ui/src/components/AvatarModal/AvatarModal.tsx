@@ -122,16 +122,17 @@ export function AvatarModal({ speaker, open = true, onColorChange, onPick, onRem
           </>
         ) : (
           <>
-            <div className={styles.dropZone} data-over={drop.over ? '' : undefined} {...drop.handlers}>
+            <Stack gap={3} align="center" className={cx(styles.dropZone, drop.over && styles.over)} data-over={drop.over ? '' : undefined} {...drop.handlers}>
               <Avatar {...speaker} size="xlarge" />
-              <span className={styles.formats}>{drop.over ? 'Drop the picture to crop it' : `Drop a picture here or upload one. ${PHOTO_FORMATS}`}</span>
-            </div>
-            <Inline gap={2} justify="center">
-              <Button size="small" disabled={busy !== null} onClick={() => input.current?.click()}>{hasPhoto ? 'Change photo' : 'Upload photo'}</Button>
-              {hasPhoto && (
-                <Button size="small" variant="ghost" icon="delete" loading={busy === 'remove'} disabled={busy !== null} onClick={() => { void run('remove', onRemove) }}>Remove photo</Button>
-              )}
-            </Inline>
+              <Stack gap="half" align="center">
+                <span className={styles.title}>{drop.over ? 'Drop to add the picture' : 'Drop a picture here'}</span>
+                <span className={styles.hint}>{PHOTO_FORMATS}</span>
+              </Stack>
+              <Button size="small" disabled={busy !== null} onClick={() => input.current?.click()}>Choose file</Button>
+            </Stack>
+            {hasPhoto && (
+              <Button size="small" variant="ghost" icon="delete" loading={busy === 'remove'} disabled={busy !== null} onClick={() => { void run('remove', onRemove) }}>Remove photo</Button>
+            )}
           </>
         )}
         {errorText}

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
@@ -19,7 +19,7 @@ function setup(props = {}) {
 const choose = (file: File) => fireEvent.change(screen.getByLabelText('Photo file'), { target: { files: [file] } })
 const jpeg = () => new File(['x'], 'me.jpg', { type: 'image/jpeg' })
 const files = (file: File) => ({ dataTransfer: { types: ['Files'], files: [file], dropEffect: 'none' } })
-const dropZone = () => screen.getByText(/^Drop a picture here/).parentElement!
+const dropZone = () => screen.getByText('Drop a picture here').closest('[class*="dropZone"]') as HTMLElement
 
 function loadCrop() {
   const image = screen.getByRole('dialog').querySelector('img') as HTMLImageElement
@@ -46,12 +46,14 @@ test.each([
   expect(photoProblem(file)).toBe(problem)
 })
 
-test('the large avatar, the formats it takes, Upload photo and the colour; Done closes', async () => {
+test('the large avatar in a drop zone with Choose file, the formats on a line of their own, and the colour; Done closes', async () => {
   const { onClose } = setup()
   const dialog = screen.getByRole('dialog', { name: 'Avatar' })
   expect(dialog.querySelector('[class*="xlarge"]')).toBeTruthy()
-  expect(screen.getByText('Drop a picture here or upload one. JPEG, PNG or WebP, up to 20 MB.')).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Upload photo' })).toBeTruthy()
+  const zone = dropZone()
+  expect(within(zone).getByText('Drop a picture here')).toBeTruthy()
+  expect(within(zone).getByText('JPEG, PNG or WebP, up to 20 MB.')).toBeTruthy()
+  expect(within(zone).getByRole('button', { name: 'Choose file' })).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Remove photo' })).toBeNull()
   expect(screen.getByRole('radiogroup', { name: 'Colour' })).toBeTruthy()
   expect(screen.getByLabelText('Photo file').getAttribute('accept')).toBe('image/jpeg,image/png,image/webp')
@@ -74,7 +76,7 @@ test('a refused colour says why', async () => {
 test('a photo shows; Remove photo takes it away and the window stays', async () => {
   const { onRemove, onClose } = setup({ speaker: { name: 'Anna Petrova', color: 1, photo: 'data:image/jpeg;base64,x' } })
   expect(screen.getByRole('dialog').querySelector('img')?.getAttribute('src')).toBe('data:image/jpeg;base64,x')
-  expect(screen.getByRole('button', { name: 'Change photo' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Choose file' })).toBeTruthy()
   await userEvent.click(screen.getByRole('button', { name: 'Remove photo' }))
   expect(onRemove).toHaveBeenCalled()
   expect(onClose).not.toHaveBeenCalled()
@@ -106,7 +108,7 @@ test('a picture dropped on the avatar is cropped in the window; files over it ch
   const zone = dropZone()
   fireEvent.dragEnter(zone, files(jpeg()))
   expect(zone.hasAttribute('data-over')).toBe(true)
-  expect(screen.getByText('Drop the picture to crop it')).toBeTruthy()
+  expect(screen.getByText('Drop to add the picture')).toBeTruthy()
   fireEvent.drop(zone, files(jpeg()))
   expect(screen.getByRole('group', { name: 'Photo position' })).toBeTruthy()
 })
