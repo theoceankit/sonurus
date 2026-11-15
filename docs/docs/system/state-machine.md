@@ -113,7 +113,7 @@ stateDiagram-v2
 | Field | Set by | Stable across sessions |
 |---|---|---|
 | `speaker_raw` | `TranscriptionService` — diarization | No — `SPEAKER_00` can be a different person next run |
-| `speaker_resolved` | `SpeakerMemoryService.resolve()` — cosine similarity matching | Yes, if similarity ≥ 0.75 |
+| `speaker_resolved` | `SpeakerMemoryService.resolve()` — cosine similarity matching | Yes, if similarity ≥ 0.6 (`SPEAKER_SIMILARITY_THRESHOLD`) |
 | `speaker_final` | User action in UI | Yes — explicit user decision |
 
 **Raw is never persisted.** `resolve()` maps only diarization speakers that have an embedding (enough speech). `TranscriptBuilder.build()` gives every other `SPEAKER_XX` its own new UUID (one per label per transcript — an unnamed speaker without a voice profile), and segments with no diarization speaker at all (`UNKNOWN`) start as **Unassigned**. Transcript schema v6 applied the same rule to rows saved before it, so a stored segment always has either a UUID or the unassigned flag.

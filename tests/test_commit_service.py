@@ -383,7 +383,7 @@ def test_commit_recognized_speakers_updates_existing_speaker(tmp_path):
     aggregating their embedding across all DB sessions.
 
     The guard filters out sessions whose centroid is below the threshold.
-    Use similar embeddings (cos_sim > 0.75) so both sessions pass the guard
+    Use similar embeddings (cos_sim above the threshold) so both sessions pass the guard
     and their centroids are averaged.
     """
     db_path = str(tmp_path / "app.db")

@@ -64,7 +64,7 @@ Each segment carries three speaker fields in priority order:
 | Field | Source | Stable |
 |---|---|---|
 | `speaker_raw` | Diarisation output (`SPEAKER_00`, `SPEAKER_01`, …) | No |
-| `speaker_resolved` | Auto-matched from memory via cosine similarity | Yes, if similarity ≥ 0.75 |
+| `speaker_resolved` | Auto-matched from memory via cosine similarity | Yes, if similarity ≥ 0.6 (`SPEAKER_SIMILARITY_THRESHOLD`) |
 | `speaker_final` | User correction in UI | Yes — always wins |
 
 Unrecognised speakers get a UUID4 as their ID. Display names are stored separately in `speaker_names`.

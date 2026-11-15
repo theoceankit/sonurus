@@ -103,6 +103,21 @@ Every run also saves the voices of every clip as `<date-time>.npz` next to the r
 
 It prints recognised / wrong for each threshold and method over all runs, and per run the own and best other similarity at the app's threshold. Diarization and embeddings stay those of the run, so the replay matches the run at the app's threshold and method.
 
+### Speaker recognition threshold
+
+`SPEAKER_SIMILARITY_THRESHOLD` (`0.6`) was chosen with the threshold sweep over the fast and the long set (WeSpeaker embeddings, November 2026):
+
+| Threshold | Recognised | Wrong |
+|---|---|---|
+| 0.75 | 122 / 178 | 0 |
+| 0.70 | 163 / 178 | 0 |
+| 0.65 | 174 / 178 | 0 |
+| **0.60** | **175 / 178** | **0** |
+| 0.55 | 178 / 178 | 0 |
+| 0.40 | 178 / 178 | 1 |
+
+The same person in another recording scored 0.56–0.95 (5 % below 0.69); the length of the recordings matters most: on whole meetings the lowest was 0.78, on 3-minute clips 0.56. Other people scored at most 0.49, with three groups of four in one memory (IS1009 is four women). 0.6 keeps about 0.1 between the threshold and the highest other person, because real calls differ more than one meeting room; most of the people it misses are on 3-minute call clips. Weighting a recording's voice by the duration of its turns raises the own scores of short recordings (0.75: 151 instead of 122) but changes little at 0.6, so the plain mean stays.
+
 ## Report
 
 At the end, pytest prints a Markdown report and saves it as `$SONORUS_EVAL_CACHE/reports/<date-time>.md`, with the raw results next to it as `<date-time>.json` (which also holds each person's own and best other similarity per clip, under `scores`, for choosing thresholds) and the voices as `<date-time>.npz` (see [Recomputing thresholds](#recomputing-thresholds)). It holds the models, device and library versions of the run, a summary per variant, the words recognised per speaker, every clip (WER split into substitutions / deletions / insertions, speakers found, detected language, time), and the text of each missed utterance with its level. Numbers depend on the versions of the models and libraries, so variants are compared within one run, never with numbers from another one. Reports are not kept in the repository.

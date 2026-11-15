@@ -77,13 +77,13 @@ known_names = {
 
 ## Methods
 
-### `__init__(db_path="speaker_memory.db", threshold=0.75)`
+### `__init__(db_path="speaker_memory.db", threshold=SPEAKER_SIMILARITY_THRESHOLD)`
 
 Initialises the database (creates tables if missing), runs migrations, and loads known speakers.
 
 **Parameters:**
 - `db_path` — path to the SQLite file
-- `threshold` — minimum cosine similarity for a match (recommended: `0.75`)
+- `threshold` — minimum cosine similarity for a match (default `SPEAKER_SIMILARITY_THRESHOLD`, `0.6`)
 
 ---
 
@@ -217,11 +217,7 @@ Creates a new UUID4 speaker ID, sets its display name and persists it via `save_
 
 ## `threshold` parameter
 
-| Value | Behaviour |
-|---|---|
-| `0.70` | Aggressive merging — different people may be collapsed |
-| `0.75` | Balanced (recommended) |
-| `0.80+` | Strict identification — more new IDs created |
+`SPEAKER_SIMILARITY_THRESHOLD` is `0.6`, chosen on the [quality tests](../testing/quality.md#speaker-recognition-threshold) with the WeSpeaker embeddings: the same person in another recording scores 0.56–0.95 there (median about 0.85, lower on short or call-quality recordings), other people at most 0.49, also with three groups of four people in one memory. Above about 0.7 named speakers of short recordings are often not recognised; below about 0.5 other people start to be matched. The same value is the guard of `CommitService`: a recording whose centroid is below it is kept out of the profile.
 
 `SPEAKER_SUGGESTION_THRESHOLD` (`0.5`) is a separate value and changes no matching: it only decides whether `GET /transcripts/{id}/speaker-candidates` marks the first candidate as suggested. It is lower because a voice above `threshold` is usually recognized by itself and never comes up for review.
 
