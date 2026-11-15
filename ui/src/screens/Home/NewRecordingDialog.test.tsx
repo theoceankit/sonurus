@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { BOTH_OFF, NO_SYSTEM_AUDIO } from '../../recording/sources'
 import { field, openRecording, option, recordDialog, recordingControl, setup } from './new-transcription.test-utils'
+import { findDialog } from '../../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -119,14 +120,14 @@ describe('model and language', () => {
     expect(notice.textContent).toContain('No transcription model installed')
     expect(start().disabled).toBe(true)
     await userEvent.click(within(notice).getByRole('button', { name: 'Download in Settings' }))
-    expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
+    expect(within(await findDialog('Settings')).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
   })
 
   test('for an alignment model, Download in Settings opens its section', async () => {
     await setup({}, { settings: { transcribeLang: 'ru' } })
     await openRecording()
     await userEvent.click(within(await screen.findByRole('status')).getByRole('button', { name: 'Download in Settings' }))
-    expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Languages', selected: true })).toBeTruthy()
+    expect(within(await findDialog('Settings')).getByRole('tab', { name: 'Languages', selected: true })).toBeTruthy()
   })
 
   test('the next opening starts from the defaults again', async () => {

@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
+import { findDialog } from '../../test-queries'
 import {
   chooseFiles, drag, field, importButton, importDialog, jobs, listed, openRecording, option, recordDialog, recordDialogUnder, setup,
 } from './new-transcription.test-utils'
@@ -100,7 +101,7 @@ describe('files dragged over New recording', () => {
     await setup({ noModels: true })
     await openRecording()
     await userEvent.click(within(await screen.findByRole('status')).getByRole('button', { name: 'Download in Settings' }))
-    await screen.findByRole('dialog', { name: 'Settings' })
+    await findDialog('Settings')
     drag('dragenter')
     expect(drag('drop', { files: ['a.mp3'] }).defaultPrevented).toBe(true)
     expect(importDialog()).toBeNull()

@@ -14,6 +14,7 @@ import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../../platform/settings'
 import { alignedWithoutModel } from './AlignmentSection'
 import { folderName } from './ModelsSection'
+import { findDialog, findTitlebarButton, getDialog, queryDialog } from '../../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -29,10 +30,10 @@ async function setup(options: FixtureOptions = {}, saved: Partial<ElectronSettin
   return { client, bridge }
 }
 
-const settings = () => screen.getByRole('dialog', { name: 'Settings' })
+const settings = () => getDialog('Settings')
 async function openSection(name: string) {
-  await userEvent.click(await screen.findByRole('button', { name: 'Settings' }))
-  await userEvent.click(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name }))
+  await userEvent.click(await findTitlebarButton('Settings'))
+  await userEvent.click(within(await findDialog('Settings')).getByRole('tab', { name }))
 }
 const row = (name: string) => within(settings()).getByRole('group', { name })
 const inRow = (name: string, button: string) => within(row(name)).queryByRole('button', { name: button })
@@ -76,7 +77,7 @@ test('a download shows its progress, goes on after Settings close, and its model
   await userEvent.click(inRow('Whisper Tiny', 'Download') ?? (await within(settings()).findByRole('group', { name: 'Whisper Tiny' })).querySelector('button')!)
   expect(await within(row('Whisper Tiny')).findByRole('progressbar')).toBeTruthy()
   await userEvent.keyboard('{Escape}')
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
+  await waitFor(() => expect(queryDialog('Settings')).toBeNull())
   await openSection('Models')
   await waitFor(() => expect(inRow('Whisper Tiny', 'Delete Whisper Tiny')).toBeTruthy())
   expect(inRow('Whisper Tiny', 'Use')).toBeTruthy()
@@ -138,7 +139,7 @@ test('the empty screen opens Settings on Models', async () => {
   await setup({ scenario: 'empty' })
   const centre = await screen.findByRole('main', { name: 'Transcript' })
   await userEvent.click(await within(centre).findByRole('button', { name: 'Settings' }))
-  expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
+  expect(within(await findDialog('Settings')).getByRole('tab', { name: 'Models', selected: true })).toBeTruthy()
 })
 
 const job = (id: string, change: Partial<QueueJob>): QueueJob => ({ ...QUEUE_JOB, id, title: `Call ${id}`, ...change })
@@ -180,7 +181,7 @@ test('delete: a model queued jobs need asks first over Settings; Cancel keeps it
   await waitFor(() => expect(alert()).toBeNull())
   expect(remove).toHaveBeenCalledWith('small')
   await waitFor(() => expect(inRow('Whisper Small', 'Download')).toBeTruthy())
-  expect(screen.getByRole('dialog', { name: 'Settings' })).toBeTruthy()
+  expect(getDialog('Settings')).toBeTruthy()
   // Its row has no delete button now: the focus is in Settings.
   await waitFor(() => expect(settings().contains(document.activeElement)).toBe(true))
 })

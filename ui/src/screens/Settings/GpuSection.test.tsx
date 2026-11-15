@@ -8,6 +8,7 @@ import { App } from '../../App'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
+import { findDialog, findTitlebarButton, getDialog } from '../../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -22,10 +23,10 @@ function setup(options: FixtureOptions = {}, platform = 'linux') {
   return { client, restartBackend }
 }
 
-const settings = () => screen.getByRole('dialog', { name: 'Settings' })
+const settings = () => getDialog('Settings')
 async function openSettings() {
-  await userEvent.click(await screen.findByRole('button', { name: 'Settings' }))
-  return screen.findByRole('dialog', { name: 'Settings' })
+  await userEvent.click(await findTitlebarButton('Settings'))
+  return findDialog('Settings')
 }
 
 test('GPU comes after Alignment; a development build only says what the backend runs on', async () => {

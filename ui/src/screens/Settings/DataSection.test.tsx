@@ -10,6 +10,7 @@ import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../../platform/settings'
+import { findDialog, findTitlebarButton, getDialog, queryDialog } from '../../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -29,10 +30,10 @@ async function setup(options: FixtureOptions = {}) {
   return { client, bridge, setZoom }
 }
 
-const settings = () => screen.getByRole('dialog', { name: 'Settings' })
+const settings = () => getDialog('Settings')
 async function openData() {
-  await userEvent.click(await screen.findByRole('button', { name: 'Settings' }))
-  await userEvent.click(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Data' }))
+  await userEvent.click(await findTitlebarButton('Settings'))
+  await userEvent.click(within(await findDialog('Settings')).getByRole('tab', { name: 'Data' }))
 }
 const confirmDialog = () => screen.queryByRole('alertdialog')
 
@@ -71,7 +72,7 @@ test('Delete all data asks first, deletes, says what went, and the library is em
   await userEvent.click(within(confirm).getByRole('button', { name: 'Delete everything' }))
   expect(await screen.findByText(/^Deleted \d+ transcripts?, \d+ speakers? and \d+ files?\.$/)).toBeTruthy()
   await userEvent.click(within(settings()).getByRole('button', { name: 'Close' }))
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
+  await waitFor(() => expect(queryDialog('Settings')).toBeNull())
   expect(await within(screen.getByRole('main', { name: 'Transcript' })).findByText(/To make a new transcription, press/)).toBeTruthy()
 })
 

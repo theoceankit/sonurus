@@ -11,6 +11,7 @@ import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
 import { modelDownloadsFor } from '../../transcribe/model-downloads'
+import { findDialog } from '../../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -142,7 +143,7 @@ test('Open Settings closes the dialog for Settings', async () => {
   await userEvent.click(await waitFor(() => button('Download ~1.3 GB')))
   await waitFor(() => expect(dialog()?.textContent).toContain('Download failed'))
   await userEvent.click(button('Open Settings'))
-  expect(within(await screen.findByRole('dialog', { name: 'Settings' })).getByRole('tab', { name: 'Languages', selected: true })).toBeTruthy()
+  expect(within(await findDialog('Settings')).getByRole('tab', { name: 'Languages', selected: true })).toBeTruthy()
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Download failed' })).toBeNull())
 })
 

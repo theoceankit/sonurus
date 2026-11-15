@@ -11,6 +11,7 @@ import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../../platform/settings'
+import { findDialog, findTitlebarButton, queryDialog } from '../../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -26,8 +27,8 @@ async function setup(hfToken = '') {
 }
 
 async function openSection(name: string) {
-  await userEvent.click(await screen.findByRole('button', { name: 'Settings' }))
-  const settings = await screen.findByRole('dialog', { name: 'Settings' })
+  await userEvent.click(await findTitlebarButton('Settings'))
+  const settings = await findDialog('Settings')
   await userEvent.click(within(settings).getByRole('tab', { name }))
   return settings
 }
@@ -86,7 +87,7 @@ test('closing Settings with Escape saves the token typed', async () => {
   const settings = await openSection('API Keys')
   await userEvent.type(within(settings).getByLabelText('HuggingFace token', { selector: 'input' }), ' hf_esc ')
   await userEvent.keyboard('{Escape}')
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
+  await waitFor(() => expect(queryDialog('Settings')).toBeNull())
   await waitFor(async () => expect((await bridge.readSettings()).hfToken).toBe('hf_esc'))
 })
 
@@ -95,7 +96,7 @@ test('a token left as it was is not written again on closing', async () => {
   await openSection('API Keys')
   const write = vi.spyOn(bridge, 'writeSettings')
   await userEvent.keyboard('{Escape}')
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull())
+  await waitFor(() => expect(queryDialog('Settings')).toBeNull())
   expect(write).not.toHaveBeenCalled()
 })
 
