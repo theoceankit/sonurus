@@ -334,12 +334,12 @@ describe('live recording', () => {
     await expect(client.startCapture('x')).rejects.toEqual(new ApiError(400, 'parec is not installed'))
   })
 
-  test('stops a capture with the microphone track to mix in, or without one', async () => {
+  test('stops a capture with the microphone track to mix in and when it started, or without one', async () => {
     const { client, sent } = setup(() => json({ file_path: '/r/merged.wav' }))
-    await expect(client.stopCapture('c1', '/r/mic.webm')).resolves.toBe('/r/merged.wav')
+    await expect(client.stopCapture('c1', { path: '/r/mic.webm', startedAt: 1763170000250 })).resolves.toBe('/r/merged.wav')
     await expect(client.stopCapture('c1')).resolves.toBe('/r/merged.wav')
     expect(sent).toEqual([
-      { url: 'http://localhost:8000/audio/capture/stop/c1', method: 'POST', body: { mic_path: '/r/mic.webm' } },
+      { url: 'http://localhost:8000/audio/capture/stop/c1', method: 'POST', body: { mic_path: '/r/mic.webm', mic_started_at: 1763170000.25 } },
       { url: 'http://localhost:8000/audio/capture/stop/c1', method: 'POST', body: {} },
     ])
   })

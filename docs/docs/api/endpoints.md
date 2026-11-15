@@ -63,9 +63,11 @@ Starts a background capture process. Returns a `job_id` immediately.
 
 Stops the capture process and returns the path to the recorded WAV file, loudness-levelled. Optionally merges with a microphone recording (both tracks levelled, then mixed). If levelling fails, the recording is stored without it.
 
+`mic_started_at` is when the microphone recording started, Unix time in seconds. The mix shifts the microphone against the system audio by the difference to the capture's own start and ends with the microphone, where Stop was pressed (see [AudioCaptureService](../services/AudioCaptureService.md#loudness-levelling-and-mic-merge)). Without it both tracks start at 0.
+
 ```json
 // Request (optional)
-{ "mic_path": "<data-dir>/recordings/sonorus-rec-abc123.webm" }
+{ "mic_path": "<data-dir>/recordings/sonorus-rec-abc123.webm", "mic_started_at": 1763170000.25 }
 
 // Response 200 (with or without mic_path)
 { "file_path": "<data-dir>/recordings/sonorus-rec-d63f61eb.wav" }

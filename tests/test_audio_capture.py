@@ -97,7 +97,8 @@ class _StubAudioCaptureService:
         self._jobs[job_id] = f"/tmp/capture_{job_id}.wav"
         return job_id
 
-    def stop_capture(self, job_id: str, mic_path=None) -> str:
+    def stop_capture(self, job_id: str, mic_path=None, mic_started_at=None) -> str:
+        self.last_stop = {"mic_path": mic_path, "mic_started_at": mic_started_at}
         if job_id not in self._jobs:
             raise ValueError("Job not found")
         system_path = self._jobs.pop(job_id)
@@ -299,6 +300,15 @@ def test_post_stop_with_mic_path(capture_client):
     assert "file_path" in body, f"Response must contain 'file_path', got {body}"
     assert isinstance(body["file_path"], str)
     assert len(body["file_path"]) > 0
+
+
+def test_post_stop_passes_when_the_microphone_started(capture_client):
+    client, stub = capture_client
+    job_id = client.post("/audio/capture/start").json()["job_id"]
+    r = client.post(f"/audio/capture/stop/{job_id}",
+                    json={"mic_path": "/tmp/mic.webm", "mic_started_at": 1763170000.25})
+    assert r.status_code == 200
+    assert stub.last_stop == {"mic_path": "/tmp/mic.webm", "mic_started_at": 1763170000.25}
 
 
 # ── Regression: capture process must never block on a full stderr pipe ───────
@@ -912,7 +922,10 @@ def test_has_active_jobs_tracks_running_capture(tmp_path):
 # stored, the mix does not divide by the number of inputs, a limiter keeps it
 # from clipping. A failed levelling run falls back to the old behaviour.
 
-def _stop_capture(tmp_path, run, mic_path=None):
+CAPTURE_STARTED_AT = 1763170000.0
+
+
+def _stop_capture(tmp_path, run, mic_path=None, mic_started_at=None):
     AudioCaptureService = _get_service_class()
     rec_dir = tmp_path / "recordings"
     svc = AudioCaptureService(recordings_dir=rec_dir)
@@ -920,9 +933,10 @@ def _stop_capture(tmp_path, run, mic_path=None):
     with patch("app.services.audio_capture_service.subprocess.Popen",
                side_effect=_fake_capture_popen(outputs)), \
          patch("app.services.audio_capture_service.subprocess.run", side_effect=run), \
+         patch("app.services.audio_capture_service.time", MagicMock(time=lambda: CAPTURE_STARTED_AT)), \
          patch("app.services.audio_capture_service.sys.platform", "linux"):
         job_id = svc.start_capture(source_id="x.monitor")
-        final = svc.stop_capture(job_id, mic_path=mic_path)
+        final = svc.stop_capture(job_id, mic_path=mic_path, mic_started_at=mic_started_at)
     return final, outputs[0], rec_dir
 
 
@@ -964,7 +978,8 @@ def test_mix_levels_each_track_and_limits_without_dividing(tmp_path):
     graph = _filter_arg(calls[0])
     assert graph.count("dynaudnorm") == 2, "both tracks are levelled before the mix"
     assert "amix=inputs=2" in graph
-    assert "duration=shortest" in graph
+    assert "duration=first" in graph, "the mix ends with the microphone, where Stop was pressed"
+    assert graph.index("[mic]") < graph.index("[sys]amix"), "the microphone is the first input of the mix"
     assert "normalize=0" in graph, "the mix must not divide the volume by the number of inputs"
     assert "alimiter" in graph
     assert graph.index("dynaudnorm") < graph.index("amix") < graph.index("alimiter")
@@ -996,11 +1011,82 @@ def test_mix_falls_back_to_plain_amix_when_levelling_fails(tmp_path, app_warning
 
     assert len(calls) == 2
     fallback = _filter_arg(calls[1])
-    assert "amix=inputs=2:duration=shortest" in fallback
+    assert "amix=inputs=2:duration=first" in fallback
     assert "dynaudnorm" not in fallback
     assert Path(final).is_file()
     assert not Path(capture_tmp).exists()
     assert any("level" in m.lower() for m in app_warnings())
+
+
+# The microphone starts after the system capture (the backend checks the capture
+# runs before the window starts its recorder): the mix shifts the later track by
+# the difference of the two start times, both on the system clock.
+
+def _delays(graph: str) -> dict[str, str]:
+    """{label: adelay value} for the [sys] and [mic] chains of a filter graph."""
+    import re
+    found = {}
+    for chain in graph.split(";"):
+        m = re.search(r"adelay=delays=(\d+)", chain)
+        if m:
+            found[re.findall(r"\[(sys|mic)\]", chain)[-1]] = m.group(1)
+    return found
+
+
+@pytest.mark.parametrize("fail_first", [0, 1])
+def test_mix_delays_the_microphone_by_its_later_start(tmp_path, fail_first):
+    calls = []
+    mic = tmp_path / "mic.webm"
+    mic.write_bytes(b"webm")
+    _stop_capture(tmp_path, _recording_run(calls, fail_first=fail_first),
+                  mic_path=str(mic), mic_started_at=CAPTURE_STARTED_AT + 0.75)
+    assert _delays(_filter_arg(calls[-1])) == {"mic": "750"}
+
+
+def test_mix_delays_the_system_audio_when_it_started_later(tmp_path):
+    calls = []
+    mic = tmp_path / "mic.webm"
+    mic.write_bytes(b"webm")
+    _stop_capture(tmp_path, _recording_run(calls), mic_path=str(mic),
+                  mic_started_at=CAPTURE_STARTED_AT - 0.2)
+    assert _delays(_filter_arg(calls[-1])) == {"sys": "200"}
+
+
+@pytest.mark.parametrize("mic_started_at", [None, CAPTURE_STARTED_AT + 3600, CAPTURE_STARTED_AT - 3600])
+def test_mix_without_a_usable_start_time_keeps_both_tracks_at_zero(tmp_path, app_warnings, mic_started_at):
+    calls = []
+    mic = tmp_path / "mic.webm"
+    mic.write_bytes(b"webm")
+    _stop_capture(tmp_path, _recording_run(calls), mic_path=str(mic), mic_started_at=mic_started_at)
+    assert "adelay" not in _filter_arg(calls[-1])
+    if mic_started_at is not None:
+        assert any("start" in m.lower() for m in app_warnings())
+
+
+def test_handshake_capture_counts_from_ready(tmp_path):
+    """With a helper (macOS, Windows) the track starts once it prints READY,
+    not when the process is spawned."""
+    AudioCaptureService = _get_service_class()
+    svc = AudioCaptureService(capture_bin="/bin/helper", recordings_dir=tmp_path / "recordings")
+    clock = iter([100.0, 102.5])  # spawned at 100, READY 2.5 s later
+
+    def _popen(cmd, **_kwargs):
+        proc = _make_mock_popen()
+        Path(cmd[-1]).write_bytes(b"RIFF" + b"\0" * 100)
+
+        proc.stdout.readline.return_value = b"READY\n"
+        return proc
+
+    calls = []
+    mic = tmp_path / "mic.webm"
+    mic.write_bytes(b"webm")
+    with patch("app.services.audio_capture_service.subprocess.Popen", side_effect=_popen), \
+         patch("app.services.audio_capture_service.subprocess.run", side_effect=_recording_run(calls)), \
+         patch("app.services.audio_capture_service.time", MagicMock(time=lambda: next(clock))), \
+         patch("app.services.audio_capture_service.sys.platform", "darwin"):
+        job_id = svc.start_capture()
+        svc.stop_capture(job_id, mic_path=str(mic), mic_started_at=102.75)
+    assert _delays(_filter_arg(calls[-1])) == {"mic": "250"}
 
 
 def test_mix_raises_when_fallback_mix_fails_too(tmp_path):

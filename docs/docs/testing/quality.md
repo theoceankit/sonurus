@@ -69,8 +69,6 @@ Metrics (`tests/quality/metrics.py`, unit-tested in `tests/test_quality_metrics.
 
 A variant with a **base** is processing applied to that base (for example `chromium-default` against `chromium-raw`); its test fails if it is worse than the base by more than 2 points of WER, 5 points of speaker words or 0.03 of own similarity. The recognised count is reported but not checked: while similarities sit near the threshold it moves by two between nearly equal inputs. Variants without a base (`clean`, `call`, `uneven`) are listening conditions and only report. Recognition does not depend on the run order: every variant starts from an empty memory.
 
-`tests/quality/test_mix_tail.py` checks the mix of microphone and system audio (`AudioCaptureService._merge`) on synthetic tones, without models. Its tests are marked `xfail(strict=True)` while the mix is known to drop or shift audio; a fix makes them pass and pytest then reports them, so the marker gets removed.
-
 ## Report
 
 At the end, pytest prints a Markdown report and saves it as `$SONORUS_EVAL_CACHE/reports/<date-time>.md`, with the raw results next to it as `<date-time>.json` (which also holds each person's own and best other similarity per clip, under `scores`, for choosing thresholds). It holds the models, device and library versions of the run, a summary per variant, the words recognised per speaker, every clip (WER split into substitutions / deletions / insertions, speakers found, detected language, time), and the text of each missed utterance with its level. Numbers depend on the versions of the models and libraries, so variants are compared within one run, never with numbers from another one. Reports are not kept in the repository.

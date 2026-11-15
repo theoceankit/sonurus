@@ -842,6 +842,8 @@ export interface components {
         AudioCaptureStopRequest: {
             /** Mic Path */
             mic_path?: string | null;
+            /** Mic Started At */
+            mic_started_at?: number | null;
         };
         /** AudioCaptureStopResponse */
         AudioCaptureStopResponse: {

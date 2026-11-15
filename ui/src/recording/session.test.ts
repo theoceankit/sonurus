@@ -26,8 +26,13 @@ function media({ micRefused = false } = {}) {
   const stream = { getTracks: () => [track] } as unknown as MediaStream
   const graph = { stream, close: vi.fn() }
   const recorders: { started: number | null; stopped: boolean }[] = []
+  let recorderStartedAt: number | null = null
+  // The clock reads 1 ms later at every look: the recorder's start time is the one
+  // read when it starts.
+  let clock = 1763170000000
   const deps = {
     platform: async () => 'linux',
+    now: () => ++clock,
     getUserMedia: vi.fn(async () => {
       if (micRefused) throw new DOMException('Permission denied', 'NotAllowedError')
       return stream
@@ -39,7 +44,7 @@ function media({ micRefused = false } = {}) {
       const recorder = {
         ondataavailable: null as ((event: { data: Blob }) => void) | null,
         onstop: null as (() => void) | null,
-        start: (slice: number) => { state.started = slice },
+        start: (slice: number) => { state.started = slice; recorderStartedAt = clock + 1 },
         stop: () => {
           state.stopped = true
           recorder.ondataavailable?.({ data: new Blob(['opus'], { type: 'audio/webm' }) })
@@ -49,7 +54,7 @@ function media({ micRefused = false } = {}) {
       return recorder
     }),
   }
-  return { deps, track, graph, recorders }
+  return { deps, track, graph, recorders, recorderStartedAt: () => recorderStartedAt }
 }
 
 const REQUEST: RecordingRequest = {
@@ -75,8 +80,10 @@ describe('microphone and system audio', () => {
     const { api, audio, started } = run({})
     await (await started).stop()
     expect(api.names()).toEqual(['startQueueRecording', 'startCapture', 'uploadRecording', 'stopCapture', 'addQueueJob', 'stopQueueRecording'])
-    const [, , micPath] = api.calls.find(([name]) => name === 'stopCapture')!
-    expect(micPath).toMatch(/\.webm$/)
+    const [, , mic] = api.calls.find(([name]) => name === 'stopCapture')!
+    // With the time the recorder started: the backend lines the microphone up with
+    // the system audio, which started first.
+    expect(mic).toEqual({ path: expect.stringMatching(/\.webm$/), startedAt: audio.recorderStartedAt() })
     expect(api.calls.find(([name]) => name === 'addQueueJob')![1]).toMatchObject({ audioPath: expect.stringMatching(/\.wav$/), title: '7 Nov 18:30 Meeting', whisperModel: 'small', language: null })
     expect(audio.track.stop).toHaveBeenCalled()
     expect(audio.graph.close).toHaveBeenCalled()
