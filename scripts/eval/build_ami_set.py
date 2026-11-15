@@ -24,7 +24,13 @@ devices are fixed in tests/quality/ami_manifest.json; downloaded audio is
 checked against the sha256 recorded there (--record-hashes fills them in).
 Needs ffmpeg with libopus on PATH.
 
+With --long it builds the long set instead (manifest key "long": 10-minute
+windows and whole meetings, for tests/quality/test_length.py). A clip without
+an end is the whole meeting: its headset files are downloaded in full
+(~70 MB each). Long clips already built are skipped.
+
     .venv/bin/python scripts/eval/build_ami_set.py [--chromium]
+    .venv/bin/python scripts/eval/build_ami_set.py --long
 """
 import argparse
 import hashlib
@@ -86,8 +92,8 @@ def fetch(url: str, byte_range: tuple[int, int] | None = None) -> bytes:
         return resp.read()
 
 
-def data_offset(header: bytes) -> int:
-    """Offset of the PCM data in a RIFF/WAVE file; checks 16 kHz mono 16-bit."""
+def data_chunk(header: bytes) -> tuple[int, int]:
+    """Offset and size of the PCM data in a RIFF/WAVE file; checks 16 kHz mono 16-bit."""
     if header[:4] != b"RIFF" or header[8:12] != b"WAVE":
         raise RuntimeError("not a WAV file")
     pos = 12
@@ -98,9 +104,13 @@ def data_offset(header: bytes) -> int:
             if (channels, rate, bits) != (1, SAMPLE_RATE, 16):
                 raise RuntimeError(f"unexpected format {channels} ch {rate} Hz {bits} bit")
         if cid == b"data":
-            return pos + 8
+            return pos + 8, size
         pos += 8 + size + (size & 1)
     raise RuntimeError("no data chunk in the first bytes")
+
+
+def data_offset(header: bytes) -> int:
+    return data_chunk(header)[0]
 
 
 def write_wav(path: Path, pcm: bytes) -> None:
@@ -129,11 +139,18 @@ def ffmpeg(*args: str) -> None:
 
 
 def headset_slice(manifest, meeting, channel, start, end, record) -> bytes:
+    """PCM of one headset from start to end seconds; end None = the whole file."""
     url = manifest["audio_url"].format(meeting=meeting, channel=channel)
-    off = data_offset(fetch(url, (0, 4095)))
-    first = off + start * SAMPLE_RATE * SAMPLE_BYTES
-    pcm = fetch(url, (first, first + (end - start) * SAMPLE_RATE * SAMPLE_BYTES - 1))
-    key = f"{meeting}.{channel}.{start}-{end}"
+    if end is None:
+        data = fetch(url)
+        off, size = data_chunk(data[:4096])
+        pcm = data[off:off + size][start * SAMPLE_RATE * SAMPLE_BYTES:]
+        key = f"{meeting}.{channel}.{start}-end"
+    else:
+        off = data_offset(fetch(url, (0, 4095)))
+        first = off + start * SAMPLE_RATE * SAMPLE_BYTES
+        pcm = fetch(url, (first, first + (end - start) * SAMPLE_RATE * SAMPLE_BYTES - 1))
+        key = f"{meeting}.{channel}.{start}-{end}"
     digest, known = sha256(pcm), manifest["pcm_sha256"].get(key)
     if known is None and record:
         manifest["pcm_sha256"][key] = digest
@@ -169,6 +186,13 @@ def build_clip(manifest, clip, zf: zipfile.ZipFile, out: Path, record: bool) -> 
     meeting, start, end = clip["meeting"], clip["start"], clip["end"]
     speakers = ami.parse_meeting_speakers(zf.read("corpusResources/meetings.xml"), meeting)
     words = {a: ami.parse_words(zf.read(f"words/{meeting}.{a}.words.xml")) for a in speakers}
+    pcms = {spk.global_name: headset_slice(manifest, meeting, spk.channel, start, end, record)
+            for spk in speakers.values()}
+    if end is None:
+        # Headsets of one meeting can differ in length by a few samples.
+        samples = min(len(p) for p in pcms.values()) // SAMPLE_BYTES
+        end = start + samples / SAMPLE_RATE
+        pcms = {k: p[:samples * SAMPLE_BYTES] for k, p in pcms.items()}
 
     clip_dir = out / clip["id"]
     tracks, tmp = clip_dir / "tracks", clip_dir / "tmp"
@@ -180,8 +204,7 @@ def build_clip(manifest, clip, zf: zipfile.ZipFile, out: Path, record: bool) -> 
     for spk in sorted(speakers.values(), key=lambda s: s.channel):
         track = tracks / f"{spk.global_name}.wav"
         intervals = [(r["start"], r["end"]) for r in reference if r["speaker"] == spk.global_name]
-        pcm, source_levels[spk.global_name] = level_track(
-            headset_slice(manifest, meeting, spk.channel, start, end, record), intervals)
+        pcm, source_levels[spk.global_name] = level_track(pcms[spk.global_name], intervals)
         write_wav(track, pcm)
         plain.append(track)
         dev = tmp / f"{spk.global_name}.{manifest['devices'][spk.global_name]}.wav"
@@ -204,7 +227,7 @@ def build_clip(manifest, clip, zf: zipfile.ZipFile, out: Path, record: bool) -> 
     mix(device, clip_dir / "call.wav")
     mix(uneven, clip_dir / "uneven.wav")
     shutil.rmtree(tmp)
-    print(f"{clip['id']}: {meeting} {start}-{end} s, {len(speakers)} speakers → {clip_dir}")
+    print(f"{clip['id']}: {meeting} {start}-{end:.0f} s, {len(speakers)} speakers → {clip_dir}")
 
 
 def chromium_capture(clip_dir: Path) -> None:
@@ -227,6 +250,8 @@ def main() -> None:
                         help="write missing sha256 values into the manifest instead of failing")
     parser.add_argument("--chromium", action="store_true",
                         help="also record call.wav through Chromium's microphone path (needs npm ci)")
+    parser.add_argument("--long", action="store_true",
+                        help="build the long set (10-minute windows and whole meetings) instead")
     args = parser.parse_args()
     if shutil.which("ffmpeg") is None:
         sys.exit("ffmpeg not found on PATH")
@@ -244,11 +269,15 @@ def main() -> None:
     elif manifest["annotations_sha256"] != digest:
         sys.exit(f"annotations sha256 {digest} does not match the manifest; delete {zip_path} and retry")
 
+    clips = manifest["long"]["clips"] if args.long else manifest["clips"]
     with zipfile.ZipFile(zip_path) as zf:
-        for clip in manifest["clips"]:
+        for clip in clips:
+            if args.long and all((out / clip["id"] / f).exists() for f in ("ref.json", "clean.wav", "call.wav")):
+                print(f"{clip['id']}: already built")
+                continue
             build_clip(manifest, clip, zf, out, args.record_hashes)
     if args.chromium:
-        for clip in manifest["clips"]:
+        for clip in clips:
             chromium_capture(out / clip["id"])
 
     if args.record_hashes:

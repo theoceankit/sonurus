@@ -9,7 +9,7 @@ The unit tests never load a model. The quality tests do: they run the real pipel
 - what each way the audio reaches the models does to the transcript (codec, Chromium's microphone processing, loudness levelling, the VAD threshold);
 - whether named speakers are recognised in the next recordings of the same people.
 
-They run only on request, on a machine with the models; CI and a plain `pytest tests/` skip them.
+They run only on request, on a machine with the models; CI and a plain `pytest tests/` skip them. There are two sets: the fast one (3-minute clips, about 10 minutes, the regression check for audio processing) and the [long set](#long-set) (10-minute windows, whole meetings and other people, for the speaker recognition threshold).
 
 ## Test set
 
@@ -47,7 +47,7 @@ SONORUS_QUALITY=1 .venv/bin/python -m pytest tests/quality -v -s
 | `SONORUS_MODELS_DIR` | `~/.config/sonorus-dev/.models` | Models of the dev app; must hold `large-v3`, the diarization and the embedding model |
 | `SONORUS_EVAL_CACHE` | `~/.cache/sonorus-eval` | Where the set and the reports are written |
 
-The tests also skip when the ML libraries are the CI stubs or the set is not built. Speaker memory and transcripts go to a temporary database; the models are resolved from the local cache in offline mode (as in the pipeline child), so nothing is downloaded except the English alignment model on the first run.
+`SONORUS_QUALITY_LONG=1` runs the [long set](#long-set) instead. The tests also skip when the ML libraries are the CI stubs or the set is not built. Speaker memory and transcripts go to a temporary database; the models are resolved from the local cache in offline mode (as in the pipeline child), so nothing is downloaded except the English alignment model on the first run.
 
 ## What is measured
 
@@ -67,8 +67,57 @@ Metrics (`tests/quality/metrics.py`, unit-tested in `tests/test_quality_metrics.
 | Recognised | In the second and third clip: transcript speakers matched by the memory to the right named speaker / all named speakers present |
 | Similarity (own / other) | Cosine similarity between a speaker's mean segment embedding in a later clip and their own profile from the first clip, and the highest one to another person's profile — `resolve()` compares this kind of value with `SPEAKER_SIMILARITY_THRESHOLD` |
 
-A variant with a **base** is processing applied to that base (for example `chromium-default` against `chromium-raw`); its test fails if it is worse than the base by more than 2 points of WER, 5 points of speaker words or 0.03 of own similarity. The recognised count is reported but not checked: while similarities sit near the threshold it moves by two between nearly equal inputs. Variants without a base (`clean`, `call`, `uneven`) are listening conditions and only report. Recognition does not depend on the run order: every variant starts from an empty memory.
+A variant with a **base** is processing applied to that base (for example `chromium-default` against `chromium-raw`); its test fails if it is worse than the base by more than 2 points of WER, 5 points of speaker words or 0.03 of own similarity. The recognised count is reported but not checked: while similarities sit near the threshold it moves by two between nearly equal inputs. Variants without a base (`clean`, `call`, `uneven`) are listening conditions and only report. Recognition does not depend on the run order: every variant starts from an empty memory. When a later clip's speaker is matched to another named person, it counts as wrong.
+
+## Long set
+
+The fast set's clips hold 20–60 s of each person's speech; real calls run 30–60 minutes and a user's memory holds more than four people. The long set measures how recognition depends on both. It runs only clean and call (the processing variants are compared by the fast set):
+
+| Series | Clips, in order (named ones in bold) | Question |
+|---|---|---|
+| 3 min | **es2002b**, es2002c, es2002d | the fast set's clips, as the baseline |
+| 10 min | **es2002b-10m**, es2002c-10m, es2002d-10m | 10-minute windows around the 3-minute clips |
+| whole | **es2002b-full**, es2002c-full, es2002d-full | the whole meetings, 36–40 minutes each |
+| 10 min, named in two | **es2002a-10m**, **es2002b-10m**, es2002c-10m, es2002d-10m | a profile built from two recordings; in the second named clip the speakers are assigned to the existing speaker of their name |
+| three groups | **es2002b-10m**, **es2004b-10m**, **is1009b-10m**, then c and d of each | ES2002, ES2004 (two women, two men) and IS1009 (four women, another room) in one memory: false matches between people who never met |
+
+A false match counts in every clip, also in a named one, where the people of earlier groups are already in memory; the test of "three groups" fails on any. The other series only report.
+
+```bash
+# Once: about 1 GB to download (whole meetings take the full headset files, ~70 MB each), about 3 GB on disk
+.venv/bin/python scripts/eval/build_ami_set.py --long
+
+# About 30 minutes on an 8 GB GPU
+SONORUS_QUALITY_LONG=1 .venv/bin/python -m pytest tests/quality/test_length.py -v -s
+```
+
+Long clips sit next to the fast ones in `$SONORUS_EVAL_CACHE/ami` (`es2002b-10m/`, `es2002b-full/`, …), are listed under `long` in the manifest and are skipped by a rebuild once built.
+
+### Recomputing thresholds
+
+Every run also saves the voices of every clip as `<date-time>.npz` next to the report: the diarization turns with their embeddings and who they really are, and which turn each transcript segment carries. `scripts/eval/threshold_sweep.py` replays the runs of a report from them — the resolver, the queue's commit with the guard, naming — for other thresholds and ways of averaging the embeddings, without the models:
+
+```bash
+.venv/bin/python scripts/eval/threshold_sweep.py ~/.cache/sonorus-eval/reports/<date-time>.json
+```
+
+It prints recognised / wrong for each threshold and method over all runs, and per run the own and best other similarity at the app's threshold. Diarization and embeddings stay those of the run, so the replay matches the run at the app's threshold and method.
+
+### Speaker recognition threshold
+
+`SPEAKER_SIMILARITY_THRESHOLD` (`0.6`) was chosen with the threshold sweep over the fast and the long set (WeSpeaker embeddings, November 2026):
+
+| Threshold | Recognised | Wrong |
+|---|---|---|
+| 0.75 | 122 / 178 | 0 |
+| 0.70 | 163 / 178 | 0 |
+| 0.65 | 174 / 178 | 0 |
+| **0.60** | **175 / 178** | **0** |
+| 0.55 | 178 / 178 | 0 |
+| 0.40 | 178 / 178 | 1 |
+
+The same person in another recording scored 0.56–0.95 (5 % below 0.69); the length of the recordings matters most: on whole meetings the lowest was 0.78, on 3-minute clips 0.56. Other people scored at most 0.49, with three groups of four in one memory (IS1009 is four women). 0.6 keeps about 0.1 between the threshold and the highest other person, because real calls differ more than one meeting room; most of the people it misses are on 3-minute call clips. Weighting a recording's voice by the duration of its turns raises the own scores of short recordings (0.75: 151 instead of 122) but changes little at 0.6, so the plain mean stays.
 
 ## Report
 
-At the end, pytest prints a Markdown report and saves it as `$SONORUS_EVAL_CACHE/reports/<date-time>.md`, with the raw results next to it as `<date-time>.json` (which also holds each person's own and best other similarity per clip, under `scores`, for choosing thresholds). It holds the models, device and library versions of the run, a summary per variant, the words recognised per speaker, every clip (WER split into substitutions / deletions / insertions, speakers found, detected language, time), and the text of each missed utterance with its level. Numbers depend on the versions of the models and libraries, so variants are compared within one run, never with numbers from another one. Reports are not kept in the repository.
+At the end, pytest prints a Markdown report and saves it as `$SONORUS_EVAL_CACHE/reports/<date-time>.md`, with the raw results next to it as `<date-time>.json` (which also holds each person's own and best other similarity per clip, under `scores`, for choosing thresholds) and the voices as `<date-time>.npz` (see [Recomputing thresholds](#recomputing-thresholds)). It holds the models, device and library versions of the run, a summary per variant, the words recognised per speaker, every clip (WER split into substitutions / deletions / insertions, speakers found, detected language, time), and the text of each missed utterance with its level. Numbers depend on the versions of the models and libraries, so variants are compared within one run, never with numbers from another one. Reports are not kept in the repository.

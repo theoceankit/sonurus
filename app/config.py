@@ -54,8 +54,12 @@ EMBEDDING_MODEL_ID = "wespeaker-resnet34-lm"
 EMBEDDING_SAMPLE_RATE = 16000
 EMBEDDING_MIN_DURATION = 1.0
 
-# SpeakerMemoryService
-SPEAKER_SIMILARITY_THRESHOLD = 0.75
+# SpeakerMemoryService. Cosine similarity at which a voice is matched to a
+# profile; also the guard that keeps a far recording out of a profile
+# (CommitService). Chosen on the quality tests (docs/docs/testing/quality.md):
+# the same person in another recording scores 0.56-0.95 (median 0.85), other
+# people at most 0.49, also across three groups of four in one memory.
+SPEAKER_SIMILARITY_THRESHOLD = 0.6
 # Lower than the one above: voices that reach that one are recognized by
 # themselves and never come up for review.
 SPEAKER_SUGGESTION_THRESHOLD = 0.5

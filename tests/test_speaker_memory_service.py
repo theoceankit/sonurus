@@ -160,6 +160,31 @@ def test_two_known_speakers_matched_exclusively(tmp_path):
     assert result["SPEAKER_00"] != result["SPEAKER_01"]
 
 
+def _at_similarity(cos: float) -> np.ndarray:
+    """A voice with the given cosine similarity to [1, 0, 0]."""
+    return np.array([cos, np.sqrt(1 - cos ** 2), 0.0])
+
+
+def test_default_threshold_recognises_the_same_person_in_another_recording(tmp_path):
+    """With WeSpeaker, the same person in another recording scores 0.6-0.8 on
+    3-minute clips (quality tests); 0.65 must still be recognised."""
+    memory = make_memory(tmp_path, known={"person_1": [1.0, 0.0, 0.0]})
+    assert memory.resolve({"SPEAKER_00": _at_similarity(0.65)})["SPEAKER_00"] == "person_1"
+
+
+def test_default_threshold_keeps_other_people_apart(tmp_path):
+    """Other people score up to ~0.5 against a profile (quality tests, three
+    groups of AMI in one memory); 0.55 must not be matched."""
+    memory = make_memory(tmp_path, known={"person_1": [1.0, 0.0, 0.0]})
+    assert _is_valid_uuid(memory.resolve({"SPEAKER_00": _at_similarity(0.55)})["SPEAKER_00"])
+
+
+def test_suggestion_threshold_stays_below_the_matching_threshold():
+    """A candidate marked as suggested is one the memory did not recognise by itself."""
+    from app.config import SPEAKER_SIMILARITY_THRESHOLD, SPEAKER_SUGGESTION_THRESHOLD
+    assert SPEAKER_SUGGESTION_THRESHOLD <= SPEAKER_SIMILARITY_THRESHOLD - 0.1
+
+
 # ---------------------------------------------------------------------------
 # get_name() / set_name()
 # ---------------------------------------------------------------------------

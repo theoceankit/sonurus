@@ -1,10 +1,11 @@
 """Runs the app's pipeline on the AMI set and scores it (tests/quality/).
 
 One variant = one way the audio reaches the models (a source file of the set,
-optionally levelled or with another VAD threshold). Its three clips are run
-in order on one fresh speaker memory, as a user would: the first clip's
-speakers are named after the reference (the editor's "assign to a new
-speaker by name"), the next clips show whether they are recognised.
+optionally levelled or with another VAD threshold). Its clips are run in order
+on one fresh speaker memory, as a user would: the speakers of the named clips
+(by default the first one) are named after the reference (the editor's
+"assign to a new speaker by name", or to the speaker of that name once it
+exists), the other clips show whether they are recognised.
 """
 import json
 import os
@@ -122,98 +123,157 @@ def _speaker_embeddings(transcript, hyp_to_ref) -> dict[str, np.ndarray]:
     return out
 
 
-def evaluate(pipeline: Pipeline, variant: Variant, work: Path) -> dict:
-    """Run the variant's clips on a fresh memory; per-clip scores and totals."""
-    from app.api.routers.transcripts import assign_speaker
-    from app.api.schemas import SpeakerAssignmentRequest
-    from app.services.commit_service import CommitService
+class _Recorder:
+    """Keeps what EmbeddingService.extract_all returned for the last run: the
+    voices the memory was matched with, saved for recomputing thresholds."""
+
+    def __init__(self, embedding):
+        self.segments = []
+        self._extract_all = embedding.extract_all
+        embedding.extract_all = self
+
+    def __call__(self, audio, diarization):
+        aggregated, self.segments = self._extract_all(audio, diarization)
+        return aggregated, self.segments
+
+
+def voices(diarization_segments, transcript, raw_to_ref) -> dict:
+    """Arrays for the .npz next to the report: every diarization turn with an
+    embedding (raw speaker, who it really is, times, vector) and, for every
+    transcript segment, the turn whose embedding it carries (-1: none) — the
+    memory's profiles are built from those."""
+    index = {id(d["embedding"]): k for k, d in enumerate(diarization_segments)}
+    embeddings = (np.array([d["embedding"] for d in diarization_segments], dtype=np.float32)
+                  if diarization_segments else np.zeros((0, 0), dtype=np.float32))
+    return {
+        "turn_speaker": np.array([d["speaker"] for d in diarization_segments], dtype=str),
+        "turn_ref": np.array([raw_to_ref.get(d["speaker"]) or "" for d in diarization_segments], dtype=str),
+        "turn_start": np.array([d["start"] for d in diarization_segments], dtype=float),
+        "turn_end": np.array([d["end"] for d in diarization_segments], dtype=float),
+        "turn_embedding": embeddings,
+        "segment_turn": np.array([index.get(id(s.embedding), -1) if s.embedding is not None else -1
+                                  for s in transcript.segments], dtype=int),
+    }
+
+
+def evaluate(pipeline: Pipeline, variant: Variant, work: Path,
+             clips: tuple[str, ...] = CLIPS, named: frozenset[str] | None = None) -> dict:
+    """Run the variant's clips on a fresh memory; per-clip scores and totals.
+
+    named: the clips whose speakers are named (default: the first one); the
+    others are recognised. "wrong" counts false matches in every clip, also
+    in a named one, where people of an earlier clip are already in memory.
+    """
     from app.services.speaker_memory_service import SpeakerMemoryService
     from app.services.transcript_storage_service import TranscriptStorageService
 
+    named_clips = frozenset(named if named is not None else clips[:1])
     work.mkdir(parents=True, exist_ok=True)
     db = str(work / f"{variant.name}.db")
     memory, storage = SpeakerMemoryService(db_path=db), TranscriptStorageService(db_path=db)
     named: dict[str, str] = {}  # reference speaker → speaker id created by naming
-    clips = []
+    recorder = _Recorder(pipeline.embedding)
+    rows = []
+    try:
+        for clip in clips:
+            rows.append(_run_clip(pipeline, variant, work, clip, clip in named_clips,
+                                  memory, storage, named, recorder))
+    finally:
+        del pipeline.embedding.extract_all  # back to the class's method
+    return _totals(variant, rows)
 
-    for k, clip in enumerate(CLIPS):
-        ref_json = json.loads((set_dir() / clip / "ref.json").read_text())
-        audio_path = prepare(variant, clip, work)
-        audio = load_audio(audio_path)
-        lag = 0.0
-        if audio_path.suffix == ".webm":
-            lag = metrics.estimate_lag(load_audio(set_dir() / clip / "call.wav"), audio, 16000)
 
-        started = time.monotonic()
-        with pipeline.vad_onset(variant.vad_onset):
-            transcript = pipeline.run(audio_path, memory)
-        seconds = time.monotonic() - started
+def _run_clip(pipeline, variant, work, clip, naming, memory, storage, named, recorder) -> dict:
+    from app.api.routers.transcripts import assign_speaker
+    from app.api.schemas import SpeakerAssignmentRequest
+    from app.services.commit_service import CommitService
 
-        ref = metrics.ref_words(ref_json["words"])
-        hyp = metrics.shift_words(metrics.segment_words(
-            [(effective_speaker(s), s.start, s.end, s.text) for s in transcript.segments]), -lag)
-        w = metrics.wer([x.text for x in ref], [x.text for x in hyp])
-        hyp_to_ref = metrics.map_speakers(metrics.turns(ref), metrics.turns(hyp))
-        # Utterances of 1–2 words are mostly backchannels ("yeah", "okay") over
-        # someone else's speech, which Whisper tends to leave out; they are
-        # counted apart so that lost sentences stand out.
-        utts = metrics.utterances(ref)
-        missed_all = metrics.missed_utterances(ref, hyp, utts)
-        long_utts = [u for u in utts if len(u.words) >= LONG_UTTERANCE]
-        missed = [u for u in missed_all if len(u.words) >= LONG_UTTERANCE]
+    ref_json = json.loads((set_dir() / clip / "ref.json").read_text())
+    audio_path = prepare(variant, clip, work)
+    audio = load_audio(audio_path)
+    lag = 0.0
+    if audio_path.suffix == ".webm":
+        lag = metrics.estimate_lag(load_audio(set_dir() / clip / "call.wav"), audio, 16000)
 
-        def level(u):
-            a, b = int((u.start + lag) * 16000), int((u.end + lag) * 16000)
-            return metrics.rms_dbfs(audio[max(0, a):max(0, b)])
+    started = time.monotonic()
+    with pipeline.vad_onset(variant.vad_onset):
+        transcript = pipeline.run(audio_path, memory)
+    seconds = time.monotonic() - started
 
-        row = {
-            "variant": variant.name, "clip": clip, "language": transcript.language,
-            "wer": w.wer, "errors": w.errors, "ref_words": w.ref_words,
-            "sub": w.substitutions, "del": w.deletions, "ins": w.insertions,
-            "ref_speakers": len(ref_json["speakers"]),
-            "hyp_speakers": len({s for s in hyp_to_ref}),
-            "speaker_acc": metrics.speaker_accuracy(ref, hyp, hyp_to_ref),
-            "recall_by_speaker": metrics.speaker_recall(ref, hyp),
-            "utterances": len(long_utts), "missed": len(missed),
-            "short": len(utts) - len(long_utts), "missed_short": len(missed_all) - len(missed),
-            "missed_level": [round(level(u), 1) for u in missed],
-            "found_level_median": float(np.median([level(u) for u in long_utts if u not in missed] or [np.nan])),
-            "missed_text": [" ".join(x.text for x in u.words) for u in missed],
-            "lag": lag, "seconds": seconds,
-        }
+    ref = metrics.ref_words(ref_json["words"])
+    hyp = metrics.shift_words(metrics.segment_words(
+        [(effective_speaker(s), s.start, s.end, s.text) for s in transcript.segments]), -lag)
+    w = metrics.wer([x.text for x in ref], [x.text for x in hyp])
+    hyp_to_ref = metrics.map_speakers(metrics.turns(ref), metrics.turns(hyp))
+    # Utterances of 1–2 words are mostly backchannels ("yeah", "okay") over
+    # someone else's speech, which Whisper tends to leave out; they are
+    # counted apart so that lost sentences stand out.
+    utts = metrics.utterances(ref)
+    missed_all = metrics.missed_utterances(ref, hyp, utts)
+    long_utts = [u for u in utts if len(u.words) >= LONG_UTTERANCE]
+    missed = [u for u in missed_all if len(u.words) >= LONG_UTTERANCE]
 
-        storage.save(transcript)
-        if k == 0:
-            # The editor's "assign to a new speaker by name", for every diarised speaker.
-            for hyp_id, ref_name in hyp_to_ref.items():
-                if ref_name:
-                    starts = [s.start for s in transcript.segments if effective_speaker(s) == hyp_id]
-                    named[ref_name] = assign_speaker(transcript.db_id, SpeakerAssignmentRequest(
-                        segment_starts=starts, speaker_name=ref_name), storage, memory).speaker_id
-        else:
-            hyp_to_known = {h: memory.get_name(h) for h in hyp_to_ref}
-            rec = metrics.recognition(hyp_to_ref, hyp_to_known)
-            # Similarity of each person's voice here to their own profile and,
-            # for comparison, the highest one to someone else's profile.
-            profiles = {n: memory.known_speakers[i] for n, i in named.items() if i in memory.known_speakers}
-            own, other, scores = [], [], {}
-            for ref_name, emb in _speaker_embeddings(transcript, hyp_to_ref).items():
-                if ref_name in profiles:
-                    own.append(metrics.cosine(emb, profiles[ref_name]))
-                    other.append(max((metrics.cosine(emb, p) for n, p in profiles.items() if n != ref_name),
-                                     default=float("nan")))
-                    scores[ref_name] = {"own": own[-1], "other": other[-1]}
-            # scores: per person, for choosing thresholds from the JSON later.
-            row.update(recognised=rec.correct, wrong=rec.wrong, new=rec.new,
-                       similarity=float(np.mean(own)) if own else float("nan"),
-                       other_similarity=float(np.nanmean(other)) if other else float("nan"),
-                       scores=scores)
-            # as the queue does after every job
-            CommitService(memory, storage).commit_recognized_speakers(transcript)
-        clips.append(row)
+    def level(u):
+        a, b = int((u.start + lag) * 16000), int((u.end + lag) * 16000)
+        return metrics.rms_dbfs(audio[max(0, a):max(0, b)])
 
+    row = {
+        "variant": variant.name, "clip": clip, "language": transcript.language,
+        "wer": w.wer, "errors": w.errors, "ref_words": w.ref_words,
+        "sub": w.substitutions, "del": w.deletions, "ins": w.insertions,
+        "ref_speakers": len(ref_json["speakers"]),
+        "hyp_speakers": len({s for s in hyp_to_ref}),
+        "speaker_acc": metrics.speaker_accuracy(ref, hyp, hyp_to_ref),
+        "recall_by_speaker": metrics.speaker_recall(ref, hyp),
+        "utterances": len(long_utts), "missed": len(missed),
+        "short": len(utts) - len(long_utts), "missed_short": len(missed_all) - len(missed),
+        "missed_level": [round(level(u), 1) for u in missed],
+        "found_level_median": float(np.median([level(u) for u in long_utts if u not in missed] or [np.nan])),
+        "missed_text": [" ".join(x.text for x in u.words) for u in missed],
+        "lag": lag, "seconds": seconds,
+    }
+
+    storage.save(transcript)
+    raw_to_ref = metrics.map_speakers(metrics.turns(ref), metrics.turns(metrics.segment_words(
+        [(s.speaker_raw, s.start, s.end, s.text) for s in transcript.segments])))
+    row["_voices"] = voices(recorder.segments, transcript, raw_to_ref)
+    row["named_here"] = naming
+    if named:
+        hyp_to_known = {h: memory.get_name(h) for h in hyp_to_ref}
+        rec = metrics.recognition(hyp_to_ref, hyp_to_known)
+        # Similarity of each person's voice here to their own profile and,
+        # for comparison, the highest one to someone else's profile.
+        profiles = {n: memory.known_speakers[i] for n, i in named.items() if i in memory.known_speakers}
+        own, other, scores = [], [], {}
+        for ref_name, emb in _speaker_embeddings(transcript, hyp_to_ref).items():
+            if ref_name in profiles:
+                own.append(metrics.cosine(emb, profiles[ref_name]))
+                other.append(max((metrics.cosine(emb, p) for n, p in profiles.items() if n != ref_name),
+                                 default=float("nan")))
+                scores[ref_name] = {"own": own[-1], "other": other[-1]}
+        # scores: per person, for choosing thresholds from the JSON later.
+        row.update(recognised=rec.correct, wrong=rec.wrong, new=rec.new,
+                   similarity=float(np.mean(own)) if own else float("nan"),
+                   other_similarity=float(np.nanmean(other)) if other else float("nan"),
+                   scores=scores)
+        # as the queue does after every job
+        CommitService(memory, storage).commit_recognized_speakers(transcript)
+    if naming:
+        # The editor's "assign to a new speaker by name" for every diarised
+        # speaker, or to the speaker of that name once one exists.
+        for hyp_id, ref_name in hyp_to_ref.items():
+            if ref_name:
+                starts = [s.start for s in transcript.segments if effective_speaker(s) == hyp_id]
+                request = (SpeakerAssignmentRequest(segment_starts=starts, speaker_id=named[ref_name])
+                           if ref_name in named else
+                           SpeakerAssignmentRequest(segment_starts=starts, speaker_name=ref_name))
+                named[ref_name] = assign_speaker(transcript.db_id, request, storage, memory).speaker_id
+    return row
+
+
+def _totals(variant: Variant, clips: list[dict]) -> dict:
     total_ref = sum(c["ref_words"] for c in clips)
-    later = clips[1:]
+    later = [c for c in clips if not c["named_here"]]
     return {
         "variant": variant.name,
         "clips": clips,
@@ -225,8 +285,11 @@ def evaluate(pipeline: Pipeline, variant: Variant, work: Path) -> dict:
         "short": sum(c["short"] for c in clips),
         "recognised": sum(c["recognised"] for c in later),
         "named_total": sum(c["recognised"] + c["wrong"] + c["new"] for c in later),
+        "wrong": sum(c.get("wrong", 0) for c in clips),
         "similarity": float(np.nanmean([c["similarity"] for c in later])),
         "other_similarity": float(np.nanmean([c["other_similarity"] for c in later])),
+        "own_min": float(np.nanmin([s["own"] for c in later for s in c["scores"].values()] or [np.nan])),
+        "other_max": float(np.nanmax([s["other"] for c in later for s in c["scores"].values()] or [np.nan])),
         "recall_by_speaker": {
             spk: float(np.mean([c["recall_by_speaker"][spk] for c in clips if spk in c["recall_by_speaker"]]))
             for spk in sorted({s for c in clips for s in c["recall_by_speaker"]})
