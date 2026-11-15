@@ -21,6 +21,7 @@ const at = (currentTime: number, paused: boolean): SegmentTiming => ({
 })
 
 const TEXT = 'Right. The queue work landed, and so far nobody has reported a crash.'
+const FULL_LINES = 'That matches what I saw in the queue, although the second run was a lot faster than the first one, and I am not sure why yet.'
 
 const meta: Meta<typeof Paragraph> = {
   component: Paragraph,
@@ -57,6 +58,15 @@ export const Matrix: Story = {
 
 export const Default: Story = {}
 export const WithActions: Story = { args: { showActions: true } }
+// The bar stands on the edge between two paragraphs and covers only the ends of their lines.
+export const ActionsBetweenParagraphs: Story = {
+  render: args => (
+    <>
+      <Paragraph {...args} text={FULL_LINES} />
+      <Paragraph {...args} text={FULL_LINES} showActions />
+    </>
+  ),
+}
 export const Playing: Story = { args: { playing: true } }
 export const PlayingUnknown: Story = { args: { playing: true, color: 6 } }
 export const BarRunning: Story = { args: { playing: true, timing: at(0, false) } }

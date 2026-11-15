@@ -64,12 +64,13 @@
   background: var(--color-selection);
 }
 
-/* Centred on the first line: the bar is a little taller than a line, which is all
-   a one-line paragraph has. */
+/* Centred on the top edge, between this paragraph and the one above it, so it covers
+   only the ends of two lines. */
 .actions {
   position: absolute;
-  top: calc(var(--space-half) * -1);
+  top: 0;
   right: var(--space-1);
+  transform: translateY(-50%);
   animation: actionsIn var(--duration-fast) var(--ease-enter);
 }
 

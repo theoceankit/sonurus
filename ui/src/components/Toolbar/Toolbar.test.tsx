@@ -4,6 +4,7 @@ import { expect, test, vi } from 'vitest'
 import { Button } from '../Button/Button'
 import { IconButton } from '../IconButton/IconButton'
 import { Toolbar, ToolbarDivider, ToolbarItem } from './Toolbar'
+import css from './Toolbar.module.css?raw'
 
 const bar = (onPlay = () => {}) => render(
   <>
@@ -49,4 +50,13 @@ test('the buttons keep their own handlers', async () => {
   await userEvent.tab()
   await userEvent.keyboard('{Enter}')
   expect(onPlay).toHaveBeenCalledTimes(1)
+})
+
+// Radix sets outline: none on the bar inline, so an outline in the CSS never shows.
+test('its border is a shadow, as Radix turns the outline off', () => {
+  bar()
+  expect(screen.getByRole('toolbar').style.outline).toBe('none')
+  const rule = css.match(/\.toolbar \{([^}]*)\}/)![1]
+  expect(rule).not.toMatch(/outline/)
+  expect(rule).toMatch(/box-shadow: inset 0 0 0 var\(--border-width-default\) var\(--color-border-[a-z]+\)/)
 })
