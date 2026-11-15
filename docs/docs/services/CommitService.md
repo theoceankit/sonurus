@@ -77,7 +77,7 @@ Calls `memory.save()` only if at least one speaker was updated.
 
 Recomputes embedding for a single speaker from all their DB segments.
 
-Called from `POST /transcripts/{id}/speaker-assignments` for the speaker the segments go to, so an assignment does not re-count every speaker.
+Called from `POST /transcripts/{id}/speaker-assignments` for the speaker the segments go to, so an assignment does not re-count every speaker, and from `PATCH /speakers/{id}` with a `name`, so a voice no job recognized becomes recognizable once it is named in the Speakers window.
 
 ---
 

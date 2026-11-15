@@ -122,6 +122,9 @@ def update_speaker(
         if body.name is not None:
             memory.set_name(speaker_id, body.name)
             memory.save_names_only()
+            # A voice no job recognized has segments but no profile: naming it
+            # must make it recognizable, as naming it in the editor does.
+            CommitService(memory, storage).commit_speaker(speaker_id)
         if handle is not None:
             memory.set_handle(speaker_id, handle or None)
     except HANDLE_ERRORS as exc:

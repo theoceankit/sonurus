@@ -34,7 +34,7 @@ Permitted exceptions that do not write embeddings:
 
 **Why:** Centralising embedding writes to `CommitService` makes it possible to reason about when and why voice profiles change. Name management and cleanup are deliberately separated from embedding updates.
 
-**In code:** `app/services/commit_service.py` — `commit()`, `commit_speaker()`, `commit_recognized_speakers()` and `undo_assignment()` (through `commit_speaker()`) are the only paths that call `update_embedding()` + `save()`.
+**In code:** `app/services/commit_service.py` — `commit()`, `commit_speaker()`, `commit_recognized_speakers()` and `undo_assignment()` (through `commit_speaker()`) are the only paths that call `update_embedding()` + `save()`. `PATCH /speakers/{id}` with a `name` goes through `commit_speaker()` too, after `save_names_only()`.
 
 **Target state:** The principle stays. If multi-user support or streaming transcription is added, `CommitService` should become a write coordinator with a queue or transaction log — but it remains the single entry point for embedding writes.
 
