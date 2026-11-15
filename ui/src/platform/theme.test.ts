@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest'
+import base from '../styles/base.css?raw'
 import { createMockElectronAPI } from './electron-api-mock'
 import { followTheme, resetTheme, setThemeSource } from './theme'
 
@@ -85,4 +86,10 @@ test('without Electron Light and Dark win over the media query, and System gives
   expect(theme()).toBe('light')
   await setThemeSource('system')
   expect(theme()).toBe('dark')
+})
+
+test('until the root has a theme the page draws no background, so the window\'s own shows', () => {
+  // The window's background is in the theme already (electron/window-chrome.js); the
+  // light values the page has before followTheme() would flash for a frame or two.
+  expect(base).toMatch(/:root:not\(\[data-theme\]\) body \{\s*background: none;\s*\}/)
 })
