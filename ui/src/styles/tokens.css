@@ -404,7 +404,7 @@
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --color-accent-bg: var(--iris-dark-a24);
+  --color-accent-bg: var(--iris-dark-a16);
   --color-accent-border: var(--iris-dark-a34);
   --color-accent-fg: var(--iris-400);
   --color-accent-on-inverse: var(--iris-600);
