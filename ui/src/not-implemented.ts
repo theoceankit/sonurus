@@ -19,7 +19,6 @@ export const NOT_IMPLEMENTED = [
   'settings.app-language',
   'settings.export',
   'settings.search',
-  'settings.theme',
   'sidebar.pin',
   'speaker-card.merge',
   'speakers.new-speaker',

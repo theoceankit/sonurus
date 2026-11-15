@@ -21,7 +21,9 @@ What every component of the UI in `ui/` builds on: tokens, the theme mechanism, 
 
 ## Theme
 
-The `data-theme` attribute selects the semantic values. `ui/index.html` sets `data-theme="light"` on the root. Dark values exist, but the app has no way to turn them on yet and screens have not been checked in them; the Storybook toolbar switches themes.
+The `data-theme` attribute selects the semantic values: `light` or `dark`. A root without it has the light values. In the app `followTheme()` of `ui/src/platform/theme.ts` sets it on the root from `prefers-color-scheme` before the first render, and again whenever the media query changes. The media query follows `nativeTheme.themeSource`, which the main process sets from the Theme setting ([Settings](settings.md#appearance)), so System follows the OS as it changes and Light or Dark hold whatever the OS says. Without Electron, on fixtures in a browser, a choice of Light or Dark is kept in the page and wins over the media query. The Storybook toolbar switches themes for the stories.
+
+Colours change only in the theme blocks of `tokens.css`: a screen that looks wrong in one theme is fixed in that theme's semantic values, never in a component.
 
 The attribute works on any element, so a page can show both themes side by side. Shadows are defined per theme for the same reason: they refer to theme colours, and on `:root` alone they would resolve to the light values everywhere.
 

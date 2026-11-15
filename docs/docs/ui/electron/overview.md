@@ -117,12 +117,12 @@ electron/
     logo.png           — transparent S logo
 ui/
   index.html           — the page and its CSP
-  src/main.tsx         — entry: settings, saved scale, providers, App
+  src/main.tsx         — entry: theme, saved scale, providers, App
   src/App.tsx          — the window: Editor screen, toasts, queue and recording providers
   src/screens/         — Editor, Home, Queue, Settings, Speakers
   src/components/      — one folder per component, with its stories
   src/api/             — the API client, its generated types and fixtures
-  src/platform/        — the preload bridge, settings.json, window dimming
+  src/platform/        — the preload bridge, settings.json, window dimming, theme
   src/media/           — playback of the recording, clips and voice samples
   src/transcribe/      — models, default model, downloads, languages
   src/recording/       — live recording

@@ -5,7 +5,9 @@ import { SectionCard } from '../../components/SectionCard/SectionCard'
 import { Select } from '../../components/Select/Select'
 import { Slider } from '../../components/Slider/Slider'
 import { markNotImplemented } from '../../not-implemented'
+import type { ThemeSource } from '../../platform/electron-api'
 import { settingsStore, useSettings } from '../../platform/settings'
+import { setThemeSource } from '../../platform/theme'
 import { LANGUAGES } from '../../transcribe/languages'
 import styles from './Settings.module.css'
 
@@ -14,7 +16,7 @@ const SCALE_MARKS = [50, 100, 150, 200].map(value => ({ value, label: `${value}%
 
 const INTERFACE_LANGUAGES = LANGUAGES.filter(({ code }) => code !== 'auto').map(({ code, label }) => ({ value: code, label }))
 
-const THEMES = [
+const THEMES: { value: ThemeSource, label: string }[] = [
   { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
@@ -49,18 +51,29 @@ function InterfaceScale({ saved }: { saved: number }) {
   )
 }
 
-// How the app looks. The language and the theme are not there yet: the interface
-// has one language, and the theme follows the system.
+// The window takes the theme at once; the choice is saved for the next start.
+function Theme({ saved }: { saved: ThemeSource }) {
+  const change = (value: string) => {
+    const source = value as ThemeSource
+    void setThemeSource(source)
+    void settingsStore().patch({ theme: source })
+  }
+  return (
+    <FieldRow label="Theme" hint="Light, dark, or as the system is set.">
+      <div className={styles.stretch}>
+        <Select aria-label="Theme" value={saved} options={THEMES} onValueChange={change} />
+      </div>
+    </FieldRow>
+  )
+}
+
+// How the app looks. The language is not there yet: the interface has one language.
 export function AppearanceSection() {
   const settings = useSettings()
   if (!settings) return null
   return (
     <SectionCard title="Interface">
-      <FieldRow label="Theme" hint="Light, dark, or as the system is set.">
-        <div className={styles.stretch} {...markNotImplemented('settings.theme')}>
-          <Select aria-label="Theme" value="system" options={THEMES} onValueChange={() => {}} />
-        </div>
-      </FieldRow>
+      <Theme saved={THEMES.some(({ value }) => value === settings.theme) ? settings.theme : 'system'} />
       <FieldRow label="App language" hint="Language used across menus and dialogs.">
         <div className={styles.stretch} {...markNotImplemented('settings.app-language')}>
           <Select aria-label="App language" value="en" options={INTERFACE_LANGUAGES} onValueChange={() => {}} />
