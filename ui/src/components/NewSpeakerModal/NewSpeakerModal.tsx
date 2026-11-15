@@ -1,12 +1,12 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { ASSIGNABLE_SPEAKER_COLORS, speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
-import { Avatar } from '../Avatar/Avatar'
 import { ColorPicker } from '../ColorPicker/ColorPicker'
 import { Modal } from '../Modal/Modal'
 import { ModalBody } from '../ModalBody/ModalBody'
 import { ModalFooter } from '../ModalFooter/ModalFooter'
 import { ModalHeader } from '../ModalHeader/ModalHeader'
-import { PhotoPicker } from '../PhotoPicker/PhotoPicker'
+import { AvatarButton } from '../AvatarButton/AvatarButton'
+import { PhotoModal } from '../PhotoModal/PhotoModal'
 import { Stack } from '../Stack/Stack'
 import { TextField } from '../TextField/TextField'
 import styles from './NewSpeakerModal.module.css'
@@ -55,6 +55,7 @@ export function NewSpeakerModal({
   // Kept here until the speaker exists; the avatar shows it meanwhile.
   const [photo, setPhoto] = useState<Blob | null>(initialPhoto ?? null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [photoWindow, setPhotoWindow] = useState<{ open: boolean; key: number } | null>(null)
   useEffect(() => {
     if (!photo) return setPhotoUrl(null)
     const url = URL.createObjectURL(photo)
@@ -95,7 +96,12 @@ export function NewSpeakerModal({
     <Modal size="small" open={open} onExited={onExited} skipEnter={skipEnter} preview={preview} onOpenChange={next => { if (!next) onClose() }}>
       <ModalHeader title="New speaker" />
       <ModalBody className={styles.body}>
-        <Avatar name={trimmed} color={color} photo={photoUrl} size="large" />
+        <AvatarButton
+          speaker={{ name: trimmed, color, photo: photoUrl }}
+          label={photo ? 'Change photo' : 'Add photo'}
+          disabled={busy}
+          onClick={() => setPhotoWindow({ open: true, key: Date.now() })}
+        />
         <Stack gap={3} className={styles.fields}>
           <TextField
             data-modal-start
@@ -129,13 +135,23 @@ export function NewSpeakerModal({
             onKeyDown={enter}
           />
           <ColorPicker label="Colour" value={color} onValueChange={setColor} colors={ASSIGNABLE_SPEAKER_COLORS} />
-          <PhotoPicker label="Photo" hasPhoto={photo !== null} disabled={busy} onPick={setPhoto} onRemove={() => setPhoto(null)} />
         </Stack>
       </ModalBody>
       <ModalFooter
         cancel={{ children: 'Back', icon: 'arrow-left', onClick: onBack }}
         confirm={{ children: 'Create and assign', disabled: !trimmed || !!handleIssue, loading: busy, onClick: () => { void submit() } }}
       />
+      {photoWindow && (
+        <PhotoModal
+          key={photoWindow.key}
+          speaker={{ name: trimmed, color, photo: photoUrl }}
+          open={photoWindow.open}
+          onPick={setPhoto}
+          onRemove={() => setPhoto(null)}
+          onClose={() => setPhotoWindow({ ...photoWindow, open: false })}
+          onExited={() => setPhotoWindow(null)}
+        />
+      )}
     </Modal>
   )
 }

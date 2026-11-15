@@ -84,7 +84,7 @@ A column and a row. Spacing props accept only the steps of the scale: `'half'`, 
 
 ## Base controls
 
-`Button`, `IconButton`, `Avatar`, `AvatarStack`, `PhotoPicker`, `PhotoCropModal`, `Tab`, `Tabs`, `NavTab`, `Toggle`, `Slider`, `TextField`, `SearchField`, `MenuItem`, `Disclosure`, `ColorSwatch`, `ColorPicker`, `Kbd`, `Badge`, `SectionHeader` and `MetaItem`, in `ui/src/components/`, named after their Penpot components.
+`Button`, `IconButton`, `Avatar`, `AvatarStack`, `AvatarButton`, `PhotoModal`, `PhotoCrop`, `Tab`, `Tabs`, `NavTab`, `Toggle`, `Slider`, `TextField`, `SearchField`, `MenuItem`, `Disclosure`, `ColorSwatch`, `ColorPicker`, `Kbd`, `Badge`, `SectionHeader` and `MetaItem`, in `ui/src/components/`, named after their Penpot components.
 
 Penpot's Type is the `variant` prop, because `type` on a button is the HTML attribute. Pairs that do not exist on the boards, such as an inverse button at medium size, are type errors. `Tabs`, `ColorPicker` and `Disclosure` are built on Radix Primitives, which bring the arrow keys and the tab order; `Tab` works only inside `Tabs`, `ColorSwatch` only inside a radio group. `Button`, `IconButton` and `MenuItem` pass on `ref` and other attributes, so Radix can wrap them with `asChild`.
 
@@ -117,7 +117,7 @@ Only `Avatar` works out initials; a test in `Avatar.test.tsx` fails if anything 
 
 ### Speaker photos
 
-`PhotoPicker` is Upload photo (Change photo once there is one) and Remove photo, with a hidden file input for JPEG, PNG and WebP. A file of another type or over 20 MB is refused under the buttons (`photoProblem()`). A picture opens `PhotoCropModal`: the picture in a square of `--size-photo-crop`, the part outside the circle dimmed with `--color-scrim`, dragged with the pointer or moved with the arrow keys (`+` and `-` zoom), and a Zoom slider from 1 to 4. At zoom 1 the shorter side fills the square, and the picture always covers it (`crop.ts`). Save draws the square on a canvas as a 256 px JPEG and hands it over; a refusal stays in the window. Nothing is uploaded by these components: the screen that uses them does it. The window's CSP allows images from the local backend, `blob:` and `data:` only.
+A speaker's photo is changed in one window, opened by a click on their large avatar: `AvatarButton` is that avatar as a button, photo or initials, with a pencil over it on hover and keyboard focus. `PhotoModal` first shows the avatar as it is and the formats it takes (JPEG, PNG or WebP, up to 20 MB), with Remove photo at the left of the footer when there is one and Upload photo (Change photo) as its confirm, which opens the file chooser. A file of another type or over 20 MB is said in the window (`photoProblem()`). A picture turns the window into Crop photo (`PhotoCrop`): the picture in a square of `--size-photo-crop`, the part outside the circle dimmed with `--color-scrim`, dragged with the pointer or moved with the arrow keys (`+` and `-` zoom), and a Zoom slider from 1 to 4. At zoom 1 the shorter side fills the square, and the picture always covers it (`crop.ts`). Back returns to the photo; Save draws the square on a canvas as a 256 px JPEG and hands it over. Save and Remove photo close the window once done; a refusal stays in it. Nothing is uploaded by these components: the screen that uses them does it. The window's CSP allows images from the local backend, `blob:` and `data:` only.
 
 ### Escape in SearchField
 

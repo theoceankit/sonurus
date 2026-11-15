@@ -344,12 +344,11 @@ test('a speaker without a name has no handle until they get one', async () => {
   expect(handleField(dialog).readOnly).toBe(false)
 })
 
-test('a speaker without a name gets no photo until they get one', async () => {
+test('the avatar of a speaker without a name opens nothing: a photo comes with a name', async () => {
   const { dialog } = await setup()
   await userEvent.click(within(dialog).getByRole('button', { name: /^Unnamed/ }))
   await openCard(dialog, /Unnamed speaker/)
-  expect(within(dialog).getByText('Add a name to add a photo.')).toBeTruthy()
-  expect(within(dialog).queryByRole('button', { name: 'Upload photo' })).toBeNull()
+  expect(within(dialog).queryByRole('button', { name: 'Add photo' })).toBeNull()
 })
 
 // jsdom draws nothing: the picture's size and the canvas are given by hand.
@@ -358,6 +357,8 @@ async function uploadPhoto() {
   URL.revokeObjectURL = vi.fn()
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
   vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(done => done(new Blob(['photo'], { type: 'image/jpeg' })))
+  await screen.findByRole('dialog', { name: 'Photo' })
+  expect(screen.getByText('JPEG, PNG or WebP, up to 20 MB.')).toBeTruthy()
   fireEvent.change(screen.getByLabelText('Photo file'), { target: { files: [new File(['x'], 'me.jpg', { type: 'image/jpeg' })] } })
   const crop = await screen.findByRole('dialog', { name: 'Crop photo' })
   const picture = crop.querySelector('img')!
@@ -368,10 +369,10 @@ async function uploadPhoto() {
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Crop photo' })).toBeNull())
 }
 
-test('a photo is kept at once and shows on the card and in the list; Remove photo takes it away', async () => {
+test('a click on the avatar opens the photo: kept at once, it shows on the card and in the list; Remove photo takes it away', async () => {
   const { client, dialog } = await setup()
   await openCard(dialog, /Lena Kovacs/)
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Upload photo' }))
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Add photo' }))
   await uploadPhoto()
   await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Change photo' })).toBeTruthy())
   const lena = (await client.listSpeakers()).find(speaker => speaker.name === 'Lena Kovacs')!
@@ -380,8 +381,9 @@ test('a photo is kept at once and shows on the card and in the list; Remove phot
   // Nothing to Save: the photo is not an edit of the card.
   expect(saveButton(dialog).disabled).toBe(true)
 
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Remove photo' }))
-  await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Upload photo' })).toBeTruthy())
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Change photo' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Remove photo' }))
+  await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Add photo' })).toBeTruthy())
   expect((await client.listSpeakers()).find(speaker => speaker.name === 'Lena Kovacs')!.photo).toBeNull()
   await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))
   expect(within(dialog).getAllByRole('button', { name: /Lena Kovacs/ })[0].querySelector('img')).toBeNull()
@@ -390,7 +392,7 @@ test('a photo is kept at once and shows on the card and in the list; Remove phot
 test('a card goes: name and colour, what the speaker did, the sample, the recordings', async () => {
   const { dialog } = await setup()
   await openCard(dialog, /Lena Kovacs/)
-  const order = ['Colour', 'Photo', '11 recordings', 'Voice sample', 'Appears in'].map(text => within(dialog).getByText(text))
+  const order = ['Colour', '11 recordings', 'Voice sample', 'Appears in'].map(text => within(dialog).getByText(text))
   for (let i = 1; i < order.length; i++) {
     expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   }

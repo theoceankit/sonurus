@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
@@ -167,8 +167,9 @@ test('a photo can be taken away before creating', async () => {
   URL.createObjectURL = vi.fn(() => 'blob:photo')
   URL.revokeObjectURL = vi.fn()
   const { onCreate } = setup({ initialName: 'Zoe', initialColorIndex: 1, initialPhoto: new Blob(['x'], { type: 'image/jpeg' }) })
-  await userEvent.click(screen.getByRole('button', { name: 'Remove photo' }))
-  expect(screen.getByText('ZO')).toBeTruthy()
+  await userEvent.click(screen.getByRole('button', { name: 'Change photo' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Remove photo' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Add photo' }).textContent?.trim()).toBe('ZO'))
   await userEvent.click(create())
   expect(onCreate).toHaveBeenCalledWith('Zoe', 1)
 })

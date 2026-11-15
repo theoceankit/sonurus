@@ -1,0 +1,37 @@
+.avatarButton {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  padding: 0;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
+.avatarButton:disabled {
+  cursor: default;
+}
+
+/* Over the photo or the initials alike, so it reads on either. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--color-scrim);
+  color: var(--color-text-on-inverse);
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+
+.avatarButton:not(:disabled):hover .overlay,
+.avatarButton:focus-visible .overlay {
+  opacity: 1;
+}
+
+/* The pencil stands in for the letters; a photo stays under the dimming. */
+.avatarButton:not(:disabled):hover [data-initials],
+.avatarButton:focus-visible [data-initials] {
+  visibility: hidden;
+}

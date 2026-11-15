@@ -11,7 +11,8 @@ import { Inline } from '../../components/Inline/Inline'
 import { Menu, MenuAction } from '../../components/Menu/Menu'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { MetaItem } from '../../components/MetaItem/MetaItem'
-import { PhotoPicker } from '../../components/PhotoPicker/PhotoPicker'
+import { AvatarButton } from '../../components/AvatarButton/AvatarButton'
+import { PhotoModal } from '../../components/PhotoModal/PhotoModal'
 import { SectionHeader } from '../../components/SectionHeader/SectionHeader'
 import { Stack } from '../../components/Stack/Stack'
 import { TextField } from '../../components/TextField/TextField'
@@ -21,7 +22,7 @@ import { BAR_COUNT } from '../../components/Waveform/bars'
 import { SAMPLE_MAX_SECONDS, useSampleState, type SamplePlayback } from '../../media/sample-playback'
 import { formatDuration } from '../../media/timeline'
 import { markNotImplemented } from '../../not-implemented'
-import { ASSIGNABLE_SPEAKER_COLORS, speakerColor } from '../../styles/speaker-colors'
+import { ASSIGNABLE_SPEAKER_COLORS, speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 import { hasSpeakerNamed } from '../Editor/new-speaker'
 import { handleProblem, typedHandle } from './handles'
 import { formatLastSeen, speakerUsage, type SpeakerDraft } from './speakers'
@@ -210,16 +211,18 @@ function AppearsIn({ speaker, sample, onOpenRecording }: Pick<SpeakerCardProps, 
   )
 }
 
-// Kept at once, not with Save: the crop window's Save is the choice.
-function PhotoField({ speaker }: { speaker: Speaker }) {
+// Opened from the avatar; kept at once, apart from the card's Save.
+function PhotoDialog({ speaker, color, open, onClose, onExited }: { speaker: Speaker; color: SpeakerColor; open: boolean; onClose: () => void; onExited: () => void }) {
   const setPhoto = useSetSpeakerPhoto()
   const removePhoto = useRemoveSpeakerPhoto()
   return (
-    <PhotoPicker
-      hasPhoto={Boolean(speaker.photo)}
-      busy={setPhoto.isPending || removePhoto.isPending}
+    <PhotoModal
+      speaker={{ name: speaker.name!, color, photo: speaker.photo_url }}
+      open={open}
       onPick={async photo => { await setPhoto.mutateAsync({ speakerId: speaker.id, photo }) }}
-      onRemove={() => removePhoto.mutate(speaker.id, { onError: error => toast({ message: message(error), type: 'error' }) })}
+      onRemove={async () => { await removePhoto.mutateAsync(speaker.id) }}
+      onClose={onClose}
+      onExited={onExited}
     />
   )
 }
@@ -230,6 +233,8 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
   const usage = speakerUsage(speaker)
   const named = Boolean(speaker.name)
   const color = speakerColor(draft.colorIndex)
+  // The photo window: open, or closing until it has gone.
+  const [photo, setPhoto] = useState<{ open: boolean; key: number } | null>(null)
 
   // While it cannot be done, Delete says why instead of asking.
   const remove = () => {
@@ -248,7 +253,9 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
           </Menu>
         </Inline>
         <Inline gap={4} align="start">
-          {named ? <Avatar name={speaker.name!} color={color} photo={speaker.photo_url} size="large" /> : <Avatar kind="unknown" size="large" />}
+          {named
+            ? <AvatarButton speaker={{ name: speaker.name!, color, photo: speaker.photo_url }} label={speaker.photo ? 'Change photo' : 'Add photo'} onClick={() => setPhoto({ open: true, key: Date.now() })} />
+            : <Avatar kind="unknown" size="large" />}
           <Stack gap={3} className={styles.fields}>
             <NameField speaker={speaker} others={others} draft={draft} dirty={dirty} saving={saving} saveError={saveError} onDraftChange={onDraftChange} onSave={onSave} onRevert={onRevert} cancelEdit={cancelEdit} />
             <HandleField speaker={speaker} others={others} draft={draft} saving={saving} handleError={handleError} onDraftChange={onDraftChange} onSave={onSave} />
@@ -259,12 +266,6 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
           {named
             ? <ColorPicker aria-label="Colour" value={color} colors={ASSIGNABLE_SPEAKER_COLORS} disabled={saving} onValueChange={next => onDraftChange({ ...draft, colorIndex: next - 1 })} />
             : <p className={styles.hint}>Speakers without a name are grey. Add a name to choose a colour.</p>}
-        </Stack>
-        <Stack gap={1}>
-          <SectionHeader title="Photo" />
-          {named
-            ? <PhotoField speaker={speaker} />
-            : <p className={styles.hint}>Add a name to add a photo.</p>}
         </Stack>
         <Inline gap={4} wrap>
           <MetaItem icon="microphone">{usage.recordings}</MetaItem>
@@ -278,6 +279,9 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
         <AppearsIn speaker={speaker} sample={sample} onOpenRecording={onOpenRecording} />
       </Stack>
       <ScrollBar area={area} />
+      {photo && named && (
+        <PhotoDialog key={photo.key} speaker={speaker} color={color} open={photo.open} onClose={() => setPhoto({ ...photo, open: false })} onExited={() => setPhoto(null)} />
+      )}
     </>
   )
 }
