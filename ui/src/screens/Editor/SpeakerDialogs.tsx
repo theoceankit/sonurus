@@ -16,7 +16,8 @@ export interface SpeakerRequest {
   speakerId: string
   start: 'choose' | 'new'
   preselected?: string | null
-  onAssign: (target: SpeakerTarget) => Promise<void>
+  // A new speaker may come with a photo.
+  onAssign: (target: SpeakerTarget & { photo?: Blob }) => Promise<void>
 }
 
 interface SpeakerDialogsProps {
@@ -51,8 +52,8 @@ export function SpeakerDialogs({ request, open = true, onClose, onExited }: Spea
         suggestedHandle={suggestedHandle}
         onNameChange={setTypedName}
         checkHandle={handle => handleProblem(handle, speakers)}
-        onCreate={async (name, colorIndex, handle) => {
-          await onAssign(handle ? { name, colorIndex, handle } : { name, colorIndex })
+        onCreate={async (name, colorIndex, handle, photo) => {
+          await onAssign({ name, colorIndex, ...(handle ? { handle } : {}), ...(photo ? { photo } : {}) })
           onClose()
         }}
         onBack={() => {

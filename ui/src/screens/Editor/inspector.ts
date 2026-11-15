@@ -16,6 +16,7 @@ export interface SpeakerRowData {
   kind: 'named' | 'unknown' | 'unassigned'
   name: string
   color: SpeakerColor
+  photo?: string | null
   seconds: number
   time: string
 }
@@ -29,7 +30,7 @@ export function speakerRows(segments: readonly Segment[], speakers: readonly Spe
     if (id === UNASSIGNED) return { id, kind: 'unassigned', name: 'Unassigned', color: GRAY, seconds, time }
     const found = known.get(id)
     return found?.name
-      ? { id, kind: 'named', name: found.name, color: speakerColor(found.color_index), seconds, time }
+      ? { id, kind: 'named', name: found.name, color: speakerColor(found.color_index), photo: found.photo_url, seconds, time }
       : { id, kind: 'unknown', name: unknown.get(id)!, color: GRAY, seconds, time }
   })
   const rank = (row: SpeakerRowData) => (row.kind === 'unassigned' ? 1 : 0)

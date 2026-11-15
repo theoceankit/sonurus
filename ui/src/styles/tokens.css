@@ -256,6 +256,8 @@
   /* Speakers keep one height, so the list and a card take the same room. */
   --size-speakers-pane: 440px;
   --size-drop-zone: 168px;
+  /* The square a photo is cropped in. */
+  --size-photo-crop: 240px;
   --size-import-list: 184px;
   --size-settings-nav: 184px;
   /* Settings keep one height, so switching sections does not move the window. */

@@ -1,4 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import portrait from '../../api/fixtures/photos/portrait-1.jpg'
+import portrait2 from '../../api/fixtures/photos/portrait-2.jpg'
 import { StateMatrix } from '../../foundations/StateMatrix'
 import { AvatarStack, type StackSpeaker } from './AvatarStack'
 
@@ -36,3 +38,17 @@ export const Matrix: Story = {
 }
 
 export const Example: Story = {}
+
+// A photo stands in for the initials of whoever has one.
+export const WithPhotos: Story = {
+  args: {
+    speakers: [
+      { id: 'a', name: 'Anna Petrova', color: 5, photo: portrait, title: 'Anna Petrova' },
+      { id: 'b', name: 'Mark Ellis', color: 1, title: 'Mark Ellis' },
+      { id: 'c', name: 'Lena Kovacs', color: 4, photo: portrait2, title: 'Lena Kovacs' },
+      { id: 'd', kind: 'unknown', title: 'Unknown speaker 1' },
+    ],
+    max: 4,
+  },
+}
+export const WithPhotosXs: Story = { args: { ...WithPhotos.args, size: 'xs' } }

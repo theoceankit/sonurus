@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { describe, expect, test } from 'vitest'
 import { Avatar } from './Avatar'
 import { speakerInitials } from './initials'
@@ -58,6 +58,42 @@ describe('named speaker', () => {
     expect(el.style.background).toBe('var(--color-speaker-4-bg)')
     rerender(<Avatar name="   " color={4} />)
     expect(el.textContent).toBe('')
+  })
+})
+
+describe('photo', () => {
+  test('covers the initials', () => {
+    const el = avatar(<Avatar name="Alice Brown" color={3} photo="data:image/jpeg;base64,x" />)
+    const img = el.querySelector('img')!
+    expect(img.getAttribute('src')).toBe('data:image/jpeg;base64,x')
+    expect(img.getAttribute('alt')).toBe('')
+    expect(el.querySelector('[data-initials]')).toBeNull()
+    expect(el.hasAttribute('data-photo')).toBe(true)
+  })
+
+  test('one that does not load leaves the initials, and a new one is tried', () => {
+    const { container, rerender } = render(<Avatar name="Alice Brown" color={3} photo="a.jpg" />)
+    fireEvent.error(container.querySelector('img')!)
+    expect(container.textContent).toBe('AB')
+    expect(container.querySelector('img')).toBeNull()
+    rerender(<Avatar name="Alice Brown" color={3} photo="b.jpg" />)
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('b.jpg')
+  })
+
+  test('null or empty is no photo', () => {
+    expect(avatar(<Avatar name="Bob" color={1} photo={null} />).textContent).toBe('BO')
+    expect(avatar(<Avatar name="Bob" color={1} photo="" />).textContent).toBe('BO')
+  })
+
+  test('the photo fills the circle and is cut to it', () => {
+    expect(avatarCss).toMatch(/\.avatar \{[^}]*overflow: hidden/)
+    expect(avatarCss).toMatch(/\.photo \{[^}]*object-fit: cover/)
+  })
+
+  test('only a named speaker has one', () => {
+    // @ts-expect-error an unknown speaker has no photo
+    const wrong = () => <Avatar kind="unknown" photo="a.jpg" />
+    expect(wrong).toBeTypeOf('function')
   })
 })
 

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
@@ -344,10 +344,53 @@ test('a speaker without a name has no handle until they get one', async () => {
   expect(handleField(dialog).readOnly).toBe(false)
 })
 
+test('a speaker without a name gets no photo until they get one', async () => {
+  const { dialog } = await setup()
+  await userEvent.click(within(dialog).getByRole('button', { name: /^Unnamed/ }))
+  await openCard(dialog, /Unnamed speaker/)
+  expect(within(dialog).getByText('Add a name to add a photo.')).toBeTruthy()
+  expect(within(dialog).queryByRole('button', { name: 'Upload photo' })).toBeNull()
+})
+
+// jsdom draws nothing: the picture's size and the canvas are given by hand.
+async function uploadPhoto() {
+  URL.createObjectURL = vi.fn(() => 'blob:picture')
+  URL.revokeObjectURL = vi.fn()
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
+  vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(done => done(new Blob(['photo'], { type: 'image/jpeg' })))
+  fireEvent.change(screen.getByLabelText('Photo file'), { target: { files: [new File(['x'], 'me.jpg', { type: 'image/jpeg' })] } })
+  const crop = await screen.findByRole('dialog', { name: 'Crop photo' })
+  const picture = crop.querySelector('img')!
+  Object.defineProperty(picture, 'naturalWidth', { value: 300 })
+  Object.defineProperty(picture, 'naturalHeight', { value: 300 })
+  fireEvent.load(picture)
+  await userEvent.click(within(crop).getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Crop photo' })).toBeNull())
+}
+
+test('a photo is kept at once and shows on the card and in the list; Remove photo takes it away', async () => {
+  const { client, dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Upload photo' }))
+  await uploadPhoto()
+  await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Change photo' })).toBeTruthy())
+  const lena = (await client.listSpeakers()).find(speaker => speaker.name === 'Lena Kovacs')!
+  expect(lena.photo_url).toMatch(/^data:image\/jpeg/)
+  await waitFor(() => expect(dialog.querySelector(`img[src="${lena.photo_url}"]`)).toBeTruthy())
+  // Nothing to Save: the photo is not an edit of the card.
+  expect(saveButton(dialog).disabled).toBe(true)
+
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Remove photo' }))
+  await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Upload photo' })).toBeTruthy())
+  expect((await client.listSpeakers()).find(speaker => speaker.name === 'Lena Kovacs')!.photo).toBeNull()
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))
+  expect(within(dialog).getAllByRole('button', { name: /Lena Kovacs/ })[0].querySelector('img')).toBeNull()
+})
+
 test('a card goes: name and colour, what the speaker did, the sample, the recordings', async () => {
   const { dialog } = await setup()
   await openCard(dialog, /Lena Kovacs/)
-  const order = ['Colour', '11 recordings', 'Voice sample', 'Appears in'].map(text => within(dialog).getByText(text))
+  const order = ['Colour', 'Photo', '11 recordings', 'Voice sample', 'Appears in'].map(text => within(dialog).getByText(text))
   for (let i = 1; i < order.length; i++) {
     expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   }

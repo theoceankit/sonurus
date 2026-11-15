@@ -152,3 +152,23 @@ test('offers the colours the API keeps: not Gray, which means an unknown speaker
   await userEvent.click(create())
   expect(onCreate).toHaveBeenCalledWith('Zoe', 4)
 })
+
+test('a chosen photo shows in the avatar and goes with the new speaker', async () => {
+  URL.createObjectURL = vi.fn(() => 'blob:photo')
+  URL.revokeObjectURL = vi.fn()
+  const photo = new Blob(['x'], { type: 'image/jpeg' })
+  const { onCreate } = setup({ initialName: 'Zoe', initialColorIndex: 1, initialPhoto: photo })
+  expect(screen.getByRole('dialog').querySelector('img')?.getAttribute('src')).toBe('blob:photo')
+  await userEvent.click(create())
+  expect(onCreate).toHaveBeenCalledWith('Zoe', 1, undefined, photo)
+})
+
+test('a photo can be taken away before creating', async () => {
+  URL.createObjectURL = vi.fn(() => 'blob:photo')
+  URL.revokeObjectURL = vi.fn()
+  const { onCreate } = setup({ initialName: 'Zoe', initialColorIndex: 1, initialPhoto: new Blob(['x'], { type: 'image/jpeg' }) })
+  await userEvent.click(screen.getByRole('button', { name: 'Remove photo' }))
+  expect(screen.getByText('ZO')).toBeTruthy()
+  await userEvent.click(create())
+  expect(onCreate).toHaveBeenCalledWith('Zoe', 1)
+})

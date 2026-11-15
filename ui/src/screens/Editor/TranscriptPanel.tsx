@@ -248,7 +248,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
             return {
               section: found.section,
               rows: found.rows.map(({ speaker, current, time, usage }) => ({
-                id: speaker.id, name: speaker.name!, colorIndex: speaker.color_index, current, time, usage,
+                id: speaker.id, name: speaker.name!, colorIndex: speaker.color_index, photo: speaker.photo_url, current, time, usage,
               })),
             }
           }}

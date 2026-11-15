@@ -305,6 +305,25 @@ export function useUpdateSpeaker() {
   })
 }
 
+// A new photo, or none: every avatar of the speaker follows.
+export function useSetSpeakerPhoto() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: ({ speakerId, photo }: { speakerId: string; photo: Blob }) => api.setSpeakerPhoto(speakerId, photo),
+    onSuccess: () => queries.invalidateQueries({ queryKey: queryKeys.speakers }),
+  })
+}
+
+export function useRemoveSpeakerPhoto() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: (speakerId: string) => api.removeSpeakerPhoto(speakerId),
+    onSuccess: () => queries.invalidateQueries({ queryKey: queryKeys.speakers }),
+  })
+}
+
 // Their segments become Unassigned in every recording, so the recordings are asked
 // for again; the speaker leaves the list at once and is not asked about again.
 export function useDeleteSpeaker() {

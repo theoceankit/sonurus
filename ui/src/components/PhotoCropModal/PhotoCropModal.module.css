@@ -1,0 +1,41 @@
+.body {
+  align-items: center;
+}
+
+/* The square the photo is cut from. */
+.stage {
+  position: relative;
+  flex: none;
+  width: var(--size-photo-crop);
+  height: var(--size-photo-crop);
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-sunken);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.stage[data-dragging] {
+  cursor: grabbing;
+}
+
+.stage:focus-visible {
+  outline: var(--border-width-focus) solid var(--color-focus);
+  outline-offset: var(--border-width-focus);
+}
+
+.image {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+}
+
+/* What is outside the circle is dimmed: the avatar shows only the circle. */
+.mask {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 0 var(--size-photo-crop) var(--color-scrim);
+  pointer-events: none;
+}

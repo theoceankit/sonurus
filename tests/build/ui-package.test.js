@@ -16,9 +16,9 @@ const read = (...parts) => fs.readFileSync(path.join(ROOT, ...parts), 'utf8')
 const pkg  = JSON.parse(read('package.json'))
 const csp  = html => html.match(/http-equiv="Content-Security-Policy"\s+content="([^"]+)"/)[1]
 
-// Only the backend on this machine: requests, its WebSocket and the audio it serves.
+// Only the backend on this machine: requests, its WebSocket, the audio and speaker photos it serves.
 const UI_CSP = "default-src 'self'; connect-src http://localhost:8000 ws://localhost:8000; " +
-  "style-src 'self' 'unsafe-inline'; media-src 'self' http://localhost:8000 blob:; worker-src 'none'"
+  "style-src 'self' 'unsafe-inline'; media-src 'self' http://localhost:8000 blob:; img-src 'self' http://localhost:8000 blob: data:; worker-src 'none'"
 
 test('the UI talks to the local backend only and plays no files from disk', () => {
   assert.equal(csp(read('ui', 'index.html')), UI_CSP)

@@ -89,6 +89,7 @@ const sameTurn = ({ turn: a }: { turn: TranscriptTurn }, { turn: b }: { turn: Tr
   && a.speaker.id === b.speaker.id
   && a.speaker.name === b.speaker.name
   && a.speaker.color === b.speaker.color
+  && a.speaker.photo === b.speaker.photo
   && a.segments.length === b.segments.length
   && a.segments.every((segment, i) => segment === b.segments[i])
 

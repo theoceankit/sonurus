@@ -1,0 +1,4 @@
+.label {
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}

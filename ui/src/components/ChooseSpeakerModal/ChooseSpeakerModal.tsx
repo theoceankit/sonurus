@@ -22,6 +22,7 @@ export interface ChooseSpeakerRow {
   // Under the name: who exactly, when two share a name.
   handle?: string | null
   colorIndex: number
+  photo?: string | null
   score?: number
   suggested?: boolean
   usage?: string
@@ -132,7 +133,7 @@ export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, o
                       role="option"
                       aria-selected={row.id === chosen}
                       tabIndex={-1}
-                      speaker={{ name: row.name, color: speakerColor(row.colorIndex) }}
+                      speaker={{ name: row.name, color: speakerColor(row.colorIndex), photo: row.photo }}
                       handle={row.handle}
                       score={row.score}
                       suggested={row.suggested}

@@ -84,7 +84,7 @@ A column and a row. Spacing props accept only the steps of the scale: `'half'`, 
 
 ## Base controls
 
-`Button`, `IconButton`, `Avatar`, `AvatarStack`, `Tab`, `Tabs`, `NavTab`, `Toggle`, `Slider`, `TextField`, `SearchField`, `MenuItem`, `Disclosure`, `ColorSwatch`, `ColorPicker`, `Kbd`, `Badge`, `SectionHeader` and `MetaItem`, in `ui/src/components/`, named after their Penpot components.
+`Button`, `IconButton`, `Avatar`, `AvatarStack`, `PhotoPicker`, `PhotoCropModal`, `Tab`, `Tabs`, `NavTab`, `Toggle`, `Slider`, `TextField`, `SearchField`, `MenuItem`, `Disclosure`, `ColorSwatch`, `ColorPicker`, `Kbd`, `Badge`, `SectionHeader` and `MetaItem`, in `ui/src/components/`, named after their Penpot components.
 
 Penpot's Type is the `variant` prop, because `type` on a button is the HTML attribute. Pairs that do not exist on the boards, such as an inverse button at medium size, are type errors. `Tabs`, `ColorPicker` and `Disclosure` are built on Radix Primitives, which bring the arrow keys and the tab order; `Tab` works only inside `Tabs`, `ColorSwatch` only inside a radio group. `Button`, `IconButton` and `MenuItem` pass on `ref` and other attributes, so Radix can wrap them with `asChild`.
 
@@ -111,8 +111,13 @@ Only `Avatar` works out initials; a test in `Avatar.test.tsx` fails if anything 
 - One word gives its first two letters, several give the first letter of the first and of the last word. `xs` shows one letter. An empty name is a circle without letters.
 - A colour is a number from 1 to 6. Which speaker gets which is decided by the data layer.
 - `kind="unknown"` and `kind="unassigned"` are a gray "?".
+- `photo`, the address of a named speaker's photo, covers the circle instead of the initials (`object-fit: cover`, cut to the circle). The colour shows behind it while it loads; one that fails to load leaves the initials, and a new address is tried again. An unknown or unassigned speaker takes no photo, a type error. The data layer gives the address: `photo_url` of a speaker from `useSpeakers()`, which the API client makes from `photo`.
 - The initials are trimmed to their capitals with `text-box`, so the letters are what is centred, not the line box, which at these sizes leaves them a pixel high. At 20 px the capitals are an odd height, so they stay within half a pixel of the centre.
-- `AvatarStack` puts the first avatar on top and turns speakers past `max` into "+N".
+- `AvatarStack` puts the first avatar on top and turns speakers past `max` into "+N". A speaker with a photo shows it there too, at `xs` as well.
+
+### Speaker photos
+
+`PhotoPicker` is Upload photo (Change photo once there is one) and Remove photo, with a hidden file input for JPEG, PNG and WebP. A file of another type or over 20 MB is refused under the buttons (`photoProblem()`). A picture opens `PhotoCropModal`: the picture in a square of `--size-photo-crop`, the part outside the circle dimmed with `--color-scrim`, dragged with the pointer or moved with the arrow keys (`+` and `-` zoom), and a Zoom slider from 1 to 4. At zoom 1 the shorter side fills the square, and the picture always covers it (`crop.ts`). Save draws the square on a canvas as a 256 px JPEG and hands it over; a refusal stays in the window. Nothing is uploaded by these components: the screen that uses them does it. The window's CSP allows images from the local backend, `blob:` and `data:` only.
 
 ### Escape in SearchField
 

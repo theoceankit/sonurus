@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
 import { ASSIGNABLE_SPEAKER_COLORS, speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 import { Avatar } from '../Avatar/Avatar'
 import { ColorPicker } from '../ColorPicker/ColorPicker'
@@ -6,6 +6,7 @@ import { Modal } from '../Modal/Modal'
 import { ModalBody } from '../ModalBody/ModalBody'
 import { ModalFooter } from '../ModalFooter/ModalFooter'
 import { ModalHeader } from '../ModalHeader/ModalHeader'
+import { PhotoPicker } from '../PhotoPicker/PhotoPicker'
 import { Stack } from '../Stack/Stack'
 import { TextField } from '../TextField/TextField'
 import styles from './NewSpeakerModal.module.css'
@@ -25,8 +26,8 @@ interface NewSpeakerModalProps {
   checkHandle?: (handle: string) => string | undefined
   // handle: only one typed; without it the backend makes one from the name.
   // Rejecting keeps the window open with the message; one with a handle_ code shows
-  // under the handle.
-  onCreate: (name: string, colorIndex: number, handle?: string) => Promise<void>
+  // under the handle. photo: one chosen and cropped, for the new speaker.
+  onCreate: (name: string, colorIndex: number, handle?: string, photo?: Blob) => Promise<void>
   onBack: () => void
   onClose: () => void
   open?: boolean
@@ -37,10 +38,12 @@ interface NewSpeakerModalProps {
   initialError?: string
   // For a story: a handle typed in.
   initialHandle?: string
+  // For a story: a photo chosen.
+  initialPhoto?: Blob
 }
 
 export function NewSpeakerModal({
-  initialName = '', initialColorIndex = 0, isNameTaken, suggestedHandle, onNameChange, checkHandle, onCreate, onBack, onClose, open = true, onExited, skipEnter, preview, initialError, initialHandle,
+  initialName = '', initialColorIndex = 0, isNameTaken, suggestedHandle, onNameChange, checkHandle, onCreate, onBack, onClose, open = true, onExited, skipEnter, preview, initialError, initialHandle, initialPhoto,
 }: NewSpeakerModalProps) {
   const [name, setName] = useState(initialName.trim())
   const [color, setColor] = useState<SpeakerColor>(speakerColor(initialColorIndex))
@@ -49,6 +52,15 @@ export function NewSpeakerModal({
   // null until typed in: the handle the name brings is shown then.
   const [handle, setHandle] = useState<string | null>(initialHandle ?? null)
   const [handleError, setHandleError] = useState<string>()
+  // Kept here until the speaker exists; the avatar shows it meanwhile.
+  const [photo, setPhoto] = useState<Blob | null>(initialPhoto ?? null)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!photo) return setPhotoUrl(null)
+    const url = URL.createObjectURL(photo)
+    setPhotoUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [photo])
   const trimmed = name.trim()
   const typed = handle?.trim() ?? ''
   const handleIssue = typed ? checkHandle?.(typed) : undefined
@@ -59,7 +71,8 @@ export function NewSpeakerModal({
     setError(undefined)
     setHandleError(undefined)
     try {
-      await (typed ? onCreate(trimmed, color - 1, typed) : onCreate(trimmed, color - 1))
+      if (photo) await onCreate(trimmed, color - 1, typed || undefined, photo)
+      else await (typed ? onCreate(trimmed, color - 1, typed) : onCreate(trimmed, color - 1))
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       const code = (err as { code?: unknown } | null)?.code
@@ -82,7 +95,7 @@ export function NewSpeakerModal({
     <Modal size="small" open={open} onExited={onExited} skipEnter={skipEnter} preview={preview} onOpenChange={next => { if (!next) onClose() }}>
       <ModalHeader title="New speaker" />
       <ModalBody className={styles.body}>
-        <Avatar name={trimmed} color={color} size="large" />
+        <Avatar name={trimmed} color={color} photo={photoUrl} size="large" />
         <Stack gap={3} className={styles.fields}>
           <TextField
             data-modal-start
@@ -116,6 +129,7 @@ export function NewSpeakerModal({
             onKeyDown={enter}
           />
           <ColorPicker label="Colour" value={color} onValueChange={setColor} colors={ASSIGNABLE_SPEAKER_COLORS} />
+          <PhotoPicker label="Photo" hasPhoto={photo !== null} disabled={busy} onPick={setPhoto} onRemove={() => setPhoto(null)} />
         </Stack>
       </ModalBody>
       <ModalFooter

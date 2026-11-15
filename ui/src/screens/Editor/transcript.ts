@@ -9,6 +9,7 @@ export interface TurnSpeaker {
   kind: 'named' | 'unknown' | 'unassigned'
   name: string
   color: SpeakerColor
+  photo?: string | null
 }
 
 // Neighbouring segments of one speaker, shown as one turn. Each stays a paragraph:
@@ -40,7 +41,7 @@ export function buildTurns(segments: readonly Segment[], speakers: readonly Spea
     if (id === UNASSIGNED) return { id, kind: 'unassigned', name: 'Unassigned', color: GRAY }
     const found = namedSpeaker(known, id)
     return found
-      ? { id, kind: 'named', name: found.name!, color: speakerColor(found.color_index) }
+      ? { id, kind: 'named', name: found.name!, color: speakerColor(found.color_index), photo: found.photo_url }
       : { id, kind: 'unknown', name: unknown.get(id)!, color: GRAY }
   }
 
