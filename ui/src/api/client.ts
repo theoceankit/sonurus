@@ -1,5 +1,5 @@
 import type {
-  AudioSource, DataResetSummary, GpuStatus, HandleFormat, LiveRecording, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RecordingStart, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem,
+  AudioSource, DataResetSummary, GpuStatus, HandleFormat, LiveRecording, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RecordingStart, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerMergeSummary, SpeakerSample, SpeakerTranscript, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
@@ -84,6 +84,11 @@ export interface ApiClient {
   // Every segment of the speaker becomes Unassigned, and their name, colour and voice
   // go. Refused with a 409 while a transcription or a recording runs.
   deleteSpeaker(speakerId: string): Promise<SpeakerDeleteSummary>
+  // Every segment and possible match of the speaker goes to intoId, who keeps their
+  // name, handle, colour and photo, or takes the merged speaker's when they have no
+  // name; the merged speaker is gone. Refused with a 400 (merge_into_self) for the
+  // speaker themselves and a 409 while a transcription or a recording runs.
+  mergeSpeaker(speakerId: string, intoId: string): Promise<SpeakerMergeSummary>
   // A named speaker's photo: a square picture the UI has cropped, replacing the one
   // they had. Refused for a speaker without a name (code photo_needs_name).
   setSpeakerPhoto(speakerId: string, photo: Blob): Promise<Speaker>

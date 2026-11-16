@@ -20,7 +20,6 @@ import { VoiceClip } from '../../components/VoiceClip/VoiceClip'
 import { BAR_COUNT } from '../../components/Waveform/bars'
 import { SAMPLE_MAX_SECONDS, useSampleState, type SamplePlayback } from '../../media/sample-playback'
 import { formatDuration } from '../../media/timeline'
-import { markNotImplemented } from '../../not-implemented'
 import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 import { hasSpeakerNamed } from '../Editor/new-speaker'
 import { handleProblem, typedHandle } from './handles'
@@ -46,11 +45,12 @@ interface SpeakerCardProps {
   onDraftChange: (draft: SpeakerDraft) => void
   onSave: () => void
   onRevert: () => void
-  // Why the speaker cannot be deleted now, or null.
+  // Why the speaker cannot be deleted or merged now, or null.
   deleteBlocked: string | null
   onBack: () => void
   onOpenRecording: (id: number) => void
   onDelete: () => void
+  onMerge: () => void
   // The dialog asks it first on Escape: true when it only took back the edits.
   cancelEdit: MutableRefObject<() => boolean>
 }
@@ -249,7 +249,7 @@ function AvatarDialog({ speaker, open, initialFile, onClose, onExited }: AvatarD
 }
 
 // One speaker, in place of the list: who they are, how they sound and where they talk.
-export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, saveError, handleError, onDraftChange, onSave, onRevert, deleteBlocked, onBack, onOpenRecording, onDelete, cancelEdit }: SpeakerCardProps) {
+export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, saveError, handleError, onDraftChange, onSave, onRevert, deleteBlocked, onBack, onOpenRecording, onDelete, onMerge, cancelEdit }: SpeakerCardProps) {
   const [area, setArea] = useState<HTMLElement | null>(null)
   const usage = speakerUsage(speaker)
   const named = Boolean(speaker.name)
@@ -257,10 +257,10 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
   // The avatar window: open, or closing until it has gone.
   const [avatarWindow, setAvatarWindow] = useState<{ open: boolean; key: number; file?: File } | null>(null)
 
-  // While it cannot be done, Delete says why instead of asking.
-  const remove = () => {
+  // While they cannot be done, Merge and Delete say why instead of asking.
+  const unlessBlocked = (go: () => void) => () => {
     if (deleteBlocked) toast({ message: deleteBlocked, type: 'error' })
-    else onDelete()
+    else go()
   }
 
   return (
@@ -269,8 +269,8 @@ export function SpeakerCard({ speaker, others, sample, draft, dirty, saving, sav
         <Inline justify="between">
           <IconButton icon="arrow-left" label="Back to speakers" onClick={onBack} />
           <Menu align="end" trigger={<IconButton icon="more" label="More" />}>
-            <MenuAction icon="assign-speaker" {...markNotImplemented('speaker-card.merge')}>Merge into another speaker</MenuAction>
-            <MenuAction icon="delete" onSelect={remove}>Delete speaker</MenuAction>
+            <MenuAction icon="assign-speaker" onSelect={unlessBlocked(onMerge)}>Merge into another speaker</MenuAction>
+            <MenuAction icon="delete" onSelect={unlessBlocked(onDelete)}>Delete speaker</MenuAction>
           </Menu>
         </Inline>
         <Inline gap={4} align="start">

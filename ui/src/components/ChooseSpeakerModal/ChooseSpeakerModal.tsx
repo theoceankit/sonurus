@@ -3,6 +3,7 @@ import { markNotImplemented } from '../../not-implemented'
 import { speakerColor } from '../../styles/speaker-colors'
 import { Button } from '../Button/Button'
 import { Candidate } from '../Candidate/Candidate'
+import type { IconName } from '../Icon/icon-names'
 import { MenuItem } from '../MenuItem/MenuItem'
 import { Modal } from '../Modal/Modal'
 import { ModalBody } from '../ModalBody/ModalBody'
@@ -19,6 +20,8 @@ export type ChooseSpeakerCategory = 'all' | 'best' | 'recording'
 export interface ChooseSpeakerRow {
   id: string
   name: string
+  // A speaker without a name: the grey avatar, with name as the label to show.
+  unnamed?: boolean
   // Under the name: who exactly, when two share a name.
   handle?: string | null
   colorIndex: number
@@ -28,18 +31,30 @@ export interface ChooseSpeakerRow {
   usage?: string
 }
 
-export interface ChooseSpeakerList {
-  counts: Record<ChooseSpeakerCategory, number>
+export interface ChooseSpeakerList<C extends string = ChooseSpeakerCategory> {
+  counts: Record<C, number>
   sections: { title: string; rows: ChooseSpeakerRow[] }[]
 }
 
-interface ChooseSpeakerModalProps {
+export interface ChooseSpeakerCategoryItem<C extends string> {
+  id: C
+  label: string
+  icon: IconName
+}
+
+interface ChooseSpeakerModalProps<C extends string> {
   // What to offer for the text in the search field and the category.
-  list: (query: string, category: ChooseSpeakerCategory) => ChooseSpeakerList
+  list: (query: string, category: C) => ChooseSpeakerList<C>
   initialSelectedId?: string | null
   onAssign: (id: string) => void
-  // With what was typed in the search field, for its name.
-  onNewSpeaker: (name: string) => void
+  // With what was typed in the search field, for its name. Without it, the window
+  // offers no new speaker.
+  onNewSpeaker?: (name: string) => void
+  // Another use of the window, such as choosing who to merge into: its title, its
+  // confirm button and its own categories in place of the Editor's.
+  title?: string
+  confirmLabel?: string
+  categories?: readonly ChooseSpeakerCategoryItem<C>[]
   onClose: () => void
   open?: boolean
   onExited?: () => void
@@ -50,15 +65,18 @@ interface ChooseSpeakerModalProps {
   preview?: boolean
 }
 
-const CATEGORIES: { id: ChooseSpeakerCategory; label: string; icon: 'speakers' | 'waveform' | 'microphone' }[] = [
+const CATEGORIES: ChooseSpeakerCategoryItem<ChooseSpeakerCategory>[] = [
   { id: 'all', label: 'All speakers', icon: 'speakers' },
   { id: 'best', label: 'Best voice matches', icon: 'waveform' },
   { id: 'recording', label: 'Already in this recording', icon: 'microphone' },
 ]
 
-export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, onNewSpeaker, onClose, open = true, onExited, skipEnter, busy, initialQuery = '', preview }: ChooseSpeakerModalProps) {
+export function ChooseSpeakerModal<C extends string = ChooseSpeakerCategory>({
+  list, initialSelectedId = null, onAssign, onNewSpeaker, title = 'Choose a speaker', confirmLabel = 'Assign', categories,
+  onClose, open = true, onExited, skipEnter, busy, initialQuery = '', preview,
+}: ChooseSpeakerModalProps<C>) {
   const [query, setQuery] = useState(initialQuery)
-  const [category, setCategory] = useState<ChooseSpeakerCategory>('all')
+  const [category, setCategory] = useState<C>((categories?.[0]?.id ?? 'all') as C)
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const scroll = useRef<HTMLDivElement>(null)
   const { area, scrollRef, bottom } = useScrollEdges()
@@ -91,23 +109,27 @@ export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, o
     } else if (event.key === 'Enter' && (event.target as HTMLElement).tagName === 'INPUT') {
       event.preventDefault()
       if (chosen) onAssign(chosen)
-      else if (rows.length === 0 && typed) onNewSpeaker(typed)
+      else if (rows.length === 0 && typed) onNewSpeaker?.(typed)
     }
   }
 
-  const categoryItem = ({ id, label, icon }: typeof CATEGORIES[number]) => (
+  const categoryItem = ({ id, label, icon }: ChooseSpeakerCategoryItem<C>) => (
     <MenuItem key={id} icon={icon} meta={String(counts[id])} current={category === id} onClick={() => setCategory(id)}>{label}</MenuItem>
   )
 
   return (
     <Modal size="large" open={open} onExited={onExited} skipEnter={skipEnter} preview={preview} onOpenChange={next => { if (!next) onClose() }}>
-      <ModalHeader title="Choose a speaker" />
+      <ModalHeader title={title} />
       <ModalBody className={styles.body} onKeyDown={onKeyDown}>
         <nav aria-label="Categories" className={styles.rail}>
-          {CATEGORIES.slice(0, 2).map(categoryItem)}
-          <MenuItem icon="calendar" {...markNotImplemented('choose-speaker.invited')}>Invited to this meeting</MenuItem>
-          {CATEGORIES.slice(2).map(categoryItem)}
-          <MenuItem icon="clock" {...markNotImplemented('choose-speaker.recently-added')}>Recently added</MenuItem>
+          {categories ? categories.map(categoryItem) : (
+            <>
+              {(CATEGORIES as unknown as ChooseSpeakerCategoryItem<C>[]).slice(0, 2).map(categoryItem)}
+              <MenuItem icon="calendar" {...markNotImplemented('choose-speaker.invited')}>Invited to this meeting</MenuItem>
+              {(CATEGORIES as unknown as ChooseSpeakerCategoryItem<C>[]).slice(2).map(categoryItem)}
+              <MenuItem icon="clock" {...markNotImplemented('choose-speaker.recently-added')}>Recently added</MenuItem>
+            </>
+          )}
         </nav>
         <div className={styles.results}>
           <SearchField
@@ -133,7 +155,7 @@ export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, o
                       role="option"
                       aria-selected={row.id === chosen}
                       tabIndex={-1}
-                      speaker={{ name: row.name, color: speakerColor(row.colorIndex), photo: row.photo }}
+                      speaker={row.unnamed ? { kind: 'unknown', name: row.name } : { name: row.name, color: speakerColor(row.colorIndex), photo: row.photo }}
                       handle={row.handle}
                       score={row.score}
                       suggested={row.suggested}
@@ -148,7 +170,7 @@ export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, o
               {rows.length === 0 && typed && (
                 <div className={styles.section}>
                   <SectionHeader title={`No speakers match "${typed}"`} />
-                  <Candidate kind="add" active onClick={() => onNewSpeaker(typed)}>Add &quot;{typed}&quot; as a new speaker</Candidate>
+                  {onNewSpeaker && <Candidate kind="add" active onClick={() => onNewSpeaker(typed)}>Add &quot;{typed}&quot; as a new speaker</Candidate>}
                 </div>
               )}
               {rows.length === 0 && !typed && <SectionHeader title="No speakers here yet" />}
@@ -159,8 +181,8 @@ export function ChooseSpeakerModal({ list, initialSelectedId = null, onAssign, o
         </div>
       </ModalBody>
       <ModalFooter
-        leading={<Button variant="ghost" icon="add" onClick={() => onNewSpeaker(typed)}>New speaker</Button>}
-        confirm={{ children: 'Assign', disabled: !chosen, loading: busy, onClick: () => { if (chosen) onAssign(chosen) } }}
+        leading={onNewSpeaker && <Button variant="ghost" icon="add" onClick={() => onNewSpeaker(typed)}>New speaker</Button>}
+        confirm={{ children: confirmLabel, disabled: !chosen, loading: busy, onClick: () => { if (chosen) onAssign(chosen) } }}
       />
     </Modal>
   )

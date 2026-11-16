@@ -7,7 +7,7 @@ import { QUEUE_JOB, SPEAKER_IDS, WEEKLY_SYNC_ID, queueSnapshot } from './fixture
 import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
-  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useHandleSuggestion, useDeleteQueueJob, useDeleteSpeaker, useDeleteTranscript, useModels, useQueue, useQueueControl, useQueueEventsSync,
+  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useHandleSuggestion, useDeleteQueueJob, useDeleteSpeaker, useMergeSpeaker, useDeleteTranscript, useModels, useQueue, useQueueControl, useQueueEventsSync,
   useReorderQueue, useRetryQueueJob, useSpeakerCandidates, useSpeakers, useSpeakerTranscripts, useTranscript, useTranscripts,
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle, useWaveform,
 } from './queries'
@@ -274,6 +274,30 @@ describe('the speakers section', () => {
     await act(() => result.current.remove.mutateAsync(mark))
     await waitFor(() => expect(result.current.speakers.data?.some(s => s.id === mark)).toBe(false))
     await waitFor(() => expect(result.current.open.data?.segments.filter(s => s.unassigned).map(s => s.start)).toEqual([5, 8, 38]))
+  })
+
+  test('merging a speaker takes them off the list and gives their segments to the other one', async () => {
+    const client = createFixtureClient()
+    const { result } = renderHook(() => ({
+      speakers: useSpeakers(),
+      open: useTranscript(WEEKLY_SYNC_ID),
+      merge: useMergeSpeaker(),
+    }), { wrapper: wrapperFor(client) })
+    await waitFor(() => expect(result.current.open.data).toBeTruthy())
+    await waitFor(() => expect(result.current.speakers.data).toBeTruthy())
+    const marks = result.current.speakers.data!.find(s => s.id === mark)!.segments
+    await act(() => result.current.merge.mutateAsync({ speakerId: SPEAKER_IDS.unknown1, intoId: mark }))
+    await waitFor(() => expect(result.current.speakers.data?.some(s => s.id === SPEAKER_IDS.unknown1)).toBe(false))
+    expect(result.current.speakers.data?.find(s => s.id === mark)?.segments).toBe(marks + 1)
+    await waitFor(() => expect(result.current.open.data?.segments.find(s => s.start === 16)?.speaker_resolved).toBe(mark))
+  })
+
+  test('a refused merge changes nothing in the list', async () => {
+    const busy = createFixtureClient({ overrides: { mergeSpeaker: () => Promise.reject(new ApiError(409, 'A transcription is in progress')) } })
+    const { result } = renderHook(() => ({ speakers: useSpeakers(), merge: useMergeSpeaker() }), { wrapper: wrapperFor(busy) })
+    await waitFor(() => expect(result.current.speakers.data).toBeTruthy())
+    await act(async () => { await expect(result.current.merge.mutateAsync({ speakerId: SPEAKER_IDS.unknown1, intoId: mark })).rejects.toThrow('A transcription is in progress') })
+    expect(result.current.speakers.data?.some(s => s.id === SPEAKER_IDS.unknown1)).toBe(true)
   })
 
   test('a speaker already gone counts as deleted; another failure reaches the caller', async () => {

@@ -7,6 +7,7 @@ import { createPlayback } from '../../media/playback'
 import { waitFor } from '../Editor/story-helpers'
 import { DeleteSpeakerDialog } from './DeleteSpeakerDialog'
 import { DiscardChangesDialog } from './DiscardChangesDialog'
+import { MergeSpeakerDialog } from './MergeSpeakerDialog'
 import { SpeakersDialog, type SpeakersDialogProps } from './SpeakersDialog'
 
 const noop = () => {}
@@ -110,6 +111,24 @@ export const DeleteConfirmWithoutName: Story = {
 }
 export const DeleteConfirmNotInAnyRecording: Story = {
   render: () => <DeleteSpeakerDialog preview open speaker={SPEAKERS.find(s => s.id === SPEAKER_IDS.priya)!} onConfirm={noop} onClose={noop} />,
+}
+// Merge into another speaker: the window to choose who, then the question.
+export const MergeChoose: Story = {
+  args: { initialSpeakerId: SPEAKER_IDS.lena },
+  play: async () => {
+    await openMore()
+    ;[...document.querySelectorAll('[role="menuitem"]')].find(item => item.textContent?.trim() === 'Merge into another speaker')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  },
+}
+export const MergeConfirm: Story = {
+  render: () => <MergeSpeakerDialog preview open from={SPEAKERS.find(s => s.id === SPEAKER_IDS.lena)!} into={SPEAKERS.find(s => s.id === SPEAKER_IDS.mark)!} onConfirm={noop} onClose={noop} />,
+}
+export const MergeConfirmIntoUnnamed: Story = {
+  render: () => <MergeSpeakerDialog preview open from={SPEAKERS.find(s => s.id === SPEAKER_IDS.lena)!} into={SPEAKERS.find(s => s.id === SPEAKER_IDS.unknown1)!} onConfirm={noop} onClose={noop} />,
+}
+export const MergeConfirmUnnamed: Story = {
+  render: () => <MergeSpeakerDialog preview open from={SPEAKERS.find(s => s.id === SPEAKER_IDS.unknown1)!} into={SPEAKERS.find(s => s.id === SPEAKER_IDS.mark)!} onConfirm={noop} onClose={noop} />,
 }
 export const DiscardChanges: Story = {
   render: () => <DiscardChangesDialog preview open onDiscard={noop} onClose={noop} />,

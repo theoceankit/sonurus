@@ -305,6 +305,53 @@ export function createFixtureClient({
     return { segments, transcripts: touched.size }
   }
 
+  // As CommitService.merge_speaker(): the segments and possible matches of one
+  // speaker go to the other, who takes their name, handle, colour and photo only
+  // when they have no name.
+  const mergeSpeaker = (speakerId: string, intoId: string) => {
+    const from = speaker(speakerId)
+    const into = speaker(intoId)
+    if (queue.running_job_id) throw new ApiError(409, 'A transcription is in progress')
+    if (queue.recording) throw new ApiError(409, 'A recording is in progress')
+    if (speakerId === intoId) throw new ApiError(400, 'Choose another speaker to merge into.', 'merge_into_self')
+    let segments = 0
+    const touched = new Set<number>()
+    for (const t of data.details) {
+      for (const s of t.segments) {
+        if (effectiveSpeaker(s) !== speakerId) continue
+        if (s.speaker_final) s.speaker_final = intoId
+        else s.speaker_resolved = intoId
+        segments++
+        touched.add(t.id)
+      }
+      const candidates = data.candidates[t.id]
+      if (candidates?.[speakerId]) {
+        if (!candidates[intoId]) candidates[intoId] = candidates[speakerId]
+        delete candidates[speakerId]
+      }
+    }
+    let newRecordings = 0
+    for (const item of data.transcripts) {
+      if (!item.speakers.includes(speakerId)) continue
+      if (!data.details.some(t => t.id === item.id)) {
+        segments++
+        touched.add(item.id)
+      }
+      if (!item.speakers.includes(intoId)) newRecordings++
+      item.speakers = item.speakers.flatMap(id => (id === speakerId ? (item.speakers.includes(intoId) ? [] : [intoId]) : [id]))
+    }
+    data.speakers = data.speakers.filter(s => s.id !== speakerId)
+    if (!into.name && from.name) {
+      Object.assign(into, { name: from.name, handle: from.handle, handle_manual: from.handle_manual, color_index: from.color_index, photo: from.photo, photo_url: from.photo_url })
+    }
+    const lastSeen = [into.last_seen, from.last_seen].filter(Boolean).sort().at(-1) ?? null
+    Object.assign(into, {
+      segments: into.segments + segments, transcripts: into.transcripts + newRecordings,
+      duration_sec: into.duration_sec + from.duration_sec, last_seen: lastSeen,
+    })
+    return { speaker: into, segments, transcripts: touched.size }
+  }
+
   const connectionListeners = new Set<(connected: boolean) => void>()
 
   // Downloads by job, one per model as on the backend; a job is gone once it ended.
@@ -517,6 +564,7 @@ export function createFixtureClient({
     }),
     listSpeakerTranscripts: id => answer(() => speakerTranscripts(id)),
     deleteSpeaker: id => answer(() => deleteSpeaker(id)),
+    mergeSpeaker: (id, intoId) => answer(() => mergeSpeaker(id, intoId)),
     // Kept as a data URL, so an img shows it without a server.
     setSpeakerPhoto: async (id, photo) => {
       const url = await readAsDataUrl(photo)

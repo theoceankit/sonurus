@@ -49,3 +49,46 @@ export const WithPhotos: Story = {
 }
 export const Busy: Story = { args: { initialSelectedId: 'mark', busy: true } }
 export const Open: Story = { args: { initialSelectedId: 'mark', preview: false } }
+
+// Another use of the window, choosing who to merge into: its own title, button and
+// categories, no New speaker, and speakers without a name among the rows.
+type MergeCategory = 'all' | 'named' | 'unnamed'
+const UNNAMED: ChooseSpeakerRow[] = [
+  { id: 'u1', name: 'Unnamed speaker', unnamed: true, colorIndex: 0, usage: '1 recording' },
+  { id: 'u2', name: 'Unnamed speaker', unnamed: true, colorIndex: 0, usage: '2 recordings' },
+]
+const mergeList = (query: string, category: MergeCategory): ChooseSpeakerList<MergeCategory> => {
+  const typed = query.trim().toLowerCase()
+  const named = OTHERS.map(withHandle).filter(row => row.name.toLowerCase().includes(typed))
+  const unnamed = typed ? [] : UNNAMED
+  const rows = category === 'named' ? named : category === 'unnamed' ? unnamed : [...named, ...unnamed]
+  const title = { all: 'All speakers', named: 'Recognized', unnamed: 'Unnamed' }[category]
+  return { counts: { all: OTHERS.length + UNNAMED.length, named: OTHERS.length, unnamed: UNNAMED.length }, sections: rows.length ? [{ title, rows }] : [] }
+}
+export const MergeInto: StoryObj<typeof ChooseSpeakerModal<MergeCategory>> = {
+  render: () => (
+    <ChooseSpeakerModal<MergeCategory>
+      preview
+      title='Merge "Lena Kovacs" into another speaker'
+      confirmLabel="Merge"
+      categories={[
+        { id: 'all', label: 'All speakers', icon: 'speakers' },
+        { id: 'named', label: 'Recognized', icon: 'check' },
+        { id: 'unnamed', label: 'Unnamed', icon: 'speaker-unknown' },
+      ]}
+      list={mergeList}
+      initialSelectedId="anna"
+      onAssign={() => {}}
+      onClose={() => {}}
+    />
+  ),
+}
+export const MergeIntoNoResults: StoryObj<typeof ChooseSpeakerModal<MergeCategory>> = {
+  render: () => (
+    <ChooseSpeakerModal<MergeCategory>
+      preview title='Merge "Lena Kovacs" into another speaker' confirmLabel="Merge" initialQuery="Zoe"
+      categories={[{ id: 'all', label: 'All speakers', icon: 'speakers' }]}
+      list={mergeList} onAssign={() => {}} onClose={() => {}}
+    />
+  ),
+}

@@ -639,6 +639,36 @@ describe('the speakers section', () => {
     await expect(client.deleteSpeaker(mark)).rejects.toMatchObject({ status: 404 })
   })
 
+  test('merging a speaker gives the other one their segments and takes them off every list', async () => {
+    const client = createFixtureClient()
+    const before = (await client.listSpeakers()).find(s => s.id === mark)!
+    const merged = await client.mergeSpeaker(unknown1, mark)
+    expect(merged.segments).toBe(1)
+    expect(merged.speaker).toMatchObject({ id: mark, name: 'Mark Ellis', segments: before.segments + 1 })
+    expect((await client.listSpeakers()).some(s => s.id === unknown1)).toBe(false)
+    expect(await startsOf(client, unknown1)).toEqual([])
+    expect(await startsOf(client, mark)).toContain(16)
+    expect((await client.listTranscripts()).some(t => t.speakers.includes(unknown1))).toBe(false)
+    await expect(client.mergeSpeaker(unknown1, mark)).rejects.toMatchObject({ status: 404 })
+  })
+
+  test('a speaker without a name takes the name, handle, colour and photo of the one merged into them', async () => {
+    const client = createFixtureClient()
+    const merged = await client.mergeSpeaker(lena, unknown1)
+    const lenaBefore = (await createFixtureClient().listSpeakers()).find(s => s.id === lena)!
+    expect(merged.speaker).toMatchObject({ id: unknown1, name: lenaBefore.name, handle: lenaBefore.handle, color_index: lenaBefore.color_index })
+  })
+
+  test('a speaker is not merged into themselves, nor while a transcription or a recording runs', async () => {
+    await expect(createFixtureClient().mergeSpeaker(anna, anna)).rejects.toMatchObject({ status: 400, code: 'merge_into_self' })
+    for (const changes of [{ running_job_id: 'a' }, { recording: LIVE }]) {
+      const client = createFixtureClient()
+      client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot(changes) }] })
+      await vi.waitFor(async () => expect(await client.getQueue()).toMatchObject(changes))
+      await expect(client.mergeSpeaker(unknown1, anna)).rejects.toMatchObject({ status: 409 })
+    }
+  })
+
   test('a speaker is not deleted while a transcription or a recording runs', async () => {
     for (const changes of [{ running_job_id: 'a' }, { recording: LIVE }]) {
       const client = createFixtureClient()
