@@ -15,6 +15,8 @@ export type ElectronSettings = {
   recentTranscriptIds: number[]
   // 'system' follows the OS.
   theme: ThemeSource
+  // Closing the window keeps the app running in the tray (electron/tray.js).
+  closeToTray: boolean
 }
 
 export type ThemeSource = 'system' | 'light' | 'dark'
@@ -22,6 +24,8 @@ export type ThemeSource = 'system' | 'light' | 'dark'
 export type ElectronAPI = {
   getPlatform: () => Promise<string>
   getAppVersion: () => Promise<string>
+  // Whether the system shows a tray to keep the app in when its window closes.
+  getTrayAvailable: () => Promise<boolean>
   openFiles: () => Promise<string[]>
   getFilePath: (file: File) => string
   readSettings: () => Promise<ElectronSettings>

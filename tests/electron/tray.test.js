@@ -1,0 +1,175 @@
+// The window's close button keeps Sonorus running in the tray; the app quits
+// from the tray menu, asking first while a recording or a transcription runs.
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const fs = require('fs')
+const os = require('os')
+const path = require('path')
+
+const ROOT = path.resolve(__dirname, '..', '..')
+const {
+  closeAction, quitQuestion, trayMenu, trayAvailable, confirmQuit, trayHintShown, rememberTrayHint,
+} = require(path.join(ROOT, 'electron', 'tray.js'))
+
+const snapshot = (over = {}) => ({ recording: null, running_job_id: null, ...over })
+const live = { phase: 'live', title: 'Call', started_at: 1, sources: ['mic'] }
+
+test('close keeps the app in the tray when the setting is on and there is a tray', () => {
+  assert.equal(closeAction({ closeToTray: true, trayAvailable: true }), 'destroy')
+})
+
+test('close quits without a tray or with the setting off', () => {
+  assert.equal(closeAction({ closeToTray: true, trayAvailable: false }), 'quit')
+  assert.equal(closeAction({ closeToTray: false, trayAvailable: true }), 'quit')
+})
+
+test('the setting is on unless it says false', () => {
+  assert.equal(closeAction({ closeToTray: undefined, trayAvailable: true }), 'destroy')
+})
+
+test('nothing running: no question', () => {
+  assert.equal(quitQuestion(snapshot()), null)
+  assert.equal(quitQuestion(null), null)
+})
+
+test('a recording asks to stop it', () => {
+  const q = quitQuestion(snapshot({ recording: live }))
+  assert.equal(q.kind, 'recording')
+  assert.equal(q.message, 'Recording is in progress. Stop it and quit?')
+  assert.deepEqual(q.buttons, ['Stop and quit', 'Cancel'])
+})
+
+test('a recording that is starting or stopping asks too', () => {
+  for (const phase of ['starting', 'stopping']) {
+    assert.equal(quitQuestion(snapshot({ recording: { ...live, phase } })).kind, 'recording')
+  }
+})
+
+test('a running transcription asks whether to interrupt it', () => {
+  const q = quitQuestion(snapshot({ running_job_id: 'j1' }))
+  assert.equal(q.kind, 'transcription')
+  assert.equal(q.message, 'Transcription will be interrupted. Quit?')
+  assert.deepEqual(q.buttons, ['Quit', 'Cancel'])
+})
+
+test('a recording and a transcription: the recording question says both', () => {
+  const q = quitQuestion(snapshot({ recording: live, running_job_id: 'j1' }))
+  assert.equal(q.kind, 'recording')
+  assert.match(q.detail, /transcription/i)
+})
+
+test('the tray menu: Open, a separator, Quit', () => {
+  const calls = []
+  const menu = trayMenu({ open: () => calls.push('open'), quit: () => calls.push('quit') })
+  assert.deepEqual(menu.map(i => i.label ?? i.type), ['Open Sonorus', 'separator', 'Quit Sonorus'])
+  menu[0].click()
+  menu[2].click()
+  assert.deepEqual(calls, ['open', 'quit'])
+})
+
+test('Windows and macOS always have a tray', async () => {
+  const run = async () => { throw new Error('not called') }
+  assert.equal(await trayAvailable({ platform: 'win32', run }), true)
+  assert.equal(await trayAvailable({ platform: 'darwin', run }), true)
+})
+
+test('Linux: a tray when StatusNotifierWatcher has an owner', async () => {
+  let asked
+  const run = async (cmd, args) => { asked = [cmd, ...args]; return '(true,)\n' }
+  assert.equal(await trayAvailable({ platform: 'linux', run }), true)
+  assert.equal(asked[0], 'gdbus')
+  assert.ok(asked.includes('org.kde.StatusNotifierWatcher'))
+})
+
+test('Linux: no tray without an owner, without gdbus or on an error', async () => {
+  assert.equal(await trayAvailable({ platform: 'linux', run: async () => '(false,)\n' }), false)
+  const missing = Object.assign(new Error('spawn gdbus ENOENT'), { code: 'ENOENT' })
+  assert.equal(await trayAvailable({ platform: 'linux', run: async () => { throw missing } }), false)
+  assert.equal(await trayAvailable({ platform: 'linux', run: async () => 'garbage' }), false)
+})
+
+function quitDeps(snapshots, answer) {
+  const calls = []
+  let i = 0
+  return {
+    calls,
+    deps: {
+      queue: async () => { calls.push('queue'); return snapshots[Math.min(i++, snapshots.length - 1)] },
+      ask: async q => { calls.push(`ask:${q.kind}`); return answer },
+      stopRecording: async () => { calls.push('stop') },
+      sleep: async () => {},
+      timeoutMs: 1000,
+      now: (() => { let t = 0; return () => (t += 10) })(),
+    },
+  }
+}
+
+test('quit with nothing running: no question', async () => {
+  const { calls, deps } = quitDeps([snapshot()], 0)
+  assert.equal(await confirmQuit(deps), true)
+  assert.deepEqual(calls, ['queue'])
+})
+
+test('quit while the backend does not answer: quits', async () => {
+  const { deps } = quitDeps([snapshot()], 0)
+  deps.queue = async () => { throw new Error('ECONNREFUSED') }
+  assert.equal(await confirmQuit(deps), true)
+})
+
+test('Cancel keeps everything as it was', async () => {
+  const { calls, deps } = quitDeps([snapshot({ recording: live })], 1)
+  assert.equal(await confirmQuit(deps), false)
+  assert.deepEqual(calls, ['queue', 'ask:recording'])
+})
+
+test('Stop and quit stops the recording and waits until it is saved', async () => {
+  const stopping = snapshot({ recording: { ...live, phase: 'stopping' } })
+  const { calls, deps } = quitDeps([snapshot({ recording: live }), stopping, stopping, snapshot()], 0)
+  assert.equal(await confirmQuit(deps), true)
+  assert.deepEqual(calls, ['queue', 'ask:recording', 'stop', 'queue', 'queue', 'queue'])
+})
+
+test('a recording that never finishes saving does not keep the app from quitting', async () => {
+  const stopping = snapshot({ recording: { ...live, phase: 'stopping' } })
+  const { deps } = quitDeps([snapshot({ recording: live }), stopping], 0)
+  assert.equal(await confirmQuit(deps), true)
+})
+
+test('a transcription: Quit quits, the recording is not touched', async () => {
+  const { calls, deps } = quitDeps([snapshot({ running_job_id: 'j1' })], 0)
+  assert.equal(await confirmQuit(deps), true)
+  assert.deepEqual(calls, ['queue', 'ask:transcription'])
+})
+
+function tmp() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sonorus-tray-'))
+  return { state: path.join(dir, 'user-data', 'app-state.json'), done: () => fs.rmSync(dir, { recursive: true, force: true }) }
+}
+
+test('the hint of the first close is shown once, also across restarts', () => {
+  const t = tmp()
+  try {
+    assert.equal(trayHintShown(t.state), false)
+    rememberTrayHint(t.state)
+    assert.equal(trayHintShown(t.state), true)
+  } finally { t.done() }
+})
+
+test('the hint keeps what else the state file holds', () => {
+  const t = tmp()
+  try {
+    fs.mkdirSync(path.dirname(t.state), { recursive: true })
+    fs.writeFileSync(t.state, JSON.stringify({ other: 1 }))
+    rememberTrayHint(t.state)
+    assert.deepEqual(JSON.parse(fs.readFileSync(t.state, 'utf8')), { other: 1, trayHintShown: true })
+  } finally { t.done() }
+})
+
+test('a damaged state file counts as not shown', () => {
+  const t = tmp()
+  try {
+    fs.mkdirSync(path.dirname(t.state), { recursive: true })
+    fs.writeFileSync(t.state, '{')
+    assert.equal(trayHintShown(t.state), false)
+  } finally { t.done() }
+})

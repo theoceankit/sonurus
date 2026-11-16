@@ -1,10 +1,12 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, nativeTheme, session, clipboard, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, Menu, Notification, Tray, nativeImage, nativeTheme, session, clipboard, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
-const { BackendRefusedError, restartBackend, startBackend, stopBackend } = require('./backend')
+const { execFile } = require('child_process')
+const { BackendRefusedError, backendRequest, restartBackend, startBackend, stopBackend } = require('./backend')
 const { devUserDataPath } = require('./backend-identity')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 const { showModelsFolder } = require('./models-folder')
+const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown, trayMenu } = require('./tray')
 const { uiEntry } = require('./ui-entry')
 const { windowChrome, themeSource, overlayDimmer } = require('./window-chrome')
 
@@ -16,6 +18,12 @@ const devUserData = devUserDataPath({
   appData: app.getPath('appData'),
 })
 if (devUserData) app.setPath('userData', devUserData)
+
+// One app per data dir: started again while it runs, in the tray too, the running one
+// opens its window instead of a second backend fighting for the port. After the
+// userData path, which the lock is taken in.
+const singleInstance = app.requestSingleInstanceLock()
+if (!singleInstance) app.quit()
 
 // macOS routes Cmd+C/V/X/A through the app's Edit menu — without it,
 // paste doesn't work in any text field. Windows/Linux handle it at OS level.
@@ -33,6 +41,14 @@ if (process.platform === 'darwin') {
 
 let mainWin = null
 let titleBarDimmer = null
+let tray = null
+// Whether there is a tray to stay in (electron/tray.js); found out at start-up.
+let hasTray = Promise.resolve(false)
+// Set once the app may quit: the question was asked, or there was nothing to ask.
+let quitConfirmed = false
+let quitAsked = false
+// Set once the backend is up and the first window made: before that, nothing opens one.
+let started = false
 
 function createWindow() {
   const entry = uiEntry({
@@ -42,7 +58,7 @@ function createWindow() {
   })
   if (entry.file && !fs.existsSync(entry.file)) {
     dialog.showErrorBox('Sonorus — UI not built', `${entry.file} does not exist.\n\nRun: npm run build:ui`)
-    app.quit()
+    quitNow()
     return
   }
 
@@ -72,9 +88,23 @@ function createWindow() {
   }
   // A page that loads again has no modal open, whatever the last one said.
   win.webContents.on('did-start-loading', () => titleBarDimmer?.set(false))
+  win.on('close', event => {
+    if (quitConfirmed) return
+    // Held while the tray check settles; then destroyed for the tray, or quit as asked.
+    event.preventDefault()
+    void hasTray.then(available => {
+      if (closeAction({ closeToTray: savedSettings().closeToTray, trayAvailable: available }) === 'quit') {
+        void requestQuit()
+        return
+      }
+      if (!win.isDestroyed()) win.destroy()
+      showTrayHint()
+    })
+  })
   win.on('closed', () => {
     titleBarDimmer?.stop()
     titleBarDimmer = null
+    if (mainWin === win) mainWin = null
   })
 
   if (entry.url) mainWin.loadURL(entry.url)
@@ -94,6 +124,7 @@ function createWindow() {
 
 const getSettingsPath = () => path.join(app.getPath('userData'), 'settings.json')
 const getDialogStatePath = () => path.join(app.getPath('userData'), 'dialog-state.json')
+const getAppStatePath = () => path.join(app.getPath('userData'), 'app-state.json')
 
 const DEFAULT_SETTINGS = {
   scale: 100,
@@ -107,6 +138,7 @@ const DEFAULT_SETTINGS = {
   hfToken: '',
   recentTranscriptIds: [],
   theme: 'system',
+  closeToTray: true,
 }
 
 // The theme: 'system' follows the OS. themeSource also sets prefers-color-scheme in
@@ -160,6 +192,7 @@ ipcMain.on('window-dimmed', (event, dimmed, startedAt) => {
 })
 
 ipcMain.handle('get-platform', () => process.platform)
+ipcMain.handle('get-tray-available', () => hasTray)
 ipcMain.handle('get-app-version', () => app.getVersion())
 
 ipcMain.handle('write-clipboard', async (_e, text) => { await clipboard.writeText(text) })
@@ -181,6 +214,13 @@ ipcMain.handle('restart-backend', async () => {
 })
 
 app.whenReady().then(async () => {
+  if (!singleInstance) return
+  hasTray = trayAvailable({
+    platform: process.platform,
+    run: (cmd, args) => new Promise((resolve, reject) => {
+      execFile(cmd, args, { timeout: 2000 }, (err, stdout) => (err ? reject(err) : resolve(stdout)))
+    }),
+  })
   // The saved theme before the window exists, so it opens in its colours.
   nativeTheme.themeSource = themeSource(savedSettings().theme)
 
@@ -203,12 +243,90 @@ app.whenReady().then(async () => {
     dialog.showErrorBox('Sonorus — backend error', err instanceof BackendRefusedError
       ? err.message
       : `Failed to start the backend:\n${err.message}\n\nCheck ${app.getPath('userData')}/sonorus.log for details.`)
-    app.quit()
+    quitNow()
     return
   }
 
   createWindow()
+  started = true
+  if (await hasTray) createTray()
 })
 
+// The window, made again if it was closed to the tray, in front.
+function showWindow() {
+  if (!started || quitConfirmed) return
+  if (!mainWin || mainWin.isDestroyed()) {
+    createWindow()
+    return
+  }
+  if (mainWin.isMinimized()) mainWin.restore()
+  mainWin.show()
+  mainWin.focus()
+}
+
+// The app's colour icon, made small: the tray has no icon of its own yet.
+function createTray() {
+  const size = process.platform === 'win32' ? 32 : process.platform === 'darwin' ? 18 : 22
+  const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png')).resize({ width: size, height: size })
+  tray = new Tray(icon)
+  tray.setToolTip('Sonorus')
+  tray.setContextMenu(Menu.buildFromTemplate(trayMenu({ open: showWindow, quit: () => void requestQuit() })))
+  // Where the tray sends clicks (Windows, KDE); on GNOME a click opens the menu.
+  tray.on('click', showWindow)
+}
+
+// The first time the window closes to the tray, the system says where the app went.
+function showTrayHint() {
+  if (trayHintShown(getAppStatePath())) return
+  rememberTrayHint(getAppStatePath())
+  if (!Notification.isSupported()) return
+  new Notification({ title: 'Sonorus', body: 'Sonorus is still running. Quit it from the tray icon.' }).show()
+}
+
+function quitNow() {
+  quitConfirmed = true
+  app.quit()
+}
+
+// Every way to quit comes here: the tray menu, Cmd+Q, the close button without a tray
+// or with the setting off. A recording or a transcription is asked about first.
+async function requestQuit() {
+  if (quitConfirmed || quitAsked) return
+  quitAsked = true
+  try {
+    const go = await confirmQuit({
+      queue: () => backendRequest('GET', '/queue'),
+      stopRecording: () => backendRequest('POST', '/audio/recording/stop'),
+      ask: async question => {
+        const options = {
+          type: 'question',
+          message: question.message,
+          detail: question.detail,
+          buttons: question.buttons,
+          defaultId: 0,
+          cancelId: 1,
+          noLink: true,
+        }
+        const parent = mainWin && !mainWin.isDestroyed() ? mainWin : null
+        const { response } = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options)
+        return response
+      },
+      sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
+    })
+    if (go) quitNow()
+  } finally {
+    quitAsked = false
+  }
+}
+
+app.on('second-instance', () => showWindow())
+// macOS: a click on the Dock icon.
+app.on('activate', () => showWindow())
+app.on('before-quit', event => {
+  if (quitConfirmed) return
+  event.preventDefault()
+  void requestQuit()
+})
 app.on('will-quit', () => stopBackend())
-app.on('window-all-closed', () => app.quit())
+// Closing the window does not quit by itself: its close handler decides.
+app.on('window-all-closed', () => {})
