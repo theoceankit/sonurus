@@ -40,8 +40,7 @@ export function DataSection() {
   const [step, setStep] = useState<Step | null>(null)
   const confirmation = useLingering(step)
   const recording = useRecording().phase !== 'idle'
-  // The queue knows of a recording another window started too.
-  const blocked = dataResetBlockReason(!!queue?.running_job_id, recording || !!queue?.recording)
+  const blocked = dataResetBlockReason(!!queue?.running_job_id, recording)
 
   const reset = async () => {
     await settingsStore().patch(defaultSettingsPatch(DEFAULT_SETTINGS))

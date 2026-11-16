@@ -16,7 +16,7 @@ const choiceWith = (installed: readonly string[] | undefined, language = 'auto')
 const RECORD: RecordingSetup = {
   sources: { mic: true, system: true },
   onToggle: noop,
-  micDevices: micOptions([{ kind: 'audioinput', deviceId: 'maono', label: 'Maono Dynamic Microphone' } as MediaDeviceInfo]),
+  micDevices: micOptions([{ id: 'maono', label: 'Maono Dynamic Microphone' }]),
   micDevice: DEFAULT_MIC,
   onMicDeviceChange: noop,
   systemDevices: systemOptions(FIXTURE_CAPTURE_SOURCES),

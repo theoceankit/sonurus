@@ -5,9 +5,12 @@ import { BOARDS } from './boards'
 import { DESIGN_REVIEW_ID, GONE_AUDIO_IDS, QUEUE_JOB, queueSnapshot, SPEAKER_IDS, WEEKLY_SYNC_ID } from './data'
 import { EVENT_SCRIPTS } from './event-scripts'
 import type { ApiClient } from '../client'
-import { BROKEN_SOURCE, createFixtureClient, NO_MODELS } from './fixture-client'
+import { BROKEN_MIC, BROKEN_SOURCE, createFixtureClient, NO_MODELS } from './fixture-client'
 import { DEFAULT_INSTALLED } from './models'
 import { ALIGNMENT_MODELS } from '../../transcribe/languages'
+
+const START = { mic: true, mic_device: null, system: true, system_source: null, title: 'Recording', whisper_model: 'large-v3', language: null }
+const LIVE = { phase: 'live' as const, title: 'Standup', started_at: 1763170000, sources: ['mic' as const] }
 
 const { anna, lena, mark, oliver, sofia, unknown1 } = SPEAKER_IDS
 const talkTime = (segments: Segment[], id: string) =>
@@ -637,7 +640,7 @@ describe('the speakers section', () => {
   })
 
   test('a speaker is not deleted while a transcription or a recording runs', async () => {
-    for (const changes of [{ running_job_id: 'a' }, { recording: true }]) {
+    for (const changes of [{ running_job_id: 'a' }, { recording: LIVE }]) {
       const client = createFixtureClient()
       client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot(changes) }] })
       await vi.waitFor(async () => expect(await client.getQueue()).toMatchObject(changes))
@@ -652,25 +655,37 @@ describe('live recording', () => {
     await expect(createFixtureClient({ captureSources: [] }).listCaptureSources()).resolves.toEqual([])
   })
 
-  test('a capture runs until it is stopped; a source that cannot run is refused', async () => {
-    const client = createFixtureClient()
-    const job = await client.startCapture('@DEFAULT_MONITOR@')
-    await expect(client.stopCapture(job, { path: '/data/recordings/mic.webm', startedAt: 1763170000250 })).resolves.toMatch(/\.wav$/)
-    await expect(client.stopCapture(job)).rejects.toMatchObject({ status: 404 })
-    await expect(client.startCapture(BROKEN_SOURCE)).rejects.toMatchObject({ status: 400 })
+  test('lists the microphones', async () => {
+    expect((await createFixtureClient().listMicInputs()).map(s => s.label)).toEqual(['C922 Pro Stream Webcam Digital Stereo (IEC958)', 'Maono Dynamic Microphone Analog Stereo'])
   })
 
-  test('an uploaded recording gets a path in the recordings', async () => {
-    await expect(createFixtureClient().uploadRecording(new Blob(['x'], { type: 'audio/webm' }))).resolves.toMatch(/^\/.*recordings\/sonorus-rec-.*\.webm$/)
+  test('a recording is live in the snapshot, pauses a running queue and is queued when it stops', async () => {
+    const client = createFixtureClient()
+    const live = await client.startRecording({ ...START, title: 'Standup' })
+    expect(live).toMatchObject({ phase: 'live', title: 'Standup', sources: ['mic', 'system'] })
+    await expect(client.getQueue()).resolves.toMatchObject({ recording: live, paused: true, paused_by_recording: true })
+    await expect(client.startRecording(START)).rejects.toMatchObject({ status: 409 })
+    await expect(client.stopRecording()).resolves.toMatchObject({ phase: 'stopping' })
+    await vi.waitFor(async () => expect(await client.getQueue()).toMatchObject({ recording: null, paused: false, paused_by_recording: false }))
+    expect((await client.getQueue()).jobs.at(-1)).toMatchObject({ title: 'Standup', status: 'waiting' })
+    await expect(client.stopRecording()).rejects.toMatchObject({ status: 409 })
   })
 
-  test('a recording pauses a running queue and resumes it after; a queue paused before stays paused', async () => {
+  test('a queue paused before a recording stays paused after it', async () => {
     const client = createFixtureClient()
-    await expect(client.startQueueRecording()).resolves.toMatchObject({ recording: true, paused: true, paused_by_recording: true })
-    await expect(client.stopQueueRecording()).resolves.toMatchObject({ recording: false, paused: false, paused_by_recording: false })
     await client.pauseQueue()
-    await expect(client.startQueueRecording()).resolves.toMatchObject({ recording: true, paused: true, paused_by_recording: false })
-    await expect(client.stopQueueRecording()).resolves.toMatchObject({ recording: false, paused: true })
+    await client.startRecording(START)
+    await expect(client.getQueue()).resolves.toMatchObject({ paused: true, paused_by_recording: false })
+    await client.stopRecording()
+    await vi.waitFor(async () => expect(await client.getQueue()).toMatchObject({ recording: null, paused: true }))
+  })
+
+  test('a source that cannot run and a missing model are refused before recording', async () => {
+    const client = createFixtureClient()
+    await expect(client.startRecording({ ...START, system_source: BROKEN_SOURCE })).rejects.toMatchObject({ status: 400 })
+    await expect(client.startRecording({ ...START, mic_device: BROKEN_MIC })).rejects.toMatchObject({ status: 400 })
+    await expect(createFixtureClient({ noModels: true }).startRecording(START)).rejects.toMatchObject({ status: 400 })
+    await expect(client.getQueue()).resolves.toMatchObject({ recording: null })
   })
 })
 

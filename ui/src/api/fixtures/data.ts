@@ -230,7 +230,7 @@ export const queueSnapshot = (changes: Partial<QueueSnapshot> = {}): QueueSnapsh
   type: 'snapshot',
   paused: false,
   paused_by_recording: false,
-  recording: false,
+  recording: null,
   start_mode: 'auto',
   running_job_id: null,
   step: null,

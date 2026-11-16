@@ -26,11 +26,16 @@ export type QueueJobUpdate = Schemas['JobUpdateRequest']
 export type QueueStartMode = Schemas['QueueSettingsRequest']['start_mode']
 export type GpuStatus = Schemas['GpuStatus']
 export type DataResetSummary = Schemas['DataResetResponse']
-// A system audio source the backend can capture, by the name of its output device.
+// A system audio source the backend can capture, by the name of its output device, or
+// a microphone by its own name.
 export type AudioSource = Schemas['AudioSource']
-// A microphone recording to mix into captured system audio: its uploaded file and when
-// the recorder started, by Date.now().
-export type MicTrack = { path: string; startedAt: number }
+// The live recording in the queue snapshot; started_at is Unix time in seconds.
+export type LiveRecording = Schemas['LiveRecording']
+// What a recording takes and what it is queued with when it stops. A null device or
+// source is the default one.
+export type RecordingStart = Schemas['RecordingStartRequest']
+export type RecordingFailedEvent = Schemas['RecordingFailedEvent']
+export type RecordingSourceLostEvent = Schemas['RecordingSourceLostEvent']
 export type JobDoneEvent = Schemas['JobDoneEvent']
 export type JobFailedEvent = Schemas['JobFailedEvent']
 export type HeartbeatEvent = Schemas['HeartbeatEvent']
@@ -41,7 +46,7 @@ export type ModelsFolder = Schemas['ModelsFolder']
 // What WS /ws/queue sends. Heartbeats only keep the connection alive, so
 // subscribers get the rest.
 export type QueueEvent = QueueUpdate | HeartbeatEvent
-export type QueueUpdate = QueueSnapshot | JobDoneEvent | JobFailedEvent
+export type QueueUpdate = QueueSnapshot | JobDoneEvent | JobFailedEvent | RecordingFailedEvent | RecordingSourceLostEvent
 
 // A known speaker that an unrecognized one may be. score is cosine similarity,
 // suggested marks the first candidate when it is close enough.

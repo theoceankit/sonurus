@@ -23,6 +23,7 @@ export const queryKeys = {
   // Under the models: what changes them (a download, a delete) may make the folder.
   modelsFolder: ['models', 'folder'],
   captureSources: ['captureSources'],
+  micInputs: ['micInputs'],
   connected: ['connected'],
 } satisfies Record<string, QueryKey | ((...args: never[]) => QueryKey)>
 
@@ -139,6 +140,13 @@ export function useQueue() {
 export function useCaptureSources(enabled = true) {
   const api = useApi()
   return useQuery({ queryKey: queryKeys.captureSources, queryFn: () => api.listCaptureSources(), refetchOnMount: 'always', enabled })
+}
+
+// The microphones, asked for only while enabled, and again each time a screen that
+// shows them mounts: a microphone may have come or gone.
+export function useMicInputs(enabled = true) {
+  const api = useApi()
+  return useQuery({ queryKey: queryKeys.micInputs, queryFn: () => api.listMicInputs(), refetchOnMount: 'always', enabled })
 }
 
 // Whether WS /ws/queue is up, kept by useQueueEventsSync.

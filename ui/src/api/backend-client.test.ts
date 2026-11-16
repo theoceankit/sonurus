@@ -332,47 +332,26 @@ describe('live recording', () => {
     expect(sent).toEqual([{ url: 'http://localhost:8000/audio/capture/sources', method: 'GET', body: undefined }])
   })
 
-  test('starts a capture of a source and answers its job', async () => {
-    const { client, sent } = setup(() => json({ job_id: 'c1' }))
-    await expect(client.startCapture('bt.monitor')).resolves.toBe('c1')
-    expect(sent).toEqual([{ url: 'http://localhost:8000/audio/capture/start', method: 'POST', body: { source_id: 'bt.monitor' } }])
+  test('lists the microphones', async () => {
+    const { client, sent } = setup(() => json({ inputs: [{ id: 'alsa_input.maono', label: 'Maono' }] }))
+    await expect(client.listMicInputs()).resolves.toEqual([{ id: 'alsa_input.maono', label: 'Maono' }])
+    expect(sent).toEqual([{ url: 'http://localhost:8000/audio/capture/inputs', method: 'GET', body: undefined }])
   })
 
-  test('a capture that cannot run is refused with the reason', async () => {
+  test('starts a recording with its sources and job settings, and stops it', async () => {
+    const live = { phase: 'live', title: 'Standup', started_at: 1763170000.25, sources: ['mic', 'system'] }
+    const { client, sent } = setup(() => json(live))
+    const start = { mic: true, mic_device: null, system: true, system_source: 'bt.monitor', title: 'Standup', whisper_model: 'small', language: null }
+    await expect(client.startRecording(start)).resolves.toEqual(live)
+    await client.stopRecording()
+    expect(sent).toEqual([
+      { url: 'http://localhost:8000/audio/recording/start', method: 'POST', body: start },
+      { url: 'http://localhost:8000/audio/recording/stop', method: 'POST', body: undefined },
+    ])
+  })
+
+  test('a recording that cannot start is refused with the reason', async () => {
     const { client } = setup(() => json({ detail: 'parec is not installed' }, 400))
-    await expect(client.startCapture('x')).rejects.toEqual(new ApiError(400, 'parec is not installed'))
-  })
-
-  test('stops a capture with the microphone track to mix in and when it started, or without one', async () => {
-    const { client, sent } = setup(() => json({ file_path: '/r/merged.wav' }))
-    await expect(client.stopCapture('c1', { path: '/r/mic.webm', startedAt: 1763170000250 })).resolves.toBe('/r/merged.wav')
-    await expect(client.stopCapture('c1')).resolves.toBe('/r/merged.wav')
-    expect(sent).toEqual([
-      { url: 'http://localhost:8000/audio/capture/stop/c1', method: 'POST', body: { mic_path: '/r/mic.webm', mic_started_at: 1763170000.25 } },
-      { url: 'http://localhost:8000/audio/capture/stop/c1', method: 'POST', body: {} },
-    ])
-  })
-
-  test('uploads a recording as a raw body of its own type and answers its path', async () => {
-    const received: { url: string; type: string | null; size: number }[] = []
-    const fetch = vi.fn(async (input: RequestInfo | URL) => {
-      const request = input as Request
-      received.push({ url: request.url, type: request.headers.get('Content-Type'), size: (await request.arrayBuffer()).byteLength })
-      return json({ file_path: '/r/sonorus-rec-1.webm' }, 201)
-    })
-    const client = createBackendClient({ fetch: fetch as typeof globalThis.fetch })
-    const blob = new Blob([new Uint8Array(5)], { type: 'audio/webm;codecs=opus' })
-    await expect(client.uploadRecording(blob)).resolves.toBe('/r/sonorus-rec-1.webm')
-    expect(received).toEqual([{ url: 'http://localhost:8000/audio/recordings', type: 'audio/webm;codecs=opus', size: 5 }])
-  })
-
-  test('tells the queue a recording starts and stops', async () => {
-    const { client, sent } = setup(() => json({ type: 'snapshot', paused: true, paused_by_recording: true, recording: true, start_mode: 'auto', running_job_id: null, step: null, jobs: [] }))
-    await client.startQueueRecording()
-    await client.stopQueueRecording()
-    expect(sent).toEqual([
-      { url: 'http://localhost:8000/queue/recording/start', method: 'POST', body: undefined },
-      { url: 'http://localhost:8000/queue/recording/stop', method: 'POST', body: undefined },
-    ])
+    await expect(client.startRecording({ mic: true, system: false, title: 'x' })).rejects.toEqual(new ApiError(400, 'parec is not installed'))
   })
 })

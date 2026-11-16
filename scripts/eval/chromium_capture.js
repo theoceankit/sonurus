@@ -1,12 +1,12 @@
-// Record a WAV file the way the app records the microphone: Chromium plays the
-// file as a fake capture device, the page records it with getUserMedia →
-// AudioContext → MediaStreamDestination → MediaRecorder (audio/webm;codecs=opus),
-// as the app does (ui/src/recording/session.ts). Used by the quality tests (tests/quality/)
+// Record a WAV file the way the app recorded the microphone in its window, before
+// the backend recorded it: Chromium plays the file as a fake capture device, the
+// page records it with getUserMedia → AudioContext → MediaStreamDestination →
+// MediaRecorder (audio/webm;codecs=opus). Used by the quality tests (tests/quality/)
 // to measure what Chromium's microphone processing does to speech.
 //
 //   npx electron scripts/eval/chromium_capture.js <input.wav> <output.webm> <default|raw>
 //
-// default: getUserMedia({ audio: true }) like the app — echo cancellation,
+// default: getUserMedia({ audio: true }) as the window did — echo cancellation,
 //          noise suppression and auto gain control on (Chromium defaults)
 // raw:     the same with all three turned off
 // Runs in real time (the length of the input).

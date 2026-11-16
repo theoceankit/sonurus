@@ -155,20 +155,9 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     retryQueueJob: job_id => send(http.POST('/queue/jobs/{job_id}/retry', { params: { path: { job_id } } })),
     setQueueStartMode: start_mode => send(http.PUT('/queue/settings', { body: { start_mode } })),
     listCaptureSources: async () => (await send(http.GET('/audio/capture/sources'))).sources,
-    startCapture: async source_id => (await send(http.POST('/audio/capture/start', { body: { source_id } }))).job_id,
-    stopCapture: async (job_id, mic) => (await send(http.POST('/audio/capture/stop/{job_id}', {
-      params: { path: { job_id } },
-      // The backend's clock is Unix time in seconds.
-      body: mic ? { mic_path: mic.path, mic_started_at: mic.startedAt / 1000 } : {},
-    }))).file_path,
-    // The schema has no body for it: the recording goes as it is, with its own type.
-    uploadRecording: async blob => (await send(http.POST('/audio/recordings', {
-      body: blob as never,
-      bodySerializer: (body: unknown) => body as BodyInit,
-      headers: { 'Content-Type': blob.type },
-    }))).file_path,
-    startQueueRecording: () => send(http.POST('/queue/recording/start')),
-    stopQueueRecording: () => send(http.POST('/queue/recording/stop')),
+    listMicInputs: async () => (await send(http.GET('/audio/capture/inputs'))).inputs,
+    startRecording: body => send(http.POST('/audio/recording/start', { body })),
+    stopRecording: () => send(http.POST('/audio/recording/stop')),
     subscribeQueueEvents: (listener, onConnection) => connectQueueEvents({
       url: `${baseUrl.replace(/^http/, 'ws')}/ws/queue`,
       onEvent: listener,

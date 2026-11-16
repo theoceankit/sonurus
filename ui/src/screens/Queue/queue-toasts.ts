@@ -13,6 +13,12 @@ export function queueEventToast(event: QueueUpdate, openRecording: (transcriptId
   if (event.type === 'job_failed' && event.error_code !== ALIGNMENT_MISSING) {
     return { message: `Transcription failed: "${event.title}"`, type: 'error' }
   }
+  // The backend ran the recording; a window shows how it ended.
+  if (event.type === 'recording_failed') return { message: `Recording error: ${event.error}`, type: 'error' }
+  if (event.type === 'recording_source_lost') {
+    const source = event.source === 'mic' ? 'The microphone was disconnected' : 'System audio was lost'
+    return { message: `${source}. The recording was stopped and saved.`, type: 'error' }
+  }
   return null
 }
 

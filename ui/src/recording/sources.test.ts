@@ -21,12 +21,10 @@ describe('which sources a recording takes', () => {
 })
 
 describe('devices', () => {
-  const input = (deviceId: string, label = '') => ({ kind: 'audioinput', deviceId, label }) as MediaDeviceInfo
-  test('microphones: the default first, then each input; one without a label by its id', () => {
-    expect(micOptions([input('a1b2c3d4e5', 'Maono'), { kind: 'audiooutput', deviceId: 'o', label: 'Speakers' } as MediaDeviceInfo, input('ffeeddccbb')])).toEqual([
+  test('microphones: the default first, then each one the backend can record', () => {
+    expect(micOptions([{ id: 'alsa_input.maono', label: 'Maono' }])).toEqual([
       { value: DEFAULT_MIC, label: 'Default microphone' },
-      { value: 'a1b2c3d4e5', label: 'Maono' },
-      { value: 'ffeeddccbb', label: 'Microphone ffeedd' },
+      { value: 'alsa_input.maono', label: 'Maono' },
     ])
   })
 

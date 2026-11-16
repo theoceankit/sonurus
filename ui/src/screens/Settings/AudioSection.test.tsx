@@ -2,7 +2,6 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
-import type { ApiClient } from '../../api/client'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
 import { App } from '../../App'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
@@ -10,7 +9,6 @@ import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../../platform/settings'
 import { RecordingProvider, useRecording } from '../../recording/RecordingProvider'
-import type { SessionDeps } from '../../recording/session'
 import { SettingsProvider } from './SettingsProvider'
 import { EditorScreen } from '../Editor/EditorScreen'
 import { findDialog, findTitlebarButton, getDialog, getTitlebarButton } from '../../test-queries'
@@ -54,18 +52,11 @@ test('Include microphone is not there: the dialog turns the microphone on and of
 })
 
 test('Delete all data waits for a live recording to stop', async () => {
-  const deps = (api: ApiClient): SessionDeps => ({
-    api,
-    platform: async () => 'linux',
-    getUserMedia: () => Promise.reject(new Error('no microphone')),
-    connect: () => { throw new Error('no audio') },
-    createRecorder: () => { throw new Error('no audio') },
-  })
   let control!: ReturnType<typeof useRecording>
   const Probe = () => { control = useRecording(); return null }
   vi.stubGlobal('electronAPI', createMockElectronAPI())
   render(
-    <ApiProvider client={createFixtureClient()}><OverlayProvider><RecordingProvider deps={deps}><SettingsProvider>
+    <ApiProvider client={createFixtureClient()}><OverlayProvider><RecordingProvider><SettingsProvider>
       <EditorScreen /><Probe />
     </SettingsProvider></RecordingProvider></OverlayProvider></ApiProvider>,
   )

@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../api/ApiProvider'
-import type { ApiClient } from '../api/client'
+import { useQueueEventsSync } from '../api/queries'
 import { createFixtureClient } from '../api/fixtures/fixture-client'
 import { dismissAllToasts } from '../components/Toast/toast-store'
 import { OverlayProvider } from '../OverlayProvider'
@@ -10,20 +10,16 @@ import { createMockElectronAPI } from '../platform/electron-api-mock'
 import { EditorScreen } from '../screens/Editor/EditorScreen'
 import { SettingsProvider } from '../screens/Settings/SettingsProvider'
 import { RecordingProvider, useRecording } from './RecordingProvider'
-import type { SessionDeps } from './session'
 
 afterEach(() => {
   dismissAllToasts()
   vi.unstubAllGlobals()
 })
 
-const systemOnly = (api: ApiClient): SessionDeps => ({
-  api,
-  platform: async () => 'linux',
-  getUserMedia: () => Promise.reject(new Error('no microphone here')),
-  connect: () => { throw new Error('no audio here') },
-  createRecorder: () => { throw new Error('no audio here') },
-})
+function QueueSync() {
+  useQueueEventsSync()
+  return null
+}
 
 let control: ReturnType<typeof useRecording>
 const Probe = () => { control = useRecording(); return null }
@@ -32,8 +28,8 @@ async function recording() {
   const client = createFixtureClient()
   vi.stubGlobal('electronAPI', createMockElectronAPI())
   render(
-    <ApiProvider client={client}><OverlayProvider><RecordingProvider deps={systemOnly}><SettingsProvider>
-      <EditorScreen /><Probe />
+    <ApiProvider client={client}><OverlayProvider><RecordingProvider><SettingsProvider>
+      <QueueSync /><EditorScreen /><Probe />
     </SettingsProvider></RecordingProvider></OverlayProvider></ApiProvider>,
   )
   await screen.findAllByRole('button', { name: /Weekly product sync/ })
@@ -45,7 +41,6 @@ const section = () => screen.queryByRole('region', { name: 'Recording' })
 
 test('the recording stands above the queue in the sidebar, and its Stop queues it', async () => {
   const client = await recording()
-  expect(within(section()!).getByText('Starting')).toBeTruthy()
   await waitFor(() => expect(within(section()!).getByText('0:00')).toBeTruthy())
   expect(within(section()!).getByText('Standup')).toBeTruthy()
   await userEvent.click(within(section()!).getByRole('button', { name: 'Stop recording' }))

@@ -1,5 +1,5 @@
 import type {
-  AudioSource, DataResetSummary, GpuStatus, HandleFormat, MicTrack, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
+  AudioSource, DataResetSummary, GpuStatus, HandleFormat, LiveRecording, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RecordingStart, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
@@ -135,23 +135,20 @@ export interface ApiClient {
   retryQueueJob(jobId: string): Promise<QueueJob>
   // Whether new jobs start on their own or wait for Start; the backend keeps it.
   setQueueStartMode(startMode: QueueStartMode): Promise<QueueSnapshot>
-  // Live recording. The microphone is recorded in the window; system audio is captured
-  // by the backend on every OS, so the window never writes audio itself.
+  // Live recording. The backend records the microphone and system audio, pauses the
+  // queue and queues the recording when it stops; the window only starts it, shows it
+  // (QueueSnapshot.recording) and stops it, so a recording outlives its window.
   // The system audio sources, the default output first; none where nothing can be captured.
   listCaptureSources(): Promise<AudioSource[]>
-  // Starts capturing a source and answers the capture's job. Refused with a 400 and the
-  // reason when the capture cannot run (a missing tool, no permission).
-  startCapture(sourceId: string): Promise<string>
-  // Stops the capture and answers the levelled file; with a microphone track, the two are
-  // mixed into it, the microphone shifted by how much later it started. 404 for a capture
-  // that is not running.
-  stopCapture(jobId: string, mic?: MicTrack): Promise<string>
-  // Stores a finished microphone recording among the recordings and answers its path.
-  uploadRecording(blob: Blob): Promise<string>
-  // A recording starts: the queue pauses and the running job stops. When it stops, a
-  // queue the recording paused starts again.
-  startQueueRecording(): Promise<QueueSnapshot>
-  stopQueueRecording(): Promise<QueueSnapshot>
+  // The microphones by name; the default one is not listed (mic_device null).
+  listMicInputs(): Promise<AudioSource[]>
+  // Answers the live recording. Refused with a 400 and the reason when a source cannot
+  // run (a missing tool, no permission) or a model the job needs is not installed (with
+  // its code), with a 409 while a recording runs.
+  startRecording(request: RecordingStart): Promise<LiveRecording>
+  // Answers at once, stopping; the recording is saved and queued after, and how it ended
+  // comes with the queue's events. 409 without a live recording.
+  stopRecording(): Promise<LiveRecording>
   // The listener first gets the current snapshot. onConnection is told when the
   // connection is lost and when it is back. Returns the unsubscribe.
   subscribeQueueEvents(listener: (event: QueueUpdate) => void, onConnection?: (connected: boolean) => void): () => void

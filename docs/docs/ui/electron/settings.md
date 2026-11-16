@@ -54,7 +54,7 @@ GPU acceleration of the packaged app, after Languages; on macOS there is no sect
 
 ## Audio devices
 
-The devices a new recording starts with, in one card, Live recording: Microphone, the default one or an input of the computer, and System audio source, from `GET /audio/capture/sources`. They are `recordingMicDevice` (null for the default microphone) and `recordingSystemDevice` of the settings file, the values New recording saves when it starts a recording ([Home](home.md#new-recording-dialog)), so the two always show the same. A device that is gone shows the first one in its place. Where no system audio can be captured, its field says Not available and is off. There is no Include microphone switch: New recording turns the microphone on and off.
+The devices a new recording starts with, in one card, Live recording: Microphone, the default one or one the backend can record (`GET /audio/capture/inputs`), and System audio source, from `GET /audio/capture/sources`. They are `recordingMicDevice` (null for the default microphone) and `recordingSystemDevice` of the settings file, the values New recording saves when it starts a recording ([Home](home.md#new-recording-dialog)), so the two always show the same. A device that is gone shows the first one in its place. Where no system audio can be captured, its field says Not available and is off. There is no Include microphone switch: New recording turns the microphone on and off.
 
 ## API Keys
 

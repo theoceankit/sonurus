@@ -23,3 +23,12 @@ test('a failed job is an error, unless the Alignment model dialog takes it', () 
 test('snapshots say nothing', () => {
   expect(queueEventToast(queueSnapshot(), () => {})).toBeNull()
 })
+
+test('a recording that could not be saved, or lost a source, says so', () => {
+  expect(queueEventToast({ type: 'recording_failed', title: 'Standup', error: 'No audio was captured from the microphone.' }, () => {}))
+    .toEqual({ message: 'Recording error: No audio was captured from the microphone.', type: 'error' })
+  expect(queueEventToast({ type: 'recording_source_lost', source: 'mic', title: 'Standup' }, () => {})?.message)
+    .toBe('The microphone was disconnected. The recording was stopped and saved.')
+  expect(queueEventToast({ type: 'recording_source_lost', source: 'system', title: 'Standup' }, () => {})?.message)
+    .toBe('System audio was lost. The recording was stopped and saved.')
+})
