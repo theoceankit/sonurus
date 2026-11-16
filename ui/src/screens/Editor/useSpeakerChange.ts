@@ -1,6 +1,7 @@
 import type { SpeakerTarget } from '../../api/client'
 import { useAssignSpeaker, useSetSpeakerPhoto, useSpeakers, useUndoSpeakerAssignment } from '../../api/queries'
 import { toast } from '../../components/Toast/toast-store'
+import { trackUndoToast } from './speaker-undo-toasts'
 
 export interface SpeakerChange {
   transcriptId: number
@@ -30,16 +31,22 @@ export function useSpeakerChange() {
       })
     }
     const name = 'id' in target ? speakers?.find(speaker => speaker.id === target.id)?.name : target.name
-    toast({
+    const created = 'name' in target ? { createdSpeakerId: speakerId } : {}
+    // Closed by a merge of the speaker the segments would go back to (or of the one
+    // made here), who is gone then.
+    let forget = () => {}
+    const dismiss = toast({
       message: `Assigned to ${name}`,
       action: {
         label: 'Undo',
         onClick: () => {
-          undo({ transcriptId, segmentStarts, speakerId: fromSpeakerId, ...('name' in target ? { createdSpeakerId: speakerId } : {}) })
+          forget()
+          undo({ transcriptId, segmentStarts, speakerId: fromSpeakerId, ...created })
             .then(onUndone, (error: Error) => { toast({ message: `Failed to undo: ${error.message}`, type: 'error' }) })
         },
       },
     })
+    forget = trackUndoToast([fromSpeakerId, ...('name' in target ? [speakerId] : [])], dismiss)
   }
 
   return { change, busy }

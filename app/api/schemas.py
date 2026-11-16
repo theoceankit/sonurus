@@ -98,6 +98,19 @@ class SpeakerDeleteResponse(BaseModel):
     transcripts: int
 
 
+class SpeakerMergeRequest(BaseModel):
+    """POST /speakers/{id}/merge: the speaker who stays."""
+    into_id: str
+
+
+class SpeakerMergeResponse(BaseModel):
+    """The speaker who stays, as they are after the merge, and how many segments
+    in how many transcripts moved to them."""
+    speaker: SpeakerResponse
+    segments: int
+    transcripts: int
+
+
 class SpeakerSampleResponse(BaseModel):
     transcript_id: int
     audio_path: str
@@ -150,7 +163,7 @@ class UnknownSpeakerCandidates(ResponseModel):
 RefusalCode = Literal[
     "whisper_model_missing", "diarization_model_missing", "alignment_model_missing",
     "audio_not_found", "audio_not_readable", "audio_copy_failed", "job_running",
-    "handle_invalid", "handle_taken", "handle_needs_name", "photo_needs_name",
+    "handle_invalid", "handle_taken", "handle_needs_name", "photo_needs_name", "merge_into_self",
 ]
 
 HandleFormat = Literal["first.last", "f.last", "first.l"]

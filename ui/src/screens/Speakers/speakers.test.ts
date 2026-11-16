@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
-  categoryCounts, deleteBlockReason, deleteSpeakerPrompt, draftChanges, draftDirty, duplicateNameIds, filterSpeakers, formatLastSeen,
+  categoryCounts, deleteBlockReason, deleteSpeakerPrompt, draftChanges, mergeSpeakerPrompt, draftDirty, duplicateNameIds, filterSpeakers, formatLastSeen,
   speakerAfter, speakerDisplayName, speakerDraft, speakerUsage,
 } from './speakers'
 
@@ -79,6 +79,42 @@ describe('deleteSpeakerPrompt', () => {
 
   test('singular forms', () => {
     expect(deleteSpeakerPrompt({ name: 'Bob', segments: 1, transcripts: 1 }).body).toMatch(/1 segment in 1 recording will become Unassigned/)
+  })
+})
+
+describe('mergeSpeakerPrompt', () => {
+  const lena = { name: 'Lena', handle: 'lena', photo: null, segments: 12, transcripts: 3 }
+  const mark = { name: 'Mark Ellis', handle: 'mark.ellis', photo: null, segments: 40, transcripts: 9 }
+  const unnamed = { name: null, handle: null, photo: null, segments: 5, transcripts: 1 }
+
+  test('into a named speaker: the segments move and the merged name and handle go', () => {
+    const prompt = mergeSpeakerPrompt(lena, mark)
+    expect(prompt.title).toBe('Merge "Lena" into "Mark Ellis"?')
+    expect(prompt.body).toBe('12 segments in 3 recordings move to "Mark Ellis", whose voice profile is worked out again from all of them. '
+      + '"Lena" and @lena are removed. This cannot be undone.')
+  })
+
+  test('the photo is said to go when there is one', () => {
+    expect(mergeSpeakerPrompt({ ...lena, photo: 'a.jpg' }, mark).body).toMatch(/"Lena", @lena and the photo are removed\./)
+  })
+
+  test('into a speaker without a name: they take the name, handle, colour and photo', () => {
+    expect(mergeSpeakerPrompt(lena, unnamed).body).toMatch(/takes the name "Lena", @lena and the colour\./)
+    const prompt = mergeSpeakerPrompt({ ...lena, photo: 'a.jpg' }, unnamed)
+    expect(prompt.title).toBe('Merge "Lena" into Unnamed speaker?')
+    expect(prompt.body).toBe('12 segments in 3 recordings move to Unnamed speaker, whose voice profile is worked out again from all of them. '
+      + 'Unnamed speaker takes the name "Lena", @lena, the colour and the photo. This cannot be undone.')
+  })
+
+  test('an unnamed speaker merged has nothing else to lose', () => {
+    const prompt = mergeSpeakerPrompt({ ...unnamed, segments: 1, transcripts: 1 }, mark)
+    expect(prompt.title).toBe('Merge Unnamed speaker into "Mark Ellis"?')
+    expect(prompt.body).toBe('1 segment in 1 recording moves to "Mark Ellis", whose voice profile is worked out again from all of them. This cannot be undone.')
+  })
+
+  test('a speaker in no recording moves nothing', () => {
+    expect(mergeSpeakerPrompt({ ...lena, segments: 0, transcripts: 0 }, mark).body)
+      .toBe('"Lena" is in no recording. "Lena" and @lena are removed. This cannot be undone.')
   })
 })
 

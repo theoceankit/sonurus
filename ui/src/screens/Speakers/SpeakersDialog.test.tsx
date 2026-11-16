@@ -11,6 +11,7 @@ import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import unknownSpeakerSvg from '../../assets/icons/speaker-unknown.svg?raw'
 import { findDialog, findTitlebarButton, getDialog, queryDialog } from '../../test-queries'
+import { trackUndoToast } from '../Editor/speaker-undo-toasts'
 
 afterEach(() => {
   dismissAllToasts()
@@ -375,6 +376,76 @@ test('Merge and Delete follow each other in More, with nothing between them', as
   const menu = await screen.findByRole('menu')
   expect(within(menu).queryByRole('separator')).toBeNull()
   expect(within(menu).getAllByRole('menuitem').map(item => item.textContent?.trim())).toEqual(['Merge into another speaker', 'Delete speaker'])
+})
+
+const chooseMergeTarget = async (dialog: HTMLElement, from: string) => {
+  await openCard(dialog, new RegExp(from))
+  await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Merge into another speaker' }))
+  return findDialog(`Merge "${from}" into another speaker`)
+}
+
+test('merging chooses the other speaker, asks first, then shows the one who stays', async () => {
+  const { dialog } = await setup()
+  const picker = await chooseMergeTarget(dialog, 'Lena Kovacs')
+  const list = within(picker).getByRole('listbox', { name: 'Speakers' })
+  expect(within(list).queryByText('Lena Kovacs')).toBeNull()
+  expect(within(picker).queryByRole('button', { name: 'New speaker' })).toBeNull()
+  await userEvent.click(within(list).getByRole('option', { name: /Mark Ellis/ }))
+  await userEvent.click(within(picker).getByRole('button', { name: 'Merge' }))
+  const confirm = await screen.findByRole('alertdialog', { name: 'Merge "Lena Kovacs" into "Mark Ellis"?' })
+  expect(within(confirm).getByText(/move to "Mark Ellis"/)).toBeTruthy()
+  await userEvent.click(within(confirm).getByRole('button', { name: 'Merge' }))
+  await waitFor(() => expect((within(dialog).getByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('Mark Ellis'))
+  expect(await screen.findByText('Merged "Lena Kovacs" into "Mark Ellis".')).toBeTruthy()
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))
+  expect(rowNames(dialog).some(row => row?.startsWith('Lena Kovacs'))).toBe(false)
+})
+
+test('a speaker without a name takes the name of the one merged into them', async () => {
+  const { dialog } = await setup()
+  const picker = await chooseMergeTarget(dialog, 'Lena Kovacs')
+  await userEvent.click(within(picker).getByRole('button', { name: /^Unnamed/ }))
+  await userEvent.click(within(picker).getAllByRole('option', { name: /Unnamed speaker/ })[0])
+  await userEvent.click(within(picker).getByRole('button', { name: 'Merge' }))
+  const confirm = await screen.findByRole('alertdialog', { name: 'Merge "Lena Kovacs" into Unnamed speaker?' })
+  expect(within(confirm).getByText(/takes the name "Lena Kovacs"/)).toBeTruthy()
+  await userEvent.click(within(confirm).getByRole('button', { name: 'Merge' }))
+  await waitFor(() => expect((within(dialog).getByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('Lena Kovacs'))
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))
+  expect(rowNames(dialog).filter(row => row?.startsWith('Lena Kovacs'))).toHaveLength(1)
+})
+
+test('a speaker is not merged while the queue transcribes', async () => {
+  const { client, dialog } = await setup()
+  act(() => { client.playEvents({ steps: [{ afterMs: 0, event: queueSnapshot({ running_job_id: 'a' }) }] }) })
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Merge into another speaker' }))
+  expect(await screen.findByText('Pause the transcription queue first.')).toBeTruthy()
+  expect(queryDialog('Merge "Lena Kovacs" into another speaker')).toBeNull()
+})
+
+test('a card with edits asks to discard them before merging', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.type(within(dialog).getByRole('textbox', { name: 'Name' }), 'x')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'More' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Merge into another speaker' }))
+  const ask = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+  await userEvent.click(within(ask).getByRole('button', { name: 'Discard' }))
+  expect(await findDialog('Merge "Lena Kovacs" into another speaker')).toBeTruthy()
+})
+
+test('a merge closes the Undo toasts that would give segments back to the merged speaker', async () => {
+  const { dialog } = await setup()
+  const dismiss = vi.fn()
+  trackUndoToast([SPEAKER_IDS.lena], dismiss)
+  const picker = await chooseMergeTarget(dialog, 'Lena Kovacs')
+  await userEvent.click(within(picker).getByRole('option', { name: /Mark Ellis/ }))
+  await userEvent.click(within(picker).getByRole('button', { name: 'Merge' }))
+  await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Merge' }))
+  await waitFor(() => expect(dismiss).toHaveBeenCalledTimes(1))
 })
 
 const handleField = (dialog: HTMLElement) => within(dialog).getByRole('textbox', { name: 'Handle' }) as HTMLInputElement

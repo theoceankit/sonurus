@@ -379,6 +379,22 @@ export function useDeleteSpeaker() {
   })
 }
 
+export function useMergeSpeaker() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: ({ speakerId, intoId }: { speakerId: string; intoId: string }) => api.mergeSpeaker(speakerId, intoId),
+    onSuccess: ({ speaker }, { speakerId }) => {
+      queries.setQueryData<Speaker[]>(queryKeys.speakers, speakers => speakers
+        ?.filter(s => s.id !== speakerId)
+        .map(s => (s.id === speaker.id ? speaker : s)))
+      queries.removeQueries({ queryKey: [...queryKeys.speakers, speakerId] })
+      void queries.invalidateQueries({ queryKey: queryKeys.speakers })
+      void refreshTranscripts(queries)
+    },
+  })
+}
+
 // Files that went into the queue before one failed stay there, so the caller can
 // take them off its list and not send them twice.
 export class AddToQueueError extends Error {

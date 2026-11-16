@@ -199,7 +199,13 @@ Read / persist the palette slot. `set_color()` raises `ValueError` outside `0..P
 
 Removes a speaker — embedding, names, color and handle — from memory (including pending dirty entries) and from the database. Works for speakers that only have a name; no-op if the speaker is unknown.
 
-Called only through `CommitService`: `recompute_or_remove()` drops unnamed speakers left without segments, and `delete_speaker()` removes a speaker the user deleted (after its segments were unassigned).
+Called only through `CommitService`: `recompute_or_remove()` drops unnamed speakers left without segments, `delete_speaker()` removes a speaker the user deleted (after its segments were unassigned), and `merge_speaker()` removes the speaker merged into another (after its segments moved).
+
+---
+
+### `take_identity(from_id, to_id)`
+
+Gives `to_id` who `from_id` is: its `speaker_names` rows and its `speaker_meta` row (colour, handle, whether the handle was set by hand, photo), in one transaction. The row of `from_id` is deleted before `to_id`'s is written, so the handle is free for the unique index. The photo file stays where it is; only its owner changes, so the `remove_speaker(from_id)` that follows no longer sees it. `from_id` keeps its embedding, if any, and nothing else. Writes no embedding; called only by `CommitService.merge_speaker()`, for a `to_id` without a name.
 
 ---
 

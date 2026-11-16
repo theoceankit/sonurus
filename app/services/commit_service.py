@@ -146,6 +146,27 @@ class CommitService:
         log.info(f"Deleted speaker {speaker_id} ({result['segments']} segments unassigned)")
         return result
 
+    def merge_speaker(self, from_id: str, into_id: str) -> dict:
+        """Merge from_id into into_id, who turned out to be the same person.
+
+        Every segment and possible match of from_id goes to into_id. into_id keeps
+        their name, handle, colour and photo; one without a name takes from_id's.
+        from_id is then removed entirely. into_id's voice is recomputed from all
+        their segments without the guard: the user said the voices are one, and
+        the guard would drop exactly the recordings that kept them apart.
+        Returns the moved {segments, transcripts} counts."""
+        result = self.storage.move_speaker(from_id, into_id)
+        self.memory.reload_names()
+        if self.memory.get_name(into_id) is None and self.memory.get_name(from_id) is not None:
+            self.memory.take_identity(from_id, into_id)
+        self.memory.remove_speaker(from_id)
+        avg, count = self._avg_from_db(into_id)
+        if avg is not None:
+            self.memory.update_embedding(into_id, avg, count)
+            self.memory.save()
+        log.info(f"Merged speaker {from_id} into {into_id} ({result['segments']} segments moved)")
+        return result
+
     def commit_recognized_speakers(self, transcript):
         """Update embeddings for speakers already in memory (auto-recognized in new session)."""
         recognized = {

@@ -14,12 +14,14 @@ export const speakerDisplayName = (speaker: Pick<Speaker, 'name'>) => speaker.na
 
 // A search looks at the name and the handle (a leading @ in it is left out), so a
 // speaker without a name, who has no handle either, never matches it.
+export const inCategory = (speaker: Pick<Speaker, 'name'>, category: SpeakersCategory) =>
+  category === 'all' || (category === 'named') === Boolean(speaker.name)
+
 export function filterSpeakers<T extends Pick<Speaker, 'name'> & { handle?: string | null }>(speakers: readonly T[], query: string, category: SpeakersCategory): T[] {
   const typed = nameKey(query)
   const search = typed.replace(/^@+/, '')
   return speakers.filter(speaker => {
-    if (category === 'named' && !speaker.name) return false
-    if (category === 'unnamed' && speaker.name) return false
+    if (!inCategory(speaker, category)) return false
     if (!typed) return true
     return !!speaker.name && (nameKey(speaker.name).includes(search) || (speaker.handle ?? '').includes(search))
   })
@@ -57,8 +59,33 @@ export function deleteSpeakerPrompt({ name, segments, transcripts }: Pick<Speake
   }
 }
 
-// Why a speaker cannot be deleted now, or null. A running job holds its own copy of
-// the voices and would write the speaker back when it saves; the backend refuses too.
+type MergeSide = Pick<Speaker, 'name' | 'handle' | 'photo' | 'segments' | 'transcripts'>
+
+const quotedName = ({ name }: Pick<Speaker, 'name'>) => (name ? `"${name}"` : UNNAMED_SPEAKER)
+
+const listed = (items: string[]) => (items.length < 3 ? items.join(' and ') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`)
+
+// What a merge does, as POST /speakers/{id}/merge does it: the segments go to into,
+// who keeps who they are or, without a name, takes from's.
+export function mergeSpeakerPrompt(from: MergeSide, into: MergeSide) {
+  const target = quotedName(into)
+  const moved = from.segments
+    ? `${plural(from.segments, 'segment')} in ${plural(from.transcripts, 'recording')} ${from.segments === 1 ? 'moves' : 'move'} to ${target}, whose voice profile is worked out again from all of them.`
+    : `${quotedName(from)} is in no recording.`
+  let identity = ''
+  if (from.name && !into.name) {
+    identity = ` ${target} takes the name ${listed([quotedName(from), ...(from.handle ? [`@${from.handle}`] : []), 'the colour', ...(from.photo ? ['the photo'] : [])])}.`
+  } else if (from.name) {
+    identity = ` ${listed([quotedName(from), ...(from.handle ? [`@${from.handle}`] : []), ...(from.photo ? ['the photo'] : [])])} are removed.`
+  }
+  return {
+    title: `Merge ${quotedName(from)} into ${target}?`,
+    body: `${moved}${identity} This cannot be undone.`,
+  }
+}
+
+// Why a speaker cannot be deleted or merged now, or null. A running job holds its own copy
+// of the voices and would write the speaker back when it saves; the backend refuses too.
 export function deleteBlockReason(queue: Pick<QueueSnapshot, 'running_job_id' | 'recording'> | undefined): string | null {
   if (queue?.running_job_id) return 'Pause the transcription queue first.'
   if (queue?.recording) return 'Stop the recording first.'

@@ -20,7 +20,6 @@ export const NOT_IMPLEMENTED = [
   'settings.export',
   'settings.search',
   'sidebar.pin',
-  'speaker-card.merge',
   'speakers.recently-added',
   'titlebar.search',
   'transcript.export',

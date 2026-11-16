@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useCreateSpeaker, useDeleteSpeaker, useHandleSuggestion, useQueue, useSetSpeakerPhoto, useSpeakers, useUpdateSpeaker } from '../../api/queries'
+import { useCreateSpeaker, useDeleteSpeaker, useHandleSuggestion, useMergeSpeaker, useQueue, useSetSpeakerPhoto, useSpeakers, useUpdateSpeaker } from '../../api/queries'
 import type { Speaker } from '../../api/types'
 import { Button } from '../../components/Button/Button'
 import { Candidate } from '../../components/Candidate/Candidate'
+import { ChooseSpeakerModal, type ChooseSpeakerList } from '../../components/ChooseSpeakerModal/ChooseSpeakerModal'
 import type { IconName } from '../../components/Icon/icon-names'
 import { MenuItem } from '../../components/MenuItem/MenuItem'
 import { Modal } from '../../components/Modal/Modal'
@@ -22,12 +23,14 @@ import { markNotImplemented } from '../../not-implemented'
 import { useLingering } from '../../presence'
 import { speakerColor } from '../../styles/speaker-colors'
 import { hasSpeakerNamed, leastUsedColorIndex } from '../Editor/new-speaker'
+import { dismissUndoToastsOf } from '../Editor/speaker-undo-toasts'
 import { DeleteSpeakerDialog } from './DeleteSpeakerDialog'
 import { DiscardChangesDialog } from './DiscardChangesDialog'
+import { MergeSpeakerDialog } from './MergeSpeakerDialog'
 import { handleProblem, isHandleRefusal } from './handles'
 import { SpeakerCard } from './SpeakerCard'
 import {
-  categoryCounts, deleteBlockReason, draftChanges, draftDirty, duplicateNameIds, filterSpeakers, speakerAfter, speakerDisplayName,
+  categoryCounts, deleteBlockReason, draftChanges, draftDirty, duplicateNameIds, filterSpeakers, inCategory, speakerAfter, speakerDisplayName,
   speakerDraft, speakerUsage, type SpeakerDraft, type SpeakersCategory,
 } from './speakers'
 import styles from './SpeakersDialog.module.css'
@@ -51,6 +54,22 @@ export interface SpeakersDialogProps {
   initialCategory?: SpeakersCategory
   initialQuery?: string
   preview?: boolean
+}
+
+// Who a speaker can be merged into: everyone else, by the categories of the window.
+function mergeTargets(speakers: readonly Speaker[], from: Speaker, query: string, category: SpeakersCategory): ChooseSpeakerList<SpeakersCategory> {
+  const others = speakers.filter(speaker => speaker.id !== from.id)
+  const rows = filterSpeakers(others, query, category).map(speaker => ({
+    id: speaker.id,
+    name: speakerDisplayName(speaker),
+    unnamed: !speaker.name,
+    handle: speaker.handle,
+    colorIndex: speaker.color_index,
+    photo: speaker.photo_url,
+    usage: speakerUsage(speaker).recordings,
+  }))
+  const label = CATEGORIES.find(item => item.id === category)!.label
+  return { counts: categoryCounts(others), sections: rows.length ? [{ title: label, rows }] : [] }
 }
 
 function SpeakerList({ speakers, query, category, onOpen }: { speakers: Speaker[]; query: string; category: SpeakersCategory; onOpen: (id: string) => void }) {
@@ -103,6 +122,12 @@ export function SpeakersDialog({
   const [toDelete, setToDelete] = useState<Speaker | null>(null)
   const deleting = useLingering(toDelete)
   const { mutateAsync: remove, isPending: removing } = useDeleteSpeaker()
+  // Merge: first who into (the window to choose), then the question.
+  const [mergeFrom, setMergeFrom] = useState<Speaker | null>(null)
+  const choosing = useLingering(mergeFrom)
+  const [mergeInto, setMergeInto] = useState<{ from: Speaker; into: Speaker } | null>(null)
+  const confirmingMerge = useLingering(mergeInto)
+  const { mutateAsync: merge, isPending: merging } = useMergeSpeaker()
   const cancelEdit = useRef<() => boolean>(() => false)
   const [edited, setEdited] = useState<SpeakerDraft | null>(null)
   const [saveError, setSaveError] = useState<string>()
@@ -193,6 +218,28 @@ export function SpeakersDialog({
     setToDelete(null)
   }
 
+  const chooseMergeTarget = (id: string) => {
+    const into = rows.find(speaker => speaker.id === id)
+    if (!into || !mergeFrom) return
+    setMergeInto({ from: mergeFrom, into })
+    setMergeFrom(null)
+  }
+
+  const confirmMerge = async () => {
+    const { from, into } = mergeInto!
+    try {
+      const { speaker } = await merge({ speakerId: from.id, intoId: into.id })
+      // An Undo from before would give segments back to a speaker who is gone.
+      dismissUndoToastsOf(from.id)
+      if (!inCategory(speaker, category)) setCategory('all')
+      setOpenId(speaker.id)
+      toast({ message: `Merged ${from.name ? `"${from.name}"` : 'the speaker'} into ${speaker.name ? `"${speaker.name}"` : 'Unnamed speaker'}.` })
+    } catch (error) {
+      toast({ message: `Could not merge: ${(error as Error).message}`, type: 'error' })
+    }
+    setMergeInto(null)
+  }
+
   return (
     <>
       <Modal
@@ -251,6 +298,7 @@ export function SpeakersDialog({
                   onOpenRecording(id)
                 })}
                 onDelete={() => setToDelete(current)}
+                onMerge={() => leave(() => setMergeFrom(current))}
               />
             ) : (
               <>
@@ -300,6 +348,31 @@ export function SpeakersDialog({
           onCreate={createSpeaker}
           onClose={() => setCreating(null)}
           onExited={newSpeaker.exited}
+        />
+      )}
+      {choosing.value && (
+        <ChooseSpeakerModal<SpeakersCategory>
+          key={choosing.key}
+          open={choosing.open}
+          title={`Merge ${choosing.value.name ? `"${choosing.value.name}"` : 'Unnamed speaker'} into another speaker`}
+          confirmLabel="Merge"
+          categories={CATEGORIES}
+          list={(text, kind) => mergeTargets(rows, choosing.value!, text, kind)}
+          onAssign={chooseMergeTarget}
+          onClose={() => setMergeFrom(null)}
+          onExited={choosing.exited}
+        />
+      )}
+      {confirmingMerge.value && (
+        <MergeSpeakerDialog
+          key={confirmingMerge.key}
+          from={confirmingMerge.value.from}
+          into={confirmingMerge.value.into}
+          open={confirmingMerge.open}
+          busy={merging}
+          onConfirm={() => void confirmMerge()}
+          onClose={() => setMergeInto(null)}
+          onExited={confirmingMerge.exited}
         />
       )}
       {deleting.value && (

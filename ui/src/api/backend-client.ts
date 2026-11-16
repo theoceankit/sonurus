@@ -116,6 +116,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     })),
     listSpeakerTranscripts: speaker_id => send(http.GET('/speakers/{speaker_id}/transcripts', { params: { path: { speaker_id } } })),
     deleteSpeaker: speaker_id => send(http.DELETE('/speakers/{speaker_id}', { params: { path: { speaker_id } } })),
+    mergeSpeaker: (speaker_id, into_id) => send(http.POST('/speakers/{speaker_id}/merge', { params: { path: { speaker_id } }, body: { into_id } })),
     getRecordingAudioUrl: id => `${baseUrl}/transcripts/${id}/audio`,
     listModels: () => send(http.GET('/models')),
     getModelsFolder: () => send(http.GET('/models/folder')),

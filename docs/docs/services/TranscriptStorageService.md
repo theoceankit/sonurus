@@ -9,7 +9,7 @@ sidebar_position: 6
 Used in two scenarios:
 - **Write** — after the transcription pipeline (`save`)
 - **Read** — when opening past recordings from the sidebar (`load`, `list_all`) and when assigning speakers (`set_segments_speaker`)
-- **Speakers section** — usage statistics, a speaker's transcripts and voice-sample candidates (`speaker_stats`, `transcripts_for_speaker`, `speaker_segments`), and detaching a deleted speaker (`unassign_speaker`)
+- **Speakers section** — usage statistics, a speaker's transcripts and voice-sample candidates (`speaker_stats`, `transcripts_for_speaker`, `speaker_segments`), detaching a deleted speaker (`unassign_speaker`) and moving a merged one (`move_speaker`)
 
 ---
 
@@ -186,6 +186,12 @@ Deletes every transcription, segment and `speaker_matches` row in one transactio
 ### `unassign_speaker(speaker_id) → dict`
 
 Detaches every segment of a deleted speaker: `speaker_id = NULL`, `unassigned = 1`, and deletes their `speaker_matches` rows. Returns `{"segments": n, "transcripts": m}`. Called by `CommitService.delete_speaker()`.
+
+---
+
+### `move_speaker(from_id, to_id) → dict`
+
+Gives every segment of `from_id` to `to_id`, in every transcript, and its `speaker_matches` rows with them. Where both speakers were matched in one transcript, one row stays: the higher score, confirmed if either was. One transaction. Returns the moved `{"segments": n, "transcripts": m}`. Called by `CommitService.merge_speaker()`.
 
 ---
 

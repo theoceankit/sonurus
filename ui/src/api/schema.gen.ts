@@ -512,6 +512,26 @@ export interface paths {
         patch: operations["update_speaker_speakers__speaker_id__patch"];
         trace?: never;
     };
+    "/speakers/{speaker_id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Speaker
+         * @description Merge the speaker into body.into_id: see CommitService.merge_speaker().
+         */
+        post: operations["merge_speaker_speakers__speaker_id__merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/speakers/{speaker_id}/photo": {
         parameters: {
             query?: never;
@@ -1157,7 +1177,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed" | "job_running" | "handle_invalid" | "handle_taken" | "handle_needs_name" | "photo_needs_name";
+            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed" | "job_running" | "handle_invalid" | "handle_taken" | "handle_needs_name" | "photo_needs_name" | "merge_into_self";
             /** Detail */
             detail: string;
         };
@@ -1262,6 +1282,26 @@ export interface components {
         SpeakerDeleteResponse: {
             /** Segments */
             segments: number;
+            /** Transcripts */
+            transcripts: number;
+        };
+        /**
+         * SpeakerMergeRequest
+         * @description POST /speakers/{id}/merge: the speaker who stays.
+         */
+        SpeakerMergeRequest: {
+            /** Into Id */
+            into_id: string;
+        };
+        /**
+         * SpeakerMergeResponse
+         * @description The speaker who stays, as they are after the merge, and how many segments
+         *     in how many transcripts moved to them.
+         */
+        SpeakerMergeResponse: {
+            /** Segments */
+            segments: number;
+            speaker: components["schemas"]["SpeakerResponse"];
             /** Transcripts */
             transcripts: number;
         };
@@ -2402,6 +2442,50 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_speaker_speakers__speaker_id__merge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                speaker_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeakerMergeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeakerMergeResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

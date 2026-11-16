@@ -422,6 +422,27 @@ class SpeakerRepository:
             )
         return row[0] if row else None
 
+    def take_identity(self, from_id: str, to_id: str):
+        """Give to_id the names, colour, handle and photo of from_id, which keeps
+        none of them. One transaction; from_id's row goes first, so its handle is
+        free for the unique index when to_id takes it."""
+        with self._connect() as conn:
+            meta = conn.execute(
+                "SELECT color_index, handle, handle_manual, photo FROM speaker_meta WHERE speaker_id = ?",
+                (from_id,),
+            ).fetchone()
+            conn.execute("DELETE FROM speaker_names WHERE speaker_id = ?", (to_id,))
+            conn.execute("UPDATE speaker_names SET speaker_id = ? WHERE speaker_id = ?", (to_id, from_id))
+            conn.execute("DELETE FROM speaker_meta WHERE speaker_id = ?", (from_id,))
+            if meta is not None:
+                conn.execute(
+                    "INSERT INTO speaker_meta (speaker_id, color_index, handle, handle_manual, photo) "
+                    "VALUES (?, ?, ?, ?, ?) ON CONFLICT(speaker_id) DO UPDATE SET "
+                    "color_index = excluded.color_index, handle = excluded.handle, "
+                    "handle_manual = excluded.handle_manual, photo = excluded.photo",
+                    (to_id, *meta),
+                )
+
     def remove(self, spk_id: str) -> str | None:
         """Delete the speaker's rows; returns the file name of their photo, if any."""
         with self._connect() as conn:
@@ -672,6 +693,19 @@ class SpeakerMemoryService:
         with self._dirty_lock:
             self._dirty.discard(spk_id)
         delete_photo(self._repo.remove(spk_id), self.photos_dir)
+
+    def take_identity(self, from_id: str, to_id: str):
+        """Give to_id who from_id is: names, colour, handle and photo (the same
+        file). from_id keeps its voice, if any, and nothing else. Writes only
+        speaker_names and speaker_meta; called only by CommitService.merge_speaker()."""
+        self._repo.take_identity(from_id, to_id)
+        for known in (self.known_names, self.known_colors, self.known_handles, self.known_photos):
+            known.pop(to_id, None)
+            if from_id in known:
+                known[to_id] = known.pop(from_id)
+        for dirty in (self._dirty_names, self._dirty_colors):
+            dirty.discard(from_id)
+            dirty.discard(to_id)
 
     def remove_embedding(self, spk_id: str):
         """Forget a speaker's voice and keep their name and color."""
