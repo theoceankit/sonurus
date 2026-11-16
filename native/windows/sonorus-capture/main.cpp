@@ -1,24 +1,29 @@
-// sonorus-capture.exe — system audio for Sonorus on Windows (WASAPI loopback).
+// sonorus-capture.exe — system audio (WASAPI loopback) and the microphone
+// for Sonorus on Windows.
 //
-//   sonorus-capture.exe --list
-//       Active output devices as JSON on stdout:
+//   sonorus-capture.exe --list [--input]
+//       Active output devices (with --input: input devices) as JSON on stdout:
 //       [{"id": "<endpoint id>", "label": "<friendly name>", "default": true|false}, ...]
 //
-//   sonorus-capture.exe --device <endpoint id | default> --output <file.wav>
-//       Records what the device plays into a 16-bit PCM WAV (the device's
-//       sample rate; more than two channels are folded into stereo).
+//   sonorus-capture.exe [--input] --device <endpoint id | default> --output <file.wav>
+//       Records what the output device plays (with --input: what the input
+//       device hears) into a 16-bit PCM WAV at the device's sample rate; an
+//       output's channels are folded into stereo at most, an input is mono.
 //       Prints READY on stdout once capture runs. Stops on a "stop" line or
 //       EOF on stdin (Windows cannot send SIGINT to a child process; EOF also
 //       ends the helper when the backend dies).
 //
 // The track runs in real time: WASAPI delivers no packets while nothing
 // plays, so missing time is written as silence (by the packets' timestamps
-// and by the clock), and the file is as long as the recording. If the device
-// disappears, a warning goes to stderr and silence is written until stop.
+// and by the clock), and the file is as long as the recording. If an output
+// device disappears, a warning goes to stderr and silence is written until
+// stop. If an input device disappears, the file is closed and the helper
+// exits with code 3: the backend then ends the recording.
 // The WAV header is rewritten every second, so the file stays readable even
 // if the helper is killed.
 //
-// Errors before READY: a message on stderr and exit code 2.
+// Errors before READY: a message on stderr and exit code 2; a microphone the
+// user has not allowed desktop apps to use: "ERROR: microphone access denied".
 // Build: npm run build:capture:win (scripts/build-capture-win.js).
 
 #define WIN32_LEAN_AND_MEAN
@@ -75,18 +80,19 @@ int fail(const char* what, HRESULT hr) {
 
 // ── --list ──────────────────────────────────────────────────────────────────
 
-int list_devices(IMMDeviceEnumerator* enumerator) {
+int list_devices(IMMDeviceEnumerator* enumerator, EDataFlow flow) {
   std::wstring default_id;
   IMMDevice* def = nullptr;
-  if (SUCCEEDED(enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &def))) {
+  if (SUCCEEDED(enumerator->GetDefaultAudioEndpoint(flow, eConsole, &def))) {
     LPWSTR id = nullptr;
     if (SUCCEEDED(def->GetId(&id))) { default_id = id; CoTaskMemFree(id); }
     release(def);
   }
 
   IMMDeviceCollection* devices = nullptr;
-  HRESULT hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &devices);
-  if (FAILED(hr)) return fail("could not list the output devices", hr);
+  HRESULT hr = enumerator->EnumAudioEndpoints(flow, DEVICE_STATE_ACTIVE, &devices);
+  if (FAILED(hr)) return fail(flow == eCapture ? "could not list the input devices"
+                                               : "could not list the output devices", hr);
   UINT count = 0;
   devices->GetCount(&count);
 
@@ -259,16 +265,29 @@ void convert(const BYTE* data, UINT32 frames, SampleType type, int in_ch, int ou
 
 // ── recording ───────────────────────────────────────────────────────────────
 
-int record(IMMDeviceEnumerator* enumerator, const wchar_t* device_id, const wchar_t* output) {
+// The microphone switched off for desktop apps in the privacy settings.
+int fail_input(const char* what, HRESULT hr) {
+  if (hr == E_ACCESSDENIED) {
+    std::fputs("ERROR: microphone access denied\n", stderr);
+    return 2;
+  }
+  return fail(what, hr);
+}
+
+int record(IMMDeviceEnumerator* enumerator, const wchar_t* device_id, const wchar_t* output, bool input) {
+  const EDataFlow flow = input ? eCapture : eRender;
+  auto failed = [&](const char* output_what, const char* input_what, HRESULT hr) {
+    return input ? fail_input(input_what, hr) : fail(output_what, hr);
+  };
   IMMDevice* device = nullptr;
   HRESULT hr = std::wcscmp(device_id, L"default") == 0
-                   ? enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device)
+                   ? enumerator->GetDefaultAudioEndpoint(flow, eConsole, &device)
                    : enumerator->GetDevice(device_id, &device);
-  if (FAILED(hr)) return fail("the output device is not available", hr);
+  if (FAILED(hr)) return failed("the output device is not available", "the microphone is not available", hr);
 
   IAudioClient* client = nullptr;
   hr = device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(&client));
-  if (FAILED(hr)) return fail("could not open the output device", hr);
+  if (FAILED(hr)) return failed("could not open the output device", "could not open the microphone", hr);
 
   WAVEFORMATEX* wfx = nullptr;
   hr = client->GetMixFormat(&wfx);
@@ -280,15 +299,16 @@ int record(IMMDeviceEnumerator* enumerator, const wchar_t* device_id, const wcha
     return 2;
   }
   const int in_ch = wfx->nChannels;
-  const int out_ch = in_ch >= 2 ? 2 : 1;
+  // A microphone is one voice: mono.
+  const int out_ch = input ? 1 : (in_ch >= 2 ? 2 : 1);
   const uint32_t rate = wfx->nSamplesPerSec;
 
-  hr = client->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK,
+  hr = client->Initialize(AUDCLNT_SHAREMODE_SHARED, input ? 0 : AUDCLNT_STREAMFLAGS_LOOPBACK,
                           kBufferDuration, 0, wfx, nullptr);
-  if (FAILED(hr)) return fail("could not start loopback capture", hr);
+  if (FAILED(hr)) return failed("could not start loopback capture", "could not start the microphone", hr);
   IAudioCaptureClient* capture = nullptr;
   hr = client->GetService(__uuidof(IAudioCaptureClient), reinterpret_cast<void**>(&capture));
-  if (FAILED(hr)) return fail("could not start loopback capture", hr);
+  if (FAILED(hr)) return failed("could not start loopback capture", "could not start the microphone", hr);
 
   WavWriter wav;
   if (!wav.open(output, static_cast<uint16_t>(out_ch), rate)) {
@@ -299,7 +319,7 @@ int record(IMMDeviceEnumerator* enumerator, const wchar_t* device_id, const wcha
   LARGE_INTEGER freq, start;
   QueryPerformanceFrequency(&freq);
   hr = client->Start();
-  if (FAILED(hr)) return fail("could not start loopback capture", hr);
+  if (FAILED(hr)) return failed("could not start loopback capture", "could not start the microphone", hr);
   QueryPerformanceCounter(&start);
   // Packet timestamps (u64QPCPosition) are in 100 ns units.
   const double start_100ns = static_cast<double>(start.QuadPart) * 1e7 / freq.QuadPart;
@@ -352,7 +372,7 @@ int record(IMMDeviceEnumerator* enumerator, const wchar_t* device_id, const wcha
       }
       capture->ReleaseBuffer(frames);
     }
-    if (device_lost) {
+    if (device_lost && !input) {
       static bool warned = false;
       if (!warned) {
         std::fputs("WARNING: the output device was lost; recording silence until stop\n", stderr);
@@ -365,6 +385,8 @@ int record(IMMDeviceEnumerator* enumerator, const wchar_t* device_id, const wcha
   const uint64_t lag = static_cast<uint64_t>(kClockLagSec * rate);
   while (!InterlockedCompareExchange(&g_stop, 0, 0)) {
     drain();
+    // A lost microphone ends the track: what was recorded is kept.
+    if (device_lost && input) break;
     const uint64_t now = elapsed_frames();
     const uint64_t safe = device_lost ? now : (now > lag ? now - lag : 0);
     if (wav.frames() < safe) wav.write_silence(safe - wav.frames());
@@ -375,9 +397,12 @@ int record(IMMDeviceEnumerator* enumerator, const wchar_t* device_id, const wcha
     Sleep(kPollMs);
   }
 
-  drain();
-  const uint64_t end = elapsed_frames();
-  if (wav.frames() < end) wav.write_silence(end - wav.frames());
+  const bool input_lost = device_lost && input;
+  if (!input_lost) {
+    drain();
+    const uint64_t end = elapsed_frames();
+    if (wav.frames() < end) wav.write_silence(end - wav.frames());
+  }
   wav.close();
 
   client->Stop();
@@ -386,12 +411,16 @@ int record(IMMDeviceEnumerator* enumerator, const wchar_t* device_id, const wcha
   release(client);
   release(device);
   if (watcher) CloseHandle(watcher);
+  if (input_lost) {
+    std::fputs("ERROR: the microphone was lost\n", stderr);
+    return 3;
+  }
   return 0;
 }
 
 int usage() {
-  std::fputs("usage: sonorus-capture.exe --list\n"
-             "       sonorus-capture.exe --device <id|default> --output <file.wav>\n", stderr);
+  std::fputs("usage: sonorus-capture.exe --list [--input]\n"
+             "       sonorus-capture.exe [--input] --device <id|default> --output <file.wav>\n", stderr);
   return 2;
 }
 
@@ -399,10 +428,12 @@ int usage() {
 
 int wmain(int argc, wchar_t** argv) {
   bool list = false;
+  bool input = false;
   const wchar_t* device = L"default";
   const wchar_t* output = nullptr;
   for (int i = 1; i < argc; ++i) {
     if (std::wcscmp(argv[i], L"--list") == 0) list = true;
+    else if (std::wcscmp(argv[i], L"--input") == 0) input = true;
     else if (std::wcscmp(argv[i], L"--device") == 0 && i + 1 < argc) device = argv[++i];
     else if (std::wcscmp(argv[i], L"--output") == 0 && i + 1 < argc) output = argv[++i];
     else return usage();
@@ -416,7 +447,8 @@ int wmain(int argc, wchar_t** argv) {
                         __uuidof(IMMDeviceEnumerator), reinterpret_cast<void**>(&enumerator));
   if (FAILED(hr)) return fail("could not open the audio device list", hr);
 
-  const int code = list ? list_devices(enumerator) : record(enumerator, device, output);
+  const int code = list ? list_devices(enumerator, input ? eCapture : eRender)
+                        : record(enumerator, device, output, input);
   release(enumerator);
   CoUninitialize();
   return code;

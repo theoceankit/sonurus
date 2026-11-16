@@ -322,3 +322,106 @@ def test_started_at_is_when_the_track_starts(tmp_path):
         svc = AudioCaptureService(recordings_dir=tmp_path)
         mic = svc.start_capture(None, kind="mic")
     assert svc.started_at(mic) == 1234.5
+
+
+# ── Windows: the microphone through sonorus-capture.exe --input ──────────────
+#
+# The helper is a real child process (tests/capture_workers.py), as in the
+# system audio tests of test_audio_capture.py.
+
+_WORKER = Path(__file__).parent / "capture_workers.py"
+_WIN_INPUTS = [
+    {"id": "{0.0.1.00000000}.{usb}", "label": "Microphone (USB Audio)", "default": True},
+    {"id": "{0.0.1.00000000}.{array}", "label": "Microphone Array (Realtek)", "default": False},
+]
+
+
+@pytest.fixture
+def win_helper(tmp_path, monkeypatch):
+    import sys
+    if sys.platform == "win32":
+        pytest.skip("the fake helper is a POSIX script")
+    helper = tmp_path / "sonorus-capture.exe"
+    helper.write_text(f"#!{sys.executable}\nimport runpy, sys\nsys.argv[0] = {str(_WORKER)!r}\n"
+                      f"runpy.run_path({str(_WORKER)!r}, run_name='__main__')\n")
+    helper.chmod(0o755)
+    monkeypatch.setenv("FAKE_CAPTURE_INPUTS", json.dumps(_WIN_INPUTS))
+    monkeypatch.setenv("FAKE_CAPTURE_DEVICES", "[]")
+    return str(helper)
+
+
+@pytest.fixture
+def windows():
+    with patch(f"{_SVC}.sys.platform", "win32"):
+        yield
+
+
+def _win(tmp_path, helper):
+    return AudioCaptureService(capture_bin=helper, recordings_dir=tmp_path / "recordings")
+
+
+def test_windows_inputs_are_the_input_devices_by_name(tmp_path, win_helper, windows):
+    assert _win(tmp_path, win_helper).get_inputs() == [
+        {"id": "{0.0.1.00000000}.{usb}", "label": "Microphone (USB Audio)"},
+        {"id": "{0.0.1.00000000}.{array}", "label": "Microphone Array (Realtek)"},
+    ]
+
+
+def test_windows_inputs_are_empty_without_helper_or_when_listing_fails(tmp_path, win_helper, windows, monkeypatch):
+    with patch.object(AudioCaptureService, "_find_capture_bin", return_value=None):
+        assert AudioCaptureService(recordings_dir=tmp_path).get_inputs() == []
+    monkeypatch.setenv("FAKE_CAPTURE_LIST_FAILS", "1")
+    assert _win(tmp_path, win_helper).get_inputs() == []
+
+
+def test_windows_microphone_command_runs_helper_in_input_mode(tmp_path, win_helper, windows):
+    svc = _win(tmp_path, win_helper)
+    assert svc._build_command(None, "C:/t/mic.wav", kind="mic") == [
+        win_helper, "--input", "--device", "default", "--output", "C:/t/mic.wav"]
+    assert svc._build_command("{0.0.1.00000000}.{usb}", "C:/t/mic.wav", kind="mic")[3] == "{0.0.1.00000000}.{usb}"
+
+
+def test_windows_start_without_any_microphone_fails(tmp_path, win_helper, windows, monkeypatch):
+    monkeypatch.setenv("FAKE_CAPTURE_INPUTS", "[]")
+    svc = _win(tmp_path, win_helper)
+    with pytest.raises(RuntimeError) as exc:
+        svc.start_capture(None, kind="mic")
+    assert "no microphone" in str(exc.value).lower()
+
+
+def test_windows_start_with_a_vanished_microphone_fails(tmp_path, win_helper, windows):
+    svc = _win(tmp_path, win_helper)
+    with pytest.raises(RuntimeError) as exc:
+        svc.start_capture("{0.0.1.00000000}.{gone}", kind="mic")
+    assert "microphone is not available" in str(exc.value)
+
+
+def test_windows_microphone_access_denied_says_where_to_allow_it(tmp_path, win_helper, windows, monkeypatch):
+    monkeypatch.setenv("FAKE_CAPTURE_INPUTS", json.dumps(_WIN_INPUTS + [{"id": "denied", "label": "X"}]))
+    svc = _win(tmp_path, win_helper)
+    with pytest.raises(RuntimeError) as exc:
+        svc.start_capture("denied", kind="mic")
+    message = str(exc.value)
+    assert "Privacy & security" in message and "Microphone" in message
+    assert "sonorus-capture" not in message
+    assert svc.has_active_jobs() is False
+
+
+def test_windows_microphone_records_and_stops_through_stdin(tmp_path, win_helper, windows):
+    svc = _win(tmp_path, win_helper)
+    mic = svc.start_capture("{0.0.1.00000000}.{usb}", kind="mic")
+    assert svc.alive(mic)
+    final = svc.stop_recording(mic_job=mic)
+    assert Path(final).parent == tmp_path / "recordings" and Path(final).is_file()
+
+
+def test_windows_lost_microphone_ends_its_process_and_keeps_the_file(tmp_path, win_helper, windows, monkeypatch):
+    import time
+    monkeypatch.setenv("FAKE_CAPTURE_INPUTS", json.dumps(_WIN_INPUTS + [{"id": "lost", "label": "X"}]))
+    svc = _win(tmp_path, win_helper)
+    mic = svc.start_capture("lost", kind="mic")
+    deadline = time.time() + 5
+    while svc.alive(mic) and time.time() < deadline:
+        time.sleep(0.05)
+    assert not svc.alive(mic)
+    assert Path(svc.stop_recording(mic_job=mic)).is_file()

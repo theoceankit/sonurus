@@ -28,7 +28,7 @@ Each OS has a driver class in `audio_capture_service.py` behind one interface: `
 |---|---|---|---|
 | macOS | `_MacCapture` | `sonorus-capture` (Swift binary, ScreenCaptureKit) | Spawned as a subprocess; prints `READY` once capturing; writes WAV to an intermediate temp file; stopped with SIGINT |
 | Linux | `_LinuxCapture` | `parec -d <source> --file-format=wav --rate=48000 --channels=2 --latency-msec=100` (microphone: `--channels=1`) | PulseAudio / PipeWire source recorded directly; system audio: "System audio (default)" first, then each output device's monitor named after the device (`pactl -f json list sinks`); microphone: each input source (`pactl -f json list sources` without monitors) |
-| Windows | `_WindowsCapture` | `sonorus-capture.exe` (C++, WASAPI loopback) | `--list` gives the output devices; spawned with `--device <id> --output <wav>`; prints `READY`; writes silence while nothing plays; stopped with `stop` on stdin (Windows has no SIGINT for a child process) |
+| Windows | `_WindowsCapture` | `sonorus-capture.exe` (C++, WASAPI loopback; `--input`: an input device) | `--list` gives the output devices, `--list --input` the input devices; spawned with `[--input] --device <id> --output <wav>`; prints `READY`; writes silence while nothing plays; stopped with `stop` on stdin (Windows has no SIGINT for a child process) |
 
 ### Start errors
 
@@ -41,7 +41,7 @@ Each OS has a driver class in `audio_capture_service.py` behind one interface: `
 | Linux: `parec` not on `PATH` | names `parec` and the package to install (`pulseaudio-utils`, `libpulse` on Arch Linux) |
 | Linux: the selected monitor source is not in the `pactl` list | `The selected system audio source is not available: <id>. …` — PipeWire would otherwise silently record the default source |
 | Linux: capture process exits within 0.5 s | `System audio capture failed to start: <stderr>` (e.g. no sound server) |
-| Windows helper missing | `The system audio capture helper (sonorus-capture.exe) was not found; run: npm run build:capture:win` |
+| Windows helper missing | `The audio capture helper (sonorus-capture.exe) was not found; run: npm run build:capture:win` |
 | Windows: no active output device | `No audio output device was found. …` |
 | Windows: the selected output device is not in the `--list` output | `The selected system audio source is not available: <id>. …` |
 | Windows helper exits or does not print `READY` within 5 s | `sonorus-capture failed to start: <stderr>` (e.g. `ERROR: could not open the output device (0x…)`) / `sonorus-capture timed out starting.` |
@@ -174,25 +174,29 @@ CMSampleBufferCopyPCMDataIntoAudioBufferList(
 
 ### Purpose
 
-Records what an output device plays (WASAPI loopback) into a WAV file. Runs as a subprocess of `AudioCaptureService`; source: `native/windows/sonorus-capture/main.cpp` (C++17, Windows APIs only — no third-party libraries).
+Records what an output device plays (WASAPI loopback) or, with `--input`, what an input device hears (the microphone) into a WAV file. Runs as a subprocess of `AudioCaptureService`; source: `native/windows/sonorus-capture/main.cpp` (C++17, Windows APIs only — no third-party libraries).
 
 ### Interface
 
 ```
-sonorus-capture.exe --list
+sonorus-capture.exe --list [--input]
   → [{"id": "{0.0.0.00000000}.{…}", "label": "Speakers (Realtek)", "default": true}, …]
-sonorus-capture.exe --device <endpoint id | default> --output <file.wav>
+sonorus-capture.exe [--input] --device <endpoint id | default> --output <file.wav>
   → READY on stdout once capture runs; "stop" or EOF on stdin ends it; exit 0
   → errors before READY: "ERROR: … (0x<HRESULT>)" on stderr, exit 2
+  → --input, microphone off for desktop apps (E_ACCESSDENIED): "ERROR: microphone access denied", exit 2
+  → --input, microphone lost while recording: the file is closed, "ERROR: the microphone was lost", exit 3
 ```
+
+`GET /audio/capture/inputs` lists the input devices by name (`--list --input`); the default microphone is the default input device when the recording starts. With no input device the start fails with `No microphone was found. …`, with a chosen one no longer listed with `The selected microphone is not available: <id>. …`. A microphone switched off in **Settings → Privacy & security → Microphone → Let desktop apps access your microphone** fails the start with a message that says so.
 
 `GET /audio/capture/sources` lists `{"id": "default", "label": "System audio (default)"}` first (the default output device when the recording starts), then every active output device by name. The chosen device stays fixed for the whole recording.
 
 ### Recording
 
-- **Format:** the device's mix format (usually 32-bit float, 48 kHz) converted to 16-bit PCM WAV at the device's sample rate; more than two channels are folded into stereo.
+- **Format:** the device's mix format (usually 32-bit float, 48 kHz) converted to 16-bit PCM WAV at the device's sample rate; an output's channels are folded into stereo at most, an input is folded into mono.
 - **Real time:** WASAPI delivers no packets while nothing plays. The helper polls every 10 ms, places each packet by its timestamp (`u64QPCPosition`) and fills gaps with silence; with no packets at all it adds silence by the clock (lagging 150 ms behind, so late packets still fit). The file lasts as long as the recording, so the mix with the mic stays in sync.
-- **Lost device** (unplugged, disabled): `WARNING: the output device was lost; recording silence until stop` on stderr (logged by the backend at stop); the recording continues with silence.
+- **Lost device** (unplugged, disabled): an output device — `WARNING: the output device was lost; recording silence until stop` on stderr (logged by the backend at stop), the recording continues with silence; an input device — the file is closed and the helper exits with code 3, so the backend sees the track end by itself.
 - **Stop:** `stop` on stdin or EOF (also when the backend dies) → silence up to the current moment, final header, exit 0. The WAV header is rewritten every second, so the file stays readable if the helper is killed.
 
 ### Building

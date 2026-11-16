@@ -288,13 +288,20 @@ class _WindowsCapture:
     def __init__(self, capture_bin: str | None):
         self._bin = capture_bin
 
-    def _devices(self) -> list[dict] | None:
-        """Active output devices from the helper; None when it cannot list them."""
+    mic_denied_message = (
+        "Sonorus may not use the microphone. Turn on Settings → Privacy & security → "
+        "Microphone → Let desktop apps access your microphone, then try again."
+    )
+
+    def _devices(self, kind: str = "system") -> list[dict] | None:
+        """Active output devices (kind "mic": input devices) from the helper;
+        None when it cannot list them."""
         if not self._bin:
             return None
+        args = [self._bin, "--list", "--input"] if kind == "mic" else [self._bin, "--list"]
         try:
             result = subprocess.run(
-                [self._bin, "--list"], capture_output=True, text=True,
+                args, capture_output=True, text=True,
                 encoding="utf-8", timeout=5, creationflags=_NO_WINDOW,
             )
             if result.returncode != 0:
@@ -313,14 +320,29 @@ class _WindowsCapture:
         return [dict(self.DEFAULT_SOURCE), *outputs]
 
     def inputs(self) -> list[dict]:
-        return []
+        return sorted(({"id": d["id"], "label": d.get("label") or d["id"]}
+                       for d in self._devices("mic") or []),
+                      key=lambda d: d["label"].lower())
 
     def check(self, source_id: str | None = None, kind: str = "system") -> None:
         if not self._bin:
             raise RuntimeError(
-                "The system audio capture helper (sonorus-capture.exe) was not found; "
+                "The audio capture helper (sonorus-capture.exe) was not found; "
                 "run: npm run build:capture:win"
             )
+        if kind == "mic":
+            inputs = self._devices("mic")
+            if inputs is None:
+                return
+            if not inputs:
+                raise RuntimeError("No microphone was found. Connect a microphone and try again.")
+            if source_id and source_id != self.DEFAULT_SOURCE["id"] \
+                    and source_id not in {d["id"] for d in inputs}:
+                raise RuntimeError(
+                    f"The selected microphone is not available: {source_id}. "
+                    "Choose another microphone and try again."
+                )
+            return
         devices = self._devices()
         if devices is None:
             return  # listing failed: let the helper report what is wrong
@@ -336,7 +358,8 @@ class _WindowsCapture:
             )
 
     def command(self, source_id: str | None, output_path: str, kind: str = "system") -> list[str]:
-        return [self._bin, "--device", source_id or self.DEFAULT_SOURCE["id"],
+        mode = ["--input"] if kind == "mic" else []
+        return [self._bin, *mode, "--device", source_id or self.DEFAULT_SOURCE["id"],
                 "--output", output_path]
 
 
@@ -422,6 +445,12 @@ class AudioCaptureService:
                 process.kill()
                 process.wait()
                 stderr = _read_log(log_path)
+                # A helper refused the microphone by the system: say where to allow it.
+                if kind == "mic" and "access denied" in stderr.lower() \
+                        and getattr(driver, "mic_denied_message", None):
+                    Path(log_path).unlink(missing_ok=True)
+                    Path(output_path).unlink(missing_ok=True)
+                    raise RuntimeError(driver.mic_denied_message)
                 raise RuntimeError(
                     f"sonorus-capture failed to start: {stderr or line or 'exited before it was ready'}"
                 )
