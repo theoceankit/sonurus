@@ -26,10 +26,11 @@ class TranscriptionController:
 
         report("Identifying speakers…")
         aggregated, segments = self.embedding_service.extract_all(audio, diarization)
-        speaker_map = self.memory_service.resolve(aggregated)
+        speaker_map, match_scores = self.memory_service.resolve_with_scores(aggregated)
 
         report("Building transcript…")
         transcript = TranscriptBuilder.build(result, speaker_map, audio_path)
+        transcript.match_scores = match_scores
         TranscriptBuilder.attach_embeddings(transcript, segments)
 
         return transcript

@@ -50,8 +50,7 @@ interface EditorScreenProps {
   player?: ReactNode
   // For a story: playback standing where the board shows it, with no audio.
   playback?: Playback
-  // For a story: what only a board shows.
-  possibleMatches?: boolean
+  // For a story: the speaker a board shows under review.
   initialSpeakerId?: string
   // For a story: a speaker standing highlighted, as if under the pointer.
   initialHighlight?: string
@@ -75,7 +74,7 @@ function useWidth() {
   return { element, width }
 }
 
-export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, possibleMatches, initialSpeakerId, initialHighlight, initialSpeakersOpen = false }: EditorScreenProps) {
+export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, initialSpeakerId, initialHighlight, initialSpeakersOpen = false }: EditorScreenProps) {
   const api = useApi()
   const queries = useQueryClient()
   const transcripts = useTranscripts()
@@ -310,7 +309,6 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
                 open={visible.inspector}
                 onClose={toggleInspector}
                 onChooseSpeaker={setSpeakerRequest}
-                possibleMatches={possibleMatches}
                 initialSpeakerId={initialSpeakerId}
                 highlight={highlight}
               />

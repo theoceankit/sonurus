@@ -19,7 +19,7 @@ from app.api.schemas import (
     SpeakerAssignmentResponse, SpeakerAssignmentUndoRequest, WaveformResponse, RefusalResponse,
 )
 from app.services.audio_store import discard_levels
-from app.services.speaker_candidates import rank_candidates, voice_centroid
+from app.services.speaker_candidates import is_possible_match, possible_match_candidates, rank_candidates, voice_centroid
 from app.services.voice_sample import pick_voice_sample
 from app.services.waveform import WINDOWS_PER_SECOND, WaveformError, bar_levels, ensure_levels
 
@@ -215,8 +215,9 @@ def get_speaker_candidates(
     storage: TranscriptStorageService = Depends(get_storage_service),
     memory: SpeakerMemoryService = Depends(get_memory_service),
 ):
-    """For each speaker without a name in the transcript: the known speakers
-    with the closest voice and a clip to hear it. Reads speaker memory only."""
+    """For each speaker without a name in the transcript, and each possible match
+    (recognized with a low similarity, not confirmed yet): the known speakers with
+    the closest voice and a clip to hear it. Reads speaker memory only."""
     try:
         t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
@@ -229,20 +230,55 @@ def get_speaker_candidates(
     }
     profiles = {spk_id: memory.known_speakers[spk_id] for spk_id in names}
 
+    matches = storage.speaker_matches(transcript_id)
     speakers = dict.fromkeys(_effective_speaker(seg) for seg in t.segments)
     result = {}
     for spk_id in speakers:
         # Unassigned segments may mix several voices — nothing to compare.
-        if not spk_id or spk_id == UNASSIGNED or memory.get_name(spk_id) is not None:
+        if not spk_id or spk_id == UNASSIGNED:
+            continue
+        possible = spk_id in names and is_possible_match(matches.get(spk_id))
+        if memory.get_name(spk_id) is not None and not possible:
             continue
         rows = storage.speaker_segments(spk_id, transcript_id)
         voice = voice_centroid([row["embedding"] for row in rows if row["embedding"] is not None])
         sample = pick_voice_sample(rows, voice, os.path.isfile)
+        if possible:
+            candidates = possible_match_candidates(voice, spk_id, matches[spk_id]["score"], profiles, names)
+        else:
+            candidates = rank_candidates(voice, profiles, names) if voice is not None else []
         result[spk_id] = UnknownSpeakerCandidates(
-            candidates=[SpeakerCandidate(**c) for c in rank_candidates(voice, profiles, names)] if voice is not None else [],
+            candidates=[SpeakerCandidate(**c) for c in candidates],
             clip=VoiceClip(start=sample["start"], end=sample["end"], text=sample["text"]) if sample else None,
+            possible_match=possible,
         )
     return result
+
+
+def _set_confirmed(transcript_id: int, speaker_id: str, confirmed: bool, storage: TranscriptStorageService) -> None:
+    if not storage.set_match_confirmed(transcript_id, speaker_id, confirmed):
+        raise HTTPException(status_code=404, detail="No recognized speaker to confirm")
+
+
+@router.post("/{transcript_id}/possible-matches/{speaker_id}/confirmed", status_code=204)
+def confirm_possible_match(
+    transcript_id: int,
+    speaker_id: str,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """The user says the speaker recognized here is the right one: they leave the
+    review of this transcript. Segments and speaker memory stay as they are."""
+    _set_confirmed(transcript_id, speaker_id, True, storage)
+
+
+@router.delete("/{transcript_id}/possible-matches/{speaker_id}/confirmed", status_code=204)
+def unconfirm_possible_match(
+    transcript_id: int,
+    speaker_id: str,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """Undo of a confirmation: the speaker waits for review again."""
+    _set_confirmed(transcript_id, speaker_id, False, storage)
 
 
 @router.patch("/{transcript_id}", status_code=204)

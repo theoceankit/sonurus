@@ -171,46 +171,58 @@ const candidate = (speakerId: string, name: string, score: number, suggested = f
 )
 const clip = (start: number, end: number, text: string) => ({ start, end, text })
 
-// Four speakers to review, with the percentages of the review card. The API
-// answers only for speakers without a name; a possible match on a recognized
-// speaker is what the design asks of the backend later, for Storybook until then.
+// Four speakers to review, with the percentages of the review card: one with no
+// name, and three possible matches, recognized speakers to confirm. Their scores
+// are the board's; the backend asks only below 70 %.
 export const CANDIDATES: SpeakerCandidates = {
   [unknown1]: {
     candidates: [candidate(mark, 'Mark Ellis', 0.82, true), candidate(lena, 'Lena Kovacs', 0.41), candidate(priya, 'Priya Shah', 0.12)],
     clip: clip(16, 20, 'That was me. Files over two hours took a long time to copy.'),
+    possible_match: false,
   },
   [sofia]: {
     candidates: [candidate(sofia, 'Sofia Ramos', 0.71, true), candidate(priya, 'Priya Shah', 0.28), candidate(lena, 'Lena Kovacs', 0.15)],
     clip: clip(44, 47, 'I can pick up the button styles.'),
+    possible_match: true,
   },
   [oliver]: {
     candidates: [candidate(oliver, 'Oliver Grant', 0.64, true), candidate(mark, 'Mark Ellis', 0.31), candidate(lena, 'Lena Kovacs', 0.18)],
     clip: clip(31, 35, 'Let me check the numbers and get back to you by Friday.'),
+    possible_match: true,
   },
   [lena]: {
     candidates: [candidate(lena, 'Lena Kovacs', 0.58, true), candidate(priya, 'Priya Shah', 0.33), candidate(sofia, 'Sofia Ramos', 0.2)],
     clip: clip(29, 30, 'I would like to fix that before the big redesign.'),
+    possible_match: true,
   },
 }
+
+export const withoutPossibleMatches = (candidates: SpeakerCandidates): SpeakerCandidates => (
+  Object.fromEntries(Object.entries(candidates).filter(([, answer]) => !answer.possible_match))
+)
 
 export const DESIGN_REVIEW_CANDIDATES: SpeakerCandidates = {
   [unknown2]: {
     candidates: [candidate(sofia, 'Sofia Ramos', 0.68, true), candidate(emma, 'Emma Wilson', 0.34), candidate(priya, 'Priya Shah', 0.21)],
     clip: clip(6, 11, 'It does for me. I would only move the counter closer to the title.'),
+    possible_match: false,
   },
   // A voice with one segment gets that segment as its clip, however long.
   [unknown3]: {
     candidates: [candidate(daniel, 'Daniel Brooks', 0.44), candidate(hugo, 'Hugo Martin', 0.27)],
     clip: clip(11, 40, designReviewSegments[2].text),
+    possible_match: false,
   },
   [unknown4]: {
     candidates: [candidate(kate, 'Kate Reyes', 0.73, true), candidate(ines, 'Ines Costa', 0.16)],
     clip: null,
+    possible_match: false,
   },
   // Nobody to compare with, the clip is still there.
   [unknown5]: {
     candidates: [],
     clip: clip(49, 53, 'And nobody has heard me before.'),
+    possible_match: false,
   },
 }
 

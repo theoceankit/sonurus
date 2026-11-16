@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentProps, type FocusEvent, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import type { SpeakerTarget } from '../../api/client'
-import { useBackendConnected, useSpeakerCandidates, useSpeakers, useTranscript, useWaveform } from '../../api/queries'
+import { useBackendConnected, useConfirmPossibleMatch, useSpeakerCandidates, useSpeakers, useTranscript, useWaveform } from '../../api/queries'
 import { effectiveSpeaker, type Speaker, type SpeakerCandidates, type Transcript } from '../../api/types'
 import { avatarOf } from '../../components/Avatar/Avatar'
 import { AvatarStack } from '../../components/AvatarStack/AvatarStack'
@@ -34,9 +34,7 @@ export interface InspectorPanelProps {
   open?: boolean
   onClose?: () => void
   onChooseSpeaker?: (request: SpeakerRequest) => void
-  // For a story: recognized speakers to confirm, which the API does not answer for
-  // yet, and the speaker a board shows.
-  possibleMatches?: boolean
+  // For a story: the speaker a board shows.
   initialSpeakerId?: string
   // The speaker under the pointer or the keyboard here, for the transcript and the
   // player to show too.
@@ -44,7 +42,7 @@ export interface InspectorPanelProps {
 }
 
 // Nothing shows until the recording has loaded, as in the transcript.
-export function InspectorPanel({ transcriptId, playback, open = true, onClose, onChooseSpeaker, possibleMatches, initialSpeakerId, highlight }: InspectorPanelProps) {
+export function InspectorPanel({ transcriptId, playback, open = true, onClose, onChooseSpeaker, initialSpeakerId, highlight }: InspectorPanelProps) {
   const transcript = useTranscript(transcriptId)
   const speakers = useSpeakers()
   const candidates = useSpeakerCandidates(transcriptId)
@@ -82,7 +80,6 @@ export function InspectorPanel({ transcriptId, playback, open = true, onClose, o
       open={open}
       onClose={onClose}
       onChooseSpeaker={onChooseSpeaker}
-      possibleMatches={possibleMatches}
       initialSpeakerId={initialSpeakerId}
       highlight={highlight}
     />
@@ -95,20 +92,20 @@ interface InspectorViewProps extends Omit<InspectorPanelProps, 'transcriptId'> {
   candidates: SpeakerCandidates
 }
 
-function InspectorView({ transcript, speakers, candidates, playback, open, onClose, onChooseSpeaker, possibleMatches, initialSpeakerId, highlight: givenHighlight }: InspectorViewProps) {
+function InspectorView({ transcript, speakers, candidates, playback, open, onClose, onChooseSpeaker, initialSpeakerId, highlight: givenHighlight }: InspectorViewProps) {
   const api = useApi()
   const { id: transcriptId, segments } = transcript
   const { change, busy } = useSpeakerChange()
+  const { mutateAsync: setConfirmed, isPending: confirming } = useConfirmPossibleMatch()
   const clip = useClipPlayback(playback, api.getAudioUrl(transcript), useBackendConnected())
   const clipState = useClipState(clip)
 
-  // A possible match stays one until it is confirmed, whoever it turns out to be.
-  const [confirmed, setConfirmed] = useState<readonly string[]>([])
   const rows = useMemo(() => speakerRows(segments, speakers), [segments, speakers])
+  // A possible match stays one until it is confirmed: the backend keeps that.
   const pending = useMemo(() => {
-    const matches = possibleMatches ? Object.keys(candidates).filter(id => speakers.some(speaker => speaker.id === id && speaker.name)) : []
-    return pendingReview(segments, speakers, matches).filter(id => !confirmed.includes(id))
-  }, [segments, speakers, candidates, possibleMatches, confirmed])
+    const matches = Object.keys(candidates).filter(id => candidates[id].possible_match)
+    return pendingReview(segments, speakers, matches)
+  }, [segments, speakers, candidates])
 
   const [review, setReview] = useState(() => openReview(pending, initialSpeakerId))
   const view = reviewView(review, pending)
@@ -150,16 +147,39 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
     const segmentStarts = segments.filter(segment => effectiveSpeaker(segment) === speakerId).map(segment => segment.start)
     const reviewed = pending.includes(speakerId)
     await change({ transcriptId, fromSpeakerId: speakerId, segmentStarts, target }, () => {
-      setConfirmed(ids => ids.filter(id => id !== speakerId))
       if (reviewed) setReview(state => selectSpeaker(state, speakerId))
     })
-    if (isPossibleMatch && speakerId === currentId) setConfirmed(ids => [...ids, speakerId])
     // An undo brings the card back with nothing chosen, like any other.
     setPicked(null)
   }
 
+  // The possible match is who they are: nothing moves, they only leave the review.
+  // Undo works from another recording too, as with an assignment.
+  const confirmMatch = async (speakerId: string) => {
+    await setConfirmed({ transcriptId, speakerId, confirmed: true })
+    setPicked(null)
+    toast({
+      message: `Confirmed as ${speakers.find(speaker => speaker.id === speakerId)?.name}`,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          setConfirmed({ transcriptId, speakerId, confirmed: false })
+            .then(() => setReview(state => selectSpeaker(state, speakerId)), (error: Error) => {
+              toast({ message: `Failed to undo: ${error.message}`, type: 'error' })
+            })
+        },
+      },
+    })
+  }
+
   const assignPicked = () => {
     if (!currentId || !selectedId) return
+    if (isPossibleMatch && selectedId === currentId) {
+      confirmMatch(currentId).catch((error: Error) => {
+        toast({ message: `Failed to confirm the speaker: ${error.message}`, type: 'error' })
+      })
+      return
+    }
     assignVoice(currentId, { id: selectedId }).catch((error: Error) => {
       toast({ message: `Failed to assign the speaker: ${error.message}`, type: 'error' })
     })
@@ -225,7 +245,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
                 suggested: candidate.suggested,
               }))}
               selectedId={selectedId}
-              busy={busy}
+              busy={busy || confirming}
               onSelect={id => setPicked({ speakerId: current.id, candidateId: id === selectedId ? null : id })}
               onMore={() => ask(current.id, 'choose', selectedId)}
               onSkip={() => setReview(state => skipSpeaker(state, pending))}

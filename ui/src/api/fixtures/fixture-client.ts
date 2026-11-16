@@ -216,6 +216,25 @@ export function createFixtureClient({
     }
   }
 
+  // A confirmed possible match waits here for its Undo, as the backend keeps its score.
+  const confirmed = new Map<number, SpeakerCandidates>()
+  const confirm = (transcriptId: number, speakerId: string) => {
+    transcript(transcriptId)
+    const answer = data.candidates[transcriptId]?.[speakerId]
+    if (confirmed.get(transcriptId)?.[speakerId]) return
+    if (!answer?.possible_match) throw new ApiError(404, 'No recognized speaker to confirm')
+    confirmed.set(transcriptId, { ...confirmed.get(transcriptId), [speakerId]: answer })
+    delete data.candidates[transcriptId][speakerId]
+  }
+  const unconfirm = (transcriptId: number, speakerId: string) => {
+    transcript(transcriptId)
+    const answer = confirmed.get(transcriptId)?.[speakerId]
+    if (data.candidates[transcriptId]?.[speakerId]?.possible_match) return
+    if (!answer) throw new ApiError(404, 'No recognized speaker to confirm')
+    delete confirmed.get(transcriptId)![speakerId]
+    ;(data.candidates[transcriptId] ??= {})[speakerId] = answer
+  }
+
   // A recording of the list has segments only when it is one of the details; for the
   // others, one turn of each of its speakers, so their samples and stats are there too.
   const recordingSegments = (id: number): Segment[] => {
@@ -388,6 +407,8 @@ export function createFixtureClient({
       transcript(id)
       return data.candidates[id] ?? {}
     }),
+    confirmPossibleMatch: (id, speakerId) => answer(() => confirm(id, speakerId)),
+    unconfirmPossibleMatch: (id, speakerId) => answer(() => unconfirm(id, speakerId)),
     listSpeakers: () => answer(() => data.speakers),
     updateSpeaker: (id, update) => answer(() => {
       const found = speaker(id)

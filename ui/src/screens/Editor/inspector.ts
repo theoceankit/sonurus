@@ -57,7 +57,7 @@ export function splitRows(rows: readonly SpeakerRowData[], currentId: string | n
 }
 
 // Who needs a review, in the order they first speak. possibleMatches are recognized
-// speakers to confirm: only stories have them until the backend keeps a confidence.
+// speakers to confirm, as the candidates of the recording say.
 export function pendingReview(segments: readonly Segment[], speakers: readonly Speaker[], possibleMatches: readonly string[] = []): string[] {
   const unknown = unknownSpeakerNames(segments, speakers)
   const pending = new Set<string>()

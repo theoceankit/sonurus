@@ -54,6 +54,5 @@ export const Renaming: Story = {
 
 export const Unassigned: Story = {
   name: 'Unassigned',
-  args: { possibleMatches: false },
   parameters: { api: { board: 'unassigned' } },
 }

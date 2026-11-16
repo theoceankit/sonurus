@@ -53,6 +53,10 @@ class TranscriptStorageService:
                     for seg in transcript.segments
                 ],
             )
+            conn.executemany(
+                "INSERT INTO speaker_matches (transcription_id, speaker_id, score) VALUES (?, ?, ?)",
+                [(db_id, spk_id, float(score)) for spk_id, score in transcript.match_scores.items()],
+            )
 
         log.info(f"INSERT transcriptions id={db_id} audio={transcript.audio_path}")
         log.info(f"INSERT segments {len(transcript.segments)} rows for transcription {db_id}")
@@ -116,6 +120,7 @@ class TranscriptStorageService:
     def delete(self, db_id: int) -> None:
         with self._connect() as conn:
             conn.execute("DELETE FROM segments WHERE transcription_id = ?", (db_id,))
+            conn.execute("DELETE FROM speaker_matches WHERE transcription_id = ?", (db_id,))
             conn.execute("DELETE FROM transcriptions WHERE id = ?", (db_id,))
         log.info(f"DELETE transcription id={db_id} and its segments")
 
@@ -131,8 +136,19 @@ class TranscriptStorageService:
                 "UPDATE segments SET speaker_id = NULL, unassigned = 1 WHERE speaker_id = ?",
                 (speaker_id,),
             )
+            conn.execute("DELETE FROM speaker_matches WHERE speaker_id = ?", (speaker_id,))
         log.info(f"UPDATE segments unassigned speaker={speaker_id}: {segments} rows in {transcripts} transcriptions")
         return {"segments": segments, "transcripts": transcripts}
+
+    def set_match_confirmed(self, db_id: int, speaker_id: str, confirmed: bool) -> bool:
+        """Mark a recognized speaker as confirmed by the user in this transcript,
+        or take it back. False when the speaker was not recognized there."""
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "UPDATE speaker_matches SET confirmed = ? WHERE transcription_id = ? AND speaker_id = ?",
+                (int(confirmed), db_id, speaker_id),
+            )
+        return cursor.rowcount > 0
 
     def count_by_audio_file(self, audio_file: str) -> int:
         """Number of transcriptions that reference audio_file."""
@@ -151,6 +167,7 @@ class TranscriptStorageService:
         with self._connect() as conn:
             count = conn.execute("SELECT COUNT(*) FROM transcriptions").fetchone()[0]
             conn.execute("DELETE FROM segments")
+            conn.execute("DELETE FROM speaker_matches")
             conn.execute("DELETE FROM transcriptions")
         log.info(f"DELETE all transcriptions ({count}) and their segments")
         return count
@@ -204,6 +221,16 @@ class TranscriptStorageService:
             title=title_db,
             db_id=db_id,
         )
+
+    def speaker_matches(self, db_id: int) -> dict[str, dict]:
+        """{speaker id: {score, confirmed}} of the speakers recognized from memory
+        when the transcript was made."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT speaker_id, score, confirmed FROM speaker_matches WHERE transcription_id = ?",
+                (db_id,),
+            ).fetchall()
+        return {spk_id: {"score": score, "confirmed": bool(confirmed)} for spk_id, score, confirmed in rows}
 
     def list_all(self) -> list[dict]:
         """Return recording metadata for sidebar, newest first."""

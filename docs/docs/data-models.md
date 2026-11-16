@@ -17,6 +17,8 @@ class Transcript:
     audio_path: str = ""
     language: str = ""
     status: str = "draft"
+    title: str | None = None
+    match_scores: dict[str, float] = field(default_factory=dict)
     db_id: int | None = None  # set by TranscriptStorageService.save()
 ```
 
@@ -26,6 +28,8 @@ class Transcript:
 | `audio_path` | `str` | Path to the source audio file |
 | `language` | `str` | Language detected by WhisperX (e.g. `"en"`) |
 | `status` | `str` | Object status (`"draft"` by default) |
+| `title` | `str \| None` | Title given by the user or the queue job |
+| `match_scores` | `dict[str, float]` | `{speaker id: similarity}` of the speakers `resolve_with_scores()` recognized from memory; saved to `speaker_matches` for possible matches |
 | `db_id` | `int \| None` | Database row ID, set after `save()` |
 
 ---

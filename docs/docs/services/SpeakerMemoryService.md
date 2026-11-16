@@ -117,6 +117,12 @@ Matches new speakers against known ones using **exclusive greedy matching**.
 
 ---
 
+### `resolve_with_scores(new_embeddings) → tuple[dict, dict]`
+
+The same matching as `resolve()`, which calls it, and the similarity of each match: `({"SPEAKER_00": "550e8400-..."}, {"550e8400-...": 0.64})`. New speakers have no score. Just as pure. `TranscriptionController` puts the scores on `Transcript.match_scores`, and `TranscriptStorageService.save()` keeps them for possible matches.
+
+---
+
 ### `update_embedding(spk_id, embedding, count=None)`
 
 Updates or registers a speaker embedding. Marks the speaker dirty so `save()` will persist it.
@@ -219,7 +225,9 @@ Creates a new UUID4 speaker ID, sets its display name and persists it via `save_
 
 `SPEAKER_SIMILARITY_THRESHOLD` is `0.6`, chosen on the [quality tests](../testing/quality.md#speaker-recognition-threshold) with the WeSpeaker embeddings: the same person in another recording scores 0.56–0.95 there (median about 0.85, lower on short or call-quality recordings), other people at most 0.49, also with three groups of four people in one memory. Above about 0.7 named speakers of short recordings are often not recognised; below about 0.5 other people start to be matched. The same value is the guard of `CommitService`: a recording whose centroid is below it is kept out of the profile.
 
-`SPEAKER_SUGGESTION_THRESHOLD` (`0.5`) is a separate value and changes no matching: it only decides whether `GET /transcripts/{id}/speaker-candidates` marks the first candidate as suggested. It is lower because a voice above `threshold` is usually recognized by itself and never comes up for review.
+`SPEAKER_SUGGESTION_THRESHOLD` (`0.5`) is a separate value and changes no matching: it only decides whether `GET /transcripts/{id}/speaker-candidates` marks the first candidate as suggested. It is lower because a voice above `threshold` is recognized by itself and comes up for review only as a possible match.
+
+`POSSIBLE_MATCH_CEILING` (`0.7`) changes no matching either: a speaker recognized below it comes up in the Editor's review as a possible match, for the user to confirm. On the quality tests 5 % of the same person's scores are below 0.69, so about one recognition in fourteen does.
 
 ---
 
@@ -229,8 +237,8 @@ Creates a new UUID4 speaker ID, sets its display name and persists it via `save_
 EmbeddingService.extract_all()
     → aggregated_embeddings
     ↓
-SpeakerMemoryService.resolve()
-    → {"SPEAKER_00": "uuid-...", ...}
+SpeakerMemoryService.resolve_with_scores()
+    → {"SPEAKER_00": "uuid-...", ...}, {"uuid-...": 0.64}
     ↓
 TranscriptBuilder.build()
     → Transcript (speaker_resolved populated)

@@ -107,6 +107,15 @@ describe('requests', () => {
     expect(sent).toEqual([{ url: 'http://localhost:8000/transcripts/7/opened', method: 'DELETE' }])
   })
 
+  test('confirming a possible match and its undo', async () => {
+    const { client, sent } = setup()
+    await client.confirmPossibleMatch(7, 'a b')
+    expect(sent).toEqual([{ url: 'http://localhost:8000/transcripts/7/possible-matches/a%20b/confirmed', method: 'POST' }])
+    sent.length = 0
+    await client.unconfirmPossibleMatch(7, 'a b')
+    expect(sent).toEqual([{ url: 'http://localhost:8000/transcripts/7/possible-matches/a%20b/confirmed', method: 'DELETE' }])
+  })
+
   test('segment text and removal', async () => {
     const { client, sent } = setup()
     await client.updateSegmentText(7, 2.5, 'Hello')

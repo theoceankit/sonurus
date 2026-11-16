@@ -296,6 +296,17 @@ export function useUndoSpeakerAssignment() {
   })
 }
 
+// A possible match confirmed, or its Undo: the review of the recording follows.
+export function useConfirmPossibleMatch() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: ({ transcriptId, speakerId, confirmed }: { transcriptId: number; speakerId: string; confirmed: boolean }) =>
+      (confirmed ? api.confirmPossibleMatch(transcriptId, speakerId) : api.unconfirmPossibleMatch(transcriptId, speakerId)),
+    onSuccess: (_, { transcriptId }) => queries.invalidateQueries({ queryKey: queryKeys.candidates(transcriptId) }),
+  })
+}
+
 export function useUpdateSpeaker() {
   const api = useApi()
   const queries = useQueryClient()

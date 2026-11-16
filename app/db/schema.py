@@ -1,7 +1,7 @@
 """Transcript DB schema management: creation and versioned migrations."""
 import uuid
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 
 def init_db(conn) -> None:
@@ -102,6 +102,23 @@ def _run_migrations(conn, current: int) -> None:
             conn.execute("ALTER TABLE transcriptions ADD COLUMN opened INTEGER NOT NULL DEFAULT 0")
         conn.execute("UPDATE transcriptions SET opened = 1")
         conn.execute("UPDATE _ts_schema_version SET version = 7")
+        current = 7
+    if current < 8:
+        # The similarity at which a speaker was recognized in a transcript, and
+        # whether the user confirmed them there. Recordings made before have none:
+        # a similarity worked out now would count this recording in the profile.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS speaker_matches (
+                transcription_id INTEGER NOT NULL,
+                speaker_id TEXT NOT NULL,
+                score REAL NOT NULL,
+                confirmed INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (transcription_id, speaker_id)
+            )
+            """
+        )
+        conn.execute("UPDATE _ts_schema_version SET version = 8")
 
 
 def _assign_raw_speakers(conn) -> None:

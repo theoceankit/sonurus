@@ -61,8 +61,12 @@ EMBEDDING_MIN_DURATION = 1.0
 # people at most 0.49, also across three groups of four in one memory.
 SPEAKER_SIMILARITY_THRESHOLD = 0.6
 # Lower than the one above: voices that reach that one are recognized by
-# themselves and never come up for review.
+# themselves and come up for review only as a possible match.
 SPEAKER_SUGGESTION_THRESHOLD = 0.5
+# A speaker recognized below this similarity is a possible match: the Editor asks
+# the user to confirm them. On the quality tests 5 % of the same person's scores
+# are below 0.69, so about one recognition in fourteen comes up.
+POSSIBLE_MATCH_CEILING = 0.7
 
 # Database
 DB_PATH = os.getenv("DB_PATH", str(DATA_DIR / "speaker_memory.db"))

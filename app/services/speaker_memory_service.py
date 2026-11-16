@@ -463,14 +463,17 @@ def _resolve_speakers(
     new_embeddings: dict,
     known_speakers: dict,
     threshold: float,
-) -> dict:
+    with_scores: bool = False,
+):
     """Greedy exclusive assignment of session speakers to known profiles.
 
     Vectorised: one cosine_similarity call per session speaker against the full
     known-embeddings matrix instead of one call per pair.
-    Returns {SPEAKER_XX: uuid4}. Does NOT mutate known_speakers.
+    Returns {SPEAKER_XX: uuid4}, with with_scores also {known uuid: similarity}
+    of each match. Does NOT mutate known_speakers.
     """
     resolved: dict = {}
+    scores_of_matches: dict = {}
 
     if known_speakers and new_embeddings:
         known_ids = list(known_speakers.keys())
@@ -493,6 +496,7 @@ def _resolve_speakers(
             if speaker_id in assigned_new or known_name in assigned_known:
                 continue
             resolved[speaker_id] = known_name
+            scores_of_matches[known_name] = score
             assigned_new.add(speaker_id)
             assigned_known.add(known_name)
             log.info(f"{speaker_id} → {known_name} (similarity {score:.2f})")
@@ -503,7 +507,7 @@ def _resolve_speakers(
             log.info(f"{speaker_id} → {new_name} (new)")
             resolved[speaker_id] = new_name
 
-    return resolved
+    return (resolved, scores_of_matches) if with_scores else resolved
 
 
 # ---------------------------------------------------------------------------
@@ -571,11 +575,16 @@ class SpeakerMemoryService:
 
     def resolve(self, new_embeddings: dict) -> dict:
         """Pure speaker matching — does NOT mutate known_speakers."""
+        return self.resolve_with_scores(new_embeddings)[0]
+
+    def resolve_with_scores(self, new_embeddings: dict) -> tuple[dict, dict]:
+        """resolve(), and the similarity of each known speaker it matched:
+        ({SPEAKER_XX: uuid4}, {known uuid: similarity}). Pure as resolve()."""
         log.info(
             f"Resolving {len(new_embeddings)} speakers against "
             f"{len(self.known_speakers)} known profiles"
         )
-        return _resolve_speakers(new_embeddings, self.known_speakers, self.threshold)
+        return _resolve_speakers(new_embeddings, self.known_speakers, self.threshold, with_scores=True)
 
     def update_embedding(self, spk_id: str, embedding: np.ndarray, count: int = 1):
         norm = np.linalg.norm(embedding)
