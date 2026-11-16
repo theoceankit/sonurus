@@ -80,10 +80,11 @@ npm ci
 npm --prefix ui ci && npm run build:ui   # the interface, which npm start loads
 ```
 
-On macOS, live recording also needs the system audio helper (requires Xcode Command Line Tools):
+Live recording is done by the backend, the microphone too. On Linux it needs `parec` and `pactl` (`pulseaudio-utils`; `libpulse` on Arch Linux). On macOS it needs the capture helper (requires Xcode Command Line Tools), on Windows its own helper:
 
 ```bash
-npm run build:capture
+npm run build:capture       # macOS
+npm run build:capture:win   # Windows, or mingw-w64 elsewhere
 ```
 
 ### 4. HuggingFace access
