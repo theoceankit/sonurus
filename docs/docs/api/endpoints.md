@@ -18,9 +18,9 @@ The API version (`info.version` in `/openapi.json`) is the product version, reso
 
 ---
 
-## Audio Capture
+## Live recording
 
-Manages live system audio recording sessions. The backend dispatches to the correct platform tool (`sonorus-capture` on macOS, `parec` on Linux, `sonorus-capture.exe` — WASAPI loopback — on Windows). Recordings with system audio are loudness-levelled (`ffmpeg dynaudnorm`, each track); mic + system tracks are then mixed with `ffmpeg amix` when both are present.
+The backend runs a live recording from start to the queue ([LiveRecordingService](../services/LiveRecordingService.md)): it records the microphone and system audio, one capture process per track (`parec` on Linux, `sonorus-capture.exe` on Windows, `sonorus-capture` on macOS — [AudioCaptureService](../services/AudioCaptureService.md)), pauses the queue, and when the recording stops mixes the tracks into one WAV in `recordings/` and queues it. The window only starts it, shows it from the queue snapshot (`recording`) and stops it, so a recording goes on when the window is closed and a new window shows it.
 
 ### `GET /audio/capture/sources`
 
@@ -43,53 +43,37 @@ Returns available system audio sources for the current platform.
  { "id": "{0.0.0.00000000}.{c3d4…}", "label": "Speakers (Realtek(R) Audio)" }]
 ```
 
-### `POST /audio/capture/start`
+### `GET /audio/capture/inputs`
 
-Starts a background capture process. Returns a `job_id` immediately.
-
-```json
-// Request (optional)
-{ "source_id": "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor" }
-
-// Response 200
-{ "job_id": "d63f61eb-d5f6-40e2-a866-edb3aa1f96bb" }
-```
-
-`source_id` is optional — omit to use the platform default. Ignored on macOS (always ScreenCaptureKit).
-
-- `400` — capture cannot run; `detail` says why and nothing is recorded: macOS helper missing or not ready, Linux `parec` not installed (names the package), the selected Linux source is no longer available, Windows helper missing, no Windows output device or the selected one is gone, or the capture process exited right after start (its stderr).
-
-### `POST /audio/capture/stop/{job_id}`
-
-Stops the capture process and returns the path to the recorded WAV file, loudness-levelled. Optionally merges with a microphone recording (both tracks levelled, then mixed). If levelling fails, the recording is stored without it.
-
-`mic_started_at` is when the microphone recording started, Unix time in seconds. The mix shifts the microphone against the system audio by the difference to the capture's own start and ends with the microphone, where Stop was pressed (see [AudioCaptureService](../services/AudioCaptureService.md#loudness-levelling-and-mic-merge)). Without it both tracks start at 0.
+The microphones by name, alphabetically. The default microphone is not listed: a recording takes it with `mic_device: null`. Linux: input sources from `pactl` (none without it); Windows: input devices from the helper; macOS: the helper's microphones.
 
 ```json
-// Request (optional)
-{ "mic_path": "<data-dir>/recordings/sonorus-rec-abc123.webm", "mic_started_at": 1763170000.25 }
-
-// Response 200 (with or without mic_path)
-{ "file_path": "<data-dir>/recordings/sonorus-rec-d63f61eb.wav" }
+{ "inputs": [{ "id": "alsa_input.usb-…Maono….analog-stereo", "label": "Maono Dynamic Microphone Analog Stereo" }] }
 ```
 
-- `404` — job not found (already stopped or invalid ID)
-- `400` — nothing was captured; `detail` is platform-specific (the Screen Recording permission hint only on macOS)
-
-### `POST /audio/recordings`
-
-Stores a live recording made in the window (the `MediaRecorder` blob). The body is the raw audio; `Content-Type` picks the format: `audio/webm` (parameters such as `;codecs=opus` are ignored) or `audio/wav` / `audio/x-wav` / `audio/wave`. The file is written to `$SONORUS_DATA_DIR/recordings/sonorus-rec-<uuid>.<ext>` — the backend is the only writer of that directory, so a recording always lands where the backend looks for it, whichever data dir Electron uses. It appears under its final name only once complete.
+### `POST /audio/recording/start`
 
 ```json
-// Response 201
-{ "file_path": "<data-dir>/recordings/sonorus-rec-5b0c….webm" }
+// Request
+{ "mic": true, "mic_device": null,            // null = the default microphone
+  "system": true, "system_source": "@DEFAULT_MONITOR@",  // null = the default output
+  "title": "Standup", "whisper_model": "large-v3", "language": null }
+
+// Response 200: the live recording, as in the snapshot
+{ "phase": "live", "title": "Standup", "started_at": 1763170000.25, "sources": ["mic", "system"] }
 ```
 
-- `415` — unsupported or missing `Content-Type`
-- `400` — empty recording
-- `500` — the file could not be written
+`whisper_model` null is the default model; `language` null or `"auto"` is auto-detect. The models are checked first, as for `POST /queue/jobs`, so a recording that could not be queued does not start. Then the queue pauses (if it runs, `paused_by_recording`) and each track starts; `started_at` is when the first one started, Unix time in seconds.
 
-The returned path is passed on as `mic_path` to `POST /audio/capture/stop/{job_id}` or queued directly with `POST /queue/jobs` (a file already in `recordings/` is not copied).
+- `400` with a `code` — a model the job needs is not installed (`whisper_model_missing`, `diarization_model_missing`, `alignment_model_missing`)
+- `400` — no source, or a track cannot run; `detail` says why and nothing is recorded: macOS helper missing or not ready, microphone access refused (macOS, or switched off for desktop apps on Windows), Linux `parec` not installed (names the package), the selected microphone or source is no longer available, no Windows output or input device, or the capture process exited right after start (its stderr)
+- `409` — a recording is already in progress
+
+### `POST /audio/recording/stop`
+
+Answers at once with the recording in phase `stopping`. Then the tracks stop, are levelled and mixed ([AudioCaptureService](../services/AudioCaptureService.md#loudness-levelling-and-mic-merge)), the file is queued with the title, model and language of the start, and the queue is let go last, so the recording goes to the end of the queue. How it ended comes over `WS /ws/queue`: the snapshot with `recording: null` and the new job, or a `recording_failed` event. `409` without a live recording.
+
+A track whose capture process ends by itself (a microphone unplugged, a helper that failed) stops the recording the same way, with a `recording_source_lost` event.
 
 ---
 
@@ -123,7 +107,8 @@ A finished job leaves the queue (it is a transcript now, see `job_done` below). 
   "type": "snapshot",
   "paused": true,
   "paused_by_recording": false,   // the pause came from a live recording
-  "recording": false,
+  "recording": null,              // the live recording: { "phase": "starting" | "live" | "stopping",
+                                  //   "title", "started_at" (Unix time, s), "sources": ["mic", "system"] }
   "start_mode": "auto",           // "auto" | "manual"
   "running_job_id": null,
   "step": null,                   // progress step of the running job
@@ -137,8 +122,6 @@ The control endpoints below return the snapshot after the change.
 |---|---|
 | `POST /queue/start` | Runs the queue |
 | `POST /queue/pause` | Pauses it; the running job stops at once and goes back to `waiting` |
-| `POST /queue/recording/start` | A live recording started: if the queue runs, it pauses (`paused_by_recording`) |
-| `POST /queue/recording/stop` | Call after queuing the new recording. The queue resumes only in `auto` mode and only if the recording paused it |
 | `PUT /queue/settings` `{"start_mode": "manual"}` | `auto`: a running queue waits for new jobs when it runs out. `manual`: it pauses itself when nothing is left. Stored; `422` for other values |
 | `PUT /queue/order` `{"job_ids": [...]}` | New order; must list every job exactly once, else `400` |
 
@@ -195,8 +178,12 @@ Sends the current snapshot on connect, then a snapshot after every change and th
 { "type": "job_done",   "job_id": "…", "title": "Weekly sync", "transcript_id": 42 }
 { "type": "job_failed", "job_id": "…", "title": "Weekly sync",
   "error": "CUDA out of memory", "error_code": null, "error_language": null }
+{ "type": "recording_failed", "title": "Standup", "error": "No audio was captured from the microphone." }
+{ "type": "recording_source_lost", "source": "mic", "title": "Standup" }   // stopped, saved and queued
 { "type": "heartbeat" }   // every 10 s while nothing changes — ignore
 ```
+
+A recording pauses a running queue; when it ends, the queue resumes only in `auto` mode and only if the recording paused it.
 
 The running job's progress is the snapshot's `step`: `Loading models…`, `Transcribing audio…`, `Identifying speakers…`, `Building transcript…`, `Saving to database…`. Closing the socket changes nothing in the queue.
 
@@ -647,7 +634,7 @@ Deletes a speaker through `CommitService.delete_speaker()`: every segment assign
 { "segments": 12, "transcripts": 3 }
 ```
 
-Returns the number of segments and transcripts that became unassigned, `404` for an unknown id, and `409` while a transcription job or an audio capture is running (the running job holds its own memory snapshot and would write the profile back when it commits). Queued jobs do not block it: they resolve speakers when they run.
+Returns the number of segments and transcripts that became unassigned, `404` for an unknown id, and `409` while a transcription job or a live recording is running (the running job holds its own memory snapshot and would write the profile back when it commits). Queued jobs do not block it: they resolve speakers when they run.
 
 ### `GET /speakers/{id}/sample`
 
@@ -689,7 +676,7 @@ The API memory singleton is emptied too, including its pending dirty sets, so a 
 { "transcripts": 2, "speakers": 3, "files": 5 }
 ```
 
-Returns `409` while a transcription job is running (pause the queue first) or an audio capture (`POST /audio/capture/start`) is running: the running job holds its own memory snapshot and would write its transcript and speakers back after the reset. The queue does not start a job while the reset runs.
+Returns `409` while a transcription job is running (pause the queue first) or a live recording runs (from `POST /audio/recording/start` until it is queued): the running job holds its own memory snapshot and would write its transcript and speakers back after the reset. The queue does not start a job while the reset runs.
 
 ---
 

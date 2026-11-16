@@ -141,8 +141,8 @@ Domain rules (details in `docs/docs/system/invariants.md`):
 
 App rules:
 
-- The backend is the only writer of `recordings/`. The UI uploads recordings to
-  `POST /audio/recordings`; Electron writes no audio.
+- The backend is the only writer of `recordings/`. It records live recordings itself,
+  microphone included; the UI and Electron capture and write no audio.
 - Dev and packaged data stay apart (`electron/backend-identity.js`); never point dev work at
   `~/.config/sonorus`.
 - No new network requests. Anything that contacts a server must be listed in `docs/docs/privacy.md`;

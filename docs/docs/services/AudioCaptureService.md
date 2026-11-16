@@ -8,7 +8,7 @@ sidebar_position: 8
 
 ---
 
-## Why a Python backend, not the renderer
+## Why the backend, not the window
 
 Electron's WebRTC layer (`getDisplayMedia`) cannot capture system audio reliably across all platforms:
 
@@ -16,7 +16,9 @@ Electron's WebRTC layer (`getDisplayMedia`) cannot capture system audio reliably
 - **Linux** — PulseAudio/PipeWire monitor sources do not appear in `enumerateDevices()` inside Electron's sandboxed renderer.
 - **Windows** — Electron's loopback (`setDisplayMediaRequestHandler` with `audio: 'loopback'`) records only the default output device and would need its own mixing path in the renderer; one backend path for all OSes gives every recording the same merge and loudness levelling.
 
-Running capture in a Python subprocess sidesteps these restrictions and keeps all platform logic in one place.
+The microphone is recorded by the backend too: a recording made in the window would end with the window, and the app may close its window while it keeps running. Both tracks on one clock also line up better.
+
+Running capture in subprocesses of the backend sidesteps these restrictions and keeps all platform logic in one place.
 
 ---
 
@@ -32,7 +34,7 @@ Each OS has a driver class in `audio_capture_service.py` behind one interface: `
 
 ### Start errors
 
-`POST /audio/capture/start` returns `400` with the reason when capture cannot run, before any recording starts:
+`POST /audio/recording/start` returns `400` with the reason when a track cannot run, before any recording starts:
 
 | Case | Detail |
 |---|---|
@@ -46,47 +48,42 @@ Each OS has a driver class in `audio_capture_service.py` behind one interface: `
 | Windows: the selected output device is not in the `--list` output | `The selected system audio source is not available: <id>. …` |
 | Windows helper exits or does not print `READY` within 5 s | `sonorus-capture failed to start: <stderr>` (e.g. `ERROR: could not open the output device (0x…)`) / `sonorus-capture timed out starting.` |
 
-When the stopped capture file is empty, `stop_capture()` raises the driver's own message: the Screen Recording permission hint on macOS, `No system audio was captured from the selected source.` on Linux, `No system audio was captured from the selected output device.` on Windows. The renderer (`captureStartError()` in `utils.js`) shows the Screen Recording hint only on macOS.
+When the stopped capture file is empty, `stop_capture()` raises the driver's own message: the Screen Recording permission hint on macOS, `No system audio was captured from the selected source.` on Linux, `No system audio was captured from the selected output device.` on Windows. The microphone's own: `No audio was captured from the microphone.` The UI (`captureStartError()` in `ui/src/recording/sources.ts`) shows the Screen Recording hint only on macOS.
 
 ---
 
 ## Job lifecycle
 
+`LiveRecordingService` ([Live Recording Service](./LiveRecordingService.md)) drives one capture job per track of a recording:
+
 ```
-POST /audio/capture/start
-  → AudioCaptureService.start_capture(source_id)
-  → driver.check(source_id) — 400 with the reason if capture cannot run
-  → spawns platform process (stderr → sonorus-sys-<job_id>.log, never a pipe)
-  → macOS / Windows: waits up to 5 s for READY (first stdout line read on a thread —
-    select() works only on sockets on Windows); Linux: a process that exits within 0.5 s
-    → 400 with its stderr
-  → stores { process, output_path, log_path, started_at } under job_id; started_at is
-    time.time() when the track starts: at READY on macOS / Windows (the helper writes
-    from there on), at the spawn on Linux
+start_capture(source_id, kind)        kind "mic" or "system"
+  → driver.check(source_id, kind) — RuntimeError with the reason if capture cannot run
+  → spawns the platform process (stderr → sonorus-mic-<job_id>.log / sonorus-sys-<job_id>.log,
+    never a pipe; output to sonorus-mic-<job_id>.wav / sonorus-sys-<job_id>.wav in the OS temp dir)
+  → macOS / Windows: waits for READY (5 s; 120 s for a macOS microphone, so the user can answer
+    the permission prompt), the first stdout line read on a thread — select() works only on
+    sockets on Windows; Linux: a process that exits within 0.5 s fails the start with its stderr
+  → stores { process, output_path, log_path, started_at, kind } under job_id; started_at is
+    time.time() when the track starts: at READY on macOS / Windows (the helper writes from there
+    on), at the spawn on Linux
   → returns job_id
 
-[user records...]
+alive(job_id)                          False once the process ended by itself (a lost source)
 
-POST /audio/capture/stop/{job_id}  { mic_path?: "...", mic_started_at?: <Unix time, s> }
-  → macOS / Linux: sends SIGINT to the capture process; Windows: writes "stop" to its
-    stdin and closes it
-  → process.wait(timeout=10), kill() if it does not exit
-  → reads the log file tail, logs it (logging.warning) and deletes it
-  → logs output file size
-  → no mic_path: level the loudness of the capture file (ffmpeg dynaudnorm) into
-    $SONORUS_DATA_DIR/recordings/sonorus-rec-<job_id>.wav; delete the temp capture file
-  → mic_path: level both tracks, shift the one that started later by
-    mic_started_at − started_at and mix them into the same final path, ending with the
-    mic; delete the temp capture file and the mic file (only if it lives inside the
-    recordings dir)
-  → returns final WAV path
+stop_recording(system_job, mic_job)   either or both
+  → the microphone first: SIGINT (Windows: "stop" on stdin), wait up to 10 s, kill() if it hangs;
+    its log tail is logged and deleted; an empty file fails with
+    "No audio was captured from the microphone."
+  → then system audio through stop_capture(system_job, mic_path, mic_started_at): the same stop,
+    then the levelling and mix below into $SONORUS_DATA_DIR/recordings/sonorus-rec-<job_id>.wav
+  → a microphone alone is moved there as recorded (sonorus-rec-<mic job_id>.wav)
+  → temp files are removed whatever happens; a failure discards the other track
 
-POST /queue/jobs  { audio_path: "<returned path>" }
+discard(job_id) / discard_all()       kill the process, remove its files, keep nothing
 ```
 
-`has_active_jobs()` reports whether any capture is still running; `POST /data/reset` returns `409` while it is `True`, so a reset never races with a file being written into the recordings directory.
-
-Mic recording (WebM via `MediaRecorder`) is uploaded by the renderer to `POST /audio/recordings`, which stores it in `$SONORUS_DATA_DIR/recordings/` (`audio_store.save_recording()`). The returned path is passed as `mic_path` to `stop_capture`, so the mic file is always inside the recordings dir and is removed after the merge.
+`has_active_jobs()` reports whether any capture is still running. The routes that must not race with a recording (`POST /data/reset`, deleting a speaker, a GPU restart) ask `LiveRecordingService.is_recording()`, which also covers the mix after the tracks stopped.
 
 Final recordings are never kept in the OS temp directory: their path is stored in `transcriptions.audio_file`, and `/tmp` is wiped on reboot on many systems (e.g. `tmpfs`).
 
@@ -262,34 +259,34 @@ Each track goes through `dynaudnorm` (`_LEVEL_FILTER` in `audio_capture_service.
 | `r` | 0.15 | target RMS (≈ −16 dBFS per frame): tracks match in loudness, not in peaks — call and media audio is already compressed and would sound several dB louder than a peaky mic voice at equal peaks |
 | `p` | 0.9 | peak ceiling |
 
-System audio only (`stop_capture()` without `mic_path`):
+System audio only:
 
 ```bash
 ffmpeg -y -i <system.wav> -af "<level filter>" <final.wav>
 ```
 
-Mic + system (`stop_capture(mic_path=...)`):
+Mic + system:
 
 ```bash
 ffmpeg -y \
-  -i <system.wav> -i <mic.webm> \
+  -i <system.wav> -i <mic.wav> \
   -filter_complex "[0:a]<level filter>[sys];[1:a]<level filter>,aformat=channel_layouts=stereo,adelay=delays=<ms>:all=1[mic];[mic][sys]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95:level=disabled" \
   <merged.wav>
 ```
 
 `normalize=0` sums the tracks instead of dividing each by the number of inputs; `alimiter` keeps the sum from clipping. The result is the same WAV as before (16-bit PCM).
 
-**Lining the tracks up.** The two tracks do not start or stop together. The window starts its `MediaRecorder` only once `POST /audio/capture/start` has answered, so the system track starts first (by at least the 0.5 s start-up check on Linux, by however long the helper took on macOS and Windows). On Stop the window stops the microphone, uploads it, and only then stops the capture, so the system track also runs on past Stop. The window sends when its recorder started (`mic_started_at`, `Date.now()` in seconds) and the service knows when the system track started (`started_at`); both are read from the system clock of the same machine. The mix:
+**Lining the tracks up.** The two tracks do not start or stop together: each has its own capture process, started one after the other (the microphone first), and on Stop the microphone stops first. The service knows when each track started (`started_at`, from the same clock). The mix:
 
 - shifts the track that started later by the difference (`adelay`, after levelling, so the silence put in front of a track takes no part in it): the same moment lines up on both tracks;
-- ends with the microphone (`duration=first`, the microphone is the first input): the recording ends where Stop was pressed, and system audio captured after Stop, while the microphone was being uploaded, is dropped. Nothing said before Stop is lost;
+- ends with the microphone (`duration=first`, the microphone is the first input): the recording ends where its first track stopped, and the moment of system audio captured after it is dropped;
 - upmixes a mono microphone to stereo first: `amix` takes its channel layout from its first input and would otherwise turn the system audio mono.
 
-Without `mic_started_at`, or when it is more than 30 s (`_MAX_START_GAP_SEC`) away from the capture's start — a clock jump, not a real offset — both tracks start at 0 and a warning is logged. The shift is as exact as the two start times: tens of milliseconds, the time between reading the clock and the first sample on each side. On macOS ScreenCaptureKit hands over audio as it comes; the alignment holds only as long as its track has no gaps.
+When the start times are more than 30 s (`_MAX_START_GAP_SEC`) apart — a clock jump, not a real offset — both tracks start at 0 and a warning is logged. The shift is as exact as the two start times: well under a tenth of a second, the time between reading the clock and the first sample on each side. On macOS ScreenCaptureKit hands over audio as it comes; the alignment holds only as long as its track has no gaps.
 
 If the levelling run fails (ffmpeg error or ffmpeg not found), a warning is logged and the recording is stored without levelling: the system-only file is moved as captured, the mix is retried with plain `amix=inputs=2:duration=first`, with the same shift. Only a failure of that plain mix fails the stop.
 
-Mic-only recordings (renderer `MediaRecorder`, `POST /audio/recordings`) and imported files are not levelled; Chromium's `getUserMedia` already applies automatic gain control to the mic.
+Microphone-only recordings and imported files are not levelled. The microphone is recorded as the device gives it, without the echo cancellation, noise suppression and automatic gain control a browser would add.
 
 ---
 
@@ -298,7 +295,8 @@ Mic-only recordings (renderer `MediaRecorder`, `POST /audio/recordings`) and imp
 | File | Description |
 |---|---|
 | `app/services/audio_capture_service.py` | Python service — platform drivers, job management, loudness levelling and ffmpeg merge |
-| `app/api/routers/audio_capture.py` | FastAPI router — `/audio/capture/*` endpoints |
+| `app/services/live_recording_service.py` | The live recording from start to the queue ([Live Recording Service](./LiveRecordingService.md)) |
+| `app/api/routers/audio_capture.py` | FastAPI router — `/audio/capture/*` and `/audio/recording/*` endpoints |
 | `app/api/dependencies.py` | `get_audio_capture_service()` singleton |
 | `native/macos/sonorus-capture/main.swift` | Swift binary — ScreenCaptureKit capture |
 | `native/windows/sonorus-capture/main.cpp` | C++ helper — WASAPI loopback capture (Windows) |
@@ -307,5 +305,5 @@ Mic-only recordings (renderer `MediaRecorder`, `POST /audio/recordings`) and imp
 | `build/entitlements.mac.plist` | `com.apple.security.screen-capture` and `com.apple.security.device.audio-input` entitlements for signed builds |
 
 :::note[Why stderr is not a pipe]
-The capture process runs for the whole recording. An unread `stderr=PIPE` fills its 64 KB buffer once the process writes enough diagnostics; the process then blocks on `write()`, stops capturing, and never exits on SIGINT — `stop_capture()` would hang forever. stderr is therefore redirected to a log file.
+The capture process runs for the whole recording. An unread `stderr=PIPE` fills its 64 KB buffer once the process writes enough diagnostics; the process then blocks on `write()`, stops capturing, and never exits on SIGINT — the stop would hang forever. stderr is therefore redirected to a log file.
 :::
