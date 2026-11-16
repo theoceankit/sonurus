@@ -79,3 +79,11 @@ test('without a compiler, an existing helper is kept only if it is not older tha
   fs.utimesSync(out, new Date(500), new Date(500))
   assert.equal(upToDate(out, src), false, 'stale helper')
 })
+
+// The macOS helper records the microphone for the app that started it: the
+// system asks the user only if the app says why, and the hardened runtime
+// lets the helper use the microphone only with the audio-input entitlement.
+test('the macOS app says why it uses the microphone and may use it', () => {
+  assert.ok(pkg.build.mac.extendInfo.NSMicrophoneUsageDescription.length > 0)
+  assert.ok(read(pkg.build.mac.entitlementsInherit).includes('com.apple.security.device.audio-input'))
+})

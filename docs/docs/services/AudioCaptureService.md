@@ -26,7 +26,7 @@ Each OS has a driver class in `audio_capture_service.py` behind one interface: `
 
 | Platform | Driver | Tool | How it works |
 |---|---|---|---|
-| macOS | `_MacCapture` | `sonorus-capture` (Swift binary, ScreenCaptureKit) | Spawned as a subprocess; prints `READY` once capturing; writes WAV to an intermediate temp file; stopped with SIGINT |
+| macOS | `_MacCapture` | `sonorus-capture` (Swift binary, ScreenCaptureKit; `--input`: AVCaptureSession) | Spawned as a subprocess; prints `READY` once capturing; writes WAV to an intermediate temp file; stopped with SIGINT; `--list-inputs` gives the microphones |
 | Linux | `_LinuxCapture` | `parec -d <source> --file-format=wav --rate=48000 --channels=2 --latency-msec=100` (microphone: `--channels=1`) | PulseAudio / PipeWire source recorded directly; system audio: "System audio (default)" first, then each output device's monitor named after the device (`pactl -f json list sinks`); microphone: each input source (`pactl -f json list sources` without monitors) |
 | Windows | `_WindowsCapture` | `sonorus-capture.exe` (C++, WASAPI loopback; `--input`: an input device) | `--list` gives the output devices, `--list --input` the input devices; spawned with `[--input] --device <id> --output <wav>`; prints `READY`; writes silence while nothing plays; stopped with `stop` on stdin (Windows has no SIGINT for a child process) |
 
@@ -96,7 +96,15 @@ Final recordings are never kept in the OS temp directory: their path is stored i
 
 ### Purpose
 
-Captures system audio on macOS using ScreenCaptureKit and writes a WAV file. Runs as a subprocess of `AudioCaptureService`; stops cleanly on SIGINT/SIGTERM.
+Captures system audio on macOS using ScreenCaptureKit, or the microphone using AVCaptureSession (`--input`), and writes a WAV file. Runs as a subprocess of `AudioCaptureService`; stops cleanly on SIGINT/SIGTERM.
+
+```
+sonorus-capture --output <file.wav>                         → system audio
+sonorus-capture --list-inputs                               → [{"id": "<uniqueID>", "label": "<name>", "default": true|false}, …]
+sonorus-capture --input <uniqueID | default> --output <file.wav>  → the microphone, mono 16-bit PCM, 48 kHz
+```
+
+With `--input` the helper asks for microphone access first (`AVCaptureDevice.requestAccess`); the system shows the prompt once, for the app that started the backend — Sonorus in the packaged app, whose `Info.plist` carries `NSMicrophoneUsageDescription` (`build.mac.extendInfo` in `package.json`), the terminal in development. The backend waits up to 120 s for `READY` on a microphone start, so the user has time to answer. Refused: `ERROR: microphone access denied`, exit 2, and the start fails with `Sonorus may not use the microphone. Allow it in System Settings → Privacy & Security → Microphone, then try again.` A microphone disconnected while recording (`AVCaptureDeviceWasDisconnected`, or a session runtime error) closes the file: `ERROR: the microphone was lost`, exit 3. The capture output is asked for mono 32-bit float at 48 kHz, the processing format of the file, so buffers are written without conversion.
 
 ### Building
 
@@ -130,9 +138,9 @@ All diagnostic output (errors, stream issues) goes to stderr. In normal operatio
 
 ### Permissions
 
-Screen Recording permission must be granted once in **System Settings → Privacy & Security → Screen Recording** for the terminal or app that launches the server.
+Screen Recording permission must be granted once in **System Settings → Privacy & Security → Screen Recording** for the terminal or app that launches the server; microphone access the same way under **Microphone** (the helper asks for it on the first microphone recording).
 
-For distribution builds, the entitlement `com.apple.security.screen-capture` is declared in `build/entitlements.mac.plist`.
+For distribution builds, the entitlements `com.apple.security.screen-capture` and `com.apple.security.device.audio-input` are declared in `build/entitlements.mac.plist` (inherited by the helper).
 
 ### How it works internally
 
@@ -296,7 +304,7 @@ Mic-only recordings (renderer `MediaRecorder`, `POST /audio/recordings`) and imp
 | `native/windows/sonorus-capture/main.cpp` | C++ helper — WASAPI loopback capture (Windows) |
 | `scripts/build-capture-win.js` | Builds `sonorus-capture.exe` (MSVC or mingw-w64) |
 | `electron/backend.js` | Sets `SONORUS_CAPTURE_BIN` env var so the server finds the helper (macOS, Windows) |
-| `build/entitlements.mac.plist` | `com.apple.security.screen-capture` entitlement for signed builds |
+| `build/entitlements.mac.plist` | `com.apple.security.screen-capture` and `com.apple.security.device.audio-input` entitlements for signed builds |
 
 :::note[Why stderr is not a pipe]
 The capture process runs for the whole recording. An unread `stderr=PIPE` fills its 64 KB buffer once the process writes enough diagnostics; the process then blocks on `write()`, stops capturing, and never exits on SIGINT — `stop_capture()` would hang forever. stderr is therefore redirected to a log file.

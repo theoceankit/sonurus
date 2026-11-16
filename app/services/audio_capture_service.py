@@ -23,6 +23,9 @@ _STOP_TIMEOUT_SEC = 10
 _START_CHECK_SEC = 0.5
 # How long a helper with a handshake (READY on stdout) may take to start.
 _READY_TIMEOUT_SEC = 5.0
+# The macOS microphone: the first start waits for the user to answer the
+# system's permission prompt.
+_MIC_PROMPT_TIMEOUT_SEC = 120.0
 # The two tracks of a recording start one after the other, well under a second
 # apart. A larger gap between the two start times means a clock jump, not a
 # real offset: then the tracks are mixed from 0 as they are.
@@ -75,10 +78,16 @@ class _CaptureJob:
 NO_MIC_AUDIO = "No audio was captured from the microphone."
 
 class _MacCapture:
-    """ScreenCaptureKit via the bundled sonorus-capture helper."""
+    """ScreenCaptureKit (system audio) and AVCaptureSession (the microphone,
+    --input) via the bundled sonorus-capture helper."""
 
     handshake = True  # prints READY on stdout once capture runs
     stop_via_stdin = False
+    ready_timeout = {"mic": _MIC_PROMPT_TIMEOUT_SEC}
+    mic_denied_message = (
+        "Sonorus may not use the microphone. Allow it in System Settings → "
+        "Privacy & Security → Microphone, then try again."
+    )
     no_audio_message = (
         "No audio was captured. If using system audio, grant Screen Recording "
         "permission in System Settings → Privacy & Security → Screen Recording."
@@ -92,15 +101,41 @@ class _MacCapture:
             return []
         return [{"id": "sckit", "label": "System audio (ScreenCaptureKit)"}]
 
+    def _microphones(self) -> list[dict] | None:
+        """The helper's microphones; None when it cannot list them."""
+        if not self._bin:
+            return None
+        try:
+            result = subprocess.run([self._bin, "--list-inputs"], capture_output=True,
+                                    text=True, encoding="utf-8", timeout=5)
+            if result.returncode != 0:
+                return None
+            devices = json.loads(result.stdout)
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return None
+        return [d for d in devices if isinstance(d, dict) and d.get("id")]
+
     def inputs(self) -> list[dict]:
-        return []
+        return sorted(({"id": d["id"], "label": d.get("label") or d["id"]}
+                       for d in self._microphones() or []),
+                      key=lambda d: d["label"].lower())
 
     def check(self, source_id: str | None = None, kind: str = "system") -> None:
         if not self._bin:
             raise RuntimeError("sonorus-capture binary not found; run: npm run build:capture")
+        if kind == "mic" and source_id:
+            devices = self._microphones()
+            if devices is not None and source_id not in {d["id"] for d in devices}:
+                raise RuntimeError(
+                    f"The selected microphone is not available: {source_id}. "
+                    "Choose another microphone and try again."
+                )
 
     def command(self, source_id: str | None, output_path: str, kind: str = "system") -> list[str]:
-        self.check()
+        if not self._bin:
+            self.check()
+        if kind == "mic":
+            return [self._bin, "--input", source_id or "default", "--output", output_path]
         return [self._bin, "--output", output_path]
 
 
@@ -430,7 +465,8 @@ class AudioCaptureService:
             )
 
         if driver.handshake:
-            line = _read_first_line(process.stdout, _READY_TIMEOUT_SEC)
+            timeout = getattr(driver, "ready_timeout", {}).get(kind, _READY_TIMEOUT_SEC)
+            line = _read_first_line(process.stdout, timeout)
             # The helper writes from READY on, however long it took to start.
             started_at = time.time()
             if line is None:

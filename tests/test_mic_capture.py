@@ -425,3 +425,95 @@ def test_windows_lost_microphone_ends_its_process_and_keeps_the_file(tmp_path, w
         time.sleep(0.05)
     assert not svc.alive(mic)
     assert Path(svc.stop_recording(mic_job=mic)).is_file()
+
+
+# ── macOS: the microphone through sonorus-capture --input ────────────────────
+
+_MAC_INPUTS = json.dumps([
+    {"id": "BuiltInMicrophoneDevice", "label": "MacBook Pro Microphone", "default": True},
+    {"id": "AppleUSBAudioEngine:Maono", "label": "Maono PD300X", "default": False},
+])
+
+
+@pytest.fixture
+def macos():
+    with patch(f"{_SVC}.sys.platform", "darwin"):
+        yield
+
+
+def _mac_list(stdout=_MAC_INPUTS, returncode=0):
+    def _run(cmd, **_kwargs):
+        assert cmd[1:] == ["--list-inputs"], cmd
+        return _result(stdout, returncode)
+    return _run
+
+
+def test_macos_inputs_are_the_helpers_microphones_by_name(tmp_path, macos):
+    with patch(f"{_SVC}.subprocess.run", side_effect=_mac_list()):
+        assert AudioCaptureService(capture_bin="/opt/sonorus-capture").get_inputs() == [
+            {"id": "BuiltInMicrophoneDevice", "label": "MacBook Pro Microphone"},
+            {"id": "AppleUSBAudioEngine:Maono", "label": "Maono PD300X"},
+        ]
+
+
+def test_macos_inputs_are_empty_without_helper_or_when_listing_fails(tmp_path, macos):
+    with patch.object(AudioCaptureService, "_find_capture_bin", return_value=None):
+        assert AudioCaptureService().get_inputs() == []
+    with patch(f"{_SVC}.subprocess.run", side_effect=_mac_list("", 1)):
+        assert AudioCaptureService(capture_bin="/opt/sonorus-capture").get_inputs() == []
+
+
+def test_macos_microphone_command_runs_helper_in_input_mode(macos):
+    svc = AudioCaptureService(capture_bin="/opt/sonorus-capture")
+    assert svc._build_command(None, "/t/mic.wav", kind="mic") == [
+        "/opt/sonorus-capture", "--input", "default", "--output", "/t/mic.wav"]
+    assert svc._build_command("BuiltInMicrophoneDevice", "/t/mic.wav", kind="mic")[2] == "BuiltInMicrophoneDevice"
+    assert svc._build_command(None, "/t/sys.wav") == ["/opt/sonorus-capture", "--output", "/t/sys.wav"]
+
+
+def test_macos_start_with_a_vanished_microphone_fails(tmp_path, macos):
+    with patch(f"{_SVC}.subprocess.run", side_effect=_mac_list()), \
+         patch(f"{_SVC}.subprocess.Popen") as popen:
+        svc = AudioCaptureService(capture_bin="/opt/sonorus-capture", recordings_dir=tmp_path)
+        with pytest.raises(RuntimeError) as exc:
+            svc.start_capture("AppleUSBAudioEngine:gone", kind="mic")
+    assert "microphone is not available" in str(exc.value)
+    popen.assert_not_called()
+
+
+def _helper_popen(first_line: bytes, stderr: bytes = b"", seen=None):
+    def _popen(cmd, **kwargs):
+        if seen is not None:
+            seen.append(cmd)
+        kwargs["stderr"].write(stderr)
+        kwargs["stderr"].flush()
+        proc = _process()
+        proc.stdout.readline.return_value = first_line
+        return proc
+    return _popen
+
+
+def test_macos_microphone_access_denied_says_where_to_allow_it(tmp_path, macos):
+    with patch(f"{_SVC}.subprocess.run", side_effect=_mac_list()), \
+         patch(f"{_SVC}.subprocess.Popen",
+               side_effect=_helper_popen(b"", b"ERROR: microphone access denied\n")):
+        svc = AudioCaptureService(capture_bin="/opt/sonorus-capture", recordings_dir=tmp_path)
+        with pytest.raises(RuntimeError) as exc:
+            svc.start_capture(None, kind="mic")
+    message = str(exc.value)
+    assert "System Settings → Privacy & Security → Microphone" in message
+    assert svc.has_active_jobs() is False
+
+
+def test_macos_microphone_gets_time_for_the_permission_prompt(tmp_path, macos):
+    """The first start waits for the user's answer to the system prompt."""
+    timeouts = []
+    with patch(f"{_SVC}.subprocess.run", side_effect=_mac_list()), \
+         patch(f"{_SVC}.subprocess.Popen", side_effect=_helper_popen(b"READY\n")), \
+         patch(f"{_SVC}._read_first_line",
+               side_effect=lambda stream, timeout: timeouts.append(timeout) or "READY"):
+        svc = AudioCaptureService(capture_bin="/opt/sonorus-capture", recordings_dir=tmp_path)
+        svc.start_capture(None, kind="mic")
+        svc.start_capture(None)
+    assert timeouts[0] >= 60
+    assert timeouts[1] == 5.0
