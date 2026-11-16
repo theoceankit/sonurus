@@ -35,7 +35,7 @@ Any other code writing to `known_speakers` or calling `memory.save()` violates t
 - Only after user review is the final speaker assignment known
 
 Permitted exceptions that do not write embeddings:
-- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names`. Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and via `create_named_speaker()` when segments are assigned to a new name.
+- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names`. Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and via `create_named_speaker()` when segments are assigned to a new name or a speaker is created with `POST /speakers`.
 - `SpeakerMemoryService.set_color()` — writes only `speaker_meta`. Called from `PATCH /speakers/{id}` and when an assign endpoint creates a speaker by name with `color_index`.
 - `SpeakerMemoryService.set_handle()` and the handle `save_names_only()` makes from a new name — write only `speaker_meta`. Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and when a speaker is created by name.
 - `SpeakerMemoryService.remove_speaker()` — deletes a speaker's profile, names, color and handle; called only through `CommitService` (`recompute_or_remove()`, `delete_speaker()`).
