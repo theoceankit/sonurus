@@ -9,7 +9,6 @@ exists), the other clips show whether they are recognised.
 """
 import json
 import os
-import subprocess
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -31,7 +30,7 @@ def set_dir() -> Path:
 class Variant:
     name: str
     source: str               # file in the clip folder
-    level: bool = False       # dynaudnorm as the app levels system-audio tracks
+    level: bool = False       # the gain the app gives each track of a live recording
     vad_onset: float | None = None
     base: str | None = None   # variant it is compared with; None = informative only
     what: str = ""
@@ -40,16 +39,16 @@ class Variant:
 VARIANTS = [
     Variant("clean", "clean.wav", what="sum of the headsets"),
     Variant("clean+level", "clean.wav", level=True, base="clean",
-            what="dynaudnorm on audio that needs none (levelling every import)"),
+            what="levelling on audio that needs none (levelling every import)"),
     Variant("call", "call.wav", what="call: a device per participant"),
-    Variant("call+level", "call.wav", level=True, base="call", what="dynaudnorm on the call"),
+    Variant("call+level", "call.wav", level=True, base="call", what="levelling of the call as one track"),
     Variant("call+vad0.3", "call.wav", vad_onset=0.3, base="call", what="VAD onset 0.3 instead of 0.5"),
     Variant("chromium-raw", "chromium-raw.webm", base="call",
             what="call recorded by Chromium, processing off: MediaRecorder Opus only"),
     Variant("chromium-default", "chromium-default.webm", base="chromium-raw",
             what="call recorded by Chromium as the app does: echo cancellation, noise suppression, AGC"),
     Variant("uneven", "uneven.wav", what="clean with one participant 20 dB down"),
-    Variant("uneven+level", "uneven.wav", level=True, base="uneven", what="dynaudnorm on uneven"),
+    Variant("uneven+level", "uneven.wav", level=True, base="uneven", what="levelling of uneven as one track"),
 ]
 BY_NAME = {v.name: v for v in VARIANTS}
 
@@ -99,10 +98,12 @@ def prepare(variant: Variant, clip: str, work: Path) -> Path:
     src = set_dir() / clip / variant.source
     if not variant.level:
         return src
-    from app.services.audio_capture_service import _LEVEL_FILTER
+    import shutil
+    from app.services.audio_capture_service import AudioCaptureService
+    track = work / f"{clip}.{variant.name}.track{src.suffix}"
     out = work / f"{clip}.{variant.name}.wav"
-    subprocess.run(["ffmpeg", "-y", "-nostdin", "-loglevel", "error", "-i", str(src),
-                    "-af", _LEVEL_FILTER, str(out)], check=True)
+    shutil.copyfile(src, track)   # the app's levelling consumes its input
+    AudioCaptureService(recordings_dir=work)._level(str(track), str(out))
     return out
 
 
