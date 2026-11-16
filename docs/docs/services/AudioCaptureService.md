@@ -77,7 +77,7 @@ stop_recording(system_job, mic_job)   either or both
     "No audio was captured from the microphone."
   → then system audio through stop_capture(system_job, mic_path, mic_started_at): the same stop,
     then the levelling and mix below into $SONORUS_DATA_DIR/recordings/sonorus-rec-<job_id>.wav
-  → a microphone alone is moved there as recorded (sonorus-rec-<mic job_id>.wav)
+  → a microphone alone is levelled there like a system-only track (sonorus-rec-<mic job_id>.wav)
   → temp files are removed whatever happens; a failure discards the other track
 
 discard(job_id) / discard_all()       kill the process, remove its files, keep nothing
@@ -247,22 +247,20 @@ pactl older than 16 falls back to the text list (`Monitor of Sink: n/a` marks an
 
 ## Loudness levelling and mic merge
 
-Every recording that holds system audio is levelled before it is stored. System audio is often 15–20 dB quieter than the mic, and the participants of a call differ too; with the tracks mixed as is, the voice activity detection joins the recording into one long chunk and Whisper drops the quiet speech even though it is audible in the player.
+Every live recording is levelled before it is stored, track by track. System audio is often 15–20 dB quieter than the mic; with the tracks mixed as is, the voice activity detection joins the recording into one long chunk and Whisper drops the quiet speech even though it is audible in the player.
 
-Each track goes through `dynaudnorm` (`_LEVEL_FILTER` in `audio_capture_service.py`):
+Each track gets **one constant gain** for its whole length:
 
-| Option | Value | Why |
-|---|---|---|
-| `f` / `g` | 150 ms / 11 frames | ~1.7 s window: follows a change of speaker; a ~15 s window leaves alternating quiet and loud speakers 30 dB apart |
-| `m` | 100 | up to +40 dB; the default (+20 dB) barely closes a 20 dB gap |
-| `t` | 0.001 | frames below −60 dBFS are not boosted: silence stays silent, faint background noise is not raised to hiss |
-| `r` | 0.15 | target RMS (≈ −16 dBFS per frame): tracks match in loudness, not in peaks — call and media audio is already compressed and would sound several dB louder than a peaky mic voice at equal peaks |
-| `p` | 0.9 | peak ceiling |
+1. Its integrated loudness is measured with `ffmpeg -af ebur128` (EBU R128: weighted like hearing and gated, so pauses do not pull it down).
+2. The gain brings it to −20 LUFS (`_TARGET_LUFS`): a quiet track is raised, a loud one turned down, at most +30 dB (`_MAX_GAIN_DB`), so a nearly silent track is not raised to audible hiss.
+3. A track with nothing above −70 LUFS, the floor of `ebur128` (silence, faint noise), or one whose measurement fails keeps its level (0 dB, a warning is logged for a failure).
 
-System audio only:
+The gain does not change over time. Levelling that follows the signal (`dynaudnorm` with a 1.7 s window and up to +40 dB, used before) raised every pause almost to the level of speech: room noise in the microphone and, with loudspeakers instead of headphones, the call heard through the microphone, a second copy of every voice a few tens of milliseconds late. With one gain per track every part of it keeps its proportion: the noise floor and that echo stay as far below the speech as they were recorded. What it does not do is even out participants of different loudness within one track; that stays as the call delivered it.
+
+System audio only, or a microphone only:
 
 ```bash
-ffmpeg -y -i <system.wav> -af "<level filter>" <final.wav>
+ffmpeg -y -i <track.wav> -af "volume=<gain>dB,alimiter=limit=0.95:level=disabled" <final.wav>
 ```
 
 Mic + system:
@@ -270,23 +268,25 @@ Mic + system:
 ```bash
 ffmpeg -y \
   -i <system.wav> -i <mic.wav> \
-  -filter_complex "[0:a]<level filter>[sys];[1:a]<level filter>,aformat=channel_layouts=stereo,adelay=delays=<ms>:all=1[mic];[mic][sys]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95:level=disabled" \
+  -filter_complex "[0:a]volume=<system gain>dB[sys];[1:a]volume=<mic gain>dB,aformat=channel_layouts=stereo,adelay=delays=<ms>:all=1[mic];[mic][sys]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95:level=disabled" \
   <merged.wav>
 ```
+
+Measuring is one more pass over each track, a few seconds per hour of audio; the recording is in the `stopping` phase meanwhile.
 
 `normalize=0` sums the tracks instead of dividing each by the number of inputs; `alimiter` keeps the sum from clipping. The result is the same WAV as before (16-bit PCM).
 
 **Lining the tracks up.** The two tracks do not start or stop together: each has its own capture process, started one after the other (the microphone first), and on Stop the microphone stops first. The service knows when each track started (`started_at`, from the same clock). The mix:
 
-- shifts the track that started later by the difference (`adelay`, after levelling, so the silence put in front of a track takes no part in it): the same moment lines up on both tracks;
+- shifts the track that started later by the difference (`adelay`; each track is measured as recorded, so the silence put in front of it takes no part in its gain): the same moment lines up on both tracks;
 - ends with the microphone (`duration=first`, the microphone is the first input): the recording ends where its first track stopped, and the moment of system audio captured after it is dropped;
 - upmixes a mono microphone to stereo first: `amix` takes its channel layout from its first input and would otherwise turn the system audio mono.
 
 When the start times are more than 30 s (`_MAX_START_GAP_SEC`) apart — a clock jump, not a real offset — both tracks start at 0 and a warning is logged. The shift is as exact as the two start times: well under a tenth of a second, the time between reading the clock and the first sample on each side. On macOS ScreenCaptureKit hands over audio as it comes; the alignment holds only as long as its track has no gaps.
 
-If the levelling run fails (ffmpeg error or ffmpeg not found), a warning is logged and the recording is stored without levelling: the system-only file is moved as captured, the mix is retried with plain `amix=inputs=2:duration=first`, with the same shift. Only a failure of that plain mix fails the stop.
+If the levelling run fails (ffmpeg error or ffmpeg not found), a warning is logged and the recording is stored without levelling: a single track is moved as captured, the mix is retried with plain `amix=inputs=2:duration=first`, with the same shift. Only a failure of that plain mix fails the stop.
 
-Microphone-only recordings and imported files are not levelled. The microphone is recorded as the device gives it, without the echo cancellation, noise suppression and automatic gain control a browser would add.
+Imported files are not levelled. The microphone is recorded as the device gives it, without the echo cancellation, noise suppression and automatic gain control a browser would add; its constant gain only sets its loudness.
 
 ---
 
