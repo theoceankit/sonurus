@@ -16,7 +16,7 @@ from app.api.dependencies import (
 from app.api.refusals import Refusal
 from app.api.schemas import (
     SpeakerResponse, RenameRequest, SpeakerCreateRequest, SpeakerUpdateRequest, HandleFormatBody, HandleSuggestionResponse,
-    RefusalResponse, SpeakerDeleteResponse, SpeakerTranscriptItem, SpeakerSampleResponse,
+    RefusalResponse, SpeakerDeleteResponse, SpeakerMergeRequest, SpeakerMergeResponse, SpeakerTranscriptItem, SpeakerSampleResponse,
 )
 
 router = APIRouter(prefix="/speakers", tags=["speakers"])
@@ -46,6 +46,17 @@ def handle_refusal(exc: ValueError, memory: SpeakerMemoryService) -> Refusal:
 
 
 HANDLE_ERRORS = (InvalidHandle, HandleTaken, HandleNeedsName)
+
+
+def _require_idle(queue, recording) -> None:
+    """409 while a job runs or a recording goes. A running pipeline job would
+    write a speaker's profile back when it commits; wait for it (and for a
+    recording that feeds the next job). Queued jobs are fine: they resolve
+    speakers when they run."""
+    if queue.is_running():
+        raise HTTPException(status_code=409, detail="A transcription is in progress")
+    if recording.is_recording():
+        raise HTTPException(status_code=409, detail="A recording is in progress")
 
 
 def _require_speaker(spk_id, memory, stats) -> None:
@@ -174,15 +185,34 @@ def delete_speaker(
     recording=Depends(get_live_recording_service),
     queue=Depends(get_transcription_queue),
 ):
-    # A running pipeline job would write the speaker's profile back when it
-    # commits; wait for it (and for a recording that feeds the next job).
-    # Queued jobs are fine: they resolve speakers when they run.
-    if queue.is_running():
-        raise HTTPException(status_code=409, detail="A transcription is in progress")
-    if recording.is_recording():
-        raise HTTPException(status_code=409, detail="A recording is in progress")
+    _require_idle(queue, recording)
     _require_speaker(speaker_id, memory, storage.speaker_stats())
     return SpeakerDeleteResponse(**CommitService(memory, storage).delete_speaker(speaker_id))
+
+
+@router.post(
+    "/{speaker_id}/merge", response_model=SpeakerMergeResponse,
+    responses={400: {"model": RefusalResponse}},
+)
+def merge_speaker(
+    speaker_id: str,
+    body: SpeakerMergeRequest,
+    memory: SpeakerMemoryService = Depends(get_memory_service),
+    storage: TranscriptStorageService = Depends(get_storage_service),
+    recording=Depends(get_live_recording_service),
+    queue=Depends(get_transcription_queue),
+):
+    """Merge the speaker into body.into_id: see CommitService.merge_speaker()."""
+    _require_idle(queue, recording)
+    stats = storage.speaker_stats()
+    _require_speaker(speaker_id, memory, stats)
+    _require_speaker(body.into_id, memory, stats)
+    if body.into_id == speaker_id:
+        raise Refusal("merge_into_self", "Choose another speaker to merge into.")
+    moved = CommitService(memory, storage).merge_speaker(speaker_id, body.into_id)
+    return SpeakerMergeResponse(
+        speaker=_speaker_response(body.into_id, memory, storage.speaker_stats()), **moved,
+    )
 
 
 @router.get("/{speaker_id}/transcripts", response_model=list[SpeakerTranscriptItem])

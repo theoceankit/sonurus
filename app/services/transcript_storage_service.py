@@ -140,6 +140,28 @@ class TranscriptStorageService:
         log.info(f"UPDATE segments unassigned speaker={speaker_id}: {segments} rows in {transcripts} transcriptions")
         return {"segments": segments, "transcripts": transcripts}
 
+    def move_speaker(self, from_id: str, to_id: str) -> dict:
+        """Give every segment of from_id to to_id, in every transcript, with its
+        possible matches: where both were matched in one transcript, one row stays,
+        with the higher score, confirmed if either was. Returns the moved
+        {segments, transcripts} counts."""
+        with self._connect() as conn:
+            segments, transcripts = conn.execute(
+                "SELECT COUNT(*), COUNT(DISTINCT transcription_id) FROM segments WHERE speaker_id = ?",
+                (from_id,),
+            ).fetchone()
+            conn.execute("UPDATE segments SET speaker_id = ? WHERE speaker_id = ?", (to_id, from_id))
+            conn.execute(
+                "INSERT INTO speaker_matches (transcription_id, speaker_id, score, confirmed) "
+                "SELECT transcription_id, ?, score, confirmed FROM speaker_matches WHERE speaker_id = ? "
+                "ON CONFLICT(transcription_id, speaker_id) DO UPDATE SET "
+                "score = MAX(score, excluded.score), confirmed = MAX(confirmed, excluded.confirmed)",
+                (to_id, from_id),
+            )
+            conn.execute("DELETE FROM speaker_matches WHERE speaker_id = ?", (from_id,))
+        log.info(f"UPDATE segments speaker={from_id} → {to_id}: {segments} rows in {transcripts} transcriptions")
+        return {"segments": segments, "transcripts": transcripts}
+
     def set_match_confirmed(self, db_id: int, speaker_id: str, confirmed: bool) -> bool:
         """Mark a recognized speaker as confirmed by the user in this transcript,
         or take it back. False when the speaker was not recognized there."""

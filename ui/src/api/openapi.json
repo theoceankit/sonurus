@@ -882,7 +882,8 @@
               "handle_invalid",
               "handle_taken",
               "handle_needs_name",
-              "photo_needs_name"
+              "photo_needs_name",
+              "merge_into_self"
             ],
             "title": "Code",
             "type": "string"
@@ -1181,6 +1182,43 @@
           "transcripts"
         ],
         "title": "SpeakerDeleteResponse",
+        "type": "object"
+      },
+      "SpeakerMergeRequest": {
+        "description": "POST /speakers/{id}/merge: the speaker who stays.",
+        "properties": {
+          "into_id": {
+            "title": "Into Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "into_id"
+        ],
+        "title": "SpeakerMergeRequest",
+        "type": "object"
+      },
+      "SpeakerMergeResponse": {
+        "description": "The speaker who stays, as they are after the merge, and how many segments\nin how many transcripts moved to them.",
+        "properties": {
+          "segments": {
+            "title": "Segments",
+            "type": "integer"
+          },
+          "speaker": {
+            "$ref": "#/components/schemas/SpeakerResponse"
+          },
+          "transcripts": {
+            "title": "Transcripts",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "speaker",
+          "segments",
+          "transcripts"
+        ],
+        "title": "SpeakerMergeResponse",
         "type": "object"
       },
       "SpeakerResponse": {
@@ -2849,6 +2887,69 @@
           }
         },
         "summary": "Update Speaker",
+        "tags": [
+          "speakers"
+        ]
+      }
+    },
+    "/speakers/{speaker_id}/merge": {
+      "post": {
+        "description": "Merge the speaker into body.into_id: see CommitService.merge_speaker().",
+        "operationId": "merge_speaker_speakers__speaker_id__merge_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "speaker_id",
+            "required": true,
+            "schema": {
+              "title": "Speaker Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakerMergeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeakerMergeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Merge Speaker",
         "tags": [
           "speakers"
         ]
