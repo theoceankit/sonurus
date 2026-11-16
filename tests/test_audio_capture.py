@@ -153,8 +153,8 @@ def test_stop_capture_unknown_job_raises():
 def test_stop_capture_without_mic_returns_system_file(tmp_path):
     """stop_capture(job_id) without mic_path returns the system audio file path.
 
-    The capture output is levelled by one ffmpeg run (no merge) into the
-    recordings dir.
+    The capture output is measured, then levelled by one ffmpeg run (no
+    merge) into the recordings dir.
     """
     AudioCaptureService = _get_service_class()
 
@@ -173,8 +173,9 @@ def test_stop_capture_without_mic_returns_system_file(tmp_path):
 
     assert isinstance(file_path, str), "stop_capture must return a string path"
     assert len(file_path) > 0, "returned path must not be empty"
-    mock_run.assert_called_once()
-    cmd = mock_run.call_args.args[0]
+    runs = [c.args[0] for c in mock_run.call_args_list if not _is_measure(c.args[0])]
+    assert len(runs) == 1
+    cmd = runs[0]
     assert "amix" not in " ".join(cmd)
     assert cmd[-1] == file_path
     # SIGINT (or equivalent) must have been sent to the subprocess
@@ -796,10 +797,13 @@ def test_has_active_jobs_tracks_running_capture(tmp_path):
 
 # ── Loudness levelling ────────────────────────────────────────────────────────
 #
-# A quiet system track next to a loud mic used to vanish from the transcript:
-# every track that holds system audio is levelled (dynaudnorm) before it is
-# stored, the mix does not divide by the number of inputs, a limiter keeps it
-# from clipping. A failed levelling run falls back to the old behaviour.
+# A quiet system track next to a loud mic used to vanish from the transcript,
+# so every track is levelled before it is stored: one constant gain per track,
+# from its integrated loudness (ebur128), to the target loudness. A gain that
+# changes over time (dynaudnorm) raised the pauses — room noise, the call
+# heard through the mic — to the level of speech and made recordings hard to
+# listen to. The mix does not divide by the number of inputs, a limiter keeps
+# it from clipping. A failed levelling run falls back to the old behaviour.
 
 CAPTURE_STARTED_AT = 1763170000.0
 
@@ -819,9 +823,34 @@ def _stop_capture(tmp_path, run, mic_path=None, mic_started_at=None):
     return final, outputs[0], rec_dir
 
 
-def _recording_run(calls, fail_first: int = 0, error=None):
-    """subprocess.run stand-in: records commands; the first `fail_first` calls raise."""
+def _ebur128_summary(lufs: float) -> str:
+    """The end of what `ffmpeg -af ebur128` prints on stderr."""
+    return ("[Parsed_ebur128_0 @ 0x1] Summary:\n\n  Integrated loudness:\n"
+            f"    I:         {lufs:.1f} LUFS\n    Threshold: {lufs - 10:.1f} LUFS\n\n"
+            "  Loudness range:\n    LRA:         5.0 LU\n")
+
+
+def _is_measure(cmd) -> bool:
+    return "ebur128" in " ".join(map(str, cmd))
+
+
+def _recording_run(calls, fail_first: int = 0, error=None, loudness=None, measured=None,
+                   measure_error=None):
+    """subprocess.run stand-in: records the processing commands in `calls`
+    (the first `fail_first` of them raise) and answers loudness measurements
+    with `loudness(input path)` in LUFS (-30 for every track by default),
+    recording the measured paths in `measured`."""
+    loudness = loudness or (lambda _src: -30.0)
+
     def _run(cmd, **kwargs):
+        if _is_measure(cmd):
+            src = cmd[cmd.index("-i") + 1]
+            if measured is not None:
+                measured.append(src)
+            if measure_error is not None:
+                raise measure_error
+            return subprocess.CompletedProcess(
+                cmd, 0, stdout="", stderr=_ebur128_summary(loudness(src)))
         calls.append(cmd)
         if len(calls) <= fail_first:
             raise error or subprocess.CalledProcessError(1, cmd)
@@ -847,38 +876,107 @@ def _filter_arg(cmd) -> str:
     return ""
 
 
-def test_mix_levels_each_track_and_limits_without_dividing(tmp_path):
-    calls = []
-    mic = tmp_path / "mic.webm"
-    mic.write_bytes(b"webm")
-    final, _, rec_dir = _stop_capture(tmp_path, _recording_run(calls), mic_path=str(mic))
+def _chain(graph: str, label: str) -> str:
+    """The chain of a filter graph that ends in [label]."""
+    return next(c for c in graph.split(";") if c.endswith(f"[{label}]"))
 
+
+def _gain(chain: str) -> float:
+    import re
+    found = re.findall(r"volume=(-?[\d.]+)dB", chain)
+    assert len(found) == 1, chain
+    return float(found[0])
+
+
+def _mic_first(src: str, mic: Path, mic_lufs: float, sys_lufs: float) -> float:
+    return mic_lufs if src == str(mic) else sys_lufs
+
+
+def test_mix_gives_each_track_one_constant_gain_and_limits_without_dividing(tmp_path):
+    calls, measured = [], []
+    mic = tmp_path / "mic.wav"
+    mic.write_bytes(b"RIFF")
+    final, capture_tmp, rec_dir = _stop_capture(
+        tmp_path, _recording_run(calls, measured=measured,
+                                 loudness=lambda src: _mic_first(src, mic, -14.0, -32.0)),
+        mic_path=str(mic))
+
+    assert sorted(measured) == sorted([capture_tmp, str(mic)]), "each track is measured"
     assert len(calls) == 1
     graph = _filter_arg(calls[0])
-    assert graph.count("dynaudnorm") == 2, "both tracks are levelled before the mix"
+    assert "dynaudnorm" not in graph, "no gain that changes over time"
+    assert _gain(_chain(graph, "sys")) == pytest.approx(12.0), "quiet system audio up to -20 LUFS"
+    assert _gain(_chain(graph, "mic")) == pytest.approx(-6.0), "a loud microphone is turned down"
     assert "amix=inputs=2" in graph
     assert "duration=first" in graph, "the mix ends with the microphone, where Stop was pressed"
     assert graph.index("[mic]") < graph.index("[sys]amix"), "the microphone is the first input of the mix"
     assert "normalize=0" in graph, "the mix must not divide the volume by the number of inputs"
-    assert "alimiter" in graph
-    assert graph.index("dynaudnorm") < graph.index("amix") < graph.index("alimiter")
+    assert graph.index("volume=") < graph.index("amix") < graph.index("alimiter")
     assert calls[0][-1] == final
     assert Path(final).parent == rec_dir
     assert Path(final).name.startswith("sonorus-rec-") and final.endswith(".wav")
 
 
 def test_system_only_recording_is_levelled_into_recordings_dir(tmp_path):
-    calls = []
-    final, capture_tmp, rec_dir = _stop_capture(tmp_path, _recording_run(calls))
+    calls, measured = [], []
+    final, capture_tmp, rec_dir = _stop_capture(
+        tmp_path, _recording_run(calls, measured=measured, loudness=lambda _src: -26.5))
 
+    assert measured == [capture_tmp]
     assert len(calls) == 1
     cmd = calls[0]
-    assert "dynaudnorm" in _filter_arg(cmd)
+    chain = _filter_arg(cmd)
+    assert "dynaudnorm" not in chain
+    assert _gain(chain) == pytest.approx(6.5)
+    assert chain.index("volume=") < chain.index("alimiter"), "the gain must not clip"
     assert "amix" not in " ".join(cmd)
     assert cmd[cmd.index("-i") + 1] == capture_tmp
     assert cmd[-1] == final
     assert Path(final).parent == rec_dir and Path(final).is_file()
     assert not Path(capture_tmp).exists(), "temp capture file must not be left behind"
+
+
+@pytest.mark.parametrize("lufs, gain", [
+    (-55.0, 30.0),    # a very quiet track: gain capped
+    (-69.9, 30.0),
+    (-70.0, 0.0),     # ebur128's floor: nothing but silence or faint noise
+    (-91.0, 0.0),
+    (-20.0, 0.0),
+    (-9.0, -11.0),
+])
+def test_track_gain_from_its_loudness(tmp_path, lufs, gain):
+    calls = []
+    _stop_capture(tmp_path, _recording_run(calls, loudness=lambda _src: lufs))
+    assert _gain(_filter_arg(calls[0])) == pytest.approx(gain)
+
+
+@pytest.mark.parametrize("measure_error", [
+    subprocess.CalledProcessError(1, "ffmpeg"),
+    FileNotFoundError("ffmpeg"),
+])
+def test_failed_measurement_leaves_the_track_as_loud_as_it_is(tmp_path, app_warnings, measure_error):
+    calls = []
+    mic = tmp_path / "mic.wav"
+    mic.write_bytes(b"RIFF")
+    final, _, _ = _stop_capture(
+        tmp_path, _recording_run(calls, measure_error=measure_error), mic_path=str(mic))
+    graph = _filter_arg(calls[-1])
+    assert _gain(_chain(graph, "sys")) == 0 and _gain(_chain(graph, "mic")) == 0
+    assert Path(final).is_file()
+    assert any("loudness" in m.lower() for m in app_warnings())
+
+
+def test_measurement_without_a_loudness_in_its_output_gives_no_gain(tmp_path):
+    calls = []
+
+    def _run(cmd, **kwargs):
+        if _is_measure(cmd):
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="garbage")
+        calls.append(cmd)
+        _fake_merge_run(cmd, **kwargs)
+
+    _stop_capture(tmp_path, _run)
+    assert _gain(_filter_arg(calls[0])) == 0
 
 
 def test_mix_falls_back_to_plain_amix_when_levelling_fails(tmp_path, app_warnings):
@@ -891,7 +989,7 @@ def test_mix_falls_back_to_plain_amix_when_levelling_fails(tmp_path, app_warning
     assert len(calls) == 2
     fallback = _filter_arg(calls[1])
     assert "amix=inputs=2:duration=first" in fallback
-    assert "dynaudnorm" not in fallback
+    assert "volume=" not in fallback
     assert Path(final).is_file()
     assert not Path(capture_tmp).exists()
     assert any("level" in m.lower() for m in app_warnings())
@@ -1048,18 +1146,62 @@ def _real_stop(tmp_path, system_source, mic_path=None) -> str:
 needs_ffmpeg = pytest.mark.skipif(_FFMPEG is None, reason="ffmpeg not installed")
 
 
-@needs_ffmpeg
-def test_real_ffmpeg_quiet_and_loud_tracks_end_up_close(tmp_path):
-    quiet, loud = tmp_path / "quiet.wav", tmp_path / "loud.wav"
-    _speech_like(quiet, -24)   # ≈ −50 dBFS RMS
-    _speech_like(loud, -4)     # ≈ −27 dBFS RMS
-    gap_before = _levels_db(loud)[0] - _levels_db(quiet)[0]
-    assert gap_before > 18
+def _lufs(path) -> float:
+    """Integrated loudness (EBU R128) of an audio file."""
+    import re
+    out = subprocess.run(["ffmpeg", "-nostats", "-i", str(path), "-af", "ebur128", "-f", "null", "-"],
+                         capture_output=True, text=True, check=True).stderr
+    return float(re.findall(r"I:\s+(-?[\d.]+) LUFS", out)[-1])
 
-    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir()
-    quiet_rms = _levels_db(_real_stop(tmp_path / "a", quiet))[0]
-    loud_rms = _levels_db(_real_stop(tmp_path / "b", loud))[0]
-    assert abs(loud_rms - quiet_rms) <= 6, (quiet_rms, loud_rms)
+
+def _segment_db(path, start: float, end: float) -> float:
+    """RMS in dBFS of a 16-bit WAV between start and end (seconds)."""
+    import array, math, wave
+    with wave.open(str(path)) as w:
+        rate, channels = w.getframerate(), w.getnchannels()
+        w.setpos(int(start * rate))
+        samples = array.array("h", w.readframes(int((end - start) * rate)))
+    rms = math.sqrt(sum(s * s for s in samples) / len(samples)) / 32768
+    return 20 * math.log10(rms)
+
+
+@needs_ffmpeg
+@pytest.mark.parametrize("gain_db", [-24, -4])   # ≈ −35 and −15 LUFS
+def test_real_ffmpeg_track_ends_up_at_the_target_loudness(tmp_path, gain_db):
+    src = tmp_path / "src.wav"
+    _speech_like(src, gain_db)
+    assert abs(_lufs(src) + 20) > 4
+    assert _lufs(_real_stop(tmp_path, src)) == pytest.approx(-20, abs=1)
+
+
+@needs_ffmpeg
+def test_real_ffmpeg_pause_is_raised_only_by_the_gain_of_its_track(tmp_path):
+    """The bug: room noise between phrases came out almost as loud as speech.
+    Speech for 6 s, then 6 s of faint noise only: the noise must rise by the
+    same few dB as the speech, not up to it."""
+    src = tmp_path / "src.wav"
+    _ffmpeg_gen(src, "sine=f=440:d=6,volume=-30dB,"
+                     "volume='if(lt(mod(t,1.5),1),1,0)':eval=frame,apad=whole_dur=12[s];"
+                     "anoisesrc=d=12:a=0.0015:c=pink[n];[s][n]amix=inputs=2:normalize=0", 1)
+    out = _real_stop(tmp_path, src)
+    speech_gain = _segment_db(out, 0, 1) - _segment_db(src, 0, 1)
+    pause_gain = _segment_db(out, 7, 12) - _segment_db(src, 7, 12)
+    assert speech_gain > 3
+    assert pause_gain == pytest.approx(speech_gain, abs=1), (speech_gain, pause_gain)
+
+
+@needs_ffmpeg
+def test_real_ffmpeg_microphone_alone_is_levelled_too(tmp_path):
+    src = tmp_path / "mic.wav"
+    _speech_like(src, -20, channels=1)
+    AudioCaptureService = _get_service_class()
+    svc = AudioCaptureService(recordings_dir=tmp_path / "recordings")
+    with patch("app.services.audio_capture_service.sys.platform", "linux"):
+        with patch("app.services.audio_capture_service.subprocess.Popen",
+                   side_effect=_copy_capture_popen(src)):
+            mic = svc.start_capture(kind="mic")
+        final = svc.stop_recording(mic_job=mic)
+    assert _lufs(final) == pytest.approx(-20, abs=1)
 
 
 @needs_ffmpeg
@@ -1072,9 +1214,9 @@ def test_real_ffmpeg_compressed_and_peaky_tracks_match_in_loudness(tmp_path):
     _ffmpeg_gen(peaky, f"anoisesrc=d=12:a=0.05:c=white,lowpass=f=3000,{gate}", 1)
 
     (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir()
-    compressed_rms = _levels_db(_real_stop(tmp_path / "a", compressed))[0]
-    peaky_rms = _levels_db(_real_stop(tmp_path / "b", peaky))[0]
-    assert abs(compressed_rms - peaky_rms) <= 2, (compressed_rms, peaky_rms)
+    compressed_lufs = _lufs(_real_stop(tmp_path / "a", compressed))
+    peaky_lufs = _lufs(_real_stop(tmp_path / "b", peaky))
+    assert abs(compressed_lufs - peaky_lufs) <= 1, (compressed_lufs, peaky_lufs)
 
 
 @needs_ffmpeg

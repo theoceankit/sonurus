@@ -190,14 +190,21 @@ def _writing_popen(outputs, procs=None):
     return _popen
 
 
-def _ffmpeg(calls):
+def _ffmpeg(calls, fail: bool = False):
+    """ffmpeg stand-in: loudness measurements answer -30 LUFS, other runs are
+    recorded in `calls` and write the output (or fail)."""
     def _run(cmd, **_kwargs):
+        if "ebur128" in " ".join(cmd):
+            return subprocess.CompletedProcess(
+                cmd, 0, stdout="", stderr="  Integrated loudness:\n    I:         -30.0 LUFS\n")
         calls.append(cmd)
+        if fail:
+            raise subprocess.CalledProcessError(1, cmd)
         Path(cmd[-1]).write_bytes(b"RIFF" + b"\0" * 200)
     return _run
 
 
-def test_microphone_only_recording_is_moved_into_recordings_as_is(tmp_path):
+def test_microphone_only_recording_is_levelled_into_recordings(tmp_path):
     rec = tmp_path / "recordings"
     outputs, calls = [], []
     with patch(f"{_SVC}.subprocess.Popen", side_effect=_writing_popen(outputs)), \
@@ -207,10 +214,25 @@ def test_microphone_only_recording_is_moved_into_recordings_as_is(tmp_path):
         final = svc.stop_recording(mic_job=mic)
     assert Path(final).parent == rec
     assert Path(final).name == f"sonorus-rec-{mic}.wav"
-    assert Path(final).read_bytes().startswith(b"RIFF")
-    assert calls == [], "a microphone alone is kept as recorded"
+    assert len(calls) == 1, "a microphone alone gets its gain like any track"
+    assert calls[0][calls[0].index("-i") + 1] == outputs[0]
+    assert "volume=10.00dB" in calls[0][calls[0].index("-af") + 1]
+    assert calls[0][-1] == final
     assert not Path(outputs[0]).exists()
     assert svc.has_active_jobs() is False
+
+
+def test_microphone_only_recording_is_kept_as_recorded_when_levelling_fails(tmp_path):
+    rec = tmp_path / "recordings"
+    outputs, calls = [], []
+    with patch(f"{_SVC}.subprocess.Popen", side_effect=_writing_popen(outputs)), \
+         patch(f"{_SVC}.subprocess.run", side_effect=_ffmpeg(calls, fail=True)):
+        svc = AudioCaptureService(recordings_dir=rec)
+        mic = svc.start_capture(None, kind="mic")
+        final = svc.stop_recording(mic_job=mic)
+    assert Path(final).name == f"sonorus-rec-{mic}.wav"
+    assert Path(final).read_bytes() == b"RIFF" + b"\0" * 100, "the recording as captured"
+    assert not Path(outputs[0]).exists()
 
 
 def test_system_only_recording_is_levelled_into_recordings(tmp_path):
@@ -285,7 +307,8 @@ def test_alive_tells_whether_the_capture_process_still_runs(tmp_path):
 def test_a_track_whose_process_ended_by_itself_is_still_saved(tmp_path):
     """A source lost mid-recording: what was recorded up to then is kept."""
     procs, outputs = [], []
-    with patch(f"{_SVC}.subprocess.Popen", side_effect=_writing_popen(outputs, procs)):
+    with patch(f"{_SVC}.subprocess.Popen", side_effect=_writing_popen(outputs, procs)), \
+         patch(f"{_SVC}.subprocess.run", side_effect=_ffmpeg([])):
         svc = AudioCaptureService(recordings_dir=tmp_path / "recordings")
         mic = svc.start_capture(None, kind="mic")
         procs[0].kill()
