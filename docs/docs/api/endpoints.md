@@ -650,6 +650,18 @@ Deletes a speaker through `CommitService.delete_speaker()`: every segment assign
 
 Returns the number of segments and transcripts that became unassigned, `404` for an unknown id, and `409` while a transcription job or a live recording is running (the running job holds its own memory snapshot and would write the profile back when it commits). Queued jobs do not block it: they resolve speakers when they run.
 
+### `POST /speakers/{id}/merge`
+
+Merges the speaker into another who turned out to be the same person, through `CommitService.merge_speaker()`. Body: `{ "into_id": "<speaker id>" }`, the speaker who stays.
+
+Every segment of the merged speaker, in every recording, goes to `into_id`, and so do its possible matches (one per recording: the higher score, confirmed if either was). `into_id` keeps their name, handle, colour and photo; one without a name takes the merged speaker's, handle and photo included. The merged speaker is then removed, its handle freed and, when `into_id` had a name, its photo file deleted. `into_id`'s voice profile is recomputed from all their segments without the similarity guard. There is no undo.
+
+```json
+{ "speaker": { "id": "…", "name": "Mark Ellis", "handle": "mark.ellis", "segments": 52, "transcripts": 10, "…": "…" }, "segments": 12, "transcripts": 3 }
+```
+
+`speaker` is `into_id` as `GET /speakers` lists them after the merge; `segments` and `transcripts` count what moved. `400` with code `merge_into_self` when `into_id` is the speaker itself, `404` when either is unknown, and `409` while a transcription job or a live recording is running, as for `DELETE /speakers/{id}`. A refusal changes nothing.
+
 ### `GET /speakers/{id}/sample`
 
 A segment to play as the speaker's voice sample. Optional `?transcript_id=` limits it to one transcript.
