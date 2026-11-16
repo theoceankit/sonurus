@@ -18,7 +18,7 @@ audio_path
 TranscriptionService.transcribe()
     → result       → TranscriptBuilder.build()
     → audio        → EmbeddingService.extract_all()
-    → diarization  → EmbeddingService.extract_all()
+    → diarization  → EmbeddingService.extract_all()   (exclusive diarization)
 ```
 
 ---
@@ -68,15 +68,20 @@ After loading the align model, `torch.cuda.empty_cache()` is called to free VRAM
 **4. Diarization**
 ```python
 diarize_model = whisperx.diarize.DiarizationPipeline(device=device)
-diarization = diarize_model(audio)
+regular, exclusive = diarize(diarize_model, audio)   # app/services/diarization.py
 ```
-PyAnnote splits the audio into spans and assigns each to a speaker (`SPEAKER_00`, `SPEAKER_01`, …).
+PyAnnote splits the audio into spans and assigns each to a speaker (`SPEAKER_00`, `SPEAKER_01`, …). Its pipeline returns two diarizations with the same labels, and `diarize()` keeps both (whisperx's own call returns only the first):
+
+- **regular** — speakers may overlap: when two people talk at once, both have a span there;
+- **exclusive** — one speaker at a time: overlapped speech goes to one of them.
 
 **5. Speaker assignment**
 ```python
-result = whisperx.assign_word_speakers(diarization, result)
+result = whisperx.assign_word_speakers(regular, result)
 ```
-Each segment and word in `result` receives a `speaker` label from the diarization output.
+Each segment and word in `result` receives a `speaker` label from the regular diarization: the speaker with the most time inside it. The exclusive diarization made no measurable difference here, because overlaps are short against a Whisper segment.
+
+The exclusive diarization is returned for the voice embeddings: its spans hold one voice each, so another person's overlapped speech stays out of a speaker's embedding. On the AMI quality set it lowered the similarity to other people's profiles without changing the similarity to one's own.
 
 ---
 
@@ -86,7 +91,7 @@ Each segment and word in `result` receives a `speaker` label from the diarizatio
 |---|---|---|
 | `result` | `dict` with `result["segments"]`, `result["language"]` (the language Whisper detected or was given; set again after alignment and speaker assignment, which drop it) | `TranscriptBuilder.build()` |
 | `audio` | `np.array` (mono, 16 kHz) | `EmbeddingService.extract_all()` |
-| `diarization` | `DataFrame`: `start`, `end`, `speaker` | `EmbeddingService.extract_all()` |
+| `diarization` | `DataFrame`: `start`, `end`, `speaker` — the exclusive diarization | `EmbeddingService.extract_all()`, then `TranscriptBuilder.attach_embeddings()` |
 
 ---
 

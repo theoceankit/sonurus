@@ -36,6 +36,8 @@ audio            — np.array, full audio waveform
 diarize_segments — DataFrame: start | end | speaker
 ```
 
+`TranscriptionService` passes the **exclusive** diarization: one speaker at a time, with overlapped speech given to one of the speakers. A span then holds one voice instead of two people talking over each other, which keeps another person's voice out of the speaker's embedding.
+
 **Aggregated output**
 ```python
 {

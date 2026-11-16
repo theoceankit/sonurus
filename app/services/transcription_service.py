@@ -5,6 +5,7 @@ from pathlib import Path
 from app.config import MODELS_DIR, WHISPER_MODEL, WHISPER_BATCH_SIZE, WHISPER_COMPUTE_TYPE_CUDA, WHISPER_COMPUTE_TYPE_CPU
 # AlignmentModelMissingError is imported from here by the queue and the pipeline child.
 from app.services.model_service import ALIGNMENT_CATALOG, AlignmentModelMissingError, ModelService  # noqa: F401
+from app.services.diarization import diarize
 from app.logger import get_logger
 
 log = get_logger("TranscriptionService")
@@ -68,12 +69,13 @@ class TranscriptionService:
             cache_dir=str(self.models_dir / "hf"),
         )
 
-        diarization = diarize_model(audio)
+        # Segments take their speaker from the regular diarization (the
+        # exclusive one made no difference there); the voice embeddings are
+        # cut from the exclusive one, where a turn holds one voice, without
+        # another person's overlapped speech.
+        regular, diarization = diarize(diarize_model, audio)
 
-        result = whisperx.assign_word_speakers(
-            diarization,
-            result
-        )
+        result = whisperx.assign_word_speakers(regular, result)
         # align() and assign_word_speakers() drop the language — keep the one
         # Whisper detected (or was given) for the transcript.
         result["language"] = detected_lang

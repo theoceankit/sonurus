@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 
 from app.services.model_service import ALIGNMENT_CATALOG
@@ -29,6 +30,7 @@ def test_transcribe_result_keeps_language(tmp_path, requested, used):
         model.transcribe.return_value = {"language": used, "segments": [{"start": 0.0, "end": 1.0, "text": "x"}]}
         wx.load_align_model.return_value = (MagicMock(), MagicMock())
         wx.align.return_value = {"segments": [{"start": 0.0, "end": 1.0, "text": "x"}], "word_segments": []}
+        wx.load_audio.return_value = np.zeros(16000, dtype="float32")
         wx.assign_word_speakers.side_effect = lambda _diarization, result: {"segments": result["segments"]}
 
         svc = TranscriptionService(device="cpu", models_dir=tmp_path)
@@ -36,3 +38,56 @@ def test_transcribe_result_keeps_language(tmp_path, requested, used):
 
     assert result["language"] == used
     assert result["segments"] == [{"start": 0.0, "end": 1.0, "text": "x"}]
+
+
+class _Turn:
+    def __init__(self, start, end):
+        self.start, self.end = start, end
+
+
+class _Annotation:
+    """pyannote Annotation stand-in: itertracks(yield_label=True) → (segment, track, label)."""
+
+    def __init__(self, *turns):
+        self._turns = turns
+
+    def itertracks(self, yield_label=False):
+        for k, (start, end, speaker) in enumerate(self._turns):
+            yield _Turn(start, end), k, speaker
+
+
+def _rows(df):
+    return [(r["start"], r["end"], r["speaker"]) for _, r in df.iterrows()]
+
+
+# pyannote also returns an exclusive diarization (one speaker at a time). Voice
+# embeddings are taken from its turns, so that a turn holds one voice and no
+# overlapped speech of another person; segments keep their speaker from the
+# regular diarization, where the exclusive one showed no gain.
+def test_transcribe_takes_embedding_turns_from_exclusive_diarization(tmp_path):
+    from app.services.transcription_service import TranscriptionService
+
+    regular = _Annotation((0.0, 4.0, "SPEAKER_00"), (1.0, 3.5, "SPEAKER_01"))
+    exclusive = _Annotation((0.0, 1.0, "SPEAKER_00"), (1.0, 3.5, "SPEAKER_01"), (3.5, 4.0, "SPEAKER_00"))
+    seen = {}
+
+    def assign(diarization, result):
+        seen["assign"] = _rows(diarization)
+        return {"segments": result["segments"]}
+
+    with patch("app.services.transcription_service.whisperx") as wx:
+        model = MagicMock()
+        wx.load_model.return_value = model
+        model.transcribe.return_value = {"language": "en", "segments": [{"start": 0.0, "end": 4.0, "text": "x"}]}
+        wx.load_align_model.return_value = (MagicMock(), MagicMock())
+        wx.align.return_value = {"segments": [{"start": 0.0, "end": 4.0, "text": "x"}], "word_segments": []}
+        wx.load_audio.return_value = np.zeros(16000 * 4, dtype="float32")
+        wx.diarize.DiarizationPipeline.return_value.model.return_value = MagicMock(
+            speaker_diarization=regular, exclusive_speaker_diarization=exclusive)
+        wx.assign_word_speakers.side_effect = assign
+
+        svc = TranscriptionService(device="cpu", models_dir=tmp_path)
+        _result, _audio, diarization = svc.transcribe("/fake/audio.wav")
+
+    assert seen["assign"] == [(0.0, 4.0, "SPEAKER_00"), (1.0, 3.5, "SPEAKER_01")]
+    assert _rows(diarization) == [(0.0, 1.0, "SPEAKER_00"), (1.0, 3.5, "SPEAKER_01"), (3.5, 4.0, "SPEAKER_00")]
