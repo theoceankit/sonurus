@@ -11,6 +11,7 @@ export function createMockElectronAPI(changes: Partial<ElectronAPI> = {}): MockE
   return {
     getPlatform: async () => 'linux',
     getAppVersion: async () => '0.0.0-storybook',
+    getTrayAvailable: async () => true,
     openFiles: async () => [],
     getFilePath: file => `/fixtures/${file.name}`,
     readSettings: async () => structuredClone(settings),

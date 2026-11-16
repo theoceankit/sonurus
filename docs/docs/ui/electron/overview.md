@@ -99,6 +99,18 @@ There is no first-run setup: every launch, packaged or dev, goes straight to the
 
 ---
 
+## Tray and quitting
+
+Closing the window does not quit Sonorus: the window is destroyed and the app keeps running in the tray, with its backend, so a live recording or a transcription goes on ([Live Recording](live-recording.md)). `electron/tray.js` holds the rules as pure functions; `main.js` wires them.
+
+- **Tray.** The app's colour icon made small (`assets/icon.png`), tooltip Sonorus, menu Open Sonorus and Quit Sonorus. Open Sonorus, a click on the icon (Windows, KDE; on GNOME a click opens the menu) and, on macOS, a click on the Dock icon open the window again, or bring it to the front. A new window opens as at start-up: the recording opened last, and a recording in progress from the queue snapshot.
+- **Is there a tray.** Windows and macOS always have one. On Linux the icon goes to the StatusNotifierItem host (KDE, GNOME with the AppIndicator extension, most others) and Electron says nothing when there is none, so at start-up the main process asks the session bus whether `org.kde.StatusNotifierWatcher` has an owner (`gdbus call … NameHasOwner`). No owner, or no `gdbus`: no tray, and closing the window quits as before.
+- **Close button.** `close` of the window reads `closeToTray` from `settings.json` (on unless `false`): with a tray and the setting on, the window is destroyed; otherwise the app quits, by the same way as Quit Sonorus. The first close to the tray shows a system notification, "Sonorus is still running. Quit it from the tray icon.", once: `trayHintShown` in `app-state.json` in `userData`, a file of the main process, as `settings.json` is rewritten whole by the renderer.
+- **Quitting.** Quit Sonorus, Cmd+Q, the close button without a tray and any other `app.quit()` go through `requestQuit()`, which reads `GET /queue`. Nothing running, or no backend answering: it quits. A live recording: a system dialog, "Recording is in progress. Stop it and quit?" — Stop and quit sends `POST /audio/recording/stop` and waits, up to 30 s, until the snapshot has no recording, so the recording is saved and queued first. A running transcription: "Transcription will be interrupted. Quit?"; the job goes back to waiting when the backend starts again. Cancel leaves everything as it was. Then `will-quit` stops the backend.
+- **One app.** `app.requestSingleInstanceLock()` before the backend starts: a second launch with the same data dir quits at once, and the running app opens its window (`second-instance`). Dev and packaged apps have their own data dirs, so each has its own lock.
+
+---
+
 ## File structure
 
 ```
@@ -107,6 +119,7 @@ electron/
   backend.js           — Backend process spawn, health check, restart
   backend-identity.js  — Dev and packaged data dirs; whether a running backend may be reused
   dialog-folder.js     — Folder the file dialog opens in (last picked file, dialog-state.json)
+  tray.js              — Close to the tray, the tray menu, what to ask before quitting
   gpu-pack.js          — The GPU pack: applying downloads and removals, its check at start
   ui-entry.js          — What the window loads: the build or the dev server
   window-chrome.js     — Frameless window, window buttons and their dimming
@@ -151,6 +164,7 @@ ui/
 | `setWindowDimmed(dimmed, startedAt)` | Dim or undim the strip of the window buttons with a modal's scrim (see [Window and Editor shell](#window-and-editor-shell)) |
 | `getPlatform()` | Returns `process.platform` (`'win32'`, `'darwin'`, `'linux'`) |
 | `getAppVersion()` | Returns `app.getVersion()` — the `version` field of `package.json` |
+| `getTrayAvailable()` | Whether the system has a tray to keep the app in when its window closes (see [Tray and quitting](#tray-and-quitting)) |
 
 ---
 

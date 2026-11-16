@@ -5,7 +5,9 @@ import { FieldRow } from '../../components/FieldRow/FieldRow'
 import { Inline } from '../../components/Inline/Inline'
 import { SectionCard } from '../../components/SectionCard/SectionCard'
 import { Select } from '../../components/Select/Select'
+import { Toggle } from '../../components/Toggle/Toggle'
 import { settingsStore, useSettings } from '../../platform/settings'
+import { useTrayAvailable } from '../../platform/tray'
 import { alignmentModel, LANGUAGES } from '../../transcribe/languages'
 import { useModelDownloads } from '../../transcribe/model-downloads'
 import { missingAlignmentModel } from '../../transcribe/models'
@@ -99,6 +101,26 @@ function HandleFormatField() {
   )
 }
 
+// Read by the main process when the window closes (electron/tray.js). Without a tray
+// closing the window quits, whatever was saved: the switch is off and says why.
+function CloseToTray({ saved }: { saved: boolean }) {
+  const available = useTrayAvailable()
+  const label = 'Keep running in the tray when the window is closed'
+  return (
+    <FieldRow
+      label={label}
+      hint={available === false ? 'The system has no tray: closing the window quits Sonorus.' : 'Quit Sonorus from the tray icon.'}
+    >
+      <Toggle
+        label={label}
+        checked={available !== false && saved}
+        disabled={!available}
+        onChange={checked => void settingsStore().patch({ closeToTray: checked })}
+      />
+    </FieldRow>
+  )
+}
+
 export function GeneralSection() {
   const settings = useSettings()
   if (!settings) return null
@@ -110,6 +132,9 @@ export function GeneralSection() {
       </SectionCard>
       <SectionCard title="Speakers">
         <HandleFormatField />
+      </SectionCard>
+      <SectionCard title="Window">
+        <CloseToTray saved={settings.closeToTray !== false} />
       </SectionCard>
     </>
   )

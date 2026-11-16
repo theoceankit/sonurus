@@ -50,6 +50,26 @@ function checkHealth() {
   })
 }
 
+// A request of the main process to the backend → the JSON body. Rejects when nothing
+// answers, on an error status or after timeoutMs.
+function backendRequest(method, route, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const req = http.request(`http://127.0.0.1:8000${route}`, { method, timeout: timeoutMs }, res => {
+      let body = ''
+      res.setEncoding('utf8')
+      res.on('data', d => { body += d })
+      res.on('end', () => {
+        if (res.statusCode >= 400) return reject(new Error(`${method} ${route}: ${res.statusCode}`))
+        try { resolve(body ? JSON.parse(body) : null) } catch (err) { reject(err) }
+      })
+      res.on('error', reject)
+    })
+    req.on('timeout', () => req.destroy(new Error(`${method} ${route}: timed out`)))
+    req.on('error', reject)
+    req.end()
+  })
+}
+
 // Who this app is, to tell its own backend from another one on the port.
 function identity() {
   const userData = app.getPath('userData')
@@ -219,4 +239,4 @@ async function restartBackend(hfToken = '') {
   await startBackend(hfToken)
 }
 
-module.exports = { BackendRefusedError, restartBackend, startBackend, stopBackend }
+module.exports = { BackendRefusedError, backendRequest, restartBackend, startBackend, stopBackend }

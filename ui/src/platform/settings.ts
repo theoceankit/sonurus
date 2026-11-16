@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS: ElectronSettings = {
   hfToken: '',
   recentTranscriptIds: [],
   theme: 'system',
+  closeToTray: true,
 }
 
 export type SettingsStore = {
