@@ -27,7 +27,11 @@ interface NewSpeakerModalProps {
   // Rejecting keeps the window open with the message; one with a handle_ code shows
   // under the handle. photo: one chosen and cropped, for the new speaker.
   onCreate: (name: string, colorIndex: number, handle?: string, photo?: Blob) => Promise<void>
-  onBack: () => void
+  // assign: opened from Choose a speaker, it goes Back there and assigns what it creates;
+  // create: the speaker alone, from the Speakers window, with Cancel.
+  purpose?: 'assign' | 'create'
+  // Back, for assign.
+  onBack?: () => void
   onClose: () => void
   open?: boolean
   onExited?: () => void
@@ -42,7 +46,7 @@ interface NewSpeakerModalProps {
 }
 
 export function NewSpeakerModal({
-  initialName = '', initialColorIndex = 0, isNameTaken, suggestedHandle, onNameChange, checkHandle, onCreate, onBack, onClose, open = true, onExited, skipEnter, preview, initialError, initialHandle, initialPhoto,
+  initialName = '', initialColorIndex = 0, isNameTaken, suggestedHandle, onNameChange, checkHandle, onCreate, purpose = 'assign', onBack, onClose, open = true, onExited, skipEnter, preview, initialError, initialHandle, initialPhoto,
 }: NewSpeakerModalProps) {
   const [name, setName] = useState(initialName.trim())
   const [color, setColor] = useState<SpeakerColor>(speakerColor(initialColorIndex))
@@ -137,8 +141,8 @@ export function NewSpeakerModal({
         </Stack>
       </ModalBody>
       <ModalFooter
-        cancel={{ children: 'Back', icon: 'arrow-left', onClick: onBack }}
-        confirm={{ children: 'Create and assign', disabled: !trimmed || !!handleIssue, loading: busy, onClick: () => { void submit() } }}
+        cancel={purpose === 'create' ? { children: 'Cancel', onClick: onClose } : { children: 'Back', icon: 'arrow-left', onClick: onBack }}
+        confirm={{ children: purpose === 'create' ? 'Create speaker' : 'Create and assign', disabled: !trimmed || !!handleIssue, loading: busy, onClick: () => { void submit() } }}
       />
       {avatarWindow && (
         <AvatarModal

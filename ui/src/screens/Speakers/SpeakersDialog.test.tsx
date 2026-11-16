@@ -76,11 +76,88 @@ test('two people with one name are told apart, the one heard last first', async 
   expect(marks[0]).toContain('8 recordings')
 })
 
-test('Recently added and New speaker are not available yet', async () => {
+test('Recently added is not available yet', async () => {
   const { dialog } = await setup()
   await userEvent.click(within(dialog).getByRole('button', { name: 'Recently added' }))
-  await userEvent.click(within(dialog).getByRole('button', { name: 'New speaker' }))
   expect((await screen.findAllByText(NOT_IMPLEMENTED_TOAST)).length).toBeGreaterThan(0)
+})
+
+const newSpeaker = async (dialog: HTMLElement) => {
+  const button = within(dialog).getByRole('button', { name: 'New speaker' })
+  expect(button.getAttribute('data-not-implemented')).toBeNull()
+  await userEvent.click(button)
+  return findDialog('New speaker')
+}
+
+test('New speaker makes a speaker in no recording and opens their card', async () => {
+  const { client, dialog } = await setup()
+  const create = vi.spyOn(client, 'createSpeaker')
+  const window = await newSpeaker(dialog)
+  await userEvent.type(within(window).getByRole('textbox', { name: 'Name' }), 'Dana Scully')
+  await waitFor(() => expect((within(window).getByRole('textbox', { name: 'Handle' }) as HTMLInputElement).value).toBe('dana.scully'))
+  await userEvent.click(within(window).getByRole('button', { name: 'Create speaker' }))
+  await waitFor(() => expect(queryDialog('New speaker')).toBeNull())
+  expect(create).toHaveBeenCalledOnce()
+  expect(create.mock.calls[0][0]).toMatchObject({ name: 'Dana Scully' })
+  expect(create.mock.calls[0][0].handle).toBeUndefined()
+  expect((await within(dialog).findByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('Dana Scully')
+  expect(within(dialog).getByText('Not in any recording')).toBeTruthy()
+  // No voice sample and no recordings in Appears in.
+  await waitFor(() => expect(within(dialog).getAllByText('Not in any recording yet.')).toHaveLength(2))
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Back to speakers' }))
+  expect(rowNames(dialog).some(row => row.startsWith('Dana Scully@dana.scullyNot in any recording'))).toBe(true)
+  expect(within(dialog).getByRole('button', { name: /All speakers/ }).textContent).toContain('19')
+})
+
+test('Cancel in New speaker creates no one', async () => {
+  const { client, dialog } = await setup()
+  const create = vi.spyOn(client, 'createSpeaker')
+  const window = await newSpeaker(dialog)
+  await userEvent.type(within(window).getByRole('textbox', { name: 'Name' }), 'Dana')
+  await userEvent.click(within(window).getByRole('button', { name: 'Cancel' }))
+  await waitFor(() => expect(queryDialog('New speaker')).toBeNull())
+  expect(create).not.toHaveBeenCalled()
+  expect(within(dialog).getByRole('searchbox', { name: 'Search speakers' })).toBeTruthy()
+})
+
+test('a taken handle is said in New speaker, and a refusal keeps the window open', async () => {
+  const { client, dialog } = await setup()
+  const window = await newSpeaker(dialog)
+  await userEvent.type(within(window).getByRole('textbox', { name: 'Name' }), 'Lena')
+  const handle = within(window).getByRole('textbox', { name: 'Handle' })
+  await userEvent.clear(handle)
+  await userEvent.type(handle, 'lena.kovacs')
+  expect(within(window).getByText(/taken by Lena Kovacs/)).toBeTruthy()
+  expect((within(window).getByRole('button', { name: 'Create speaker' }) as HTMLButtonElement).disabled).toBe(true)
+  // One the backend refuses, though the list did not know it.
+  await userEvent.clear(handle)
+  await userEvent.type(handle, 'lena2')
+  vi.spyOn(client, 'createSpeaker').mockRejectedValueOnce(Object.assign(new Error('@lena2 is taken by Lena.'), { code: 'handle_taken' }))
+  await userEvent.click(within(window).getByRole('button', { name: 'Create speaker' }))
+  expect(await within(window).findByText('@lena2 is taken by Lena.')).toBeTruthy()
+  expect(getDialog('New speaker')).toBeTruthy()
+  expect((await client.listSpeakers()).some(speaker => speaker.name === 'Lena')).toBe(false)
+})
+
+test('New speaker from a card with edits asks first', async () => {
+  const { dialog } = await setup()
+  await openCard(dialog, /Lena Kovacs/)
+  await userEvent.type(within(dialog).getByRole('textbox', { name: 'Name' }), ' Jr')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'New speaker' }))
+  const ask = await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+  expect(queryDialog('New speaker')).toBeNull()
+  await userEvent.click(within(ask).getByRole('button', { name: 'Discard' }))
+  expect(await findDialog('New speaker')).toBeTruthy()
+})
+
+test('a speaker made from Unnamed opens in All speakers', async () => {
+  const { dialog } = await setup()
+  await userEvent.click(within(dialog).getByRole('button', { name: /^Unnamed/ }))
+  const window = await newSpeaker(dialog)
+  await userEvent.type(within(window).getByRole('textbox', { name: 'Name' }), 'Dana')
+  await userEvent.click(within(window).getByRole('button', { name: 'Create speaker' }))
+  expect((await within(dialog).findByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('Dana')
+  expect(within(dialog).getByRole('button', { name: /All speakers/ }).getAttribute('aria-current')).toBeTruthy()
 })
 
 test('a card opens in place of the list and goes back to it', async () => {
@@ -454,4 +531,16 @@ test('a row of Appears in has the date and no time', async () => {
   await openCard(dialog, /Lena Kovacs/)
   const row = (await within(dialog).findByText('Design review')).closest('button')!
   expect(row.textContent).toBe('Design review5 Oct 2026')
+})
+
+test('a photo chosen in New speaker goes with the new speaker', async () => {
+  const { client, dialog } = await setup()
+  const window = await newSpeaker(dialog)
+  await userEvent.type(within(window).getByRole('textbox', { name: 'Name' }), 'Dana')
+  await userEvent.click(within(window).getByRole('button', { name: 'Change avatar' }))
+  await uploadPhoto()
+  await userEvent.click(within(await avatarWindow()).getByRole('button', { name: 'Done' }))
+  await userEvent.click(within(window).getByRole('button', { name: 'Create speaker' }))
+  await within(dialog).findByRole('button', { name: 'Back to speakers' })
+  await waitFor(async () => expect((await client.listSpeakers()).find(speaker => speaker.name === 'Dana')?.photo).toBeTruthy())
 })

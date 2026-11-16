@@ -10,6 +10,7 @@ export type TranscriptListItem = Schemas['TranscriptListItem']
 export type Speaker = Schemas['SpeakerResponse'] & { photo_url?: string | null }
 export type SpeakerSample = Schemas['SpeakerSampleResponse']
 export type SpeakerUpdate = Schemas['SpeakerUpdateRequest']
+export type SpeakerCreate = Schemas['SpeakerCreateRequest']
 // How a handle is made from a name: ivan.petrov, i.petrov or ivan.p.
 export type HandleFormat = Schemas['HandleFormatBody']['format']
 export const DEFAULT_HANDLE_FORMAT: HandleFormat = 'first.last'

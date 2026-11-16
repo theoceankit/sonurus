@@ -47,11 +47,13 @@ export function speakerUsage({ transcripts, duration_sec: seconds }: Pick<Speake
   return transcripts ? { recordings: plural(transcripts, 'recording'), time: seconds } : { recordings: 'Not in any recording', time: null }
 }
 
+// A speaker with no segments has no voice profile to lose either.
 export function deleteSpeakerPrompt({ name, segments, transcripts }: Pick<Speaker, 'name' | 'segments' | 'transcripts'>) {
-  const effect = segments ? `${plural(segments, 'segment')} in ${plural(transcripts, 'recording')} will become Unassigned. ` : ''
   return {
     title: name ? `Delete "${name}"?` : 'Delete this speaker?',
-    body: `${effect}The voice profile is removed, so this speaker will no longer be recognized in new recordings. This cannot be undone.`,
+    body: segments
+      ? `${plural(segments, 'segment')} in ${plural(transcripts, 'recording')} will become Unassigned. The voice profile is removed, so this speaker will no longer be recognized in new recordings. This cannot be undone.`
+      : 'This speaker is removed. This cannot be undone.',
   }
 }
 

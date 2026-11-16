@@ -555,6 +555,20 @@ Returns **every** speaker: those with a voice profile (`speaker_embeddings`), a 
 
 `segments`, `transcripts`, `duration_sec` (sum of segment lengths) and `last_seen` (`created_at` of the newest transcript) count segments whose `speaker_id` is this speaker; unassigned segments are not counted. The editor keeps only the named rows (`buildKnownMap`, `namedSpeakers` in `utils.js`).
 
+### `POST /speakers`
+
+Creates a named speaker that no recording has yet: New speaker in the Speakers window.
+
+```json
+{ "name": "Dana Scully", "handle": "dana", "color_index": 2 }
+```
+
+- `name` — required, 1–128 chars, trimmed; need not be unique.
+- `handle` — optional, a handle set by hand as in `PATCH /speakers/{id}`; left out or `""`, the one made from the name. The refusals of `PATCH` (`handle_invalid` 400, `handle_taken` 409) come before anything is created.
+- `color_index` — optional, `0..4`, otherwise `400`; left out, the least used colour.
+
+Returns `201` with the new `GET /speakers` row: no segments, no recordings, an empty `last_seen`. Only `speaker_names` and `speaker_meta` are written. With no segments there is no voice profile, so the speaker is not recognized in new recordings until segments are assigned to them in the editor (`POST /transcripts/{id}/speaker-assignments` with their `speaker_id`) and `CommitService` computes one. A photo is added afterwards with `PUT /speakers/{id}/photo`. Not refused while the queue transcribes or a recording runs, as an assignment that creates a speaker is not.
+
 ### `PATCH /speakers/{id}`
 
 Changes the display name, color and/or handle. At least one field is required.

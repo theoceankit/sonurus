@@ -23,7 +23,7 @@ Rules that must always hold. Violating any of these corrupts speaker memory or p
 No code other than `CommitService` may call `SpeakerMemoryService.update_embedding()` or write to `speaker_embeddings`.
 
 Permitted exceptions that do not write embeddings:
-- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names` (display names). Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and via `create_named_speaker()` when a user assigns segments to a new name.
+- `SpeakerMemoryService.save_names_only()` — writes only `speaker_names` (display names). Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and via `create_named_speaker()` when a user assigns segments to a new name or creates a speaker with `POST /speakers`.
 - `SpeakerMemoryService.set_color()` — writes only `speaker_meta` (palette color). Called from `PATCH /speakers/{id}` and, with the optional `color_index`, when `POST /transcripts/{id}/speaker-assignments` creates a speaker by name.
 - `SpeakerMemoryService.set_handle()` and the handle that `save_names_only()` makes from a new name — write only `speaker_meta` (handle). Called from `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and when a speaker is created by name.
 - `SpeakerMemoryService.set_photo()` and `remove_photo()` — write only `speaker_meta` (photo) and the photo file in `speaker_photos/`. Called from `PUT` and `DELETE /speakers/{id}/photo`.
@@ -98,6 +98,7 @@ A speaker is **RECOGNIZED** if and only if they have a display name entry in `sp
 - `SPEAKER_00`, `SPEAKER_01`, … — raw diarization output, always UNRECOGNIZED.
 - UUID4 without a name in `speaker_names` — committed to memory but not yet named, UNRECOGNIZED.
 - UUID4 with a `display` label in `speaker_names` — RECOGNIZED.
+- UUID4 with a `display` label and no profile in `speaker_embeddings` — a speaker made with `POST /speakers` (or one whose segments are too short): RECOGNIZED, listed and assignable, but `resolve()` never matches them until segments give them a profile.
 
 The display name is **never** stored as the speaker ID. All IDs in `speaker_embeddings` and `segments.speaker_id` are UUID4 strings (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
 

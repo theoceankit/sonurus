@@ -439,7 +439,13 @@ export interface paths {
          */
         get: operations["list_speakers_speakers_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Speaker
+         * @description A named speaker no recording has yet. Only names and metadata are written:
+         *     with no segments there is no voice profile, so the speaker is not recognized
+         *     until segments are assigned to them and CommitService computes one.
+         */
+        post: operations["create_speaker_speakers_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1237,6 +1243,20 @@ export interface components {
             speaker_id: string;
             /** Suggested */
             suggested: boolean;
+        };
+        /**
+         * SpeakerCreateRequest
+         * @description A speaker made by name, before any recording has them. handle: one set by
+         *     hand (a leading @ and the case do not matter); left out or "", the one made
+         *     from the name. color_index: the palette colour, else the least used one.
+         */
+        SpeakerCreateRequest: {
+            /** Color Index */
+            color_index?: number | null;
+            /** Handle */
+            handle?: string | null;
+            /** Name */
+            name: string;
         };
         /** SpeakerDeleteResponse */
         SpeakerDeleteResponse: {
@@ -2176,6 +2196,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpeakerResponse"][];
+                };
+            };
+        };
+    };
+    create_speaker_speakers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeakerCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeakerResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

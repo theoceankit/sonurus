@@ -67,6 +67,13 @@ describe('speaker handles', () => {
     ])
   })
 
+  test('creates a speaker by name', async () => {
+    const speaker = { id: 'n', name: 'Dana', handle: 'dana', handle_manual: false, color_index: 2, photo: null, segments: 0, transcripts: 0, duration_sec: 0, last_seen: '' }
+    const { client, sent } = setup(() => json(speaker, 201))
+    expect(await client.createSpeaker({ name: 'Dana', handle: 'dana', color_index: 2 })).toMatchObject({ id: 'n', photo_url: null })
+    expect(sent).toEqual([{ url: 'http://localhost:8000/speakers', method: 'POST', body: { name: 'Dana', handle: 'dana', color_index: 2 } }])
+  })
+
   test('a refused handle carries its code', async () => {
     const { client } = setup(() => json({ detail: '@x is taken by Y.', code: 'handle_taken' }, 409))
     await expect(client.updateSpeaker('a', { handle: 'x' })).rejects.toMatchObject({ status: 409, code: 'handle_taken', message: '@x is taken by Y.' })

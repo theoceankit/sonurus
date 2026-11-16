@@ -217,7 +217,7 @@ Creates `speaker_embeddings`, `speaker_names`, and `_meta` tables if missing and
 
 ### `create_named_speaker(name, label="display", handle=None) → str`
 
-Creates a new UUID4 speaker ID, sets its display name and persists it via `save_names_only()`, which gives it the handle made from the name. A `handle` given is checked first (nothing is created if it is refused) and then set by hand. Does not write an embedding: `CommitService` adds one once segments with embeddings are assigned to the new ID. Used by `POST /transcripts/{id}/speaker-assignments` (`speaker_name`).
+Creates a new UUID4 speaker ID, sets its display name and persists it via `save_names_only()`, which gives it the handle made from the name. A `handle` given is checked first (nothing is created if it is refused) and then set by hand. Does not write an embedding: `CommitService` adds one once segments with embeddings are assigned to the new ID. Used by `POST /transcripts/{id}/speaker-assignments` (`speaker_name`) and `POST /speakers`.
 
 ---
 

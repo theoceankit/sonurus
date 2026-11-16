@@ -15,7 +15,7 @@ from app.api.dependencies import (
 )
 from app.api.refusals import Refusal
 from app.api.schemas import (
-    SpeakerResponse, RenameRequest, SpeakerUpdateRequest, HandleFormatBody, HandleSuggestionResponse,
+    SpeakerResponse, RenameRequest, SpeakerCreateRequest, SpeakerUpdateRequest, HandleFormatBody, HandleSuggestionResponse,
     RefusalResponse, SpeakerDeleteResponse, SpeakerTranscriptItem, SpeakerSampleResponse,
 )
 
@@ -70,6 +70,26 @@ def list_speakers(
     unnamed = [r for r in rows if r.name is None]
     named = sorted((r for r in rows if r.name is not None), key=lambda r: r.name.strip().casefold())
     return named + unnamed
+
+
+@router.post(
+    "", response_model=SpeakerResponse, status_code=201,
+    responses={400: {"model": RefusalResponse}, 409: {"model": RefusalResponse}},
+)
+def create_speaker(body: SpeakerCreateRequest, memory: SpeakerMemoryService = Depends(get_memory_service)):
+    """A named speaker no recording has yet. Only names and metadata are written:
+    with no segments there is no voice profile, so the speaker is not recognized
+    until segments are assigned to them and CommitService computes one."""
+    if body.color_index is not None and not 0 <= body.color_index < PALETTE_SIZE:
+        raise HTTPException(status_code=400, detail=f"color_index must be in 0..{PALETTE_SIZE - 1}")
+    handle = body.handle if body.handle and body.handle.strip() else None
+    try:
+        spk_id = memory.create_named_speaker(body.name, handle=handle)
+    except HANDLE_ERRORS as exc:
+        raise handle_refusal(exc, memory)
+    if body.color_index is not None:
+        memory.set_color(spk_id, body.color_index)
+    return _speaker_response(spk_id, memory, {})
 
 
 @router.get("/handle-suggestion", response_model=HandleSuggestionResponse)
