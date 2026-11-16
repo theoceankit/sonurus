@@ -2,6 +2,7 @@ import logging
 import json
 import os
 import queue
+import re
 import shutil
 import signal
 import subprocess
@@ -35,19 +36,21 @@ _REPO_ROOT = Path(__file__).parents[2]
 # from the windowless backend flashes a console window. 0 on other OSes.
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
-# Loudness levelling of every track that holds system audio. System audio is
-# often 15–20 dB below the mic, and participants of a call differ too; Whisper
-# then drops the quiet speech. dynaudnorm (per track, before the mix):
-#   f=150:g=11  ~1.7 s window, short enough to follow a change of speaker
-#   m=100       up to +40 dB (the default +20 dB leaves the gap almost as is)
-#   t=0.001     frames below −60 dBFS are not boosted: silence stays silent,
-#               background noise is not raised to audible hiss
-#   r=0.15      target RMS (≈ −16 dBFS per frame): tracks match in loudness, not
-#               in peaks — call/media audio is already compressed and would
-#               sound several dB louder than a peaky mic voice at equal peaks
-#   p=0.9       peak ceiling
+# Loudness levelling of every track of a live recording. System audio is often
+# 15–20 dB below the mic; with the tracks mixed as they are, Whisper drops the
+# quiet speech. Each track gets one constant gain for its whole length, from its
+# integrated loudness (EBU R128, ebur128: speech-weighted and gated, so pauses
+# do not pull it down) to _TARGET_LUFS. A gain that changes over time
+# (dynaudnorm) raised the pauses — room noise, the call heard through the
+# microphone — almost to the level of speech; a constant gain keeps every part
+# of the track in proportion.
+#   _MAX_GAIN_DB  a nearly silent track is not raised to audible hiss
+#   −70 LUFS      ebur128's floor: a track with nothing above it (silence, faint
+#                 noise) is left as it is
 # The mix sums the tracks (normalize=0) and a limiter keeps the sum from clipping.
-_LEVEL_FILTER = "dynaudnorm=f=150:g=11:p=0.9:m=100:t=0.001:r=0.15"
+_TARGET_LUFS = -20.0
+_MAX_GAIN_DB = 30.0
+_SILENT_LUFS = -70.0
 _LIMITER = "alimiter=limit=0.95:level=disabled"
 
 
@@ -567,7 +570,7 @@ class AudioCaptureService:
                                          mic_started_at=mic.started_at if mic else None)
             self._recordings_dir.mkdir(parents=True, exist_ok=True)
             final = self._recordings_dir / f"sonorus-rec-{mic_job}.wav"
-            shutil.move(mic.output_path, final)
+            self._level(mic.output_path, str(final))
             return str(final)
         except Exception:
             if system_job:
@@ -649,17 +652,45 @@ class AudioCaptureService:
             stderr=subprocess.DEVNULL,
         )
 
-    def _level(self, system_path: str, final: str) -> None:
-        """Level a system-only recording into final; keep it as is if ffmpeg fails."""
+    def _loudness(self, path: str) -> float | None:
+        """Integrated loudness of a track in LUFS; None when it cannot be
+        measured or holds nothing above ebur128's floor."""
+        log = logging.getLogger(__name__)
         try:
-            self._run_ffmpeg(["-i", system_path, "-af", _LEVEL_FILTER, final])
+            result = subprocess.run(
+                [self._ffmpeg(), "-nostdin", "-nostats", "-i", path,
+                 "-af", "ebur128", "-f", "null", os.devnull],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                text=True, errors="replace",
+            )
+        except (subprocess.CalledProcessError, OSError) as exc:
+            log.warning("loudness measurement failed (%s); the track keeps its level", exc)
+            return None
+        stderr = getattr(result, "stderr", None)
+        found = re.findall(r"I:\s+(-?[\d.]+) LUFS", stderr) if isinstance(stderr, str) else []
+        if not found:
+            log.warning("loudness measurement gave no value; the track keeps its level")
+            return None
+        lufs = float(found[-1])
+        return lufs if lufs > _SILENT_LUFS else None
+
+    def _gain(self, path: str) -> str:
+        """The volume filter that brings a track to the target loudness."""
+        lufs = self._loudness(path)
+        gain = 0.0 if lufs is None else min(_TARGET_LUFS - lufs, _MAX_GAIN_DB)
+        return f"volume={gain:.2f}dB"
+
+    def _level(self, track_path: str, final: str) -> None:
+        """Level a single-track recording into final; keep it as is if ffmpeg fails."""
+        try:
+            self._run_ffmpeg(["-i", track_path, "-af", f"{self._gain(track_path)},{_LIMITER}", final])
         except (subprocess.CalledProcessError, OSError) as exc:
             logging.getLogger(__name__).warning(
                 "loudness levelling failed (%s); keeping the recording as captured", exc)
             Path(final).unlink(missing_ok=True)
-            shutil.move(system_path, final)
+            shutil.move(track_path, final)
         else:
-            Path(system_path).unlink(missing_ok=True)
+            Path(track_path).unlink(missing_ok=True)
 
     def _merge(self, system_path: str, mic_path: str, merged: str, mic_delay: float = 0.0) -> None:
         """Mix the microphone into the system track.
@@ -669,15 +700,16 @@ class AudioCaptureService:
         the same moment lines up on both. The mix ends with the microphone,
         which stops when Stop is pressed: the system capture runs on until
         the microphone file is uploaded, and that tail is dropped.
-        Levelling runs on each track before the shift, so the silence put
-        in front of a track does not take part in it.
+        Each track is measured as recorded, so the silence put in front of
+        a track by the shift takes no part in its gain.
         """
         # The mix takes its channel layout from its first input: a mono
         # microphone would turn the system audio mono too.
         mic_shift = ",aformat=channel_layouts=stereo" + _shift(max(mic_delay, 0.0))
         sys_shift = _shift(max(-mic_delay, 0.0))
         levelled = (
-            f"[0:a]{_LEVEL_FILTER}{sys_shift}[sys];[1:a]{_LEVEL_FILTER}{mic_shift}[mic];"
+            f"[0:a]{self._gain(system_path)}{sys_shift}[sys];"
+            f"[1:a]{self._gain(mic_path)}{mic_shift}[mic];"
             f"[mic][sys]amix=inputs=2:duration=first:normalize=0,{_LIMITER}"
         )
         try:
