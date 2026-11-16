@@ -345,7 +345,7 @@ def test_stop_capture_does_not_hang_on_chatty_stderr(tmp_path):
     script.write_text(_CHATTY_CAPTURE_SCRIPT)
 
     with patch.object(svc, "_build_command",
-                      side_effect=lambda _src, out: [sys.executable, str(script), out]), \
+                      side_effect=lambda _src, out, **_kw: [sys.executable, str(script), out]), \
          patch("app.services.audio_capture_service.sys.platform", "linux"):
         job_id = svc.start_capture(source_id="test.monitor")
         time.sleep(1.5)  # far more than a 64 KB pipe buffer worth of output

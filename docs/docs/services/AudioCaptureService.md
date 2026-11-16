@@ -4,7 +4,7 @@ sidebar_position: 8
 
 # Audio Capture Service
 
-`AudioCaptureService` manages live system audio recording sessions. It abstracts over three platform-specific capture tools — the renderer calls HTTP only, with no platform detection in JavaScript.
+`AudioCaptureService` records the tracks of a live recording — system audio and the microphone, one capture process per track — and leaves one file in `recordings/`. It abstracts over three platform-specific capture tools — the renderer calls HTTP only, with no platform detection in JavaScript.
 
 ---
 
@@ -22,12 +22,12 @@ Running capture in a Python subprocess sidesteps these restrictions and keeps al
 
 ## Platform drivers
 
-Each OS has a driver class in `audio_capture_service.py` behind one interface: `sources()`, `check(source_id)` (raises `RuntimeError` with a user-facing reason) and `command(source_id, output_path)`; two class attributes say how the process starts and stops — `handshake` (prints `READY` on stdout once capturing) and `stop_via_stdin` (`stop` on stdin instead of SIGINT). The service picks the driver from `sys.platform` on every call; everything around the capture process (start-up check, stop, mic merge, moving into `recordings/`) is shared.
+Each OS has a driver class in `audio_capture_service.py` behind one interface: `sources()` (system audio), `inputs()` (microphones; the default one is not listed, its source id is `None`), `check(source_id, kind)` (raises `RuntimeError` with a user-facing reason) and `command(source_id, output_path, kind)`, `kind` being `system` or `mic`; two class attributes say how the process starts and stops — `handshake` (prints `READY` on stdout once capturing) and `stop_via_stdin` (`stop` on stdin instead of SIGINT). The service picks the driver from `sys.platform` on every call; everything around the capture process (start-up check, stop, mic merge, moving into `recordings/`) is shared.
 
 | Platform | Driver | Tool | How it works |
 |---|---|---|---|
 | macOS | `_MacCapture` | `sonorus-capture` (Swift binary, ScreenCaptureKit) | Spawned as a subprocess; prints `READY` once capturing; writes WAV to an intermediate temp file; stopped with SIGINT |
-| Linux | `_LinuxCapture` | `parec -d <monitor_source> --file-format=wav --rate=48000 --channels=2 --latency-msec=100` | PulseAudio / PipeWire monitor source recorded directly; sources: "System audio (default)" first, then each output device's monitor named after the device (`pactl -f json list sinks`) |
+| Linux | `_LinuxCapture` | `parec -d <source> --file-format=wav --rate=48000 --channels=2 --latency-msec=100` (microphone: `--channels=1`) | PulseAudio / PipeWire source recorded directly; system audio: "System audio (default)" first, then each output device's monitor named after the device (`pactl -f json list sinks`); microphone: each input source (`pactl -f json list sources` without monitors) |
 | Windows | `_WindowsCapture` | `sonorus-capture.exe` (C++, WASAPI loopback) | `--list` gives the output devices; spawned with `--device <id> --output <wav>`; prints `READY`; writes silence while nothing plays; stopped with `stop` on stdin (Windows has no SIGINT for a child process) |
 
 ### Start errors
@@ -217,6 +217,18 @@ $ LC_ALL=C pactl -f json list sinks
 ```
 
 pactl older than 16 has no `-f json`; the descriptions then come from `pactl list sources` (`Description: Monitor of <device>`, prefix dropped). A monitor without a description keeps its name (`<name> (Monitor)`). pactl runs with `LC_ALL=C` because it translates its field names. If `pactl` is missing or fails, only "System audio (default)" is offered; a missing `parec` is reported when recording starts. The monitor source ID is passed to `parec -d <id>`.
+
+### Microphones
+
+`GET /audio/capture/inputs` lists the input sources — every source that is not a monitor (`monitor_source` empty and the name not ending in `.monitor`), by its description, alphabetically:
+
+```
+$ LC_ALL=C pactl -f json list sources
+[{"name": "alsa_input.usb-…Maono….analog-stereo", "description": "Maono Dynamic Microphone Analog Stereo",
+  "monitor_source": "", …}, …]
+```
+
+pactl older than 16 falls back to the text list (`Monitor of Sink: n/a` marks an input); an input without a description keeps its name without `alsa_input.`. Without `pactl` the list is empty and only the default microphone is offered. The default microphone records `@DEFAULT_SOURCE@`; a chosen one that is no longer listed fails the start with `The selected microphone is not available: <id>. …`, as for system audio. The microphone is recorded mono, 48 kHz.
 
 `parec` and `pactl` come from the same package (`pulseaudio-utils`; `libpulse` on Arch Linux) and work with both PulseAudio and PipeWire (`pipewire-pulse`). The bundled `ffmpeg` (`ffmpeg-static`) is built without PulseAudio input, so it is used only for the mic merge and decoding, never for capture.
 
