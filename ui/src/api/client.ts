@@ -1,5 +1,5 @@
 import type {
-  AudioSource, DataResetSummary, GpuStatus, HandleFormat, LiveRecording, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RecordingStart, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerUpdate, Transcript, TranscriptListItem,
+  AudioSource, DataResetSummary, GpuStatus, HandleFormat, LiveRecording, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RecordingStart, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerSample, SpeakerTranscript, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
@@ -69,6 +69,8 @@ export interface ApiClient {
   // A handle in the update is set by hand; an empty one goes back to the one made from
   // the name. A refused handle (code handle_taken, handle_invalid, handle_needs_name)
   // changes nothing.
+  // A named speaker no recording has yet; refused like PATCH for a bad or taken handle.
+  createSpeaker(create: SpeakerCreate): Promise<Speaker>
   updateSpeaker(speakerId: string, update: SpeakerUpdate): Promise<Speaker>
   // The handle a speaker named name gets now, numbered when taken. exclude: the speaker
   // being edited, whose own handle is free to them.

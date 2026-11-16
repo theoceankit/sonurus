@@ -707,6 +707,17 @@ describe('speaker handles', () => {
     expect(speakers.find(s => s.id === own.speakerId)).toMatchObject({ handle: 'annie', handle_manual: true })
   })
 
+  test('a speaker made by name is in no recording and has the handle and colour asked for', async () => {
+    const client = createFixtureClient()
+    const created = await client.createSpeaker({ name: 'Dana Scully', color_index: 3 })
+    expect(created).toMatchObject({ name: 'Dana Scully', handle: 'dana.scully', handle_manual: false, color_index: 3, segments: 0, transcripts: 0 })
+    expect(await client.createSpeaker({ name: 'Dana', handle: '@Agent' })).toMatchObject({ handle: 'agent', handle_manual: true })
+    expect((await client.listSpeakers()).filter(s => s.name?.startsWith('Dana'))).toHaveLength(2)
+    const before = (await client.listSpeakers()).length
+    await expect(client.createSpeaker({ name: 'Ann', handle: 'agent' })).rejects.toMatchObject({ status: 409, code: 'handle_taken' })
+    expect((await client.listSpeakers()).length).toBe(before)
+  })
+
   test('a taken or bad handle is refused with a code and creates no one', async () => {
     const client = createFixtureClient()
     const before = (await client.listSpeakers()).length

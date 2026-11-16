@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey 
 import { useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
 import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
-import type { HandleFormat, QueueJobUpdate, QueueStartMode, QueueUpdate, Speaker, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
+import type { HandleFormat, QueueJobUpdate, QueueStartMode, QueueUpdate, Speaker, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
 // queryKeys.transcripts reaches the list, the details and the candidates.
@@ -312,6 +312,19 @@ export function useConfirmPossibleMatch() {
     mutationFn: ({ transcriptId, speakerId, confirmed }: { transcriptId: number; speakerId: string; confirmed: boolean }) =>
       (confirmed ? api.confirmPossibleMatch(transcriptId, speakerId) : api.unconfirmPossibleMatch(transcriptId, speakerId)),
     onSuccess: (_, { transcriptId }) => queries.invalidateQueries({ queryKey: queryKeys.candidates(transcriptId) }),
+  })
+}
+
+// The new speaker is in the list at once, so a card can open on them.
+export function useCreateSpeaker() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: (create: SpeakerCreate) => api.createSpeaker(create),
+    onSuccess: async created => {
+      queries.setQueryData<Speaker[]>(queryKeys.speakers, speakers => speakers && [...speakers, created])
+      await queries.invalidateQueries({ queryKey: queryKeys.speakers })
+    },
   })
 }
 

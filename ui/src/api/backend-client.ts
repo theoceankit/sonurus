@@ -97,6 +97,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     confirmPossibleMatch: (transcript_id, speaker_id) => send(http.POST('/transcripts/{transcript_id}/possible-matches/{speaker_id}/confirmed', { params: { path: { transcript_id, speaker_id } } })),
     unconfirmPossibleMatch: (transcript_id, speaker_id) => send(http.DELETE('/transcripts/{transcript_id}/possible-matches/{speaker_id}/confirmed', { params: { path: { transcript_id, speaker_id } } })),
     listSpeakers: async () => (await send(http.GET('/speakers'))).map(withPhotoUrl),
+    createSpeaker: async body => withPhotoUrl(await send(http.POST('/speakers', { body }))),
     updateSpeaker: async (speaker_id, body) => withPhotoUrl(await send(http.PATCH('/speakers/{speaker_id}', { params: { path: { speaker_id } }, body }))),
     setSpeakerPhoto: async (speaker_id, photo) => withPhotoUrl(await send(http.PUT('/speakers/{speaker_id}/photo', {
       ...speakerPath(speaker_id),

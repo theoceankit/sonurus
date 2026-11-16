@@ -90,6 +90,17 @@ test('Back goes back, it does not close', async () => {
   expect(onClose).not.toHaveBeenCalled()
 })
 
+test('made only to create, it has Cancel and Create speaker; Cancel closes', async () => {
+  const { onCreate, onClose } = setup({ purpose: 'create' })
+  expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Create and assign' })).toBeNull()
+  await userEvent.type(name(), 'Dana')
+  await userEvent.click(screen.getByRole('button', { name: 'Create speaker' }))
+  expect(onCreate).toHaveBeenCalledWith('Dana', 0)
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(onClose).toHaveBeenCalledOnce()
+})
+
 const handle = () => screen.getByRole('textbox', { name: 'Handle' }) as HTMLInputElement
 
 test('Handle is in sight and works; there is no Email', () => {

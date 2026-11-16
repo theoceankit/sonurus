@@ -26,3 +26,5 @@ export const WithPhoto: Story = { args: { initialPhoto: photo } }
 export const Failed: Story = { args: { initialError: 'Server error 500' } }
 export const LongName: Story = { args: { initialName: 'Alexandra Konstantinopolskaya-Vandenberghe of the Very Long Name' } }
 export const Open: Story = { args: { preview: false } }
+// From the Speakers window: the speaker alone, with Cancel.
+export const Create: Story = { args: { purpose: 'create', initialName: '' } }

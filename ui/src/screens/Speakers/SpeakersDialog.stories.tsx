@@ -59,6 +59,12 @@ export const SpeakerSampleLoading: Story = {
 }
 export const AudioUnavailable: Story = { args: { initialSpeakerId: SPEAKER_IDS.lena }, parameters: { api: { noAudio: true } } }
 export const NotInAnyRecording: Story = { args: { initialSpeakerId: SPEAKER_IDS.priya } }
+// New speaker over the window; Create speaker opens the new speaker's card.
+export const NewSpeaker: Story = {
+  play: async () => {
+    (await waitFor(() => [...document.querySelectorAll('button')].find(button => button.textContent?.trim() === 'New speaker'))!).click()
+  },
+}
 // An edited name waits for Save; Cancel takes it back.
 export const SpeakerEdited: Story = {
   args: { initialSpeakerId: SPEAKER_IDS.lena },
@@ -101,6 +107,9 @@ export const DeleteConfirm: Story = {
 }
 export const DeleteConfirmWithoutName: Story = {
   render: () => <DeleteSpeakerDialog preview open speaker={{ ...SPEAKERS.find(s => s.id === SPEAKER_IDS.unknown3)!, segments: 0, transcripts: 0 }} onConfirm={noop} onClose={noop} />,
+}
+export const DeleteConfirmNotInAnyRecording: Story = {
+  render: () => <DeleteSpeakerDialog preview open speaker={SPEAKERS.find(s => s.id === SPEAKER_IDS.priya)!} onConfirm={noop} onClose={noop} />,
 }
 export const DiscardChanges: Story = {
   render: () => <DiscardChangesDialog preview open onDiscard={noop} onClose={noop} />,

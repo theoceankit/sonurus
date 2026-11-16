@@ -163,23 +163,28 @@ export function createFixtureClient({
     return handle
   }
 
-  const resolveTarget = (target: SpeakerAssignment['target']): string => {
-    if ('id' in target) return speaker(target.id).id
-    const handle = target.handle != null ? checkHandle(target.handle) : null
+  // A handle given is checked before anyone is made.
+  const createNamed = (name: string, handle: string | null | undefined, colorIndex: number | null | undefined, transcripts: number): Speaker => {
+    const own = handle?.trim() ? checkHandle(handle) : null
     const created: Speaker = {
       id: crypto.randomUUID(),
-      name: target.name,
-      handle: handle ?? autoHandle(target.name),
-      handle_manual: handle != null,
-      color_index: target.colorIndex ?? 0,
+      name,
+      handle: own ?? autoHandle(name),
+      handle_manual: own != null,
+      color_index: colorIndex ?? 0,
       photo: null,
       segments: 0,
-      transcripts: 1,
+      transcripts,
       duration_sec: 0,
-      last_seen: new Date().toISOString(),
+      last_seen: transcripts ? new Date().toISOString() : '',
     }
     data.speakers.push(created)
-    return created.id
+    return created
+  }
+
+  const resolveTarget = (target: SpeakerAssignment['target']): string => {
+    if ('id' in target) return speaker(target.id).id
+    return createNamed(target.name, target.handle, target.colorIndex, 1).id
   }
 
   // What the review of a speaker had when the speaker was left with no segments.
@@ -478,6 +483,7 @@ export function createFixtureClient({
     confirmPossibleMatch: (id, speakerId) => answer(() => confirm(id, speakerId)),
     unconfirmPossibleMatch: (id, speakerId) => answer(() => unconfirm(id, speakerId)),
     listSpeakers: () => answer(() => data.speakers),
+    createSpeaker: ({ name, handle, color_index }) => answer(() => createNamed(name.trim(), handle, color_index, 0)),
     updateSpeaker: (id, update) => answer(() => {
       const found = speaker(id)
       const handle = update.handle == null ? null : update.handle.trim() ? checkHandle(update.handle, id) : ''

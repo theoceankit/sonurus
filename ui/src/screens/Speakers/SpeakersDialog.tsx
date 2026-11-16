@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useDeleteSpeaker, useQueue, useSpeakers, useUpdateSpeaker } from '../../api/queries'
+import { useCreateSpeaker, useDeleteSpeaker, useHandleSuggestion, useQueue, useSetSpeakerPhoto, useSpeakers, useUpdateSpeaker } from '../../api/queries'
 import type { Speaker } from '../../api/types'
 import { Button } from '../../components/Button/Button'
 import { Candidate } from '../../components/Candidate/Candidate'
@@ -9,6 +9,7 @@ import { Modal } from '../../components/Modal/Modal'
 import { ModalBody } from '../../components/ModalBody/ModalBody'
 import { ModalFooter } from '../../components/ModalFooter/ModalFooter'
 import { ModalHeader } from '../../components/ModalHeader/ModalHeader'
+import { NewSpeakerModal } from '../../components/NewSpeakerModal/NewSpeakerModal'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
 import { ScrollFade, useScrollEdges } from '../../components/ScrollFade/ScrollFade'
 import { SearchField } from '../../components/SearchField/SearchField'
@@ -20,6 +21,7 @@ import { formatDuration } from '../../media/timeline'
 import { markNotImplemented } from '../../not-implemented'
 import { useLingering } from '../../presence'
 import { speakerColor } from '../../styles/speaker-colors'
+import { hasSpeakerNamed, leastUsedColorIndex } from '../Editor/new-speaker'
 import { DeleteSpeakerDialog } from './DeleteSpeakerDialog'
 import { DiscardChangesDialog } from './DiscardChangesDialog'
 import { handleProblem, isHandleRefusal } from './handles'
@@ -75,7 +77,7 @@ function SpeakerList({ speakers, query, category, onOpen }: { speakers: Speaker[
         })}
         {shown.length === 0 && (
           <SectionHeader title={
-            speakers.length === 0 ? 'No speakers yet. They appear here after a transcription.'
+            speakers.length === 0 ? 'No speakers yet. They appear here after a transcription, or add one with New speaker.'
               : typed ? `No speakers match "${typed}"`
                 : 'No speakers here yet'
           } />
@@ -109,6 +111,14 @@ export function SpeakersDialog({
   // Where to go once the edits are discarded.
   const [leaving, setLeaving] = useState<{ go: () => void } | null>(null)
   const asking = useLingering(leaving)
+  // New speaker, over the window: a new object for each opening, and the name as
+  // typed there, for the handle it brings.
+  const [creating, setCreating] = useState<object | null>(null)
+  const newSpeaker = useLingering(creating)
+  const [typedName, setTypedName] = useState('')
+  const suggestedHandle = useHandleSuggestion(typedName, undefined, creating !== null).data
+  const { mutateAsync: create } = useCreateSpeaker()
+  const { mutateAsync: setPhoto } = useSetSpeakerPhoto()
 
   const rows = speakers.data ?? []
   const current = rows.find(speaker => speaker.id === openId) ?? null
@@ -142,6 +152,20 @@ export function SpeakersDialog({
       else if (changes.name) setSaveError(text)
       else toast({ message: `Could not save: ${text}`, type: 'error' })
     }
+  }
+
+  const createSpeaker = async (name: string, colorIndex: number, handle?: string, photo?: Blob) => {
+    // A refusal stays in New speaker, which says it.
+    const created = await create({ name, color_index: colorIndex, ...(handle ? { handle } : {}) })
+    // The speaker is there whatever happens to the photo: a failed one is only said.
+    if (photo) {
+      setPhoto({ speakerId: created.id, photo }).catch((error: Error) => {
+        toast({ message: `The photo was not saved: ${error.message}`, type: 'error' })
+      })
+    }
+    if (category === 'unnamed') setCategory('all')
+    setOpenId(created.id)
+    setCreating(null)
   }
 
   // A speaker that went (deleted here or elsewhere, or all data reset) leaves the list.
@@ -241,7 +265,10 @@ export function SpeakersDialog({
           </div>
         </ModalBody>
         <ModalFooter
-          leading={<Button variant="ghost" icon="add" {...markNotImplemented('speakers.new-speaker')}>New speaker</Button>}
+          leading={<Button variant="ghost" icon="add" onClick={() => leave(() => {
+            setTypedName('')
+            setCreating({})
+          })}>New speaker</Button>}
           cancel={current ? { children: 'Cancel', disabled: !dirty || saving, onClick: revert } : null}
           confirm={current ? { children: 'Save', disabled: !changes || !!handleIssue, loading: saving, onClick: () => void save() } : undefined}
         />
@@ -258,6 +285,21 @@ export function SpeakersDialog({
           }}
           onClose={() => setLeaving(null)}
           onExited={asking.exited}
+        />
+      )}
+      {newSpeaker.value && (
+        <NewSpeakerModal
+          key={newSpeaker.key}
+          purpose="create"
+          open={newSpeaker.open}
+          initialColorIndex={leastUsedColorIndex(rows)}
+          isNameTaken={name => hasSpeakerNamed(rows, name)}
+          suggestedHandle={suggestedHandle}
+          onNameChange={setTypedName}
+          checkHandle={handle => handleProblem(handle, rows)}
+          onCreate={createSpeaker}
+          onClose={() => setCreating(null)}
+          onExited={newSpeaker.exited}
         />
       )}
       {deleting.value && (

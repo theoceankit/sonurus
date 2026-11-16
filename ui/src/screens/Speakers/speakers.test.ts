@@ -57,6 +57,13 @@ test('speakerUsage: recordings and time as separate values', () => {
 })
 
 describe('deleteSpeakerPrompt', () => {
+  test('a speaker in no recording has no segments and no voice to lose', () => {
+    expect(deleteSpeakerPrompt({ name: 'Dana', segments: 0, transcripts: 0 })).toEqual({
+      title: 'Delete "Dana"?',
+      body: 'This speaker is removed. This cannot be undone.',
+    })
+  })
+
   test('names the speaker and the segments that become Unassigned', () => {
     const prompt = deleteSpeakerPrompt({ name: 'Bob', segments: 12, transcripts: 3 })
     expect(prompt.title).toBe('Delete "Bob"?')
