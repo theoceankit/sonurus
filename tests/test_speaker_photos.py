@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_audio_capture_service, get_memory_service, get_storage_service
+from app.api.dependencies import get_live_recording_service, get_memory_service, get_storage_service
 from app.api.main import app
 from app.models.segment import Segment
 from app.models.transcript import Transcript
@@ -259,7 +259,7 @@ def test_undoing_a_new_speaker_deletes_their_photo(client, photos):
 
 
 class _IdleCapture:
-    def has_active_jobs(self) -> bool:
+    def is_recording(self) -> bool:
         return False
 
 
@@ -267,7 +267,7 @@ def test_reset_deletes_every_photo(client, tmp_path, photos, monkeypatch):
     import app.config as config
     monkeypatch.setattr(config, "RECORDINGS_DIR", tmp_path / "recordings")
     monkeypatch.setattr(config, "SPEAKER_PHOTOS_DIR", photos)
-    app.dependency_overrides[get_audio_capture_service] = lambda: _IdleCapture()
+    app.dependency_overrides[get_live_recording_service] = lambda: _IdleCapture()
     spk = _memory().create_named_speaker("Anna")
     _put(client, spk)
     save_photo(PNG, "image/png", photos)  # an orphan goes too

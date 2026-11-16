@@ -24,7 +24,7 @@ def test_the_schema_has_no_version_a_release_would_change():
 
 def test_the_schema_describes_the_queue_events():
     schemas = build_schema()["components"]["schemas"]
-    for name in ("QueueSnapshot", "JobDoneEvent", "JobFailedEvent", "HeartbeatEvent"):
+    for name in ("QueueSnapshot", "JobDoneEvent", "JobFailedEvent", "RecordingFailedEvent", "RecordingSourceLostEvent", "HeartbeatEvent"):
         assert "type" in schemas[name]["required"], name
 
 

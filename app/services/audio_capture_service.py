@@ -543,10 +543,11 @@ class AudioCaptureService:
     def stop_recording(self, system_job: str | None = None, mic_job: str | None = None) -> str:
         """Stop the tracks of one recording and leave one file in recordings/.
 
-        Both tracks stop together. With both, the microphone is mixed into the
-        system audio, shifted by the difference of their start times; system
-        audio alone is levelled; a microphone alone is kept as recorded. A
-        track whose process already ended by itself is saved up to that point.
+        The microphone stops first, then system audio (stop_capture() mixes
+        the microphone in, shifted by the difference of their start times, and
+        ends the mix with the microphone); system audio alone is levelled; a
+        microphone alone is kept as recorded. A track whose process already
+        ended by itself is saved up to that point.
         """
         log = logging.getLogger(__name__)
         with self._lock:
@@ -555,35 +556,31 @@ class AudioCaptureService:
                 raise ValueError("Nothing to stop")
             if any(j not in self._jobs for j in ids):
                 raise ValueError("Job not found")
-            system = self._jobs.pop(system_job) if system_job else None
             mic = self._jobs.pop(mic_job) if mic_job else None
-        jobs = [j for j in (system, mic) if j]
-        for job in jobs:
-            _request_stop(job)
-        for job in jobs:
-            self._wait_exit(job, log)
         try:
-            if system:
-                self._require_audio(system, self._driver().no_audio_message)
             if mic:
+                _request_stop(mic)
+                self._wait_exit(mic, log)
                 self._require_audio(mic, NO_MIC_AUDIO)
+            if system_job:
+                return self.stop_capture(system_job, mic_path=mic.output_path if mic else None,
+                                         mic_started_at=mic.started_at if mic else None)
             self._recordings_dir.mkdir(parents=True, exist_ok=True)
-            final = self._recordings_dir / f"sonorus-rec-{system_job or mic_job}.wav"
-            if system and mic:
-                self._merge(system.output_path, mic.output_path, str(final),
-                            mic_delay=_mic_delay(system.started_at, mic.started_at))
-            elif system:
-                self._level(system.output_path, str(final))
-            else:
-                shutil.move(mic.output_path, final)
+            final = self._recordings_dir / f"sonorus-rec-{mic_job}.wav"
+            shutil.move(mic.output_path, final)
             return str(final)
+        except Exception:
+            if system_job:
+                self.discard(system_job)
+            raise
         finally:
-            for job in jobs:
-                Path(job.output_path).unlink(missing_ok=True)
+            if mic:
+                Path(mic.output_path).unlink(missing_ok=True)
 
     def stop_capture(self, job_id: str, mic_path: str | None = None,
                      mic_started_at: float | None = None) -> str:
-        """Stop a capture; with mic_path, mix that microphone track in.
+        """Stop a system audio capture; with mic_path, mix that microphone
+        track in.
 
         mic_started_at is when the microphone track starts (Unix time): the
         mix shifts it against the system track by the difference.
@@ -595,36 +592,21 @@ class AudioCaptureService:
         if job is None:
             raise ValueError("Job not found")
         _request_stop(job)
+        self._wait_exit(job, log)
         try:
-            job.process.wait(timeout=_STOP_TIMEOUT_SEC)
-        except subprocess.TimeoutExpired:
-            log.warning("capture process did not exit after SIGINT; killing it")
-            job.process.kill()
-            job.process.wait()
-
-        stderr_out = _read_log(job.log_path)
-        Path(job.log_path).unlink(missing_ok=True)
-        if stderr_out:
-            log.warning("capture stderr:\n%s", stderr_out)
-
-        out = Path(job.output_path)
-        size = out.stat().st_size if out.exists() else -1
-        log.info("capture output: %s  size=%d bytes", job.output_path, size)
-
-        if size < 44:
-            raise RuntimeError(self._driver().no_audio_message)
-
-        self._recordings_dir.mkdir(parents=True, exist_ok=True)
-        final = self._recordings_dir / f"sonorus-rec-{job_id}.wav"
-        if mic_path is None:
-            self._level(job.output_path, str(final))
+            self._require_audio(job, self._driver().no_audio_message)
+            self._recordings_dir.mkdir(parents=True, exist_ok=True)
+            final = self._recordings_dir / f"sonorus-rec-{job_id}.wav"
+            if mic_path is None:
+                self._level(job.output_path, str(final))
+                return str(final)
+            self._merge(job.output_path, mic_path, str(final),
+                        mic_delay=_mic_delay(job.started_at, mic_started_at))
+            if self._is_own_recording(mic_path):
+                Path(mic_path).unlink(missing_ok=True)
             return str(final)
-        self._merge(job.output_path, mic_path, str(final),
-                    mic_delay=_mic_delay(job.started_at, mic_started_at))
-        Path(job.output_path).unlink(missing_ok=True)
-        if self._is_own_recording(mic_path):
-            Path(mic_path).unlink(missing_ok=True)
-        return str(final)
+        finally:
+            Path(job.output_path).unlink(missing_ok=True)
 
     # ── Internals ───────────────────────────────────────────────────────────
 

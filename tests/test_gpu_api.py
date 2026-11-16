@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 import app.api.routers.gpu as gpu_router
 import app.api.routers.models as models_router
 import app.config as config
-from app.api.dependencies import get_audio_capture_service, get_gpu_pack, get_transcription_queue
+from app.api.dependencies import get_live_recording_service, get_gpu_pack, get_transcription_queue
 from app.api.main import app
 from app.services.gpu_pack import GpuInfo, GpuPack, GpuPackDownloadError, NotEnoughDiskSpace
 
@@ -28,7 +28,7 @@ class StubCapture:
     def __init__(self):
         self.active = False
 
-    def has_active_jobs(self):
+    def is_recording(self):
         return self.active
 
 
@@ -41,12 +41,12 @@ def setup(tmp_path, monkeypatch):
     pack = GpuPack(gpu_dir=gpu_dir, manifest_path=manifest_path, platform="linux", detect=lambda: RTX_4060)
     capture = StubCapture()
     app.dependency_overrides[get_gpu_pack] = lambda: pack
-    app.dependency_overrides[get_audio_capture_service] = lambda: capture
+    app.dependency_overrides[get_live_recording_service] = lambda: capture
     monkeypatch.setattr(gpu_router, "_running_torch", lambda: "2.8.0+cpu")
     monkeypatch.setattr(config, "DEVICE", "cpu")
     yield TestClient(app), pack, gpu_dir, capture
     app.dependency_overrides.pop(get_gpu_pack, None)
-    app.dependency_overrides.pop(get_audio_capture_service, None)
+    app.dependency_overrides.pop(get_live_recording_service, None)
 
 
 def _fake_download(monkeypatch, gate=None, outcome=None):

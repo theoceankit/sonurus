@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/audio/capture/inputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Inputs */
+        get: operations["get_inputs_audio_capture_inputs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audio/capture/sources": {
         parameters: {
             query?: never;
@@ -21,7 +38,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/audio/capture/start": {
+    "/audio/recording/start": {
         parameters: {
             query?: never;
             header?: never;
@@ -30,32 +47,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start Capture */
-        post: operations["start_capture_audio_capture_start_post"];
+        /** Start Recording */
+        post: operations["start_recording_audio_recording_start_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/audio/capture/stop/{job_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Stop Capture */
-        post: operations["stop_capture_audio_capture_stop__job_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/audio/recordings": {
+    "/audio/recording/stop": {
         parameters: {
             query?: never;
             header?: never;
@@ -65,12 +65,11 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Upload Recording
-         * @description Store a live recording (raw body, Content-Type audio/webm or audio/wav)
-         *     in RECORDINGS_DIR. The backend is the only writer of that dir, so the UI
-         *     uploads instead of writing a file wherever its own data dir is.
+         * Stop Recording
+         * @description Answers at once (phase stopping); the recording is saved and queued
+         *     after, and its end comes over WS /ws/queue.
          */
-        post: operations["upload_recording_audio_recordings_post"];
+        post: operations["stop_recording_audio_recording_stop_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -385,46 +384,6 @@ export interface paths {
         put?: never;
         /** Pause Queue */
         post: operations["pause_queue_queue_pause_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/queue/recording/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Recording Started
-         * @description A live recording started: the queue pauses and the running job stops.
-         */
-        post: operations["recording_started_queue_recording_start_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/queue/recording/stop": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Recording Stopped
-         * @description Call after queuing the new recording (it then goes last).
-         */
-        post: operations["recording_stopped_queue_recording_stop_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -881,27 +840,13 @@ export interface components {
             /** Size */
             size: string;
         };
-        /** AudioCaptureStartRequest */
-        AudioCaptureStartRequest: {
-            /** Source Id */
-            source_id?: string | null;
-        };
-        /** AudioCaptureStartResponse */
-        AudioCaptureStartResponse: {
-            /** Job Id */
-            job_id: string;
-        };
-        /** AudioCaptureStopRequest */
-        AudioCaptureStopRequest: {
-            /** Mic Path */
-            mic_path?: string | null;
-            /** Mic Started At */
-            mic_started_at?: number | null;
-        };
-        /** AudioCaptureStopResponse */
-        AudioCaptureStopResponse: {
-            /** File Path */
-            file_path: string;
+        /**
+         * AudioInputsResponse
+         * @description The microphones; the default one is not listed (mic_device null).
+         */
+        AudioInputsResponse: {
+            /** Inputs */
+            inputs: components["schemas"]["AudioSource"][];
         };
         /** AudioSource */
         AudioSource: {
@@ -999,7 +944,7 @@ export interface components {
         };
         /**
          * JobDoneEvent
-         * @description WS /ws/queue. TranscriptionQueue sends these three as plain dicts;
+         * @description WS /ws/queue. TranscriptionQueue sends these events as plain dicts;
          *     tests hold them to these models.
          */
         JobDoneEvent: {
@@ -1045,6 +990,24 @@ export interface components {
             title?: string | null;
             /** Whisper Model */
             whisper_model?: string | null;
+        };
+        /**
+         * LiveRecording
+         * @description The live recording in the queue snapshot. started_at: when its first
+         *     track started, Unix time in seconds (null while starting).
+         */
+        LiveRecording: {
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "starting" | "live" | "stopping";
+            /** Sources */
+            sources: ("mic" | "system")[];
+            /** Started At */
+            started_at: number | null;
+            /** Title */
+            title: string;
         };
         /**
          * ModelsFolder
@@ -1103,8 +1066,7 @@ export interface components {
             paused: boolean;
             /** Paused By Recording */
             paused_by_recording: boolean;
-            /** Recording */
-            recording: boolean;
+            recording: components["schemas"]["LiveRecording"] | null;
             /** Running Job Id */
             running_job_id: string | null;
             /**
@@ -1121,10 +1083,62 @@ export interface components {
              */
             type: "snapshot";
         };
-        /** RecordingUploadResponse */
-        RecordingUploadResponse: {
-            /** File Path */
-            file_path: string;
+        /**
+         * RecordingFailedEvent
+         * @description The recording stopped but could not be saved or queued.
+         */
+        RecordingFailedEvent: {
+            /** Error */
+            error: string;
+            /** Title */
+            title: string;
+            /**
+             * Type
+             * @constant
+             */
+            type: "recording_failed";
+        };
+        /**
+         * RecordingSourceLostEvent
+         * @description A track ended by itself (a device unplugged): the recording was
+         *     stopped, saved and queued.
+         */
+        RecordingSourceLostEvent: {
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "mic" | "system";
+            /** Title */
+            title: string;
+            /**
+             * Type
+             * @constant
+             */
+            type: "recording_source_lost";
+        };
+        /**
+         * RecordingStartRequest
+         * @description POST /audio/recording/start. mic_device / system_source null = the
+         *     default; whisper_model null = the default model; language null or
+         *     "auto" = auto-detect. The recording is queued with title, model and
+         *     language when it stops.
+         */
+        RecordingStartRequest: {
+            /** Language */
+            language?: string | null;
+            /** Mic */
+            mic: boolean;
+            /** Mic Device */
+            mic_device?: string | null;
+            /** System */
+            system: boolean;
+            /** System Source */
+            system_source?: string | null;
+            /** Title */
+            title: string;
+            /** Whisper Model */
+            whisper_model?: string | null;
         };
         /**
          * RefusalResponse
@@ -1451,6 +1465,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_inputs_audio_capture_inputs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioInputsResponse"];
+                };
+            };
+        };
+    };
     get_sources_audio_capture_sources_get: {
         parameters: {
             query?: never;
@@ -1471,16 +1505,16 @@ export interface operations {
             };
         };
     };
-    start_capture_audio_capture_start_post: {
+    start_recording_audio_recording_start_post: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": components["schemas"]["AudioCaptureStartRequest"];
+                "application/json": components["schemas"]["RecordingStartRequest"];
             };
         };
         responses: {
@@ -1490,8 +1524,22 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AudioCaptureStartResponse"];
+                    "application/json": components["schemas"]["LiveRecording"];
                 };
+            };
+            /** @description The recording cannot start; detail says why */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A recording is already in progress */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -1504,42 +1552,7 @@ export interface operations {
             };
         };
     };
-    stop_capture_audio_capture_stop__job_id__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["AudioCaptureStopRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AudioCaptureStopResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    upload_recording_audio_recordings_post: {
+    stop_recording_audio_recording_stop_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1549,13 +1562,20 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RecordingUploadResponse"];
+                    "application/json": components["schemas"]["LiveRecording"];
                 };
+            };
+            /** @description No recording is in progress */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2068,46 +2088,6 @@ export interface operations {
         };
     };
     pause_queue_queue_pause_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["QueueSnapshot"];
-                };
-            };
-        };
-    };
-    recording_started_queue_recording_start_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["QueueSnapshot"];
-                };
-            };
-        };
-    };
-    recording_stopped_queue_recording_stop_post: {
         parameters: {
             query?: never;
             header?: never;

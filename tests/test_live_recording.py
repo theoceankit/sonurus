@@ -1,0 +1,244 @@
+"""LiveRecordingService: the backend owns a live recording from start to queue.
+
+The capture side is a fake (no processes, no ffmpeg); the queue is real, on a
+temporary database, with its worker not running.
+"""
+import threading
+import time
+
+import pytest
+
+from app.services.job_store import JobStore
+from app.services.live_recording_service import (
+    LiveRecordingService, NotRecording, RecordingBusy, RecordingRequest,
+)
+from app.services.transcription_queue import TranscriptionQueue
+from capture_fakes import FakeCapture
+
+
+@pytest.fixture
+def queue(tmp_path):
+    q = TranscriptionQueue(JobStore(db_path=str(tmp_path / "jobs.db")), run_job=lambda *a: 1,
+                           recordings_dir=tmp_path)
+    events = []
+    q.subscribe(events.append)
+    q.events = events
+    return q
+
+
+@pytest.fixture
+def capture(tmp_path):
+    return FakeCapture(tmp_path)
+
+
+@pytest.fixture
+def service(capture, queue):
+    svc = LiveRecordingService(capture, queue, poll_interval=0.01)
+    yield svc
+    svc.shutdown()
+
+
+def _request(mic=True, system=True, **kw):
+    fields = dict(mic=mic, mic_device=None, system=system, system_source=None,
+                  title="Standup", whisper_model="small", language="en")
+    fields.update(kw)
+    return RecordingRequest(**fields)
+
+
+def _wait_idle(service, timeout=5):
+    deadline = time.time() + timeout
+    while service.is_recording() and time.time() < deadline:
+        time.sleep(0.01)
+    assert not service.is_recording(), "the recording did not finish"
+
+
+def _types(queue):
+    return [e["type"] for e in queue.events if e["type"] != "snapshot"]
+
+
+# ── Starting ─────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("mic, system, kinds", [
+    (True, True, {"mic", "system"}), (True, False, {"mic"}), (False, True, {"system"}),
+])
+def test_start_captures_the_chosen_sources_and_is_live_in_the_queue_snapshot(
+        service, capture, queue, mic, system, kinds):
+    state = service.start(_request(mic=mic, system=system, mic_device="alsa_input.x", system_source="x.monitor"))
+    assert {j["kind"] for j in capture.jobs.values()} == kinds
+    for job in capture.jobs.values():
+        assert job["source"] == ("alsa_input.x" if job["kind"] == "mic" else "x.monitor")
+    assert state["phase"] == "live"
+    snapshot = queue.snapshot()
+    assert snapshot["recording"] == state
+    assert snapshot["recording"]["title"] == "Standup"
+    assert sorted(snapshot["recording"]["sources"]) == sorted(kinds)
+    assert service.is_recording()
+
+
+def test_the_recording_counts_from_its_first_track(service, capture):
+    state = service.start(_request())
+    assert state["started_at"] == min(j["started_at"] for j in capture.jobs.values())
+
+
+def test_start_pauses_the_running_queue_for_the_recording(service, queue):
+    service.start(_request())
+    snapshot = queue.snapshot()
+    assert (snapshot["paused"], snapshot["paused_by_recording"]) == (True, True)
+
+
+def test_start_shows_starting_before_live(service, queue):
+    service.start(_request())
+    phases = [e["recording"]["phase"] for e in queue.events
+              if e["type"] == "snapshot" and e["recording"]]
+    assert phases[0] == "starting"
+    assert phases[-1] == "live"
+
+
+def test_start_without_a_source_is_refused(service, queue):
+    with pytest.raises(ValueError):
+        service.start(_request(mic=False, system=False))
+    assert queue.snapshot()["recording"] is None
+
+
+def test_a_second_start_is_refused_while_recording(service):
+    service.start(_request())
+    with pytest.raises(RecordingBusy):
+        service.start(_request())
+
+
+@pytest.mark.parametrize("failing", ["mic", "system"])
+def test_a_source_that_cannot_start_lets_go_of_the_other_and_of_the_queue(service, capture, queue, failing):
+    capture.fail_start[failing] = RuntimeError(f"{failing} is busy")
+    with pytest.raises(RuntimeError, match=f"{failing} is busy"):
+        service.start(_request())
+    assert capture.jobs == {}
+    snapshot = queue.snapshot()
+    assert snapshot["recording"] is None
+    assert (snapshot["paused"], snapshot["paused_by_recording"]) == (False, False)
+    assert not service.is_recording()
+
+
+# ── Stopping ─────────────────────────────────────────────────────────────────
+
+def test_stop_answers_at_once_and_queues_the_recording_with_its_settings(service, capture, queue):
+    service.start(_request(title="Weekly", whisper_model="medium", language="de"))
+    jobs = dict(capture.jobs)
+    state = service.stop()
+    assert state["phase"] == "stopping"
+    _wait_idle(service)
+    system = next(j for j, v in jobs.items() if v["kind"] == "system")
+    mic = next(j for j, v in jobs.items() if v["kind"] == "mic")
+    assert capture.stopped == [(system, mic)]
+    [job] = queue.snapshot()["jobs"]
+    assert (job["title"], job["whisper_model"], job["language"]) == ("Weekly", "medium", "de")
+    assert job["audio_path"].endswith(f"sonorus-rec-{system}.wav")
+    snapshot = queue.snapshot()
+    assert snapshot["recording"] is None
+    assert snapshot["paused_by_recording"] is False
+
+
+def test_the_queue_resumes_only_after_the_recording_is_queued(service, queue):
+    service.start(_request())
+    service.stop()
+    _wait_idle(service)
+    after_job = [e for e in queue.events if e["type"] == "snapshot" and e["jobs"]]
+    assert after_job[0]["recording"] is not None, "the job was queued after the queue was let go"
+    assert queue.snapshot()["paused"] is False
+
+
+def test_stop_without_a_live_recording_is_refused(service):
+    with pytest.raises(NotRecording):
+        service.stop()
+    service.start(_request())
+    service.stop()
+    with pytest.raises(NotRecording):
+        service.stop()
+
+
+def test_a_failed_stop_tells_why_and_lets_go(service, capture, queue):
+    capture.fail_stop = RuntimeError("No audio was captured from the microphone.")
+    service.start(_request(mic=True, system=False))
+    service.stop()
+    _wait_idle(service)
+    [failed] = [e for e in queue.events if e["type"] == "recording_failed"]
+    assert failed["error"] == "No audio was captured from the microphone."
+    assert failed["title"] == "Standup"
+    assert queue.snapshot()["jobs"] == []
+    assert queue.snapshot()["recording"] is None
+
+
+def test_a_recording_that_cannot_be_queued_tells_why(service, queue, monkeypatch):
+    monkeypatch.setattr(queue, "add", lambda **kw: (_ for _ in ()).throw(OSError("disk full")))
+    service.start(_request())
+    service.stop()
+    _wait_idle(service)
+    assert "recording_failed" in _types(queue)
+    assert queue.snapshot()["recording"] is None
+
+
+# ── A source lost mid-recording ──────────────────────────────────────────────
+
+@pytest.mark.parametrize("lost", ["mic", "system"])
+def test_a_lost_source_stops_saves_and_queues_the_recording(service, capture, queue, lost):
+    service.start(_request())
+    capture.lose(lost)
+    _wait_idle(service)
+    assert len(capture.stopped) == 1
+    assert len(queue.snapshot()["jobs"]) == 1
+    [event] = [e for e in queue.events if e["type"] == "recording_source_lost"]
+    assert event == {"type": "recording_source_lost", "source": lost, "title": "Standup"}
+
+
+def test_nothing_is_reported_lost_after_a_stop(service, capture, queue):
+    service.start(_request())
+    service.stop()
+    _wait_idle(service)
+    capture.lose("mic")
+    time.sleep(0.05)
+    assert "recording_source_lost" not in _types(queue)
+
+
+# ── The backend going down ───────────────────────────────────────────────────
+
+def test_shutdown_lets_go_of_the_captures(service, capture, queue):
+    service.start(_request())
+    service.shutdown()
+    assert capture.jobs == {}
+    assert len(capture.discarded) == 2
+    assert not service.is_recording()
+
+
+def test_a_start_and_a_stop_from_two_threads_do_not_both_run(service, capture):
+    service.start(_request())
+    errors = []
+
+    def _stop():
+        try:
+            service.stop()
+        except NotRecording as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=_stop) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    _wait_idle(service)
+    assert len(errors) == 3
+    assert len(capture.stopped) == 1
+
+
+def test_snapshots_and_events_match_the_models_the_ui_types_come_from(service, capture, queue):
+    from app.api.schemas import QueueSnapshot, RecordingFailedEvent, RecordingSourceLostEvent
+    service.start(_request())
+    capture.lose("mic")
+    _wait_idle(service)
+    capture.fail_stop = RuntimeError("boom")
+    service.start(_request())
+    service.stop()
+    _wait_idle(service)
+    models = {"snapshot": QueueSnapshot, "recording_failed": RecordingFailedEvent,
+              "recording_source_lost": RecordingSourceLostEvent}
+    assert {"recording_failed", "recording_source_lost"} <= set(_types(queue))
+    for event in queue.events:
+        assert models[event["type"]].model_validate(event).model_dump() == event
