@@ -80,10 +80,10 @@ The backend records and writes every file; the window drives and shows the recor
 
 `CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer` fails on SCK buffers with `kCMSampleBufferError_BufferHasNoSampleSizes` (-12737) because SCK buffers lack per-sample size metadata. The correct API is `CMSampleBufferCopyPCMDataIntoAudioBufferList`.
 
-### Electron media permissions
+### Electron permissions
 
-`session.defaultSession.setPermissionRequestHandler` in `app.whenReady()` allows the `media` permission — without it `getUserMedia` is blocked by default.
+`session.defaultSession.setPermissionRequestHandler` in `app.whenReady()` refuses every permission request of the page, `media` included: the backend records, and without a handler Electron would grant them all.
 
 ### Screen Recording permission (macOS)
 
-Must be granted once in System Settings → Privacy & Security → Screen Recording for the terminal or app that launches the server. The entitlement `com.apple.security.screen-capture` is declared in `build/entitlements.mac.plist` for signed distribution builds.
+Must be granted once in System Settings → Privacy & Security → Screen Recording for the terminal or app that launches the server, and the microphone under Microphone (the helper asks on the first microphone recording). The entitlements `com.apple.security.screen-capture` and `com.apple.security.device.audio-input` are declared in `build/entitlements.mac.plist` for signed distribution builds.

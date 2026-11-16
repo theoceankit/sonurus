@@ -190,9 +190,10 @@ app.whenReady().then(async () => {
   // spell checker (no download, setSpellCheckerLanguages is a no-op there).
   session.defaultSession.setSpellCheckerEnabled(false)
   session.defaultSession.setSpellCheckerLanguages([])
-  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    // Microphone only: system audio is captured by the backend on every OS.
-    callback(permission === 'media')
+  // The backend records the microphone and system audio; the page needs no device.
+  // Without a handler Electron would grant every request, so all are refused.
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false)
   })
 
   // Start the backend first so index.html loads with a ready API.
