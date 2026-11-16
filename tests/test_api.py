@@ -411,7 +411,7 @@ class _IdleCapture:
     def __init__(self, active=False):
         self.active = active
 
-    def has_active_jobs(self) -> bool:
+    def is_recording(self) -> bool:
         return self.active
 
 
@@ -419,14 +419,14 @@ class _IdleCapture:
 def reset_env(client, tmp_path, monkeypatch):
     """client + isolated recordings dir + an idle capture service."""
     import app.config as config
-    from app.api.dependencies import get_audio_capture_service
+    from app.api.dependencies import get_live_recording_service
 
     recordings = tmp_path / "data" / "recordings"
     recordings.mkdir(parents=True)
     monkeypatch.setattr(config, "RECORDINGS_DIR", recordings)
 
     capture = _IdleCapture()
-    app.dependency_overrides[get_audio_capture_service] = lambda: capture
+    app.dependency_overrides[get_live_recording_service] = lambda: capture
     yield client, recordings, capture
 
 

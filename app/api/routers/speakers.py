@@ -11,7 +11,7 @@ from app.services.speaker_photos import MAX_PHOTO_BYTES, MEDIA_TYPES, PHOTO_TYPE
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.voice_sample import pick_voice_sample
 from app.api.dependencies import (
-    get_audio_capture_service, get_memory_service, get_storage_service, get_transcription_queue,
+    get_live_recording_service, get_memory_service, get_storage_service, get_transcription_queue,
 )
 from app.api.refusals import Refusal
 from app.api.schemas import (
@@ -151,15 +151,15 @@ def delete_speaker(
     speaker_id: str,
     memory: SpeakerMemoryService = Depends(get_memory_service),
     storage: TranscriptStorageService = Depends(get_storage_service),
-    capture=Depends(get_audio_capture_service),
+    recording=Depends(get_live_recording_service),
     queue=Depends(get_transcription_queue),
 ):
     # A running pipeline job would write the speaker's profile back when it
-    # commits; wait for it (and for a capture that feeds the next job).
+    # commits; wait for it (and for a recording that feeds the next job).
     # Queued jobs are fine: they resolve speakers when they run.
     if queue.is_running():
         raise HTTPException(status_code=409, detail="A transcription is in progress")
-    if capture.has_active_jobs():
+    if recording.is_recording():
         raise HTTPException(status_code=409, detail="A recording is in progress")
     _require_speaker(speaker_id, memory, storage.speaker_stats())
     return SpeakerDeleteResponse(**CommitService(memory, storage).delete_speaker(speaker_id))

@@ -77,9 +77,9 @@ describe('deleteSpeakerPrompt', () => {
 
 test('deleteBlockReason: a running transcription or a recording', () => {
   expect(deleteBlockReason(undefined)).toBeNull()
-  expect(deleteBlockReason({ running_job_id: null, recording: false })).toBeNull()
-  expect(deleteBlockReason({ running_job_id: 'job', recording: false })).toMatch(/queue/)
-  expect(deleteBlockReason({ running_job_id: null, recording: true })).toMatch(/recording/)
+  expect(deleteBlockReason({ running_job_id: null, recording: null })).toBeNull()
+  expect(deleteBlockReason({ running_job_id: 'job', recording: null })).toMatch(/queue/)
+  expect(deleteBlockReason({ running_job_id: null, recording: { phase: 'live', title: 'Live', started_at: 0, sources: ['mic'] } })).toMatch(/recording/)
 })
 
 test('speakerAfter: the next one, else the one before', () => {

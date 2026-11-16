@@ -300,8 +300,8 @@ def test_undoing_that_assignment_brings_the_possible_match_back(client):
 
 
 def test_deleting_the_speaker_removes_the_possible_match(client):
-    from app.api.dependencies import get_audio_capture_service
-    app.dependency_overrides[get_audio_capture_service] = lambda: MagicMock(has_active_jobs=lambda: False)
+    from app.api.dependencies import get_live_recording_service
+    app.dependency_overrides[get_live_recording_service] = lambda: MagicMock(is_recording=lambda: False)
     _profiles({_ALICE: ("Alice", VOICE)})
     transcript_id = _save([_alice_voice()], {_ALICE: 0.62})
     assert client.delete(f"/speakers/{_ALICE}").status_code == 200

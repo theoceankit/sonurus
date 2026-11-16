@@ -81,7 +81,7 @@ describe('recording', () => {
     await userEvent.click(start())
     await waitFor(() => expect(recordDialog()).toBeNull())
     await waitFor(() => expect(recordingControl.phase).toBe('live'))
-    expect((await client.getQueue()).recording).toBe(true)
+    expect((await client.getQueue()).recording).toMatchObject({ phase: 'live', sources: ['system'] })
     expect(await window.electronAPI!.readSettings()).toMatchObject({
       recordingAudioSource: 'system', recordingSystemDevice: '@DEFAULT_MONITOR@', transcribeModel: 'small', transcribeLang: 'de',
     })

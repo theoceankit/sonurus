@@ -10,7 +10,7 @@ import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import type { ElectronAPI } from '../../platform/electron-api'
 import { RecordingProvider, useRecording } from '../../recording/RecordingProvider'
-import type { SessionDeps } from '../../recording/session'
+import { useQueueEventsSync } from '../../api/queries'
 import { SettingsProvider } from '../Settings/SettingsProvider'
 import { ImportDialog } from './ImportDialog'
 import { NewRecordingDialog } from './NewRecordingDialog'
@@ -25,13 +25,11 @@ function OtherWindow() {
 }
 
 // The window's audio in jsdom: system audio only, the backend's fixture captures it.
-const noMicrophone = (api: ApiClient): SessionDeps => ({
-  api,
-  platform: async () => 'linux',
-  getUserMedia: () => Promise.reject(new Error('no microphone here')),
-  connect: () => { throw new Error('no audio here') },
-  createRecorder: () => { throw new Error('no audio here') },
-})
+// The queue's events, as the app's root keeps them: a recording shows and ends there.
+function QueueSync() {
+  useQueueEventsSync()
+  return null
+}
 
 export let recordingControl: ReturnType<typeof useRecording>
 
@@ -64,8 +62,8 @@ export async function setup(options: FixtureOptions = {}, { chosen = [], setting
   await electron.writeSettings({ ...await electron.readSettings(), ...settings })
   vi.stubGlobal('electronAPI', { ...electron, ...bridge })
   render(
-    <ApiProvider client={client}><OverlayProvider><RecordingProvider deps={noMicrophone}><SettingsProvider>
-      <Dialogs />{other && <OtherWindow />}
+    <ApiProvider client={client}><OverlayProvider><RecordingProvider><SettingsProvider>
+      <QueueSync /><Dialogs />{other && <OtherWindow />}
     </SettingsProvider></RecordingProvider></OverlayProvider></ApiProvider>,
   )
   return client

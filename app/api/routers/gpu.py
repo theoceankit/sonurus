@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 import app.config as config
-from app.api.dependencies import get_audio_capture_service, get_gpu_pack, get_transcription_queue
+from app.api.dependencies import get_gpu_pack, get_live_recording_service, get_transcription_queue
 from app.api.schemas import GpuStatus
 from app.api.routers import models
 from app.logger import get_logger
@@ -137,13 +137,13 @@ def remove_pack(pack: GpuPack = Depends(get_gpu_pack)):
 def request_restart(
     pack: GpuPack = Depends(get_gpu_pack),
     queue=Depends(get_transcription_queue),
-    capture=Depends(get_audio_capture_service),
+    recording=Depends(get_live_recording_service),
 ):
     """Ready when the app may restart the backend now; otherwise what it waits
     for. A running transcription finishes first and no new one starts."""
     if pack.state(running_torch=_running_torch(), device=config.DEVICE)["state"] != "pending_restart":
         return JSONResponse({"detail": "Nothing to apply"}, status_code=409)
-    if capture.has_active_jobs():
+    if recording.is_recording():
         return {"status": "waiting", "reason": "recording"}
     if models.active_downloads():
         return {"status": "waiting", "reason": "model_download"}

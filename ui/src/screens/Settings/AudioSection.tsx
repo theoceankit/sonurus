@@ -1,19 +1,18 @@
-import { useCaptureSources } from '../../api/queries'
+import { useCaptureSources, useMicInputs } from '../../api/queries'
 import { FieldRow } from '../../components/FieldRow/FieldRow'
 import { SectionCard } from '../../components/SectionCard/SectionCard'
 import { Select } from '../../components/Select/Select'
 import { settingsStore, useSettings } from '../../platform/settings'
-import { useInputDevices } from '../../recording/devices'
 import { DEFAULT_MIC, micOptions, pickDevice, systemOptions } from '../../recording/sources'
 
 // The devices a new recording starts with. New recording saves here what it starts
 // with, so the two always show the same.
 export function AudioSection() {
   const settings = useSettings()
-  const inputs = useInputDevices(true)
+  const inputs = useMicInputs()
   const capture = useCaptureSources()
   if (!settings) return null
-  const mics = micOptions(inputs)
+  const mics = micOptions(inputs.data ?? [])
   const systems = systemOptions(capture.data ?? [])
   const none = capture.isSuccess && systems.length === 0
   return (

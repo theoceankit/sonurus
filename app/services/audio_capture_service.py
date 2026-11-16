@@ -23,9 +23,12 @@ _STOP_TIMEOUT_SEC = 10
 _START_CHECK_SEC = 0.5
 # How long a helper with a handshake (READY on stdout) may take to start.
 _READY_TIMEOUT_SEC = 5.0
-# The microphone starts in the window once the capture runs, at most a few
-# seconds apart. A larger gap between the two start times means a clock jump,
-# not a real offset: then the tracks are mixed from 0 as they are.
+# The macOS microphone: the first start waits for the user to answer the
+# system's permission prompt.
+_MIC_PROMPT_TIMEOUT_SEC = 120.0
+# The two tracks of a recording start one after the other, well under a second
+# apart. A larger gap between the two start times means a clock jump, not a
+# real offset: then the tracks are mixed from 0 as they are.
 _MAX_START_GAP_SEC = 30.0
 _REPO_ROOT = Path(__file__).parents[2]
 # Windows: the helper is a console program; without this flag every run of it
@@ -53,26 +56,38 @@ class _CaptureJob:
     process: subprocess.Popen
     output_path: str
     log_path: str
-    # When the track starts, Unix time (time.time()): the microphone's start time
-    # from the window is on the same clock.
+    # When the track starts, Unix time (time.time()); both tracks of a recording
+    # are timed on this clock.
     started_at: float
     stop_via_stdin: bool = False
+    # "system" or "mic".
+    kind: str = "system"
 
 
 # ── Platform drivers ─────────────────────────────────────────────────────────
 #
-# One driver per OS behind the same small interface: sources(),
-# check(source_id) (raises with a user-facing reason) and command(); the
-# class attributes say how the process starts (handshake: READY on stdout)
-# and stops (stop_via_stdin: "stop" on stdin instead of SIGINT).
+# One driver per OS behind the same small interface: sources() (system audio),
+# inputs() (microphones, the default one not listed), check(source_id, kind)
+# (raises with a user-facing reason) and command(source_id, output, kind),
+# kind being "system" or "mic"; the class attributes say how the process
+# starts (handshake: READY on stdout) and stops (stop_via_stdin: "stop" on
+# stdin instead of SIGINT).
 # Everything around the capture process (start-up check, stop, mic merge,
 # moving into recordings/) is shared by AudioCaptureService.
 
+NO_MIC_AUDIO = "No audio was captured from the microphone."
+
 class _MacCapture:
-    """ScreenCaptureKit via the bundled sonorus-capture helper."""
+    """ScreenCaptureKit (system audio) and AVCaptureSession (the microphone,
+    --input) via the bundled sonorus-capture helper."""
 
     handshake = True  # prints READY on stdout once capture runs
     stop_via_stdin = False
+    ready_timeout = {"mic": _MIC_PROMPT_TIMEOUT_SEC}
+    mic_denied_message = (
+        "Sonorus may not use the microphone. Allow it in System Settings → "
+        "Privacy & Security → Microphone, then try again."
+    )
     no_audio_message = (
         "No audio was captured. If using system audio, grant Screen Recording "
         "permission in System Settings → Privacy & Security → Screen Recording."
@@ -86,17 +101,47 @@ class _MacCapture:
             return []
         return [{"id": "sckit", "label": "System audio (ScreenCaptureKit)"}]
 
-    def check(self, source_id: str | None = None) -> None:
+    def _microphones(self) -> list[dict] | None:
+        """The helper's microphones; None when it cannot list them."""
+        if not self._bin:
+            return None
+        try:
+            result = subprocess.run([self._bin, "--list-inputs"], capture_output=True,
+                                    text=True, encoding="utf-8", timeout=5)
+            if result.returncode != 0:
+                return None
+            devices = json.loads(result.stdout)
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return None
+        return [d for d in devices if isinstance(d, dict) and d.get("id")]
+
+    def inputs(self) -> list[dict]:
+        return sorted(({"id": d["id"], "label": d.get("label") or d["id"]}
+                       for d in self._microphones() or []),
+                      key=lambda d: d["label"].lower())
+
+    def check(self, source_id: str | None = None, kind: str = "system") -> None:
         if not self._bin:
             raise RuntimeError("sonorus-capture binary not found; run: npm run build:capture")
+        if kind == "mic" and source_id:
+            devices = self._microphones()
+            if devices is not None and source_id not in {d["id"] for d in devices}:
+                raise RuntimeError(
+                    f"The selected microphone is not available: {source_id}. "
+                    "Choose another microphone and try again."
+                )
 
-    def command(self, source_id: str | None, output_path: str) -> list[str]:
-        self.check()
+    def command(self, source_id: str | None, output_path: str, kind: str = "system") -> list[str]:
+        if not self._bin:
+            self.check()
+        if kind == "mic":
+            return [self._bin, "--input", source_id or "default", "--output", output_path]
         return [self._bin, "--output", output_path]
 
 
 class _LinuxCapture:
-    """PulseAudio / PipeWire monitor source recorded with parec.
+    """PulseAudio / PipeWire source recorded with parec: the monitor of an
+    output for system audio, an input source for the microphone.
 
     parec ships with pactl (pulseaudio-utils, libpulse on Arch), which already
     lists the sources. The bundled ffmpeg is built without PulseAudio input,
@@ -107,6 +152,7 @@ class _LinuxCapture:
     stop_via_stdin = False
     no_audio_message = "No system audio was captured from the selected source."
     DEFAULT_SOURCE = {"id": "@DEFAULT_MONITOR@", "label": "System audio (default)"}
+    DEFAULT_INPUT = "@DEFAULT_SOURCE@"
 
     def sources(self) -> list[dict]:
         # Like Windows: the default output first, then each output device.
@@ -172,7 +218,56 @@ class _LinuxCapture:
                     monitors[-1]["label"] = desc
         return monitors
 
-    def check(self, source_id: str | None = None) -> None:
+    def inputs(self) -> list[dict]:
+        """Input sources (microphones) by name, alphabetically; [] without pactl."""
+        if not shutil.which("pactl"):
+            return []
+        found = self._inputs_from_json()
+        if found is None:
+            found = self._inputs_from_text() or []
+        return sorted(found, key=lambda s: s["label"].lower())
+
+    def _inputs_from_json(self) -> list[dict] | None:
+        out = self._pactl("-f", "json", "list", "sources")
+        if out is None:
+            return None
+        try:
+            sources = json.loads(out)
+        except ValueError:
+            return None
+        # A monitor names the output it listens to in monitor_source.
+        return [
+            {"id": src["name"], "label": src.get("description") or _input_label(src["name"])}
+            for src in sources
+            if isinstance(src, dict) and src.get("name")
+            and not src.get("monitor_source") and not src["name"].endswith(".monitor")
+        ]
+
+    def _inputs_from_text(self) -> list[dict] | None:
+        out = self._pactl("list", "sources")
+        if out is None:
+            return None
+        inputs, current = [], None
+        for line in out.splitlines():
+            line = line.strip()
+            if line.startswith("Source #"):
+                current = None
+            elif line.startswith("Name:"):
+                name = line[len("Name:"):].strip()
+                current = None if name.endswith(".monitor") else {"id": name, "label": _input_label(name)}
+                if current:
+                    inputs.append(current)
+            elif line.startswith("Description:") and current:
+                desc = line[len("Description:"):].strip()
+                if desc:
+                    current["label"] = desc
+            elif line.startswith("Monitor of Sink:") and current \
+                    and line[len("Monitor of Sink:"):].strip() not in ("", "n/a"):
+                inputs.remove(current)
+                current = None
+        return inputs
+
+    def check(self, source_id: str | None = None, kind: str = "system") -> None:
         if not shutil.which("parec"):
             raise RuntimeError(
                 "System audio capture needs parec, which was not found. Install "
@@ -180,6 +275,17 @@ class _LinuxCapture:
             )
         # PipeWire records the default source instead of failing when the
         # requested one is gone (e.g. Bluetooth headphones switched off).
+        if kind == "mic":
+            if source_id and source_id != self.DEFAULT_INPUT and shutil.which("pactl"):
+                inputs = self._inputs_from_json()
+                if inputs is None:
+                    inputs = self._inputs_from_text()
+                if inputs is not None and source_id not in {i["id"] for i in inputs}:
+                    raise RuntimeError(
+                        f"The selected microphone is not available: {source_id}. "
+                        "Choose another microphone and try again."
+                    )
+            return
         if source_id and source_id != self.DEFAULT_SOURCE["id"]:
             monitors = self._monitors()
             if monitors is not None and source_id not in {m["id"] for m in monitors}:
@@ -188,12 +294,14 @@ class _LinuxCapture:
                     "Choose another source and try again."
                 )
 
-    def command(self, source_id: str | None, output_path: str) -> list[str]:
-        source = source_id or self.DEFAULT_SOURCE["id"]
+    def command(self, source_id: str | None, output_path: str, kind: str = "system") -> list[str]:
+        default = self.DEFAULT_INPUT if kind == "mic" else self.DEFAULT_SOURCE["id"]
+        # The microphone is one voice: mono; system audio keeps its stereo.
+        channels = 1 if kind == "mic" else 2
         # A short latency keeps parec's buffer small: with its ~2 s default the
         # tail of the recording is still buffered when SIGINT arrives.
-        return [shutil.which("parec") or "parec", "-d", source,
-                "--file-format=wav", "--rate=48000", "--channels=2",
+        return [shutil.which("parec") or "parec", "-d", source_id or default,
+                "--file-format=wav", "--rate=48000", f"--channels={channels}",
                 "--latency-msec=100", output_path]
 
 
@@ -215,13 +323,20 @@ class _WindowsCapture:
     def __init__(self, capture_bin: str | None):
         self._bin = capture_bin
 
-    def _devices(self) -> list[dict] | None:
-        """Active output devices from the helper; None when it cannot list them."""
+    mic_denied_message = (
+        "Sonorus may not use the microphone. Turn on Settings → Privacy & security → "
+        "Microphone → Let desktop apps access your microphone, then try again."
+    )
+
+    def _devices(self, kind: str = "system") -> list[dict] | None:
+        """Active output devices (kind "mic": input devices) from the helper;
+        None when it cannot list them."""
         if not self._bin:
             return None
+        args = [self._bin, "--list", "--input"] if kind == "mic" else [self._bin, "--list"]
         try:
             result = subprocess.run(
-                [self._bin, "--list"], capture_output=True, text=True,
+                args, capture_output=True, text=True,
                 encoding="utf-8", timeout=5, creationflags=_NO_WINDOW,
             )
             if result.returncode != 0:
@@ -239,12 +354,30 @@ class _WindowsCapture:
                          key=lambda d: d["label"].lower())
         return [dict(self.DEFAULT_SOURCE), *outputs]
 
-    def check(self, source_id: str | None = None) -> None:
+    def inputs(self) -> list[dict]:
+        return sorted(({"id": d["id"], "label": d.get("label") or d["id"]}
+                       for d in self._devices("mic") or []),
+                      key=lambda d: d["label"].lower())
+
+    def check(self, source_id: str | None = None, kind: str = "system") -> None:
         if not self._bin:
             raise RuntimeError(
-                "The system audio capture helper (sonorus-capture.exe) was not found; "
+                "The audio capture helper (sonorus-capture.exe) was not found; "
                 "run: npm run build:capture:win"
             )
+        if kind == "mic":
+            inputs = self._devices("mic")
+            if inputs is None:
+                return
+            if not inputs:
+                raise RuntimeError("No microphone was found. Connect a microphone and try again.")
+            if source_id and source_id != self.DEFAULT_SOURCE["id"] \
+                    and source_id not in {d["id"] for d in inputs}:
+                raise RuntimeError(
+                    f"The selected microphone is not available: {source_id}. "
+                    "Choose another microphone and try again."
+                )
+            return
         devices = self._devices()
         if devices is None:
             return  # listing failed: let the helper report what is wrong
@@ -259,8 +392,9 @@ class _WindowsCapture:
                 "Choose another source and try again."
             )
 
-    def command(self, source_id: str | None, output_path: str) -> list[str]:
-        return [self._bin, "--device", source_id or self.DEFAULT_SOURCE["id"],
+    def command(self, source_id: str | None, output_path: str, kind: str = "system") -> list[str]:
+        mode = ["--input"] if kind == "mic" else []
+        return [self._bin, *mode, "--device", source_id or self.DEFAULT_SOURCE["id"],
                 "--output", output_path]
 
 
@@ -299,17 +433,23 @@ class AudioCaptureService:
     def get_sources(self) -> list[dict]:
         return self._driver().sources()
 
+    def get_inputs(self) -> list[dict]:
+        """The microphones; the default one is not listed (source id None)."""
+        return self._driver().inputs()
+
     def has_active_jobs(self) -> bool:
         with self._lock:
             return bool(self._jobs)
 
-    def start_capture(self, source_id: str | None = None) -> str:
+    def start_capture(self, source_id: str | None = None, kind: str = "system") -> str:
+        """Start capturing one track, kind "system" or "mic"; returns its job id."""
         driver = self._driver()
-        driver.check(source_id)
+        driver.check(source_id, kind)
         job_id = str(uuid.uuid4())
-        output_path = str(Path(tempfile.gettempdir()) / f"sonorus-sys-{job_id}.wav")
-        log_path = str(Path(tempfile.gettempdir()) / f"sonorus-sys-{job_id}.log")
-        cmd = self._build_command(source_id, output_path)
+        prefix = "sonorus-mic" if kind == "mic" else "sonorus-sys"
+        output_path = str(Path(tempfile.gettempdir()) / f"{prefix}-{job_id}.wav")
+        log_path = str(Path(tempfile.gettempdir()) / f"{prefix}-{job_id}.log")
+        cmd = self._build_command(source_id, output_path, kind=kind)
         # stderr goes to a file, never a pipe: the capture process runs for the
         # whole recording and would block once an unread pipe buffer fills up.
         # stdout is only needed for the READY handshake, stdin only for a stop
@@ -325,7 +465,8 @@ class AudioCaptureService:
             )
 
         if driver.handshake:
-            line = _read_first_line(process.stdout, _READY_TIMEOUT_SEC)
+            timeout = getattr(driver, "ready_timeout", {}).get(kind, _READY_TIMEOUT_SEC)
+            line = _read_first_line(process.stdout, timeout)
             # The helper writes from READY on, however long it took to start.
             started_at = time.time()
             if line is None:
@@ -340,6 +481,12 @@ class AudioCaptureService:
                 process.kill()
                 process.wait()
                 stderr = _read_log(log_path)
+                # A helper refused the microphone by the system: say where to allow it.
+                if kind == "mic" and "access denied" in stderr.lower() \
+                        and getattr(driver, "mic_denied_message", None):
+                    Path(log_path).unlink(missing_ok=True)
+                    Path(output_path).unlink(missing_ok=True)
+                    raise RuntimeError(driver.mic_denied_message)
                 raise RuntimeError(
                     f"sonorus-capture failed to start: {stderr or line or 'exited before it was ready'}"
                 )
@@ -358,12 +505,82 @@ class AudioCaptureService:
 
         with self._lock:
             self._jobs[job_id] = _CaptureJob(process=process, output_path=output_path, log_path=log_path,
-                                             started_at=started_at, stop_via_stdin=driver.stop_via_stdin)
+                                             started_at=started_at, stop_via_stdin=driver.stop_via_stdin,
+                                             kind=kind)
         return job_id
+
+    def alive(self, job_id: str) -> bool:
+        """Whether the capture process of a job still runs: one that ended by
+        itself lost its source (a device unplugged, the helper failed)."""
+        with self._lock:
+            job = self._jobs.get(job_id)
+        return job is not None and job.process.poll() is None
+
+    def started_at(self, job_id: str) -> float:
+        with self._lock:
+            return self._jobs[job_id].started_at
+
+    def discard(self, job_id: str) -> None:
+        """Stop a capture at once and remove its files; nothing is kept."""
+        with self._lock:
+            job = self._jobs.pop(job_id, None)
+        if job is None:
+            return
+        try:
+            job.process.kill()
+            job.process.wait(timeout=_STOP_TIMEOUT_SEC)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        Path(job.output_path).unlink(missing_ok=True)
+        Path(job.log_path).unlink(missing_ok=True)
+
+    def discard_all(self) -> None:
+        with self._lock:
+            ids = list(self._jobs)
+        for job_id in ids:
+            self.discard(job_id)
+
+    def stop_recording(self, system_job: str | None = None, mic_job: str | None = None) -> str:
+        """Stop the tracks of one recording and leave one file in recordings/.
+
+        The microphone stops first, then system audio (stop_capture() mixes
+        the microphone in, shifted by the difference of their start times, and
+        ends the mix with the microphone); system audio alone is levelled; a
+        microphone alone is kept as recorded. A track whose process already
+        ended by itself is saved up to that point.
+        """
+        log = logging.getLogger(__name__)
+        with self._lock:
+            ids = [j for j in (system_job, mic_job) if j]
+            if not ids:
+                raise ValueError("Nothing to stop")
+            if any(j not in self._jobs for j in ids):
+                raise ValueError("Job not found")
+            mic = self._jobs.pop(mic_job) if mic_job else None
+        try:
+            if mic:
+                _request_stop(mic)
+                self._wait_exit(mic, log)
+                self._require_audio(mic, NO_MIC_AUDIO)
+            if system_job:
+                return self.stop_capture(system_job, mic_path=mic.output_path if mic else None,
+                                         mic_started_at=mic.started_at if mic else None)
+            self._recordings_dir.mkdir(parents=True, exist_ok=True)
+            final = self._recordings_dir / f"sonorus-rec-{mic_job}.wav"
+            shutil.move(mic.output_path, final)
+            return str(final)
+        except Exception:
+            if system_job:
+                self.discard(system_job)
+            raise
+        finally:
+            if mic:
+                Path(mic.output_path).unlink(missing_ok=True)
 
     def stop_capture(self, job_id: str, mic_path: str | None = None,
                      mic_started_at: float | None = None) -> str:
-        """Stop a capture; with mic_path, mix that microphone track in.
+        """Stop a system audio capture; with mic_path, mix that microphone
+        track in.
 
         mic_started_at is when the microphone track starts (Unix time): the
         mix shifts it against the system track by the difference.
@@ -375,41 +592,47 @@ class AudioCaptureService:
         if job is None:
             raise ValueError("Job not found")
         _request_stop(job)
+        self._wait_exit(job, log)
+        try:
+            self._require_audio(job, self._driver().no_audio_message)
+            self._recordings_dir.mkdir(parents=True, exist_ok=True)
+            final = self._recordings_dir / f"sonorus-rec-{job_id}.wav"
+            if mic_path is None:
+                self._level(job.output_path, str(final))
+                return str(final)
+            self._merge(job.output_path, mic_path, str(final),
+                        mic_delay=_mic_delay(job.started_at, mic_started_at))
+            if self._is_own_recording(mic_path):
+                Path(mic_path).unlink(missing_ok=True)
+            return str(final)
+        finally:
+            Path(job.output_path).unlink(missing_ok=True)
+
+    # ── Internals ───────────────────────────────────────────────────────────
+
+    def _build_command(self, source_id: str | None, output_path: str, kind: str = "system") -> list[str]:
+        return self._driver().command(source_id, output_path, kind)
+
+    def _wait_exit(self, job: _CaptureJob, log) -> None:
+        """Wait for a capture process asked to stop; kill it if it hangs."""
         try:
             job.process.wait(timeout=_STOP_TIMEOUT_SEC)
         except subprocess.TimeoutExpired:
-            log.warning("capture process did not exit after SIGINT; killing it")
+            log.warning("capture process did not exit after the stop request; killing it")
             job.process.kill()
             job.process.wait()
-
         stderr_out = _read_log(job.log_path)
         Path(job.log_path).unlink(missing_ok=True)
         if stderr_out:
             log.warning("capture stderr:\n%s", stderr_out)
 
+    @staticmethod
+    def _require_audio(job: _CaptureJob, message: str) -> None:
         out = Path(job.output_path)
         size = out.stat().st_size if out.exists() else -1
-        log.info("capture output: %s  size=%d bytes", job.output_path, size)
-
+        logging.getLogger(__name__).info("capture output: %s  size=%d bytes", job.output_path, size)
         if size < 44:
-            raise RuntimeError(self._driver().no_audio_message)
-
-        self._recordings_dir.mkdir(parents=True, exist_ok=True)
-        final = self._recordings_dir / f"sonorus-rec-{job_id}.wav"
-        if mic_path is None:
-            self._level(job.output_path, str(final))
-            return str(final)
-        self._merge(job.output_path, mic_path, str(final),
-                    mic_delay=_mic_delay(job.started_at, mic_started_at))
-        Path(job.output_path).unlink(missing_ok=True)
-        if self._is_own_recording(mic_path):
-            Path(mic_path).unlink(missing_ok=True)
-        return str(final)
-
-    # ── Internals ───────────────────────────────────────────────────────────
-
-    def _build_command(self, source_id: str | None, output_path: str) -> list[str]:
-        return self._driver().command(source_id, output_path)
+            raise RuntimeError(message)
 
     def _is_own_recording(self, path: str) -> bool:
         """True if path is a file inside the recordings dir (safe to delete)."""
@@ -488,6 +711,11 @@ def _shift(seconds: float) -> str:
     """An adelay that puts this much silence in front of a track ('' for none)."""
     ms = round(seconds * 1000)
     return f",adelay=delays={ms}:all=1" if ms > 0 else ""
+
+
+def _input_label(name: str) -> str:
+    """Fallback label from an input source name (no description)."""
+    return name.removeprefix("alsa_input.")
 
 
 def _monitor_label(name: str) -> str:

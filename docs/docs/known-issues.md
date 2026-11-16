@@ -42,6 +42,30 @@ UserWarning: torchcodec is not installed correctly so built-in audio decoding wi
 
 ---
 
+### A lost recording device is not always noticed
+
+**Severity:** low — the recording goes on, sometimes with silence.
+
+**Symptom:** a microphone unplugged mid-recording on Windows, or one whose capture process exits, stops the recording, saves it and says so. An output device lost on Windows goes on as silence until Stop. On Linux PipeWire may move a recording to another device without a word, or keep the stream open with no audio.
+
+**Cause:** only a capture process that ends by itself tells the backend that a source is gone; the sound server may keep the process running.
+
+**Workaround:** check the device before a long recording; a recording that went silent is still saved up to Stop.
+
+---
+
+### Microphone access asked for the terminal in development on macOS
+
+**Severity:** low — development only.
+
+**Symptom:** with `npm start` from a terminal, macOS asks microphone access for the terminal, not for Sonorus, on the first microphone recording.
+
+**Cause:** the system asks for the app that started the backend, which started the capture helper.
+
+**Workaround:** allow it for the terminal in System Settings → Privacy & Security → Microphone; the packaged app is asked for itself.
+
+---
+
 ### AppImage taskbar icon shows generic icon on GNOME
 
 **Severity:** cosmetic — does not affect functionality.

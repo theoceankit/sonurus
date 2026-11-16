@@ -44,3 +44,12 @@ from app.services.gpu_pack import GpuPack
 @lru_cache(maxsize=1)
 def get_gpu_pack() -> GpuPack:
     return GpuPack(gpu_dir=config.GPU_DIR, manifest_path=config.GPU_MANIFEST)
+
+
+from app.services.live_recording_service import LiveRecordingService
+
+
+@lru_cache(maxsize=1)
+def get_live_recording_service() -> LiveRecordingService:
+    """The one live recording; let go of by the app lifespan."""
+    return LiveRecordingService(get_audio_capture_service(), get_transcription_queue())

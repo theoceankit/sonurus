@@ -1,6 +1,6 @@
 import type { GpuDownloadEvent } from '../gpu-events'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
-import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type HandleFormat, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type Speaker, type SpeakerCandidates } from '../types'
+import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type LiveRecording, type RecordingStart, type HandleFormat, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_GPU, FIXTURE_NOW, GONE_AUDIO_IDS, queueSnapshot } from './data'
 import { fixtureModels } from './models'
@@ -34,6 +34,8 @@ export type FixtureOptions = {
   // The system audio sources; FIXTURE_CAPTURE_SOURCES by default, none for a computer
   // where nothing can be captured.
   captureSources?: readonly AudioSource[]
+  // The microphones; FIXTURE_MIC_INPUTS by default.
+  micInputs?: readonly AudioSource[]
   // One method behaving differently, e.g. a failing save on a loaded screen.
   overrides?: Partial<ApiClient>
 }
@@ -78,9 +80,18 @@ export const FIXTURE_CAPTURE_SOURCES: readonly AudioSource[] = [
   { id: 'bluez_output.58_18_62_38_72_FA.1.monitor', label: 'WH-1000XM5' },
 ]
 
+// The microphones of the same desktop; the default one is not listed.
+export const FIXTURE_MIC_INPUTS: readonly AudioSource[] = [
+  { id: 'alsa_input.usb-046d_C922_Pro_Stream_Webcam-02.iec958-stereo', label: 'C922 Pro Stream Webcam Digital Stereo (IEC958)' },
+  { id: 'alsa_input.usb-Maono_PD300X-00.analog-stereo', label: 'Maono Dynamic Microphone Analog Stereo' },
+]
+
 // A source whose capture the backend refuses, as when parec is missing.
 export const BROKEN_SOURCE = 'broken.monitor'
 export const BROKEN_SOURCE_ERROR = 'System audio capture needs parec. Install pulseaudio-utils and try again.'
+// A microphone the backend refuses, as one unplugged since it was listed.
+export const BROKEN_MIC = 'alsa_input.unplugged'
+export const BROKEN_MIC_ERROR = 'The selected microphone is not available: alsa_input.unplugged. Choose another microphone and try again.'
 
 const RECORDINGS_DIR = '/home/me/.config/sonorus/recordings'
 export const FIXTURE_MODELS_DIR = '/home/me/.config/sonorus/.models'
@@ -98,9 +109,8 @@ const readAsDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
 // has its own copy, so stories and tests do not see each other's changes.
 export function createFixtureClient({
   scenario = 'default', board = 'review', noAudio = false, noModels = false, installedModels,
-  downloadStepMs = 400, downloadFails = false, gpu: gpuStatus = {}, captureSources = FIXTURE_CAPTURE_SOURCES, overrides = {},
+  downloadStepMs = 400, downloadFails = false, gpu: gpuStatus = {}, captureSources = FIXTURE_CAPTURE_SOURCES, micInputs = FIXTURE_MIC_INPUTS, overrides = {},
 }: FixtureOptions = {}): FixtureClient {
-  const captures = new Set<string>()
   const audioUrls = new Map<number, string>()
   const models = fixtureModels(noModels ? [] : installedModels)
   // The first download makes the models folder; deleting the models leaves it.
@@ -359,6 +369,64 @@ export function createFixtureClient({
     for (const listener of listeners) listener(structuredClone(event))
   }
 
+  // As the backend: a recording pauses a running queue and stops its job, and gives back
+  // only the pause it made itself; when it stops, it is queued first, then let go.
+  const startRecording = (request: RecordingStart): LiveRecording => {
+    if (queue.recording) throw new ApiError(409, 'A recording is already in progress')
+    const whisperModel = request.whisper_model ?? 'large-v3'
+    const language = request.language && request.language !== 'auto' ? request.language : null
+    const missing = missingModelError(models, whisperModel, language)
+    if (missing) throw missing
+    if (!request.mic && !request.system) throw new ApiError(400, 'Turn on the microphone or system audio to record.')
+    if (request.mic && request.mic_device === BROKEN_MIC) throw new ApiError(400, BROKEN_MIC_ERROR)
+    if (request.system && request.system_source === BROKEN_SOURCE) throw new ApiError(400, BROKEN_SOURCE_ERROR)
+    const recording: LiveRecording = {
+      phase: 'live',
+      title: request.title,
+      started_at: Date.now() / 1000,
+      sources: [...(request.mic ? ['mic' as const] : []), ...(request.system ? ['system' as const] : [])],
+    }
+    recordingJob = { title: request.title, whisperModel, language }
+    emit(queue.paused
+      ? { ...queue, recording }
+      : {
+        ...queue,
+        recording,
+        paused: true,
+        paused_by_recording: true,
+        running_job_id: null,
+        step: null,
+        jobs: queue.jobs.map(j => (j.status === 'running' ? { ...j, status: 'waiting' } : j)),
+      })
+    return recording
+  }
+  let recordingJob: { title: string; whisperModel: string; language: string | null } | null = null
+
+  const stopRecording = (): LiveRecording => {
+    if (queue.recording?.phase !== 'live' || !recordingJob) throw new ApiError(409, 'No recording is in progress')
+    const stopping: LiveRecording = { ...queue.recording, phase: 'stopping' }
+    const { title, whisperModel, language } = recordingJob
+    recordingJob = null
+    emit({ ...queue, recording: stopping })
+    setTimeout(() => {
+      const job: QueueJob = {
+        id: crypto.randomUUID(),
+        audio_path: `${RECORDINGS_DIR}/sonorus-rec-${crypto.randomUUID()}.wav`,
+        title,
+        whisper_model: whisperModel,
+        language,
+        status: 'waiting',
+        error: null,
+        error_code: null,
+        error_language: null,
+        created_at: new Date().toISOString().slice(0, 19),
+      }
+      const resume = queue.paused_by_recording && queue.start_mode === 'auto'
+      emit({ ...queue, jobs: [...queue.jobs, job], recording: null, paused_by_recording: false, paused: resume ? false : queue.paused })
+    }, 0)
+    return stopping
+  }
+
   const client: ApiClient = {
     now: () => new Date(FIXTURE_NOW),
     listTranscripts: () => answer(() => data.transcripts),
@@ -614,38 +682,9 @@ export function createFixtureClient({
       return waiting
     }),
     listCaptureSources: () => answer(() => [...captureSources]),
-    startCapture: sourceId => answer(() => {
-      if (sourceId === BROKEN_SOURCE) throw new ApiError(400, BROKEN_SOURCE_ERROR)
-      const job = crypto.randomUUID()
-      captures.add(job)
-      return job
-    }),
-    stopCapture: jobId => answer(() => {
-      if (!captures.delete(jobId)) throw new ApiError(404, 'Capture job not found')
-      return `${RECORDINGS_DIR}/sonorus-rec-${jobId}.wav`
-    }),
-    uploadRecording: () => answer(() => `${RECORDINGS_DIR}/sonorus-rec-${crypto.randomUUID()}.webm`),
-    // As the backend: a recording pauses a running queue and stops its job, and gives
-    // back only the pause it made itself.
-    startQueueRecording: () => answer(() => {
-      emit(queue.paused
-        ? { ...queue, recording: true }
-        : {
-          ...queue,
-          recording: true,
-          paused: true,
-          paused_by_recording: true,
-          running_job_id: null,
-          step: null,
-          jobs: queue.jobs.map(j => (j.status === 'running' ? { ...j, status: 'waiting' } : j)),
-        })
-      return queue
-    }),
-    stopQueueRecording: () => answer(() => {
-      const resume = queue.paused_by_recording && queue.start_mode === 'auto'
-      emit({ ...queue, recording: false, paused_by_recording: false, paused: resume ? false : queue.paused })
-      return queue
-    }),
+    listMicInputs: () => answer(() => [...micInputs]),
+    startRecording: request => answer(() => startRecording(request)),
+    stopRecording: () => answer(() => stopRecording()),
     subscribeQueueEvents: (listener, onConnection) => {
       listeners.add(listener)
       if (onConnection) connectionListeners.add(onConnection)

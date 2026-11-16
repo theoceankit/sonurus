@@ -15,7 +15,9 @@ if not _verbose:
 from app.logger import setup_logging
 from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data, gpu
 from app.api.refusals import Refusal, refusal_handler
-from app.api.dependencies import get_memory_service, get_storage_service, get_transcription_queue
+from app.api.dependencies import (
+    get_live_recording_service, get_memory_service, get_storage_service, get_transcription_queue,
+)
 from app.services.audio_store import remove_orphan_imports, remove_orphan_levels
 from app.services.speaker_photos import remove_orphan_photos
 from app.version import get_version
@@ -37,6 +39,9 @@ async def lifespan(app: FastAPI):
     remove_orphan_photos(config.SPEAKER_PHOTOS_DIR, memory.photo_names())
     queue.start_worker()
     yield
+    # A recording still running when the backend goes down is not saved: its
+    # capture processes and temp files are let go.
+    get_live_recording_service().shutdown()
     queue.stop_worker()
     models.shutdown_executor()
 

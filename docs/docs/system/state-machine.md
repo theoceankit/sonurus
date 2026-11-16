@@ -27,6 +27,8 @@ stateDiagram-v2
 
 **Transcription queue (orthogonal to navigation state)** — The backend runs queued jobs one at a time while the user navigates. The UI keeps the latest snapshot from `WS /ws/queue` and shows it as rows in the sidebar queue section above the recordings list, with Pause / Resume, Retry, the job's settings and delete. On completion a toast offers to open the recording and the sidebar refreshes. See [Transcription → The queue](../ui/electron/transcribe.md).
 
+**Live recording (orthogonal too)** — The backend owns it: `starting → live → stopping → none`, shown in the queue snapshot (`recording`). A window starts and stops it but holds nothing of it, so closing the window does not end it, and a window that opens mid-recording shows it from the first snapshot. Stopping, or a capture process that ends by itself, saves the recording and queues it before the queue may run again. See [Live Recording Service](../services/LiveRecordingService.md).
+
 ---
 
 ## 2. ML Pipeline

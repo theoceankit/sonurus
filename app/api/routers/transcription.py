@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 import app.config as config
 from app.api.dependencies import get_transcription_queue
 from app.api.refusals import Refusal
+from app.api.required_models import job_language, require_models
 from app.api.schemas import (
     JobDeleted, JobUpdateRequest, QueueJob, QueueOrderRequest, QueueSettingsRequest,
     QueueSnapshot, RefusalResponse, TranscribeRequest,
@@ -19,7 +20,6 @@ from app.api.schemas import (
 from app.config import WHISPER_MODEL
 from app.logger import get_logger
 from app.services.audio_store import discard_import, import_audio
-from app.services.model_service import ALIGNMENT_CATALOG, ModelNotInstalledError, ModelService
 from app.services.transcription_queue import (
     JobNotFailed, JobNotFound, JobRunning, TranscriptionQueue,
 )
@@ -29,27 +29,6 @@ logger = get_logger("transcription")
 router = APIRouter(tags=["transcription"])
 
 _HEARTBEAT_INTERVAL = 10  # seconds between heartbeats when the queue is quiet
-
-
-def _language(value: str | None) -> str | None:
-    return None if value in (None, "", "auto") else value
-
-
-def _require_models(whisper_model: str | None = None, language: str | None = None,
-                    check_diarize: bool = False) -> None:
-    """400 unless the models a job needs are installed."""
-    ms = ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR)
-    if whisper_model is not None and not ms.is_installed(whisper_model):
-        raise Refusal("whisper_model_missing", str(ModelNotInstalledError("whisper_model_missing", whisper_model)))
-    if check_diarize and not ms.is_installed("diarize"):
-        raise Refusal("diarization_model_missing", str(ModelNotInstalledError("diarization_model_missing", "diarize")))
-    # With auto-detect the language is only known mid-pipeline; a missing
-    # alignment model then fails the job with error_code alignment_model_missing.
-    if language in ALIGNMENT_CATALOG and not ms.is_installed(language):
-        raise Refusal(
-            "alignment_model_missing",
-            f'Alignment model for language "{language}" is not installed. Download it in Settings.',
-        )
 
 
 # ── Queue ─────────────────────────────────────────────────────────────────────
@@ -68,20 +47,6 @@ def start_queue(queue: TranscriptionQueue = Depends(get_transcription_queue)):
 @router.post("/queue/pause", response_model=QueueSnapshot)
 def pause_queue(queue: TranscriptionQueue = Depends(get_transcription_queue)):
     queue.pause()
-    return queue.snapshot()
-
-
-@router.post("/queue/recording/start", response_model=QueueSnapshot)
-def recording_started(queue: TranscriptionQueue = Depends(get_transcription_queue)):
-    """A live recording started: the queue pauses and the running job stops."""
-    queue.recording_started()
-    return queue.snapshot()
-
-
-@router.post("/queue/recording/stop", response_model=QueueSnapshot)
-def recording_stopped(queue: TranscriptionQueue = Depends(get_transcription_queue)):
-    """Call after queuing the new recording (it then goes last)."""
-    queue.recording_stopped()
     return queue.snapshot()
 
 
@@ -105,8 +70,8 @@ def reorder(body: QueueOrderRequest, queue: TranscriptionQueue = Depends(get_tra
 @router.post("/queue/jobs", response_model=QueueJob, responses={400: {"model": RefusalResponse}})
 async def add_job(body: TranscribeRequest, queue: TranscriptionQueue = Depends(get_transcription_queue)):
     whisper_model = body.whisper_model or WHISPER_MODEL
-    language = _language(body.language)
-    _require_models(whisper_model, language, check_diarize=True)
+    language = job_language(body.language)
+    require_models(whisper_model, language, check_diarize=True)
 
     # Named, not shown by path: the message is for the user.
     name = os.path.basename(body.audio_path)
@@ -139,8 +104,8 @@ def update_job(job_id: str, body: JobUpdateRequest,
     if "whisper_model" in body.model_fields_set and body.whisper_model is not None:
         fields["whisper_model"] = body.whisper_model
     if "language" in body.model_fields_set:
-        fields["language"] = _language(body.language)
-    _require_models(fields.get("whisper_model"), fields.get("language"))
+        fields["language"] = job_language(body.language)
+    require_models(fields.get("whisper_model"), fields.get("language"))
     try:
         return queue.update(job_id, **fields)
     except JobNotFound:
@@ -163,7 +128,7 @@ def retry_job(job_id: str, queue: TranscriptionQueue = Depends(get_transcription
         job = queue.get(job_id)
         if job["status"] == "failed":
             # A retry that would fail again at once is refused, like add / edit.
-            _require_models(job["whisper_model"], job["language"], check_diarize=True)
+            require_models(job["whisper_model"], job["language"], check_diarize=True)
         return queue.retry(job_id)
     except JobNotFound:
         raise HTTPException(status_code=404, detail="Job not found")

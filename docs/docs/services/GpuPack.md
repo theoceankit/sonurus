@@ -115,4 +115,4 @@ An exception (e.g. a missing CUDA library) is reported as `"<Type>: <message>"`.
 
 ## Restart
 
-After a download or a removal the backend has to restart. `POST /gpu/restart` answers `ready` only when no transcription runs, no capture runs and no model or GPU download runs; otherwise `waiting` with the reason. A running transcription is not interrupted: `TranscriptionQueue.prepare_restart()` keeps the worker from starting the next job and remembers whether the queue was running, so the restarted backend continues ([Transcription Queue → Worker](./TranscriptionQueue.md#worker)).
+After a download or a removal the backend has to restart. `POST /gpu/restart` answers `ready` only when no transcription runs, no live recording runs and no model or GPU download runs; otherwise `waiting` with the reason. A running transcription is not interrupted: `TranscriptionQueue.prepare_restart()` keeps the worker from starting the next job and remembers whether the queue was running, so the restarted backend continues ([Transcription Queue → Worker](./TranscriptionQueue.md#worker)).

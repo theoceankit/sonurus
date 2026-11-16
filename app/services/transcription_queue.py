@@ -11,7 +11,10 @@ Start mode (stored):
 - manual — it pauses itself when nothing is left to run.
 
 A live recording pauses the queue; when it stops, the queue resumes only in
-auto mode and only if the recording was what paused it.
+auto mode and only if the recording was what paused it. The recording itself
+(LiveRecordingService) is shown in the snapshot ("recording": its phase,
+title, start time and sources, or null), and its events go out with the
+queue's, so a window that opens mid-recording learns of it from WS /ws/queue.
 
 A restart of the backend by the app (GPU acceleration applied or removed) is
 prepared with prepare_restart(): no new job starts from then on, and once
@@ -76,7 +79,7 @@ class TranscriptionQueue:
         if self._resume_after_restart():
             self._paused = False
         self._paused_by_recording = False
-        self._recording = False
+        self._recording: dict | None = None
         self._running_id: str | None = None
         self._step: str | None = None
         self._cancel: threading.Event | None = None
@@ -221,23 +224,31 @@ class TranscriptionQueue:
             self._cancel.set()
         self._cond.notify_all()
 
-    def recording_started(self) -> None:
+    def recording_started(self, state: dict) -> None:
+        """A live recording starts: the queue pauses and the running job stops."""
         with self._cond:
-            self._recording = True
+            self._recording = dict(state)
             if not self._paused:
                 self._pause()
                 self._paused_by_recording = True
         self._publish()
 
-    def recording_stopped(self) -> None:
+    def recording_updated(self, state: dict) -> None:
         with self._cond:
-            self._recording = False
+            self._recording = dict(state)
+        self._publish()
+
+    def recording_stopped(self, *events: dict) -> None:
+        """Call after queuing the new recording (it then goes last); events
+        (recording_failed, recording_source_lost) go out before the snapshot."""
+        with self._cond:
+            self._recording = None
             if self._paused_by_recording:
                 self._paused_by_recording = False
                 if self._start_mode == "auto":
                     self._paused = False
                     self._cond.notify_all()
-        self._publish()
+        self._publish(*events)
 
     def set_start_mode(self, mode: str) -> None:
         if mode not in START_MODES:
@@ -378,7 +389,7 @@ class TranscriptionQueue:
                 "type": "snapshot",
                 "paused": self._paused,
                 "paused_by_recording": self._paused_by_recording,
-                "recording": self._recording,
+                "recording": dict(self._recording) if self._recording else None,
                 "start_mode": self._start_mode,
                 "running_job_id": self._running_id,
                 "step": self._step,

@@ -62,7 +62,7 @@ def test_a_new_empty_queue_runs_in_auto_mode(env):
     make, _, runner, recordings = env
     q = make(start_paused=False)
     assert q.snapshot() == {"type": "snapshot", "paused": False, "paused_by_recording": False,
-                            "recording": False, "start_mode": "auto", "running_job_id": None,
+                            "recording": None, "start_mode": "auto", "running_job_id": None,
                             "step": None, "jobs": []}
     _add(q, recordings, "a")
     wait_for(lambda: runner.started == ["a"])
@@ -441,10 +441,10 @@ def test_recording_pauses_and_interrupts_then_auto_resumes(env):
     _add(q, recordings, "a")
     q.start()
     wait_for(lambda: runner.started == ["a"])
-    q.recording_started()
+    q.recording_started(REC)
     wait_for(lambda: idle(q))
     s = q.snapshot()
-    assert (s["paused"], s["paused_by_recording"], s["recording"]) == (True, True, True)
+    assert (s["paused"], s["paused_by_recording"], s["recording"]) == (True, True, REC)
     assert runner.cancelled == ["a"]
     _add(q, recordings, "dropped")  # imports are allowed while recording
     _add(q, recordings, "rec")      # the new recording goes to the end
@@ -453,9 +453,27 @@ def test_recording_pauses_and_interrupts_then_auto_resumes(env):
     runner.release("a")
     q.recording_stopped()
     s = q.snapshot()
-    assert (s["paused"], s["paused_by_recording"], s["recording"]) == (False, False, False)
+    assert (s["paused"], s["paused_by_recording"], s["recording"]) == (False, False, None)
     wait_for(lambda: q.snapshot()["jobs"] == [])
     assert runner.started == ["a", "a", "dropped", "rec"]
+
+
+REC = {"phase": "live", "title": "Standup", "started_at": 1000.0, "sources": ["mic"]}
+
+
+def test_a_recording_change_is_published_and_its_events_come_before_the_snapshot(env):
+    make, *_ = env
+    q = make()
+    events = []
+    q.subscribe(events.append)
+    q.recording_started({**REC, "phase": "starting"})
+    q.recording_updated(REC)
+    assert q.snapshot()["recording"] == REC
+    assert events[-1]["recording"] == REC
+    events.clear()
+    q.recording_stopped({"type": "recording_failed", "title": "Standup", "error": "x"})
+    assert [e["type"] for e in events] == ["recording_failed", "snapshot"]
+    assert events[-1]["recording"] is None
 
 
 def test_recording_while_already_paused_does_not_resume_afterwards(env):
@@ -463,7 +481,7 @@ def test_recording_while_already_paused_does_not_resume_afterwards(env):
     q = make()
     q.start()
     q.pause()
-    q.recording_started()
+    q.recording_started(REC)
     assert q.snapshot()["paused_by_recording"] is False
     q.recording_stopped()
     _add(q, recordings, "a")
@@ -475,7 +493,7 @@ def test_user_pause_during_recording_stays_after_it(env):
     make, *_ = env
     q = make()
     q.start()
-    q.recording_started()
+    q.recording_started(REC)
     q.pause()
     q.recording_stopped()
     assert q.snapshot()["paused"] is True
@@ -489,7 +507,7 @@ def test_manual_mode_does_not_resume_after_a_recording(env):
     _add(q, recordings, "a")
     q.start()
     wait_for(lambda: runner.started == ["a"])
-    q.recording_started()
+    q.recording_started(REC)
     q.recording_stopped()
     time.sleep(0.05)
     assert q.snapshot()["paused"] is True
@@ -500,7 +518,7 @@ def test_start_during_a_recording_is_the_users_choice(env):
     make, _, runner, recordings = env
     q = make()
     q.start()
-    q.recording_started()
+    q.recording_started(REC)
     q.start()
     _add(q, recordings, "a")
     wait_for(lambda: runner.started == ["a"])

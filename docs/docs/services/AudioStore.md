@@ -14,7 +14,7 @@ All audio referenced by `transcriptions.audio_file` lives in `RECORDINGS_DIR` (`
 
 | File | Origin |
 |---|---|
-| `sonorus-rec-<uuid>.wav` / `.webm` | Live recording (capture service or renderer `MediaRecorder`) |
+| `sonorus-rec-<uuid>.wav` | Live recording, written by the capture service (older recordings made in the window may be `.webm`) |
 | `sonorus-import-<uuid>.<ext>` | Copy of an imported file; the extension is kept, lower-cased |
 | `<audio file name>.levels` | The loudness of the audio for the player's waveform ([Waveform](Waveform.md)); goes wherever its audio goes |
 

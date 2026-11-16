@@ -31,75 +31,21 @@
         "title": "AlignmentModelInfo",
         "type": "object"
       },
-      "AudioCaptureStartRequest": {
+      "AudioInputsResponse": {
+        "description": "The microphones; the default one is not listed (mic_device null).",
         "properties": {
-          "source_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Id"
-          }
-        },
-        "title": "AudioCaptureStartRequest",
-        "type": "object"
-      },
-      "AudioCaptureStartResponse": {
-        "properties": {
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/AudioSource"
+            },
+            "title": "Inputs",
+            "type": "array"
           }
         },
         "required": [
-          "job_id"
+          "inputs"
         ],
-        "title": "AudioCaptureStartResponse",
-        "type": "object"
-      },
-      "AudioCaptureStopRequest": {
-        "properties": {
-          "mic_path": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mic Path"
-          },
-          "mic_started_at": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mic Started At"
-          }
-        },
-        "title": "AudioCaptureStopRequest",
-        "type": "object"
-      },
-      "AudioCaptureStopResponse": {
-        "properties": {
-          "file_path": {
-            "title": "File Path",
-            "type": "string"
-          }
-        },
-        "required": [
-          "file_path"
-        ],
-        "title": "AudioCaptureStopResponse",
+        "title": "AudioInputsResponse",
         "type": "object"
       },
       "AudioSource": {
@@ -404,7 +350,7 @@
         "type": "object"
       },
       "JobDoneEvent": {
-        "description": "WS /ws/queue. TranscriptionQueue sends these three as plain dicts;\ntests hold them to these models.",
+        "description": "WS /ws/queue. TranscriptionQueue sends these events as plain dicts;\ntests hold them to these models.",
         "properties": {
           "job_id": {
             "title": "Job Id",
@@ -527,6 +473,54 @@
           }
         },
         "title": "JobUpdateRequest",
+        "type": "object"
+      },
+      "LiveRecording": {
+        "description": "The live recording in the queue snapshot. started_at: when its first\ntrack started, Unix time in seconds (null while starting).",
+        "properties": {
+          "phase": {
+            "enum": [
+              "starting",
+              "live",
+              "stopping"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "enum": [
+                "mic",
+                "system"
+              ],
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phase",
+          "title",
+          "started_at",
+          "sources"
+        ],
+        "title": "LiveRecording",
         "type": "object"
       },
       "ModelsFolder": {
@@ -690,8 +684,14 @@
             "type": "boolean"
           },
           "recording": {
-            "title": "Recording",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LiveRecording"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "running_job_id": {
             "anyOf": [
@@ -743,17 +743,128 @@
         "title": "QueueSnapshot",
         "type": "object"
       },
-      "RecordingUploadResponse": {
+      "RecordingFailedEvent": {
+        "description": "The recording stopped but could not be saved or queued.",
         "properties": {
-          "file_path": {
-            "title": "File Path",
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "recording_failed",
+            "title": "Type",
             "type": "string"
           }
         },
         "required": [
-          "file_path"
+          "type",
+          "title",
+          "error"
         ],
-        "title": "RecordingUploadResponse",
+        "title": "RecordingFailedEvent",
+        "type": "object"
+      },
+      "RecordingSourceLostEvent": {
+        "description": "A track ended by itself (a device unplugged): the recording was\nstopped, saved and queued.",
+        "properties": {
+          "source": {
+            "enum": [
+              "mic",
+              "system"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "recording_source_lost",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "source",
+          "title"
+        ],
+        "title": "RecordingSourceLostEvent",
+        "type": "object"
+      },
+      "RecordingStartRequest": {
+        "description": "POST /audio/recording/start. mic_device / system_source null = the\ndefault; whisper_model null = the default model; language null or\n\"auto\" = auto-detect. The recording is queued with title, model and\nlanguage when it stops.",
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "mic": {
+            "title": "Mic",
+            "type": "boolean"
+          },
+          "mic_device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mic Device"
+          },
+          "system": {
+            "title": "System",
+            "type": "boolean"
+          },
+          "system_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Source"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "whisper_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whisper Model"
+          }
+        },
+        "required": [
+          "mic",
+          "system",
+          "title"
+        ],
+        "title": "RecordingStartRequest",
         "type": "object"
       },
       "RefusalResponse": {
@@ -1567,6 +1678,24 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/audio/capture/inputs": {
+      "get": {
+        "operationId": "get_inputs_audio_capture_inputs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioInputsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Inputs"
+      }
+    },
     "/audio/capture/sources": {
       "get": {
         "operationId": "get_sources_audio_capture_sources_get",
@@ -1585,29 +1714,35 @@
         "summary": "Get Sources"
       }
     },
-    "/audio/capture/start": {
+    "/audio/recording/start": {
       "post": {
-        "operationId": "start_capture_audio_capture_start_post",
+        "operationId": "start_recording_audio_recording_start_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AudioCaptureStartRequest",
-                "default": {}
+                "$ref": "#/components/schemas/RecordingStartRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AudioCaptureStartResponse"
+                  "$ref": "#/components/schemas/LiveRecording"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "description": "The recording cannot start; detail says why"
+          },
+          "409": {
+            "description": "A recording is already in progress"
           },
           "422": {
             "content": {
@@ -1620,75 +1755,29 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Start Capture"
+        "summary": "Start Recording"
       }
     },
-    "/audio/capture/stop/{job_id}": {
+    "/audio/recording/stop": {
       "post": {
-        "operationId": "stop_capture_audio_capture_stop__job_id__post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AudioCaptureStopRequest",
-                "default": {}
-              }
-            }
-          }
-        },
+        "description": "Answers at once (phase stopping); the recording is saved and queued\nafter, and its end comes over WS /ws/queue.",
+        "operationId": "stop_recording_audio_recording_stop_post",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AudioCaptureStopResponse"
+                  "$ref": "#/components/schemas/LiveRecording"
                 }
               }
             },
             "description": "Successful Response"
           },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+          "409": {
+            "description": "No recording is in progress"
           }
         },
-        "summary": "Stop Capture"
-      }
-    },
-    "/audio/recordings": {
-      "post": {
-        "description": "Store a live recording (raw body, Content-Type audio/webm or audio/wav)\nin RECORDINGS_DIR. The backend is the only writer of that dir, so the UI\nuploads instead of writing a file wherever its own data dir is.",
-        "operationId": "upload_recording_audio_recordings_post",
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecordingUploadResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Upload Recording"
+        "summary": "Stop Recording"
       }
     },
     "/data/reset": {
@@ -2341,50 +2430,6 @@
           }
         },
         "summary": "Pause Queue",
-        "tags": [
-          "transcription"
-        ]
-      }
-    },
-    "/queue/recording/start": {
-      "post": {
-        "description": "A live recording started: the queue pauses and the running job stops.",
-        "operationId": "recording_started_queue_recording_start_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QueueSnapshot"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Recording Started",
-        "tags": [
-          "transcription"
-        ]
-      }
-    },
-    "/queue/recording/stop": {
-      "post": {
-        "description": "Call after queuing the new recording (it then goes last).",
-        "operationId": "recording_stopped_queue_recording_stop_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QueueSnapshot"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Recording Stopped",
         "tags": [
           "transcription"
         ]

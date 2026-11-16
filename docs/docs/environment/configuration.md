@@ -85,7 +85,7 @@ If a backend already answers on port 8000 when the app starts, Electron reuses i
 - **Installed app** — reuses a backend serving its own data directory (e.g. one that outlived a crash). Any other backend — dev mode, another data directory, an older Sonorus or another program — stops the start with an error dialog naming what holds the port.
 - **Dev mode** — reuses any Sonorus backend that the installed app did not start, e.g. one started manually with `uvicorn`; its `SONORUS_DATA_DIR` then applies. The installed app's backend stops the start with an error dialog.
 
-Live recordings end up in the `recordings/` of the backend in use: the UI uploads them (`POST /audio/recordings`) and only the backend writes files there.
+Live recordings end up in the `recordings/` of the backend in use: the backend records them itself and is the only writer of that folder.
 
 ### .env file (dev only)
 

@@ -3,10 +3,13 @@
 Runs as a real child process in tests, so the Windows driver's handshake and
 stdin stop are exercised on any OS. No app imports.
 
-    capture_workers.py --list
-        prints FAKE_CAPTURE_DEVICES (JSON) or exits 1 if FAKE_CAPTURE_LIST_FAILS is set
-    capture_workers.py --device <id> --output <path>
+    capture_workers.py --list [--input]
+        prints FAKE_CAPTURE_DEVICES (with --input: FAKE_CAPTURE_INPUTS) as JSON,
+        or exits 1 if FAKE_CAPTURE_LIST_FAILS is set
+    capture_workers.py [--input] --device <id> --output <path>
         device "broken" → error on stderr, exit 2 before READY;
+        with --input, device "denied" → "ERROR: microphone access denied", exit 2,
+        and device "lost" → READY, then the file is closed and exit 3;
         otherwise writes a WAV, prints READY, records until "stop" or EOF on stdin
 """
 import json
@@ -24,11 +27,12 @@ def _wav_header(data_bytes: int) -> bytes:
 
 
 def main(argv):
-    if argv[:1] == ["--list"]:
+    is_input = "--input" in argv
+    if "--list" in argv:
         if os.environ.get("FAKE_CAPTURE_LIST_FAILS"):
             sys.stderr.write("ERROR: no audio endpoints\n")
             return 1
-        sys.stdout.write(os.environ.get("FAKE_CAPTURE_DEVICES", "[]"))
+        sys.stdout.write(os.environ.get("FAKE_CAPTURE_INPUTS" if is_input else "FAKE_CAPTURE_DEVICES", "[]"))
         return 0
 
     device = argv[argv.index("--device") + 1]
@@ -36,12 +40,18 @@ def main(argv):
     if device == "broken":
         sys.stderr.write("ERROR: could not open the output device\n")
         return 2
+    if is_input and device == "denied":
+        sys.stderr.write("ERROR: microphone access denied\n")
+        return 2
 
     frames = b"\0\0" * CHANNELS * 4800  # 0.1 s of silence
     with open(output, "wb") as f:
         f.write(_wav_header(len(frames)) + frames)
     sys.stdout.write("READY\n")
     sys.stdout.flush()
+    if is_input and device == "lost":
+        sys.stderr.write("ERROR: the microphone was lost\n")
+        return 3
 
     for line in sys.stdin:
         if line.strip() == "stop":

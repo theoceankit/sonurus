@@ -11,13 +11,13 @@ describe('header', () => {
   test('queueStateLabel: running, paused, paused by a recording', () => {
     expect(queueStateLabel(queueSnapshot())).toBe('Running')
     expect(queueStateLabel(queueSnapshot({ paused: true }))).toBe('Paused')
-    expect(queueStateLabel(queueSnapshot({ paused: true, paused_by_recording: true, recording: true }))).toBe('Paused while recording')
+    expect(queueStateLabel(queueSnapshot({ paused: true, paused_by_recording: true, recording: { phase: 'live', title: 'Live', started_at: 0, sources: ['mic'] } }))).toBe('Paused while recording')
   })
 
   test('queueToggle: Pause queue while running, Resume queue while paused (also during a recording)', () => {
     expect(queueToggle(queueSnapshot())).toEqual({ action: 'pause', label: 'Pause queue', icon: 'pause' })
     expect(queueToggle(queueSnapshot({ paused: true }))).toEqual({ action: 'start', label: 'Resume queue', icon: 'play' })
-    expect(queueToggle(queueSnapshot({ paused: true, paused_by_recording: true, recording: true })).action).toBe('start')
+    expect(queueToggle(queueSnapshot({ paused: true, paused_by_recording: true, recording: { phase: 'live', title: 'Live', started_at: 0, sources: ['mic'] } })).action).toBe('start')
   })
 })
 

@@ -6,7 +6,7 @@ import type { ElectronSettings } from '../platform/electron-api'
 export type RecordingSources = { mic: boolean; system: boolean }
 export type SourceSetting = ElectronSettings['recordingAudioSource']
 
-// A device in a menu: an input's deviceId or a backend source id.
+// A device in a menu: a backend microphone or source id.
 export type { DeviceOption }
 
 // The default microphone. Saved as null.
@@ -29,14 +29,11 @@ export function sourceSetting({ mic, system }: RecordingSources): SourceSetting 
   return null
 }
 
-// The labels are empty until the window may use the microphone, so the dialog asks
-// for it before it lists the inputs.
-export function micOptions(devices: readonly MediaDeviceInfo[]): DeviceOption[] {
+// The default microphone first, then each microphone the backend can record.
+export function micOptions(inputs: readonly AudioSource[]): DeviceOption[] {
   return [
     { value: DEFAULT_MIC, label: 'Default microphone' },
-    ...devices
-      .filter(device => device.kind === 'audioinput')
-      .map(device => ({ value: device.deviceId, label: device.label || `Microphone ${device.deviceId.slice(0, 6)}` })),
+    ...inputs.map(({ id, label }) => ({ value: id, label })),
   ]
 }
 

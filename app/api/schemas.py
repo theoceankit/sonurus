@@ -181,11 +181,20 @@ class QueueJob(BaseModel):
     created_at: str
 
 
+class LiveRecording(BaseModel):
+    """The live recording in the queue snapshot. started_at: when its first
+    track started, Unix time in seconds (null while starting)."""
+    phase: Literal["starting", "live", "stopping"]
+    title: str
+    started_at: float | None
+    sources: list[Literal["mic", "system"]]
+
+
 class QueueSnapshot(ResponseModel):
     type: Literal["snapshot"] = "snapshot"
     paused: bool
     paused_by_recording: bool
-    recording: bool
+    recording: LiveRecording | None
     start_mode: Literal["auto", "manual"]
     running_job_id: str | None
     step: str | None
@@ -193,7 +202,7 @@ class QueueSnapshot(ResponseModel):
 
 
 class JobDoneEvent(BaseModel):
-    """WS /ws/queue. TranscriptionQueue sends these three as plain dicts;
+    """WS /ws/queue. TranscriptionQueue sends these events as plain dicts;
     tests hold them to these models."""
     type: Literal["job_done"]
     job_id: str
@@ -208,6 +217,21 @@ class JobFailedEvent(BaseModel):
     error: str
     error_code: str | None
     error_language: str | None
+
+
+class RecordingFailedEvent(BaseModel):
+    """The recording stopped but could not be saved or queued."""
+    type: Literal["recording_failed"]
+    title: str
+    error: str
+
+
+class RecordingSourceLostEvent(BaseModel):
+    """A track ended by itself (a device unplugged): the recording was
+    stopped, saved and queued."""
+    type: Literal["recording_source_lost"]
+    source: Literal["mic", "system"]
+    title: str
 
 
 class HeartbeatEvent(BaseModel):

@@ -161,13 +161,83 @@ def test_start_runs_the_queue_and_pause_stops_it(api):
     wait_for(lambda: queue.snapshot()["jobs"] == [])
 
 
-def test_recording_endpoints(api):
-    tc, _, _, _ = api
+@pytest.fixture
+def recording(api, tmp_path):
+    """The live recording on a fake capture and the api's queue."""
+    from app.api.dependencies import get_live_recording_service
+    from app.services.live_recording_service import LiveRecordingService
+    from capture_fakes import FakeCapture
+    tc, queue, _, _ = api
+    capture = FakeCapture(config.RECORDINGS_DIR)
+    service = LiveRecordingService(capture, queue, poll_interval=0.01)
+    app.dependency_overrides[get_live_recording_service] = lambda: service
+    yield tc, queue, capture, service
+    service.shutdown()
+
+
+_START = {"mic": True, "mic_device": None, "system": True, "system_source": None,
+          "title": "Standup", "whisper_model": "small", "language": None}
+
+
+def test_a_recording_runs_from_start_to_the_queue(recording, api):
+    tc, queue, capture, service = recording
+    runner = api[2]
     tc.post("/queue/start")
-    s = tc.post("/queue/recording/start").json()
-    assert (s["recording"], s["paused"], s["paused_by_recording"]) == (True, True, True)
-    s = tc.post("/queue/recording/stop").json()
-    assert (s["recording"], s["paused"]) == (False, False)
+    r = tc.post("/audio/recording/start", json=_START)
+    assert r.status_code == 200, r.text
+    assert r.json()["phase"] == "live" and r.json()["title"] == "Standup"
+    s = tc.get("/queue").json()
+    assert s["recording"]["phase"] == "live"
+    assert sorted(s["recording"]["sources"]) == ["mic", "system"]
+    assert (s["paused"], s["paused_by_recording"]) == (True, True)
+    assert tc.post("/audio/recording/start", json=_START).status_code == 409
+    r = tc.post("/audio/recording/stop")
+    assert r.status_code == 200 and r.json()["phase"] == "stopping"
+    wait_for(lambda: not service.is_recording())
+    s = tc.get("/queue").json()
+    assert s["recording"] is None
+    # Queued, and the queue the recording paused runs again.
+    wait_for(lambda: runner.started == ["Standup"])
+    assert tc.post("/audio/recording/stop").status_code == 409
+
+
+def test_a_recording_start_needs_a_source(recording):
+    tc, *_ = recording
+    r = tc.post("/audio/recording/start", json={**_START, "mic": False, "system": False})
+    assert r.status_code == 400
+
+
+def test_a_capture_that_cannot_start_is_a_400_with_its_reason(recording):
+    tc, queue, capture, _ = recording
+    capture.fail_start["mic"] = RuntimeError("The selected microphone is not available: x.")
+    r = tc.post("/audio/recording/start", json=_START)
+    assert r.status_code == 400
+    assert r.json()["detail"] == "The selected microphone is not available: x."
+    assert tc.get("/queue").json()["recording"] is None
+
+
+def test_a_recording_with_a_missing_model_is_refused_before_it_starts(recording):
+    tc, _, capture, _ = recording
+    r = tc.post("/audio/recording/start", json={**_START, "whisper_model": "medium"})
+    assert r.status_code == 400
+    assert r.json()["code"] == "whisper_model_missing"
+    assert capture.jobs == {}
+
+
+def test_the_microphones_and_system_sources_are_listed(recording):
+    tc, *_ = recording
+    from app.api.dependencies import get_audio_capture_service
+    from capture_fakes import FakeCapture
+    app.dependency_overrides[get_audio_capture_service] = lambda: FakeCapture(None)
+    assert tc.get("/audio/capture/inputs").json() == {"inputs": [{"id": "alsa_input.maono", "label": "Maono"}]}
+    assert tc.get("/audio/capture/sources").json()["sources"][0]["id"] == "@DEFAULT_MONITOR@"
+
+
+def test_the_window_driven_recording_routes_are_gone(api):
+    tc, *_ = api
+    for route in ("/queue/recording/start", "/queue/recording/stop", "/audio/capture/start",
+                  "/audio/capture/stop/x", "/audio/recordings"):
+        assert tc.post(route).status_code in (404, 405), route
 
 
 def test_settings(api):
@@ -266,15 +336,15 @@ def test_ws_sends_a_snapshot_then_changes_and_job_events(api):
 
 # ── Guards elsewhere ──────────────────────────────────────────────────────────
 
-class _Capture:
-    def has_active_jobs(self):
+class _Idle:
+    def is_recording(self):
         return False
 
 
 def test_speaker_delete_is_409_only_while_a_job_runs(api):
-    from app.api.dependencies import get_audio_capture_service
+    from app.api.dependencies import get_live_recording_service
     tc, _, runner, tmp_path = api
-    app.dependency_overrides[get_audio_capture_service] = lambda: _Capture()
+    app.dependency_overrides[get_live_recording_service] = lambda: _Idle()
     runner.hold("Team Meeting")
     _post(tc, tmp_path)
     assert tc.delete("/speakers/some-id").status_code == 404  # queued job: no 409
@@ -285,9 +355,9 @@ def test_speaker_delete_is_409_only_while_a_job_runs(api):
 
 
 def test_data_reset_is_409_while_a_job_runs_and_clears_a_paused_queue(api):
-    from app.api.dependencies import get_audio_capture_service
+    from app.api.dependencies import get_live_recording_service
     tc, queue, runner, tmp_path = api
-    app.dependency_overrides[get_audio_capture_service] = lambda: _Capture()
+    app.dependency_overrides[get_live_recording_service] = lambda: _Idle()
     runner.hold("a")
     _post(tc, tmp_path, "a.wav"), _post(tc, tmp_path, "b.wav")
     tc.post("/queue/start")

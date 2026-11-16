@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useCaptureSources } from '../api/queries'
+import { useCaptureSources, useMicInputs } from '../api/queries'
 import { settingsStore, useSettings } from '../platform/settings'
-import { useInputDevices } from './devices'
-import { useRecording } from './RecordingProvider'
-import type { RecordingRequest } from './session'
+import { useRecording, type RecordingRequest } from './RecordingProvider'
 import {
   DEFAULT_MIC, NO_SYSTEM_AUDIO, micOptions, pickDevice, sourceSetting, sourcesOf, startBlockReason, systemOptions,
   type DeviceOption, type RecordingSources,
@@ -38,13 +36,13 @@ export function useRecordingSetup(active: boolean, session: number) {
   const settings = useSettings()
   const recording = useRecording()
   const capture = useCaptureSources(active)
-  const inputs = useInputDevices(active)
+  const inputs = useMicInputs(active)
   const [picks, setPicks] = useState<Picks>(NOTHING)
 
   // Each opening starts from what is saved.
   useEffect(() => { setPicks(NOTHING) }, [session])
 
-  const micDevices = micOptions(inputs)
+  const micDevices = micOptions(inputs.data ?? [])
   const systemDevices = systemOptions(capture.data ?? [])
   const systemAvailable = systemDevices.length > 0
   const sources = picks.sources ?? sourcesOf(settings?.recordingAudioSource)
