@@ -39,6 +39,7 @@ class FakeCapture:
             self.jobs.pop(job_id, None)
         if self.fail_stop:
             raise self.fail_stop
+        self.tmp.mkdir(parents=True, exist_ok=True)
         path = self.tmp / f"sonorus-rec-{system_job or mic_job}.wav"
         path.write_bytes(b"RIFF")
         return str(path)

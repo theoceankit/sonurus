@@ -168,7 +168,7 @@ def recording(api, tmp_path):
     from app.services.live_recording_service import LiveRecordingService
     from capture_fakes import FakeCapture
     tc, queue, _, _ = api
-    capture = FakeCapture(config.RECORDINGS_DIR.parent)
+    capture = FakeCapture(config.RECORDINGS_DIR)
     service = LiveRecordingService(capture, queue, poll_interval=0.01)
     app.dependency_overrides[get_live_recording_service] = lambda: service
     yield tc, queue, capture, service
