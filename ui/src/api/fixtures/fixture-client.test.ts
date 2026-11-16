@@ -9,7 +9,7 @@ import { BROKEN_SOURCE, createFixtureClient, NO_MODELS } from './fixture-client'
 import { DEFAULT_INSTALLED } from './models'
 import { ALIGNMENT_MODELS } from '../../transcribe/languages'
 
-const { anna, mark, oliver, unknown1 } = SPEAKER_IDS
+const { anna, lena, mark, oliver, sofia, unknown1 } = SPEAKER_IDS
 const talkTime = (segments: Segment[], id: string) =>
   segments.filter(s => effectiveSpeaker(s) === id).reduce((sum, s) => sum + s.end - s.start, 0)
 
@@ -53,8 +53,37 @@ describe('board data', () => {
     for (const s of BOARDS.review.speakers) expect(s.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
   })
 
-  test('review: four speakers with candidates sorted by score, as on the card', async () => {
+  test('review: one speaker with no name, as the app has it', async () => {
     const candidates = await createFixtureClient().getSpeakerCandidates(WEEKLY_SYNC_ID)
+    expect(Object.keys(candidates)).toEqual([unknown1])
+    expect(candidates[unknown1].possible_match).toBe(false)
+  })
+
+  test('possibleMatches: three recognized speakers to confirm as well', async () => {
+    const candidates = await createFixtureClient({ board: 'possibleMatches' }).getSpeakerCandidates(WEEKLY_SYNC_ID)
+    expect(Object.entries(candidates).filter(([, answer]) => answer.possible_match).map(([id]) => id).sort()).toEqual([lena, oliver, sofia].sort())
+    // The speaker themselves comes first.
+    expect(candidates[oliver].candidates[0]).toMatchObject({ speaker_id: oliver, suggested: true })
+  })
+
+  test('confirming a possible match takes it out of the review, and Undo brings it back', async () => {
+    const client = createFixtureClient({ board: 'possibleMatches' })
+    await client.confirmPossibleMatch(WEEKLY_SYNC_ID, oliver)
+    expect(await client.getSpeakerCandidates(WEEKLY_SYNC_ID)).not.toHaveProperty(oliver)
+    expect(talkTime((await client.getTranscript(WEEKLY_SYNC_ID)).segments, oliver)).toBeGreaterThan(0)
+    await client.unconfirmPossibleMatch(WEEKLY_SYNC_ID, oliver)
+    expect((await client.getSpeakerCandidates(WEEKLY_SYNC_ID))[oliver].possible_match).toBe(true)
+  })
+
+  test('only a possible match can be confirmed', async () => {
+    const client = createFixtureClient({ board: 'possibleMatches' })
+    await expect(client.confirmPossibleMatch(WEEKLY_SYNC_ID, unknown1)).rejects.toMatchObject({ status: 404 })
+    await expect(client.unconfirmPossibleMatch(WEEKLY_SYNC_ID, mark)).rejects.toMatchObject({ status: 404 })
+    await expect(client.confirmPossibleMatch(999, oliver)).rejects.toMatchObject({ status: 404 })
+  })
+
+  test('possibleMatches: four speakers with candidates sorted by score, as on the card', async () => {
+    const candidates = await createFixtureClient({ board: 'possibleMatches' }).getSpeakerCandidates(WEEKLY_SYNC_ID)
     expect(Object.keys(candidates)).toHaveLength(4)
     expect(candidates[unknown1].candidates.map(c => c.score)).toEqual([0.82, 0.41, 0.12])
     expect(candidates[oliver].candidates.map(c => c.score)).toEqual([0.64, 0.31, 0.18])
@@ -64,8 +93,8 @@ describe('board data', () => {
     }
   })
 
-  test('review: only the first candidate is suggested and every speaker has a clip', async () => {
-    const candidates = await createFixtureClient().getSpeakerCandidates(WEEKLY_SYNC_ID)
+  test('possibleMatches: only the first candidate is suggested and every speaker has a clip', async () => {
+    const candidates = await createFixtureClient({ board: 'possibleMatches' }).getSpeakerCandidates(WEEKLY_SYNC_ID)
     for (const { candidates: list, clip } of Object.values(candidates)) {
       expect(list.map(c => c.suggested)).toEqual([true, false, false])
       expect(clip?.end).toBeGreaterThan(clip?.start ?? Infinity)

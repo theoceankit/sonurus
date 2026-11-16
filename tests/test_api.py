@@ -1028,7 +1028,7 @@ def test_candidates_with_no_named_speaker_still_give_the_clip(client, tmp_path):
         Segment(1.0, 4.0, "first recording", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
     ], audio)
     assert client.get(f"/transcripts/{transcript_id}/speaker-candidates").json() == {
-        _BOB: {"candidates": [], "clip": {"start": 1.0, "end": 4.0, "text": "first recording"}},
+        _BOB: {"candidates": [], "clip": {"start": 1.0, "end": 4.0, "text": "first recording"}, "possible_match": False},
     }
 
 
@@ -1041,7 +1041,7 @@ def test_candidates_clip_of_a_voice_with_no_embeddings_is_the_longest_segment(cl
         Segment(3.0, 7.0, "long", "SPEAKER_00", speaker_resolved=_BOB),
     ], audio)
     assert client.get(f"/transcripts/{transcript_id}/speaker-candidates").json() == {
-        _BOB: {"candidates": [], "clip": {"start": 3.0, "end": 7.0, "text": "long"}},
+        _BOB: {"candidates": [], "clip": {"start": 3.0, "end": 7.0, "text": "long"}, "possible_match": False},
     }
 
 

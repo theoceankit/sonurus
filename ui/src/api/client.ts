@@ -58,7 +58,13 @@ export interface ApiClient {
   deleteSegment(transcriptId: number, segmentStart: number): Promise<void>
   assignSpeaker(assignment: SpeakerAssignment): Promise<{ speakerId: string }>
   undoSpeakerAssignment(undo: SpeakerUndo): Promise<void>
+  // Each speaker with no name, and each possible match: a speaker recognized with a
+  // low similarity, to confirm.
   getSpeakerCandidates(transcriptId: number): Promise<SpeakerCandidates>
+  // The possible match is the right speaker: they leave the review of the recording,
+  // and nothing else changes. unconfirmPossibleMatch is its Undo.
+  confirmPossibleMatch(transcriptId: number, speakerId: string): Promise<void>
+  unconfirmPossibleMatch(transcriptId: number, speakerId: string): Promise<void>
   listSpeakers(): Promise<Speaker[]>
   // A handle in the update is set by hand; an empty one goes back to the one made from
   // the name. A refused handle (code handle_taken, handle_invalid, handle_needs_name)

@@ -44,6 +44,7 @@ function room(height: number) {
 const shownRows = () => screen.getAllByRole('button', { name: /^Assign .+/ }).map(found => found.getAttribute('aria-label')!.replace('Assign ', ''))
 
 const { unknown1, oliver } = SPEAKER_IDS
+const possibleMatches: FixtureOptions = { board: 'possibleMatches' }
 
 const standing: Playback = (() => {
   const state: PlaybackState = { currentTime: 0, duration: 53, paused: true, rate: 1, volume: 1, status: 'ready' }
@@ -228,29 +229,68 @@ describe('review', () => {
     expect(within(card()).getByText('Unknown speaker 1')).toBeTruthy()
   })
 
-  test('in the app only speakers with no name count', async () => {
+  test('without possible matches only speakers with no name count', async () => {
     setup(WEEKLY_SYNC_ID)
     expect(await counter('1 of 1')).toBeTruthy()
   })
 
-  test('with possible matches as on the board', async () => {
-    setup(WEEKLY_SYNC_ID, {}, { possibleMatches: true })
+  test('possible matches wait for review too, in the order they first speak', async () => {
+    setup(WEEKLY_SYNC_ID, possibleMatches)
     expect(await counter('1 of 4')).toBeTruthy()
   })
 
   test('a possible match is preselected and says so', async () => {
-    setup(WEEKLY_SYNC_ID, {}, { possibleMatches: true, initialSpeakerId: oliver })
+    setup(WEEKLY_SYNC_ID, possibleMatches, { initialSpeakerId: oliver })
     expect(await counter('3 of 4')).toBeTruthy()
     expect(within(card()).getByText('Possible match')).toBeTruthy()
     expect(within(card()).getByRole('button', { name: /^OG Oliver Grant/ }).getAttribute('aria-pressed')).toBe('true')
     expect(within(card()).getByText('Let me check the numbers and get back to you by Friday.')).toBeTruthy()
   })
 
-  test('confirming a possible match moves on, and it does not come back', async () => {
-    setup(WEEKLY_SYNC_ID, {}, { possibleMatches: true, initialSpeakerId: oliver })
+  test('confirming a possible match keeps the segments, tells, and moves on for good', async () => {
+    const { client } = setup(WEEKLY_SYNC_ID, possibleMatches, { initialSpeakerId: oliver })
+    const assign = vi.spyOn(client, 'assignSpeaker')
+    const before = (await client.getTranscript(WEEKLY_SYNC_ID)).segments.map(effectiveSpeaker)
     await counter('3 of 4')
     await userEvent.click(within(card()).getByRole('button', { name: 'Assign' }))
+    expect(await screen.findByText('Confirmed as Oliver Grant')).toBeTruthy()
     expect(await counter('4 of 4')).toBeTruthy()
+    expect(assign).not.toHaveBeenCalled()
+    expect((await client.getTranscript(WEEKLY_SYNC_ID)).segments.map(effectiveSpeaker)).toEqual(before)
+    // Kept by the backend: opened again, the recording does not ask about Oliver.
+    expect(await client.getSpeakerCandidates(WEEKLY_SYNC_ID)).not.toHaveProperty(oliver)
+  })
+
+  test('Undo of a confirmation brings the possible match back', async () => {
+    const { client } = setup(WEEKLY_SYNC_ID, possibleMatches, { initialSpeakerId: oliver })
+    await counter('3 of 4')
+    await userEvent.click(within(card()).getByRole('button', { name: 'Assign' }))
+    await counter('4 of 4')
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    expect(await counter('3 of 4')).toBeTruthy()
+    expect(card().getAttribute('aria-label')).toBe('Who is Oliver Grant?')
+    expect((await client.getSpeakerCandidates(WEEKLY_SYNC_ID))[oliver].possible_match).toBe(true)
+  })
+
+  test('a failed confirmation says so and the speaker stays', async () => {
+    setup(WEEKLY_SYNC_ID, { ...possibleMatches, overrides: { confirmPossibleMatch: () => Promise.reject(new ApiError(500, 'No')) } }, { initialSpeakerId: oliver })
+    await counter('3 of 4')
+    await userEvent.click(within(card()).getByRole('button', { name: 'Assign' }))
+    expect(await screen.findByText('Failed to confirm the speaker: No')).toBeTruthy()
+    expect(card().getAttribute('aria-label')).toBe('Who is Oliver Grant?')
+  })
+
+  test('another speaker for a possible match is an assignment', async () => {
+    const { client } = setup(WEEKLY_SYNC_ID, possibleMatches, { initialSpeakerId: oliver })
+    const confirm = vi.spyOn(client, 'confirmPossibleMatch')
+    await counter('3 of 4')
+    const starts = (await client.getTranscript(WEEKLY_SYNC_ID)).segments.filter(s => effectiveSpeaker(s) === oliver).map(s => s.start)
+    await userEvent.click(within(card()).getByRole('button', { name: /Mark Ellis/ }))
+    await userEvent.click(within(card()).getByRole('button', { name: 'Assign' }))
+    expect(await screen.findByText('Assigned to Mark Ellis')).toBeTruthy()
+    expect(confirm).not.toHaveBeenCalled()
+    const { segments } = await client.getTranscript(WEEKLY_SYNC_ID)
+    expect(segments.filter(s => starts.includes(s.start)).map(effectiveSpeaker)).toEqual(starts.map(() => SPEAKER_IDS.mark))
   })
 
   test('Assign waits for a choice, and a second click takes it back', async () => {

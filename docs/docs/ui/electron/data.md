@@ -45,7 +45,7 @@ The generator is a package of its own in `ui/tools/openapi-types/` because it ne
 
 `getWaveform(transcriptId, { bars, start, end })` gives one height from 0 to 1 per bar over a stretch of a recording, on the scale of the whole recording: `GET /transcripts/{id}/waveform`. `useWaveform()` asks for nothing with no recording or no length yet and never asks for the same stretch twice; its key is not under the transcript's, since an edit never changes the audio. The fixtures make levels from the segments: loud where someone speaks, quiet in the pauses.
 
-`getSpeakerCandidates` gives, per unrecognized speaker, up to three candidates and a clip of the voice, as `GET /transcripts/{id}/speaker-candidates` answers. A speaker with no candidates is still in the answer, for its clip. The fixtures also give candidates to recognized speakers for the Possible match state in Storybook; the API does not.
+`getSpeakerCandidates` gives, per unrecognized speaker and per possible match, up to three candidates and a clip of the voice, as `GET /transcripts/{id}/speaker-candidates` answers. A speaker with no candidates is still in the answer, for its clip. `confirmPossibleMatch` and `unconfirmPossibleMatch` confirm a possible match and take it back; the fixtures keep a confirmed one aside for its Undo.
 
 `assignSpeaker({ transcriptId, segmentStarts, target })` gives segments a speaker in one request, all or none, and answers `{ speakerId }`, so the id of a new speaker comes from the backend.
 
@@ -118,7 +118,7 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 | Option | Values | |
 |---|---|---|
 | `scenario` | `default`, `loading`, `empty`, `error` | `loading` never answers, `empty` has no rows and an idle queue, `error` rejects everything with a 500 |
-| `board` | `review`, `reviewDone`, `unassigned` | The data of the Editor boards; other boards show the same data in another UI state |
+| `board` | `review`, `possibleMatches`, `reviewDone`, `unassigned` | The data of the Editor boards; other boards show the same data in another UI state. `review` has one speaker with no name to review on Weekly product sync, `possibleMatches` three possible matches too, as the Speakers boards |
 | `noAudio` | `true` | `getAudioUrl` gives null and `getWaveform` a 404 |
 | `noModels` | `true` | Nothing is downloaded: `listModels` has every model uninstalled, and `addQueueJob` answers the 400 of a missing diarization model (`NO_MODELS`) |
 | `installedModels` | model ids | What is downloaded, in place of `DEFAULT_INSTALLED` (`small`, `large-v3`, `diarize`; no alignment model) |

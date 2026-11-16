@@ -430,7 +430,9 @@ Each level is from `0` (silence) to `1` (the loud part of the whole recording), 
 
 ### `GET /transcripts/{id}/speaker-candidates`
 
-For each speaker without a display name in the transcript: the known speakers whose voice is closest, and a clip to hear the voice. Reads speaker memory only. Returns `404` for an unknown id.
+For each speaker without a display name in the transcript, and for each possible match: the known speakers whose voice is closest, and a clip to hear the voice. Reads speaker memory only. Returns `404` for an unknown id.
+
+A possible match is a named speaker recognized in this transcript with a similarity below `POSSIBLE_MATCH_CEILING` (`0.7`, `app/config.py`, compared as the rounded `score`) and not confirmed yet (`POST /transcripts/{id}/possible-matches/{speaker_id}/confirmed`). The similarity is the one `resolve()` matched them with, kept when the transcript was saved; transcripts made before it was kept have no possible matches.
 
 ```json
 {
@@ -439,7 +441,8 @@ For each speaker without a display name in the transcript: the known speakers wh
       { "speaker_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "name": "Alice", "score": 0.72, "suggested": true },
       { "speaker_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc", "name": "Carol", "score": 0.21, "suggested": false }
     ],
-    "clip": { "start": 12.4, "end": 16.1, "text": "That was me." }
+    "clip": { "start": 12.4, "end": 16.1, "text": "That was me." },
+    "possible_match": false
   }
 }
 ```
@@ -448,8 +451,17 @@ For each speaker without a display name in the transcript: the known speakers wh
 - `score`: cosine similarity between the mean of the speaker's segment embeddings in this transcript and the profile, rounded to two digits, not below 0.
 - `suggested`: true only for the first candidate, when its `score` reaches `SPEAKER_SUGGESTION_THRESHOLD` (`app/config.py`).
 - `clip`: a segment of this transcript chosen by `pick_voice_sample()` (see `GET /speakers/{id}/sample`), compared with the speaker's voice in this transcript. `null` when the audio file no longer exists.
+- `possible_match`: true for a possible match. Its first candidate is the recognized speaker themselves, suggested, with the kept similarity as `score` (their profile has this recording in it by now, so today's similarity would be too high); then up to two other named speakers as above, none suggested.
 
-Unassigned segments and named speakers get no entry.
+Unassigned segments and named speakers that are not a possible match get no entry. A possible match assigned to someone else has no segments left here and drops out; undoing that assignment brings it back.
+
+### `POST /transcripts/{id}/possible-matches/{speaker_id}/confirmed`
+
+The user confirms a possible match: the speaker stops being one in this transcript. No body. Segments and speaker memory are untouched. Calling it again is fine. Returns `204`, or `404` for an unknown transcript or when the speaker was not recognized from memory there (no kept similarity).
+
+### `DELETE /transcripts/{id}/possible-matches/{speaker_id}/confirmed`
+
+Undo of a confirmation: the speaker is a possible match again if their similarity is below the ceiling. No body. Returns `204`, or `404` as with `POST`.
 
 ### `PATCH /transcripts/{id}`
 

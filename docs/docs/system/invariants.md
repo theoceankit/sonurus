@@ -10,7 +10,7 @@ Rules that must always hold. Violating any of these corrupts speaker memory or p
 
 ## I1 — `resolve()` is pure
 
-`SpeakerMemoryService.resolve()` returns a `{SPEAKER_XX → id}` mapping and never mutates `known_speakers` or any other stored state.
+`SpeakerMemoryService.resolve()` returns a `{SPEAKER_XX → id}` mapping and never mutates `known_speakers` or any other stored state. The same holds for `resolve_with_scores()`, which `resolve()` calls and which also returns the similarity of each match.
 
 **Why:** `resolve()` runs before the user has reviewed or confirmed speaker assignments. Writing to memory at this point would corrupt the database with unverified data.
 

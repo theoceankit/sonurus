@@ -40,6 +40,14 @@ CREATE TABLE segments (
 
 CREATE INDEX idx_segments_transcription ON segments(transcription_id);  -- schema v4
 CREATE INDEX idx_segments_speaker       ON segments(speaker_id);        -- schema v4
+
+CREATE TABLE speaker_matches (                                          -- schema v8
+    transcription_id INTEGER NOT NULL,
+    speaker_id       TEXT NOT NULL,
+    score            REAL NOT NULL,
+    confirmed        INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (transcription_id, speaker_id)
+)
 ```
 
 `speaker_id` — current effective speaker ID (`speaker_final or speaker_resolved`), always a UUID4 or `NULL`. Updated when segments get a speaker, via `set_segments_speaker()`.
@@ -52,13 +60,15 @@ CREATE INDEX idx_segments_speaker       ON segments(speaker_id);        -- schem
 
 `embedding` — per-segment pyannote embedding blob (float32). Used by `CommitService` after load.
 
+`speaker_matches` — one row per speaker that `resolve()` recognized from memory when the transcript was made: `score` is the similarity of the match, `confirmed` is `1` once the user confirmed the speaker as a possible match. Speakers assigned by hand have no row, and nothing else writes one, so the similarity is never worked out again later (by then the profile contains this recording).
+
 ---
 
 ## Methods
 
 ### `save(transcript) → int`
 
-Inserts a row into `transcriptions` and all segments into `segments` (an `unassigned` segment is stored with `speaker_id = NULL`). Sets `transcript.db_id`. Returns the new `id`.
+Inserts a row into `transcriptions`, all segments into `segments` (an `unassigned` segment is stored with `speaker_id = NULL`) and `transcript.match_scores` into `speaker_matches`. Sets `transcript.db_id`. Returns the new `id`.
 
 ```python
 db_id = TranscriptStorageService().save(transcript)
@@ -131,6 +141,18 @@ Clears `transcriptions.opened`, so the transcript is listed as new again. Return
 
 ---
 
+### `speaker_matches(db_id) → dict[str, dict]`
+
+`{speaker_id: {"score": float, "confirmed": bool}}` of the transcript's `speaker_matches` rows. Feeds the possible matches of `GET /transcripts/{id}/speaker-candidates`.
+
+---
+
+### `set_match_confirmed(db_id, speaker_id, confirmed) → bool`
+
+Sets or clears `speaker_matches.confirmed`. Returns `False` if the speaker has no row in that transcript. Feeds `POST` and `DELETE /transcripts/{id}/possible-matches/{speaker_id}/confirmed`.
+
+---
+
 ### `update_segment_text(db_id, start, end, new_text)`
 
 Updates the text for a single segment identified by its time range.
@@ -145,7 +167,7 @@ Deletes a single segment identified by its time range.
 
 ### `delete(db_id)`
 
-Deletes a transcription and all its segments.
+Deletes a transcription, all its segments and its `speaker_matches` rows.
 
 ---
 
@@ -157,13 +179,13 @@ Number of transcriptions whose `audio_file` equals the given path. `DELETE /tran
 
 ### `clear() → int`
 
-Deletes every transcription and segment in one transaction and returns the number of transcriptions removed. Schema tables are kept. Used only by `POST /data/reset`.
+Deletes every transcription, segment and `speaker_matches` row in one transaction and returns the number of transcriptions removed. Schema tables are kept. Used only by `POST /data/reset`.
 
 ---
 
 ### `unassign_speaker(speaker_id) → dict`
 
-Detaches every segment of a deleted speaker: `speaker_id = NULL`, `unassigned = 1`. Returns `{"segments": n, "transcripts": m}`. Called by `CommitService.delete_speaker()`.
+Detaches every segment of a deleted speaker: `speaker_id = NULL`, `unassigned = 1`, and deletes their `speaker_matches` rows. Returns `{"segments": n, "transcripts": m}`. Called by `CommitService.delete_speaker()`.
 
 ---
 
@@ -193,7 +215,7 @@ Returns all non-null embeddings for a speaker across all transcripts, grouped by
 
 ### `_init_db()`
 
-Creates tables if they do not exist and runs the versioned migrations in `app/db/schema.py` (tracked in `_ts_schema_version`): v1 base tables + `status`, v2 `segments.embedding`, v3 `transcriptions.title`, v4 indexes, v5 `segments.unassigned`, v6 UUIDs for stored raw diarization labels (`UNKNOWN` rows become unassigned), v7 `transcriptions.opened`, set on every transcript that existed before it so that a library does not show as new all at once.
+Creates tables if they do not exist and runs the versioned migrations in `app/db/schema.py` (tracked in `_ts_schema_version`): v1 base tables + `status`, v2 `segments.embedding`, v3 `transcriptions.title`, v4 indexes, v5 `segments.unassigned`, v6 UUIDs for stored raw diarization labels (`UNKNOWN` rows become unassigned), v7 `transcriptions.opened`, set on every transcript that existed before it so that a library does not show as new all at once, v8 `speaker_matches`, empty for transcripts that existed before it.
 
 ---
 

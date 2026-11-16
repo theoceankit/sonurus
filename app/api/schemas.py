@@ -103,8 +103,8 @@ class SpeakerTranscriptItem(BaseModel):
 
 
 class SpeakerCandidate(ResponseModel):
-    """A known speaker that an unknown voice may be. score is cosine similarity,
-    not below 0. Only the first candidate can be suggested."""
+    """A known speaker that a voice may be. score is cosine similarity, not below
+    0. Only the first candidate can be suggested."""
     speaker_id: str
     name: str
     score: float
@@ -125,10 +125,12 @@ class WaveformResponse(ResponseModel):
 
 
 class UnknownSpeakerCandidates(ResponseModel):
-    """GET /transcripts/{id}/speaker-candidates, per speaker without a name. clip
-    is null when the audio file is gone."""
+    """GET /transcripts/{id}/speaker-candidates, per speaker without a name and
+    per possible match: a speaker recognized with a low similarity, to confirm,
+    who comes first among the candidates. clip is null when the audio file is gone."""
     candidates: list[SpeakerCandidate]
     clip: VoiceClip | None
+    possible_match: bool
 
 
 RefusalCode = Literal[

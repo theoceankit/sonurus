@@ -14,5 +14,8 @@ class Transcript:
 
     title: str | None = None
 
+    # {speaker id: cosine similarity} of the speakers recognized from memory
+    match_scores: dict[str, float] = field(default_factory=dict)
+
     # set by TranscriptStorageService.save()
     db_id: int | None = None

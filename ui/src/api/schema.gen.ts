@@ -715,6 +715,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transcripts/{transcript_id}/possible-matches/{speaker_id}/confirmed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Possible Match
+         * @description The user says the speaker recognized here is the right one: they leave the
+         *     review of this transcript. Segments and speaker memory stay as they are.
+         */
+        post: operations["confirm_possible_match_transcripts__transcript_id__possible_matches__speaker_id__confirmed_post"];
+        /**
+         * Unconfirm Possible Match
+         * @description Undo of a confirmation: the speaker waits for review again.
+         */
+        delete: operations["unconfirm_possible_match_transcripts__transcript_id__possible_matches__speaker_id__confirmed_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transcripts/{transcript_id}/segments/{start}": {
         parameters: {
             query?: never;
@@ -799,8 +824,9 @@ export interface paths {
         };
         /**
          * Get Speaker Candidates
-         * @description For each speaker without a name in the transcript: the known speakers
-         *     with the closest voice and a clip to hear it. Reads speaker memory only.
+         * @description For each speaker without a name in the transcript, and each possible match
+         *     (recognized with a low similarity, not confirmed yet): the known speakers with
+         *     the closest voice and a clip to hear it. Reads speaker memory only.
          */
         get: operations["get_speaker_candidates_transcripts__transcript_id__speaker_candidates_get"];
         put?: never;
@@ -1185,8 +1211,8 @@ export interface components {
         };
         /**
          * SpeakerCandidate
-         * @description A known speaker that an unknown voice may be. score is cosine similarity,
-         *     not below 0. Only the first candidate can be suggested.
+         * @description A known speaker that a voice may be. score is cosine similarity, not below
+         *     0. Only the first candidate can be suggested.
          */
         SpeakerCandidate: {
             /** Name */
@@ -1371,13 +1397,16 @@ export interface components {
         };
         /**
          * UnknownSpeakerCandidates
-         * @description GET /transcripts/{id}/speaker-candidates, per speaker without a name. clip
-         *     is null when the audio file is gone.
+         * @description GET /transcripts/{id}/speaker-candidates, per speaker without a name and
+         *     per possible match: a speaker recognized with a low similarity, to confirm,
+         *     who comes first among the candidates. clip is null when the audio file is gone.
          */
         UnknownSpeakerCandidates: {
             /** Candidates */
             candidates: components["schemas"]["SpeakerCandidate"][];
             clip: components["schemas"]["VoiceClip"] | null;
+            /** Possible Match */
+            possible_match: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -2743,6 +2772,66 @@ export interface operations {
             header?: never;
             path: {
                 transcript_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_possible_match_transcripts__transcript_id__possible_matches__speaker_id__confirmed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: number;
+                speaker_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unconfirm_possible_match_transcripts__transcript_id__possible_matches__speaker_id__confirmed_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: number;
+                speaker_id: string;
             };
             cookie?: never;
         };

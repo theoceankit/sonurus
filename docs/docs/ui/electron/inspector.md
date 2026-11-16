@@ -37,11 +37,11 @@ The pointer has to stay on a row or a segment for 150 ms (`--delay-hover`) befor
 
 Who needs a review comes from the segments each time, so an assignment, an undo or a change in the transcript all move the card the same way (`review-queue.ts`):
 
-- The queue is the speakers with no name, in the order they first speak. Unassigned is not in it, because its segments may be several voices.
+- The queue is the speakers with no name and the possible matches, in the order they first speak. Unassigned is not in it, because its segments may be several voices.
 - `1 of 4` is the place among all at opening; `4 left` is how many have no name yet.
 - Skip goes to the next, and around after the last.
 - Close collapses the card to one line, and Resume opens it on the next speaker.
-- With nobody left, the dock is gone and the unknown avatar leaves the recording's row in the sidebar. Nothing is saved about this: it comes from the segments too.
+- With nobody left, the dock is gone and the unknown avatar leaves the recording's row in the sidebar. Nothing is saved about this: it comes from the segments too, and for possible matches from the candidates.
 
 The card lists the candidates and, last, More speakers, which opens Choose a speaker with the card's choice selected. A new speaker is made from there; the card has no search of its own.
 
@@ -51,7 +51,15 @@ A clip plays from its start to its end on its own audio element (`clip-playback.
 
 The player and the text are a `VoiceClip`, which a speaker's card in the Speakers window shows too ([Speakers](speakers.md)). Show text opens the clip's text inside the card. It takes at most six lines and scrolls beyond them, so the speakers above stay readable. When the card grows, the rows give way to it first, down to one speaker and Show N more. Then the text gets less room, and Skip and Assign stay where they are. In a window lower than about 740 px there is no room for that either, so the whole panel scrolls. The rule that lets only the text give way is in `VoiceClip.module.css`, under the same container query as the card's.
 
-Possible match is a recognized speaker to confirm. The backend does not keep a confidence yet, so only stories show it, through the `possibleMatches` prop.
+## Possible match
+
+A possible match is a speaker recognized from memory with a low similarity, below 70 % (`POSSIBLE_MATCH_CEILING`), whom the user has not confirmed in this recording. The candidates of the recording say who is one (`possible_match` in `GET /transcripts/{id}/speaker-candidates`): the backend keeps the similarity from the moment the speaker was recognized, so recordings made before that have none.
+
+The card says Possible match under the name and opens with the text of the clip shown. The speaker themselves is the first candidate, chosen already, with the similarity they were recognized with; the closest other speakers follow, as for a speaker with no name.
+
+- Assign with the speaker themselves confirms them (`confirmPossibleMatch`): nothing moves and speaker memory does not change, the speaker only leaves the review of this recording, also when it is opened again. A toast says Confirmed as the name, and its Undo (`unconfirmPossibleMatch`) puts them back in the review and opens the card on them.
+- Another candidate, or anyone from More speakers, is an assignment like any other, with its Undo. The speaker has no segments left here, so they leave the review; Undo of the assignment brings the possible match back. Nothing remembers that the voice was not them.
+- Skip and Close keep them: the next time the recording opens they wait again.
 
 ## Speaker windows
 
@@ -63,6 +71,6 @@ New speaker takes the name from the search. Its colour starts as the least used 
 
 ## Stories
 
-Screens / Editor / Inspector has a story for each board, with the name of the board, and Whole Review for going through every case on Design review. Screens / Editor / Inspector / Room for the rows shows the panel at several heights with 2, 6 and 15 speakers, a long clip and a review over; Fifteen Speakers there is the whole Editor in a frame to resize by its corner.
+Screens / Editor / Inspector has a story for each board, with the name of the board, and Whole Review for going through every case on Design review. Only No Name has one speaker to review on Weekly product sync, Possible Matches has the three recognized speakers to confirm as well; the boards of Redesign / Editor / Speakers have them too (fixture board `possibleMatches`). Screens / Editor / Inspector / Room for the rows shows the panel at several heights with 2, 6 and 15 speakers, a long clip and a review over; Fifteen Speakers there is the whole Editor in a frame to resize by its corner.
 
 A row's buttons on hover are not on the boards: they keep what the old panel could do.

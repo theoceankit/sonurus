@@ -139,6 +139,7 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 | `test_embedding_persistence.py` | Per-segment embedding round-trip through `save()` / `load()`, kept by `set_segments_speaker()` |
 | `test_model_cancel.py` | `cancel_event` in `download_model()`, `DELETE /models/{id}/download/{job_id}`, WS `cancelled` event |
 | `test_speaker_candidates.py` | `rank_candidates()` and `voice_centroid()`: order, limit, rounding, negative similarity, the suggestion threshold |
+| `test_possible_match.py` | Possible match: `resolve_with_scores()` keeps the similarity of each match, the pipeline and storage keep it per transcript (schema v8), the candidates route offers speakers recognized below the ceiling, confirming and its undo, rejection by assignment, removal with the speaker or the transcript |
 | `test_waveform.py` | Waveform levels: `bar_levels()` (scale of the loud part of the recording, mean power, silence and past the end of the audio, clips, bars narrower than a window), the `.levels` cache next to the audio (computed once, also with two requests at once, a broken cache computed again, none on failure, none for audio outside `recordings/`), `compute_levels()` with the real ffmpeg (skipped without it) and without one |
 | `test_voice_sample.py` | `pick_voice_sample()`: closest to the voice profile, longest fallback, ≥ 2 s preference, missing audio files skipped |
 | `test_embedding_service.py` | `EmbeddingService.extract_all()` single-pass invariant, the model it loads (WeSpeaker from community-1) |

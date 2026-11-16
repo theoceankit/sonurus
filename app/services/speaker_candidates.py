@@ -2,7 +2,7 @@
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-from app.config import SPEAKER_SUGGESTION_THRESHOLD
+from app.config import POSSIBLE_MATCH_CEILING, SPEAKER_SUGGESTION_THRESHOLD
 
 MAX_CANDIDATES = 3
 
@@ -44,3 +44,27 @@ def rank_candidates(
             "suggested": position == 0 and score >= threshold,
         })
     return candidates
+
+
+def is_possible_match(match: dict | None, ceiling: float = POSSIBLE_MATCH_CEILING) -> bool:
+    """A speaker recognized below ceiling and not confirmed yet. match is a row of
+    TranscriptStorageService.speaker_matches(), None when there was no match.
+    The score is compared as the user sees it, like the suggestion threshold."""
+    return match is not None and not match["confirmed"] and round(match["score"], 2) < ceiling
+
+
+def possible_match_candidates(
+    voice: np.ndarray | None,
+    speaker_id: str,
+    score: float,
+    profiles: dict,
+    names: dict,
+    limit: int = MAX_CANDIDATES,
+) -> list[dict]:
+    """The recognized speaker first, suggested, with the similarity kept at
+    recognition: their profile has this recording in it now. Then the closest
+    other profiles, none of them suggested."""
+    own = {"speaker_id": speaker_id, "name": names[speaker_id], "score": max(round(float(score), 2), 0.0), "suggested": True}
+    others = {spk_id: emb for spk_id, emb in profiles.items() if spk_id != speaker_id}
+    rest = rank_candidates(voice, others, names, limit=limit - 1) if voice is not None else []
+    return [own] + [{**candidate, "suggested": False} for candidate in rest]

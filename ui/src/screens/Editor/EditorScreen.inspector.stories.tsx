@@ -10,15 +10,16 @@ const meta: Meta<typeof EditorScreen> = {
   component: EditorScreen,
   parameters: { layout: 'fullscreen' },
   decorators: [Story => <div className={styles.board}><Story /></div>],
-  args: { pinnedIds: [WEEKLY_SYNC_ID, 2], initialSelectedId: WEEKLY_SYNC_ID, possibleMatches: true },
+  args: { pinnedIds: [WEEKLY_SYNC_ID, 2], initialSelectedId: WEEKLY_SYNC_ID },
 }
 export default meta
 
 type Story = StoryObj<typeof EditorScreen>
 
-export const WholeReview: Story = { args: { initialSelectedId: DESIGN_REVIEW_ID, possibleMatches: false } }
-export const InTheApp: Story = { args: { possibleMatches: false } }
-export const NoAudio: Story = { args: { initialSelectedId: DESIGN_REVIEW_ID, possibleMatches: false }, parameters: { api: { noAudio: true } } }
+export const WholeReview: Story = { args: { initialSelectedId: DESIGN_REVIEW_ID } }
+export const OnlyNoName: Story = {}
+export const PossibleMatches: Story = { parameters: { api: { board: 'possibleMatches' } } }
+export const NoAudio: Story = { args: { initialSelectedId: DESIGN_REVIEW_ID }, parameters: { api: { noAudio: true } } }
 // With recordings one is always open, so only an empty list leaves none.
 export const NoRecording: Story = { parameters: { api: { scenario: 'empty' } } }
 export const Loading: Story = { parameters: { api: { scenario: 'loading' } } }
@@ -26,13 +27,13 @@ export const Failed: Story = { parameters: { api: { scenario: 'error' } } }
 
 // A speaker as if under the pointer: their turns in the transcript and their bars in
 // the player. Lena is behind Show 3 more, so that lights up instead of her row.
-export const SpeakerHighlighted: Story = { args: { possibleMatches: false, initialHighlight: SPEAKER_IDS.mark } }
-export const UnknownSpeakerHighlighted: Story = { args: { possibleMatches: false, initialHighlight: SPEAKER_IDS.unknown1 } }
-export const HiddenSpeakerHighlighted: Story = { args: { possibleMatches: false, initialHighlight: SPEAKER_IDS.lena } }
+export const SpeakerHighlighted: Story = { args: { initialHighlight: SPEAKER_IDS.mark } }
+export const UnknownSpeakerHighlighted: Story = { args: { initialHighlight: SPEAKER_IDS.unknown1 } }
+export const HiddenSpeakerHighlighted: Story = { args: { initialHighlight: SPEAKER_IDS.lena } }
 
 // Fifteen speakers in a window to resize by its corner: the rows follow the room.
 export const FifteenSpeakers: Story = {
-  args: { initialSelectedId: ALL_HANDS_ID, possibleMatches: false },
+  args: { initialSelectedId: ALL_HANDS_ID },
   parameters: { api: { board: 'speakerCounts' } },
   decorators: [Story => <div className={styles.resizable}><Story /></div>],
 }

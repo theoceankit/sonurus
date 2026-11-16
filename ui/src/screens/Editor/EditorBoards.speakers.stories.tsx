@@ -9,9 +9,9 @@ import { paragraph, standing, waitFor } from './story-helpers'
 const meta: Meta<typeof EditorScreen> = {
   title: 'Redesign/Editor/Speakers',
   component: EditorScreen,
-  parameters: { layout: 'fullscreen' },
+  parameters: { layout: 'fullscreen', api: { board: 'possibleMatches' } },
   decorators: [Story => <div className={styles.board}><Story /></div>],
-  args: { pinnedIds: [WEEKLY_SYNC_ID, 2], initialSelectedId: WEEKLY_SYNC_ID, possibleMatches: true, playback: standing() },
+  args: { pinnedIds: [WEEKLY_SYNC_ID, 2], initialSelectedId: WEEKLY_SYNC_ID, playback: standing() },
 }
 export default meta
 
@@ -53,7 +53,6 @@ export const ReviewClosed: Story = {
 
 export const Done: Story = {
   name: 'Done',
-  args: { possibleMatches: false },
   parameters: { api: { board: 'reviewDone' } },
   play: () => { toast({ message: 'Assigned to Mark Ellis', action: { label: 'Undo', onClick: () => {} }, duration: 60000 }) },
 }
