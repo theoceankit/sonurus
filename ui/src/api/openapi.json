@@ -1126,6 +1126,45 @@
         "title": "SpeakerCandidate",
         "type": "object"
       },
+      "SpeakerCreateRequest": {
+        "description": "A speaker made by name, before any recording has them. handle: one set by\nhand (a leading @ and the case do not matter); left out or \"\", the one made\nfrom the name. color_index: the palette colour, else the least used one.",
+        "properties": {
+          "color_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Index"
+          },
+          "handle": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handle"
+          },
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SpeakerCreateRequest",
+        "type": "object"
+      },
       "SpeakerDeleteResponse": {
         "properties": {
           "segments": {
@@ -2518,6 +2557,66 @@
           }
         },
         "summary": "List Speakers",
+        "tags": [
+          "speakers"
+        ]
+      },
+      "post": {
+        "description": "A named speaker no recording has yet. Only names and metadata are written:\nwith no segments there is no voice profile, so the speaker is not recognized\nuntil segments are assigned to them and CommitService computes one.",
+        "operationId": "create_speaker_speakers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakerCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeakerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusalResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Speaker",
         "tags": [
           "speakers"
         ]

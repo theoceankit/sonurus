@@ -79,6 +79,20 @@ class SpeakerUpdateRequest(BaseModel):
         return v.strip() if isinstance(v, str) else v
 
 
+class SpeakerCreateRequest(BaseModel):
+    """A speaker made by name, before any recording has them. handle: one set by
+    hand (a leading @ and the case do not matter); left out or "", the one made
+    from the name. color_index: the palette colour, else the least used one."""
+    name: str = Field(min_length=1, max_length=128)
+    handle: str | None = Field(default=None, max_length=64)
+    color_index: int | None = None
+
+    @field_validator('name', mode='before')
+    @classmethod
+    def strip_name(cls, v):
+        return v.strip() if isinstance(v, str) else v
+
+
 class SpeakerDeleteResponse(BaseModel):
     segments: int
     transcripts: int
