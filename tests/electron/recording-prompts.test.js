@@ -9,7 +9,7 @@ const path = require('path')
 
 const ROOT = path.resolve(__dirname, '..', '..')
 const {
-  promptFor, stoppedNotice, notificationsOn, micApps, rememberMicApp,
+  promptFor, stopOutcome, stopTimedOut, notificationsOn, micApps, rememberMicApp,
 } = require(path.join(ROOT, 'electron', 'recording-prompts.js'))
 const { watchBackendEvents } = require(path.join(ROOT, 'electron', 'backend-events.js'))
 
@@ -83,8 +83,24 @@ test('other events are not prompts', () => {
   assert.equal(promptFor({ type: 'job_done', job_id: 'x' }, { settings: DEFAULTS, recording: null }), null)
 })
 
-test('an automatic stop is told with the title of the recording', () => {
-  assert.deepEqual(stoppedNotice('Call'), { title: 'Recording stopped and saved', body: 'Call' })
+test('an automatic stop is told as saved only once the recording left the snapshot', () => {
+  assert.equal(stopOutcome({ type: 'snapshot', recording: { ...live, phase: 'stopping' } }, 'Call'), null)
+  assert.deepEqual(stopOutcome({ type: 'snapshot', recording: null }, 'Call'), { title: 'Recording stopped and saved', body: 'Call' })
+})
+
+test('an automatic stop that could not save says why', () => {
+  assert.deepEqual(stopOutcome({ type: 'recording_failed', title: 'Call', error: 'No audio was captured.' }, 'Call'), {
+    title: 'Could not save the recording',
+    body: 'Call: No audio was captured.',
+  })
+})
+
+test('other events say nothing of the stop', () => {
+  assert.equal(stopOutcome({ type: 'job_done', job_id: 'x' }, 'Call'), null)
+})
+
+test('an automatic stop with no word from the backend does not claim it was saved', () => {
+  assert.deepEqual(stopTimedOut('Call'), { title: 'Recording stopped', body: 'Call. Open Sonorus to see whether it was saved.' })
 })
 
 test('all notifications are on unless turned off, the tray notice included', () => {
@@ -154,6 +170,15 @@ test('a lost connection is made again, and none after close', () => {
   events.close()
   assert.equal(t.pending.length, 0)
   assert.equal(FakeSocket.all.length, 2)
+})
+
+test('snapshots go to their own listener', () => {
+  FakeSocket.all = []
+  const snapshots = []
+  const events = watchBackendEvents({ url: 'ws://x', WebSocketImpl: FakeSocket, onEvent: () => {}, onSnapshot: s => snapshots.push(s), setTimer: () => 0, clearTimer: () => {} })
+  FakeSocket.all[0].send({ type: 'snapshot', recording: null, jobs: [] })
+  assert.deepEqual(snapshots, [{ type: 'snapshot', recording: null, jobs: [] }])
+  events.close()
 })
 
 test('a message that is not JSON is skipped', () => {

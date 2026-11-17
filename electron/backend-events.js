@@ -3,7 +3,7 @@
 // tray, and for the live recording of the last snapshot. A lost connection (the backend
 // restarted) is made again.
 function watchBackendEvents({
-  url, onEvent, WebSocketImpl = globalThis.WebSocket, retryMs = 2000, setTimer = setTimeout, clearTimer = clearTimeout,
+  url, onEvent, onSnapshot = () => {}, WebSocketImpl = globalThis.WebSocket, retryMs = 2000, setTimer = setTimeout, clearTimer = clearTimeout,
 }) {
   let socket = null
   let timer = null
@@ -27,7 +27,10 @@ function watchBackendEvents({
       let event
       try { event = JSON.parse(message.data) } catch { return }
       if (!event || typeof event !== 'object') return
-      if (event.type === 'snapshot') recording = event.recording ?? null
+      if (event.type === 'snapshot') {
+        recording = event.recording ?? null
+        onSnapshot(event)
+      }
       else if (event.type !== 'heartbeat') onEvent(event)
     }
     socket.onerror = () => {} // a close follows

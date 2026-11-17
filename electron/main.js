@@ -8,7 +8,7 @@ const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 const { showModelsFolder } = require('./models-folder')
 const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown, trayMenu } = require('./tray')
 const { watchBackendEvents } = require('./backend-events')
-const { micApps, notificationsOn, promptFor, rememberMicApp, stoppedNotice } = require('./recording-prompts')
+const { micApps, notificationsOn, promptFor, rememberMicApp, stopOutcome, stopTimedOut } = require('./recording-prompts')
 const { uiEntry } = require('./ui-entry')
 const { windowChrome, themeSource, overlayDimmer } = require('./window-chrome')
 
@@ -57,6 +57,9 @@ let backendEvents = null
 let windowIntent = null
 // Notifications on screen: kept from the garbage collector, which would drop their click.
 const notifications = new Set()
+// A recording stopped automatically, until the backend says how it ended.
+let autoStop = null
+const AUTO_STOP_WAIT_MS = 60000
 
 function createWindow() {
   const entry = uiEntry({
@@ -272,24 +275,46 @@ app.whenReady().then(async () => {
 
   createWindow()
   started = true
-  backendEvents = watchBackendEvents({ url: 'ws://127.0.0.1:8000/ws/queue', onEvent: onBackendEvent })
+  backendEvents = watchBackendEvents({ url: 'ws://127.0.0.1:8000/ws/queue', onEvent: onBackendEvent, onSnapshot: onAutoStopOutcome })
   if (await hasTray) createTray()
 })
 
 // A call may have started or ended: a notification, an automatic stop or nothing,
 // as the settings say (electron/recording-prompts.js).
 function onBackendEvent(event) {
+  onAutoStopOutcome(event)
   if (event.type === 'mic_app_active') rememberMicApp(getAppStatePath(), event)
   const recording = backendEvents?.recording() ?? null
   const prompt = promptFor(event, { settings: savedSettings(), recording })
   if (!prompt) return
   if (prompt.kind === 'stop') {
-    void backendRequest('POST', '/audio/recording/stop')
-      .then(() => notify(stoppedNotice(recording.title), () => showWindow()))
-      .catch(() => { /* already stopped, or the backend is gone */ })
+    stopAutomatically(recording.title)
     return
   }
   notify(prompt, () => openWithIntent(prompt.intent))
+}
+
+// Stop answers before the recording is saved: the notice waits for how it ended.
+function stopAutomatically(title) {
+  if (autoStop) return
+  autoStop = { title, timer: setTimeout(() => endAutoStop(stopTimedOut(title)), AUTO_STOP_WAIT_MS) }
+  backendRequest('POST', '/audio/recording/stop').catch(() => {
+    // Already stopped, or the backend is gone: nothing was stopped here.
+    clearTimeout(autoStop?.timer)
+    autoStop = null
+  })
+}
+
+function onAutoStopOutcome(event) {
+  if (!autoStop) return
+  const notice = stopOutcome(event, autoStop.title)
+  if (notice) endAutoStop(notice)
+}
+
+function endAutoStop(notice) {
+  clearTimeout(autoStop?.timer)
+  autoStop = null
+  notify(notice, () => showWindow())
 }
 
 function notify({ title, body }, onClick) {

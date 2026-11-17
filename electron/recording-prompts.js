@@ -44,7 +44,19 @@ function promptFor(event, { settings, recording }) {
   return null
 }
 
-const stoppedNotice = title => ({ title: 'Recording stopped and saved', body: title })
+// An automatic stop is answered at once, before the recording is saved: how it ended
+// comes after, over the queue events. A snapshot without the recording means saved and
+// queued; recording_failed comes before that snapshot. Null until one of them.
+function stopOutcome(event, title) {
+  if (event.type === 'recording_failed') {
+    return { title: 'Could not save the recording', body: `${event.title || title}: ${event.error}` }
+  }
+  if (event.type === 'snapshot' && !event.recording) return { title: 'Recording stopped and saved', body: title }
+  return null
+}
+
+// No word from the backend in time (it went down): stopped, but not known to be saved.
+const stopTimedOut = title => ({ title: 'Recording stopped', body: `${title}. Open Sonorus to see whether it was saved.` })
 
 // The apps that held a microphone long enough to suggest a recording, for the list
 // of Settings → Notifications. Kept in app-state.json of the main process, as
@@ -73,4 +85,4 @@ function rememberMicApp(statePath, { app_id, name }) {
   } catch { /* remembered next time */ }
 }
 
-module.exports = { PROMPT_DEFAULTS, promptFor, stoppedNotice, notificationsOn, micApps, rememberMicApp }
+module.exports = { PROMPT_DEFAULTS, promptFor, stopOutcome, stopTimedOut, notificationsOn, micApps, rememberMicApp }
