@@ -12,7 +12,8 @@ into two signals (CallSignals), sent as queue events over WS /ws/queue:
 
 The service only tells; the Electron main process decides from the user's
 settings whether that becomes a notification or stops the recording. Nothing
-here touches the network: Linux asks the local sound server through pactl.
+here touches the network: Linux asks the local sound server through pactl,
+Windows the bundled capture helper (mic_helper_driver).
 """
 import json
 import os
@@ -23,6 +24,7 @@ import time
 
 from app.logger import get_logger
 from app.services.audio_capture_service import _LinuxCapture
+from app.services.mic_helper_driver import HelperMicDriver
 
 log = get_logger("MicActivity")
 
@@ -198,11 +200,14 @@ class LinuxMicDriver:
                 stop.wait(self.RETRY_SEC)
 
 
-def mic_driver():
-    """The driver of this OS, or None where there is none yet."""
+def mic_driver(capture_bin: str | None = None):
+    """The driver of this OS, or None where there is none yet. Windows asks
+    the capture helper, capture_bin."""
     import sys
     if sys.platform.startswith("linux"):
         return LinuxMicDriver()
+    if sys.platform == "win32":
+        return HelperMicDriver(capture_bin)
     return None
 
 

@@ -410,6 +410,11 @@ class AudioCaptureService:
 
     # ── Binary discovery ────────────────────────────────────────────────────
 
+    @property
+    def capture_bin(self) -> str | None:
+        """The bundled capture helper (Windows, macOS), or None."""
+        return self._capture_bin
+
     def _find_capture_bin(self) -> str | None:
         env = os.getenv("SONORUS_CAPTURE_BIN")
         if env:

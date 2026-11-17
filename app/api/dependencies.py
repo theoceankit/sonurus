@@ -61,5 +61,6 @@ from app.services.mic_activity_service import MicActivityService, mic_driver
 @lru_cache(maxsize=1)
 def get_mic_activity_service() -> MicActivityService:
     """Who else holds a microphone; started and stopped by the app lifespan."""
-    return MicActivityService(mic_driver(), get_transcription_queue(), get_audio_capture_service(),
+    capture = get_audio_capture_service()
+    return MicActivityService(mic_driver(capture.capture_bin), get_transcription_queue(), capture,
                               get_live_recording_service())
