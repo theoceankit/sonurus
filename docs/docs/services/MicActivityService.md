@@ -30,9 +30,20 @@ The other end of a call, `call_ended {reason: "silence"}`, comes from [LiveRecor
 | OS | Driver | Notes |
 |---|---|---|
 | Linux | `LinuxMicDriver` | `pactl subscribe` says when a recording stream comes, goes or changes; `pactl -f json list source-outputs` (the text list for pactl older than 16) and `pactl list short sources` say who records what. Left out: streams of a monitor source (they record what plays), paused (corked) streams, level meters (`Peak detect` of pavucontrol, `stream.monitor`). The name is `application.name`, or the program (`application.process.binary`) when the name says how rather than who (`WEBRTC VoiceEngine` of Discord, `ZOOM VoiceEngine`); `app_id` is the program. A browser is one app for all its tabs. A sound server that restarts is followed after 5 s. Needs `pactl` (`pulseaudio-utils`, `libpulse` on Arch Linux), as recording does. |
-| Windows, macOS | — | No driver yet: `available` is false and Settings marks the start of a call as not available. The end of a call by silence works. |
+| Windows | `HelperMicDriver` | The capture helper runs as `sonorus-capture.exe --watch-mic` for as long as the backend does (below). A holder is the process of an active audio session on any active input device, the system sounds session left out; the helper opens no stream and needs no permission. The name is the exe's FileDescription ("Zoom Meetings", "Google Chrome"), or the exe name; `app_id` is the exe name in lower case without `.exe`. An app built on WebView2 (the new Teams) records in an `msedgewebview2.exe` child and is named after the app that started it. A browser is one app for all its tabs. Session, device and state notifications wake the helper at once; it also looks once a second. |
+| macOS | — | No driver yet: `available` is false and Settings marks the start of a call as not available. The end of a call by silence works. |
 
-Nothing here goes to the network: the drivers ask the local sound server.
+Nothing here goes to the network: the drivers ask the local sound server or the audio system of the OS.
+
+### The capture helper
+
+`HelperMicDriver` (`app/services/mic_helper_driver.py`) is the driver of an OS whose bundled `sonorus-capture` helper also watches the microphones (`AudioCaptureService.capture_bin`; without the helper `available` is false). The helper prints one JSON object per line, the first at start and then one whenever the holders change:
+
+```json
+{"names": true, "holders": [{"pid": 1234, "app_id": "zoom", "name": "Zoom"}]}
+```
+
+`app_id` is the program, `name` the name to show or `null`, `names` whether the helper can name apps at all (it becomes the `names` of `GET /audio/mic-watch`). Lines that are not such an object (warnings) are skipped. The holders are the last line read; each line read calls the service's refresh. The helper stops on a `stop` line or EOF on stdin, as when it records, so it also ends with the backend. A helper that ends by itself is started again after 5 s, keeping the last holders until its first line; one that cannot start counts as no holders.
 
 ---
 
@@ -40,8 +51,11 @@ Nothing here goes to the network: the drivers ask the local sound server.
 
 | File | Description |
 |---|---|
-| `app/services/mic_activity_service.py` | The service, `CallSignals`, the Linux driver and its parsers |
+| `app/services/mic_activity_service.py` | The service, `CallSignals`, the Linux driver and its parsers, `mic_driver()` |
+| `app/services/mic_helper_driver.py` | `HelperMicDriver`, the lines of `sonorus-capture --watch-mic` |
+| `native/windows/sonorus-capture/main.cpp` | `--watch-mic` on Windows: audio sessions of the input devices |
 | `app/services/track_silence.py` | `SilenceWatch`, the silence of a live recording's tracks |
 | `app/api/routers/audio_capture.py` | `GET /audio/mic-watch` |
 | `electron/recording-prompts.js` | What the main process does with the events |
 | `tests/test_mic_activity.py` | pactl output, the signals on a fake clock, the service on a fake driver, the route |
+| `tests/test_mic_helper_driver.py` | Helper lines, the watch on a stand-in helper script, the driver per OS |
