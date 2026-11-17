@@ -109,6 +109,14 @@ Every run also saves the voices of every clip as `<date-time>.npz` next to the r
 
 It prints recognised / wrong for each threshold and method over all runs, and per run the own and best other similarity at the app's threshold. Diarization and embeddings stay those of the run, so the replay matches the run at the app's threshold and method.
 
+What it can vary (the script's docstring has the details):
+
+- **Averaging** (`--methods`): the plain mean as in the app (`mean`); embeddings scaled to length 1 first (`norm`); also weighted by the duration of their diarization turn (`norm+dur`); and `one`, a single definition for the voice `resolve()` compares, a profile's per-recording centroid and the guard: `norm+dur` over the turns, each turn once however many segments carry it. The other methods count a turn once per segment in a profile, as the app does.
+- **Matching** (`--matchers`): `greedy` takes the highest pair first, as the app; `hungarian` takes the one-to-one assignment with the largest sum of similarities at or above the threshold.
+- **Margin** (`--margins`): a match less than the margin above the voice's next best profile counts as a possible match, as one below `POSSIBLE_MATCH_CEILING` does in the app. The matcher tables split recognised and wrong into possible and sure matches.
+
+It also prints the own and best other similarity on the 3-minute call clips for each method. The replay takes a turn's duration from the run; the app's database holds segment times, not turns.
+
 ### Speaker recognition threshold
 
 `SPEAKER_SIMILARITY_THRESHOLD` (`0.6`) was chosen with the threshold sweep over the fast and the long set (WeSpeaker embeddings, November 2026):
