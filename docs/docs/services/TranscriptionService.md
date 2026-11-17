@@ -78,8 +78,11 @@ PyAnnote splits the audio into spans and assigns each to a speaker (`SPEAKER_00`
 **5. Speaker assignment**
 ```python
 result = whisperx.assign_word_speakers(regular, result)
+assign_gap_sentences(result, regular[["start", "end", "speaker"]].itertuples(index=False))
 ```
 Each segment and each word with a time in `result` receives a `speaker` label from the regular diarization: the speaker with the most time inside it. A word without a time, or one in a gap between diarization spans, gets none. The exclusive diarization made no measurable difference here, because overlaps are short against a Whisper segment.
+
+A segment that overlaps no span at all — a short or quiet sentence the diarization did not mark, or one of zero length — then gets the speaker of the nearest span within 1 s ([Sentences between turns](TranscriptBuilder.md#sentences-between-turns)); further away it keeps none and becomes Unassigned.
 
 The segment's label is only used when its words have a single speaker: `TranscriptBuilder` cuts a segment whose words belong to different speakers (see [TranscriptBuilder](TranscriptBuilder.md#splitting-at-a-speaker-change)).
 

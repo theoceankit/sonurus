@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 from app.models.segment import Segment
 from app.models.transcript import Transcript
-from app.services.transcript_builder import TranscriptBuilder
+from app.services.transcript_builder import TranscriptBuilder, assign_gap_sentences
 
 
 # ---------------------------------------------------------------------------
@@ -552,3 +552,107 @@ def test_split_piece_gets_the_embedding_of_its_own_speaker():
     first, second = transcript.segments
     assert first.embedding is ann["embedding"]
     assert second.embedding is bob["embedding"]
+
+
+# ---------------------------------------------------------------------------
+# assign_gap_sentences(): a sentence in a diarization gap
+# ---------------------------------------------------------------------------
+# assign_word_speakers gives a sentence a speaker only when it overlaps a turn;
+# one that falls between turns would be Unassigned and cut its speaker's turn
+# in three. It goes to the turn with the nearest edge, within NEAREST_TURN_MAX_GAP.
+
+def gap_result(*segments):
+    return {"language": "en", "segments": [dict(s) for s in segments]}
+
+
+def test_gap_sentence_goes_to_the_turn_just_before():
+    result = gap_result(seg(2.5, 3.0, "Right."))
+    assign_gap_sentences(result, [(0.0, 2.0, "SPEAKER_00"), (6.0, 8.0, "SPEAKER_01")])
+    assert result["segments"][0]["speaker"] == "SPEAKER_00"
+
+
+def test_gap_sentence_goes_to_the_turn_just_after():
+    result = gap_result(seg(5.0, 5.6, "So."))
+    assign_gap_sentences(result, [(0.0, 2.0, "SPEAKER_00"), (6.0, 8.0, "SPEAKER_01")])
+    assert result["segments"][0]["speaker"] == "SPEAKER_01"
+
+
+def test_gap_sentence_takes_the_nearer_edge_not_the_nearer_middle():
+    # A long turn of SPEAKER_00 has its middle nearer than the short turn of
+    # SPEAKER_01, but the edge of SPEAKER_01 is nearer to the sentence.
+    result = gap_result(seg(10.8, 11.0, "Yes."))
+    assign_gap_sentences(result, [(0.0, 10.0, "SPEAKER_00"), (11.3, 30.0, "SPEAKER_01")])
+    assert result["segments"][0]["speaker"] == "SPEAKER_01"
+
+
+def test_gap_sentence_on_a_tie_goes_to_the_turn_before():
+    result = gap_result(seg(2.5, 3.0, "Hm."))
+    assign_gap_sentences(result, [(0.0, 2.0, "SPEAKER_00"), (3.5, 5.0, "SPEAKER_01")])
+    assert result["segments"][0]["speaker"] == "SPEAKER_00"
+
+
+def test_gap_sentence_exactly_at_the_limit_is_assigned():
+    from app.services.transcript_builder import NEAREST_TURN_MAX_GAP
+    result = gap_result(seg(2.0 + NEAREST_TURN_MAX_GAP, 4.0, "Well."))
+    assign_gap_sentences(result, [(0.0, 2.0, "SPEAKER_00")])
+    assert result["segments"][0]["speaker"] == "SPEAKER_00"
+
+
+def test_gap_sentence_beyond_the_limit_stays_without_speaker():
+    from app.services.transcript_builder import NEAREST_TURN_MAX_GAP
+    # a long pause on both sides: it may be someone the diarization missed
+    result = gap_result(seg(2.0 + NEAREST_TURN_MAX_GAP + 0.1, 4.0, "Well."))
+    assign_gap_sentences(result, [(0.0, 2.0, "SPEAKER_00"), (5.2, 6.0, "SPEAKER_00")])
+    assert "speaker" not in result["segments"][0]
+
+
+def test_zero_length_sentence_inside_a_turn_gets_that_turn():
+    # no positive overlap, so assign_word_speakers leaves it without a speaker
+    result = gap_result(seg(3.0, 3.0, "Oh."))
+    assign_gap_sentences(result, [(0.0, 2.5, "SPEAKER_00"), (2.5, 5.0, "SPEAKER_01")])
+    assert result["segments"][0]["speaker"] == "SPEAKER_01"
+
+
+def test_sentence_with_a_speaker_is_left_alone():
+    result = gap_result(seg(2.1, 3.0, "Right.", speaker="SPEAKER_01"))
+    assign_gap_sentences(result, [(0.0, 2.0, "SPEAKER_00"), (2.5, 3.0, "SPEAKER_01")])
+    assert result["segments"][0]["speaker"] == "SPEAKER_01"
+
+
+def test_gap_sentence_words_keep_no_speaker():
+    segment = wseg("Right then.", [w("Right", 2.5, 2.7), w("then.", 2.8, 3.0)], speaker=None)
+    segment.pop("speaker")
+    result = gap_result(segment)
+    assign_gap_sentences(result, [(0.0, 2.0, "SPEAKER_00")])
+    assert [x.get("speaker") for x in result["segments"][0]["words"]] == [None, None]
+
+
+def test_gap_sentence_is_built_whole_under_the_nearest_speaker():
+    segment = wseg("Right then.", [w("Right", 2.5, 2.7), w("then.", 2.8, 3.0)], speaker=None)
+    segment.pop("speaker")
+    result = gap_result(segment)
+    assign_gap_sentences(result, [(0.0, 2.0, "SPEAKER_00")])
+    transcript = TranscriptBuilder.build(result, {"SPEAKER_00": "A"}, "audio.wav")
+    [only] = transcript.segments
+    assert (only.text, only.speaker_resolved, only.unassigned) == ("Right then.", "A", False)
+
+
+def test_assign_gap_sentences_returns_how_many_it_assigned():
+    result = gap_result(seg(0.5, 1.5, "In.", speaker="SPEAKER_00"), seg(2.5, 3.0, "Near."),
+                        seg(9.0, 9.5, "Far."))
+    n = assign_gap_sentences(result, [(0.0, 2.0, "SPEAKER_00")])
+    assert n == 1
+
+
+def test_assign_gap_sentences_without_turns_changes_nothing():
+    result = gap_result(seg(2.5, 3.0, "Right."))
+    assert assign_gap_sentences(result, []) == 0
+    assert "speaker" not in result["segments"][0]
+
+
+def test_assign_gap_sentences_can_be_turned_off(monkeypatch):
+    from app.services import transcript_builder
+    monkeypatch.setattr(transcript_builder, "ASSIGN_GAPS_TO_NEAREST_TURN", False)
+    result = gap_result(seg(2.5, 3.0, "Right."))
+    assert assign_gap_sentences(result, [(0.0, 2.0, "SPEAKER_00")]) == 0
+    assert "speaker" not in result["segments"][0]

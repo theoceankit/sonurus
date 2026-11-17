@@ -70,6 +70,19 @@ A piece carries its own `start`, `end`, `text` and `speaker`, so it resolves to 
 
 ---
 
+### Sentences between turns
+
+`assign_gap_sentences(result, turns)` is called by `TranscriptionService` right after `assign_word_speakers`, with the regular diarization's turns. `assign_word_speakers` gives a segment a speaker only when it overlaps a turn; a short or quiet sentence the diarization did not mark falls between two turns and would become Unassigned, cutting its speaker's turn in three.
+
+- **Nearest edge.** A segment without a speaker gets the speaker of the turn whose edge is nearest to its own: the end of a turn before it, the start of a turn after it, 0 for a zero-length segment inside a turn. WhisperX's own `fill_nearest` compares turn middles, so a long turn far away could win over a short one next to the sentence, and has no limit.
+- **Limit.** Only turns at most `NEAREST_TURN_MAX_GAP` (1 s) away count. Past it the segment stays without a speaker and becomes Unassigned: after a longer pause it may well be someone the diarization missed (a quiet participant), and a wrong speaker is harder to notice than an Unassigned one.
+- **Tie.** The earlier turn: the sentence carries on what was said, as a short run joins the earlier neighbour in the split.
+- **Words** keep no speaker, so the segment is not split and is built whole under that speaker. It gets no embedding (no turn of its speaker overlaps it), so it never feeds a voice profile.
+
+Segments that overlap a turn are left as they are. `ASSIGN_GAPS_TO_NEAREST_TURN` turns it off; only the quality tests do that (`call-nogap`, `chromium-default-nogap`, `uneven-nogap`).
+
+---
+
 ### `attach_embeddings(transcript, segment_embeddings) → Transcript`
 
 Assigns per-segment embeddings to transcript segments using time overlap.
@@ -100,6 +113,6 @@ WhisperX produces fine-grained segments; diarization produces coarser spans. A "
 `resolve()` maps only diarization speakers that have an aggregated embedding (enough speech, see `EMBEDDING_MIN_DURATION`).
 
 - A `SPEAKER_XX` missing from `speaker_map` gets a **new UUID** — one per label within the transcript. It is an unnamed speaker without a voice profile: it shows up in the Speakers section and can be named, reassigned or deleted, but is not recognized in later recordings.
-- A segment without any diarization speaker (`UNKNOWN`) gets `speaker_resolved = None` and `unassigned = True` — it waits for the user to assign someone.
+- A segment without any diarization speaker (`UNKNOWN`: no turn overlaps it and none is within 1 s, see [Sentences between turns](#sentences-between-turns)) gets `speaker_resolved = None` and `unassigned = True` — it waits for the user to assign someone.
 
 So `speaker_raw` is never the effective speaker of a stored segment. Transcript schema v6 applied the same rule to rows saved earlier.
