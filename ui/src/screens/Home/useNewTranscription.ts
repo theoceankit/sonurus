@@ -34,11 +34,14 @@ interface State {
   // Model and language picked for this run; the defaults until the user picks.
   picked: Picked
   failure: Refusal | null
+  // The app of a call that seemed to start, when a notification opened New recording:
+  // the title the field shows is named after it.
+  app: string | null
   // Counts the openings from nothing open: each starts afresh.
   session: number
 }
 
-const CLOSED: Omit<State, 'session'> = { open: null, sticky: false, dragFrom: null, files: [], title: '', picked: NOTHING_PICKED, failure: null }
+const CLOSED: Omit<State, 'session'> = { open: null, sticky: false, dragFrom: null, files: [], title: '', picked: NOTHING_PICKED, failure: null, app: null }
 
 // A new opening, with nothing kept from the last one.
 const opening = (current: State, open: Dialog, sticky: boolean): State => ({ ...CLOSED, open, sticky, session: current.session + 1 })
@@ -138,6 +141,12 @@ export function useNewTranscription() {
     if (current.open === 'import') return { ...current, sticky: true }
     return current.open ? current : opening(current, 'record', true)
   }), [])
+  // From a notification of a call that seemed to start; over whatever is already open.
+  const openRecordingFor = useCallback((app: string | null) => setState(current => {
+    if (current.open === 'record') return { ...current, app }
+    if (current.open === 'import') return current
+    return { ...opening(current, 'record', true), app }
+  }), [])
   const toImport = useCallback(() => setState(current => ({ ...current, open: 'import', sticky: true, dragFrom: null })), [])
   const close = useCallback(() => setState(current => ({ ...current, open: null, dragFrom: null })), [])
 
@@ -181,7 +190,7 @@ export function useNewTranscription() {
     const { title } = latest.current
     const { model, language, checking, blocked } = latestChoice.current
     if (checking || blocked) return
-    const started = recording.start({ title: title.trim() || defaultTitle(openedAt), model, language: apiLanguage(language) })
+    const started = recording.start({ title: title.trim() || defaultTitle(openedAt, latest.current.app), model, language: apiLanguage(language) })
     if (started) setState(current => ({ ...current, open: null }))
   }
 
@@ -197,7 +206,7 @@ export function useNewTranscription() {
     ...shared,
     open: state.open === 'record',
     title: state.title,
-    defaultTitle: defaultTitle(openedAt),
+    defaultTitle: defaultTitle(openedAt, state.app),
     onTitleChange: title => setState(current => ({ ...current, title })),
     record: recording.setup,
     onStartRecording: startRecording,
@@ -214,5 +223,5 @@ export function useNewTranscription() {
     onRemove: remove,
     onImport: () => void importFiles(),
   }
-  return { openRecording, record, importer }
+  return { openRecording, openRecordingFor, record, importer }
 }

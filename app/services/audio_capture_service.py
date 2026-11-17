@@ -523,6 +523,16 @@ class AudioCaptureService:
         with self._lock:
             return self._jobs[job_id].started_at
 
+    def track_path(self, job_id: str) -> str:
+        """The WAV file a capture is writing, to read while it records."""
+        with self._lock:
+            return self._jobs[job_id].output_path
+
+    def capture_pids(self) -> set[int]:
+        """The processes recording for Sonorus: not other apps holding a microphone."""
+        with self._lock:
+            return {job.process.pid for job in self._jobs.values()}
+
     def discard(self, job_id: str) -> None:
         """Stop a capture at once and remove its files; nothing is kept."""
         with self._lock:

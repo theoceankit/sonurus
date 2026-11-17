@@ -16,7 +16,7 @@ from app.logger import get_logger, setup_logging
 from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data, gpu
 from app.api.refusals import Refusal, refusal_handler
 from app.api.dependencies import (
-    get_live_recording_service, get_memory_service, get_storage_service, get_transcription_queue,
+    get_live_recording_service, get_memory_service, get_mic_activity_service, get_storage_service, get_transcription_queue,
 )
 from app.services.audio_store import remove_orphan_imports, remove_orphan_levels
 from app.services.commit_service import CommitService
@@ -47,7 +47,11 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         log.error(f"Recomputing voice profiles failed: {exc}")
     queue.start_worker()
+    mic_activity = get_mic_activity_service()
+    if config.MIC_WATCH:
+        mic_activity.start()
     yield
+    mic_activity.stop()
     # A recording still running when the backend goes down is not saved: its
     # capture processes and temp files are let go.
     get_live_recording_service().shutdown()

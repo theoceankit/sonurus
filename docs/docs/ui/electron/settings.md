@@ -57,6 +57,14 @@ GPU acceleration of the packaged app, after Languages; on macOS there is no sect
 
 The devices a new recording starts with, in one card, Live recording: Microphone, the default one or one the backend can record (`GET /audio/capture/inputs`), and System audio source, from `GET /audio/capture/sources`. They are `recordingMicDevice` (null for the default microphone) and `recordingSystemDevice` of the settings file, the values New recording saves when it starts a recording ([Home](home.md#new-recording-dialog)), so the two always show the same. A device that is gone shows the first one in its place. Where no system audio can be captured, its field says Not available and is off. There is no Include microphone switch: New recording turns the microphone on and off.
 
+## Notifications
+
+The notifications of the main process, in two cards ([Live Recording → Calls](live-recording.md#calls-starting-and-ending)). Show notifications (`notifications`) turns all of them off, the tray notice included; the rest of the section is off with it. Calls:
+
+- **Suggest recording when a call seems to start** (`promptStart`): a notification when another app has used a microphone for 15 seconds. Where the system cannot tell (`GET /audio/mic-watch` says `available: false`: Windows and macOS for now) it is marked not available yet; on Linux without `pactl` the hint says to install it.
+- **Calls in** (`promptStartApps`): Any app, or Selected apps — then a switch for each app that has used a microphone (`getMicApps()`), and for a picked app no longer listed, by its id. Picked apps are `promptStartSelected`.
+- **When a call seems to end** (`promptEnd`): Suggest stopping, Stop recording automatically, or Do nothing.
+
 ## API Keys
 
 The HuggingFace token (`hfToken`), hidden until the eye button shows it. The icon of the button shows the state of the token: a crossed-out eye (`eye-off`) while it is hidden, an open one while it is shown. The token is saved when the field is left, on Enter, and when the field goes: Settings closed in any way, Escape included, or another section opened. Spaces around it are cut off, and a token left as it was is not written again. Model downloads send it with each request ([Transcription](transcribe.md#downloads)); the main process reads it when it starts the backend.

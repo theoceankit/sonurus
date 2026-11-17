@@ -33,7 +33,9 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const pad = (n: number) => String(n).padStart(2, '0')
 
 // What the title field shows until the user types: "5 Nov 14:30 Meeting".
-export const defaultTitle = (now: Date) => `${now.getDate()} ${MONTHS[now.getMonth()]} ${pad(now.getHours())}:${pad(now.getMinutes())} Meeting`
+// With the app of a call that seemed to start: "5 Nov 14:30 Discord call".
+export const defaultTitle = (now: Date, app: string | null = null) =>
+  `${now.getDate()} ${MONTHS[now.getMonth()]} ${pad(now.getHours())}:${pad(now.getMinutes())} ${app ? `${app} call` : 'Meeting'}`
 
 // The titles of the jobs, in the order of the files: the one a file was renamed to, or
 // null, which the backend turns into the name of the file.

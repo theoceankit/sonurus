@@ -4,8 +4,12 @@ If a package is importable in the current environment (e.g. during local dev),
 the stub is skipped and the real package is used instead.
 """
 import importlib.util
+import os
 import sys
 from unittest.mock import MagicMock
+
+# No test watches the real sound server for apps holding a microphone.
+os.environ["SONORUS_MIC_WATCH"] = "0"
 
 
 def _is_importable(name: str) -> bool:

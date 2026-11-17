@@ -57,6 +57,17 @@ The backend records and writes every file; the window drives and shows the recor
 
 ---
 
+## Calls starting and ending
+
+Sonorus can suggest a recording when a call seems to start, and its end when the call seems to end. The backend tells; the Electron main process decides, by Settings → Notifications ([Settings](settings.md#notifications)), so it works with the window closed to the tray. Nothing records without the user.
+
+- **Signals.** [MicActivityService](../../services/MicActivityService.md) sends `mic_app_active` when another app has held a microphone for 15 s with no recording running, and `call_ended` (`mic_released`) when, during a recording, every other app has let go of it for 15 s. [LiveRecordingService](../../services/LiveRecordingService.md) sends `call_ended` (`silence`) when no track had sound for 5 minutes. All go over `WS /ws/queue`, which the main process listens to as the window does (`electron/backend-events.js`, reconnected after a backend restart); the window ignores them.
+- **What happens** (`promptFor()` in `electron/recording-prompts.js`). Nothing with Show notifications off. A start, when suggestions are on, no recording runs and the app counts (any app, or one of the selected): a notification "Looks like a call started in Discord" (without the name where the system does not give it), "Click to start recording." An end, while the recording is live: Suggest stopping — "Looks like the call ended", "Click to stop recording." (after silence: "Nothing was heard for 5 minutes. Click to stop recording."); Stop recording automatically — `POST /audio/recording/stop`, which answers before the recording is saved, so the notice waits for how it ended over `WS /ws/queue`: a snapshot without the recording gives "Recording stopped and saved" with the title, a `recording_failed` event "Could not save the recording" with the title and the error, and no word in 60 s (the backend went down) "Recording stopped", "Standup. Open Sonorus to see whether it was saved."; Do nothing. Every app of a `mic_app_active` is remembered in `micApps` of `app-state.json`, for the list of selected apps.
+- **A click** brings the window to the front, making it again if it was closed to the tray, and leaves an intent for it: the page takes it when it loads (`takeWindowIntent()`), and a page already open is told one waits (`onWindowIntent`). New recording opens with the title named after the app ("5 Nov 14:30 Discord call"); Stop recording? asks "Standup" is still recording. Stop it and add it to the queue? (with the title of the recording) with Keep recording and Stop recording (`StopRecordingDialog`). The question waits up to 5 s for a page that has not yet heard of the recording, and goes by itself when the recording ends. The notification shows also when the window is open and in front.
+- **Per OS.** Linux with `pactl`: everything. Windows and macOS: the start of a call and its end by the microphone are not there yet, the end by silence is. Linux notifications are clicked as a whole, without buttons; a notification server that does not send clicks shows them but opens nothing.
+
+---
+
 ## Key files
 
 | File | Role |
@@ -66,7 +77,10 @@ The backend records and writes every file; the window drives and shows the recor
 | `app/api/routers/audio_capture.py` | `/audio/capture/*` and `/audio/recording/*` endpoints |
 | `native/macos/sonorus-capture/main.swift` | Swift helper — ScreenCaptureKit and the microphone — build with `npm run build:capture` (requires Xcode Command Line Tools: `xcode-select --install`) |
 | `native/windows/sonorus-capture/main.cpp` | C++ WASAPI helper, loopback and input — build with `npm run build:capture:win` (MSVC Build Tools on Windows, or mingw-w64) |
-| `ui/src/recording/` | `RecordingProvider.tsx` (start, stop, the state from the snapshot), `useRecordingSetup.ts` (the dialog's sources and devices), `sources.ts`, `LiveRecording.tsx` (the sidebar section and the title bar pill) |
+| `ui/src/recording/` | `RecordingProvider.tsx` (start, stop, the state from the snapshot), `useRecordingSetup.ts` (the dialog's sources and devices), `sources.ts`, `LiveRecording.tsx` (the sidebar section and the title bar pill), `StopRecordingDialog.tsx` (the question of a call that ended) |
+| `app/services/mic_activity_service.py`, `app/services/track_silence.py` | Which other apps hold a microphone; the silence of the tracks |
+| `electron/backend-events.js`, `electron/recording-prompts.js` | The queue events in the main process; notifications of a call, the automatic stop |
+| `ui/src/platform/window-intent.ts`, `ui/src/screens/Settings/NotificationsSection.tsx` | The dialog a notification opens; Settings → Notifications |
 | `ui/src/components/SourceToggle/`, `LiveRecordingRow/`, `RecordingPill/` | A source of the dialog, the recording's row, its pill |
 | `ui/src/screens/Settings/AudioSection.tsx` | Settings → Audio devices |
 | `electron/main.js` | Refuses the page's permission requests; `SONORUS_CAPTURE_BIN` env |

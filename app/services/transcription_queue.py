@@ -250,6 +250,11 @@ class TranscriptionQueue:
                     self._cond.notify_all()
         self._publish(*events)
 
+    def notify(self, event: dict) -> None:
+        """An event of the live recording that changes nothing in the queue
+        (mic_app_active, call_ended): sent to the subscribers as is."""
+        self._publish(event)
+
     def set_start_mode(self, mode: str) -> None:
         if mode not in START_MODES:
             raise ValueError(f"start_mode must be one of {', '.join(START_MODES)}")

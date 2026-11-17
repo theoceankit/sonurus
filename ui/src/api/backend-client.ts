@@ -158,6 +158,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     setQueueStartMode: start_mode => send(http.PUT('/queue/settings', { body: { start_mode } })),
     listCaptureSources: async () => (await send(http.GET('/audio/capture/sources'))).sources,
     listMicInputs: async () => (await send(http.GET('/audio/capture/inputs'))).inputs,
+    getMicWatch: () => send(http.GET('/audio/mic-watch')),
     startRecording: body => send(http.POST('/audio/recording/start', { body })),
     stopRecording: () => send(http.POST('/audio/recording/stop')),
     subscribeQueueEvents: (listener, onConnection) => connectQueueEvents({

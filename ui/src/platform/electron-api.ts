@@ -17,7 +17,25 @@ export type ElectronSettings = {
   theme: ThemeSource
   // Closing the window keeps the app running in the tray (electron/tray.js).
   closeToTray: boolean
+  // Every notification of the main process, the tray notice included.
+  notifications: boolean
+  // A notification when another app has held a microphone for a while: a call may
+  // have started (electron/recording-prompts.js).
+  promptStart: boolean
+  // For any app, or only for the apps in promptStartSelected (their ids).
+  promptStartApps: 'any' | 'selected'
+  promptStartSelected: string[]
+  // When a call seems to have ended during a recording: a notification, a stop, or nothing.
+  promptEnd: 'suggest' | 'auto' | 'off'
 }
+
+// What a click on a notification asks the window to open.
+export type WindowIntent =
+  | { dialog: 'new-recording'; app: string | null }
+  | { dialog: 'stop-recording' }
+
+// An app that held a microphone long enough to suggest a recording.
+export type MicApp = { id: string; name: string }
 
 export type ThemeSource = 'system' | 'light' | 'dark'
 
@@ -38,6 +56,11 @@ export type ElectronAPI = {
   // '' once the file manager opened the models folder, else why it did not.
   showModelsFolder: () => Promise<string>
   setWindowDimmed: (dimmed: boolean, startedAt: number) => void
+  // The dialog a notification asked for, once; null when none waits.
+  takeWindowIntent: () => Promise<WindowIntent | null>
+  // Called when an intent waits for the open window; returns what stops listening.
+  onWindowIntent: (callback: () => void) => () => void
+  getMicApps: () => Promise<MicApp[]>
 }
 
 declare global {

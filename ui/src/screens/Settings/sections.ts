@@ -8,6 +8,7 @@ export const SECTIONS = [
   { id: 'alignment', label: 'Languages', icon: 'globe' },
   { id: 'gpu', label: 'GPU', icon: 'sparkle' },
   { id: 'audio', label: 'Audio devices', icon: 'microphone' },
+  { id: 'notifications', label: 'Notifications', icon: 'notification' },
   { id: 'apiKeys', label: 'API Keys', icon: 'api-keys' },
   { id: 'export', label: 'Export', icon: 'export' },
   { id: 'data', label: 'Data', icon: 'privacy' },

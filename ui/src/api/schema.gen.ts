@@ -38,6 +38,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audio/mic-watch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Mic Watch
+         * @description Whether this system tells when another app holds a microphone (the
+         *     mic_app_active and call_ended events), and whether it names the app.
+         */
+        get: operations["get_mic_watch_audio_mic_watch_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audio/recording/start": {
         parameters: {
             query?: never;
@@ -886,6 +907,24 @@ export interface components {
             /** Sources */
             sources: components["schemas"]["AudioSource"][];
         };
+        /**
+         * CallEndedEvent
+         * @description The live recording may have outlived its call: every other app let go
+         *     of the microphone (mic_released), or no track had sound for a while
+         *     (silence). The recording goes on.
+         */
+        CallEndedEvent: {
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "mic_released" | "silence";
+            /**
+             * Type
+             * @constant
+             */
+            type: "call_ended";
+        };
         /** DataResetResponse */
         DataResetResponse: {
             /** Files */
@@ -1034,6 +1073,34 @@ export interface components {
             started_at: number | null;
             /** Title */
             title: string;
+        };
+        /**
+         * MicAppActiveEvent
+         * @description Another app has held a microphone for a while and no recording runs:
+         *     a call may have started. Once per hold; app_id is stable across holds,
+         *     name is null where the system does not say which app it is.
+         */
+        MicAppActiveEvent: {
+            /** App Id */
+            app_id: string;
+            /** Name */
+            name: string | null;
+            /**
+             * Type
+             * @constant
+             */
+            type: "mic_app_active";
+        };
+        /**
+         * MicWatchResponse
+         * @description GET /audio/mic-watch: whether this system tells when another app holds
+         *     a microphone, and whether it says which app.
+         */
+        MicWatchResponse: {
+            /** Available */
+            available: boolean;
+            /** Names */
+            names: boolean;
         };
         /**
          * ModelsFolder
@@ -1561,6 +1628,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AudioSourcesResponse"];
+                };
+            };
+        };
+    };
+    get_mic_watch_audio_mic_watch_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MicWatchResponse"];
                 };
             };
         };

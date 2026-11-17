@@ -4,9 +4,9 @@ state is in the queue snapshot, GET /queue and WS /ws/queue."""
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.api.dependencies import get_audio_capture_service, get_live_recording_service
+from app.api.dependencies import get_audio_capture_service, get_live_recording_service, get_mic_activity_service
 from app.api.required_models import job_language, require_models
-from app.api.schemas import LiveRecording
+from app.api.schemas import LiveRecording, MicWatchResponse
 from app.config import WHISPER_MODEL
 from app.services.live_recording_service import NotRecording, RecordingBusy, RecordingRequest
 
@@ -49,6 +49,13 @@ def get_sources(service=Depends(get_audio_capture_service)):
 @router.get("/audio/capture/inputs", response_model=AudioInputsResponse)
 def get_inputs(service=Depends(get_audio_capture_service)):
     return AudioInputsResponse(inputs=service.get_inputs())
+
+
+@router.get("/audio/mic-watch", response_model=MicWatchResponse)
+def get_mic_watch(service=Depends(get_mic_activity_service)):
+    """Whether this system tells when another app holds a microphone (the
+    mic_app_active and call_ended events), and whether it names the app."""
+    return MicWatchResponse(**service.support())
 
 
 @router.post("/audio/recording/start", response_model=LiveRecording,

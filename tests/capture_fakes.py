@@ -25,6 +25,13 @@ class FakeCapture:
     def started_at(self, job_id):
         return self.jobs[job_id]["started_at"]
 
+    def track_path(self, job_id):
+        """Where a track is written; a test may write a WAV there."""
+        return str(self.tmp / f"track-{job_id}.wav")
+
+    def capture_pids(self):
+        return set()
+
     def alive(self, job_id):
         return job_id in self.jobs and self.jobs[job_id]["alive"]
 

@@ -4,7 +4,7 @@ export const iconNames = [
   'assign-speaker', 'bookmark', 'calendar', 'change-speaker', 'check', 'chevron-down', 'chevron-right', 'clock', 'close',
   'copy', 'delete', 'diarization-model', 'download', 'edit', 'export', 'eye', 'eye-off', 'folder',
   'forward', 'globe', 'highlight', 'info', 'inspector', 'interface', 'microphone', 'microphone-and-system',
-  'models', 'more', 'pause', 'pin', 'play', 'play-outline', 'privacy',
+  'models', 'more', 'notification', 'pause', 'pin', 'play', 'play-outline', 'privacy',
   'retry', 'rewind', 'search', 'settings', 'share', 'sidebar-toggle', 'skip-back', 'skip-forward',
   'sparkle', 'speaker-unknown', 'speakers', 'stop', 'success', 'system-audio', 'volume', 'warning', 'waveform', 'whisper-model',
 ] as const

@@ -15,4 +15,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restartBackend:  () => ipcRenderer.invoke('restart-backend'),
   showModelsFolder: () => ipcRenderer.invoke('show-models-folder'),
   setWindowDimmed: (dimmed, startedAt) => ipcRenderer.send('window-dimmed', dimmed, startedAt),
+  takeWindowIntent: () => ipcRenderer.invoke('take-window-intent'),
+  onWindowIntent:  (callback) => {
+    const listener = () => callback()
+    ipcRenderer.on('window-intent', listener)
+    return () => ipcRenderer.removeListener('window-intent', listener)
+  },
+  getMicApps:      () => ipcRenderer.invoke('get-mic-apps'),
 })

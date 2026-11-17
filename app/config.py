@@ -25,6 +25,9 @@ SPEAKER_PHOTOS_DIR = DATA_DIR / "speaker_photos"
 # Unset (dev, macOS) → no download is offered.
 GPU_DIR = Path(os.environ["SONORUS_GPU_DIR"]) if os.getenv("SONORUS_GPU_DIR") else None
 GPU_MANIFEST = Path(os.environ["SONORUS_GPU_MANIFEST"]) if os.getenv("SONORUS_GPU_MANIFEST") else None
+# Watching which other apps hold a microphone (MicActivityService); "0" turns it
+# off, as the tests do.
+MIC_WATCH = os.environ.get("SONORUS_MIC_WATCH", "1") != "0"
 
 # Device
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"

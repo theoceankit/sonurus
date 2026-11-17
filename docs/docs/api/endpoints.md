@@ -75,6 +75,14 @@ Answers at once with the recording in phase `stopping`. Then the tracks stop, ar
 
 A track whose capture process ends by itself (a microphone unplugged, a helper that failed) stops the recording the same way, with a `recording_source_lost` event.
 
+### `GET /audio/mic-watch`
+
+```json
+{ "available": true, "names": true }
+```
+
+Whether this system tells when another app holds a microphone (`mic_app_active`, `call_ended` with `mic_released` over `WS /ws/queue`), and whether it names the app. Linux with `pactl`: both true; elsewhere false for now ([MicActivityService](../services/MicActivityService.md)).
+
 ---
 
 ## Transcription queue
@@ -180,6 +188,8 @@ Sends the current snapshot on connect, then a snapshot after every change and th
   "error": "CUDA out of memory", "error_code": null, "error_language": null }
 { "type": "recording_failed", "title": "Standup", "error": "No audio was captured from the microphone." }
 { "type": "recording_source_lost", "source": "mic", "title": "Standup" }   // stopped, saved and queued
+{ "type": "mic_app_active", "app_id": "discord", "name": "Discord" }   // a call may have started
+{ "type": "call_ended", "reason": "mic_released" }   // or "silence": the call may have ended
 { "type": "heartbeat" }   // every 10 s while nothing changes — ignore
 ```
 

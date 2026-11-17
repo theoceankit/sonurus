@@ -53,3 +53,13 @@ from app.services.live_recording_service import LiveRecordingService
 def get_live_recording_service() -> LiveRecordingService:
     """The one live recording; let go of by the app lifespan."""
     return LiveRecordingService(get_audio_capture_service(), get_transcription_queue())
+
+
+from app.services.mic_activity_service import MicActivityService, mic_driver
+
+
+@lru_cache(maxsize=1)
+def get_mic_activity_service() -> MicActivityService:
+    """Who else holds a microphone; started and stopped by the app lifespan."""
+    return MicActivityService(mic_driver(), get_transcription_queue(), get_audio_capture_service(),
+                              get_live_recording_service())

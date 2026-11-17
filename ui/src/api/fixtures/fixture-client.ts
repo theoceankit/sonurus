@@ -1,6 +1,6 @@
 import type { GpuDownloadEvent } from '../gpu-events'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
-import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type LiveRecording, type RecordingStart, type HandleFormat, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type Speaker, type SpeakerCandidates } from '../types'
+import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type LiveRecording, type MicWatch, type RecordingStart, type HandleFormat, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_GPU, FIXTURE_NOW, GONE_AUDIO_IDS, queueSnapshot } from './data'
 import { fixtureModels } from './models'
@@ -36,6 +36,8 @@ export type FixtureOptions = {
   captureSources?: readonly AudioSource[]
   // The microphones; FIXTURE_MIC_INPUTS by default.
   micInputs?: readonly AudioSource[]
+  // What GET /audio/mic-watch says; Linux with pactl by default.
+  micWatch?: MicWatch
   // One method behaving differently, e.g. a failing save on a loaded screen.
   overrides?: Partial<ApiClient>
 }
@@ -109,7 +111,7 @@ const readAsDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
 // has its own copy, so stories and tests do not see each other's changes.
 export function createFixtureClient({
   scenario = 'default', board = 'review', noAudio = false, noModels = false, installedModels,
-  downloadStepMs = 400, downloadFails = false, gpu: gpuStatus = {}, captureSources = FIXTURE_CAPTURE_SOURCES, micInputs = FIXTURE_MIC_INPUTS, overrides = {},
+  downloadStepMs = 400, downloadFails = false, gpu: gpuStatus = {}, captureSources = FIXTURE_CAPTURE_SOURCES, micInputs = FIXTURE_MIC_INPUTS, micWatch = { available: true, names: true }, overrides = {},
 }: FixtureOptions = {}): FixtureClient {
   const audioUrls = new Map<number, string>()
   const models = fixtureModels(noModels ? [] : installedModels)
@@ -737,6 +739,7 @@ export function createFixtureClient({
     }),
     listCaptureSources: () => answer(() => [...captureSources]),
     listMicInputs: () => answer(() => [...micInputs]),
+    getMicWatch: () => answer(() => ({ ...micWatch })),
     startRecording: request => answer(() => startRecording(request)),
     stopRecording: () => answer(() => stopRecording()),
     subscribeQueueEvents: (listener, onConnection) => {

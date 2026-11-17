@@ -1,5 +1,5 @@
 import type {
-  AudioSource, DataResetSummary, GpuStatus, HandleFormat, LiveRecording, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RecordingStart, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerMergeSummary, SpeakerSample, SpeakerTranscript, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem,
+  AudioSource, DataResetSummary, GpuStatus, HandleFormat, LiveRecording, MicWatch, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RecordingStart, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerMergeSummary, SpeakerSample, SpeakerTranscript, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
@@ -149,6 +149,8 @@ export interface ApiClient {
   listCaptureSources(): Promise<AudioSource[]>
   // The microphones by name; the default one is not listed (mic_device null).
   listMicInputs(): Promise<AudioSource[]>
+  // Whether the backend can tell that another app holds a microphone (a call started).
+  getMicWatch(): Promise<MicWatch>
   // Answers the live recording. Refused with a 400 and the reason when a source cannot
   // run (a missing tool, no permission) or a model the job needs is not installed (with
   // its code), with a 409 while a recording runs.

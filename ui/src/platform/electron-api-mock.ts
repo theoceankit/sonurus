@@ -22,6 +22,9 @@ export function createMockElectronAPI(changes: Partial<ElectronAPI> = {}): MockE
     restartBackend: async () => {},
     showModelsFolder: async () => '',
     setWindowDimmed: () => {},
+    takeWindowIntent: async () => null,
+    onWindowIntent: () => () => {},
+    getMicApps: async () => [],
     clipboard: () => clipboard,
     ...changes,
   }
