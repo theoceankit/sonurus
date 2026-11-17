@@ -30,6 +30,11 @@ stop()                                 NotRecording unless live
 watcher: a capture process ended by itself (a microphone unplugged, a helper that failed)
   → the same stop, and a recording_source_lost event {source: "mic" | "system", title}
 
+watcher, every 2 s: what the tracks added since the last look (SilenceWatch)
+  → no track louder than −50 dBFS in any 100 ms for 5 minutes: a call_ended event
+    {reason: "silence"} — the call may have ended; the recording goes on
+  → told once, again only after a track was loud and then quiet for 5 minutes more
+
 failure while stopping or queuing
   → a recording_failed event {title, error}; the temp files are gone, the queue is let go
 
@@ -38,6 +43,8 @@ shutdown()                             the backend goes down (app lifespan)
 ```
 
 The phase, title, start time and sources are `recording` in the queue snapshot, and the events go out with the queue's over `WS /ws/queue`. The models a job needs are checked by the route before `start()`, so a recording that could not be queued does not start.
+
+`SilenceWatch` (`app/services/track_silence.py`) reads the WAV files the capture processes are still writing (`AudioCaptureService.track_path()`): 16-bit and 32-bit float PCM, from the data chunk to the end of the file, as the header sizes are still 0. A check that fell behind reads only the last 30 s. What the main process does with the event: [Live Recording → Calls](../ui/electron/live-recording.md#calls-starting-and-ending).
 
 `is_recording()` is true from the start until the recording is queued or failed. `POST /data/reset`, deleting a speaker and a GPU restart wait for it: the recording writes a new file into `recordings/` and becomes a job.
 
@@ -50,4 +57,6 @@ The phase, title, start time and sources are `recording` in the queue snapshot, 
 | `app/services/live_recording_service.py` | The service |
 | `app/api/routers/audio_capture.py` | `POST /audio/recording/start`, `POST /audio/recording/stop`, `GET /audio/capture/inputs` |
 | `app/api/required_models.py` | The model check shared with `POST /queue/jobs` |
+| `app/services/track_silence.py` | Whether the tracks have been quiet |
 | `tests/test_live_recording.py` | The service on a fake capture (`tests/capture_fakes.py`) and a real queue |
+| `tests/test_track_silence.py` | Silence of growing WAV files |

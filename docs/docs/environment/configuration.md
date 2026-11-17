@@ -48,6 +48,7 @@ Used when the backend is started manually (`uvicorn ...`) or set by `electron/ba
 | `SONORUS_PACKAGED` | — | `1` when the installed app started the backend (set by Electron); reported by `GET /health` as `packaged`. |
 | `SONORUS_DEV_UI_ORIGIN` | — | One more origin the backend accepts, for the UI's dev server. Set by `npm run dev:ui`; ignored with `SONORUS_PACKAGED=1`. |
 | `SONORUS_UI_DEV_URL` | — | Read by Electron, not the backend: the page the window loads in development. Set by `npm run dev:ui`; ignored by the installed app. |
+| `SONORUS_MIC_WATCH` | `1` | `0`: the backend does not watch which other apps hold a microphone, and no notification suggests a recording when a call starts ([MicActivityService](../services/MicActivityService.md)). The tests set it. |
 | `DB_PATH` | `$SONORUS_DATA_DIR/speaker_memory.db` | Override the SQLite database path. |
 
 The backend also sets `PYANNOTE_METRICS_ENABLED`, `OTEL_SDK_DISABLED`, `HF_HUB_DISABLE_TELEMETRY` and `DO_NOT_TRACK` itself, overriding any value you set — third-party telemetry stays off (see [Privacy](../privacy.md)).
