@@ -22,6 +22,11 @@ better. Both sides are normalised first: lowercase, no punctuation, numbers as w
 - **Similarity own / other**: cosine similarity of a person's voice in a later clip to their own profile from \
 clip 1, and the highest one to another person's profile. A speaker is matched when it reaches \
 SPEAKER_SIMILARITY_THRESHOLD.
+- **Segments**: unassigned transcript segments (no speaker, count and seconds); mixed segments, whose words \
+matched to the reference belong to 2+ people, out of all, and the words of anyone but the segment's main person \
+in them; short utterances (1–2 words) with a word recognised, how many are under the right person; and, in what \
+the pipeline returned before the transcript was built, segments without timed words, with empty text and longer \
+than 15 s.
 - **Base**: the variant a processing step is compared with; the test fails when the variant is worse than its base \
 by more than the tolerance. Variants without a base are listening conditions and only report.
 - Every variant runs the same three 3-minute clips (es2002b, es2002c, es2002d) in this order on an empty speaker \
@@ -48,6 +53,10 @@ def note(text: str) -> None:
 
 def _pct(x) -> str:
     return "–" if x is None or (isinstance(x, float) and math.isnan(x)) else f"{100 * x:.1f}%"
+
+
+def _share(part, whole):
+    return part / whole if whole else None
 
 
 def _num(x, digits=3) -> str:
@@ -90,6 +99,21 @@ def markdown() -> str:
                 f"| {r['series']} | {r['variant']} | {r['recognised']} / {r['named_total']} | {r['wrong']} "
                 f"| {_num(r['similarity'])} / {_num(r['own_min'])} "
                 f"| {_num(r['other_similarity'])} / {_num(r['other_max'])} |")
+
+    lines += ["", "## Segments", "",
+              "Summary per variant, then one row per clip. Mixed: segments / all (words of other people in them). "
+              "Short right: right / recognised 1–2-word utterances. No words, empty, over 15 s: out of the "
+              "pipeline's segments before the transcript was built.", "",
+              "| Variant | Clip | Unassigned (s) | Mixed / all (other words) | Short right "
+              "| No words | Empty | Over 15 s / all |",
+              "|---|---|---|---|---|---|---|---|"]
+    for r in ROWS:
+        for c in [{**r, "clip": "all"}, *r["clips"]]:
+            lines.append(
+                f"| {_name(r)} | {c['clip']} | {c['unassigned']} ({c['unassigned_s']:.1f}) "
+                f"| {c['mixed']} / {c['segments']} ({c['mixed_minority_words']}) "
+                f"| {c['short_right']} / {c['short_found']} ({_pct(_share(c['short_right'], c['short_found']))}) "
+                f"| {c['no_words']} | {c['empty_text']} | {c['long_segments']} / {c['raw_segments']} |")
 
     lines += ["", "## Per clip", "",
               "Three rows per variant, one per clip. In the first clip the speakers are named (no recognition "

@@ -217,3 +217,104 @@ def test_speaker_recall_is_the_share_of_each_speakers_words_recognised():
     ref = [_w("a", 0), _w("b", 1), _w("c", 2, "bob"), _w("d", 3, "bob")]
     hyp = [_w("a", 0), _w("b", 1), _w("c", 2, "S2")]
     assert metrics.speaker_recall(ref, hyp) == {"ann": 1.0, "bob": 0.5}
+
+
+# ── segments ─────────────────────────────────────────────────────────────────
+
+def test_unassigned_segments_count_and_duration():
+    segments = [("S1", 0.0, 2.0, "a b"), (None, 2.0, 3.5, "c"), ("S2", 3.5, 5.0, "d"), (None, 5.0, 5.5, "")]
+    assert metrics.unassigned_segments(segments) == (2, pytest.approx(2.0))
+    assert metrics.unassigned_segments([("S1", 0.0, 1.0, "a")]) == (0, 0.0)
+
+
+def test_mixed_segments_counts_segments_with_words_of_two_reference_speakers():
+    ref = [_w("hello", 0, "ann"), _w("there", 0.4, "ann"), _w("yes", 0.8, "bob"),
+           _w("so", 2.0, "bob"), _w("well", 2.4, "bob")]
+    segments = [("S1", 0.0, 1.2, "Hello there, yes."),   # ann ann bob: mixed, one minority word
+                ("S2", 2.0, 2.8, "So well.")]            # bob bob: not mixed
+    m = metrics.mixed_segments(ref, segments)
+    assert (m.segments, m.mixed, m.minority_words) == (2, 1, 1)
+
+
+def test_mixed_segments_ignores_words_not_matched_to_the_reference():
+    # "yep" is a substitution for bob's "yes": not counted, so the segment stays one speaker's;
+    # "extra" is inserted and has no reference speaker at all.
+    ref = [_w("hello", 0, "ann"), _w("there", 0.4, "ann"), _w("yes", 0.8, "bob")]
+    m = metrics.mixed_segments(ref, [("S1", 0.0, 1.2, "Hello there yep extra")])
+    assert (m.segments, m.mixed, m.minority_words) == (1, 0, 0)
+
+
+def test_mixed_segments_minority_is_everyone_but_the_segments_main_speaker():
+    ref = [_w("a", 0, "ann"), _w("b", 0.4, "bob"), _w("c", 0.8, "ann"), _w("d", 1.2, "cid"),
+           _w("e", 1.6, "ann")]
+    m = metrics.mixed_segments(ref, [("S1", 0.0, 2.0, "a b c d e"), (None, 2.0, 2.5, "")])
+    assert (m.segments, m.mixed, m.minority_words) == (2, 1, 2)
+
+
+def test_short_utterance_speakers_counts_recognised_one_and_two_word_utterances():
+    ref = [_w("one", 0, "ann"), _w("two", 0.4, "ann"), _w("three", 0.8, "ann"),  # 3 words: not short
+           _w("yeah", 3.0, "bob"),                                                # right
+           _w("okay", 6.0, "cid"), _w("sure", 6.4, "cid"),                        # one word found, wrong
+           _w("right", 9.0, "bob")]                                               # not recognised
+    hyp = [_w("one", 0, "S1"), _w("two", 0.4, "S1"), _w("three", 0.8, "S1"),
+           _w("yeah", 3.0, "S2"), _w("okay", 6.0, "S1")]
+    mapping = {"S1": "ann", "S2": "bob"}
+    utts = metrics.utterances(ref)
+    assert metrics.short_utterance_speakers(ref, hyp, mapping, utts) == (1, 2)
+
+
+def test_short_utterance_speakers_needs_every_found_word_right():
+    ref = [_w("oh", 0, "bob"), _w("okay", 0.4, "bob")]
+    hyp = [_w("oh", 0, "S2"), _w("okay", 0.4, "S1")]
+    utts = metrics.utterances(ref)
+    # "oh" is a filler only after normalize(); here the words are taken as they are
+    assert metrics.short_utterance_speakers(ref, hyp, {"S1": "ann", "S2": "bob"}, utts) == (0, 1)
+    assert metrics.short_utterance_speakers(ref, [], {}, utts) == (0, 0)
+
+
+def test_segment_shape_counts_segments_without_words_empty_and_long():
+    raw = [
+        {"start": 0.0, "end": 3.0, "text": " Hello there.", "words": [
+            {"word": "Hello", "start": 0.1, "end": 0.5}, {"word": "there.", "start": 0.6, "end": 1.0}]},
+        {"start": 3.0, "end": 33.0, "text": "", "words": []},                 # empty, no words, long
+        {"start": 33.0, "end": 48.0, "text": " Exactly fifteen.", "words": [  # 15 s is not longer
+            {"word": "Exactly", "start": 33.0, "end": 33.4}, {"word": "fifteen.", "start": 33.5, "end": 34}]},
+        {"start": 48.0, "end": 64.0, "text": " 2024", "words": [{"word": "2024"}]},  # untimed words only, long
+        {"start": 64.0, "end": 65.0, "text": "   "},                          # blank, no words key
+    ]
+    s = metrics.segment_shape(raw)
+    assert (s.segments, s.no_words, s.empty_text, s.long) == (5, 3, 2, 2)
+    assert metrics.segment_shape(raw, long_seconds=10).long == 3
+
+
+# ── harness and report ───────────────────────────────────────────────────────
+
+def test_segment_scores_of_a_clip_and_their_totals_in_the_report(monkeypatch):
+    from tests.quality import harness, report
+
+    ref = [_w("hello", 0, "ann"), _w("there", 0.4, "ann"), _w("yes", 0.8, "bob"), _w("yeah", 5.0, "bob")]
+    segments = [("S1", 0.0, 1.2, "Hello there, yes."), (None, 5.0, 5.5, "Yeah.")]
+    hyp = metrics.segment_words(segments)
+    raw = [{"start": 0.0, "end": 1.2, "text": " Hello there, yes.", "words": [{"word": "Hello", "start": 0.0}]},
+           {"start": 1.2, "end": 20.0, "text": "", "words": []}]
+    scores = harness.segment_scores(ref, segments, hyp, {"S1": "ann"}, metrics.utterances(ref), raw)
+    assert scores == {
+        "segments": 2, "unassigned": 1, "unassigned_s": 0.5, "mixed": 1, "mixed_minority_words": 1,
+        # short: "hello there" right; "yes" inside ann's segment and "yeah" unassigned, wrong
+        "short_right": 1, "short_found": 3,
+        "raw_segments": 2, "no_words": 1, "empty_text": 1, "long_segments": 1,
+    }
+
+    clip = {"clip": "es2002b", "language": "en", "wer": 0.1, "errors": 1, "ref_words": 10, "sub": 1, "del": 0,
+            "ins": 0, "ref_speakers": 2, "hyp_speakers": 1, "speaker_acc": 0.75, "recall_by_speaker": {},
+            "utterances": 1, "missed": 0, "short": 1, "missed_short": 0, "missed_level": [],
+            "found_level_median": -30.0, "missed_text": [], "lag": 0.0, "seconds": 1.0, "named_here": True,
+            **scores}
+    total = harness._totals(harness.Variant("v", "clean.wav"), [clip, {**clip, "clip": "es2002c"}])
+    assert (total["segments"], total["unassigned_s"], total["long_segments"]) == (4, 1.0, 2)
+
+    monkeypatch.setattr(report, "ROWS", [{**total, "what": "", "base": None, "series": None}])
+    text = report.markdown()
+    assert "## Segments" in text
+    assert "| v | all | 2 (1.0) | 2 / 4 (2) | 2 / 6 (33.3%) | 2 | 2 | 2 / 4 |" in text
+    assert "| v | es2002b | 1 (0.5) | 1 / 2 (1) | 1 / 3 (33.3%) | 1 | 1 | 1 / 2 |" in text
