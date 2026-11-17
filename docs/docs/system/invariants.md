@@ -70,11 +70,13 @@ Whenever a speaker's embedding is updated, `CommitService` queries **all** segme
 
 ```
 for each transcript:
-    centroid = voice_vector(seg.embedding, seg.end - seg.start for segments in that transcript)
+    centroid = voice_vector(turn.embedding, turn duration for turns the speaker owns in that transcript)
 speaker_embedding = normalise(mean(centroids))
 ```
 
-`voice_vector()` (`app/services/voice_vector.py`) is the one definition of a voice: each embedding scaled to length 1, weighted by its duration, averaged and scaled to length 1. The segments of a diarization turn carry the turn's embedding, so together they weigh about as much as the turn; a 1-second turn no longer counts as much as a minute. The voice `resolve()` compares (turns weighted by their duration) and a voice's candidates use the same function.
+`voice_vector()` (`app/services/voice_vector.py`) is the one definition of a voice: each embedding scaled to length 1, weighted by its duration, averaged and scaled to length 1; a 1-second turn does not count as much as a minute. The voice `resolve()` compares (turns weighted by their duration) and a voice's candidates use the same function.
+
+Every sentence of a diarization turn carries the turn's embedding (`TranscriptBuilder.attach_embeddings()`), so the sentences of a transcript with the same embedding are one turn. A turn feeds only the speaker who holds more than half of its sentences' duration now, once, with the duration of all its sentences; unassigned sentences hold their share too, and a turn held half and half feeds nobody. A sentence the user moves to another speaker therefore does not take the voice of the person who said the rest of the turn: the receiving speaker gets a voice from that recording only once they hold most of the turn. The voice of a speaker in one transcript, for their candidates, is computed the same way.
 
 Each recording contributes exactly one centroid regardless of how many segments it contains, so a long recording does not outweigh a short one. The stored embedding has no say in which recordings count: the result depends on the database alone.
 
@@ -85,14 +87,14 @@ When a speaker has nothing left to compute from, it matters how the segments wen
 It must never use the aggregated embeddings produced by `EmbeddingService.extract_all()` (the per-`SPEAKER_XX` aggregate, computed before the user has corrected anything), and must never use incremental averaging over previous embedding values.
 
 **Why:** Recomputing from current DB state means:
-- Retroactive corrections are reflected immediately: reassigning a segment from A to B removes A's contribution on the next commit for A.
+- Retroactive corrections are reflected immediately: reassigning segments from A to B moves the turns B now holds most of, on the next commit for A and B.
 - Auto-recognized speakers are updated after each new session automatically.
 - Multiple commit calls are idempotent — the result does not drift, because the stored profile never decides which recordings count.
 - Per-transcript equal weighting prevents a many-segment recording from dominating the embedding.
 - A profile built from the wrong recording is rebuilt from the right ones as soon as that recording is given to someone else; nothing stale decides what counts.
 - An unconfirmed possible match is a guess: in the profile it would make the next recording of the same wrong voice match at a high similarity, with nothing left to review.
 
-**In code:** `app/services/commit_service.py` — `_avg_from_db(speaker_id)` is the single averaging kernel; all commit methods call it. `TranscriptStorageService.get_embeddings_grouped_by_transcript(spk_id, with_durations=True)` returns `{transcription_id: [(embedding, segment duration)]}`; `_avg_from_db()` drops the transcripts where `is_possible_match()` holds for the speaker's row of `TranscriptStorageService.matches_of_speaker()`. The aggregated dict from `EmbeddingService.extract_all()` is never passed into `CommitService`; only the per-segment list is used (attached to the transcript via `TranscriptBuilder.attach_embeddings()`).
+**In code:** `app/services/commit_service.py` — `_avg_from_db(speaker_id)` is the single averaging kernel; all commit methods call it. `TranscriptStorageService.get_embeddings_grouped_by_transcript(spk_id, with_durations=True)` returns `{transcription_id: [(embedding, turn duration)]}` for the turns the speaker owns; `_avg_from_db()` drops the transcripts where `is_possible_match()` holds for the speaker's row of `TranscriptStorageService.matches_of_speaker()`. The aggregated dict from `EmbeddingService.extract_all()` is never passed into `CommitService`; only the per-segment list is used (attached to the transcript via `TranscriptBuilder.attach_embeddings()`).
 
 **Dirty tracking:** `SpeakerMemoryService.save()` only writes to `speaker_embeddings` for speakers marked dirty by `update_embedding()`, and only writes `speaker_names` rows for names changed by `set_name()` on that instance. This prevents a long-lived instance with stale in-memory state (the API singleton or a pipeline job) from overwriting embeddings or names written by another instance.
 

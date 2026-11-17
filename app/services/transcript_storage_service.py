@@ -388,23 +388,49 @@ class TranscriptStorageService:
             for tid, audio, start, end, text, blob in rows
         ]
 
-    def get_embeddings_grouped_by_transcript(self, speaker_id: str, with_durations: bool = False) -> dict:
-        """Return {transcription_id: [embeddings]} for all non-null segment embeddings,
-        with with_durations {transcription_id: [(embedding, segment duration)]}.
+    def get_embeddings_grouped_by_transcript(
+        self, speaker_id: str, with_durations: bool = False, transcript_id: int | None = None,
+    ) -> dict:
+        """Return {transcription_id: [embeddings]} of the diarization turns the
+        speaker owns, with with_durations {transcription_id: [(embedding, turn
+        duration)]}; optionally within one transcript.
+
+        Every sentence of a turn carries the turn's embedding, so the sentences
+        of a transcript with the same embedding are one turn. A turn belongs to
+        whoever holds more than half of its sentences' duration (unassigned
+        sentences hold their share too, a tie belongs to nobody) and appears
+        once, with the duration of all its sentences. A sentence moved to
+        another speaker therefore does not take the voice of the person who
+        said the rest of the turn.
 
         Used by CommitService to give each recording equal weight when averaging,
         regardless of how many segments it contains.
         """
+        query = (
+            "SELECT transcription_id, embedding, start, \"end\", "
+            "CASE WHEN unassigned THEN NULL ELSE speaker_id END FROM segments "
+            "WHERE embedding IS NOT NULL AND transcription_id IN "
+            "(SELECT transcription_id FROM segments WHERE speaker_id = ?)"
+        )
+        params: tuple = (speaker_id,)
+        if transcript_id is not None:
+            query += " AND transcription_id = ?"
+            params += (transcript_id,)
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT transcription_id, embedding, start, \"end\" FROM segments "
-                "WHERE speaker_id = ? AND embedding IS NOT NULL",
-                (speaker_id,)
-            ).fetchall()
+            rows = conn.execute(query + " ORDER BY transcription_id, start", params).fetchall()
+        # (transcription_id, embedding blob) → {holder: seconds}, in order of first sentence
+        turns: dict[tuple[int, bytes], dict] = {}
+        for tid, blob, start, end, holder in rows:
+            held = turns.setdefault((tid, blob), {})
+            held[holder] = held.get(holder, 0.0) + max(0.0, end - start)
         grouped: dict[int, list] = {}
-        for tid, blob, start, end in rows:
+        for (tid, blob), held in turns.items():
+            total = sum(held.values())
+            mine = held.get(speaker_id, 0.0)
+            if not (mine > total / 2 or (total == 0 and set(held) == {speaker_id})):
+                continue
             emb = deserialize_embedding(blob)
-            grouped.setdefault(tid, []).append((emb, max(0.0, end - start)) if with_durations else emb)
+            grouped.setdefault(tid, []).append((emb, total) if with_durations else emb)
         return grouped
 
 

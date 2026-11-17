@@ -9,8 +9,8 @@ def voice_vector(embeddings, durations=None) -> np.ndarray | None:
 
     Used for the voice resolve() compares (diarization turns and their
     durations), a profile's per-recording centroid and a voice's candidates
-    (segments and their durations: the segments of a turn carry its
-    embedding, so together they weigh about as much as the turn). Without
+    (the turns the speaker holds most of and their durations, see
+    TranscriptStorageService.get_embeddings_grouped_by_transcript). Without
     durations, or when they are all zero, every embedding weighs the same.
     """
     if len(embeddings) == 0:

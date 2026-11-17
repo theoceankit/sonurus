@@ -111,7 +111,7 @@ It prints recognised / wrong for each threshold and method over all runs, and pe
 
 What it can vary (the script's docstring has the details):
 
-- **Averaging** (`--methods`): the plain mean, as the app averaged before `voice_vector` (`mean`); embeddings scaled to length 1 first (`norm`); also weighted by the duration of their diarization turn (`norm+dur`); and `one`, a single definition for the voice `resolve()` compares and a profile's per-recording centroid: `norm+dur` over the turns, each turn once however many segments carry it. The other methods count a turn once per segment in a profile. The app is closest to `one`: it weighs a profile's segments by their own duration, which for the segments of a turn adds up to about the turn's.
+- **Averaging** (`--methods`): the plain mean, as the app averaged before `voice_vector` (`mean`); embeddings scaled to length 1 first (`norm`); also weighted by the duration of their diarization turn (`norm+dur`); and `one`, a single definition for the voice `resolve()` compares and a profile's per-recording centroid: `norm+dur` over the turns, each turn once however many segments carry it. The other methods count a turn once per segment in a profile. The app averages as `one`: a profile counts each turn the speaker holds most of once, with its duration.
 - **Matching** (`--matchers`): `greedy` takes the highest pair first, as the app; `hungarian` takes the one-to-one assignment with the largest sum of similarities at or above the threshold.
 - **Margin** (`--margins`): a match less than the margin above the voice's next best profile counts as a possible match, as one below `POSSIBLE_MATCH_CEILING` does in the app. The matcher tables split recognised and wrong into possible and sure matches.
 

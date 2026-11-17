@@ -219,9 +219,9 @@ The speaker's segments with their transcript's `audio_file` and `embedding`, opt
 
 ---
 
-### `get_embeddings_grouped_by_transcript(spk_id) → dict[int, list[np.ndarray]]`
+### `get_embeddings_grouped_by_transcript(spk_id, with_durations=False, transcript_id=None) → dict[int, list]`
 
-Returns all non-null embeddings for a speaker across all transcripts, grouped by transcription id. Used by `CommitService._avg_from_db()` to recompute speaker embeddings from scratch with equal weight per recording.
+Returns the embeddings of the diarization turns a speaker owns, grouped by transcription id, optionally within one transcript; with `with_durations` as `(embedding, turn duration)` pairs. The sentences of a transcript with the same embedding are one turn. A turn is owned by whoever holds more than half of its sentences' duration (unassigned sentences hold their share, a tie is owned by nobody) and appears once, with the duration of all its sentences. Used by `CommitService._avg_from_db()` to recompute speaker embeddings from scratch with equal weight per recording, and for a speaker's voice in `GET /transcripts/{id}/speaker-candidates`.
 
 ---
 

@@ -445,7 +445,7 @@ A possible match is a named speaker recognized in this transcript with a similar
 ```
 
 - `candidates`: up to three named speakers with a voice profile, most similar first. Empty when no speaker is named or the voice has no embeddings; the entry is still there.
-- `score`: cosine similarity between the speaker's voice in this transcript (their segment embeddings scaled to length 1 and weighted by segment duration) and the profile, rounded to two digits, not below 0.
+- `score`: cosine similarity between the speaker's voice in this transcript (the embeddings of the diarization turns they hold most of, scaled to length 1 and weighted by turn duration, as for profiles) and the profile, rounded to two digits, not below 0.
 - `suggested`: true only for the first candidate, when its `score` reaches `SPEAKER_SUGGESTION_THRESHOLD` (`app/config.py`).
 - `clip`: a segment of this transcript chosen by `pick_voice_sample()` (see `GET /speakers/{id}/sample`), compared with the speaker's voice in this transcript. `null` when the audio file no longer exists.
 - `possible_match`: true for a possible match. Its first candidate is the recognized speaker themselves, suggested, with the kept similarity as `score` (the one they were recognized with; the recording stays out of their profile until confirmed); then up to two other named speakers as above, none suggested.

@@ -20,12 +20,16 @@ class CommitService:
         self.storage = storage_service
 
     def _avg_from_db(self, speaker_id: str):
-        """Query embeddings grouped by transcript; return normalised centroid-of-centroids.
+        """Query embeddings grouped by transcript; return normalised centroid-of-centroids
+        and how many diarization turns it was averaged from.
 
-        A transcript's centroid is its segments' voice (voice_vector: unit
-        embeddings weighted by segment duration). Each transcript contributes one
-        centroid regardless of how many segments it contains, so a long recording
-        with many segments does not outweigh a short one.
+        A transcript's centroid is the voice of the turns the speaker owns there
+        (voice_vector: unit embeddings weighted by turn duration). A turn is
+        owned by whoever holds most of its sentences, so a sentence moved to
+        another speaker does not take the rest of the turn's voice with it
+        (TranscriptStorageService.get_embeddings_grouped_by_transcript). Each
+        transcript contributes one centroid regardless of how many turns it
+        contains, so a long recording does not outweigh a short one.
 
         The result depends on the database alone, never on the stored profile, so
         recomputing gives the same profile every time.
@@ -37,18 +41,18 @@ class CommitService:
         grouped = self.storage.get_embeddings_grouped_by_transcript(speaker_id, with_durations=True)
         pending = self._unconfirmed_matches(speaker_id)
         centroids = []
-        total_segments = 0
+        total_turns = 0
         for tid, pairs in grouped.items():
             if tid in pending:
                 continue
             embeddings = [e for e, _ in pairs]
             centroids.append(voice_vector(embeddings, [d for _, d in pairs]))
-            total_segments += len(embeddings)
+            total_turns += len(embeddings)
         if not centroids:
             return None, 0
         avg = np.mean(centroids, axis=0)
         norm = np.linalg.norm(avg)
-        return (avg / norm if norm > 0 else avg), total_segments
+        return (avg / norm if norm > 0 else avg), total_turns
 
     def _unconfirmed_matches(self, speaker_id: str) -> set[int]:
         """Transcripts where speaker_id is a possible match waiting for the user.

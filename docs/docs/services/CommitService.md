@@ -65,9 +65,10 @@ Recomputes embeddings for all speakers present in the transcript.
 For each speaker, queries **all** their segments across **all** transcripts in the database:
 
 ```python
-grouped = storage.get_embeddings_grouped_by_transcript(spk_id)  # {transcription_id: [emb]}
-avg = normalise(mean(normalise(mean(embs)) for embs in grouped.values()))
-memory.update_embedding(spk_id, avg, count)
+grouped = storage.get_embeddings_grouped_by_transcript(spk_id, with_durations=True)
+# {transcription_id: [(turn embedding, turn duration)]}, only the turns spk_id holds most of
+avg = normalise(mean(voice_vector(turns) for turns in grouped.values()))
+memory.update_embedding(spk_id, avg, count)  # count: turns averaged
 ```
 
 Not called by any API endpoint (the former `POST /transcripts/{id}/commit` was removed); speaker memory is updated by the targeted methods below after each pipeline run and each reassignment.

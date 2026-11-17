@@ -632,7 +632,7 @@ def test_undo_keeps_what_the_speaker_had_before_the_assignment(tmp_path):
     """A reverse reassign would take these too."""
     memory, storage, commit_svc = make_services(tmp_path)
     alice = memory.create_named_speaker("Alice")
-    db_id = _saved(storage, (VOICE, V1), (alice, V1))
+    db_id = _saved(storage, (VOICE, V1), (alice, V2))
     commit_svc.commit_speaker(alice)
     _assign(storage, commit_svc, db_id, [(0.0, 1.0)], alice, VOICE)
 
@@ -661,7 +661,7 @@ def test_undo_removes_the_speaker_the_assignment_created(tmp_path):
 def test_undo_keeps_a_created_speaker_who_got_other_segments(tmp_path):
     memory, storage, commit_svc = make_services(tmp_path)
     other = "22222222-2222-4222-8222-222222222222"
-    db_id = _saved(storage, (VOICE, V1), (other, V1))
+    db_id = _saved(storage, (VOICE, V1), (other, V2))
     dana = memory.create_named_speaker("Dana")
     _assign(storage, commit_svc, db_id, [(0.0, 1.0)], dana, VOICE)
     _assign(storage, commit_svc, db_id, [(1.0, 2.0)], dana, other)
