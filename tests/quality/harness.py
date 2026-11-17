@@ -33,6 +33,7 @@ class Variant:
     source: str               # file in the clip folder
     level: bool = False       # the gain the app gives each track of a live recording
     vad_onset: float | None = None
+    split_words: bool = True  # segments cut where the word speaker changes (the app's default)
     base: str | None = None   # variant it is compared with; None = informative only
     what: str = ""
 
@@ -41,7 +42,11 @@ VARIANTS = [
     Variant("clean", "clean.wav", what="sum of the headsets"),
     Variant("clean+level", "clean.wav", level=True, base="clean",
             what="levelling on audio that needs none (levelling every import)"),
+    Variant("clean-nosplit", "clean.wav", split_words=False,
+            what="clean, a sentence never cut at a word-speaker change (before that cut)"),
     Variant("call", "call.wav", what="call: a device per participant"),
+    Variant("call-nosplit", "call.wav", split_words=False,
+            what="call, a sentence never cut at a word-speaker change (before that cut)"),
     Variant("call+level", "call.wav", level=True, base="call", what="levelling of the call as one track"),
     Variant("call+vad0.3", "call.wav", vad_onset=0.3, base="call", what="VAD onset 0.3 instead of 0.5"),
     Variant("chromium-raw", "chromium-raw.webm", base="call",
@@ -88,6 +93,17 @@ class Pipeline:
         finally:
             params.clear()
             params.update(saved)
+
+    @contextmanager
+    def split_words(self, on: bool):
+        """TranscriptBuilder reads the switch at every build()."""
+        from app.services import transcript_builder
+        saved = transcript_builder.SPLIT_AT_WORD_SPEAKERS
+        transcript_builder.SPLIT_AT_WORD_SPEAKERS = on
+        try:
+            yield
+        finally:
+            transcript_builder.SPLIT_AT_WORD_SPEAKERS = saved
 
 
 def load_audio(path: Path) -> np.ndarray:
@@ -215,7 +231,7 @@ def _run_clip(pipeline, variant, work, clip, naming, memory, storage, named, rec
         lag = metrics.estimate_lag(load_audio(set_dir() / clip / "call.wav"), audio, 16000)
 
     started = time.monotonic()
-    with pipeline.vad_onset(variant.vad_onset):
+    with pipeline.vad_onset(variant.vad_onset), pipeline.split_words(variant.split_words):
         transcript = pipeline.run(audio_path, memory)
     seconds = time.monotonic() - started
 

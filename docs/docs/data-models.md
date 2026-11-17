@@ -52,7 +52,7 @@ class Segment:
 |---|---|---|
 | `start` | `float` | Segment start, seconds |
 | `end` | `float` | Segment end, seconds |
-| `text` | `str` | Segment text from Whisper |
+| `text` | `str` | Segment text from Whisper: a sentence, or the part of a sentence one speaker said (see [TranscriptBuilder](services/TranscriptBuilder.md#splitting-at-a-speaker-change)) |
 | `speaker_raw` | `str` | Raw diarization ID (`SPEAKER_00`, …) |
 | `speaker_resolved` | `str \| None` | ID after matching against memory (UUID4) |
 | `speaker_final` | `str \| None` | ID after user correction |
