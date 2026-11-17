@@ -61,7 +61,7 @@ The devices a new recording starts with, in one card, Live recording: Microphone
 
 The notifications of the main process, in two cards ([Live Recording → Calls](live-recording.md#calls-starting-and-ending)). Show notifications (`notifications`) turns all of them off, the tray notice included; the rest of the section is off with it. Calls:
 
-- **Suggest recording when a call seems to start** (`promptStart`): a notification when another app has used a microphone for 15 seconds. Where the system cannot tell (`GET /audio/mic-watch` says `available: false`: macOS for now, Windows without the capture helper) it is marked not available yet; on Linux without `pactl` the hint says to install it.
+- **Suggest recording when a call seems to start** (`promptStart`): a notification when another app has used a microphone for 15 seconds. Where the system cannot tell (`GET /audio/mic-watch` says `available: false`: Windows or macOS without the capture helper) it is marked not available yet; on Linux without `pactl` the hint says to install it. Where it cannot name the app (`names: false`, macOS before 14.2) the hint says so, and the hint of When a call seems to end leaves out the apps letting go.
 - **Calls in** (`promptStartApps`): Any app, or Selected apps — then a switch for each app that has used a microphone (`getMicApps()`), and for a picked app no longer listed, by its id. Picked apps are `promptStartSelected`.
 - **When a call seems to end** (`promptEnd`): Suggest stopping, Stop recording automatically, or Do nothing.
 

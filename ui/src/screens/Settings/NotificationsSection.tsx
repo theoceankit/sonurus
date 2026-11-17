@@ -108,7 +108,9 @@ export function NotificationsSection() {
         {settings.promptStartApps === 'selected' && <SelectedApps selected={selected} disabled={!startOn || unsupported} />}
         <FieldRow
           label="When a call seems to end"
-          hint="During a recording: when other apps let go of the microphone for 15 seconds, or nothing is heard for 5 minutes."
+          hint={watch?.names === false
+            ? 'During a recording: when nothing is heard for 5 minutes.'
+            : 'During a recording: when other apps let go of the microphone for 15 seconds, or nothing is heard for 5 minutes.'}
         >
           <Select
             aria-label="When a call seems to end"

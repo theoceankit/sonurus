@@ -8,7 +8,8 @@ start and then one whenever the holders change:
 
 `app_id` is the program (the lowercased exe name without its extension on
 Windows), `name` the one to show or null, `names` whether the helper can
-tell apps apart by name at all. The helper stops on a "stop" line or EOF on
+tell apps apart by name at all (macOS before 14.2: one holder "microphone",
+some process uses an input device). The helper stops on a "stop" line or EOF on
 stdin, as when it records. Other lines (warnings) are ignored.
 """
 import json
@@ -89,8 +90,9 @@ class HelperMicDriver:
                 state = parse_helper_line(line)
                 if state is None:
                     continue
+                # The watcher itself records nothing; left out should a system count it.
                 with self._lock:
-                    self._holders = state["holders"]
+                    self._holders = [h for h in state["holders"] if h["pid"] != process.pid]
                 self.names = state["names"]
                 on_change()
             process.wait()

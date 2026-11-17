@@ -70,7 +70,8 @@ Sonorus can suggest a recording when a call seems to start, and its end when the
 |---|---|---|---|---|
 | Linux | With `pactl`, named | With `pactl` | Yes | On the notification as a whole, no buttons; a notification server that does not send clicks shows it but opens nothing |
 | Windows | Named (`sonorus-capture.exe --watch-mic`) | Yes | Yes | On the notification; needs the AppUserModelID, which the main process sets: `build.appId` in the installed app, the exe path in a dev run (`appUserModelId()`) |
-| macOS | Not yet: marked not available | Not yet | Yes | On the notification |
+| macOS 14.2 and newer | Named (`sonorus-capture --watch-mic`) | Yes | Yes | On the notification |
+| macOS before 14.2 | Without a name: the system only says a microphone is in use | No | Yes | On the notification |
 
 ---
 

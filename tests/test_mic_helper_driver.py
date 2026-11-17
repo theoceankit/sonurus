@@ -5,10 +5,11 @@ import sys
 import threading
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from app.services.mic_activity_service import LinuxMicDriver, mic_driver
+from app.services.mic_activity_service import CallSignals, LinuxMicDriver, MicActivityService, mic_driver
 from app.services.mic_helper_driver import HelperMicDriver, parse_helper_line
 
 ZOOM_LINE = '{"names": true, "holders": [{"pid": 1234, "app_id": "zoom", "name": "Zoom Meetings"}]}'
@@ -77,6 +78,24 @@ def test_windows_watches_through_the_capture_helper(monkeypatch):
     driver = mic_driver("C:/Sonorus/resources/win/sonorus-capture.exe")
     assert isinstance(driver, HelperMicDriver)
     assert driver.helper_bin == "C:/Sonorus/resources/win/sonorus-capture.exe"
+
+
+@pytest.mark.parametrize("version, names", [("14.2", True), ("15.1", True), ("14.1.2", False), ("13.6", False)])
+def test_macos_watches_through_the_capture_helper_and_names_apps_from_14_2(monkeypatch, version, names):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    with patch("app.services.mic_activity_service.platform.mac_ver", return_value=(version, ("", "", ""), "")):
+        driver = mic_driver("/Applications/Sonorus.app/Contents/Resources/mac/sonorus-capture")
+    assert isinstance(driver, HelperMicDriver)
+    assert driver.helper_bin == "/Applications/Sonorus.app/Contents/Resources/mac/sonorus-capture"
+    assert driver.names is names
+
+
+def test_an_unnamed_microphone_user_is_one_holder():
+    # macOS before 14.2: some process uses an input device, which one is not known.
+    line = '{"names": false, "holders": [{"pid": null, "app_id": "microphone", "name": null}]}'
+    assert parse_helper_line(line) == {
+        "names": False, "holders": [{"app_id": "microphone", "name": None, "pid": None}],
+    }
 
 
 def test_linux_still_watches_through_pactl(monkeypatch):
@@ -200,3 +219,88 @@ def test_the_service_builds_the_driver_from_the_capture_helper(monkeypatch):
         deps.get_mic_activity_service.cache_clear()
     assert seen["bin"] == deps.get_audio_capture_service().capture_bin
 
+
+
+def test_the_watcher_itself_is_not_a_holder(tmp_path):
+    helper = tmp_path / "sonorus-capture"
+    helper.write_text(
+        f"#!{sys.executable}\n"
+        "import os, sys\n"
+        "print('{\"names\": true, \"holders\": [{\"pid\": 1234, \"app_id\": \"zoom\", \"name\": \"Zoom\"},'"
+        " ' {\"pid\": %d, \"app_id\": \"watcher\", \"name\": null}]}' % os.getpid(), flush=True)\n"
+        "sys.stdin.read()\n"
+    )
+    helper.chmod(0o755)
+    driver = HelperMicDriver(str(helper))
+    stop = threading.Event()
+    changed = threading.Event()
+    watcher = threading.Thread(target=driver.watch, args=(changed.set, stop))
+    watcher.start()
+    try:
+        assert changed.wait(5)
+        assert [h["app_id"] for h in driver.holders()] == ["zoom"]
+    finally:
+        stop.set()
+        watcher.join(5)
+
+
+# ── Without names (macOS before 14.2) ────────────────────────────────────────
+
+ANYONE = {"app_id": "microphone", "name": None, "pid": None}
+
+
+def test_without_names_a_call_still_starts_but_the_mic_released_end_never_comes():
+    signals = CallSignals()
+    signals.update([ANYONE], recording=False, now=0.0, names=False)
+    assert signals.update([ANYONE], recording=False, now=15.0, names=False) == [
+        {"type": "mic_app_active", "app_id": "microphone", "name": None}]
+    # The microphone of Sonorus is one of the unnamed users: letting go says nothing.
+    signals.update([ANYONE], recording=True, now=20.0, names=False)
+    signals.update([], recording=True, now=30.0, names=False)
+    assert signals.update([], recording=True, now=60.0, names=False) == []
+
+
+class _UnnamedDriver:
+    names = False
+    current = [ANYONE]
+
+    def available(self):
+        return True
+
+    def holders(self):
+        return list(self.current)
+
+    def watch(self, on_change, stop):
+        stop.wait()
+
+
+class _Queue:
+    def __init__(self):
+        self.events = []
+
+    def notify(self, event):
+        self.events.append(event)
+
+
+class _Pids:
+    def capture_pids(self):
+        return set()
+
+
+class _Recording:
+    def state(self):
+        return {"phase": "live"}
+
+
+def test_the_service_turns_off_the_mic_released_end_when_the_driver_names_no_apps():
+    now = [0.0]
+    driver, queue = _UnnamedDriver(), _Queue()
+    service = MicActivityService(driver, queue, _Pids(), _Recording(), clock=lambda: now[0], tick=0.01)
+    service.step()
+    driver.current = []
+    service.refresh()
+    for t in (1.0, 20.0, 40.0):
+        now[0] = t
+        service.step()
+    assert queue.events == []
+    assert service.support() == {"available": True, "names": False}

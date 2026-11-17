@@ -94,3 +94,11 @@ test('where the system cannot tell that a call started, those settings are not a
   expect(toggle(ALL).hasAttribute('data-not-implemented')).toBe(false)
   expect(field(END).hasAttribute('data-not-implemented')).toBe(false)
 })
+
+test('where the system does not name the app, a call ends only by silence', async () => {
+  await setup({ micWatch: { available: true, names: false } })
+  await screen.findByText('When another app has used a microphone for 15 seconds. This system does not say which app.')
+  expect(toggle(START).hasAttribute('data-not-implemented')).toBe(false)
+  expect(screen.getByText('During a recording: when nothing is heard for 5 minutes.')).toBeTruthy()
+  expect(screen.queryByText(/let go of the microphone/)).toBeNull()
+})
