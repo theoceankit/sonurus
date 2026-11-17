@@ -14,9 +14,11 @@ log = get_logger("TranscriptBuilder")
 SPLIT_AT_WORD_SPEAKERS = True
 # A run of words of one speaker becomes a segment of its own only with at
 # least this many words and seconds; a shorter run is more often the
-# diarization wavering at a turn boundary than an utterance.
+# diarization placing a turn boundary a few words off than an utterance.
+# 1.0 s was best on the AMI quality set (0.5 s cut such misplaced words
+# away from the sentence; the word count changed little).
 MIN_PIECE_WORDS = 2
-MIN_PIECE_SECONDS = 0.5
+MIN_PIECE_SECONDS = 1.0
 # WhisperX aligns these per character: a "word" is one character.
 LANGUAGES_WITHOUT_SPACES = ("ja", "zh")
 

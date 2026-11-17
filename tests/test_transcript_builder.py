@@ -372,6 +372,22 @@ def test_short_run_in_time_stays_with_neighbours():
     assert segs[0].speaker_raw == "SPEAKER_00"
 
 
+def test_run_of_words_under_a_second_stays_with_neighbours():
+    # three words in 0.8 s at a turn boundary: diarization often places the
+    # boundary this far off, so the words stay with the sentence
+    segment = wseg("I mean is that something you want, do you think?", [
+        w("I", 0.0, 0.2, "SPEAKER_00"), w("mean,", 0.25, 0.5, "SPEAKER_00"),
+        w("is", 0.55, 0.7, "SPEAKER_00"), w("that", 0.75, 0.9, "SPEAKER_00"),
+        w("something", 0.95, 1.4, "SPEAKER_00"), w("you", 1.45, 1.6, "SPEAKER_00"),
+        w("want,", 1.65, 2.0, "SPEAKER_00"),
+        w("do", 2.1, 2.3, "SPEAKER_01"), w("you", 2.35, 2.5, "SPEAKER_01"),
+        w("think?", 2.55, 2.9, "SPEAKER_01"),
+    ])
+    segs = build_one(segment)
+    assert [(s.speaker_raw, s.text) for s in segs] == [
+        ("SPEAKER_00", "I mean is that something you want, do you think?")]
+
+
 def test_short_run_between_two_speakers_joins_the_longer_neighbour():
     segment = wseg("Okay that is all from me. Yes. Thanks everyone for coming today.", [
         w("Okay", 0.0, 0.3, "SPEAKER_00"), w("that", 0.35, 0.5, "SPEAKER_00"),
@@ -481,12 +497,12 @@ def test_pieces_with_the_same_start_are_merged():
 
 def test_three_runs_give_three_segments():
     segment = wseg("Do you agree? I do not. Well I do.", [
-        w("Do", 0.0, 0.2, "SPEAKER_00"), w("you", 0.25, 0.4, "SPEAKER_00"),
-        w("agree?", 0.45, 0.9, "SPEAKER_00"),
-        w("I", 1.0, 1.1, "SPEAKER_01"), w("do", 1.15, 1.3, "SPEAKER_01"),
-        w("not.", 1.35, 1.7, "SPEAKER_01"),
-        w("Well", 1.9, 2.1, "SPEAKER_02"), w("I", 2.15, 2.2, "SPEAKER_02"),
-        w("do.", 2.25, 2.6, "SPEAKER_02"),
+        w("Do", 0.0, 0.4, "SPEAKER_00"), w("you", 0.5, 0.8, "SPEAKER_00"),
+        w("agree?", 0.9, 1.8, "SPEAKER_00"),
+        w("I", 2.0, 2.2, "SPEAKER_01"), w("do", 2.3, 2.6, "SPEAKER_01"),
+        w("not.", 2.7, 3.4, "SPEAKER_01"),
+        w("Well", 3.8, 4.2, "SPEAKER_02"), w("I", 4.3, 4.4, "SPEAKER_02"),
+        w("do.", 4.5, 5.2, "SPEAKER_02"),
     ])
     segs = build_one(segment)
     assert [s.speaker_raw for s in segs] == ["SPEAKER_00", "SPEAKER_01", "SPEAKER_02"]
