@@ -7,6 +7,8 @@ const { devUserDataPath } = require('./backend-identity')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 const { showModelsFolder } = require('./models-folder')
 const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown, trayMenu } = require('./tray')
+const { watchBackendEvents } = require('./backend-events')
+const { micApps, notificationsOn, promptFor, rememberMicApp, stoppedNotice } = require('./recording-prompts')
 const { uiEntry } = require('./ui-entry')
 const { windowChrome, themeSource, overlayDimmer } = require('./window-chrome')
 
@@ -49,6 +51,12 @@ let quitConfirmed = false
 let quitAsked = false
 // Set once the backend is up and the first window made: before that, nothing opens one.
 let started = false
+// The backend's queue events, heard here for the notifications of a call.
+let backendEvents = null
+// What a click on a notification asks the window to open, until the window takes it.
+let windowIntent = null
+// Notifications on screen: kept from the garbage collector, which would drop their click.
+const notifications = new Set()
 
 function createWindow() {
   const entry = uiEntry({
@@ -139,6 +147,11 @@ const DEFAULT_SETTINGS = {
   recentTranscriptIds: [],
   theme: 'system',
   closeToTray: true,
+  notifications: true,
+  promptStart: true,
+  promptStartApps: 'any',
+  promptStartSelected: [],
+  promptEnd: 'suggest',
 }
 
 // The theme: 'system' follows the OS. themeSource also sets prefers-color-scheme in
@@ -190,6 +203,16 @@ ipcMain.handle('open-files', async () => {
 ipcMain.on('window-dimmed', (event, dimmed, startedAt) => {
   if (event.sender === mainWin?.webContents) titleBarDimmer?.set(Boolean(dimmed), Number(startedAt))
 })
+
+// The dialog a notification asked for, taken once by the window (on load, or when
+// told an intent is waiting).
+ipcMain.handle('take-window-intent', event => {
+  if (event.sender !== mainWin?.webContents) return null
+  const intent = windowIntent
+  windowIntent = null
+  return intent
+})
+ipcMain.handle('get-mic-apps', () => micApps(getAppStatePath()))
 
 ipcMain.handle('get-platform', () => process.platform)
 ipcMain.handle('get-tray-available', () => hasTray)
@@ -249,8 +272,44 @@ app.whenReady().then(async () => {
 
   createWindow()
   started = true
+  backendEvents = watchBackendEvents({ url: 'ws://127.0.0.1:8000/ws/queue', onEvent: onBackendEvent })
   if (await hasTray) createTray()
 })
+
+// A call may have started or ended: a notification, an automatic stop or nothing,
+// as the settings say (electron/recording-prompts.js).
+function onBackendEvent(event) {
+  if (event.type === 'mic_app_active') rememberMicApp(getAppStatePath(), event)
+  const recording = backendEvents?.recording() ?? null
+  const prompt = promptFor(event, { settings: savedSettings(), recording })
+  if (!prompt) return
+  if (prompt.kind === 'stop') {
+    void backendRequest('POST', '/audio/recording/stop')
+      .then(() => notify(stoppedNotice(recording.title), () => showWindow()))
+      .catch(() => { /* already stopped, or the backend is gone */ })
+    return
+  }
+  notify(prompt, () => openWithIntent(prompt.intent))
+}
+
+function notify({ title, body }, onClick) {
+  if (!Notification.isSupported()) return
+  const notification = new Notification({ title, body })
+  notifications.add(notification)
+  const forget = () => notifications.delete(notification)
+  notification.on('click', () => { forget(); onClick() })
+  notification.on('close', forget)
+  notification.on('failed', forget)
+  notification.show()
+}
+
+// The window in front, told to open a dialog.
+function openWithIntent(intent) {
+  windowIntent = intent
+  showWindow()
+  // A window still loading takes the intent when its page starts.
+  if (mainWin && !mainWin.isDestroyed() && !mainWin.webContents.isLoading()) mainWin.webContents.send('window-intent')
+}
 
 // The window, made again if it was closed to the tray, in front.
 function showWindow() {
@@ -277,7 +336,7 @@ function createTray() {
 
 // The first time the window closes to the tray, the system says where the app went.
 function showTrayHint() {
-  if (trayHintShown(getAppStatePath())) return
+  if (!notificationsOn(savedSettings()) || trayHintShown(getAppStatePath())) return
   rememberTrayHint(getAppStatePath())
   if (!Notification.isSupported()) return
   new Notification({ title: 'Sonorus', body: 'Sonorus is still running. Quit it from the tray icon.' }).show()
@@ -327,6 +386,9 @@ app.on('before-quit', event => {
   event.preventDefault()
   void requestQuit()
 })
-app.on('will-quit', () => stopBackend())
+app.on('will-quit', () => {
+  backendEvents?.close()
+  stopBackend()
+})
 // Closing the window does not quit by itself: its close handler decides.
 app.on('window-all-closed', () => {})
