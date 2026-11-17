@@ -12,17 +12,21 @@ into two signals (CallSignals), sent as queue events over WS /ws/queue:
 
 The service only tells; the Electron main process decides from the user's
 settings whether that becomes a notification or stops the recording. Nothing
-here touches the network: Linux asks the local sound server through pactl.
+here touches the network: Linux asks the local sound server through pactl,
+macOS the sonorus-capture helper, which reads CoreAudio (mic_helper_driver).
 """
 import json
 import os
+import platform
 import shutil
 import subprocess
+import sys
 import threading
 import time
 
 from app.logger import get_logger
-from app.services.audio_capture_service import _LinuxCapture
+from app.services.audio_capture_service import AudioCaptureService, _LinuxCapture
+from app.services.mic_helper_driver import HelperMicDriver
 
 log = get_logger("MicActivity")
 
@@ -33,7 +37,11 @@ HOLD_SEC = 15.0
 
 class CallSignals:
     """The signals from the holders seen at each moment; pure, the clock is
-    given. Holders are keyed by app_id: two streams of one app are one hold."""
+    given. Holders are keyed by app_id: two streams of one app are one hold.
+
+    names=False: the system does not say who holds a microphone (macOS before
+    14.2), so the capture of Sonorus is a holder like any other and "every
+    other app let go" cannot be told. The mic_released end is off then."""
 
     def __init__(self, hold: float = HOLD_SEC):
         self._hold = hold
@@ -44,7 +52,7 @@ class CallSignals:
         self._released_at: float | None = None
         self._ended_told = False
 
-    def update(self, holders: list[dict], recording: bool, now: float) -> list[dict]:
+    def update(self, holders: list[dict], recording: bool, now: float, names: bool = True) -> list[dict]:
         events = []
         current = {h["app_id"]: h for h in holders}
         for app_id in list(self._held):
@@ -62,7 +70,7 @@ class CallSignals:
         if recording and not self._recording:
             self._other_held, self._released_at, self._ended_told = False, None, False
         self._recording = recording
-        if recording:
+        if recording and names:
             if current:
                 self._other_held, self._released_at, self._ended_told = True, None, False
             elif self._other_held and not self._ended_told:
@@ -198,11 +206,25 @@ class LinuxMicDriver:
                 stop.wait(self.RETRY_SEC)
 
 
+def _capture_bin() -> str | None:
+    return AudioCaptureService._find_capture_bin()
+
+
+def _mac_names() -> bool:
+    """macOS 14.2 and newer tell which process uses an input device."""
+    try:
+        version = tuple(int(part) for part in platform.mac_ver()[0].split("."))
+    except ValueError:
+        return False
+    return version >= (14, 2)
+
+
 def mic_driver():
     """The driver of this OS, or None where there is none yet."""
-    import sys
     if sys.platform.startswith("linux"):
         return LinuxMicDriver()
+    if sys.platform == "darwin":
+        return HelperMicDriver(_capture_bin(), names=_mac_names())
     return None
 
 
@@ -248,7 +270,8 @@ class MicActivityService:
         own = self._capture.capture_pids() | {os.getpid()}
         holders = [h for h in self.holders() if h.get("pid") not in own]
         recording = self._recording.state() is not None
-        for event in self._signals.update(holders, recording, self._clock()):
+        names = bool(getattr(self._driver, "names", True))
+        for event in self._signals.update(holders, recording, self._clock(), names=names):
             self._queue.notify(event)
 
     def start(self) -> None:

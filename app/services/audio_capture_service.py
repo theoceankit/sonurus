@@ -410,7 +410,8 @@ class AudioCaptureService:
 
     # ── Binary discovery ────────────────────────────────────────────────────
 
-    def _find_capture_bin(self) -> str | None:
+    @staticmethod
+    def _find_capture_bin() -> str | None:
         env = os.getenv("SONORUS_CAPTURE_BIN")
         if env:
             return env
