@@ -1049,12 +1049,13 @@ def test_candidates_clip_is_the_segment_closest_to_the_voice(client, tmp_path):
     audio = tmp_path / "a.wav"
     audio.write_bytes(b"x")
     transcript_id = _save_voice([
-        # The longest one holds another voice, the closest one is too short to hear.
-        Segment(0.0, 20.0, "long and mixed", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(0.3, 1.0, 0.0)),
-        Segment(20.0, 21.0, "too short", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
-        Segment(21.0, 24.0, "typical", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.2, 0.0)),
-        Segment(24.0, 27.0, "typical too", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.1, 0.0)),
-        Segment(27.0, 30.0, "typical three", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.1, 0.0)),
+        # The longest one holds another voice (shorter than the typical ones
+        # together, which outweigh it in the voice), the closest one is too short to hear.
+        Segment(0.0, 8.0, "long and mixed", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(0.3, 1.0, 0.0)),
+        Segment(8.0, 9.0, "too short", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.0, 0.0)),
+        Segment(9.0, 12.0, "typical", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.2, 0.0)),
+        Segment(12.0, 15.0, "typical too", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.1, 0.0)),
+        Segment(15.0, 18.0, "typical three", "SPEAKER_00", speaker_resolved=_BOB, embedding=_emb(1.0, 0.1, 0.0)),
     ], audio)
     clip = client.get(f"/transcripts/{transcript_id}/speaker-candidates").json()[_BOB]["clip"]
     assert clip["text"].startswith("typical")

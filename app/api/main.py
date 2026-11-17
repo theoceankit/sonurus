@@ -12,18 +12,20 @@ if not _verbose:
     from app.warnings import suppress_ml_noise
     suppress_ml_noise("startup")
 
-from app.logger import setup_logging
+from app.logger import get_logger, setup_logging
 from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data, gpu
 from app.api.refusals import Refusal, refusal_handler
 from app.api.dependencies import (
     get_live_recording_service, get_memory_service, get_storage_service, get_transcription_queue,
 )
 from app.services.audio_store import remove_orphan_imports, remove_orphan_levels
+from app.services.commit_service import CommitService
 from app.services.speaker_photos import remove_orphan_photos
 from app.version import get_version
 import app.config as config
 
 setup_logging(default_level="info")
+log = get_logger("api")
 
 
 @asynccontextmanager
@@ -37,6 +39,13 @@ async def lifespan(app: FastAPI):
     # Waveform levels go with their audio.
     remove_orphan_levels(config.RECORDINGS_DIR)
     remove_orphan_photos(config.SPEAKER_PHOTOS_DIR, memory.photo_names())
+    # Before the queue commits anything: profiles of an older way of averaging
+    # voices are recomputed. On failure the memory stays unmarked and the next
+    # start tries again; recognition works meanwhile on the old profiles.
+    try:
+        CommitService(memory, storage).recompute_outdated_profiles()
+    except Exception as exc:
+        log.error(f"Recomputing voice profiles failed: {exc}")
     queue.start_worker()
     yield
     # A recording still running when the backend goes down is not saved: its

@@ -20,7 +20,7 @@ report replaces the earlier one.
 Methods of averaging embeddings (a recording's voice of a speaker, and the
 per-recording centroid of a profile):
 
-  mean        the plain mean of the embeddings (the app today)
+  mean        the plain mean of the embeddings (the app before voice_vector)
   norm        each embedding scaled to length 1 first
   norm+dur    as norm, weighted by the duration of the diarization turn
   turns       a recording's voice as norm+dur over its diarization turns; a
@@ -30,7 +30,8 @@ per-recording centroid of a profile):
   one         one vector definition: the voice resolve() compares, a profile's
               per-recording centroid and so the guard are all norm+dur over
               the diarization turns, each turn once however many segments
-              carry it
+              carry it; the closest to the app, which weighs a profile's
+              segments by their own duration (about a turn's together)
 
 Every other method counts a turn once per segment that carries it in a
 profile, as the app does.

@@ -8,6 +8,7 @@ from app.config import (
     MODELS_DIR, EMBEDDING_REPO, EMBEDDING_SUBFOLDER, EMBEDDING_SAMPLE_RATE, EMBEDDING_MIN_DURATION,
 )
 from app.logger import get_logger
+from app.services.voice_vector import voice_vector
 
 log = get_logger("EmbeddingService")
 
@@ -63,11 +64,14 @@ class EmbeddingService:
         return result
 
     def _aggregate_from_segments(self, segment_embeddings):
-        """Aggregates per-segment list into {speaker: mean_embedding}."""
+        """Aggregates per-segment list into {speaker: voice}: the turns'
+        embeddings weighted by the turns' durations (voice_vector)."""
         speaker_embeddings = defaultdict(list)
+        speaker_durations = defaultdict(list)
         for item in segment_embeddings:
             speaker_embeddings[item["speaker"]].append(item["embedding"])
-        return self._aggregate(speaker_embeddings)
+            speaker_durations[item["speaker"]].append(item["end"] - item["start"])
+        return self._aggregate(speaker_embeddings, speaker_durations)
 
     def _get_embedding(self, audio, start, end):
         """Extracts the embedding of a single audio slice. Returns None if too short."""
@@ -89,14 +93,15 @@ class EmbeddingService:
         return np.array(emb)
 
     @staticmethod
-    def _aggregate(speaker_embeddings):
-        """Mean-pools per-speaker embedding lists into {speaker: np.array}."""
+    def _aggregate(speaker_embeddings, speaker_durations=None):
+        """Per-speaker embedding lists into {speaker: voice} (voice_vector)."""
         final_embeddings = {}
 
         for speaker, embs in speaker_embeddings.items():
             if len(embs) == 0:
                 continue
 
-            final_embeddings[speaker] = np.mean(embs, axis=0)
+            durations = speaker_durations.get(speaker) if speaker_durations else None
+            final_embeddings[speaker] = voice_vector(embs, durations)
 
         return final_embeddings

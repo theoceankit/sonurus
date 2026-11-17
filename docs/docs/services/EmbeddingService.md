@@ -112,15 +112,15 @@ Returns `None` if `len(chunk) < sample_rate` — the model requires at least ~1 
 
 ---
 
-### `_aggregate(speaker_embeddings)`
+### `_aggregate(speaker_embeddings, speaker_durations)`
 
-Static method. Mean-pools per-speaker embedding lists:
+Static method. Turns per-speaker embedding lists into one voice each with `voice_vector()` (`app/services/voice_vector.py`): every turn's embedding scaled to length 1, weighted by the turn's duration, averaged and scaled to length 1.
 
 ```python
-final_embeddings[speaker] = np.mean(embs, axis=0)
+final_embeddings[speaker] = voice_vector(embs, durations)
 ```
 
-Averaging is necessary because a speaker appears in multiple segments, each producing a slightly different vector.
+Averaging is necessary because a speaker appears in multiple segments, each producing a slightly different vector. Embedding lengths vary several-fold between turns, and a 1-second turn is a much noisier picture of a voice than a minute, so neither may weigh as much as the plain mean gives it. Profiles are averaged the same way (see [CommitService](CommitService.md)).
 
 ---
 
