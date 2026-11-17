@@ -207,3 +207,20 @@ test('only the window takes the intent of a notification', () => {
   const handler = main.slice(main.indexOf("ipcMain.handle('take-window-intent'"))
   assert.match(handler.slice(0, handler.indexOf('\n})')), /event\.sender !== mainWin\?\.webContents/)
 })
+
+// Windows shows a toast only for an app with an AppUserModelID: the installer's
+// shortcut carries build.appId, a dev run has no shortcut and goes by its exe.
+test('Windows notifications go out under the app id of the build', () => {
+  const { appUserModelId } = require(path.join(ROOT, 'electron', 'recording-prompts.js'))
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
+  assert.equal(appUserModelId({ isPackaged: true, execPath: 'C:\\Sonorus\\Sonorus.exe' }), pkg.build.appId)
+  assert.equal(appUserModelId({ isPackaged: false, execPath: 'C:\\dev\\electron.exe' }), 'C:\\dev\\electron.exe')
+})
+
+test('the main process sets the AppUserModelID on Windows before any notification', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'electron', 'main.js'), 'utf8')
+  const set = src.indexOf('app.setAppUserModelId(appUserModelId(')
+  assert.ok(set > 0, 'main.js does not set the AppUserModelID')
+  assert.ok(src.lastIndexOf("process.platform === 'win32'", set) > 0)
+  assert.ok(set < src.indexOf('new Notification('), 'set after the first notification')
+})

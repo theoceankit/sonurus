@@ -85,4 +85,13 @@ function rememberMicApp(statePath, { app_id, name }) {
   } catch { /* remembered next time */ }
 }
 
-module.exports = { PROMPT_DEFAULTS, promptFor, stopOutcome, stopTimedOut, notificationsOn, micApps, rememberMicApp }
+// Windows shows a notification only for an app with an AppUserModelID. The
+// installer's Start menu shortcut carries build.appId; a dev run has no
+// shortcut, and Windows accepts its exe path instead.
+const APP_ID = 'com.sonorus.app'
+
+function appUserModelId({ isPackaged, execPath }) {
+  return isPackaged ? APP_ID : execPath
+}
+
+module.exports = { PROMPT_DEFAULTS, appUserModelId, promptFor, stopOutcome, stopTimedOut, notificationsOn, micApps, rememberMicApp }
