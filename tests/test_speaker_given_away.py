@@ -91,8 +91,11 @@ def test_a_profile_built_from_someone_else_is_rebuilt_from_what_remains(api):
 
 def test_giving_away_part_of_a_recording_keeps_the_voice(api):
     client, db = api
-    alex, tid = _named_with_profile(db, "Alex", ALEX, "a.wav")
-    bob = SpeakerMemoryService(db_path=db).create_named_speaker("Bob")
+    memory, storage, commit = _services(db)
+    alex = memory.create_named_speaker("Alex")
+    tid = _recording(storage, alex, ALEX, "a.wav", n=3)
+    commit.commit_speaker(alex)
+    bob = memory.create_named_speaker("Bob")
 
     _give(client, tid, [0.0], bob)
 

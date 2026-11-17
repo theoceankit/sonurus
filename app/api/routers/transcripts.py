@@ -241,8 +241,9 @@ def get_speaker_candidates(
         if memory.get_name(spk_id) is not None and not possible:
             continue
         rows = storage.speaker_segments(spk_id, transcript_id)
-        voiced = [row for row in rows if row["embedding"] is not None]
-        voice = voice_centroid([row["embedding"] for row in voiced], [row["end"] - row["start"] for row in voiced])
+        turns = storage.get_embeddings_grouped_by_transcript(spk_id, with_durations=True, transcript_id=transcript_id)
+        owned = turns.get(transcript_id, [])
+        voice = voice_centroid([e for e, _ in owned], [d for _, d in owned])
         sample = pick_voice_sample(rows, voice, os.path.isfile)
         if possible:
             candidates = possible_match_candidates(voice, spk_id, matches[spk_id]["score"], profiles, names)

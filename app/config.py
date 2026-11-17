@@ -59,7 +59,7 @@ EMBEDDING_MODEL_ID = "wespeaker-resnet34-lm"
 # far from the stored profile), stored in the database next to the profiles:
 # profiles averaged another way are recomputed from the database when the
 # backend starts (CommitService.recompute_outdated_profiles).
-VOICE_AVERAGING_ID = "unit-duration-weighted-confirmed-unguarded"
+VOICE_AVERAGING_ID = "unit-duration-weighted-confirmed-unguarded-turn-owner"
 EMBEDDING_SAMPLE_RATE = 16000
 EMBEDDING_MIN_DURATION = 1.0
 

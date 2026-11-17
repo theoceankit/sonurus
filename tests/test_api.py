@@ -1425,7 +1425,7 @@ def test_assign_recomputes_both_profiles_once_and_removes_an_empty_voice(client)
 
     fresh = app.dependency_overrides[get_memory_service]()
     assert voice not in fresh.known_speakers
-    assert fresh.known_counts[alice] == 2
+    assert fresh.known_counts[alice] == 1  # both segments are one turn
 
 
 def test_assign_clears_unassigned(client):

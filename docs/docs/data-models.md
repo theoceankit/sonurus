@@ -70,7 +70,7 @@ This priority is applied everywhere: in `CommitService`, `TranscriptStorageServi
 
 ### `embedding` field
 
-Populated by `TranscriptBuilder.attach_embeddings()` via overlap-based matching with diarization results. Used only by `CommitService.commit()` to update speaker embeddings in memory.
+Populated by `TranscriptBuilder.attach_embeddings()` via overlap-based matching with diarization results: every sentence of a diarization turn carries the turn's embedding, so the sentences of a transcript with the same embedding are one turn. Used by `CommitService` to update speaker embeddings in memory, where a turn feeds only the speaker who holds most of it (see [Invariants](system/invariants.md) → I4).
 
 May be `None` for very short segments that had no overlapping diarization span, and for segments saved before the embedding model changed: those embeddings are dropped when the database is opened (see [EmbeddingService](services/EmbeddingService.md) → Changing the model).
 
