@@ -261,6 +261,30 @@ class RecordingSourceLostEvent(BaseModel):
     title: str
 
 
+class MicAppActiveEvent(BaseModel):
+    """Another app has held a microphone for a while and no recording runs:
+    a call may have started. Once per hold; app_id is stable across holds,
+    name is null where the system does not say which app it is."""
+    type: Literal["mic_app_active"]
+    app_id: str
+    name: str | None
+
+
+class CallEndedEvent(BaseModel):
+    """The live recording may have outlived its call: every other app let go
+    of the microphone (mic_released), or no track had sound for a while
+    (silence). The recording goes on."""
+    type: Literal["call_ended"]
+    reason: Literal["mic_released", "silence"]
+
+
+class MicWatchResponse(BaseModel):
+    """GET /audio/mic-watch: whether this system tells when another app holds
+    a microphone, and whether it says which app."""
+    available: bool
+    names: bool
+
+
 class HeartbeatEvent(BaseModel):
     type: Literal["heartbeat"]
 

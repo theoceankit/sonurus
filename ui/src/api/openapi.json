@@ -82,6 +82,30 @@
         "title": "AudioSourcesResponse",
         "type": "object"
       },
+      "CallEndedEvent": {
+        "description": "The live recording may have outlived its call: every other app let go\nof the microphone (mic_released), or no track had sound for a while\n(silence). The recording goes on.",
+        "properties": {
+          "reason": {
+            "enum": [
+              "mic_released",
+              "silence"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "type": {
+            "const": "call_ended",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "reason"
+        ],
+        "title": "CallEndedEvent",
+        "type": "object"
+      },
       "DataResetResponse": {
         "properties": {
           "files": {
@@ -521,6 +545,57 @@
           "sources"
         ],
         "title": "LiveRecording",
+        "type": "object"
+      },
+      "MicAppActiveEvent": {
+        "description": "Another app has held a microphone for a while and no recording runs:\na call may have started. Once per hold; app_id is stable across holds,\nname is null where the system does not say which app it is.",
+        "properties": {
+          "app_id": {
+            "title": "App Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "type": {
+            "const": "mic_app_active",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "app_id",
+          "name"
+        ],
+        "title": "MicAppActiveEvent",
+        "type": "object"
+      },
+      "MicWatchResponse": {
+        "description": "GET /audio/mic-watch: whether this system tells when another app holds\na microphone, and whether it says which app.",
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "names": {
+            "title": "Names",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "available",
+          "names"
+        ],
+        "title": "MicWatchResponse",
         "type": "object"
       },
       "ModelsFolder": {
@@ -1789,6 +1864,25 @@
           }
         },
         "summary": "Get Sources"
+      }
+    },
+    "/audio/mic-watch": {
+      "get": {
+        "description": "Whether this system tells when another app holds a microphone (the\nmic_app_active and call_ended events), and whether it names the app.",
+        "operationId": "get_mic_watch_audio_mic_watch_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MicWatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Mic Watch"
       }
     },
     "/audio/recording/start": {

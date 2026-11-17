@@ -242,3 +242,63 @@ def test_snapshots_and_events_match_the_models_the_ui_types_come_from(service, c
     assert {"recording_failed", "recording_source_lost"} <= set(_types(queue))
     for event in queue.events:
         assert models[event["type"]].model_validate(event).model_dump() == event
+
+
+# ── Silence ──────────────────────────────────────────────────────────────────
+
+def _silent_wav(path, seconds=1):
+    import struct
+    rate = 48000
+    fmt = struct.pack("<HHIIHH", 1, 1, rate, rate * 2, 2, 16)
+    data = bytes(int(seconds * rate) * 2)
+    with open(path, "wb") as f:
+        f.write(b"RIFF" + struct.pack("<I", 0) + b"WAVE" + b"fmt " + struct.pack("<I", 16) + fmt
+                + b"data" + struct.pack("<I", 0) + data)
+
+
+def _wait_for(predicate, timeout=5):
+    deadline = time.time() + timeout
+    while not predicate() and time.time() < deadline:
+        time.sleep(0.01)
+    return predicate()
+
+
+def test_quiet_tracks_for_the_while_say_the_call_may_have_ended(capture, queue):
+    service = LiveRecordingService(capture, queue, poll_interval=0.01, silence_after=0.2, silence_check=0.01)
+    try:
+        service.start(_request())
+        for job_id in capture.jobs:
+            _silent_wav(capture.track_path(job_id))
+        assert _wait_for(lambda: "call_ended" in _types(queue))
+        ended = [e for e in queue.events if e["type"] == "call_ended"]
+        assert ended == [{"type": "call_ended", "reason": "silence"}]
+        assert service.is_recording()
+    finally:
+        service.shutdown()
+
+
+def test_the_silence_is_told_once_while_it_lasts(capture, queue):
+    service = LiveRecordingService(capture, queue, poll_interval=0.01, silence_after=0.1, silence_check=0.01)
+    try:
+        service.start(_request(system=False))
+        for job_id in capture.jobs:
+            _silent_wav(capture.track_path(job_id))
+        assert _wait_for(lambda: "call_ended" in _types(queue))
+        time.sleep(0.4)
+        assert _types(queue).count("call_ended") == 1
+    finally:
+        service.shutdown()
+
+
+def test_the_call_ended_event_matches_its_model(capture, queue):
+    from app.api.schemas import CallEndedEvent
+    service = LiveRecordingService(capture, queue, poll_interval=0.01, silence_after=0.1, silence_check=0.01)
+    try:
+        service.start(_request(system=False))
+        for job_id in capture.jobs:
+            _silent_wav(capture.track_path(job_id))
+        assert _wait_for(lambda: "call_ended" in _types(queue))
+        event = next(e for e in queue.events if e["type"] == "call_ended")
+        assert CallEndedEvent.model_validate(event).model_dump() == event
+    finally:
+        service.shutdown()

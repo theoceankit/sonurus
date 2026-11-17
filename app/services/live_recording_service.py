@@ -8,7 +8,11 @@ closed and opened again while it runs.
     start   → the queue pauses (TranscriptionQueue.recording_started), each
               track starts; one that cannot start lets go of everything
     live    → a watcher checks the capture processes; one that ended by
-              itself lost its source: the recording stops as if by Stop
+              itself lost its source: the recording stops as if by Stop.
+              It also reads the tracks: when none was loud for
+              silence_after seconds, a call_ended event (reason silence)
+              says the call may have ended, once until a track is loud
+              again; the recording goes on
     stop    → answers at once; on its own thread the tracks stop together and
               become one file in recordings/, the file is queued with the
               title, model and language it was started with, and the queue
@@ -21,9 +25,11 @@ event; both go out over WS /ws/queue with the snapshot that ends the
 recording.
 """
 import threading
+import time
 from dataclasses import dataclass
 
 from app.logger import get_logger
+from app.services.track_silence import SilenceWatch
 
 log = get_logger("LiveRecording")
 
@@ -48,11 +54,19 @@ class RecordingRequest:
     language: str | None
 
 
+# A recording with no sound on any track this long may be a call that ended.
+SILENCE_AFTER_SEC = 300.0
+SILENCE_CHECK_SEC = 2.0
+
+
 class LiveRecordingService:
-    def __init__(self, capture, queue, poll_interval: float = 0.5):
+    def __init__(self, capture, queue, poll_interval: float = 0.5,
+                 silence_after: float = SILENCE_AFTER_SEC, silence_check: float = SILENCE_CHECK_SEC):
         self._capture = capture
         self._queue = queue
         self._poll = poll_interval
+        self._silence_after = silence_after
+        self._silence_check = silence_check
         self._lock = threading.Lock()
         self._state: dict | None = None
         self._request: RecordingRequest | None = None
@@ -140,9 +154,18 @@ class LiveRecordingService:
         return stopping
 
     def _watch(self, jobs: dict[str, str]) -> None:
+        silence = SilenceWatch([self._capture.track_path(j) for j in jobs.values()], after=self._silence_after)
+        told = False
+        next_check = time.monotonic() + self._silence_check
         while not self._wake.wait(self._poll):
             lost = next((kind for kind, job_id in jobs.items() if not self._capture.alive(job_id)), None)
             if lost is None:
+                if time.monotonic() >= next_check:
+                    next_check = time.monotonic() + self._silence_check
+                    silent = silence.check()
+                    if silent and not told:
+                        self._queue.notify({"type": "call_ended", "reason": "silence"})
+                    told = silent
                 continue
             if self._begin_stop() is not None:
                 log.warning(f"The {lost} capture ended by itself; stopping the recording")
