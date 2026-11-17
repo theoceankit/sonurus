@@ -6,6 +6,7 @@ from app.config import MODELS_DIR, WHISPER_MODEL, WHISPER_BATCH_SIZE, WHISPER_CO
 # AlignmentModelMissingError is imported from here by the queue and the pipeline child.
 from app.services.model_service import ALIGNMENT_CATALOG, AlignmentModelMissingError, ModelService  # noqa: F401
 from app.services.diarization import diarize
+from app.services.transcript_builder import assign_gap_sentences
 from app.logger import get_logger
 
 log = get_logger("TranscriptionService")
@@ -83,6 +84,11 @@ class TranscriptionService:
         regular, diarization = diarize(diarize_model, audio)
 
         result = whisperx.assign_word_speakers(regular, result)
+        # A sentence that overlaps no turn goes to the nearest one close by
+        # instead of becoming Unassigned.
+        filled = assign_gap_sentences(result, regular[["start", "end", "speaker"]].itertuples(index=False))
+        if filled:
+            log.info(f"{filled} sentences between turns given to the nearest turn")
         # align() and assign_word_speakers() drop the language — keep the one
         # Whisper detected (or was given) for the transcript.
         result["language"] = detected_lang

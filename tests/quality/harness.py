@@ -34,6 +34,7 @@ class Variant:
     level: bool = False       # the gain the app gives each track of a live recording
     vad_onset: float | None = None
     split_words: bool = True  # segments cut where the word speaker changes (the app's default)
+    fill_gaps: bool = True    # a sentence between turns given to the nearest turn (the app's default)
     base: str | None = None   # variant it is compared with; None = informative only
     what: str = ""
 
@@ -47,13 +48,19 @@ VARIANTS = [
     Variant("call", "call.wav", what="call: a device per participant"),
     Variant("call-nosplit", "call.wav", split_words=False,
             what="call, a sentence never cut at a word-speaker change (before that cut)"),
+    Variant("call-nogap", "call.wav", fill_gaps=False,
+            what="call, a sentence between diarization turns left unassigned (before the nearest turn)"),
     Variant("call+level", "call.wav", level=True, base="call", what="levelling of the call as one track"),
     Variant("call+vad0.3", "call.wav", vad_onset=0.3, base="call", what="VAD onset 0.3 instead of 0.5"),
     Variant("chromium-raw", "chromium-raw.webm", base="call",
             what="call recorded by Chromium, processing off: MediaRecorder Opus only"),
     Variant("chromium-default", "chromium-default.webm", base="chromium-raw",
             what="call recorded by Chromium as the app does: echo cancellation, noise suppression, AGC"),
+    Variant("chromium-default-nogap", "chromium-default.webm", fill_gaps=False,
+            what="chromium-default, a sentence between diarization turns left unassigned"),
     Variant("uneven", "uneven.wav", what="clean with one participant 20 dB down"),
+    Variant("uneven-nogap", "uneven.wav", fill_gaps=False,
+            what="uneven, a sentence between diarization turns left unassigned"),
     Variant("uneven+level", "uneven.wav", level=True, base="uneven", what="levelling of uneven as one track"),
 ]
 BY_NAME = {v.name: v for v in VARIANTS}
@@ -104,6 +111,17 @@ class Pipeline:
             yield
         finally:
             transcript_builder.SPLIT_AT_WORD_SPEAKERS = saved
+
+    @contextmanager
+    def fill_gaps(self, on: bool):
+        """TranscriptionService reads the switch at every transcribe()."""
+        from app.services import transcript_builder
+        saved = transcript_builder.ASSIGN_GAPS_TO_NEAREST_TURN
+        transcript_builder.ASSIGN_GAPS_TO_NEAREST_TURN = on
+        try:
+            yield
+        finally:
+            transcript_builder.ASSIGN_GAPS_TO_NEAREST_TURN = saved
 
 
 def load_audio(path: Path) -> np.ndarray:
@@ -231,7 +249,8 @@ def _run_clip(pipeline, variant, work, clip, naming, memory, storage, named, rec
         lag = metrics.estimate_lag(load_audio(set_dir() / clip / "call.wav"), audio, 16000)
 
     started = time.monotonic()
-    with pipeline.vad_onset(variant.vad_onset), pipeline.split_words(variant.split_words):
+    with pipeline.vad_onset(variant.vad_onset), pipeline.split_words(variant.split_words), \
+            pipeline.fill_gaps(variant.fill_gaps):
         transcript = pipeline.run(audio_path, memory)
     seconds = time.monotonic() - started
 

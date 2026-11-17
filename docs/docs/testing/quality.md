@@ -73,7 +73,7 @@ Metrics (`tests/quality/metrics.py`, unit-tested in `tests/test_quality_metrics.
 
 A variant with a **base** is processing applied to that base (for example `chromium-default` against `chromium-raw`); its test fails if it is worse than the base by more than 2 points of WER, 5 points of speaker words or 0.03 of own similarity. Short utterances, unassigned, mixed segments and segment shape are reported, not checked. The recognised count is reported but not checked: while similarities sit near the threshold it moves by two between nearly equal inputs. Variants without a base (`clean`, `call`, `uneven`) are listening conditions and only report. Recognition does not depend on the run order: every variant starts from an empty memory. When a later clip's speaker is matched to another named person, it counts as wrong.
 
-`clean-nosplit` and `call-nosplit` only report as well: the same audio with sentences never cut at a word-speaker change ([TranscriptBuilder](../services/TranscriptBuilder.md#splitting-at-a-speaker-change)), for comparing with `clean` and `call` in one run.
+`clean-nosplit` and `call-nosplit` only report as well: the same audio with sentences never cut at a word-speaker change ([TranscriptBuilder](../services/TranscriptBuilder.md#splitting-at-a-speaker-change)), for comparing with `clean` and `call` in one run. `call-nogap`, `chromium-default-nogap` and `uneven-nogap` only report too: a sentence between diarization turns left unassigned instead of given to the nearest turn ([Sentences between turns](../services/TranscriptBuilder.md#sentences-between-turns)), for comparing with `call`, `chromium-default` and `uneven`.
 
 ## Long set
 

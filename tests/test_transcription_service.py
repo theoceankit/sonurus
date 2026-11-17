@@ -137,3 +137,33 @@ def test_english_without_its_alignment_model_fails_before_aligning(tmp_path, req
 
     assert exc_info.value.language == "en"
     wx.load_align_model.assert_not_called()
+
+
+# A sentence between two turns of the regular diarization gets no speaker from
+# assign_word_speakers; transcribe() gives it the turn with the nearest edge.
+def test_transcribe_gives_a_gap_sentence_the_nearest_regular_turn(tmp_path):
+    from app.services.transcription_service import TranscriptionService
+
+    regular = _Annotation((0.0, 1.0, "SPEAKER_00"), (3.0, 4.0, "SPEAKER_01"))
+    # the exclusive diarization is for embeddings only, never for sentences
+    exclusive = _Annotation((0.0, 1.0, "SPEAKER_00"), (1.0, 1.2, "SPEAKER_01"), (3.0, 4.0, "SPEAKER_01"))
+    segments = [{"start": 0.0, "end": 1.0, "text": "a", "speaker": "SPEAKER_00"},
+                {"start": 1.3, "end": 1.8, "text": "b"},
+                {"start": 3.0, "end": 4.0, "text": "c", "speaker": "SPEAKER_01"}]
+    _install_alignment(tmp_path, "en")
+
+    with patch("app.services.transcription_service.whisperx") as wx:
+        model = MagicMock()
+        wx.load_model.return_value = model
+        model.transcribe.return_value = {"language": "en", "segments": segments}
+        wx.load_align_model.return_value = (MagicMock(), MagicMock())
+        wx.align.return_value = {"segments": segments, "word_segments": []}
+        wx.load_audio.return_value = np.zeros(16000 * 4, dtype="float32")
+        wx.diarize.DiarizationPipeline.return_value.model.return_value = MagicMock(
+            speaker_diarization=regular, exclusive_speaker_diarization=exclusive)
+        wx.assign_word_speakers.side_effect = lambda _diarization, result: {"segments": result["segments"]}
+
+        svc = TranscriptionService(device="cpu", models_dir=tmp_path)
+        result, _audio, _diarization = svc.transcribe("/fake/audio.wav")
+
+    assert [s.get("speaker") for s in result["segments"]] == ["SPEAKER_00", "SPEAKER_00", "SPEAKER_01"]

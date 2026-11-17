@@ -2,7 +2,7 @@ import uuid
 
 from ..models.transcript import Transcript
 from ..models.segment import Segment
-from typing import List, Dict, Any
+from typing import Any, Dict, Iterable, List, Tuple
 
 from app.logger import get_logger
 
@@ -19,6 +19,13 @@ SPLIT_AT_WORD_SPEAKERS = True
 # away from the sentence; the word count changed little).
 MIN_PIECE_WORDS = 2
 MIN_PIECE_SECONDS = 1.0
+# A sentence that overlaps no diarization turn (a short or quiet one the
+# diarization did not mark) goes to the turn with the nearest edge when that
+# edge is at most this far away; past it, it may be someone the diarization
+# missed, and the user assigns it. Off only to measure the difference in the
+# quality tests.
+ASSIGN_GAPS_TO_NEAREST_TURN = True
+NEAREST_TURN_MAX_GAP = 1.0
 # WhisperX aligns these per character: a "word" is one character.
 LANGUAGES_WITHOUT_SPACES = ("ja", "zh")
 
@@ -104,6 +111,35 @@ class TranscriptBuilder:
         n_attached = sum(1 for seg in transcript.segments if seg.embedding is not None)
         log.debug(f"Attached embeddings to {n_attached}/{len(transcript.segments)} segments")
         return transcript
+
+
+def assign_gap_sentences(result: dict, turns: Iterable[Tuple[float, float, str]]) -> int:
+    """Gives each segment without a speaker the speaker of the nearest turn.
+
+    turns: (start, end, speaker) of the diarization the segments were
+    assigned from. Distance is from the segment's edge to the turn's edge (0
+    for a zero-length segment inside a turn); the nearest turn within
+    NEAREST_TURN_MAX_GAP wins, the earlier one on a tie. Words keep no
+    speaker, so the segment is built whole. Returns how many were assigned.
+    """
+    if not ASSIGN_GAPS_TO_NEAREST_TURN:
+        return 0
+    turns = [(float(a), float(b), spk) for a, b, spk in turns]
+    assigned = 0
+    for seg in result["segments"]:
+        if seg.get("speaker"):
+            continue
+        start, end = seg["start"], seg["end"]
+        best = None
+        for t_start, t_end, speaker in turns:
+            gap = max(t_start - end, start - t_end, 0.0)
+            key = (gap, t_start)  # on a tie the earlier turn
+            if gap <= NEAREST_TURN_MAX_GAP and (best is None or key < best[0]):
+                best = (key, speaker)
+        if best is not None:
+            seg["speaker"] = best[1]
+            assigned += 1
+    return assigned
 
 
 def split_by_word_speakers(seg: dict, language: str | None = None) -> List[dict] | None:
