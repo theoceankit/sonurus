@@ -1,5 +1,6 @@
 """Transcript quality metrics against a reference: WER, speaker mapping and
-accuracy, missed utterances, speaker recognition across files.
+accuracy, missed and short utterances, unassigned, mixed, empty and long
+segments, speaker recognition across files.
 
 Pure Python + numpy/scipy (both in requirements-test.txt), no ML libraries:
 the quality tests (tests/quality/) and the e2e UI test use the same functions.
@@ -195,6 +196,79 @@ def missed_utterances(ref: list[Word], hyp: list[Word], utts: list[Utterance], f
     index = {id(w): k for k, w in enumerate(ref)}
     return [u for u in utts
             if sum(index[id(w)] in found for w in u.words) < found_share * len(u.words)]
+
+
+def short_utterance_speakers(ref: list[Word], hyp: list[Word], mapping: dict, utts: list[Utterance],
+                             max_words: int = 2) -> tuple[int, int]:
+    """(right, found) over reference utterances of at most max_words words.
+
+    found: utterances with at least one word recognised (aligned as equal);
+    right: those of them whose every recognised word is under the hyp speaker
+    mapped to this person. Mostly backchannels and interjections over
+    someone else's speech, which the speaker-words share barely contains.
+    """
+    pair = {i: j for op, i, j in align([w.text for w in ref], [w.text for w in hyp]) if op == "equal"}
+    index = {id(w): k for k, w in enumerate(ref)}
+    right = found = 0
+    for u in utts:
+        if len(u.words) > max_words:
+            continue
+        hits = [hyp[pair[index[id(w)]]] for w in u.words if index[id(w)] in pair]
+        if hits:
+            found += 1
+            right += all(mapping.get(h.speaker) == u.speaker for h in hits)
+    return right, found
+
+
+# ── segments ─────────────────────────────────────────────────────────────────
+
+def unassigned_segments(segments) -> tuple[int, float]:
+    """(count, seconds) of (speaker, start, end, text) segments without a speaker (None)."""
+    gone = [(start, end) for speaker, start, end, _ in segments if speaker is None]
+    return len(gone), float(sum(end - start for start, end in gone))
+
+
+@dataclass(frozen=True)
+class Mixed:
+    segments: int        # all segments
+    mixed: int           # segments with recognised words of 2+ reference speakers
+    minority_words: int  # in those, words not of the segment's main reference speaker
+
+
+def mixed_segments(ref: list[Word], segments) -> Mixed:
+    """Segments ((speaker, start, end, text)) whose words, aligned with the
+    reference, belong to more than one reference speaker. Only words aligned
+    as equal count: a substitution or an insertion says nothing about who spoke."""
+    hyp, owner = [], []
+    for k, seg in enumerate(segments):
+        words = segment_words([seg])
+        hyp += words
+        owner += [k] * len(words)
+    by_segment: dict[int, dict[str, int]] = {}
+    for op, i, j in align([w.text for w in ref], [w.text for w in hyp]):
+        if op == "equal":
+            counts = by_segment.setdefault(owner[j], {})
+            counts[ref[i].speaker] = counts.get(ref[i].speaker, 0) + 1
+    mixed = [c for c in by_segment.values() if len(c) > 1]
+    return Mixed(len(segments), len(mixed), sum(sum(c.values()) - max(c.values()) for c in mixed))
+
+
+@dataclass(frozen=True)
+class Shape:
+    segments: int
+    no_words: int    # no word with a time (alignment gave none)
+    empty_text: int  # blank text
+    long: int        # longer than long_seconds
+
+
+def segment_shape(segments: list[dict], long_seconds: float = 15.0) -> Shape:
+    """Counts over the pipeline's result segments (WhisperX dicts: start, end, text, words)."""
+    return Shape(
+        len(segments),
+        sum(not any("start" in w for w in s.get("words") or []) for s in segments),
+        sum(not (s.get("text") or "").strip() for s in segments),
+        sum(s["end"] - s["start"] > long_seconds for s in segments),
+    )
 
 
 # ── audio and embeddings ─────────────────────────────────────────────────────

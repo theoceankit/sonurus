@@ -20,6 +20,7 @@ from tests.quality import metrics
 
 CLIPS = ("es2002b", "es2002c", "es2002d")  # the first one is named, the others recognised
 LONG_UTTERANCE = 3  # words; shorter ones are counted apart (backchannels)
+LONG_SEGMENT = 15.0  # seconds; longer pipeline segments are counted
 
 
 def set_dir() -> Path:
@@ -138,6 +139,21 @@ class _Recorder:
         return aggregated, self.segments
 
 
+class _ResultRecorder:
+    """Keeps what TranscriptionService.transcribe returned for the last run:
+    the segments before the transcript is built, with their words."""
+
+    def __init__(self, transcription):
+        self.segments = []
+        self._transcribe = transcription.transcribe
+        transcription.transcribe = self
+
+    def __call__(self, *args, **kwargs):
+        result, audio, diarization = self._transcribe(*args, **kwargs)
+        self.segments = result["segments"]
+        return result, audio, diarization
+
+
 def voices(diarization_segments, transcript, raw_to_ref) -> dict:
     """Arrays for the .npz next to the report: every diarization turn with an
     embedding (raw speaker, who it really is, times, vector) and, for every
@@ -174,17 +190,19 @@ def evaluate(pipeline: Pipeline, variant: Variant, work: Path,
     memory, storage = SpeakerMemoryService(db_path=db), TranscriptStorageService(db_path=db)
     named: dict[str, str] = {}  # reference speaker → speaker id created by naming
     recorder = _Recorder(pipeline.embedding)
+    result = _ResultRecorder(pipeline.transcription)
     rows = []
     try:
         for clip in clips:
             rows.append(_run_clip(pipeline, variant, work, clip, clip in named_clips,
-                                  memory, storage, named, recorder))
+                                  memory, storage, named, recorder, result))
     finally:
-        del pipeline.embedding.extract_all  # back to the class's method
+        del pipeline.embedding.extract_all  # back to the class's methods
+        del pipeline.transcription.transcribe
     return _totals(variant, rows)
 
 
-def _run_clip(pipeline, variant, work, clip, naming, memory, storage, named, recorder) -> dict:
+def _run_clip(pipeline, variant, work, clip, naming, memory, storage, named, recorder, result) -> dict:
     from app.api.routers.transcripts import assign_speaker
     from app.api.schemas import SpeakerAssignmentRequest
     from app.services.commit_service import CommitService
@@ -202,8 +220,8 @@ def _run_clip(pipeline, variant, work, clip, naming, memory, storage, named, rec
     seconds = time.monotonic() - started
 
     ref = metrics.ref_words(ref_json["words"])
-    hyp = metrics.shift_words(metrics.segment_words(
-        [(effective_speaker(s), s.start, s.end, s.text) for s in transcript.segments]), -lag)
+    segments = [(effective_speaker(s), s.start, s.end, s.text) for s in transcript.segments]
+    hyp = metrics.shift_words(metrics.segment_words(segments), -lag)
     w = metrics.wer([x.text for x in ref], [x.text for x in hyp])
     hyp_to_ref = metrics.map_speakers(metrics.turns(ref), metrics.turns(hyp))
     # Utterances of 1–2 words are mostly backchannels ("yeah", "okay") over
@@ -233,6 +251,7 @@ def _run_clip(pipeline, variant, work, clip, naming, memory, storage, named, rec
         "missed_text": [" ".join(x.text for x in u.words) for u in missed],
         "lag": lag, "seconds": seconds,
     }
+    row.update(segment_scores(ref, segments, hyp, hyp_to_ref, utts, result.segments))
 
     storage.save(transcript)
     raw_to_ref = metrics.map_speakers(metrics.turns(ref), metrics.turns(metrics.segment_words(
@@ -272,6 +291,30 @@ def _run_clip(pipeline, variant, work, clip, naming, memory, storage, named, rec
     return row
 
 
+def segment_scores(ref, segments, hyp, hyp_to_ref, utts, raw_segments) -> dict:
+    """Unassigned, mixed, short-utterance and segment-shape counts of one clip.
+
+    segments: the transcript's (effective speaker, start, end, text);
+    raw_segments: what the pipeline returned before the transcript was built.
+    """
+    unassigned, unassigned_s = metrics.unassigned_segments(segments)
+    mixed = metrics.mixed_segments(ref, segments)
+    short_right, short_found = metrics.short_utterance_speakers(ref, hyp, hyp_to_ref, utts,
+                                                                max_words=LONG_UTTERANCE - 1)
+    shape = metrics.segment_shape(raw_segments, LONG_SEGMENT)
+    return {
+        "segments": mixed.segments, "unassigned": unassigned, "unassigned_s": unassigned_s,
+        "mixed": mixed.mixed, "mixed_minority_words": mixed.minority_words,
+        "short_right": short_right, "short_found": short_found,
+        "raw_segments": shape.segments, "no_words": shape.no_words,
+        "empty_text": shape.empty_text, "long_segments": shape.long,
+    }
+
+
+SEGMENT_COUNTS = ("segments", "unassigned", "unassigned_s", "mixed", "mixed_minority_words",
+                  "short_right", "short_found", "raw_segments", "no_words", "empty_text", "long_segments")
+
+
 def _totals(variant: Variant, clips: list[dict]) -> dict:
     total_ref = sum(c["ref_words"] for c in clips)
     later = [c for c in clips if not c["named_here"]]
@@ -291,6 +334,7 @@ def _totals(variant: Variant, clips: list[dict]) -> dict:
         "other_similarity": float(np.nanmean([c["other_similarity"] for c in later])),
         "own_min": float(np.nanmin([s["own"] for c in later for s in c["scores"].values()] or [np.nan])),
         "other_max": float(np.nanmax([s["other"] for c in later for s in c["scores"].values()] or [np.nan])),
+        **{k: sum(c[k] for c in clips) for k in SEGMENT_COUNTS},
         "recall_by_speaker": {
             spk: float(np.mean([c["recall_by_speaker"][spk] for c in clips if spk in c["recall_by_speaker"]]))
             for spk in sorted({s for c in clips for s in c["recall_by_speaker"]})
