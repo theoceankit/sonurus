@@ -38,6 +38,12 @@ export type LiveRecording = Schemas['LiveRecording']
 export type RecordingStart = Schemas['RecordingStartRequest']
 export type RecordingFailedEvent = Schemas['RecordingFailedEvent']
 export type RecordingSourceLostEvent = Schemas['RecordingSourceLostEvent']
+// A call may have started (another app holds a microphone) or ended; the Electron main
+// process turns them into notifications, the window does nothing with them.
+export type MicAppActiveEvent = Schemas['MicAppActiveEvent']
+export type CallEndedEvent = Schemas['CallEndedEvent']
+// Whether this system tells when another app holds a microphone, and names it.
+export type MicWatch = Schemas['MicWatchResponse']
 export type JobDoneEvent = Schemas['JobDoneEvent']
 export type JobFailedEvent = Schemas['JobFailedEvent']
 export type HeartbeatEvent = Schemas['HeartbeatEvent']
@@ -49,6 +55,7 @@ export type ModelsFolder = Schemas['ModelsFolder']
 // subscribers get the rest.
 export type QueueEvent = QueueUpdate | HeartbeatEvent
 export type QueueUpdate = QueueSnapshot | JobDoneEvent | JobFailedEvent | RecordingFailedEvent | RecordingSourceLostEvent
+  | MicAppActiveEvent | CallEndedEvent
 
 // A known speaker that an unrecognized one may be. score is cosine similarity,
 // suggested marks the first candidate when it is close enough.

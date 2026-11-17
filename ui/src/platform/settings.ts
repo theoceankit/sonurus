@@ -19,6 +19,11 @@ export const DEFAULT_SETTINGS: ElectronSettings = {
   recentTranscriptIds: [],
   theme: 'system',
   closeToTray: true,
+  notifications: true,
+  promptStart: true,
+  promptStartApps: 'any',
+  promptStartSelected: [],
+  promptEnd: 'suggest',
 }
 
 export type SettingsStore = {

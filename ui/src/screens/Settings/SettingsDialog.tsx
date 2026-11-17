@@ -15,6 +15,7 @@ import { ExportSection } from './ExportSection'
 import { GeneralSection } from './GeneralSection'
 import { GpuSection } from './GpuSection'
 import { ModelsSection } from './ModelsSection'
+import { NotificationsSection } from './NotificationsSection'
 import { useGpu } from '../../settings/gpu'
 import { formatAppVersion, SECTIONS, type SettingsSection } from './sections'
 import styles from './SettingsDialog.module.css'
@@ -34,6 +35,7 @@ const PANELS: Record<SettingsSection, ComponentType> = {
   models: ModelsSection,
   alignment: AlignmentSection,
   audio: AudioSection,
+  notifications: NotificationsSection,
   gpu: GpuSection,
   apiKeys: ApiKeysSection,
   export: ExportSection,

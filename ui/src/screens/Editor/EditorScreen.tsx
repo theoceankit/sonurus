@@ -14,6 +14,8 @@ import { createKeyStore } from '../../media/active-segment'
 import { EmptyState } from '../Home/EmptyState'
 import { ImportDialog } from '../Home/ImportDialog'
 import { NewRecordingDialog } from '../Home/NewRecordingDialog'
+import { StopRecordingDialog } from '../../recording/StopRecordingDialog'
+import { useWindowIntent } from '../../platform/window-intent'
 import { pickRecording, useRecentRecordings } from '../Home/last-opened'
 import { useNewTranscription } from '../Home/useNewTranscription'
 import { useSettingsDialog } from '../Settings/SettingsProvider'
@@ -92,6 +94,14 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   useEscapeClose(() => select({ type: 'close' }), selectedId !== null || jobId !== null)
   const recent = useRecentRecordings()
   const newTranscription = useNewTranscription()
+  // A click on a notification of a call: New recording, or the question to stop.
+  const [askStop, setAskStop] = useState(false)
+  const closeAskStop = useCallback(() => setAskStop(false), [])
+  const { openRecordingFor } = newTranscription
+  useWindowIntent(intent => {
+    if (intent.dialog === 'new-recording') openRecordingFor(intent.app)
+    else setAskStop(true)
+  })
   const settingsDialog = useSettingsDialog()
   const [panels, setPanels] = useState(INITIAL_PANELS)
   const ownPlayback = useTranscriptPlayback(givenPlayback ? null : shownId)
@@ -328,6 +338,7 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
       )}
       <NewRecordingDialog {...newTranscription.record} />
       <ImportDialog {...newTranscription.importer} />
+      <StopRecordingDialog open={askStop} onClose={closeAskStop} />
       {speakersWindow.value && (
         <SpeakersDialog
           key={speakersWindow.key}

@@ -17,6 +17,7 @@ export const NOT_IMPLEMENTED = [
   'inspector.chapters',
   'inspector.notes',
   'settings.app-language',
+  'settings.call-start-prompts',
   'settings.export',
   'settings.search',
   'sidebar.pin',

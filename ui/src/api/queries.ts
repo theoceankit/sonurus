@@ -24,6 +24,7 @@ export const queryKeys = {
   modelsFolder: ['models', 'folder'],
   captureSources: ['captureSources'],
   micInputs: ['micInputs'],
+  micWatch: ['micWatch'],
   connected: ['connected'],
 } satisfies Record<string, QueryKey | ((...args: never[]) => QueryKey)>
 
@@ -144,6 +145,12 @@ export function useCaptureSources(enabled = true) {
 
 // The microphones, asked for only while enabled, and again each time a screen that
 // shows them mounts: a microphone may have come or gone.
+// Asked once: what the system can tell does not change while the app runs.
+export function useMicWatch() {
+  const api = useApi()
+  return useQuery({ queryKey: queryKeys.micWatch, queryFn: () => api.getMicWatch(), staleTime: Infinity })
+}
+
 export function useMicInputs(enabled = true) {
   const api = useApi()
   return useQuery({ queryKey: queryKeys.micInputs, queryFn: () => api.listMicInputs(), refetchOnMount: 'always', enabled })
