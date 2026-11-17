@@ -43,7 +43,8 @@ test('modelState: the default is worked out from what is installed, a saved one 
 test('missingAlignmentModel: only languages of the catalog whose model is not installed', () => {
   expect(missingAlignmentModel('ru', fixtureModels([]))?.id).toBe('ru')
   expect(missingAlignmentModel('ru', fixtureModels(['ru']))).toBeNull()
-  for (const language of ['en', 'de', 'auto', null]) expect(missingAlignmentModel(language, fixtureModels([]))).toBeNull()
+  for (const language of ['en', 'de']) expect(missingAlignmentModel(language, fixtureModels([]))?.id).toBe(language)
+  for (const language of ['id', 'auto', null]) expect(missingAlignmentModel(language, fixtureModels([]))).toBeNull()
 })
 
 test('jobBlockReason: the Whisper model, then diarization, then the language', () => {
@@ -51,7 +52,8 @@ test('jobBlockReason: the Whisper model, then diarization, then the language', (
   expect(jobBlockReason(state(['diarize']), 'ru')).toEqual({ missing: 'whisper' })
   expect(jobBlockReason(state(['base']), 'ru')).toEqual({ missing: 'diarization' })
   expect(jobBlockReason(state(['base', 'diarize']), 'ru')).toEqual({ missing: 'alignment', language: 'ru' })
-  expect(jobBlockReason(state(['base', 'diarize']), 'en')).toBeNull()
+  expect(jobBlockReason(state(['base', 'diarize']), 'en')).toEqual({ missing: 'alignment', language: 'en' })
+  expect(jobBlockReason(state(['base', 'diarize', 'en']), 'en')).toBeNull()
   expect(jobBlockReason(state(['base', 'diarize']), 'auto')).toBeNull()
   expect(jobBlockReason(state(['base', 'diarize', 'ru']), 'ru')).toBeNull()
 })

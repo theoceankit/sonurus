@@ -12,7 +12,6 @@ import { OverlayProvider } from '../../OverlayProvider'
 import type { ElectronSettings } from '../../platform/electron-api'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../../platform/settings'
-import { alignedWithoutModel } from './AlignmentSection'
 import { folderName } from './ModelsSection'
 import { findDialog, findTitlebarButton, getDialog, queryDialog } from '../../test-queries'
 
@@ -116,16 +115,17 @@ test('without a token the failure leads to API Keys', async () => {
   expect(within(settings()).getByRole('tab', { name: 'API Keys', selected: true })).toBeTruthy()
 })
 
-test('Alignment lists the models of the languages, and which need none', async () => {
+test('Alignment lists the models of the languages, English among them', async () => {
   await setup({ installedModels: ['small', 'diarize', 'ru'] })
   await openSection('Languages')
   await within(settings()).findByRole('group', { name: 'Russian' })
   expect(inRow('Russian', 'Delete Russian')).toBeTruthy()
   expect(row('Russian').textContent).not.toMatch(/Русский|wav2vec2|Installed/)
   expect(inRow('Czech', 'Download')).toBeTruthy()
-  expect(settings().textContent).toContain(`Download a model for each language you transcribe. Not needed for English, Español, Deutsch and Français.`)
-  expect(settings().textContent).toContain(`Not needed for English, Español, Deutsch and Français.`)
-  expect(alignedWithoutModel()).toEqual(['English', 'Español', 'Deutsch', 'Français'])
+  expect(inRow('English', 'Download')).toBeTruthy()
+  expect(row('English').textContent).toContain('~378 MB')
+  expect(settings().textContent).toContain('Download a model for each language you transcribe.')
+  expect(settings().textContent).not.toContain('Not needed')
 })
 
 test('Alignment downloads a model', async () => {

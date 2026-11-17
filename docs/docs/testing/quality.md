@@ -44,10 +44,10 @@ SONORUS_QUALITY=1 .venv/bin/python -m pytest tests/quality -v -s
 | Variable | Default | Purpose |
 |---|---|---|
 | `SONORUS_QUALITY` | — | `1` runs the quality tests; otherwise they are skipped |
-| `SONORUS_MODELS_DIR` | `~/.config/sonorus-dev/.models` | Models of the dev app; must hold `large-v3`, the diarization and the embedding model |
+| `SONORUS_MODELS_DIR` | `~/.config/sonorus-dev/.models` | Models of the dev app; must hold `large-v3`, the diarization model (with the embedding model) and the English alignment model |
 | `SONORUS_EVAL_CACHE` | `~/.cache/sonorus-eval` | Where the set and the reports are written |
 
-`SONORUS_QUALITY_LONG=1` runs the [long set](#long-set) instead. The tests also skip when the ML libraries are the CI stubs or the set is not built. Speaker memory and transcripts go to a temporary database; the models are resolved from the local cache in offline mode (as in the pipeline child), so nothing is downloaded except the English alignment model on the first run.
+`SONORUS_QUALITY_LONG=1` runs the [long set](#long-set) instead. The tests also skip when the ML libraries are the CI stubs or the set is not built. Speaker memory and transcripts go to a temporary database; the models are resolved from the local cache in offline mode (as in the pipeline child), so nothing is downloaded: download the English alignment model in the dev app's Settings first.
 
 ## What is measured
 

@@ -598,8 +598,8 @@ describe('editing a job', () => {
 
   test('changes only what is given', async () => {
     const client = await withJob('waiting')
-    await expect(client.updateQueueJob('a', { title: 'Standup', language: 'de' })).resolves.toMatchObject({ title: 'Standup', language: 'de', whisper_model: 'small' })
-    expect((await client.getQueue()).jobs[0]).toMatchObject({ title: 'Standup', language: 'de' })
+    await expect(client.updateQueueJob('a', { title: 'Standup', language: 'en' })).resolves.toMatchObject({ title: 'Standup', language: 'en', whisper_model: 'small' })
+    expect((await client.getQueue()).jobs[0]).toMatchObject({ title: 'Standup', language: 'en' })
   })
 
   test('refuses a model or an alignment model not installed, and a running job', async () => {

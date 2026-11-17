@@ -70,6 +70,7 @@ def test_transcribe_takes_embedding_turns_from_exclusive_diarization(tmp_path):
     regular = _Annotation((0.0, 4.0, "SPEAKER_00"), (1.0, 3.5, "SPEAKER_01"))
     exclusive = _Annotation((0.0, 1.0, "SPEAKER_00"), (1.0, 3.5, "SPEAKER_01"), (3.5, 4.0, "SPEAKER_00"))
     seen = {}
+    _install_alignment(tmp_path, "en")
 
     def assign(diarization, result):
         seen["assign"] = _rows(diarization)
@@ -91,3 +92,48 @@ def test_transcribe_takes_embedding_turns_from_exclusive_diarization(tmp_path):
 
     assert seen["assign"] == [(0.0, 4.0, "SPEAKER_00"), (1.0, 3.5, "SPEAKER_01")]
     assert _rows(diarization) == [(0.0, 1.0, "SPEAKER_00"), (1.0, 3.5, "SPEAKER_01"), (3.5, 4.0, "SPEAKER_00")]
+
+
+# The alignment model is the catalog's repo, read from the models folder only:
+# never WhisperX's default, which for en/fr/de/es/it is a torchaudio bundle
+# downloaded through torch.hub.
+@pytest.mark.parametrize("language", ["en", "fr", "ru"])
+def test_alignment_model_is_the_catalog_repo_from_disk_only(tmp_path, language):
+    from app.services.transcription_service import TranscriptionService
+
+    _install_alignment(tmp_path, language)
+    with patch("app.services.transcription_service.whisperx") as wx:
+        model = MagicMock()
+        wx.load_model.return_value = model
+        model.transcribe.return_value = {"language": language, "segments": [{"start": 0.0, "end": 1.0, "text": "x"}]}
+        wx.load_align_model.return_value = (MagicMock(), MagicMock())
+        wx.align.return_value = {"segments": [], "word_segments": []}
+        wx.load_audio.return_value = np.zeros(16000, dtype="float32")
+        wx.assign_word_speakers.side_effect = lambda _diarization, result: {"segments": result["segments"]}
+
+        TranscriptionService(device="cpu", models_dir=tmp_path).transcribe("/fake/audio.wav", language=language)
+
+    wx.load_align_model.assert_called_once_with(
+        language_code=language,
+        device="cpu",
+        model_name=ALIGNMENT_CATALOG[language]["hf_repo"],
+        model_dir=str(tmp_path / "alignment"),
+        model_cache_only=True,
+    )
+
+
+@pytest.mark.parametrize("requested", [None, "en"])
+def test_english_without_its_alignment_model_fails_before_aligning(tmp_path, requested):
+    from app.services.transcription_service import AlignmentModelMissingError, TranscriptionService
+
+    with patch("app.services.transcription_service.whisperx") as wx:
+        model = MagicMock()
+        wx.load_model.return_value = model
+        model.transcribe.return_value = {"language": "en", "segments": [{"start": 0.0, "end": 1.0, "text": "x"}]}
+        wx.load_audio.return_value = np.zeros(16000, dtype="float32")
+
+        with pytest.raises(AlignmentModelMissingError) as exc_info:
+            TranscriptionService(device="cpu", models_dir=tmp_path).transcribe("/fake/audio.wav", language=requested)
+
+    assert exc_info.value.language == "en"
+    wx.load_align_model.assert_not_called()

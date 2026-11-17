@@ -394,11 +394,11 @@ describe('adding files to the queue', () => {
     await act(() => result.current.mutateAsync({
       files: [{ audioPath: '/in/b.mp3', title: 'Standup' }, { audioPath: '/in/a.wav', title: null }],
       whisperModel: 'small',
-      language: 'de',
+      language: 'en',
     }))
     expect(add.mock.calls.map(([job]) => job)).toEqual([
-      { audioPath: '/in/b.mp3', whisperModel: 'small', language: 'de', title: 'Standup' },
-      { audioPath: '/in/a.wav', whisperModel: 'small', language: 'de', title: null },
+      { audioPath: '/in/b.mp3', whisperModel: 'small', language: 'en', title: 'Standup' },
+      { audioPath: '/in/a.wav', whisperModel: 'small', language: 'en', title: null },
     ])
     expect((await client.getQueue()).jobs.map(job => [job.audio_path, job.title])).toEqual([['/in/b.mp3', 'Standup'], ['/in/a.wav', 'a']])
   })

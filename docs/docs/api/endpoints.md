@@ -200,7 +200,7 @@ Model directories:
 
 ### `GET /models`
 
-Returns the full catalog with install status for every model: 5 Whisper + 1 Diarization + 35 Alignment = 41 entries.
+Returns the full catalog with install status for every model: 5 Whisper + 1 Diarization + 40 Alignment = 46 entries.
 
 ```json
 [
@@ -231,7 +231,7 @@ Files come as a plain HTTP download from the Hub's CDN, with Xet switched off (`
 Valid `model_id` values:
 - Whisper: `tiny`, `base`, `small`, `medium`, `large-v3`
 - Diarization: `diarize` (downloads `pyannote/speaker-diarization-community-1`; its `embedding` subfolder is also the model of speaker memory. Files of the old `pyannote/embedding`, downloaded by earlier versions, are left where they are and are neither used nor deleted)
-- Alignment: two-letter language code from `ALIGNMENT_CATALOG` — `ru`, `zh`, `ja`, `ko`, `uk`, `pt`, `ar`, `nl`, `pl`, `hi`, `cs`, `tr`, `hu`, `fi`, `fa`, `el`, `da`, `he`, `vi`, `ur`, `te`, `ca`, `ml`, `no`, `nn`, `sk`, `sl`, `hr`, `ro`, `eu`, `gl`, `ka`, `lv`, `tl`, `sv`
+- Alignment: two-letter language code from `ALIGNMENT_CATALOG` — `en`, `ru`, `es`, `de`, `fr`, `it`, `zh`, `ja`, `ko`, `uk`, `pt`, `ar`, `nl`, `pl`, `hi`, `cs`, `tr`, `hu`, `fi`, `fa`, `el`, `da`, `he`, `vi`, `ur`, `te`, `ca`, `ml`, `no`, `nn`, `sk`, `sl`, `hr`, `ro`, `eu`, `gl`, `ka`, `lv`, `tl`, `sv`
 
 Unknown `model_id` returns `422`. One download per model: a `POST` while that model is downloading starts nothing and returns the running download's `job_id` (two downloads would write into the same cache), so a client that lost its connection can follow the same download again.
 

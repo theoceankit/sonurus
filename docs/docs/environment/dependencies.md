@@ -18,7 +18,8 @@ All models are downloaded via HuggingFace Hub and cached in `~/.cache/huggingfac
 | Speaker Diarization | `pyannote/speaker-diarization-community-1` | ~34 MB | CC-BY-4.0 | **Gated** — requires HF_TOKEN |
 | Speaker Embedding (speaker memory) | `embedding` subfolder of `pyannote/speaker-diarization-community-1` — WeSpeaker ResNet34-LM | (included above) | CC-BY-4.0 | Comes with diarization |
 | Voice Activity Detection | `pyannote/segmentation` | ~20 MB | MIT | **Gated** — requires HF_TOKEN |
-| Alignment EN (torchaudio) | `WAV2VEC2_ASR_BASE_960H` | ~360 MB | MIT | Public (torchaudio) |
+| Alignment EN | `facebook/wav2vec2-base-960h` | ~378 MB | Apache 2.0 | Public |
+| Alignment FR, DE, ES, IT | `facebook/wav2vec2-base-10k-voxpopuli-ft-{fr,de,es,it}` | ~378 MB each | CC-BY-NC-4.0 | Public |
 | Alignment RU | `jonatasgrosman/wav2vec2-large-xlsr-53-russian` | ~1.2 GB | Apache 2.0 | Public |
 
 > The speaker embedding model is WeSpeaker ResNet34-LM trained on VoxCeleb: H. Wang, C. Liang, S. Wang, Z. Chen, B. Zhang, X. Xiang, Y. Deng, Y. Qian, "Wespeaker: A research and production oriented speaker embedding learning toolkit", ICASSP 2023. Its weights follow the VoxCeleb licence, CC-BY-4.0. The app does not ship any model weights: they are downloaded from HuggingFace with the user's token.
@@ -47,7 +48,7 @@ Without a token, loading will fail with `401 Unauthorized`.
 | `ctranslate2` | 4.8.5 | Quantized inference engine |
 | `pyannote-audio` | 4.0.7 | Speaker diarization and embedding extraction |
 | `torch` | 2.8.0 | Model inference — CPU and CUDA |
-| `torchaudio` | 2.8.0 | Alignment models for EN/FR/DE/ES/IT |
+| `torchaudio` | 2.8.0 | Audio loading and resampling for WhisperX and pyannote |
 | `transformers` | 4.57.6 | HuggingFace alignment model loading |
 
 ### Data and Math

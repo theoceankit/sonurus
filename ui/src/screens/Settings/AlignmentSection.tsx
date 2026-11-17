@@ -1,19 +1,12 @@
 import { useModels } from '../../api/queries'
 import { ModelRow } from '../../components/ModelRow/ModelRow'
 import { SectionCard } from '../../components/SectionCard/SectionCard'
-import { ALIGNMENT_MODELS, LANGUAGES } from '../../transcribe/languages'
+import { ALIGNMENT_MODELS } from '../../transcribe/languages'
 import { useLingering } from '../../presence'
 import { ConfirmDialog } from './ConfirmDialog'
 import { useModelDelete } from './model-delete-action'
 import { useModelDownloads } from '../../transcribe/model-downloads'
 import { Loading, ModelsFolderLine, rowState } from './ModelsSection'
-
-// The languages of the list that need no model of their own, from the catalog.
-export function alignedWithoutModel(): string[] {
-  return LANGUAGES.filter(({ code }) => code !== 'auto' && !ALIGNMENT_MODELS.some(model => model.id === code)).map(({ label }) => label)
-}
-
-const list = (names: readonly string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`)
 
 export function AlignmentSection() {
   const models = useModels()
@@ -27,7 +20,7 @@ export function AlignmentSection() {
   return (
     <SectionCard
       title="Word timings"
-      description={<>{`Download a model for each language you transcribe. Not needed for ${list(alignedWithoutModel())}.`}<ModelsFolderLine /></>}
+      description={<>Download a model for each language you transcribe.<ModelsFolderLine /></>}
     >
       {known.map(model => (
         <ModelRow
