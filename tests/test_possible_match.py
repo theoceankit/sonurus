@@ -258,16 +258,6 @@ def test_undoing_a_confirmation_brings_the_speaker_back(client):
     assert _candidates(client, transcript_id)[_ALICE]["possible_match"] is True
 
 
-def test_confirming_does_not_touch_speaker_memory(client):
-    _profiles({_ALICE: ("Alice", _at_cosine(0.9))})
-    transcript_id = _save([_alice_voice()], {_ALICE: 0.62})
-    with patch.object(SpeakerMemoryService, "save") as save, patch.object(SpeakerMemoryService, "update_embedding") as update:
-        client.post(f"/transcripts/{transcript_id}/possible-matches/{_ALICE}/confirmed")
-        client.delete(f"/transcripts/{transcript_id}/possible-matches/{_ALICE}/confirmed")
-    save.assert_not_called()
-    update.assert_not_called()
-
-
 @pytest.mark.parametrize("method", ["post", "delete"])
 def test_confirming_without_a_kept_score_is_404(client, method):
     _profiles({_ALICE: ("Alice", VOICE)})

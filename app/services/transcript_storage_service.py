@@ -254,6 +254,16 @@ class TranscriptStorageService:
             ).fetchall()
         return {spk_id: {"score": score, "confirmed": bool(confirmed)} for spk_id, score, confirmed in rows}
 
+    def matches_of_speaker(self, speaker_id: str) -> dict[int, dict]:
+        """{transcription id: {score, confirmed}} of every transcript where
+        speaker_id was recognized from memory."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT transcription_id, score, confirmed FROM speaker_matches WHERE speaker_id = ?",
+                (speaker_id,),
+            ).fetchall()
+        return {tid: {"score": score, "confirmed": bool(confirmed)} for tid, score, confirmed in rows}
+
     def list_all(self) -> list[dict]:
         """Return recording metadata for sidebar, newest first."""
         with self._connect() as conn:

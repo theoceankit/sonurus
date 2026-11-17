@@ -54,10 +54,11 @@ EMBEDDING_SUBFOLDER = "embedding"
 # Stored in the database next to the voices it computed: voices of another
 # model cannot be compared with these (SpeakerMemoryService resets them).
 EMBEDDING_MODEL_ID = "wespeaker-resnet34-lm"
-# How a voice is averaged from embeddings (voice_vector), stored in the database
-# next to the profiles: profiles averaged another way are recomputed from the
+# How a voice is averaged from embeddings (voice_vector) and from which
+# recordings (possible matches only once confirmed), stored in the database next
+# to the profiles: profiles averaged another way are recomputed from the
 # database when the backend starts (CommitService.recompute_outdated_profiles).
-VOICE_AVERAGING_ID = "unit-duration-weighted"
+VOICE_AVERAGING_ID = "unit-duration-weighted-confirmed"
 EMBEDDING_SAMPLE_RATE = 16000
 EMBEDDING_MIN_DURATION = 1.0
 

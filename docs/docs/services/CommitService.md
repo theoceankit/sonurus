@@ -42,6 +42,8 @@ Permitted exceptions that do not write embeddings:
 - `SpeakerMemoryService.take_identity()` — moves one speaker's names, colour, handle and photo to another; writes only `speaker_names` and `speaker_meta`. Called only by `merge_speaker()`.
 - `SpeakerMemoryService.clear()` — full data reset (`POST /data/reset`).
 
+A voice the system only guessed (an unconfirmed possible match) is not a final assignment either, so it stays out of the profile until the user confirms it.
+
 ---
 
 ## Methods
@@ -84,7 +86,19 @@ Called from `POST /transcripts/{id}/speaker-assignments` for the speaker the seg
 
 ### `commit_recognized_speakers(transcript)`
 
-Updates embeddings for speakers that **already exist in memory** (auto-recognized in a new session).
+Updates embeddings for speakers that **already exist in memory** (auto-recognized in a new session). Called by the queue after a job saves its transcript. A named speaker who is a possible match there (recognized below `POSSIBLE_MATCH_CEILING`) gets nothing from it until the user confirms them: see below.
+
+---
+
+### Possible matches stay out until confirmed
+
+Every recompute (`_avg_from_db()`, used by all methods here) leaves out the transcripts where a named speaker is a possible match not confirmed yet: `storage.matches_of_speaker()` gives their `speaker_matches` rows and `is_possible_match()` (`app/services/speaker_candidates.py`) decides, as the candidates route does. So the guess changes no profile whether the recompute comes from the job, an edit in another recording, a merge or the recompute at startup. Rejecting it means assigning its segments to someone else: they leave the speaker, whose profile never had them. A speaker without a name has nothing to confirm, so their low matches count at once; once named, those recordings wait for review like any other.
+
+---
+
+### `confirm_match(transcript_id, speaker_id, confirmed) → bool`
+
+The user confirms a possible match (`POST /transcripts/{id}/possible-matches/{speaker_id}/confirmed`) or takes the confirmation back (`DELETE`). Sets the flag with `storage.set_match_confirmed()`, then recomputes the speaker as `commit_speaker()` does, with the guard: a confirmed recording joins the profile, a taken-back one leaves it. With nothing to recompute from the profile stays as it is. Returns `False`, changing nothing, when the speaker was not recognized in that transcript.
 
 ---
 
@@ -102,7 +116,7 @@ Deletes a speaker (`DELETE /speakers/{id}`): first `storage.unassign_speaker()` 
 
 ### `recompute_outdated_profiles() → int`
 
-Runs once after an update that changes how voices are averaged. When `memory.voice_averaging()` (`_meta.voice_averaging`) is not `config.VOICE_AVERAGING_ID`, every stored profile is recomputed from the database as `commit_speaker()` does, with the stored profile as guard; a profile with nothing left to recompute from stays as it is. Then the mark is written and the number of recomputed profiles returned; otherwise it does nothing and returns 0. Needs no model or audio. The backend calls it at startup, before the queue starts; on an error it logs, leaves the mark unwritten and the next start tries again.
+Runs once after an update that changes how voices are averaged or which recordings they are averaged from (the last: unconfirmed possible matches left out). When `memory.voice_averaging()` (`_meta.voice_averaging`) is not `config.VOICE_AVERAGING_ID`, every stored profile is recomputed from the database as `commit_speaker()` does, with the stored profile as guard; a profile with nothing left to recompute from stays as it is. Then the mark is written and the number of recomputed profiles returned; otherwise it does nothing and returns 0. Needs no model or audio. The backend calls it at startup, before the queue starts; on an error it logs, leaves the mark unwritten and the next start tries again.
 
 ### `merge_speaker(from_id, into_id) → dict`
 

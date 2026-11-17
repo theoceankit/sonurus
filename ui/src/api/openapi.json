@@ -3613,7 +3613,7 @@
     },
     "/transcripts/{transcript_id}/possible-matches/{speaker_id}/confirmed": {
       "delete": {
-        "description": "Undo of a confirmation: the speaker waits for review again.",
+        "description": "Undo of a confirmation: the speaker waits for review again, and the\nrecording leaves their voice profile.",
         "operationId": "unconfirm_possible_match_transcripts__transcript_id__possible_matches__speaker_id__confirmed_delete",
         "parameters": [
           {
@@ -3656,7 +3656,7 @@
         ]
       },
       "post": {
-        "description": "The user says the speaker recognized here is the right one: they leave the\nreview of this transcript. Segments and speaker memory stay as they are.",
+        "description": "The user says the speaker recognized here is the right one: they leave the\nreview of this transcript, and the recording joins their voice profile.",
         "operationId": "confirm_possible_match_transcripts__transcript_id__possible_matches__speaker_id__confirmed_post",
         "parameters": [
           {

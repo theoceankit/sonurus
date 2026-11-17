@@ -256,8 +256,11 @@ def get_speaker_candidates(
     return result
 
 
-def _set_confirmed(transcript_id: int, speaker_id: str, confirmed: bool, storage: TranscriptStorageService) -> None:
-    if not storage.set_match_confirmed(transcript_id, speaker_id, confirmed):
+def _set_confirmed(
+    transcript_id: int, speaker_id: str, confirmed: bool,
+    storage: TranscriptStorageService, memory: SpeakerMemoryService,
+) -> None:
+    if not CommitService(memory, storage).confirm_match(transcript_id, speaker_id, confirmed):
         raise HTTPException(status_code=404, detail="No recognized speaker to confirm")
 
 
@@ -266,10 +269,11 @@ def confirm_possible_match(
     transcript_id: int,
     speaker_id: str,
     storage: TranscriptStorageService = Depends(get_storage_service),
+    memory: SpeakerMemoryService = Depends(get_memory_service),
 ):
     """The user says the speaker recognized here is the right one: they leave the
-    review of this transcript. Segments and speaker memory stay as they are."""
-    _set_confirmed(transcript_id, speaker_id, True, storage)
+    review of this transcript, and the recording joins their voice profile."""
+    _set_confirmed(transcript_id, speaker_id, True, storage, memory)
 
 
 @router.delete("/{transcript_id}/possible-matches/{speaker_id}/confirmed", status_code=204)
@@ -277,9 +281,11 @@ def unconfirm_possible_match(
     transcript_id: int,
     speaker_id: str,
     storage: TranscriptStorageService = Depends(get_storage_service),
+    memory: SpeakerMemoryService = Depends(get_memory_service),
 ):
-    """Undo of a confirmation: the speaker waits for review again."""
-    _set_confirmed(transcript_id, speaker_id, False, storage)
+    """Undo of a confirmation: the speaker waits for review again, and the
+    recording leaves their voice profile."""
+    _set_confirmed(transcript_id, speaker_id, False, storage, memory)
 
 
 @router.patch("/{transcript_id}", status_code=204)

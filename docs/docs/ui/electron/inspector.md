@@ -57,7 +57,7 @@ A possible match is a speaker recognized from memory with a low similarity, belo
 
 The card says Possible match under the name and opens with the text of the clip shown. The speaker themselves is the first candidate, chosen already, with the similarity they were recognized with; the closest other speakers follow, as for a speaker with no name.
 
-- Assign with the speaker themselves confirms them (`confirmPossibleMatch`): nothing moves and speaker memory does not change, the speaker only leaves the review of this recording, also when it is opened again. A toast says Confirmed as the name, and its Undo (`unconfirmPossibleMatch`) puts them back in the review and opens the card on them.
+- Assign with the speaker themselves confirms them (`confirmPossibleMatch`): nothing moves, the speaker leaves the review of this recording, also when it is opened again, and the recording joins their voice profile (until then the backend leaves it out). A toast says Confirmed as the name, and its Undo (`unconfirmPossibleMatch`) puts them back in the review, takes the recording out of the profile again and opens the card on them.
 - Another candidate, or anyone from More speakers, is an assignment like any other, with its Undo. The speaker has no segments left here, so they leave the review; Undo of the assignment brings the possible match back. Nothing remembers that the voice was not them.
 - Skip and Close keep them: the next time the recording opens they wait again.
 
