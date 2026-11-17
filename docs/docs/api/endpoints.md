@@ -81,7 +81,7 @@ A track whose capture process ends by itself (a microphone unplugged, a helper t
 { "available": true, "names": true }
 ```
 
-Whether this system tells when another app holds a microphone (`mic_app_active`, `call_ended` with `mic_released` over `WS /ws/queue`), and whether it names the app. Linux with `pactl`: both true; elsewhere false for now ([MicActivityService](../services/MicActivityService.md)).
+Whether this system tells when another app holds a microphone (`mic_app_active`, `call_ended` with `mic_released` over `WS /ws/queue`), and whether it names the app. Linux with `pactl` and macOS 14.2 or newer: both true; macOS before 14.2: `available` true, `names` false; Windows false for now ([MicActivityService](../services/MicActivityService.md)).
 
 ---
 

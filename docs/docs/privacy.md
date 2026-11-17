@@ -64,8 +64,8 @@ stops that download. macOS uses the system spell checker and downloads nothing.
 
 ## Apps that use a microphone
 
-To suggest a recording when a call seems to start, the backend asks the local sound server which
-other apps are recording a microphone ([MicActivityService](services/MicActivityService.md)). Only
+To suggest a recording when a call seems to start, the backend asks the local sound server (on
+macOS, CoreAudio through the `sonorus-capture` helper) which other apps are recording a microphone ([MicActivityService](services/MicActivityService.md)). Only
 the app's name is read, never its audio, and nothing leaves the computer. The names of the apps
 seen are kept in `app-state.json` in the app's data folder, for the list in Settings → Notifications.
 Turning the notifications off does not stop the backend from asking; `SONORUS_MIC_WATCH=0` does.
