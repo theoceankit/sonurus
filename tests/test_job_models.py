@@ -82,12 +82,21 @@ def test_the_whisper_and_diarization_models_are_reported_before_alignment(models
     assert exc.value.code == "diarization_model_missing"
 
 
-@pytest.mark.parametrize("language", [None, "auto", "en", "it"])
+@pytest.mark.parametrize("language", [None, "auto", "id"])
 def test_no_alignment_check_without_a_catalog_model(models, language):
-    # Auto-detect is only known mid-pipeline; en/es/de/fr/it have no catalog model.
+    # Auto-detect is only known mid-pipeline; a language outside the catalog
+    # fails in the pipeline, as it has no alignment model to download.
     service, install = models
     install("small", "diarize")
     require_job_models(service, "small", language)
+
+
+@pytest.mark.parametrize("language", ["en", "fr", "de", "es", "it"])
+def test_former_torchaudio_languages_need_their_catalog_model(models, language):
+    service, install = models
+    install("small", "diarize")
+    with pytest.raises(AlignmentModelMissingError):
+        require_job_models(service, "small", language)
 
 
 def test_an_installed_alignment_model(models):

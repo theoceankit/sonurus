@@ -24,7 +24,7 @@ test('models and languages without their model are off with the reason', () => {
   ])
   expect(choice.modelOptions[0].meta).toBe(NOT_INSTALLED)
   const off = choice.languageOptions.filter(option => option.disabled).map(option => option.value)
-  expect(off).toEqual(['ru', 'uk', 'zh', 'ja'])
+  expect(off).toEqual(['ru', 'es', 'de', 'fr', 'uk', 'zh', 'ja'])
 })
 
 test('blocked in the order the backend checks', () => {

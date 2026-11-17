@@ -523,3 +523,30 @@ def test_size_text(size_bytes, text):
 def test_list_models_gives_the_alignment_download_size(tmp_path, lang, size):
     rows = {row["id"]: row for row in make_service(tmp_path).list_models()}
     assert rows[lang]["size"] == size
+
+
+# WhisperX aligns these five through torchaudio bundles, which torch.hub
+# downloads from download.pytorch.org in the middle of a job. The catalog takes
+# the same checkpoints from the Hub instead: wav2vec2 base 960h for English
+# (the bundle's own fairseq checkpoint) and the VoxPopuli base 10k models
+# fine-tuned per language.
+FORMER_TORCHAUDIO_REPOS = {
+    "en": "facebook/wav2vec2-base-960h",
+    "fr": "facebook/wav2vec2-base-10k-voxpopuli-ft-fr",
+    "de": "facebook/wav2vec2-base-10k-voxpopuli-ft-de",
+    "es": "facebook/wav2vec2-base-10k-voxpopuli-ft-es",
+    "it": "facebook/wav2vec2-base-10k-voxpopuli-ft-it",
+}
+
+
+@pytest.mark.parametrize("lang, repo", FORMER_TORCHAUDIO_REPOS.items())
+def test_alignment_catalog_has_the_languages_whisperx_would_download_through_torch_hub(lang, repo):
+    assert ALIGNMENT_CATALOG[lang]["hf_repo"] == repo
+
+
+@pytest.mark.parametrize("lang", FORMER_TORCHAUDIO_REPOS)
+def test_former_torchaudio_language_is_installed_only_when_downloaded(tmp_path, lang):
+    svc = make_service(tmp_path)
+    assert not svc.is_installed(lang)
+    _install_alignment(tmp_path / "alignment", lang)
+    assert svc.is_installed(lang)

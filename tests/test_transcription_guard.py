@@ -286,17 +286,14 @@ def test_transcribe_not_blocked_when_language_is_auto(client):
 
 
 def test_transcribe_not_blocked_for_language_not_in_alignment_catalog(client):
-    """POST /queue/jobs with language='en' (not in ALIGNMENT_CATALOG) is NOT blocked."""
+    """POST /queue/jobs with a language outside ALIGNMENT_CATALOG ('id') is NOT
+    blocked here: the catalog is what the pre-flight checks."""
     from unittest.mock import patch, MagicMock
     from app.services.model_service import ALIGNMENT_CATALOG
 
     tc, tmp_path = client
     _install_whisper_and_diarize(tmp_path, "small")
-    # 'en' should not be in ALIGNMENT_CATALOG
-    assert "en" not in ALIGNMENT_CATALOG, (
-        "This test assumes 'en' is not in ALIGNMENT_CATALOG; "
-        "if it was added, choose a different language for this test"
-    )
+    assert "id" not in ALIGNMENT_CATALOG
 
     mock_controller = MagicMock()
     mock_controller.memory_service = MagicMock()
@@ -307,42 +304,47 @@ def test_transcribe_not_blocked_for_language_not_in_alignment_catalog(client):
     with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
             "/queue/jobs",
-            json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": "en"},
+            json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": "id"},
         )
 
     assert r.status_code == 200, (
-        f"Expected guard to pass for language='en' (not in ALIGNMENT_CATALOG), "
+        f"Expected guard to pass for language='id' (not in ALIGNMENT_CATALOG), "
         f"got {r.status_code}: {r.text}"
     )
 
 
-def test_transcribe_not_blocked_for_fr_not_in_alignment_catalog(client):
-    """POST /queue/jobs with language='fr' (not in ALIGNMENT_CATALOG) is NOT blocked."""
+# WhisperX would align these through torchaudio bundles, downloaded from
+# download.pytorch.org in the middle of a job. They are catalog models now,
+# refused like the others until downloaded in Settings.
+@pytest.mark.parametrize("language", ["en", "fr", "de", "es", "it"])
+def test_transcribe_blocked_when_former_torchaudio_language_not_installed(client, language):
+    tc, tmp_path = client
+    _install_whisper_and_diarize(tmp_path, "small")
+
+    r = tc.post(
+        "/queue/jobs",
+        json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": language},
+    )
+
+    assert r.status_code == 400, r.text
+    assert r.json()["code"] == "alignment_model_missing"
+
+
+@pytest.mark.parametrize("language", ["en", "fr", "de", "es", "it"])
+def test_transcribe_not_blocked_when_former_torchaudio_language_installed(client, language):
     from unittest.mock import patch, MagicMock
-    from app.services.model_service import ALIGNMENT_CATALOG
 
     tc, tmp_path = client
     _install_whisper_and_diarize(tmp_path, "small")
-    assert "fr" not in ALIGNMENT_CATALOG, (
-        "This test assumes 'fr' is not in ALIGNMENT_CATALOG"
-    )
+    _install_alignment(tmp_path / "alignment", language)
 
-    mock_controller = MagicMock()
-    mock_controller.memory_service = MagicMock()
-    mock_transcript = MagicMock()
-    mock_transcript.db_id = "test-id"
-    mock_controller.run_pipeline.return_value = mock_transcript
-
-    with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, MagicMock())):
+    with patch("app.services.transcription_job.create_controller", return_value=(MagicMock(), MagicMock())):
         r = tc.post(
             "/queue/jobs",
-            json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": "fr"},
+            json={"audio_path": _make_audio(tmp_path), "whisper_model": "small", "language": language},
         )
 
-    assert r.status_code == 200, (
-        f"Expected guard to pass for language='fr' (not in ALIGNMENT_CATALOG), "
-        f"got {r.status_code}: {r.text}"
-    )
+    assert r.status_code == 200, r.text
 
 
 # ---------------------------------------------------------------------------
@@ -403,18 +405,18 @@ def test_transcription_service_no_error_when_alignment_model_installed(tmp_path)
 
 
 def test_transcription_service_no_error_for_language_not_in_catalog(tmp_path):
-    """No AlignmentModelMissingError for languages not in ALIGNMENT_CATALOG (e.g. English)."""
+    """No AlignmentModelMissingError for languages not in ALIGNMENT_CATALOG (e.g. Indonesian)."""
     from unittest.mock import patch, MagicMock
     from app.services.transcription_service import TranscriptionService, AlignmentModelMissingError
     from app.services.model_service import ALIGNMENT_CATALOG
 
-    assert "en" not in ALIGNMENT_CATALOG, "'en' must not be in ALIGNMENT_CATALOG for this test"
+    assert "id" not in ALIGNMENT_CATALOG, "'id' must not be in ALIGNMENT_CATALOG for this test"
 
     with patch("app.services.transcription_service.whisperx") as mock_wx:
         mock_model = MagicMock()
         mock_wx.load_model.return_value = mock_model
         mock_wx.load_audio.return_value = MagicMock()
-        mock_model.transcribe.return_value = {"language": "en", "segments": []}
+        mock_model.transcribe.return_value = {"language": "id", "segments": []}
         mock_wx.load_align_model.return_value = (MagicMock(), MagicMock())
         mock_wx.align.return_value = {"segments": []}
         mock_wx.diarize.DiarizationPipeline.return_value = MagicMock()
@@ -424,7 +426,7 @@ def test_transcription_service_no_error_for_language_not_in_catalog(tmp_path):
         try:
             svc.transcribe("/fake/audio.wav", language=None)
         except AlignmentModelMissingError:
-            pytest.fail("AlignmentModelMissingError raised for English (not in ALIGNMENT_CATALOG)")
+            pytest.fail("AlignmentModelMissingError raised for Indonesian (not in ALIGNMENT_CATALOG)")
         except Exception:
             pass  # Other errors from the mocked pipeline are expected
 

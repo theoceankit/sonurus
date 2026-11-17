@@ -41,16 +41,23 @@ class TranscriptionService:
         # check as Settings and the pre-flight, so an interrupted download
         # (refs/main already written) counts as missing.
         detected_lang = result.get("language")
+        align_repo = None
         if detected_lang and detected_lang in ALIGNMENT_CATALOG:
             models = ModelService(self.models_dir / "whisper", alignment_models_dir=self.models_dir / "alignment")
             if not models.is_installed(detected_lang):
                 raise AlignmentModelMissingError(detected_lang)
+            align_repo = ALIGNMENT_CATALOG[detected_lang]["hf_repo"]
 
         log.info(f"Aligning (language={detected_lang})...")
+        # The catalog's repo, from the models folder only: WhisperX's own default
+        # for en, fr, de, es and it is a torchaudio bundle that torch.hub would
+        # download here, in the middle of the job.
         align_model, metadata = whisperx.load_align_model(
             language_code=detected_lang,
             device=self.device,
+            model_name=align_repo,
             model_dir=str(self.models_dir / "alignment"),
+            model_cache_only=True,
         )
 
         torch.cuda.empty_cache()

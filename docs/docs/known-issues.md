@@ -8,6 +8,18 @@ All open issues in one place.
 
 ---
 
+### Old WhisperX alignment models left on disk
+
+**Severity:** disk space only.
+
+**Symptom:** after an update from 0.3.x, `.models/alignment/` (or `~/.cache/torch/hub/checkpoints/`) may hold a file `wav2vec2_fairseq_base_ls960_asr_ls960.pth` or `wav2vec2_voxpopuli_base_10k_asr_<language>.pt` of about 360 MB each.
+
+**Cause:** earlier versions let WhisperX download its own model for English, French, German, Spanish or Italian during the first job in that language. These languages now use catalog models downloaded in Settings → Languages, and the old files are no longer read.
+
+**Workaround:** delete those files by hand.
+
+---
+
 ### torchcodec warning on macOS
 
 **Severity:** cosmetic — does not affect functionality.

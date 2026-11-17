@@ -58,10 +58,12 @@ Whisper detects the language and splits speech into segments with text.
 
 **3. Alignment**
 ```python
-align_model, metadata = whisperx.load_align_model(language_code=..., device=...)
+align_model, metadata = whisperx.load_align_model(
+    language_code=..., device=..., model_name=ALIGNMENT_CATALOG[language]["hf_repo"],
+    model_dir=..., model_cache_only=True)
 result = whisperx.align(result["segments"], align_model, metadata, audio, device)
 ```
-Refines timestamps to word level. The alignment model depends on the language detected in step 2.
+Refines timestamps to word level. The alignment model depends on the language detected in step 2: the catalog's repo for it, read from `.models/alignment` only. A catalog language whose model is not installed raises `AlignmentModelMissingError` before anything loads. WhisperX's own default is never used for a catalog language: for English, French, German, Spanish and Italian it is a torchaudio bundle that `torch.hub` would download from `download.pytorch.org` in the middle of the job (the pipeline child refuses those downloads). The catalog's repos for these five are the same checkpoints: the same emissions on the same audio, except Spanish, where the torchaudio bundle's labels for `k`, `w` and `ü` are one row off its weights and the Hub repo's are not.
 
 After loading the align model, `torch.cuda.empty_cache()` is called to free VRAM before the next inference step.
 

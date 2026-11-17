@@ -36,6 +36,8 @@ def api(tmp_path):
         _install(config.WHISPER_MODELS_DIR, WHISPER_CATALOG[model]["hf_repo"])
     for repo in DIARIZATION_CATALOG["diarize"]["hf_repos"]:
         _install(config.HF_MODELS_DIR, repo)
+    # English, the language these tests give a job.
+    _install(config.ALIGNMENT_MODELS_DIR, ALIGNMENT_CATALOG["en"]["hf_repo"])
 
     runner = Runner()
     queue = TranscriptionQueue(JobStore(db_path=str(tmp_path / "jobs.db")), runner,
@@ -268,7 +270,7 @@ def test_patch_validation(api):
     assert tc.patch(url, json={"title": "x" * 201}).status_code == 422
     r = tc.patch(url, json={"whisper_model": "tiny"})
     assert r.status_code == 400 and "tiny" in r.json()["detail"]
-    lang = next(iter(ALIGNMENT_CATALOG))
+    lang = "ru"  # not installed here
     r = tc.patch(url, json={"language": lang})
     assert r.status_code == 400 and "lignment" in r.json()["detail"]
     assert tc.patch("/queue/jobs/nope", json={"title": "x"}).status_code == 404

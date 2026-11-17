@@ -38,9 +38,22 @@ DIARIZATION_CATALOG = {
 }
 
 # size_bytes: the files an alignment download takes (_alignment_files), from the
-# Hub on 2026-11-13. GET /models gives it to the UI as text (_size_text).
+# Hub on 2026-11-13 (en, es, de, fr, it on 2026-11-17). GET /models gives it to
+# the UI as text (_size_text).
+#
+# Every language is a Hub repo the job loads with model_name, never WhisperX's
+# default: for en, fr, de, es and it that default is a torchaudio bundle, which
+# torch.hub downloads from download.pytorch.org in the middle of a job. The repos
+# below are the same checkpoints (fairseq wav2vec2 base 960h, and the VoxPopuli
+# base 10k models fine-tuned per language): the same emissions on the same audio,
+# except k, w and ü in Spanish, which the torchaudio bundle labels one row off.
 ALIGNMENT_CATALOG = {
+    "en": {"hf_repo": "facebook/wav2vec2-base-960h",                         "size_bytes": 377_610_000},
     "ru": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-russian",       "size_bytes": 1_262_000_000},
+    "es": {"hf_repo": "facebook/wav2vec2-base-10k-voxpopuli-ft-es",          "size_bytes": 377_696_000},
+    "de": {"hf_repo": "facebook/wav2vec2-base-10k-voxpopuli-ft-de",          "size_bytes": 377_687_000},
+    "fr": {"hf_repo": "facebook/wav2vec2-base-10k-voxpopuli-ft-fr",          "size_bytes": 377_718_000},
+    "it": {"hf_repo": "facebook/wav2vec2-base-10k-voxpopuli-ft-it",          "size_bytes": 377_699_000},
     "zh": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn", "size_bytes": 1_276_000_000},
     "ja": {"hf_repo": "jonatasgrosman/wav2vec2-large-xlsr-53-japanese",      "size_bytes": 1_272_000_000},
     "ko": {"hf_repo": "kresnik/wav2vec2-large-xlsr-korean",                  "size_bytes": 1_267_000_000},

@@ -5,7 +5,9 @@ import { ALIGNMENT_MODELS } from '../../transcribe/languages'
 // GET /models as the backend answers it: Whisper models least to most accurate,
 // the diarization model, then the alignment models with their sizes.
 // The alignment models whose size is not the usual one, as in the backend catalog.
-const ALIGNMENT_SIZES: Record<string, string> = { vi: '~385 MB', no: '~3.9 GB', nn: '~3.9 GB' }
+const ALIGNMENT_SIZES: Record<string, string> = {
+  en: '~378 MB', es: '~378 MB', de: '~378 MB', fr: '~378 MB', it: '~378 MB', vi: '~385 MB', no: '~3.9 GB', nn: '~3.9 GB',
+}
 
 type Row = Omit<components['schemas']['TranscriptionModelInfo'], 'installed'> | Omit<components['schemas']['AlignmentModelInfo'], 'installed'>
 
@@ -20,8 +22,8 @@ const CATALOG: readonly Row[] = [
 ]
 
 // What a fixture client has downloaded unless told otherwise: enough to transcribe
-// in any language that needs no alignment model.
-export const DEFAULT_INSTALLED: readonly string[] = ['small', 'large-v3', 'diarize']
+// English.
+export const DEFAULT_INSTALLED: readonly string[] = ['small', 'large-v3', 'diarize', 'en']
 
 export function fixtureModels(installed: readonly string[] = DEFAULT_INSTALLED): ModelInfo[] {
   return CATALOG.map(model => ({ ...model, installed: installed.includes(model.id) }) as ModelInfo)

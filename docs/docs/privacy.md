@@ -17,8 +17,11 @@ Sonorus goes online only to download what it needs to run:
 | Model download (Whisper, diarization, alignment) | You start it in Settings → Models, or the alignment model dialog | Hugging Face Hub, with your Hugging Face token: the list of the repo's files and their sizes (`list_repo_files`, `model_info`), then the files (`snapshot_download`) from the Hub's CDN; only if the Hub refuses that download, the same files from its Xet storage (`cas-server.xethub.hf.co`) |
 | GPU acceleration download | You start it in Settings → GPU acceleration (packaged Linux / Windows) | The wheel URLs of the bundled GPU manifest (`pypi.nvidia.com`, `download-r2.pytorch.org`) |
 
-Transcription itself is offline: the pipeline process runs with `HF_HUB_OFFLINE=1`, so a missing
-model is an error, never a download in the middle of a job. The sentence data alignment needs
+Transcription itself is offline: the pipeline process runs with `HF_HUB_OFFLINE=1` and refuses
+`torch.hub` downloads (which `HF_HUB_OFFLINE` does not cover), so a missing model is an error, never
+a download in the middle of a job. Every alignment model, English, French, German, Spanish and
+Italian included, is a Hugging Face repo downloaded in Settings: WhisperX's own models for those
+five languages, which `torch.hub` would fetch from `download.pytorch.org`, are never used. The sentence data alignment needs
 (NLTK `punkt_tab`) ships with the app: the pipeline process reads it only from the app's Python
 (`<python>/nltk_data`) and refuses NLTK downloads, so `~/nltk_data` is neither read nor written.
 

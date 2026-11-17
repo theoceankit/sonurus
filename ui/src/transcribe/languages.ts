@@ -29,10 +29,14 @@ export const apiLanguage = (code: string): string | null => (code === AUTO_LANGU
 
 export type AlignmentModel = { id: string; name: string; nativeName: string }
 
-// Languages that torchaudio aligns by itself (en, fr, de, es, it) are not here.
-// The ids are the backend's ALIGNMENT_CATALOG; a test keeps them the same.
+// The ids are the backend's ALIGNMENT_CATALOG, in its order; a test keeps them the same.
 export const ALIGNMENT_MODELS: readonly AlignmentModel[] = [
+  { id: 'en', name: 'English', nativeName: 'English' },
   { id: 'ru', name: 'Russian', nativeName: 'Русский' },
+  { id: 'es', name: 'Spanish', nativeName: 'Español' },
+  { id: 'de', name: 'German', nativeName: 'Deutsch' },
+  { id: 'fr', name: 'French', nativeName: 'Français' },
+  { id: 'it', name: 'Italian', nativeName: 'Italiano' },
   { id: 'zh', name: 'Chinese', nativeName: '中文' },
   { id: 'ja', name: 'Japanese', nativeName: '日本語' },
   { id: 'ko', name: 'Korean', nativeName: '한국어' },

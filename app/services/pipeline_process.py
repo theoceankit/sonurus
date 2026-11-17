@@ -57,6 +57,9 @@ def _pipeline_worker(args: dict, conn) -> None:
             suppress_ml_noise("startup")
         import app
         app.disable_onnxruntime_telemetry()
+        # torch.hub ignores HF_HUB_OFFLINE: refuse its downloads as well.
+        from app import offline
+        offline.refuse_torch_hub_downloads()
         # Sentence data for alignment ships with the app: never ~/nltk_data,
         # never a download.
         from app import nltk_data

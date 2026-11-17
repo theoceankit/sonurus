@@ -156,7 +156,7 @@ Other errors of the queue routes (`404`, other `409`s, `422`) keep FastAPI's pla
 
 With auto-detection the alignment guard cannot fire up front. If the detected language needs an alignment model that is not installed (by the same check as `GET /models`, so an interrupted download counts as not installed), the job fails with `error_code: "alignment_model_missing"` and `error_language`.
 
-A job never downloads a model. Before it starts, the worker checks that its Whisper model, the diarization model and the alignment model of its explicit language are installed (they may have been deleted after the job was queued); if not, the job fails at once — before any transcription — with `error_code: "whisper_model_missing"` (`"Whisper model \"small\" is not installed. Download it in Settings."`), `"diarization_model_missing"` or `"alignment_model_missing"` (with `error_language`). With auto-detect the language, and so its alignment model, is known only mid-pipeline. The pipeline child runs with `HF_HUB_OFFLINE=1`, so models load from the local cache only.
+A job never downloads a model. Before it starts, the worker checks that its Whisper model, the diarization model and the alignment model of its explicit language are installed (they may have been deleted after the job was queued); if not, the job fails at once — before any transcription — with `error_code: "whisper_model_missing"` (`"Whisper model \"small\" is not installed. Download it in Settings."`), `"diarization_model_missing"` or `"alignment_model_missing"` (with `error_language`). With auto-detect the language, and so its alignment model, is known only mid-pipeline. The pipeline child runs with `HF_HUB_OFFLINE=1` and refuses `torch.hub` downloads, so models load from the local cache only.
 
 ### `PATCH /queue/jobs/{id}`
 
@@ -200,7 +200,7 @@ Model directories:
 
 ### `GET /models`
 
-Returns the full catalog with install status for every model: 5 Whisper + 1 Diarization + 35 Alignment = 41 entries.
+Returns the full catalog with install status for every model: 5 Whisper + 1 Diarization + 40 Alignment = 46 entries.
 
 ```json
 [
@@ -231,7 +231,7 @@ Files come as a plain HTTP download from the Hub's CDN, with Xet switched off (`
 Valid `model_id` values:
 - Whisper: `tiny`, `base`, `small`, `medium`, `large-v3`
 - Diarization: `diarize` (downloads `pyannote/speaker-diarization-community-1`; its `embedding` subfolder is also the model of speaker memory. Files of the old `pyannote/embedding`, downloaded by earlier versions, are left where they are and are neither used nor deleted)
-- Alignment: two-letter language code from `ALIGNMENT_CATALOG` — `ru`, `zh`, `ja`, `ko`, `uk`, `pt`, `ar`, `nl`, `pl`, `hi`, `cs`, `tr`, `hu`, `fi`, `fa`, `el`, `da`, `he`, `vi`, `ur`, `te`, `ca`, `ml`, `no`, `nn`, `sk`, `sl`, `hr`, `ro`, `eu`, `gl`, `ka`, `lv`, `tl`, `sv`
+- Alignment: two-letter language code from `ALIGNMENT_CATALOG` — `en`, `ru`, `es`, `de`, `fr`, `it`, `zh`, `ja`, `ko`, `uk`, `pt`, `ar`, `nl`, `pl`, `hi`, `cs`, `tr`, `hu`, `fi`, `fa`, `el`, `da`, `he`, `vi`, `ur`, `te`, `ca`, `ml`, `no`, `nn`, `sk`, `sl`, `hr`, `ro`, `eu`, `gl`, `ka`, `lv`, `tl`, `sv`
 
 Unknown `model_id` returns `422`. One download per model: a `POST` while that model is downloading starts nothing and returns the running download's `job_id` (two downloads would write into the same cache), so a client that lost its connection can follow the same download again.
 
