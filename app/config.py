@@ -55,16 +55,16 @@ EMBEDDING_SUBFOLDER = "embedding"
 # model cannot be compared with these (SpeakerMemoryService resets them).
 EMBEDDING_MODEL_ID = "wespeaker-resnet34-lm"
 # How a voice is averaged from embeddings (voice_vector) and from which
-# recordings (possible matches only once confirmed), stored in the database next
-# to the profiles: profiles averaged another way are recomputed from the
-# database when the backend starts (CommitService.recompute_outdated_profiles).
-VOICE_AVERAGING_ID = "unit-duration-weighted-confirmed"
+# recordings (possible matches only once confirmed; every other recording, however
+# far from the stored profile), stored in the database next to the profiles:
+# profiles averaged another way are recomputed from the database when the
+# backend starts (CommitService.recompute_outdated_profiles).
+VOICE_AVERAGING_ID = "unit-duration-weighted-confirmed-unguarded"
 EMBEDDING_SAMPLE_RATE = 16000
 EMBEDDING_MIN_DURATION = 1.0
 
 # SpeakerMemoryService. Cosine similarity at which a voice is matched to a
-# profile; also the guard that keeps a far recording out of a profile
-# (CommitService). Chosen on the quality tests (docs/docs/testing/quality.md):
+# profile. Chosen on the quality tests (docs/docs/testing/quality.md):
 # the same person in another recording scores 0.56-0.95 (median 0.85), other
 # people at most 0.49, also across three groups of four in one memory.
 SPEAKER_SIMILARITY_THRESHOLD = 0.6

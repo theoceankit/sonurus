@@ -370,7 +370,7 @@ def assign_speaker(
     commit_svc = CommitService(memory, storage)
     commit_svc.commit_speaker(to_spk_id)
     for from_spk_id in {_effective_speaker(seg) for seg in segments} - {to_spk_id}:
-        commit_svc.recompute_or_remove(from_spk_id)
+        commit_svc.release_speaker(from_spk_id, transcript_id)
     return SpeakerAssignmentResponse(speaker_id=to_spk_id)
 
 

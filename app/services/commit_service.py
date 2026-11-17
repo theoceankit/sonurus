@@ -19,7 +19,7 @@ class CommitService:
         self.memory = memory_service
         self.storage = storage_service
 
-    def _avg_from_db(self, speaker_id: str, guard_emb=None):
+    def _avg_from_db(self, speaker_id: str):
         """Query embeddings grouped by transcript; return normalised centroid-of-centroids.
 
         A transcript's centroid is its segments' voice (voice_vector: unit
@@ -27,10 +27,8 @@ class CommitService:
         centroid regardless of how many segments it contains, so a long recording
         with many segments does not outweigh a short one.
 
-        guard_emb: if provided, transcripts whose centroid has cosine similarity
-        below self.memory.threshold with guard_emb are excluded from the average.
-        This prevents acoustically incompatible recordings from corrupting a
-        speaker's stored embedding. Pass the current stored embedding to activate.
+        The result depends on the database alone, never on the stored profile, so
+        recomputing gives the same profile every time.
 
         Transcripts where the speaker is a possible match the user has not
         confirmed yet are left out: a guess must not shape the profile it was
@@ -44,16 +42,7 @@ class CommitService:
             if tid in pending:
                 continue
             embeddings = [e for e, _ in pairs]
-            c_norm = voice_vector(embeddings, [d for _, d in pairs])
-            if guard_emb is not None:
-                sim = float(np.dot(c_norm, guard_emb))
-                if sim < self.memory.threshold:
-                    log.info(
-                        f"Excluding transcript from {speaker_id} embedding "
-                        f"(centroid sim={sim:.2f} < threshold {self.memory.threshold})"
-                    )
-                    continue
-            centroids.append(c_norm)
+            centroids.append(voice_vector(embeddings, [d for _, d in pairs]))
             total_segments += len(embeddings)
         if not centroids:
             return None, 0
@@ -91,17 +80,11 @@ class CommitService:
         log.info(f"Committed {updated} speakers to memory")
 
     def commit_speaker(self, speaker_id: str):
-        """Recompute embedding for one speaker from all their DB segments.
-
-        Transcripts whose centroid is incompatible with the existing stored
-        embedding (cosine similarity < threshold) are excluded from the average.
-        This prevents a manually-labelled recording from corrupting the embedding
-        when the system itself would not have recognised the speaker there.
-        """
+        """Recompute embedding for one speaker from all their DB segments. With
+        nothing to recompute from the profile stays as it is."""
         if _has_no_profile(speaker_id):
             return
-        guard_emb = self.memory.known_speakers.get(speaker_id)
-        avg, count = self._avg_from_db(speaker_id, guard_emb=guard_emb)
+        avg, count = self._avg_from_db(speaker_id)
         if avg is None:
             return
         self.memory.update_embedding(speaker_id, avg, count)
@@ -110,7 +93,7 @@ class CommitService:
     def confirm_match(self, transcript_id: int, speaker_id: str, confirmed: bool) -> bool:
         """The user confirms a possible match, or takes the confirmation back. A
         confirmed recording joins the speaker's profile at once, as a manual
-        assignment would (with the guard); a taken-back one leaves it again. With
+        assignment would; a taken-back one leaves it again. With
         nothing to recompute from the profile stays as it is. False when the
         speaker was not recognized in the transcript."""
         if not self.storage.set_match_confirmed(transcript_id, speaker_id, confirmed):
@@ -119,29 +102,42 @@ class CommitService:
         return True
 
     def recompute_or_remove(self, speaker_id: str):
-        """After reassignment: recompute FROM speaker, or remove if no segments left and unnamed."""
+        """After a recording is deleted: recompute the speaker from what remains.
+        With nothing left an unnamed speaker goes; a named one keeps their voice,
+        so deleting a recording does not make the app forget a person."""
         if _has_no_profile(speaker_id):
             return
-        # Un-guarded check: are there any segments with embeddings at all?
-        any_avg, _ = self._avg_from_db(speaker_id)
-        if any_avg is None:
-            # No segments remain → remove if unnamed
+        avg, count = self._avg_from_db(speaker_id)
+        if avg is None:
             self.memory.reload_names()
             if self.memory.get_name(speaker_id) is None:
                 self.memory.remove_speaker(speaker_id)
             return
-        # Segments exist → recompute with guard to preserve embedding quality
-        guard_emb = self.memory.known_speakers.get(speaker_id)
-        avg, count = self._avg_from_db(speaker_id, guard_emb=guard_emb)
-        if avg is None:
-            # All transcripts filtered by guard → keep existing embedding unchanged
-            log.info(
-                f"recompute_or_remove: all transcripts for {speaker_id} filtered by guard "
-                f"— keeping existing embedding"
-            )
-            return
         self.memory.update_embedding(speaker_id, avg, count)
         self.memory.save()
+
+    def release_speaker(self, speaker_id: str, transcript_id: int, created: bool = False):
+        """After segments of transcript_id were given to another speaker:
+        recompute the one who had them from what remains. With nothing left to
+        compute from, the stored voice was the given-away one and goes: an
+        unnamed speaker with no segments left, or one the undone assignment
+        created (created=True), goes entirely; anyone else keeps their name and
+        is recognized again once given segments with a voice. Segments of an
+        unconfirmed possible match were never in the profile, so giving them away
+        leaves it as it is."""
+        if _has_no_profile(speaker_id):
+            return
+        avg, count = self._avg_from_db(speaker_id)
+        if avg is not None:
+            self.memory.update_embedding(speaker_id, avg, count)
+            self.memory.save()
+            return
+        self.memory.reload_names()
+        unnamed = self.memory.get_name(speaker_id) is None
+        if (created or unnamed) and not self.storage.speaker_segments(speaker_id):
+            self.memory.remove_speaker(speaker_id)
+        elif speaker_id in self.memory.known_speakers and transcript_id not in self._unconfirmed_matches(speaker_id):
+            self.memory.remove_embedding(speaker_id)
 
     def undo_assignment(self, transcript_id: int, ranges, speaker_id: str, holders, created_speaker_id: str | None = None):
         """Put segments back under the speaker they had before an assignment, then
@@ -154,18 +150,9 @@ class CommitService:
         self.storage.set_segments_speaker(transcript_id, ranges, speaker_id)
         self.commit_speaker(speaker_id)
         for holder in set(holders) - {speaker_id}:
-            self._release(holder, created=holder == created_speaker_id)
+            self.release_speaker(holder, transcript_id, created=holder == created_speaker_id)
         if created_speaker_id and created_speaker_id not in holders:
-            self._release(created_speaker_id, created=True)
-
-    def _release(self, speaker_id: str, created: bool):
-        if created and not self.storage.speaker_segments(speaker_id):
-            self.memory.remove_speaker(speaker_id)
-            return
-        self.recompute_or_remove(speaker_id)
-        # Named and left with no voice to compute from: what is stored came from the undone one.
-        if speaker_id in self.memory.known_speakers and self._avg_from_db(speaker_id)[0] is None:
-            self.memory.remove_embedding(speaker_id)
+            self.release_speaker(created_speaker_id, transcript_id, created=True)
 
     def delete_speaker(self, speaker_id: str) -> dict:
         """Delete a speaker: its segments become unassigned (they no longer feed
@@ -182,8 +169,7 @@ class CommitService:
         Every segment and possible match of from_id goes to into_id. into_id keeps
         their name, handle, colour and photo; one without a name takes from_id's.
         from_id is then removed entirely. into_id's voice is recomputed from all
-        their segments without the guard: the user said the voices are one, and
-        the guard would drop exactly the recordings that kept them apart.
+        their segments.
         Returns the moved {segments, transcripts} counts."""
         result = self.storage.move_speaker(from_id, into_id)
         self.memory.reload_names()
@@ -200,7 +186,7 @@ class CommitService:
     def recompute_outdated_profiles(self) -> int:
         """Once after an update that changes how voices are averaged: recompute
         every stored profile from the database the current way (as
-        commit_speaker, with the stored profile as guard), then mark the memory.
+        commit_speaker), then mark the memory.
         A profile with nothing left to recompute from stays as it is. Needs no
         model or audio: segment embeddings are in the database. Returns how
         many profiles were recomputed."""
@@ -210,7 +196,7 @@ class CommitService:
         for spk_id in list(self.memory.known_speakers):
             if _has_no_profile(spk_id):
                 continue
-            avg, count = self._avg_from_db(spk_id, guard_emb=self.memory.known_speakers[spk_id])
+            avg, count = self._avg_from_db(spk_id)
             if avg is None:
                 continue
             self.memory.update_embedding(spk_id, avg, count)
@@ -232,8 +218,7 @@ class CommitService:
         }
         updated = 0
         for spk_id in recognized:
-            guard_emb = self.memory.known_speakers.get(spk_id)
-            avg, count = self._avg_from_db(spk_id, guard_emb=guard_emb)
+            avg, count = self._avg_from_db(spk_id)
             if avg is None:
                 continue
             self.memory.update_embedding(spk_id, avg, count)

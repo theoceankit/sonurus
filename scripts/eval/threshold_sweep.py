@@ -7,9 +7,9 @@ every clip: diarization turns with their embeddings, and which turn each
 transcript segment carries) and replays every series as the app would: the
 memory matches each clip's speakers (SpeakerMemoryService's resolver), the
 queue commits the recognised ones, naming assigns the named clips' speakers,
-profiles are the centroid of per-recording centroids with the threshold as
-guard (CommitService). Only the matching and averaging change; diarization
-and embeddings are those of the run.
+profiles are the centroid of per-recording centroids (CommitService). Only
+the matching and averaging change; diarization and embeddings are those of
+the run.
 
     .venv/bin/python scripts/eval/threshold_sweep.py ~/.cache/sonorus-eval/reports/<stem>.json [<stem>.json …]
 
@@ -28,7 +28,7 @@ per-recording centroid of a profile):
               carry an embedding (a turn split into several segments counts
               that many times) — what the app can do with what the DB holds
   one         one vector definition: the voice resolve() compares, a profile's
-              per-recording centroid and so the guard are all norm+dur over
+              per-recording centroid are all norm+dur over
               the diarization turns, each turn once however many segments
               carry it; the closest to the app, which weighs a profile's
               segments by their own duration (about a turn's together)
@@ -123,7 +123,6 @@ class Clip:
 class Memory:
     """Speaker profiles by person, rebuilt from per-recording segment embeddings
     the way CommitService does it."""
-    threshold: float
     method: str
     profiles: dict[str, np.ndarray] = field(default_factory=dict)
     db: dict[str, dict[str, tuple[np.ndarray, np.ndarray]]] = field(default_factory=dict)
@@ -136,13 +135,7 @@ class Memory:
         self.db.get(person, {}).pop(clip, None)
 
     def recompute(self, person: str) -> None:
-        guard = self.profiles.get(person)
-        centroids = []
-        for embs, durs in self.db.get(person, {}).values():
-            c = _unit(average(embs, durs, self.method))
-            if guard is not None and float(np.dot(c, guard)) < self.threshold:
-                continue
-            centroids.append(c)
+        centroids = [_unit(average(embs, durs, self.method)) for embs, durs in self.db.get(person, {}).values()]
         if centroids:
             self.profiles[person] = _unit(np.mean(centroids, axis=0))
 
@@ -226,7 +219,7 @@ def match(session: dict, profiles: dict, threshold: float, matcher: str = "greed
 def replay(clips: list[Clip], threshold: float, method: str, matcher: str = "greedy",
            margin: float = 0.0, ceiling: float | None = None) -> Outcome:
     _, centroid = _AVERAGING[method]
-    memory, out = Memory(threshold, centroid), Outcome()
+    memory, out = Memory(centroid), Outcome()
     for clip in clips:
         session = clip.session(method)
         found = match(session, memory.profiles, threshold, matcher, margin, ceiling)
@@ -246,7 +239,7 @@ def replay(clips: list[Clip], threshold: float, method: str, matcher: str = "gre
                 out.own.append(float(np.dot(_unit(session[raw]), memory.profiles[ref])))
                 out.other.append(max((float(np.dot(_unit(session[raw]), p))
                                       for n, p in memory.profiles.items() if n != ref), default=np.nan))
-        # The queue commits the recognised speakers (with the guard).
+        # The queue commits the recognised speakers.
         for raw, person in matched.items():
             if person is not None:
                 turns = clip.profile_turns(raw, method)

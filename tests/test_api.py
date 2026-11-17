@@ -1528,7 +1528,7 @@ def test_two_new_speakers_with_one_name_get_distinct_ids(client):
     assert _speakers_of(client, db_id) == ids
 
 
-def test_assign_away_from_a_named_speaker_keeps_it_in_memory(client):
+def test_assign_away_all_of_a_named_speaker_keeps_the_name_not_the_voice(client):
     memory = app.dependency_overrides[get_memory_service]()
     alex = memory.create_named_speaker("Alex")
     memory.update_embedding(alex, _voice(1.0, 0.0, 0.0))
@@ -1537,7 +1537,9 @@ def test_assign_away_from_a_named_speaker_keeps_it_in_memory(client):
 
     client.post(f"/transcripts/{db_id}/speaker-assignments", json={"segment_starts": [0.0], "speaker_name": "Bob"})
 
-    assert alex in app.dependency_overrides[get_memory_service]().known_speakers
+    fresh = app.dependency_overrides[get_memory_service]()
+    assert alex not in fresh.known_speakers
+    assert fresh.get_name(alex) == "Alex"
 
 
 def test_assign_to_a_named_speaker_without_profile_builds_it(client):

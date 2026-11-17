@@ -115,14 +115,14 @@ def test_replay_counts_false_matches_also_in_named_clips():
     assert (o.wrong, o.total) == (1, 0)
 
 
-def test_replay_guard_keeps_a_far_recording_out_of_the_profile():
-    # BOB is named twice; the second recording is far from the first, so the
-    # guard keeps it out and his profile stays where it was.
+def test_replay_averages_a_far_recording_into_the_profile():
+    # BOB is named twice; the second recording is far from the first, and it
+    # counts like any other, as in the app.
     clips = [_clip("a", True, [("S0", "BOB", BOB)]),
              _clip("b", True, [("S0", "BOB", _v(0, 0, 1))]),
              _clip("c", False, [("S0", "BOB", BOB)])]
     o = sweep.replay(clips, 0.7, "mean")
-    assert o.recognised == 1 and o.own == [pytest.approx(1.0)]
+    assert o.own == [pytest.approx(float(np.sqrt(0.5)))]
 
 
 def test_replay_named_twice_averages_the_recordings():

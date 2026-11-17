@@ -199,7 +199,7 @@ Read / persist the palette slot. `set_color()` raises `ValueError` outside `0..P
 
 Removes a speaker — embedding, names, color and handle — from memory (including pending dirty entries) and from the database. Works for speakers that only have a name; no-op if the speaker is unknown.
 
-Called only through `CommitService`: `recompute_or_remove()` drops unnamed speakers left without segments, `delete_speaker()` removes a speaker the user deleted (after its segments were unassigned), and `merge_speaker()` removes the speaker merged into another (after its segments moved).
+Called only through `CommitService`: `recompute_or_remove()` and `release_speaker()` drop unnamed speakers left without segments, `delete_speaker()` removes a speaker the user deleted (after its segments were unassigned), and `merge_speaker()` removes the speaker merged into another (after its segments moved).
 
 ---
 
@@ -229,7 +229,7 @@ Creates a new UUID4 speaker ID, sets its display name and persists it via `save_
 
 ## `threshold` parameter
 
-`SPEAKER_SIMILARITY_THRESHOLD` is `0.6`, chosen on the [quality tests](../testing/quality.md#speaker-recognition-threshold) with the WeSpeaker embeddings: the same person in another recording scores 0.56–0.95 there (median about 0.85, lower on short or call-quality recordings), other people at most 0.49, also with three groups of four people in one memory. Above about 0.7 named speakers of short recordings are often not recognised; below about 0.5 other people start to be matched. The same value is the guard of `CommitService`: a recording whose centroid is below it is kept out of the profile.
+`SPEAKER_SIMILARITY_THRESHOLD` is `0.6`, chosen on the [quality tests](../testing/quality.md#speaker-recognition-threshold) with the WeSpeaker embeddings: the same person in another recording scores 0.56–0.95 there (median about 0.85, lower on short or call-quality recordings), other people at most 0.49, also with three groups of four people in one memory. Above about 0.7 named speakers of short recordings are often not recognised; below about 0.5 other people start to be matched.
 
 `SPEAKER_SUGGESTION_THRESHOLD` (`0.5`) is a separate value and changes no matching: it only decides whether `GET /transcripts/{id}/speaker-candidates` marks the first candidate as suggested. It is lower because a voice above `threshold` is recognized by itself and comes up for review only as a possible match.
 
