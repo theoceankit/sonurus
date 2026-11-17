@@ -144,6 +144,15 @@ A voice is averaged by `voice_vector()` (`app/services/voice_vector.py`): embedd
 
 The lowest own scores of the plain mean came from short turns weighing as much as long ones; scaling alone changes nothing, the weight does. A margin over the next best profile (0.05, 0.1) and Hungarian matching changed nothing on this set, where no voice is close to two profiles, so the app matches greedily without a margin. Profiles stored by an earlier version are recomputed once when the backend starts (`CommitService.recompute_outdated_profiles()`).
 
+A quality run of both sets with the models (the app as is, against the plain mean in the same environment) confirmed the replay. Transcription is untouched: WER and speaker words are the same in every variant. Recognition is what changes:
+
+| Averaging | Recognised | Wrong | Possible matches | Lowest own − highest other |
+|---|---|---|---|---|
+| plain mean | 195 / 198 | 0 | 12 | 0.22 |
+| **weighted by duration** | **197 / 198** | **0** | **11** | **0.26** |
+
+The two recognitions gained are a quiet participant of the clean 10-minute clip, missed at 0.59 and now a possible match at 0.66 (in "10 min" and in "three groups"). The one still missed (0.54, clean "three groups") is the same voice in both.
+
 ## Report
 
 At the end, pytest prints a Markdown report and saves it as `$SONORUS_EVAL_CACHE/reports/<date-time>.md`, with the raw results next to it as `<date-time>.json` (which also holds each person's own and best other similarity per clip, under `scores`, for choosing thresholds) and the voices as `<date-time>.npz` (see [Recomputing thresholds](#recomputing-thresholds)). It holds the models, device and library versions of the run, a summary per variant, the words recognised per speaker, the segment counts above per variant and per clip, every clip (WER split into substitutions / deletions / insertions, speakers found, detected language, time), and the text of each missed utterance with its level. Numbers depend on the versions of the models and libraries, so variants are compared within one run, never with numbers from another one. Reports are not kept in the repository.
