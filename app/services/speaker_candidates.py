@@ -60,8 +60,8 @@ def possible_match_candidates(
     limit: int = MAX_CANDIDATES,
 ) -> list[dict]:
     """The recognized speaker first, suggested, with the similarity kept at
-    recognition: their profile has this recording in it now. Then the closest
-    other profiles, none of them suggested."""
+    recognition: the one the user is asked to confirm, whatever their profile has
+    become since. Then the closest other profiles, none of them suggested."""
     own = {"speaker_id": speaker_id, "name": names[speaker_id], "score": max(round(float(score), 2), 0.0), "suggested": True}
     others = {spk_id: emb for spk_id, emb in profiles.items() if spk_id != speaker_id}
     rest = rank_candidates(voice, others, names, limit=limit - 1) if voice is not None else []

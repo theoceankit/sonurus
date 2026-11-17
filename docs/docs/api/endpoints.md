@@ -448,17 +448,17 @@ A possible match is a named speaker recognized in this transcript with a similar
 - `score`: cosine similarity between the speaker's voice in this transcript (their segment embeddings scaled to length 1 and weighted by segment duration) and the profile, rounded to two digits, not below 0.
 - `suggested`: true only for the first candidate, when its `score` reaches `SPEAKER_SUGGESTION_THRESHOLD` (`app/config.py`).
 - `clip`: a segment of this transcript chosen by `pick_voice_sample()` (see `GET /speakers/{id}/sample`), compared with the speaker's voice in this transcript. `null` when the audio file no longer exists.
-- `possible_match`: true for a possible match. Its first candidate is the recognized speaker themselves, suggested, with the kept similarity as `score` (their profile has this recording in it by now, so today's similarity would be too high); then up to two other named speakers as above, none suggested.
+- `possible_match`: true for a possible match. Its first candidate is the recognized speaker themselves, suggested, with the kept similarity as `score` (the one they were recognized with; the recording stays out of their profile until confirmed); then up to two other named speakers as above, none suggested.
 
 Unassigned segments and named speakers that are not a possible match get no entry. A possible match assigned to someone else has no segments left here and drops out; undoing that assignment brings it back.
 
 ### `POST /transcripts/{id}/possible-matches/{speaker_id}/confirmed`
 
-The user confirms a possible match: the speaker stops being one in this transcript. No body. Segments and speaker memory are untouched. Calling it again is fine. Returns `204`, or `404` for an unknown transcript or when the speaker was not recognized from memory there (no kept similarity).
+The user confirms a possible match: the speaker stops being one in this transcript, and this recording joins their voice profile (`CommitService.confirm_match()`; until now it was left out). No body. Segments are untouched. Calling it again is fine. Returns `204`, or `404` for an unknown transcript or when the speaker was not recognized from memory there (no kept similarity).
 
 ### `DELETE /transcripts/{id}/possible-matches/{speaker_id}/confirmed`
 
-Undo of a confirmation: the speaker is a possible match again if their similarity is below the ceiling. No body. Returns `204`, or `404` as with `POST`.
+Undo of a confirmation: the speaker is a possible match again if their similarity is below the ceiling, and the recording leaves their voice profile again. No body. Returns `204`, or `404` as with `POST`.
 
 ### `PATCH /transcripts/{id}`
 

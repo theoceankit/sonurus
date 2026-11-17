@@ -233,7 +233,7 @@ Creates a new UUID4 speaker ID, sets its display name and persists it via `save_
 
 `SPEAKER_SUGGESTION_THRESHOLD` (`0.5`) is a separate value and changes no matching: it only decides whether `GET /transcripts/{id}/speaker-candidates` marks the first candidate as suggested. It is lower because a voice above `threshold` is recognized by itself and comes up for review only as a possible match.
 
-`POSSIBLE_MATCH_CEILING` (`0.7`) changes no matching either: a speaker recognized below it comes up in the Editor's review as a possible match, for the user to confirm. On the quality tests 5 % of the same person's scores are below 0.69, so about one recognition in fourteen does.
+`POSSIBLE_MATCH_CEILING` (`0.7`) changes no matching either: a speaker recognized below it comes up in the Editor's review as a possible match, for the user to confirm, and the recording stays out of their profile until they do (`CommitService`). On the quality tests 5 % of the same person's scores are below 0.69, so about one recognition in fourteen does.
 
 ---
 

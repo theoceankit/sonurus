@@ -147,9 +147,15 @@ Clears `transcriptions.opened`, so the transcript is listed as new again. Return
 
 ---
 
+### `matches_of_speaker(speaker_id) → dict[int, dict]`
+
+`{transcription_id: {"score": float, "confirmed": bool}}` of the speaker's `speaker_matches` rows in every transcript. `CommitService` leaves the unconfirmed possible matches among them out of the speaker's profile.
+
+---
+
 ### `set_match_confirmed(db_id, speaker_id, confirmed) → bool`
 
-Sets or clears `speaker_matches.confirmed`. Returns `False` if the speaker has no row in that transcript. Feeds `POST` and `DELETE /transcripts/{id}/possible-matches/{speaker_id}/confirmed`.
+Sets or clears `speaker_matches.confirmed`. Returns `False` if the speaker has no row in that transcript. Called by `CommitService.confirm_match()` for `POST` and `DELETE /transcripts/{id}/possible-matches/{speaker_id}/confirmed`.
 
 ---
 

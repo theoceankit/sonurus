@@ -3,6 +3,7 @@ import numpy as np
 from app.config import VOICE_AVERAGING_ID
 from app.logger import get_logger
 from app.models.segment import UNASSIGNED
+from app.services.speaker_candidates import is_possible_match
 from app.services.voice_vector import voice_vector
 
 log = get_logger("CommitService")
@@ -30,13 +31,18 @@ class CommitService:
         below self.memory.threshold with guard_emb are excluded from the average.
         This prevents acoustically incompatible recordings from corrupting a
         speaker's stored embedding. Pass the current stored embedding to activate.
+
+        Transcripts where the speaker is a possible match the user has not
+        confirmed yet are left out: a guess must not shape the profile it was
+        matched against.
         """
         grouped = self.storage.get_embeddings_grouped_by_transcript(speaker_id, with_durations=True)
-        if not grouped:
-            return None, 0
+        pending = self._unconfirmed_matches(speaker_id)
         centroids = []
         total_segments = 0
-        for pairs in grouped.values():
+        for tid, pairs in grouped.items():
+            if tid in pending:
+                continue
             embeddings = [e for e, _ in pairs]
             c_norm = voice_vector(embeddings, [d for _, d in pairs])
             if guard_emb is not None:
@@ -54,6 +60,16 @@ class CommitService:
         avg = np.mean(centroids, axis=0)
         norm = np.linalg.norm(avg)
         return (avg / norm if norm > 0 else avg), total_segments
+
+    def _unconfirmed_matches(self, speaker_id: str) -> set[int]:
+        """Transcripts where speaker_id is a possible match waiting for the user.
+        Only a named speaker is one: nothing asks to confirm a speaker without a name."""
+        if self.memory.get_name(speaker_id) is None:
+            return set()
+        return {
+            tid for tid, match in self.storage.matches_of_speaker(speaker_id).items()
+            if is_possible_match(match)
+        }
 
     def commit(self, transcript):
         """Recompute embeddings for all speakers in transcript from all DB segments."""
@@ -90,6 +106,17 @@ class CommitService:
             return
         self.memory.update_embedding(speaker_id, avg, count)
         self.memory.save()
+
+    def confirm_match(self, transcript_id: int, speaker_id: str, confirmed: bool) -> bool:
+        """The user confirms a possible match, or takes the confirmation back. A
+        confirmed recording joins the speaker's profile at once, as a manual
+        assignment would (with the guard); a taken-back one leaves it again. With
+        nothing to recompute from the profile stays as it is. False when the
+        speaker was not recognized in the transcript."""
+        if not self.storage.set_match_confirmed(transcript_id, speaker_id, confirmed):
+            return False
+        self.commit_speaker(speaker_id)
+        return True
 
     def recompute_or_remove(self, speaker_id: str):
         """After reassignment: recompute FROM speaker, or remove if no segments left and unnamed."""
