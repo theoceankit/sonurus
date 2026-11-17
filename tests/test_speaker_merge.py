@@ -1,6 +1,6 @@
 """Merging speaker A into speaker B: A's segments and possible matches go to B,
 B keeps who they are (or takes A's name, handle, colour and photo when B has no
-name), B's voice is recomputed from every segment without the similarity guard,
+name), B's voice is recomputed from every segment,
 and A is gone."""
 import uuid as uuid_module
 
@@ -165,12 +165,12 @@ def test_merge_of_two_unnamed_speakers_leaves_b_unnamed(memory, storage):
     assert a not in memory.speaker_ids()
 
 
-def test_merge_recomputes_b_from_every_recording_without_the_guard(memory, storage):
+def test_merge_recomputes_b_from_every_recording(memory, storage):
     b = memory.create_named_speaker("Mark")
     _recording(storage, [b], emb=X)
     CommitService(memory, storage).commit_speaker(b)
     a = _voice(memory, Y)
-    _recording(storage, [a], emb=Y)  # A's recording is nothing like B: the guard would drop it
+    _recording(storage, [a], emb=Y)  # A's recording is nothing like B's
 
     CommitService(memory, storage).merge_speaker(a, b)
 

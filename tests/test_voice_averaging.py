@@ -1,6 +1,6 @@
 """One definition of a voice: the mean of embeddings scaled to length 1,
 weighted by how long each one speaks. Used for the voice resolve() compares,
-for a profile's per-recording centroid (and so the guard) and for a voice's
+for a profile's per-recording centroid and for a voice's
 candidates. Profiles of a database averaged the previous way are recomputed
 once, when the backend starts."""
 import sqlite3
@@ -158,14 +158,27 @@ def test_recompute_keeps_names_and_counts_what_it_used(tmp_path):
     assert memory.known_counts[SPK] == 2
 
 
-def test_recompute_keeps_the_guard(tmp_path):
-    # A recording far from the profile (the guard kept it out) stays out.
+def test_recompute_takes_a_recording_far_from_the_stored_profile(tmp_path):
+    # The stored profile no longer decides which recordings count.
     db = _old_db(tmp_path)
     storage = TranscriptStorageService(db_path=db)
     _save(storage, [_seg(0.0, 10.0, SPK, _v(0, 0, 1))], audio="files/far.wav")
     memory = SpeakerMemoryService(db_path=db)
     CommitService(memory, storage).recompute_outdated_profiles()
-    assert memory.known_speakers[SPK] == pytest.approx(_unit([0.25, 0.75, 0]))
+    assert memory.known_speakers[SPK] == pytest.approx(_unit(_unit([0.25, 0.75, 0]) + _v(0, 0, 1)))
+
+
+def test_profiles_kept_by_the_old_guard_are_recomputed_once(tmp_path):
+    # A database whose profiles were averaged with the guard: the mark is the
+    # previous one, so the next start recomputes them without it.
+    db, memory, storage, commit = _services(tmp_path)
+    _save(storage, [_seg(0.0, 1.0, SPK, _v(1, 0, 0))], audio="files/a.wav")
+    _save(storage, [_seg(0.0, 1.0, SPK, _v(0, 0, 1))], audio="files/far.wav")
+    memory.update_embedding(SPK, _v(1, 0, 0))
+    memory.save()
+    memory.set_voice_averaging("unit-duration-weighted-confirmed")
+    assert commit.recompute_outdated_profiles() == 1
+    assert memory.known_speakers[SPK] == pytest.approx(_unit([1, 0, 1]))
 
 
 def test_a_profile_with_nothing_to_recompute_from_stays(tmp_path):

@@ -506,7 +506,7 @@ Exactly one of `speaker_id` (a UUID4 of a known speaker — one with a voice pro
 { "speaker_id": "385dbc1d-ec85-4486-9b91-f80b7dfdf1ca" }
 ```
 
-The segments change in one transaction, and their flag `unassigned` clears. Then `commit_speaker` recomputes the new speaker and `recompute_or_remove` each previous one.
+The segments change in one transaction, and their flag `unassigned` clears. Then `commit_speaker` recomputes the new speaker and `release_speaker` each previous one: a named speaker left with no voice to compute from loses the profile (the given-away voice) but keeps the name, an unnamed one with no segments left is removed.
 
 ### `POST /transcripts/{id}/speaker-assignments/undo`
 
@@ -664,7 +664,7 @@ Returns the number of segments and transcripts that became unassigned, `404` for
 
 Merges the speaker into another who turned out to be the same person, through `CommitService.merge_speaker()`. Body: `{ "into_id": "<speaker id>" }`, the speaker who stays.
 
-Every segment of the merged speaker, in every recording, goes to `into_id`, and so do its possible matches (one per recording: the higher score, confirmed if either was). `into_id` keeps their name, handle, colour and photo; one without a name takes the merged speaker's, handle and photo included. The merged speaker is then removed, its handle freed and, when `into_id` had a name, its photo file deleted. `into_id`'s voice profile is recomputed from all their segments without the similarity guard. There is no undo.
+Every segment of the merged speaker, in every recording, goes to `into_id`, and so do its possible matches (one per recording: the higher score, confirmed if either was). `into_id` keeps their name, handle, colour and photo; one without a name takes the merged speaker's, handle and photo included. The merged speaker is then removed, its handle freed and, when `into_id` had a name, its photo file deleted. `into_id`'s voice profile is recomputed from all their segments. There is no undo.
 
 ```json
 { "speaker": { "id": "…", "name": "Mark Ellis", "handle": "mark.ellis", "segments": 52, "transcripts": 10, "…": "…" }, "segments": 12, "transcripts": 3 }
