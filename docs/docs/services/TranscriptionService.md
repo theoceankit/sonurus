@@ -79,7 +79,9 @@ PyAnnote splits the audio into spans and assigns each to a speaker (`SPEAKER_00`
 ```python
 result = whisperx.assign_word_speakers(regular, result)
 ```
-Each segment and word in `result` receives a `speaker` label from the regular diarization: the speaker with the most time inside it. The exclusive diarization made no measurable difference here, because overlaps are short against a Whisper segment.
+Each segment and each word with a time in `result` receives a `speaker` label from the regular diarization: the speaker with the most time inside it. A word without a time, or one in a gap between diarization spans, gets none. The exclusive diarization made no measurable difference here, because overlaps are short against a Whisper segment.
+
+The segment's label is only used when its words have a single speaker: `TranscriptBuilder` cuts a segment whose words belong to different speakers (see [TranscriptBuilder](TranscriptBuilder.md#splitting-at-a-speaker-change)).
 
 The exclusive diarization is returned for the voice embeddings: its spans hold one voice each, so another person's overlapped speech stays out of a speaker's embedding. On the AMI quality set it lowered the similarity to other people's profiles without changing the similarity to one's own.
 
