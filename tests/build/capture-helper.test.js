@@ -48,12 +48,13 @@ test('MSVC build links the C runtime statically (no VC++ runtime needed)', () =>
   assert.ok(args.includes('/MT'))
   assert.ok(args.includes('/O2'))
   assert.ok(args.includes('ole32.lib'))
+  assert.ok(args.includes('version.lib'), 'the microphone watch reads exe descriptions')
 })
 
 test('mingw cross build is static and Unicode (wmain)', () => {
   const { cmd, args } = compileCommand('mingw', 'main.cpp', 'out.exe')
   assert.equal(cmd, 'x86_64-w64-mingw32-g++')
-  for (const flag of ['-static', '-municode', '-O2', '-lole32']) assert.ok(args.includes(flag), flag)
+  for (const flag of ['-static', '-municode', '-O2', '-lole32', '-lversion']) assert.ok(args.includes(flag), flag)
   assert.equal(args[args.indexOf('-o') + 1], 'out.exe')
 })
 

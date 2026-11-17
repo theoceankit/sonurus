@@ -28,12 +28,12 @@ function compileCommand(toolchain, src, out, objDir = os.tmpdir()) {
     return {
       cmd: 'cl',
       args: ['/nologo', '/std:c++17', '/O2', '/MT', '/EHsc', '/utf-8', '/W3',
-             src, `/Fo${objDir}${path.sep}`, `/Fe${out}`, '/link', 'ole32.lib'],
+             src, `/Fo${objDir}${path.sep}`, `/Fe${out}`, '/link', 'ole32.lib', 'version.lib'],
     }
   }
   return {
     cmd: MINGW,
-    args: ['-std=c++17', '-O2', '-Wall', '-municode', '-static', '-s', src, '-o', out, '-lole32'],
+    args: ['-std=c++17', '-O2', '-Wall', '-municode', '-static', '-s', src, '-o', out, '-lole32', '-lversion'],
   }
 }
 

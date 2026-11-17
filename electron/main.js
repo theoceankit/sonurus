@@ -8,7 +8,7 @@ const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 const { showModelsFolder } = require('./models-folder')
 const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown, trayMenu } = require('./tray')
 const { watchBackendEvents } = require('./backend-events')
-const { micApps, notificationsOn, promptFor, rememberMicApp, stopOutcome, stopTimedOut } = require('./recording-prompts')
+const { appUserModelId, micApps, notificationsOn, promptFor, rememberMicApp, stopOutcome, stopTimedOut } = require('./recording-prompts')
 const { uiEntry } = require('./ui-entry')
 const { windowChrome, themeSource, overlayDimmer } = require('./window-chrome')
 
@@ -26,6 +26,11 @@ if (devUserData) app.setPath('userData', devUserData)
 // userData path, which the lock is taken in.
 const singleInstance = app.requestSingleInstanceLock()
 if (!singleInstance) app.quit()
+
+// Notifications on Windows need an AppUserModelID (electron/recording-prompts.js).
+if (process.platform === 'win32') {
+  app.setAppUserModelId(appUserModelId({ isPackaged: app.isPackaged, execPath: process.execPath }))
+}
 
 // macOS routes Cmd+C/V/X/A through the app's Edit menu — without it,
 // paste doesn't work in any text field. Windows/Linux handle it at OS level.
