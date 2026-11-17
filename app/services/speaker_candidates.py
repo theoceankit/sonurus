@@ -3,17 +3,15 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.config import POSSIBLE_MATCH_CEILING, SPEAKER_SUGGESTION_THRESHOLD
+from app.services.voice_vector import voice_vector
 
 MAX_CANDIDATES = 3
 
 
-def voice_centroid(embeddings: list) -> np.ndarray | None:
-    """Normalised mean of a speaker's segment embeddings, None when there are none."""
-    if not embeddings:
-        return None
-    centroid = np.mean(embeddings, axis=0)
-    norm = float(np.linalg.norm(centroid))
-    return centroid / norm if norm > 0 else centroid
+def voice_centroid(embeddings: list, durations: list | None = None) -> np.ndarray | None:
+    """A speaker's voice from their segment embeddings and durations
+    (voice_vector), None when there are none."""
+    return voice_vector(embeddings, durations)
 
 
 def rank_candidates(

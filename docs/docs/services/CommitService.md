@@ -100,6 +100,10 @@ Deletes a speaker (`DELETE /speakers/{id}`): first `storage.unassign_speaker()` 
 
 ---
 
+### `recompute_outdated_profiles() → int`
+
+Runs once after an update that changes how voices are averaged. When `memory.voice_averaging()` (`_meta.voice_averaging`) is not `config.VOICE_AVERAGING_ID`, every stored profile is recomputed from the database as `commit_speaker()` does, with the stored profile as guard; a profile with nothing left to recompute from stays as it is. Then the mark is written and the number of recomputed profiles returned; otherwise it does nothing and returns 0. Needs no model or audio. The backend calls it at startup, before the queue starts; on an error it logs, leaves the mark unwritten and the next start tries again.
+
 ### `merge_speaker(from_id, into_id) → dict`
 
 Merges two speakers who turned out to be one person (`POST /speakers/{id}/merge`):

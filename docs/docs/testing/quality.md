@@ -109,6 +109,14 @@ Every run also saves the voices of every clip as `<date-time>.npz` next to the r
 
 It prints recognised / wrong for each threshold and method over all runs, and per run the own and best other similarity at the app's threshold. Diarization and embeddings stay those of the run, so the replay matches the run at the app's threshold and method.
 
+What it can vary (the script's docstring has the details):
+
+- **Averaging** (`--methods`): the plain mean, as the app averaged before `voice_vector` (`mean`); embeddings scaled to length 1 first (`norm`); also weighted by the duration of their diarization turn (`norm+dur`); and `one`, a single definition for the voice `resolve()` compares, a profile's per-recording centroid and the guard: `norm+dur` over the turns, each turn once however many segments carry it. The other methods count a turn once per segment in a profile. The app is closest to `one`: it weighs a profile's segments by their own duration, which for the segments of a turn adds up to about the turn's.
+- **Matching** (`--matchers`): `greedy` takes the highest pair first, as the app; `hungarian` takes the one-to-one assignment with the largest sum of similarities at or above the threshold.
+- **Margin** (`--margins`): a match less than the margin above the voice's next best profile counts as a possible match, as one below `POSSIBLE_MATCH_CEILING` does in the app. The matcher tables split recognised and wrong into possible and sure matches.
+
+It also prints the own and best other similarity on the 3-minute call clips for each method. The replay takes a turn's duration from the run; the app's database holds segment times, not turns.
+
 ### Speaker recognition threshold
 
 `SPEAKER_SIMILARITY_THRESHOLD` (`0.6`) was chosen with the threshold sweep over the fast and the long set (WeSpeaker embeddings, November 2026):
@@ -122,7 +130,28 @@ It prints recognised / wrong for each threshold and method over all runs, and pe
 | 0.55 | 178 / 178 | 0 |
 | 0.40 | 178 / 178 | 1 |
 
-The same person in another recording scored 0.56–0.95 (5 % below 0.69); the length of the recordings matters most: on whole meetings the lowest was 0.78, on 3-minute clips 0.56. Other people scored at most 0.49, with three groups of four in one memory (IS1009 is four women). 0.6 keeps about 0.1 between the threshold and the highest other person, because real calls differ more than one meeting room; most of the people it misses are on 3-minute call clips. Weighting a recording's voice by the duration of its turns raises the own scores of short recordings (0.75: 151 instead of 122) but changes little at 0.6, so the plain mean stays.
+The same person in another recording scored 0.56–0.95 (5 % below 0.69); the length of the recordings matters most: on whole meetings the lowest was 0.78, on 3-minute clips 0.56. Other people scored at most 0.49, with three groups of four in one memory (IS1009 is four women). 0.6 keeps about 0.1 between the threshold and the highest other person, because real calls differ more than one meeting room; most of the people it misses are on 3-minute call clips. These numbers are for the plain mean the app used then; see [Voice averaging](#voice-averaging) for the averaging that replaced it, with which the threshold stayed.
+
+### Voice averaging
+
+A voice is averaged by `voice_vector()` (`app/services/voice_vector.py`): embeddings scaled to length 1 and weighted by how long each one speaks, for the voice `resolve()` compares, a profile's per-recording centroid (and so the guard) and a voice's candidates. It replaced the plain mean, chosen with the sweep on the fast and the long set at the app's threshold of 0.6 (WeSpeaker embeddings from exclusive turns, November 2026):
+
+| Averaging | Recognised | Wrong | Possible matches | Lowest own − highest other |
+|---|---|---|---|---|
+| plain mean (`mean`) | 192 / 194 | 0 | 15 | 0.23 |
+| scaled to length 1 (`norm`) | 191 / 194 | 0 | 15 | – |
+| **weighted by duration (`one`)** | **194 / 194** | **0** | **8** | **0.33** |
+
+The lowest own scores of the plain mean came from short turns weighing as much as long ones; scaling alone changes nothing, the weight does. A margin over the next best profile (0.05, 0.1) and Hungarian matching changed nothing on this set, where no voice is close to two profiles, so the app matches greedily without a margin. Profiles stored by an earlier version are recomputed once when the backend starts (`CommitService.recompute_outdated_profiles()`).
+
+A quality run of both sets with the models (the app as is, against the plain mean in the same environment) confirmed the replay. Transcription is untouched: WER and speaker words are the same in every variant. Recognition is what changes:
+
+| Averaging | Recognised | Wrong | Possible matches | Lowest own − highest other |
+|---|---|---|---|---|
+| plain mean | 195 / 198 | 0 | 12 | 0.22 |
+| **weighted by duration** | **197 / 198** | **0** | **11** | **0.26** |
+
+The two recognitions gained are a quiet participant of the clean 10-minute clip, missed at 0.59 and now a possible match at 0.66 (in "10 min" and in "three groups"). The one still missed (0.54, clean "three groups") is the same voice in both.
 
 ## Report
 

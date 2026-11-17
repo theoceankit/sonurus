@@ -101,3 +101,9 @@ def test_voice_centroid_of_nothing_is_none():
 
 def test_voice_centroid_of_opposite_embeddings_stays_zero():
     assert voice_centroid([_vec(1.0, 0.0), _vec(-1.0, 0.0)]).tolist() == [0.0, 0.0]
+
+
+def test_voice_centroid_weighs_embeddings_by_duration():
+    centroid = voice_centroid([_vec(2.0, 0.0), _vec(0.0, 1.0)], [1.0, 3.0])
+    expected = np.array([0.25, 0.75]) / np.linalg.norm([0.25, 0.75])
+    assert centroid == pytest.approx(expected)

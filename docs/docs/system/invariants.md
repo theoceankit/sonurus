@@ -31,6 +31,7 @@ Permitted exceptions that do not write embeddings:
 - `SpeakerMemoryService.take_identity()` — gives one speaker the names, colour, handle and photo of another; writes only `speaker_names` and `speaker_meta`. Called only through `CommitService.merge_speaker()`, for a speaker without a name who takes the merged speaker's.
 - `SpeakerMemoryService.remove_embedding()` — forgets a speaker's voice and keeps the name and color. Called only through `CommitService.undo_assignment()`, for a named speaker left with no segments to compute a voice from, so that an undone voice does not stay as their profile.
 - `SpeakerMemoryService.clear()` — deletes every speaker (embeddings, names, colors, handles, photo names) and drops the in-memory state. Called only from `POST /data/reset` (full data reset), which runs `TranscriptStorageService.clear()` first, so no segments remain to recompute from.
+- `CommitService.recompute_outdated_profiles()` — once after an update that changes how voices are averaged (`_meta.voice_averaging` differs from `config.VOICE_AVERAGING_ID`): recomputes every stored profile from the database with `_avg_from_db()` and the stored profile as guard, then writes the mark. Called by the backend at startup, before the queue starts.
 - The embedding-model reset in `SpeakerMemoryService._init_db()` — when the database's voices were computed by another embedding model (`_meta.embedding_model`), deletes every `speaker_embeddings` row together with every `segments.embedding`, so no segments remain to recompute from either. Names, colours, handles and photos stay.
 
 **Why:** Centralising embedding writes to `CommitService` makes it possible to reason about when and why voice profiles change. Name management and cleanup are deliberately separated from embedding updates.
@@ -69,9 +70,11 @@ Whenever a speaker's embedding is updated, `CommitService` queries **all** segme
 
 ```
 for each transcript:
-    centroid = normalise(mean(seg.embedding for segments in that transcript))
+    centroid = voice_vector(seg.embedding, seg.end - seg.start for segments in that transcript)
 speaker_embedding = normalise(mean(centroids))
 ```
+
+`voice_vector()` (`app/services/voice_vector.py`) is the one definition of a voice: each embedding scaled to length 1, weighted by its duration, averaged and scaled to length 1. The segments of a diarization turn carry the turn's embedding, so together they weigh about as much as the turn; a 1-second turn no longer counts as much as a minute. The voice `resolve()` compares (turns weighted by their duration) and a voice's candidates use the same function.
 
 Each recording contributes exactly one centroid regardless of how many segments it contains, so a long recording does not outweigh a short one. An optional similarity guard excludes transcripts whose centroid falls below `SPEAKER_SIMILARITY_THRESHOLD` against the speaker's current stored embedding — this prevents acoustically incompatible recordings from corrupting an otherwise clean profile.
 
@@ -84,7 +87,7 @@ It must never use the aggregated embeddings produced by `EmbeddingService.extrac
 - Per-transcript equal weighting prevents a many-segment recording from dominating the embedding.
 - The similarity guard prevents a misattributed or acoustically incompatible recording from pulling the embedding below the recognition threshold.
 
-**In code:** `app/services/commit_service.py` — `_avg_from_db(speaker_id, guard_emb=None)` is the single averaging kernel; all commit methods call it. `TranscriptStorageService.get_embeddings_grouped_by_transcript(spk_id)` returns `{transcription_id: [embeddings]}`. `commit_speaker()` and `recompute_or_remove()` pass the current stored embedding as `guard_emb`. `merge_speaker()` passes none: the user has said the two voices are one, and the guard would drop the merged speaker's recordings, which scored below the threshold. The aggregated dict from `EmbeddingService.extract_all()` is never passed into `CommitService`; only the per-segment list is used (attached to the transcript via `TranscriptBuilder.attach_embeddings()`).
+**In code:** `app/services/commit_service.py` — `_avg_from_db(speaker_id, guard_emb=None)` is the single averaging kernel; all commit methods call it. `TranscriptStorageService.get_embeddings_grouped_by_transcript(spk_id, with_durations=True)` returns `{transcription_id: [(embedding, segment duration)]}`. `commit_speaker()` and `recompute_or_remove()` pass the current stored embedding as `guard_emb`. `merge_speaker()` passes none: the user has said the two voices are one, and the guard would drop the merged speaker's recordings, which scored below the threshold. The aggregated dict from `EmbeddingService.extract_all()` is never passed into `CommitService`; only the per-segment list is used (attached to the transcript via `TranscriptBuilder.attach_embeddings()`).
 
 **Dirty tracking:** `SpeakerMemoryService.save()` only writes to `speaker_embeddings` for speakers marked dirty by `update_embedding()`, and only writes `speaker_names` rows for names changed by `set_name()` on that instance. This prevents a long-lived instance with stale in-memory state (the API singleton or a pipeline job) from overwriting embeddings or names written by another instance.
 

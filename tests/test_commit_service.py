@@ -19,6 +19,7 @@ from app.models.transcript import Transcript
 from app.services.commit_service import CommitService
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.transcript_storage_service import TranscriptStorageService
+from app.services.voice_vector import voice_vector
 
 
 # ---------------------------------------------------------------------------
@@ -63,7 +64,8 @@ def test_old_constructor_without_storage_raises(tmp_path):
 # ===========================================================================
 
 def test_commit_saves_per_segment_embedding(tmp_path):
-    """Each speaker gets the mean embedding of their own segments."""
+    """Each speaker gets the voice of their own segments: unit embeddings
+    weighted by segment duration (equal here)."""
     emb_a1 = np.array([1.0, 0.0, 0.0])
     emb_a2 = np.array([0.8, 0.2, 0.0])
     emb_b1 = np.array([0.0, 0.0, 1.0])
@@ -78,8 +80,7 @@ def test_commit_saves_per_segment_embedding(tmp_path):
     storage.save(transcript)
     commit_svc.commit(transcript)
 
-    raw_mean = np.mean([emb_a1, emb_a2], axis=0)
-    expected_person1 = raw_mean / np.linalg.norm(raw_mean)
+    expected_person1 = voice_vector([emb_a1, emb_a2], [2.0, 2.0])
     assert np.allclose(memory.known_speakers["person_1"], expected_person1)
     assert np.allclose(memory.known_speakers["person_2"], emb_b1)
 
@@ -106,8 +107,7 @@ def test_reassigned_segment_gets_its_own_embedding(tmp_path):
         "new_person must have their own unique embedding, not an average of SPEAKER_00"
     )
 
-    raw_mean = np.mean([emb_person1_seg0, emb_person1_seg1], axis=0)
-    expected_person1 = raw_mean / np.linalg.norm(raw_mean)
+    expected_person1 = voice_vector([emb_person1_seg0, emb_person1_seg1], [2.0, 2.0])
     assert np.allclose(memory.known_speakers["person_1"], expected_person1)
 
     similarity = np.dot(

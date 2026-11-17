@@ -132,3 +132,96 @@ def test_replay_named_twice_averages_the_recordings():
     o = sweep.replay(clips, 0.7, "norm")
     profile = sweep._unit(BOB + sweep._unit(_v(0, 1, 0.5)))
     assert o.own == [pytest.approx(float(np.dot(sweep._unit(_v(0, 1, 0.25)), profile)))]
+
+
+# ── one vector definition, matchers, margin ──────────────────────────────────
+
+def test_profile_turns_count_a_turn_once_in_one():
+    # Three segments carry turn 0, one carries turn 1.
+    clip = sweep.Clip("a", True, np.array(["S0", "S0"]), np.array(["ANN", "ANN"]), np.ones(2),
+                      np.array([ANN, BOB]), np.array([0, 0, 0, 1]))
+    assert list(clip.profile_turns("S0", "mean")) == [0, 0, 0, 1]
+    assert list(clip.profile_turns("S0", "norm+dur")) == [0, 0, 0, 1]
+    assert list(clip.profile_turns("S0", "one")) == [0, 1]
+
+
+def test_one_profile_is_the_same_vector_as_the_voice_resolve_compares():
+    # ANN's named recording: turn 0 in three sentences, turn 1 in one. In "one"
+    # the profile is the duration-weighted mean of the two turns, as the voice
+    # resolve() compares; in norm+dur turn 0 weighs three times.
+    named = sweep.Clip("a", True, np.array(["S0", "S0"]), np.array(["ANN", "ANN"]), np.ones(2),
+                       np.array([ANN, BOB]), np.array([0, 0, 0, 1]))
+    later = _clip("b", False, [("S0", "ANN", _v(1, 1, 0))])
+    o = sweep.replay([named, later], 0.6, "one")
+    assert o.own == [pytest.approx(1.0)]
+    o = sweep.replay([named, later], 0.6, "norm+dur")
+    assert o.own == [pytest.approx(4 / np.sqrt(20))]
+
+
+def test_one_weights_turns_by_duration():
+    clip = sweep.Clip("a", True, np.array(["S0", "S0"]), np.array(["ANN", "ANN"]), np.array([1.0, 3.0]),
+                      np.array([ANN, BOB * 2]), np.array([0, 1]))
+    assert np.allclose(clip.session("one")["S0"], [0.25, 0.75, 0])
+
+
+def test_greedy_takes_the_highest_pair_first_and_leaves_the_rest():
+    scores = np.array([[0.9, 0.85], [0.88, 0.5]])
+    assert sweep.match_scores(scores, 0.6, "greedy") == {0: (0, 0.9, True)}
+
+
+def test_hungarian_maximises_the_sum_of_matched_similarities():
+    scores = np.array([[0.9, 0.85], [0.88, 0.5]])
+    assert sweep.match_scores(scores, 0.6, "hungarian") == {0: (1, 0.85, True), 1: (0, 0.88, True)}
+
+
+def test_hungarian_drops_pairs_below_the_threshold():
+    scores = np.array([[0.9, 0.2], [0.3, 0.55]])
+    assert sweep.match_scores(scores, 0.6, "hungarian") == {0: (0, 0.9, True)}
+
+
+def test_greedy_matches_the_apps_resolver():
+    from app.services.speaker_memory_service import _resolve_speakers
+
+    rng = np.random.default_rng(1)
+    for _ in range(20):
+        session = {f"S{i}": rng.normal(size=4) for i in range(3)}
+        profiles = {f"P{j}": sweep._unit(rng.normal(size=4)) for j in range(4)}
+        # the app's resolver also gives every unmatched voice a new id
+        expected = {raw: m for raw, m in _resolve_speakers(session, profiles, 0.2).items() if m in profiles}
+        got = {raw: m[0] for raw, m in sweep.match(session, profiles, 0.2, "greedy").items()}
+        assert got == expected
+
+
+def test_a_match_below_the_ceiling_is_possible():
+    scores = np.array([[0.65, 0.1]])
+    assert sweep.match_scores(scores, 0.6, "greedy", ceiling=0.7) == {0: (0, 0.65, False)}
+    assert sweep.match_scores(scores, 0.6, "greedy", ceiling=0.6) == {0: (0, 0.65, True)}
+
+
+def test_a_match_close_to_another_profile_is_possible_with_a_margin():
+    scores = np.array([[0.80, 0.77]])
+    assert sweep.match_scores(scores, 0.6, "greedy", margin=0.0, ceiling=0.7) == {0: (0, 0.80, True)}
+    assert sweep.match_scores(scores, 0.6, "greedy", margin=0.05, ceiling=0.7) == {0: (0, 0.80, False)}
+    assert sweep.match_scores(scores, 0.6, "greedy", margin=0.02, ceiling=0.7) == {0: (0, 0.80, True)}
+
+
+def test_replay_splits_wrong_matches_into_sure_and_possible():
+    # BOB is 0.6 from ANN; CAT sits between them (0.89 to both) and, ANN being
+    # taken by her own voice, falls to BOB: a false match the margin flags.
+    bob = _v(0.6, 0.8, 0)
+    cat = sweep._unit(ANN + bob)
+    clips = [_clip("a", True, [("S0", "ANN", ANN), ("S1", "BOB", bob)]),
+             _clip("b", False, [("S0", "ANN", ANN), ("S1", "CAT", cat)])]
+    o = sweep.replay(clips, 0.6, "mean", margin=0.0)
+    assert (o.recognised, o.possible, o.wrong, o.wrong_sure) == (1, 0, 1, 1)
+    o = sweep.replay(clips, 0.6, "mean", margin=0.05)
+    assert (o.recognised, o.possible, o.wrong, o.wrong_sure) == (1, 0, 1, 0)
+
+
+def test_replay_counts_recognised_possible_matches():
+    clips = [_clip("a", True, [("S0", "ANN", ANN)]),
+             _clip("b", False, [("S0", "ANN", _v(1, 1, 0))])]   # 0.71 to her profile
+    o = sweep.replay(clips, 0.6, "mean", ceiling=0.75)
+    assert (o.recognised, o.possible) == (1, 1)
+    o = sweep.replay(clips, 0.6, "mean", ceiling=0.7)
+    assert (o.recognised, o.possible) == (1, 0)

@@ -1,7 +1,9 @@
 import numpy as np
 
+from app.config import VOICE_AVERAGING_ID
 from app.logger import get_logger
 from app.models.segment import UNASSIGNED
+from app.services.voice_vector import voice_vector
 
 log = get_logger("CommitService")
 
@@ -19,23 +21,24 @@ class CommitService:
     def _avg_from_db(self, speaker_id: str, guard_emb=None):
         """Query embeddings grouped by transcript; return normalised centroid-of-centroids.
 
-        Each transcript contributes one centroid regardless of how many segments it
-        contains, so a long recording with many segments does not outweigh a short one.
+        A transcript's centroid is its segments' voice (voice_vector: unit
+        embeddings weighted by segment duration). Each transcript contributes one
+        centroid regardless of how many segments it contains, so a long recording
+        with many segments does not outweigh a short one.
 
         guard_emb: if provided, transcripts whose centroid has cosine similarity
         below self.memory.threshold with guard_emb are excluded from the average.
         This prevents acoustically incompatible recordings from corrupting a
         speaker's stored embedding. Pass the current stored embedding to activate.
         """
-        grouped = self.storage.get_embeddings_grouped_by_transcript(speaker_id)
+        grouped = self.storage.get_embeddings_grouped_by_transcript(speaker_id, with_durations=True)
         if not grouped:
             return None, 0
         centroids = []
         total_segments = 0
-        for embeddings in grouped.values():
-            c = np.mean(embeddings, axis=0)
-            norm = np.linalg.norm(c)
-            c_norm = c / norm if norm > 0 else c
+        for pairs in grouped.values():
+            embeddings = [e for e, _ in pairs]
+            c_norm = voice_vector(embeddings, [d for _, d in pairs])
             if guard_emb is not None:
                 sim = float(np.dot(c_norm, guard_emb))
                 if sim < self.memory.threshold:
@@ -166,6 +169,30 @@ class CommitService:
             self.memory.save()
         log.info(f"Merged speaker {from_id} into {into_id} ({result['segments']} segments moved)")
         return result
+
+    def recompute_outdated_profiles(self) -> int:
+        """Once after an update that changes how voices are averaged: recompute
+        every stored profile from the database the current way (as
+        commit_speaker, with the stored profile as guard), then mark the memory.
+        A profile with nothing left to recompute from stays as it is. Needs no
+        model or audio: segment embeddings are in the database. Returns how
+        many profiles were recomputed."""
+        if self.memory.voice_averaging() == VOICE_AVERAGING_ID:
+            return 0
+        updated = 0
+        for spk_id in list(self.memory.known_speakers):
+            if _has_no_profile(spk_id):
+                continue
+            avg, count = self._avg_from_db(spk_id, guard_emb=self.memory.known_speakers[spk_id])
+            if avg is None:
+                continue
+            self.memory.update_embedding(spk_id, avg, count)
+            updated += 1
+        if updated:
+            self.memory.save()
+        self.memory.set_voice_averaging(VOICE_AVERAGING_ID)
+        log.info(f"Voices are averaged as {VOICE_AVERAGING_ID} now: recomputed {updated} profiles")
+        return updated
 
     def commit_recognized_speakers(self, transcript):
         """Update embeddings for speakers already in memory (auto-recognized in new session)."""

@@ -249,6 +249,15 @@ class SpeakerRepository:
             counts[spk_id] = count
         return speakers, counts
 
+    def read_meta(self, key: str) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT value FROM _meta WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else None
+
+    def write_meta(self, key: str, value: str):
+        with self._connect() as conn:
+            conn.execute("INSERT OR REPLACE INTO _meta (key, value) VALUES (?, ?)", (key, value))
+
     def load_names(self) -> dict:
         with self._connect() as conn:
             rows = conn.execute("SELECT speaker_id, label, name FROM speaker_names").fetchall()
@@ -638,6 +647,14 @@ class SpeakerMemoryService:
         )
         self._dirty_colors = set()
         log.info(f"Saved {len(self.known_speakers)} speakers → {self.db_path}")
+
+    def voice_averaging(self) -> str | None:
+        """How the stored profiles were averaged (config.VOICE_AVERAGING_ID);
+        None for profiles of a version that did not mark it."""
+        return self._repo.read_meta("voice_averaging")
+
+    def set_voice_averaging(self, averaging: str):
+        self._repo.write_meta("voice_averaging", averaging)
 
     def reload_names(self):
         """Reload known_names from DB, replacing any uncommitted set_name() changes."""

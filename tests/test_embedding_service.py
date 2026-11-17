@@ -53,25 +53,25 @@ def test_extract_all_calls_inference_once_per_segment():
     )
 
 
-def test_extract_all_aggregated_is_mean_of_segments():
-    """Aggregated dict from extract_all() must be the mean of per-segment embeddings."""
-    from collections import defaultdict
+def test_extract_all_aggregated_is_the_duration_weighted_voice_of_the_turns():
+    """A speaker's voice from extract_all() is the mean of their turns' embeddings
+    scaled to length 1, weighted by each turn's duration (voice_vector)."""
     svc = make_service()
-    svc._get_embedding = lambda audio, start, end: fake_embedding(start, end)
+    embeddings = {0.0: np.array([4.0, 0.0, 0.0]), 2.0: np.array([0.0, 1.0, 0.0]),
+                  4.0: np.array([0.0, 0.0, 2.0])}
+    svc._get_embedding = lambda audio, start, end: embeddings[start]
 
-    audio = np.zeros(16000 * 6)
+    audio = np.zeros(16000 * 10)
     diarization = make_diarization(
         (0.0, 2.0, "SPEAKER_00"),
         (2.0, 4.0, "SPEAKER_01"),
-        (4.0, 6.0, "SPEAKER_00"),
+        (4.0, 10.0, "SPEAKER_00"),
     )
 
     aggregated, segments = svc.extract_all(audio, diarization)
 
-    speaker_embs = defaultdict(list)
-    for s in segments:
-        speaker_embs[s["speaker"]].append(s["embedding"])
-    expected = {spk: np.mean(embs, axis=0) for spk, embs in speaker_embs.items()}
+    s00 = np.array([2.0, 0.0, 6.0])  # 2 s of x, 6 s of z
+    expected = {"SPEAKER_00": s00 / np.linalg.norm(s00), "SPEAKER_01": np.array([0.0, 1.0, 0.0])}
 
     assert set(aggregated.keys()) == set(expected.keys())
     for spk in expected:

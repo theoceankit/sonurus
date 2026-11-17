@@ -378,21 +378,23 @@ class TranscriptStorageService:
             for tid, audio, start, end, text, blob in rows
         ]
 
-    def get_embeddings_grouped_by_transcript(self, speaker_id: str) -> dict:
-        """Return {transcription_id: [embeddings]} for all non-null segment embeddings.
+    def get_embeddings_grouped_by_transcript(self, speaker_id: str, with_durations: bool = False) -> dict:
+        """Return {transcription_id: [embeddings]} for all non-null segment embeddings,
+        with with_durations {transcription_id: [(embedding, segment duration)]}.
 
         Used by CommitService to give each recording equal weight when averaging,
         regardless of how many segments it contains.
         """
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT transcription_id, embedding FROM segments "
+                "SELECT transcription_id, embedding, start, \"end\" FROM segments "
                 "WHERE speaker_id = ? AND embedding IS NOT NULL",
                 (speaker_id,)
             ).fetchall()
         grouped: dict[int, list] = {}
-        for tid, blob in rows:
-            grouped.setdefault(tid, []).append(deserialize_embedding(blob))
+        for tid, blob, start, end in rows:
+            emb = deserialize_embedding(blob)
+            grouped.setdefault(tid, []).append((emb, max(0.0, end - start)) if with_durations else emb)
         return grouped
 
 
