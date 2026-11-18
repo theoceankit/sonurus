@@ -5,13 +5,15 @@ the next progress checkpoint, and "Transcribing audio…" (Whisper, alignment
 and diarization in one call) can take minutes. A child process is stopped at
 once, on any step, and its GPU memory is freed when it exits.
 
-The child only computes: it loads the models, runs the pipeline and sends
-the Transcript back. Saving and committing speakers stay in the backend
-process, so a stopped job never leaves anything in the database.
+The child only computes: it loads the models, runs the pipeline up to the
+voices of its speakers and sends that analysis back. It never reads speaker
+memory: the backend resolves speakers once the child is done, against memory
+as it is then, and saves and commits them, so a stopped job never leaves
+anything in the database.
 
 Messages from the child (over a Pipe):
     ("progress", step)
-    ("done", transcript)
+    ("done", analysis)    — TranscriptionController.analyse()
     ("alignment_missing", language)
     ("error", exception_type_name, message)
 """
@@ -70,12 +72,12 @@ def _pipeline_worker(args: dict, conn) -> None:
             # logger levels on import.
             suppress_ml_noise("thread")
         controller, _ = service_factory.create_controller(db_path=args["db_path"], whisper_model=args["whisper_model"])
-        transcript = controller.run_pipeline(
+        analysis = controller.analyse(
             args["audio_path"],
             on_progress=lambda step: conn.send(("progress", step)),
             language=args["language"],
         )
-        conn.send(("done", transcript))
+        conn.send(("done", analysis))
     except BaseException as exc:
         # Matched by name: the ML imports above are what may have failed.
         if type(exc).__name__ == "AlignmentModelMissingError":
@@ -121,10 +123,10 @@ def _stop(proc) -> None:
 
 
 def run_pipeline_process(args: dict, on_progress, cancel_event, worker=_pipeline_worker):
-    """Run the pipeline in a child process and return its Transcript.
+    """Run the pipeline in a child process and return its analysis
+    (TranscriptionController.analyse()).
 
-    args: audio_path, whisper_model, language, db_path (speaker memory, read
-    only). Raises PipelineCancelled as soon as cancel_event is set, and
+    args: audio_path, whisper_model, language, db_path. Raises PipelineCancelled as soon as cancel_event is set, and
     AlignmentModelMissingError / RuntimeError for the child's errors, and
     PipelineInterrupted if the child was stopped from outside. The child
     never outlives this call.

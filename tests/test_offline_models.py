@@ -44,7 +44,7 @@ def test_worker_refuses_torch_hub_downloads_before_loading_models(monkeypatch):
     monkeypatch.setenv("HF_HUB_OFFLINE", "1")
     order = []
     controller = MagicMock()
-    controller.run_pipeline.side_effect = lambda *a, **k: order.append("pipeline")
+    controller.analyse.side_effect = lambda *a, **k: order.append("pipeline")
     with patch("app.offline.refuse_torch_hub_downloads", side_effect=lambda: order.append("refuse")), \
          patch("app.services.service_factory.create_controller",
                side_effect=lambda **k: (order.append("models"), (controller, MagicMock()))[1]):

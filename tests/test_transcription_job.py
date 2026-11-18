@@ -4,8 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.models.segment import Segment
-from app.models.transcript import Transcript
 from app.services import pipeline_process
 from app.services.pipeline_process import PipelineCancelled
 from app.services.transcript_storage_service import TranscriptStorageService
@@ -15,9 +13,12 @@ JOB = {"id": "j1", "audio_path": "/rec/sonorus-import-1.wav", "title": "Weekly s
        "whisper_model": "small", "language": "en"}
 
 
-def _transcript(audio_path="/rec/sonorus-import-1.wav"):
-    return Transcript(segments=[Segment(0.0, 1.0, "hello", "SPEAKER_00", speaker_resolved="spk-1")],
-                      audio_path=audio_path, language="en")
+def _analysis():
+    """What the pipeline gives back: one sentence of one diarization speaker
+    without a voice (too little speech), so it gets a new speaker."""
+    return {"result": {"segments": [{"start": 0.0, "end": 1.0, "text": "hello", "speaker": "SPEAKER_00"}],
+                       "language": "en"},
+            "voices": {}, "turns": []}
 
 
 @pytest.fixture(autouse=True)
@@ -37,8 +38,7 @@ def storage(tmp_path):
 def test_runs_the_pipeline_saves_with_the_job_title_and_commits(tmp_path):
     steps, saved = [], []
     controller = MagicMock()
-    transcript = _transcript()
-    controller.run_pipeline.return_value = transcript
+    controller.analyse.return_value = _analysis()
     job_storage = MagicMock()
     job_storage.save.side_effect = lambda t: setattr(t, "db_id", 42)
     run = make_job_runner(storage=MagicMock(), memory_db_path=str(tmp_path / "m.db"),
@@ -50,14 +50,19 @@ def test_runs_the_pipeline_saves_with_the_job_title_and_commits(tmp_path):
         assert run(JOB, steps.append, threading.Event()) == 42
 
     create.assert_called_once_with(whisper_model="small")
-    controller.run_pipeline.assert_called_once()
-    assert controller.run_pipeline.call_args.args[0] == JOB["audio_path"]
-    assert controller.run_pipeline.call_args.kwargs["language"] == "en"
-    assert transcript.title == "Weekly sync"
-    job_storage.save.assert_called_once_with(transcript)
-    commit.assert_called_once_with(controller.memory_service, job_storage)
+    controller.analyse.assert_called_once()
+    assert controller.analyse.call_args.args[0] == JOB["audio_path"]
+    assert controller.analyse.call_args.kwargs["language"] == "en"
+    transcript = job_storage.save.call_args.args[0]
+    assert transcript.title == "Weekly sync" and transcript.audio_path == JOB["audio_path"]
+    assert [s.text for s in transcript.segments] == ["hello"]
+    # Resolved and committed against memory read after the pipeline, not the
+    # controller's, which was read when the job started.
+    memory = commit.call_args.args[0]
+    assert memory is not controller.memory_service and memory.db_path == str(tmp_path / "m.db")
+    assert commit.call_args.args[1] is job_storage
     commit.return_value.commit_recognized_speakers.assert_called_once_with(transcript)
-    assert steps == ["Loading models…", "Saving to database…"]
+    assert steps == ["Loading models…", "Building transcript…", "Saving to database…"]
     assert saved == [True]
 
 
@@ -67,11 +72,11 @@ def test_cancel_after_the_pipeline_saves_nothing(tmp_path):
 
     def pipeline(audio_path, on_progress, language=None):
         cancel.set()
-        return _transcript()
+        return _analysis()
 
-    controller.run_pipeline.side_effect = pipeline
+    controller.analyse.side_effect = pipeline
     job_storage = MagicMock()
-    run = make_job_runner(storage=MagicMock(), memory_db_path="m.db", on_saved=lambda: None)
+    run = make_job_runner(storage=MagicMock(), memory_db_path=str(tmp_path / "m.db"), on_saved=lambda: None)
     with patch("app.services.transcription_job.create_controller", return_value=(controller, job_storage)):
         with pytest.raises(PipelineCancelled):
             run(JOB, lambda step: None, cancel)
@@ -80,7 +85,7 @@ def test_cancel_after_the_pipeline_saves_nothing(tmp_path):
 
 def test_models_are_released_when_the_pipeline_fails():
     controller = MagicMock()
-    controller.run_pipeline.side_effect = RuntimeError("CUDA out of memory")
+    controller.analyse.side_effect = RuntimeError("CUDA out of memory")
     run = make_job_runner(storage=MagicMock(), memory_db_path="m.db", on_saved=lambda: None)
     with patch("app.services.transcription_job.create_controller", return_value=(controller, MagicMock())), \
          patch("torch.cuda.empty_cache") as empty_cache:
@@ -103,7 +108,7 @@ def test_models_are_released_when_cancelled_mid_pipeline():
         on_progress("Transcribing audio…")
 
     controller = MagicMock()
-    controller.run_pipeline.side_effect = pipeline
+    controller.analyse.side_effect = pipeline
     run = make_job_runner(storage=MagicMock(), memory_db_path="m.db", on_saved=lambda: None)
     with patch("app.services.transcription_job.create_controller", return_value=(controller, MagicMock())), \
          patch("torch.cuda.empty_cache") as empty_cache:
@@ -116,10 +121,10 @@ def test_models_are_released_when_cancelled_mid_pipeline():
 def test_a_failed_commit_still_returns_the_saved_transcript(tmp_path):
     """The transcript exists once saved; a retry would duplicate it."""
     controller = MagicMock()
-    controller.run_pipeline.return_value = _transcript()
+    controller.analyse.return_value = _analysis()
     job_storage = MagicMock()
     job_storage.save.side_effect = lambda t: setattr(t, "db_id", 5)
-    run = make_job_runner(storage=MagicMock(), memory_db_path="m.db", on_saved=lambda: None)
+    run = make_job_runner(storage=MagicMock(), memory_db_path=str(tmp_path / "m.db"), on_saved=lambda: None)
     with patch("app.services.transcription_job.create_controller", return_value=(controller, job_storage)), \
          patch("app.services.transcription_job.CommitService") as commit:
         commit.return_value.commit_recognized_speakers.side_effect = RuntimeError("db locked")
@@ -134,7 +139,7 @@ def test_subprocess_mode_loads_no_models_here_and_saves_through_storage(tmp_path
     def runner(args, on_progress, cancel_event):
         seen.update(args)
         on_progress("Transcribing audio…")
-        return _transcript(args["audio_path"])
+        return _analysis()
 
     steps = []
     memory_db = str(tmp_path / "memory.db")
@@ -150,7 +155,7 @@ def test_subprocess_mode_loads_no_models_here_and_saves_through_storage(tmp_path
     saved = storage.load(transcript_id)
     assert saved.title == "Weekly sync" and saved.audio_path == JOB["audio_path"]
     assert [s.text for s in saved.segments] == ["hello"]
-    assert steps == ["Loading models…", "Transcribing audio…", "Saving to database…"]
+    assert steps == ["Loading models…", "Transcribing audio…", "Building transcript…", "Saving to database…"]
 
 
 def test_subprocess_mode_passes_the_cancel_event_through(storage):
@@ -174,7 +179,7 @@ def test_subprocess_mode_passes_the_cancel_event_through(storage):
 
 def _run_in_process(tmp_path, ensure_levels):
     controller = MagicMock()
-    controller.run_pipeline.return_value = _transcript()
+    controller.analyse.return_value = _analysis()
     job_storage = MagicMock()
     job_storage.save.side_effect = lambda t: setattr(t, "db_id", 42)
     run = make_job_runner(storage=MagicMock(), memory_db_path=str(tmp_path / "m.db"), on_saved=lambda: None)

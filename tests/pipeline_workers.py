@@ -65,3 +65,19 @@ def env_worker(names, conn):
     """Sends back the given environment variables as the child sees them."""
     import os
     conn.send({name: os.environ.get(name) for name in names})
+
+
+def analysis_worker(args, conn):
+    """Sends what a real child sends: the analysis of one sentence of one
+    diarization speaker, whose voice is (1, 0, 0). Speakers are not resolved
+    here: the backend does it once the child is done."""
+    import numpy as np
+    voice = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    conn.send(("progress", "Transcribing audio…"))
+    conn.send(("progress", "Identifying speakers…"))
+    conn.send(("done", {
+        "result": {"segments": [{"start": 0.0, "end": 1.0, "text": "hi", "speaker": "SPEAKER_00"}],
+                   "language": "en"},
+        "voices": {"SPEAKER_00": voice},
+        "turns": [{"start": 0.0, "end": 1.0, "speaker": "SPEAKER_00", "embedding": voice}],
+    }))
