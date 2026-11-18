@@ -227,7 +227,7 @@ electron-builder and fails when an installer exceeds **1900 MiB**.
 
 ## Icons
 
-The app icon has two masters, both 1024×1024 PNG with the S logo on a light plate. They differ only in the
+The app icon has two masters, both 1024×1024 PNG with the quill on a light plate. They differ only in the
 plate size, because the platforms reserve different margins:
 
 | Master | Plate | Used for |
@@ -241,11 +241,14 @@ than its neighbours.
 
 | File | Purpose |
 |---|---|
-| `electron/assets/logo.png` | Transparent S logo (1024×1024) — titlebar and favicon inside the app, and the source of both masters |
+| `electron/assets/logo.png` | Transparent quill (1024×1024, 700 high) — the source of both masters; the app itself does not load it |
 | `build/icons/icon.icns` | macOS, 16–1024 px (generated) |
 | `build/icons/icon.ico` | Windows, 16–256 px (generated) |
 
 Linux takes `icon.png` as is: electron-builder makes the hicolor size set from it.
+
+The quill is set half-way between the centre of its box and the centre of its ink, as its mass sits up and
+right; on the plates it is 598 px high (macOS) and 651 px (Windows, Linux).
 
 The macOS menu bar has an icon of its own: a template image, black with the shape in alpha only, which macOS
 tints for a light or dark menu bar. Windows and Linux show the colour `icon.png` in the tray.
