@@ -129,7 +129,8 @@ electron/
   assets/
     icon.png           — app icon master for Windows and Linux, 1024×1024 (see Packaging → Icons)
     icon-macos.png     — app icon master for macOS, 1024×1024
-    logo.png           — transparent S logo
+    logo.png           — transparent quill, source of the app icon masters
+    trayTemplate.png   — macOS menu bar icon, 18×18 and @2x 36×36 (template image)
 ui/
   index.html           — the page and its CSP
   src/main.tsx         — entry: theme, saved scale, providers, App
