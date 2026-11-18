@@ -5,6 +5,7 @@ import os
 import app.config as config
 from app.logger import get_logger
 from app.services import pipeline_process
+from app.controllers.transcription_controller import build_transcript
 from app.services.commit_service import CommitService
 from app.services.model_service import ModelService, require_job_models
 from app.services.pipeline_process import PipelineCancelled, run_pipeline_process
@@ -48,27 +49,32 @@ def make_job_runner(storage: TranscriptStorageService, memory_db_path: str, on_s
         )
         on_progress("Loading models…")
         if pipeline_process.RUN_PIPELINE_IN_SUBPROCESS:
-            transcript = run_pipeline_process(
+            analysis = run_pipeline_process(
                 {"audio_path": job["audio_path"], "whisper_model": job["whisper_model"],
                  "language": job["language"], "db_path": memory_db_path},
                 on_progress, cancel_event,
             )
-            memory, job_storage = SpeakerMemoryService(db_path=memory_db_path), storage
+            job_storage = storage
         else:
             if not _VERBOSE:
                 suppress_ml_noise("thread")
             controller = None
             try:
                 controller, job_storage = create_controller(whisper_model=job["whisper_model"])
-                transcript = controller.run_pipeline(job["audio_path"], on_progress=on_progress,
-                                                     language=job["language"])
-                memory = controller.memory_service
+                analysis = controller.analyse(job["audio_path"], on_progress=on_progress,
+                                              language=job["language"])
             finally:
                 _release_models(controller)
 
         if cancel_event.is_set():
             raise PipelineCancelled()
 
+        # Speakers are resolved against memory as it is now, not as it was when
+        # the job started: the user may have named, created, merged or deleted
+        # speakers, and earlier jobs recomputed profiles, while this one ran.
+        on_progress("Building transcript…")
+        memory = SpeakerMemoryService(db_path=memory_db_path)
+        transcript = build_transcript(analysis, memory, job["audio_path"])
         transcript.title = job["title"]
         on_progress("Saving to database…")
         job_storage.save(transcript)

@@ -10,8 +10,6 @@ import numpy as np
 import pytest
 
 import pipeline_workers
-from app.models.segment import Segment
-from app.models.transcript import Transcript
 from app.services import pipeline_process
 from app.services.pipeline_process import (
     PipelineCancelled, PipelineInterrupted, _pipeline_worker, run_pipeline_process,
@@ -124,30 +122,34 @@ class _Conn:
         self.sent.append(msg)
 
 
-def test_worker_runs_the_pipeline_and_sends_progress_then_the_transcript():
-    transcript = Transcript(audio_path="/rec/a.wav")
+def test_worker_analyses_and_sends_progress_then_the_analysis():
+    """The child sends the analysis, not a Transcript: it never resolves
+    speakers, the backend does once the child is done."""
+    analysis = {"result": {"segments": []}, "voices": {}, "turns": []}
 
-    def run_pipeline(audio_path, on_progress, language=None):
+    def analyse(audio_path, on_progress, language=None):
         on_progress("Transcribing audio…")
-        return transcript
+        return analysis
 
     controller = MagicMock()
-    controller.run_pipeline.side_effect = run_pipeline
+    controller.analyse.side_effect = analyse
     conn = _Conn()
     with patch("app.services.service_factory.create_controller",
                return_value=(controller, MagicMock())) as create:
         _pipeline_worker({**ARGS, "language": "en"}, conn)
 
     create.assert_called_once_with(db_path="/data/x.db", whisper_model="small")
-    controller.run_pipeline.assert_called_once()
-    assert controller.run_pipeline.call_args.args[0] == "/rec/a.wav"
-    assert controller.run_pipeline.call_args.kwargs["language"] == "en"
-    assert conn.sent == [("progress", "Transcribing audio…"), ("done", transcript)]
+    controller.analyse.assert_called_once()
+    assert controller.analyse.call_args.args[0] == "/rec/a.wav"
+    assert controller.analyse.call_args.kwargs["language"] == "en"
+    controller.run_pipeline.assert_not_called()
+    controller.memory_service.resolve_with_scores.assert_not_called()
+    assert conn.sent == [("progress", "Transcribing audio…"), ("done", analysis)]
 
 
 def test_worker_reports_a_missing_alignment_model():
     controller = MagicMock()
-    controller.run_pipeline.side_effect = AlignmentModelMissingError("ja")
+    controller.analyse.side_effect = AlignmentModelMissingError("ja")
     conn = _Conn()
     with patch("app.services.service_factory.create_controller", return_value=(controller, MagicMock())):
         _pipeline_worker(ARGS, conn)
@@ -161,13 +163,16 @@ def test_worker_reports_any_other_error():
     assert conn.sent == [("error", "RuntimeError", "bad HF token")]
 
 
-def test_transcript_with_embeddings_survives_the_trip_between_processes():
+def test_an_analysis_with_embeddings_survives_the_trip_between_processes():
     emb = np.arange(4, dtype=np.float32)
-    t = Transcript(segments=[Segment(0.0, 1.5, "hi", "SPEAKER_00", speaker_resolved="u1", embedding=emb)],
-                   audio_path="/rec/a.wav", language="en")
-    back = pickle.loads(pickle.dumps(t))
-    assert back.segments[0].text == "hi" and back.segments[0].speaker_resolved == "u1"
-    assert np.array_equal(back.segments[0].embedding, emb)
+    analysis = {"result": {"segments": [{"start": 0.0, "end": 1.5, "text": "hi", "speaker": "SPEAKER_00"}],
+                           "language": "en"},
+                "voices": {"SPEAKER_00": emb},
+                "turns": [{"start": 0.0, "end": 1.5, "speaker": "SPEAKER_00", "embedding": emb}]}
+    back = pickle.loads(pickle.dumps(analysis))
+    assert back["result"] == analysis["result"]
+    assert np.array_equal(back["voices"]["SPEAKER_00"], emb)
+    assert np.array_equal(back["turns"][0]["embedding"], emb)
 
 
 # ── The child's lifetime belongs to the backend ───────────────────────────────

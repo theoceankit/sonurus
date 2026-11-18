@@ -20,15 +20,15 @@ The cost is the child's start-up: it imports torch, WhisperX and PyAnnote again,
 
 | Child process | Backend process |
 |---|---|
-| `create_controller()`, `run_pipeline()` — models, ASR, alignment, diarization, embeddings, speaker resolution (reads speaker memory) | Title, `storage.save()`, `CommitService.commit_recognized_speakers()`, `api_memory.reload()` |
+| `create_controller()`, `TranscriptionController.analyse()` — models, ASR, alignment, diarization, embeddings | Speaker resolution and the `Transcript` (`build_transcript()`), title, `storage.save()`, `CommitService.commit_recognized_speakers()`, `api_memory.reload()` |
 
-The child only computes and sends the `Transcript` back (pickled, per-segment embeddings included). A stopped job therefore never leaves anything in the database.
+The child only computes and sends its analysis back, pickled: `{"result": aligned WhisperX result with diarization speakers, "voices": {SPEAKER_XX: voice}, "turns": [{start, end, speaker, embedding}]}`. It never reads speaker memory. The backend resolves the speakers once the child is done, against memory read from the database at that moment, so names, speakers and profiles changed while the job ran (in the editor, the Speakers window or by an earlier job's commit) count, and a speaker removed meanwhile is never matched. A stopped job never leaves anything in the database.
 
 ---
 
 ## `run_pipeline_process(args, on_progress, cancel_event)`
 
-`args`: `audio_path`, `whisper_model`, `language`, `db_path` (speaker memory, read only). Starts a `spawn` child, relays its progress to `on_progress`, and returns the `Transcript`.
+`args`: `audio_path`, `whisper_model`, `language`, `db_path`. Starts a `spawn` child, relays its progress to `on_progress`, and returns the analysis.
 
 - `cancel_event` is checked every 0.2 s; once set, the child is terminated (killed after 5 s) and `PipelineCancelled` is raised. Pausing the queue, a live recording starting, deleting the running job and backend shutdown set it.
 - If `on_progress` raises, the child is stopped and the exception propagates.
@@ -39,7 +39,7 @@ Messages from the child (over a `Pipe`):
 | Message | Result in the backend |
 |---|---|
 | `("progress", step)` | `on_progress(step)` |
-| `("done", transcript)` | returned |
+| `("done", analysis)` | returned |
 | `("alignment_missing", language)` | `AlignmentModelMissingError(language)` → structured WS error |
 | `("error", type_name, message)` | `RuntimeError(message)` |
 | none, child killed by SIGTERM / SIGINT / SIGHUP | `PipelineInterrupted` (a `PipelineCancelled`): stopped from outside, not a failure |

@@ -147,7 +147,7 @@ def test_transcribe_guard_passes_when_both_models_installed(client):
     mock_controller.memory_service = MagicMock()
     mock_transcript = MagicMock()
     mock_transcript.db_id = "test-transcript-id"
-    mock_controller.run_pipeline.return_value = mock_transcript
+    mock_controller.analyse.return_value = mock_transcript
 
     mock_storage = MagicMock()
 
@@ -245,7 +245,7 @@ def test_transcribe_not_blocked_when_language_is_none(client):
     mock_controller.memory_service = MagicMock()
     mock_transcript = MagicMock()
     mock_transcript.db_id = "test-id"
-    mock_controller.run_pipeline.return_value = mock_transcript
+    mock_controller.analyse.return_value = mock_transcript
 
     with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
@@ -271,7 +271,7 @@ def test_transcribe_not_blocked_when_language_is_auto(client):
     mock_controller.memory_service = MagicMock()
     mock_transcript = MagicMock()
     mock_transcript.db_id = "test-id"
-    mock_controller.run_pipeline.return_value = mock_transcript
+    mock_controller.analyse.return_value = mock_transcript
 
     with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
@@ -299,7 +299,7 @@ def test_transcribe_not_blocked_for_language_not_in_alignment_catalog(client):
     mock_controller.memory_service = MagicMock()
     mock_transcript = MagicMock()
     mock_transcript.db_id = "test-id"
-    mock_controller.run_pipeline.return_value = mock_transcript
+    mock_controller.analyse.return_value = mock_transcript
 
     with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(
@@ -499,7 +499,7 @@ def test_transcribe_guard_passes_when_alignment_model_installed(client):
     mock_controller.memory_service = MagicMock()
     mock_transcript = MagicMock()
     mock_transcript.db_id = "test-id"
-    mock_controller.run_pipeline.return_value = mock_transcript
+    mock_controller.analyse.return_value = mock_transcript
 
     with patch("app.services.transcription_job.create_controller", return_value=(mock_controller, MagicMock())):
         r = tc.post(

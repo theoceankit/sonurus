@@ -159,7 +159,7 @@ def test_without_nltk_installed_it_is_a_no_op():
 def test_the_pipeline_process_limits_nltk_before_the_models_load():
     calls = []
     controller = MagicMock()
-    controller.run_pipeline.side_effect = lambda *a, **k: calls.append("pipeline")
+    controller.analyse.side_effect = lambda *a, **k: calls.append("pipeline")
 
     with patch.object(nltk_data, "use_bundled_nltk_data", side_effect=lambda: calls.append("nltk")), \
          patch("app.services.service_factory.create_controller",

@@ -144,7 +144,7 @@ def test_the_pipeline_child_disables_onnxruntime_telemetry_before_loading_models
     from app.services.pipeline_process import _pipeline_worker
     order = []
     controller = MagicMock()
-    controller.run_pipeline.return_value = "transcript"
+    controller.analyse.return_value = "transcript"
 
     def create_controller(**kwargs):
         order.append("models")

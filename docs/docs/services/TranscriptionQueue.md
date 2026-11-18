@@ -43,11 +43,12 @@ One daemon thread (`start_worker()` / `stop_worker()`, called by the API lifespa
 
 ## Running one job — `make_job_runner(storage, memory_db_path, on_saved)`
 
-1. `Loading models…`, then the pipeline — in a child process in production ([Pipeline Process](PipelineProcess.md)), in-process in tests (`create_controller()`, then `_release_models()`).
+1. `Loading models…`, then the pipeline's analysis (`TranscriptionController.analyse()`) — in a child process in production ([Pipeline Process](PipelineProcess.md)), in-process in tests (`create_controller()`, then `_release_models()`).
 2. If the job was cancelled meanwhile: `PipelineCancelled`, nothing is saved.
-3. The job's title is set, `Saving to database…`, `storage.save()`.
-4. `CommitService.commit_recognized_speakers()`. A failure here is logged but does not fail the job — the transcript already exists and a retry would save it twice.
-5. `on_saved()` (the API reloads its cached speaker memory); returns the transcript id.
+3. `Building transcript…`: speaker memory is read from the database now, not when the job started, and `build_transcript()` resolves the speakers against it. A speaker named, created or recomputed while the job ran is recognized; one removed meanwhile is not matched.
+4. The job's title is set, `Saving to database…`, `storage.save()`.
+5. `CommitService.commit_recognized_speakers()` with the same memory. A failure here is logged but does not fail the job — the transcript already exists and a retry would save it twice.
+6. `on_saved()` (the API reloads its cached speaker memory); returns the transcript id.
 
 ---
 

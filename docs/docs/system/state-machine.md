@@ -56,10 +56,10 @@ Each step sends a progress message over WebSocket, displayed in the sidebar job 
 
 | Step | Key calls |
 |---|---|
-| Loading models | `SpeakerMemoryService()`, `EmbeddingService()`, `TranscriptionService()` |
+| Loading models | `EmbeddingService()`, `TranscriptionService()` |
 | Transcribing | `TranscriptionService.transcribe()` — WhisperX ASR + alignment + diarization |
-| Identifying speakers | `EmbeddingService.extract_all()` → `SpeakerMemoryService.resolve()` |
-| Building transcript | `TranscriptBuilder.build()` → `TranscriptBuilder.attach_embeddings()` |
+| Identifying speakers | `EmbeddingService.extract_all()` — a voice per diarization speaker and per turn |
+| Building transcript | In the backend: `SpeakerMemoryService()` read now → `resolve()` → `TranscriptBuilder.build()` → `TranscriptBuilder.attach_embeddings()` |
 | Saving | `TranscriptStorageService.save()` → `CommitService.commit_recognized_speakers()` |
 
 ---
@@ -134,4 +134,4 @@ stateDiagram-v2
 
 - **Segment speaker transitions (Resolved → Overridden) only have a lasting effect while the Transcript is Fresh.** Once Stale, speaker reassignments update the DB record but do not update long-term memory.
 - **The App Session's Reviewing state is the only context in which Transcript and Segment state transitions can occur.** Background transcription jobs do not affect the current editor state.
-- **resolve()** (the Raw → Resolved transition for all segments) runs exactly once — inside the pipeline, before the user ever sees the transcript.
+- **resolve()** (the Raw → Resolved transition for all segments) runs exactly once — when the pipeline is done, in the backend, before the user ever sees the transcript. It reads speaker memory as it is then: changes the user made while the job ran count.
