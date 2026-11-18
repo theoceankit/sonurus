@@ -4,6 +4,7 @@
 // installer icons built from them by scripts/build-icons.js.
 //   electron/assets/icon-macos.png — macOS: plate 824 on a 1024 canvas, margin 100
 //   electron/assets/icon.png       — Windows, Linux: plate 896, margin 64, 8 px up
+// The macOS tray icon is a template image drawn apart (build/icons/trayTemplate.svg).
 // The tests read PNG, ICNS and ICO with Node built-ins only (CI has no node_modules).
 
 const test   = require('node:test')
@@ -134,3 +135,19 @@ test('icon.ico is built from the Windows, Linux master', () => {
   const box = opaqueBox(img)
   near(box.x, 16, 'plate x'); near(box.y, 14, 'plate y'); near(box.w, 224, 'plate width'); near(box.h, 224, 'plate height')
 })
+
+// macOS menu bar: a template image, black with the shape in alpha only; the system
+// tints it for a light or dark menu bar. 18 pt, @1x and @2x, the name ends in Template.
+for (const [file, size] of [['electron/assets/trayTemplate.png', 18], ['electron/assets/trayTemplate@2x.png', 36]]) {
+  test(`${file} is a ${size} px template image`, () => {
+    const img = decodePng(read(file))
+    assert.deepEqual([img.width, img.height], [size, size])
+    let shown = 0
+    for (let i = 0; i < img.rgba.length; i += 4) {
+      if (img.rgba[i + 3] === 0) continue
+      shown++
+      assert.deepEqual([...img.rgba.subarray(i, i + 3)], [0, 0, 0], `pixel ${i / 4} is not black`)
+    }
+    assert.ok(shown > size * size / 4, `only ${shown} pixels shown`)
+  })
+}

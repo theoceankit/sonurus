@@ -6,7 +6,7 @@ const { BackendRefusedError, backendRequest, restartBackend, startBackend, stopB
 const { devUserDataPath } = require('./backend-identity')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 const { showModelsFolder } = require('./models-folder')
-const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown, trayMenu } = require('./tray')
+const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown, trayIcon, trayMenu } = require('./tray')
 const { watchBackendEvents } = require('./backend-events')
 const { appUserModelId, micApps, notificationsOn, promptFor, rememberMicApp, stopOutcome, stopTimedOut } = require('./recording-prompts')
 const { uiEntry } = require('./ui-entry')
@@ -353,10 +353,11 @@ function showWindow() {
   mainWin.focus()
 }
 
-// The app's colour icon, made small: the tray has no icon of its own yet.
+// A template image in the macOS menu bar, the colour app icon elsewhere (electron/tray.js).
 function createTray() {
-  const size = process.platform === 'win32' ? 32 : process.platform === 'darwin' ? 18 : 22
-  const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icon.png')).resize({ width: size, height: size })
+  const { file, size } = trayIcon(process.platform)
+  const image = nativeImage.createFromPath(path.join(__dirname, 'assets', file))
+  const icon = size ? image.resize({ width: size, height: size }) : image
   tray = new Tray(icon)
   tray.setToolTip('Sonorus')
   tray.setContextMenu(Menu.buildFromTemplate(trayMenu({ open: showWindow, quit: () => void requestQuit() })))

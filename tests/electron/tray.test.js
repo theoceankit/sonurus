@@ -8,7 +8,7 @@ const path = require('path')
 
 const ROOT = path.resolve(__dirname, '..', '..')
 const {
-  closeAction, quitQuestion, trayMenu, trayAvailable, confirmQuit, trayHintShown, rememberTrayHint,
+  closeAction, quitQuestion, trayMenu, trayAvailable, confirmQuit, trayHintShown, rememberTrayHint, trayIcon,
 } = require(path.join(ROOT, 'electron', 'tray.js'))
 
 const snapshot = (over = {}) => ({ recording: null, running_job_id: null, ...over })
@@ -172,4 +172,19 @@ test('a damaged state file counts as not shown', () => {
     fs.writeFileSync(t.state, '{')
     assert.equal(trayHintShown(t.state), false)
   } finally { t.done() }
+})
+
+test('macOS takes the template image as it is: the menu bar tints it and picks @2x', () => {
+  assert.deepEqual(trayIcon('darwin'), { file: 'trayTemplate.png', size: null })
+})
+
+test('Windows and Linux take the colour app icon, made small', () => {
+  assert.deepEqual(trayIcon('win32'), { file: 'icon.png', size: 32 })
+  assert.deepEqual(trayIcon('linux'), { file: 'icon.png', size: 22 })
+})
+
+test('every tray icon file is in electron/assets', () => {
+  for (const platform of ['darwin', 'win32', 'linux']) {
+    assert.ok(fs.existsSync(path.join(ROOT, 'electron', 'assets', trayIcon(platform).file)), platform)
+  }
 })
