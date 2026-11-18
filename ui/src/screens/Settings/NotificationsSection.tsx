@@ -4,9 +4,11 @@ import { FieldRow } from '../../components/FieldRow/FieldRow'
 import { SectionCard } from '../../components/SectionCard/SectionCard'
 import { Select } from '../../components/Select/Select'
 import { Toggle } from '../../components/Toggle/Toggle'
+import { Stack } from '../../components/Stack/Stack'
 import { markNotImplemented } from '../../not-implemented'
-import type { ElectronSettings, MicApp } from '../../platform/electron-api'
+import type { ElectronSettings, MicApp, NotificationRefusal } from '../../platform/electron-api'
 import { useMicApps } from '../../platform/mic-apps'
+import { useNotificationRefusal } from '../../platform/notification-refusal'
 import { settingsStore, useSettings } from '../../platform/settings'
 import styles from './Settings.module.css'
 
@@ -61,6 +63,26 @@ function SelectedApps({ selected, disabled }: { selected: string[]; disabled: bo
   )
 }
 
+// What the system said when it did not show a notification, and where it allows them.
+function refusalText(platform: string): string {
+  if (platform === 'darwin') {
+    return 'macOS did not show the last notification. Allow notifications for Sonorus in System Settings, under Notifications.'
+  }
+  if (platform === 'win32') {
+    return 'Windows did not show the last notification. Turn on notifications for Sonorus in Windows Settings, under System and Notifications.'
+  }
+  return 'The system did not show the last notification.'
+}
+
+function RefusedNote({ refusal, platform }: { refusal: NotificationRefusal; platform: string }) {
+  return (
+    <Stack gap={1} role="status" aria-label="Notifications refused" className={styles.refusedNotice}>
+      <span>{refusalText(platform)}</span>
+      <span className={styles.refusedError}>{refusal.error}</span>
+    </Stack>
+  )
+}
+
 // Notifications of the main process (electron/recording-prompts.js): when another app
 // holds a microphone for a while a call may have started, when it lets go or nothing is
 // heard during a recording the call may have ended.
@@ -68,6 +90,7 @@ export function NotificationsSection() {
   const settings = useSettings()
   const watch = useMicWatch().data
   const platform = usePlatform()
+  const refusal = useNotificationRefusal()
   if (!settings) return null
   const all = settings.notifications !== false
   // Until the backend has said, the controls stay as they are.
@@ -82,7 +105,11 @@ export function NotificationsSection() {
   return (
     <>
       <SectionCard>
-        <FieldRow label={ALL} hint="Notifications of Sonorus, also when its window is closed to the tray.">
+        <FieldRow
+          label={ALL}
+          hint="Notifications of Sonorus, also when its window is closed to the tray."
+          note={refusal ? <RefusedNote refusal={refusal} platform={platform} /> : undefined}
+        >
           <Toggle label={ALL} checked={all} onChange={on => patch({ notifications: on })} />
         </FieldRow>
       </SectionCard>

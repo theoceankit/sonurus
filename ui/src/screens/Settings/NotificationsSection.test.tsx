@@ -6,7 +6,7 @@ import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fix
 import { App } from '../../App'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { OverlayProvider } from '../../OverlayProvider'
-import type { ElectronSettings, MicApp } from '../../platform/electron-api'
+import type { ElectronAPI, ElectronSettings, MicApp, NotificationRefusal } from '../../platform/electron-api'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../../platform/settings'
 import { findDialog, findTitlebarButton } from '../../test-queries'
@@ -16,8 +16,13 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-async function setup(options: FixtureOptions = {}, saved: Partial<ElectronSettings> = {}, apps: MicApp[] = []) {
-  const bridge = createMockElectronAPI({ getMicApps: async () => apps })
+async function setup(
+  options: FixtureOptions = {},
+  saved: Partial<ElectronSettings> = {},
+  apps: MicApp[] = [],
+  changes: Partial<ElectronAPI> = {},
+) {
+  const bridge = createMockElectronAPI({ getMicApps: async () => apps, ...changes })
   await bridge.writeSettings({ ...DEFAULT_SETTINGS, ...saved })
   vi.stubGlobal('electronAPI', bridge)
   render(<ApiProvider client={createFixtureClient(options)}><OverlayProvider><App /></OverlayProvider></ApiProvider>)
@@ -101,4 +106,48 @@ test('where the system does not name the app, a call ends only by silence', asyn
   expect(toggle(START).hasAttribute('data-not-implemented')).toBe(false)
   expect(screen.getByText('During a recording: when nothing is heard for 5 minutes.')).toBeTruthy()
   expect(screen.queryByText(/let go of the microphone/)).toBeNull()
+})
+
+const refusal: NotificationRefusal = { title: 'Call started', error: 'Notifications are not allowed for this application' }
+
+test('a notification the system refused shows a note with the error and where to allow them on macOS', async () => {
+  await setup({}, {}, [], { getPlatform: async () => 'darwin', getNotificationRefusal: async () => refusal })
+  const note = await screen.findByRole('status', { name: 'Notifications refused' })
+  expect(note.textContent).toContain('macOS did not show the last notification.')
+  expect(note.textContent).toContain('System Settings')
+  expect(note.textContent).toContain('Notifications are not allowed for this application')
+})
+
+test('on Windows the note says where Windows allows notifications', async () => {
+  await setup({}, {}, [], { getPlatform: async () => 'win32', getNotificationRefusal: async () => refusal })
+  const note = await screen.findByRole('status', { name: 'Notifications refused' })
+  expect(note.textContent).toContain('Windows did not show the last notification.')
+})
+
+test('elsewhere the note names no settings of the system', async () => {
+  await setup({}, {}, [], { getNotificationRefusal: async () => refusal })
+  const note = await screen.findByRole('status', { name: 'Notifications refused' })
+  expect(note.textContent).toContain('The system did not show the last notification.')
+})
+
+test('without a refusal there is no note', async () => {
+  await setup()
+  await waitFor(() => expect(toggle(ALL).getAttribute('aria-checked')).toBe('true'))
+  expect(screen.queryByRole('status', { name: 'Notifications refused' })).toBeNull()
+})
+
+test('the note follows the main process: it comes with a refusal and goes once a notification shows', async () => {
+  let current: NotificationRefusal | null = null
+  let tell = () => {}
+  await setup({}, {}, [], {
+    getNotificationRefusal: async () => current,
+    onNotificationRefusal: callback => { tell = callback; return () => { tell = () => {} } },
+  })
+  expect(screen.queryByRole('status', { name: 'Notifications refused' })).toBeNull()
+  current = refusal
+  tell()
+  await screen.findByRole('status', { name: 'Notifications refused' })
+  current = null
+  tell()
+  await waitFor(() => expect(screen.queryByRole('status', { name: 'Notifications refused' })).toBeNull())
 })

@@ -222,5 +222,7 @@ test('the main process sets the AppUserModelID on Windows before any notificatio
   const set = src.indexOf('app.setAppUserModelId(appUserModelId(')
   assert.ok(set > 0, 'main.js does not set the AppUserModelID')
   assert.ok(src.lastIndexOf("process.platform === 'win32'", set) > 0)
-  assert.ok(set < src.indexOf('new Notification('), 'set after the first notification')
+  const first = src.indexOf('createNotifier(')
+  assert.ok(first > 0, 'main.js makes no notifier')
+  assert.ok(set < first, 'set after the notifier')
 })

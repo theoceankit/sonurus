@@ -9,6 +9,7 @@ const { showModelsFolder } = require('./models-folder')
 const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown, trayIcon, trayMenu } = require('./tray')
 const { watchBackendEvents } = require('./backend-events')
 const { appUserModelId, micApps, notificationsOn, promptFor, rememberMicApp, stopOutcome, stopTimedOut } = require('./recording-prompts')
+const { createNotifier, notificationRefusal, rememberNotificationRefusal } = require('./notifications')
 const { uiEntry } = require('./ui-entry')
 const { windowChrome, themeSource, overlayDimmer } = require('./window-chrome')
 
@@ -60,8 +61,6 @@ let started = false
 let backendEvents = null
 // What a click on a notification asks the window to open, until the window takes it.
 let windowIntent = null
-// Notifications on screen: kept from the garbage collector, which would drop their click.
-const notifications = new Set()
 // A recording stopped automatically, until the backend says how it ended.
 let autoStop = null
 const AUTO_STOP_WAIT_MS = 60000
@@ -221,6 +220,7 @@ ipcMain.handle('take-window-intent', event => {
   return intent
 })
 ipcMain.handle('get-mic-apps', () => micApps(getAppStatePath()))
+ipcMain.handle('get-notification-refusal', () => notificationRefusal(getAppStatePath()))
 
 ipcMain.handle('get-platform', () => process.platform)
 ipcMain.handle('get-tray-available', () => hasTray)
@@ -322,15 +322,22 @@ function endAutoStop(notice) {
   notify(notice, () => showWindow())
 }
 
-function notify({ title, body }, onClick) {
-  if (!Notification.isSupported()) return
-  const notification = new Notification({ title, body })
-  notifications.add(notification)
-  const forget = () => notifications.delete(notification)
-  notification.on('click', () => { forget(); onClick() })
-  notification.on('close', forget)
-  notification.on('failed', forget)
-  notification.show()
+// A refusal of the system is logged and kept for Settings → Notifications until a
+// notification shows again (electron/notifications.js).
+const notifier = createNotifier({
+  Notification,
+  log: line => console.error(line),
+  onRefused: refusal => setNotificationRefusal(refusal),
+  onShown: () => { if (notificationRefusal(getAppStatePath())) setNotificationRefusal(null) },
+})
+
+function notify(notice, onClick) {
+  notifier.notify(notice, { onClick })
+}
+
+function setNotificationRefusal(refusal) {
+  rememberNotificationRefusal(getAppStatePath(), refusal)
+  if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('notification-refusal')
 }
 
 // The window in front, told to open a dialog.
@@ -365,12 +372,14 @@ function createTray() {
   tray.on('click', showWindow)
 }
 
-// The first time the window closes to the tray, the system says where the app went.
+// The first time the window closes to the tray, the system says where the app went. It
+// counts as said once the system showed it: after a refusal it comes again on the next close.
 function showTrayHint() {
   if (!notificationsOn(savedSettings()) || trayHintShown(getAppStatePath())) return
-  rememberTrayHint(getAppStatePath())
-  if (!Notification.isSupported()) return
-  new Notification({ title: 'Sonorus', body: 'Sonorus is still running. Quit it from the tray icon.' }).show()
+  notifier.notify(
+    { title: 'Sonorus', body: 'Sonorus is still running. Quit it from the tray icon.' },
+    { onShow: () => rememberTrayHint(getAppStatePath()) },
+  )
 }
 
 function quitNow() {

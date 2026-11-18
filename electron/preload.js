@@ -22,4 +22,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('window-intent', listener)
   },
   getMicApps:      () => ipcRenderer.invoke('get-mic-apps'),
+  getNotificationRefusal: () => ipcRenderer.invoke('get-notification-refusal'),
+  onNotificationRefusal: (callback) => {
+    const listener = () => callback()
+    ipcRenderer.on('notification-refusal', listener)
+    return () => ipcRenderer.removeListener('notification-refusal', listener)
+  },
 })
