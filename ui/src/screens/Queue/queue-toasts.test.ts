@@ -32,3 +32,13 @@ test('a recording that could not be saved, or lost a source, says so', () => {
   expect(queueEventToast({ type: 'recording_source_lost', source: 'system', title: 'Standup' }, () => {})?.message)
     .toBe('System audio was lost. The recording was stopped and saved.')
 })
+
+test('a recording whose system audio held nothing says where macOS allows it, as a hint', () => {
+  const toast = queueEventToast({ type: 'recording_system_silent', title: 'Standup' }, () => {})
+  expect(toast?.message).toBe(
+    'No system audio was heard in "Standup". If something played, allow Sonorus in System Settings → '
+    + 'Privacy & Security → Screen & System Audio Recording.',
+  )
+  expect(toast?.type).toBeUndefined()
+  expect(toast?.duration).toBeGreaterThan(6000)
+})

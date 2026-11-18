@@ -88,3 +88,20 @@ test('the macOS app says why it uses the microphone and may use it', () => {
   assert.ok(pkg.build.mac.extendInfo.NSMicrophoneUsageDescription.length > 0)
   assert.ok(read(pkg.build.mac.entitlementsInherit).includes('com.apple.security.device.audio-input'))
 })
+
+// The helper taps system audio (Core Audio, macOS 14.2 and newer) for the app
+// that started it. Without the reason in Info.plist the system refuses without
+// asking and the tap gives silence, with no error.
+test('the macOS app says why it records system audio', () => {
+  assert.ok(pkg.build.mac.extendInfo.NSAudioCaptureUsageDescription.length > 0)
+  assert.ok(read('native/macos/sonorus-capture/main.swift').includes('AudioHardwareCreateProcessTap'))
+})
+
+// System audio is a Core Audio tap only, which needs macOS 14.2: the app does
+// not start on an older system, and nothing asks for Screen Recording any more.
+test('the macOS app needs 14.2 and records no screen', () => {
+  assert.equal(pkg.build.mac.minimumSystemVersion, '14.2')
+  assert.ok(!pkg.scripts['build:capture'].includes('ScreenCaptureKit'))
+  assert.ok(!read('native/macos/sonorus-capture/main.swift').includes('ScreenCaptureKit'))
+  assert.ok(!read(pkg.build.mac.entitlements).includes('com.apple.security.screen-capture'))
+})

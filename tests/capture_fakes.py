@@ -12,6 +12,8 @@ class FakeCapture:
         self.fail_stop: Exception | None = None
         self.stopped: list[tuple] = []
         self.discarded: list[str] = []
+        # Kinds whose track holds zeros only where that may be a refused permission.
+        self.only_zeros: set[str] = set()
         self.clock = 1000.0
 
     def start_capture(self, source_id=None, kind="system"):
@@ -34,6 +36,9 @@ class FakeCapture:
 
     def alive(self, job_id):
         return job_id in self.jobs and self.jobs[job_id]["alive"]
+
+    def only_silence(self, job_id):
+        return job_id in self.jobs and self.jobs[job_id]["kind"] in self.only_zeros
 
     def lose(self, kind):
         for job in self.jobs.values():

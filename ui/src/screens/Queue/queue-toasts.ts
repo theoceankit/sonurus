@@ -4,6 +4,8 @@ import type { QueueUpdate, TranscriptListItem } from '../../api/types'
 import { toast, type ToastOptions } from '../../components/Toast/toast-store'
 import { ALIGNMENT_MISSING } from './alignment'
 
+const SILENT_HINT_MS = 10000
+
 // What the user hears about a job that ended. A job that failed on a missing
 // alignment model has the Alignment model dialog instead.
 export function queueEventToast(event: QueueUpdate, openRecording: (transcriptId: number) => void): ToastOptions | null {
@@ -18,6 +20,15 @@ export function queueEventToast(event: QueueUpdate, openRecording: (transcriptId
   if (event.type === 'recording_source_lost') {
     const source = event.source === 'mic' ? 'The microphone was disconnected' : 'System audio was lost'
     return { message: `${source}. The recording was stopped and saved.`, type: 'error' }
+  }
+  // Saved and queued; macOS gives these zeros when it may not record system audio, and
+  // when nothing played. A hint, so not an error, and long enough to read.
+  if (event.type === 'recording_system_silent') {
+    return {
+      message: `No system audio was heard in "${event.title}". If something played, allow Sonorus in System Settings → `
+        + 'Privacy & Security → Screen & System Audio Recording.',
+      duration: SILENT_HINT_MS,
+    }
   }
   return null
 }

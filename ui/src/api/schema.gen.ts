@@ -1235,6 +1235,21 @@ export interface components {
             whisper_model?: string | null;
         };
         /**
+         * RecordingSystemSilentEvent
+         * @description The recording was saved and queued, but its system audio held zeros
+         *     only. On macOS that is also what a refused System Audio Recording
+         *     permission gives: a hint where to allow it, not an error.
+         */
+        RecordingSystemSilentEvent: {
+            /** Title */
+            title: string;
+            /**
+             * Type
+             * @constant
+             */
+            type: "recording_system_silent";
+        };
+        /**
          * RefusalResponse
          * @description A refusal of the queue's job routes (400, and 409 for a job that started)
          *     and of a speaker's handle (400, and 409 for a taken one): a message for the

@@ -12,7 +12,7 @@ sidebar_position: 8
 
 Electron's WebRTC layer (`getDisplayMedia`) cannot capture system audio reliably across all platforms:
 
-- **macOS** — returns a video-only stream; the "Share computer sound" toggle does not appear. ScreenCaptureKit audio requires a native entitlement that Chromium/Electron do not expose.
+- **macOS** — returns a video-only stream; the "Share computer sound" toggle does not appear. System audio needs a Core Audio tap, which Chromium/Electron do not offer.
 - **Linux** — PulseAudio/PipeWire monitor sources do not appear in `enumerateDevices()` inside Electron's sandboxed renderer.
 - **Windows** — Electron's loopback (`setDisplayMediaRequestHandler` with `audio: 'loopback'`) records only the default output device and would need its own mixing path in the renderer; one backend path for all OSes gives every recording the same merge and loudness levelling.
 
@@ -28,7 +28,7 @@ Each OS has a driver class in `audio_capture_service.py` behind one interface: `
 
 | Platform | Driver | Tool | How it works |
 |---|---|---|---|
-| macOS | `_MacCapture` | `sonorus-capture` (Swift binary, ScreenCaptureKit; `--input`: AVCaptureSession) | Spawned as a subprocess; prints `READY` once capturing; writes WAV to an intermediate temp file; stopped with SIGINT; `--list-inputs` gives the microphones |
+| macOS 14.2+ | `_MacCapture` | `sonorus-capture` (Swift binary, Core Audio tap; `--input`: AVCaptureSession) | One system audio source, `{"id": "system", "label": "System audio"}` (the tap records every process, so its id is not checked); spawned as a subprocess; prints `READY` once capturing; writes WAV to an intermediate temp file; stopped with SIGINT; `--list-inputs` gives the microphones |
 | Linux | `_LinuxCapture` | `parec -d <source> --file-format=wav --rate=48000 --channels=2 --latency-msec=100` (microphone: `--channels=1`) | PulseAudio / PipeWire source recorded directly; system audio: "System audio (default)" first, then each output device's monitor named after the device (`pactl -f json list sinks`); microphone: each input source (`pactl -f json list sources` without monitors) |
 | Windows | `_WindowsCapture` | `sonorus-capture.exe` (C++, WASAPI loopback; `--input`: an input device) | `--list` gives the output devices, `--list --input` the input devices; spawned with `[--input] --device <id> --output <wav>`; prints `READY`; writes silence while nothing plays; stopped with `stop` on stdin (Windows has no SIGINT for a child process) |
 
@@ -39,7 +39,7 @@ Each OS has a driver class in `audio_capture_service.py` behind one interface: `
 | Case | Detail |
 |---|---|
 | macOS helper missing | `sonorus-capture binary not found; run: npm run build:capture` |
-| macOS helper does not print `READY` within 5 s | `sonorus-capture timed out starting.` / `sonorus-capture failed to start: <stderr>` |
+| macOS helper does not print `READY` within 5 s | `sonorus-capture timed out starting.` / `sonorus-capture failed to start: <stderr>` (e.g. `ERROR: could not create the audio tap (status …)`) |
 | Linux: `parec` not on `PATH` | names `parec` and the package to install (`pulseaudio-utils`, `libpulse` on Arch Linux) |
 | Linux: the selected monitor source is not in the `pactl` list | `The selected system audio source is not available: <id>. …` — PipeWire would otherwise silently record the default source |
 | Linux: capture process exits within 0.5 s | `System audio capture failed to start: <stderr>` (e.g. no sound server) |
@@ -48,7 +48,11 @@ Each OS has a driver class in `audio_capture_service.py` behind one interface: `
 | Windows: the selected output device is not in the `--list` output | `The selected system audio source is not available: <id>. …` |
 | Windows helper exits or does not print `READY` within 5 s | `sonorus-capture failed to start: <stderr>` (e.g. `ERROR: could not open the output device (0x…)`) / `sonorus-capture timed out starting.` |
 
-When the stopped capture file is empty, `stop_capture()` raises the driver's own message: the Screen Recording permission hint on macOS, `No system audio was captured from the selected source.` on Linux, `No system audio was captured from the selected output device.` on Windows. The microphone's own: `No audio was captured from the microphone.` The UI (`captureStartError()` in `ui/src/recording/sources.ts`) shows the Screen Recording hint only on macOS.
+When the stopped capture file is empty, `stop_capture()` raises the driver's own message: `No system audio was captured.` on macOS, `No system audio was captured from the selected source.` on Linux, `No system audio was captured from the selected output device.` on Windows. The microphone's own: `No audio was captured from the microphone.` On macOS a start error that names a permission (`permission`, `denied`, `TCC`) is shown as where to allow system audio recording (`captureStartError()` in `ui/src/recording/sources.ts`).
+
+### System audio that held nothing (macOS)
+
+A tap the system may not record — the user refused System Audio Recording, or the app that started the backend has no `NSAudioCaptureUsageDescription` — runs, prints `READY` and gives zeros; nothing says it was refused. A system track of zeros only is therefore no error: nothing may have played. `only_silence(job_id)` reads the track recorded so far and says whether every sample is zero (`only_zeros()` in `app/services/track_silence.py`; a header without samples counts, a file it cannot read does not); only drivers with `zeros_may_be_refusal` (macOS) answer it, on Linux and Windows it is always `False`. `LiveRecordingService` asks it before the stop, keeps the recording as usual and sends `recording_system_silent` with the title, which the window shows as a hint of where to allow it.
 
 ---
 
@@ -93,10 +97,10 @@ Final recordings are never kept in the OS temp directory: their path is stored i
 
 ### Purpose
 
-Captures system audio on macOS using ScreenCaptureKit, or the microphone using AVCaptureSession (`--input`), and writes a WAV file. Runs as a subprocess of `AudioCaptureService`; stops cleanly on SIGINT/SIGTERM.
+Captures system audio on macOS 14.2 and newer with a Core Audio process tap, or the microphone using AVCaptureSession (`--input`), and writes a WAV file. Runs as a subprocess of `AudioCaptureService`; stops cleanly on SIGINT/SIGTERM. It also watches which apps use a microphone (`--watch-mic`, [MicActivityService](./MicActivityService.md)).
 
 ```
-sonorus-capture --output <file.wav>                         → system audio
+sonorus-capture --output <file.wav>                         → system audio, 16-bit PCM in the tap's rate and channels
 sonorus-capture --list-inputs                               → [{"id": "<uniqueID>", "label": "<name>", "default": true|false}, …]
 sonorus-capture --input <uniqueID | default> --output <file.wav>  → the microphone, mono 16-bit PCM, 48 kHz
 ```
@@ -115,8 +119,8 @@ The binary is gitignored. It must be rebuilt on each macOS development machine.
 The build command:
 ```bash
 swiftc -O native/macos/sonorus-capture/main.swift \
-  -framework ScreenCaptureKit \
   -framework AVFoundation \
+  -framework CoreAudio \
   -framework Foundation \
   -o electron/resources/mac/sonorus-capture
 ```
@@ -131,41 +135,50 @@ ls -la /tmp/test.wav
 afplay /tmp/test.wav
 ```
 
-All diagnostic output (errors, stream issues) goes to stderr. In normal operation the binary is silent.
+All diagnostic output goes to stderr; the backend logs it when the track stops. In normal operation the binary is silent, but for `INFO: … s of gaps written as silence` after an output device change and `WARNING: only silence was captured …` when not one sample was other than zero. Run from a terminal, the permission is asked for that terminal; some terminals never show the prompt and get zeros.
 
 ### Permissions
 
-Screen Recording permission must be granted once in **System Settings → Privacy & Security → Screen Recording** for the terminal or app that launches the server; microphone access the same way under **Microphone** (the helper asks for it on the first microphone recording).
+System audio is recorded under the **System Audio Recording** permission of the app that started the backend (Sonorus in the packaged app, the terminal in development). The system asks once, at the first `AudioDeviceStart` of a tap, and only when that app's `Info.plist` carries `NSAudioCaptureUsageDescription` (`build.mac.extendInfo` in `package.json`); otherwise, or when refused, the tap gives zeros (see [System audio that held nothing](#system-audio-that-held-nothing-macos)). It is listed under **System Settings → Privacy & Security → Screen & System Audio Recording** and reset with `tccutil reset AudioCapture com.sonorus.app`. The microphone is asked for on the first microphone recording and listed under **Microphone**.
 
-For distribution builds, the entitlements `com.apple.security.screen-capture` and `com.apple.security.device.audio-input` are declared in `build/entitlements.mac.plist` (inherited by the helper).
+For distribution builds, `com.apple.security.device.audio-input` is declared in `build/entitlements.mac.plist` (inherited by the helper) for the microphone under the hardened runtime; the tap needs no entitlement. The permissions belong to the app's code signature, so a build signed differently may be asked again.
 
 ### How it works internally
 
 ```
-SCShareableContent.current        → get list of displays
-SCContentFilter(display:)         → capture the primary display (audio only)
-SCStreamConfiguration
-  capturesAudio = true
-  excludesCurrentProcessAudio = true
-  minimumFrameInterval = 1/1 s    → minimal video (2×2 px) to satisfy SCStream
-SCStream → addStreamOutput(.audio)
+start
+  CATapDescription(stereoGlobalTapButExcludeProcesses: [])
+    private, unmuted          → a stereo mix of every process; the sound still plays
+  AudioHardwareCreateProcessTap → the tap; its format from kAudioTapPropertyFormat
+  AVAudioFile(forWriting:)    → 16-bit PCM in the tap's rate and channels, once
+  AudioHardwareCreateAggregateDevice
+    private, no sub-devices, the tap alone (a headset as a sub-device would bring its inputs)
+  AudioDeviceCreateIOProcIDWithBlock on the io queue
+  AudioDeviceStart            → the system asks for System Audio Recording here, once
+  listener on kAudioHardwarePropertyDefaultOutputDevice (control queue)
+READY
 
-AudioWriter.stream(_:didOutputSampleBuffer:of:)
-  → on first buffer: construct AVAudioFormat(int16, 48 kHz, stereo, interleaved)
-  → AVAudioFile(forWriting: url, settings: int16Fmt.settings)
-  → per buffer: CMSampleBufferCopyPCMDataIntoAudioBufferList → AVAudioPCMBuffer
-  → AVAudioFile.write(from:)
+IOProc (io queue, every buffer)
+  → AVAudioPCMBuffer over the buffer list, no copy
+  → a gap of more than 10 ms since the last buffer (its mHostTime): that much silence first
+  → written as is, or through AVAudioConverter when a tap built again has another format
 
-SIGINT → keepRunning = false → stream.stopCapture() → writer.close()
+the default output device changed (control queue)
+  → stop and destroy the IOProc, the aggregate device and the tap; build them again
+  → cannot: "ERROR: system audio was lost", exit 3 (the backend sees a lost source)
+
+SIGINT → keepRunning = false → stop: listener off, everything destroyed, file closed
 ```
 
-**Output format:** 16-bit PCM, 48 kHz, stereo, interleaved WAV — readable by ffmpeg and WhisperX without conversion.
+Two serial queues keep the IOProc and the rebuilds apart: `control` builds and takes apart the tap, `io` runs the IOProc and owns the file. `AudioDeviceStop` waits for a running IOProc, so it is never called from the queue the IOProc runs on.
 
-### Key fix: CMSampleBuffer extraction
+**Output format:** 16-bit PCM WAV in the format of the first tap (48 kHz stereo on most Macs) — readable by ffmpeg and WhisperX without conversion. A tap built again after an output device change in another format is converted to it.
 
-`CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer` fails on SCK buffers with `kCMSampleBufferError_BufferHasNoSampleSizes` (-12737). SCK audio buffers do not carry per-sample size metadata that this API requires.
+**Gaps.** Building a tap again takes a moment, during which nothing is captured. The gap since the end of the last buffer, measured on the host clock, is written as silence before the next buffer, so the track keeps its length and stays lined up with the microphone (see [Lining the tracks up](#loudness-levelling-and-mic-merge)). Gaps longer than 10 minutes are taken for a clock jump and not filled.
 
-The correct API for SCK audio is `CMSampleBufferCopyPCMDataIntoAudioBufferList`, which copies PCM data directly into a pre-allocated `AVAudioPCMBuffer`:
+### Microphone sample buffers
+
+`CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer` refuses buffers without per-sample sizes (`kCMSampleBufferError_BufferHasNoSampleSizes`, -12737); the microphone's buffers are copied with `CMSampleBufferCopyPCMDataIntoAudioBufferList` into a pre-allocated `AVAudioPCMBuffer`:
 
 ```swift
 CMSampleBufferCopyPCMDataIntoAudioBufferList(
@@ -282,7 +295,7 @@ Measuring is one more pass over each track, a few seconds per hour of audio; the
 - ends with the microphone (`duration=first`, the microphone is the first input): the recording ends where its first track stopped, and the moment of system audio captured after it is dropped;
 - upmixes a mono microphone to stereo first: `amix` takes its channel layout from its first input and would otherwise turn the system audio mono.
 
-When the start times are more than 30 s (`_MAX_START_GAP_SEC`) apart — a clock jump, not a real offset — both tracks start at 0 and a warning is logged. The shift is as exact as the two start times: well under a tenth of a second, the time between reading the clock and the first sample on each side. On macOS ScreenCaptureKit hands over audio as it comes; the alignment holds only as long as its track has no gaps.
+When the start times are more than 30 s (`_MAX_START_GAP_SEC`) apart — a clock jump, not a real offset — both tracks start at 0 and a warning is logged. The shift is as exact as the two start times: well under a tenth of a second, the time between reading the clock and the first sample on each side. On macOS the system track has no gaps: a tap built again after an output device change writes the time it took as silence.
 
 If the levelling run fails (ffmpeg error or ffmpeg not found), a warning is logged and the recording is stored without levelling: a single track is moved as captured, the mix is retried with plain `amix=inputs=2:duration=first`, with the same shift. Only a failure of that plain mix fails the stop.
 
@@ -298,11 +311,12 @@ Imported files are not levelled. The microphone is recorded as the device gives 
 | `app/services/live_recording_service.py` | The live recording from start to the queue ([Live Recording Service](./LiveRecordingService.md)) |
 | `app/api/routers/audio_capture.py` | FastAPI router — `/audio/capture/*` and `/audio/recording/*` endpoints |
 | `app/api/dependencies.py` | `get_audio_capture_service()` singleton |
-| `native/macos/sonorus-capture/main.swift` | Swift binary — ScreenCaptureKit capture |
+| `native/macos/sonorus-capture/main.swift` | Swift binary — Core Audio tap, the microphone and the microphone watch |
 | `native/windows/sonorus-capture/main.cpp` | C++ helper — WASAPI loopback capture (Windows) |
 | `scripts/build-capture-win.js` | Builds `sonorus-capture.exe` (MSVC or mingw-w64) |
 | `electron/backend.js` | Sets `SONORUS_CAPTURE_BIN` env var so the server finds the helper (macOS, Windows) |
-| `build/entitlements.mac.plist` | `com.apple.security.screen-capture` and `com.apple.security.device.audio-input` entitlements for signed builds |
+| `build/entitlements.mac.plist` | `com.apple.security.device.audio-input` entitlement for signed builds |
+| `app/services/track_silence.py` | `only_zeros()`: whether a track holds zeros only |
 
 :::note[Why stderr is not a pipe]
 The capture process runs for the whole recording. An unread `stderr=PIPE` fills its 64 KB buffer once the process writes enough diagnostics; the process then blocks on `write()`, stops capturing, and never exits on SIGINT — the stop would hang forever. stderr is therefore redirected to a log file.

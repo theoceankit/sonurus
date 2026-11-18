@@ -153,8 +153,10 @@ async function startBackend(hfToken = '') {
     env.PATH = `${binDir}${path.delimiter}${env.PATH || process.env.PATH || ''}`
   }
 
-  // System audio capture helper: sonorus-capture (ScreenCaptureKit) on macOS,
-  // sonorus-capture.exe (WASAPI loopback) on Windows; Linux uses parec.
+  // System audio capture helper: sonorus-capture (Core Audio tap, macOS 14.2+;
+  // it records under the System Audio Recording permission of the app that
+  // started the backend) on macOS, sonorus-capture.exe (WASAPI loopback) on
+  // Windows; Linux uses parec.
   const helper = { darwin: ['mac', 'sonorus-capture'], win32: ['win', 'sonorus-capture.exe'] }[process.platform]
   if (helper) {
     const captureBin = app.isPackaged

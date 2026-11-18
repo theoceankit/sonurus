@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.config import RECORDINGS_DIR
+from app.services.track_silence import only_zeros
 
 
 _STOP_TIMEOUT_SEC = 10
@@ -81,8 +82,12 @@ class _CaptureJob:
 NO_MIC_AUDIO = "No audio was captured from the microphone."
 
 class _MacCapture:
-    """ScreenCaptureKit (system audio) and AVCaptureSession (the microphone,
-    --input) via the bundled sonorus-capture helper."""
+    """A Core Audio tap (system audio) and AVCaptureSession (the microphone,
+    --input) via the bundled sonorus-capture helper.
+
+    A tap the system may not record gives zeros and no error, so a system
+    track of zeros only may mean a refused permission (zeros_may_be_refusal).
+    """
 
     handshake = True  # prints READY on stdout once capture runs
     stop_via_stdin = False
@@ -91,10 +96,8 @@ class _MacCapture:
         "Sonorus may not use the microphone. Allow it in System Settings → "
         "Privacy & Security → Microphone, then try again."
     )
-    no_audio_message = (
-        "No audio was captured. If using system audio, grant Screen Recording "
-        "permission in System Settings → Privacy & Security → Screen Recording."
-    )
+    no_audio_message = "No system audio was captured."
+    zeros_may_be_refusal = True
 
     def __init__(self, capture_bin: str | None):
         self._bin = capture_bin
@@ -102,7 +105,7 @@ class _MacCapture:
     def sources(self) -> list[dict]:
         if not self._bin:
             return []
-        return [{"id": "sckit", "label": "System audio (ScreenCaptureKit)"}]
+        return [{"id": "system", "label": "System audio"}]
 
     def _microphones(self) -> list[dict] | None:
         """The helper's microphones; None when it cannot list them."""
@@ -537,6 +540,16 @@ class AudioCaptureService:
         """The processes recording for Sonorus: not other apps holding a microphone."""
         with self._lock:
             return {job.process.pid for job in self._jobs.values()}
+
+    def only_silence(self, job_id: str) -> bool:
+        """Whether a system track recorded so far holds zeros only, where that
+        may mean the system refused to record it (macOS). False elsewhere:
+        silence there is only silence."""
+        if not getattr(self._driver(), "zeros_may_be_refusal", False):
+            return False
+        with self._lock:
+            job = self._jobs.get(job_id)
+        return job is not None and job.kind == "system" and only_zeros(job.output_path)
 
     def discard(self, job_id: str) -> None:
         """Stop a capture at once and remove its files; nothing is kept."""

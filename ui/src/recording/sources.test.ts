@@ -62,8 +62,11 @@ describe('why Start recording is off', () => {
   })
 })
 
-test('a refused capture on macOS without Screen Recording access says where to grant it', () => {
-  expect(captureStartError('darwin', 'SCStream failed: permission denied')).toMatch(/^Screen Recording access is required/)
+test('a capture macOS refused says where to allow system audio recording', () => {
+  expect(captureStartError('darwin', 'sonorus-capture failed to start: ERROR: could not start the capture device (permission denied)'))
+    .toBe('Sonorus may not record system audio. Allow it in System Settings → Privacy & Security → Screen & System Audio Recording, then try again.')
+  expect(captureStartError('darwin', 'sonorus-capture failed to start: ERROR: could not create the audio tap (status -50)'))
+    .toBe('sonorus-capture failed to start: ERROR: could not create the audio tap (status -50)')
   expect(captureStartError('linux', 'parec is not installed')).toBe('parec is not installed')
   expect(captureStartError('linux', '')).toBe('Failed to start system audio capture.')
 })

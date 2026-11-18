@@ -91,7 +91,7 @@ Build platforms (one lock file each):
 
 | Key | Installer |
 |---|---|
-| `darwin-arm64` | macOS Apple Silicon (`.dmg`), macOS 14 or later |
+| `darwin-arm64` | macOS Apple Silicon (`.dmg`), macOS 14.2 or later |
 | `win32-x64` | Windows 64-bit (`.exe`, NSIS) |
 | `linux-x64` | Linux 64-bit (`.AppImage`) |
 
@@ -113,14 +113,14 @@ The build machine needs the runtime installed (GitHub's Windows runners have it)
 
 ### 2. Native binaries: system audio helpers (macOS, Windows)
 
-macOS system audio capture uses a Swift binary built from `native/macos/sonorus-capture/main.swift` via ScreenCaptureKit. It is compiled with `swiftc` (part of Xcode Command Line Tools):
+macOS system audio capture uses a Swift binary built from `native/macos/sonorus-capture/main.swift`: a Core Audio process tap (macOS 14.2 and newer), and the microphone through AVCaptureSession. It is compiled with `swiftc` (part of Xcode Command Line Tools):
 
 ```bash
 xcode-select --install   # one-time, if not already installed
 npm run build:capture    # compiles → electron/resources/mac/sonorus-capture
 ```
 
-`npm run build:mac` calls this step automatically.
+`npm run build:mac` calls this step automatically. The tap records under the System Audio Recording permission of Sonorus, which the system asks for only because `build.mac.extendInfo` puts `NSAudioCaptureUsageDescription` in `Info.plist` (next to `NSMicrophoneUsageDescription`); without it the tap records silence. `build.mac.minimumSystemVersion` (`LSMinimumSystemVersion`) is 14.2, the first macOS with process taps.
 
 Windows system audio uses a C++ WASAPI loopback helper built from `native/windows/sonorus-capture/main.cpp`:
 
@@ -157,8 +157,8 @@ Of the [UI](../ui/electron/overview.md) only `ui/dist` is listed in `build.files
 
 `locks/packaged-<platform>-<arch>.txt` pin every library — direct and transitive, except the
 [excluded packages](#excluded-packages) — with hashes, one file per build platform. The same app version therefore always ships the same libraries. The macOS
-lock targets macOS 14 (the oldest macOS with `onnxruntime` wheels), which makes macOS 14 the minimum
-for the packaged app.
+lock targets macOS 14 (the oldest macOS with `onnxruntime` wheels); system audio raises the minimum
+of the packaged app to macOS 14.2 (`build.mac.minimumSystemVersion`).
 
 To change a dependency, edit `requirements.packaged.txt`, regenerate the locks and commit both:
 

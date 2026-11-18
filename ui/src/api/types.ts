@@ -38,6 +38,8 @@ export type LiveRecording = Schemas['LiveRecording']
 export type RecordingStart = Schemas['RecordingStartRequest']
 export type RecordingFailedEvent = Schemas['RecordingFailedEvent']
 export type RecordingSourceLostEvent = Schemas['RecordingSourceLostEvent']
+// Saved, but the system audio held zeros only: on macOS also what a refused permission gives.
+export type RecordingSystemSilentEvent = Schemas['RecordingSystemSilentEvent']
 // A call may have started (another app holds a microphone) or ended; the Electron main
 // process turns them into notifications, the window does nothing with them.
 export type MicAppActiveEvent = Schemas['MicAppActiveEvent']
@@ -55,7 +57,7 @@ export type ModelsFolder = Schemas['ModelsFolder']
 // subscribers get the rest.
 export type QueueEvent = QueueUpdate | HeartbeatEvent
 export type QueueUpdate = QueueSnapshot | JobDoneEvent | JobFailedEvent | RecordingFailedEvent | RecordingSourceLostEvent
-  | MicAppActiveEvent | CallEndedEvent
+  | RecordingSystemSilentEvent | MicAppActiveEvent | CallEndedEvent
 
 // A known speaker that an unrecognized one may be. score is cosine similarity,
 // suggested marks the first candidate when it is close enough.

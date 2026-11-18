@@ -240,7 +240,8 @@ class TranscriptionQueue:
 
     def recording_stopped(self, *events: dict) -> None:
         """Call after queuing the new recording (it then goes last); events
-        (recording_failed, recording_source_lost) go out before the snapshot."""
+        (recording_failed, recording_source_lost, recording_system_silent) go out
+        before the snapshot."""
         with self._cond:
             self._recording = None
             if self._paused_by_recording:
