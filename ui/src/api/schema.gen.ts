@@ -733,12 +733,13 @@ export interface paths {
         /**
          * Confirm Possible Match
          * @description The user says the speaker recognized here is the right one: they leave the
-         *     review of this transcript. Segments and speaker memory stay as they are.
+         *     review of this transcript, and the recording joins their voice profile.
          */
         post: operations["confirm_possible_match_transcripts__transcript_id__possible_matches__speaker_id__confirmed_post"];
         /**
          * Unconfirm Possible Match
-         * @description Undo of a confirmation: the speaker waits for review again.
+         * @description Undo of a confirmation: the speaker waits for review again, and the
+         *     recording leaves their voice profile.
          */
         delete: operations["unconfirm_possible_match_transcripts__transcript_id__possible_matches__speaker_id__confirmed_delete"];
         options?: never;
