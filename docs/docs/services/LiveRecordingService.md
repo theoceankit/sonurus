@@ -25,7 +25,8 @@ stop()                                 NotRecording unless live
   → phase stopping: queue.recording_updated(state); answers at once
   → on its own thread: capture.stop_recording(system_job, mic_job) → one file in recordings/
   → queue.add(file, title, model, language) — the recording joins the end of the queue
-  → state cleared, then queue.recording_stopped(*events): the queue may run again only now
+  → queue.recording_stopped(*events): the queue may run again only now; the events and the
+    snapshot that ends the recording go out, and only then is the state cleared
 
 watcher: a capture process ended by itself (a microphone unplugged, a helper that failed)
   → the same stop, and a recording_source_lost event {source: "mic" | "system", title}
@@ -46,7 +47,7 @@ The phase, title, start time and sources are `recording` in the queue snapshot, 
 
 `SilenceWatch` (`app/services/track_silence.py`) reads the WAV files the capture processes are still writing (`AudioCaptureService.track_path()`): 16-bit and 32-bit float PCM, from the data chunk to the end of the file, as the header sizes are still 0. A check that fell behind reads only the last 30 s. What the main process does with the event: [Live Recording → Calls](../ui/electron/live-recording.md#calls-starting-and-ending).
 
-`is_recording()` is true from the start until the recording is queued or failed. `POST /data/reset`, deleting a speaker and a GPU restart wait for it: the recording writes a new file into `recordings/` and becomes a job.
+`is_recording()` is true from the start until the recording is queued or failed and its events and closing snapshot are out, so whoever waits for it to turn false finds them already sent; a `start()` in that moment is refused with `RecordingBusy` rather than having its queue pause undone by the old recording. `POST /data/reset`, deleting a speaker and a GPU restart wait for it: the recording writes a new file into `recordings/` and becomes a job.
 
 ---
 

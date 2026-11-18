@@ -75,7 +75,8 @@ class LiveRecordingService:
         self._wake = threading.Event()
 
     def is_recording(self) -> bool:
-        """From the start until the recording is queued (or failed)."""
+        """From the start until the recording is queued (or failed) and its
+        events and closing snapshot are out."""
         with self._lock:
             return self._state is not None
 
@@ -107,9 +108,7 @@ class LiveRecordingService:
         except Exception:
             for job_id in self._jobs.values():
                 self._capture.discard(job_id)
-            with self._lock:
-                self._state, self._request, self._jobs = None, None, {}
-            self._queue.recording_stopped()
+            self._let_go()
             raise
         with self._lock:
             # The time counts from the first track: nothing is recorded before it.
@@ -186,7 +185,16 @@ class LiveRecordingService:
             log.exception("The recording could not be saved")
             events.append({"type": "recording_failed", "title": request.title, "error": str(exc)})
         finally:
+            # Last: the recording is queued before the queue may run again.
+            self._let_go(*events)
+
+    def _let_go(self, *events: dict) -> None:
+        """The queue is let go and the events go out with the closing snapshot
+        before the recording is over: whoever waits for is_recording() to turn
+        False finds them out, and a new start cannot slip in before the old
+        recording has let go of the queue."""
+        try:
+            self._queue.recording_stopped(*events)
+        finally:
             with self._lock:
                 self._state, self._request, self._jobs = None, None, {}
-            # Last: the recording is queued before the queue may run again.
-            self._queue.recording_stopped(*events)
