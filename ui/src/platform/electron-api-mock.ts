@@ -25,6 +25,8 @@ export function createMockElectronAPI(changes: Partial<ElectronAPI> = {}): MockE
     takeWindowIntent: async () => null,
     onWindowIntent: () => () => {},
     getMicApps: async () => [],
+    getNotificationRefusal: async () => null,
+    onNotificationRefusal: () => () => {},
     clipboard: () => clipboard,
     ...changes,
   }

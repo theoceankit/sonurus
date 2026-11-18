@@ -39,6 +39,9 @@ export type MicApp = { id: string; name: string }
 
 export type ThemeSource = 'system' | 'light' | 'dark'
 
+// The last notification the system did not show, and its error (electron/notifications.js).
+export type NotificationRefusal = { title: string; error: string }
+
 export type ElectronAPI = {
   getPlatform: () => Promise<string>
   getAppVersion: () => Promise<string>
@@ -61,6 +64,10 @@ export type ElectronAPI = {
   // Called when an intent waits for the open window; returns what stops listening.
   onWindowIntent: (callback: () => void) => () => void
   getMicApps: () => Promise<MicApp[]>
+  // Null once a notification shows again.
+  getNotificationRefusal: () => Promise<NotificationRefusal | null>
+  // Called when that changes; returns what stops listening.
+  onNotificationRefusal: (callback: () => void) => () => void
 }
 
 declare global {
