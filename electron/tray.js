@@ -43,6 +43,15 @@ function trayMenu({ open, quit }) {
   ]
 }
 
+// The tray icon in electron/assets. macOS: a template image (black, shape in alpha), the
+// name ending in Template tells Electron so; the menu bar tints it for its light or dark
+// look and takes trayTemplate@2x.png on Retina, so it is not resized. Elsewhere: the
+// colour app icon, made small.
+function trayIcon(platform) {
+  if (platform === 'darwin') return { file: 'trayTemplate.png', size: null }
+  return { file: 'icon.png', size: platform === 'win32' ? 32 : 22 }
+}
+
 // Windows and macOS always have one. On Linux the tray is the StatusNotifierItem host
 // (KDE, GNOME with the AppIndicator extension, most others): Electron shows its icon
 // there and says nothing when there is none, so the bus is asked whether the host is
@@ -106,4 +115,4 @@ function rememberTrayHint(statePath) {
   } catch { /* shown again next time */ }
 }
 
-module.exports = { closeAction, quitQuestion, trayMenu, trayAvailable, confirmQuit, trayHintShown, rememberTrayHint }
+module.exports = { closeAction, quitQuestion, trayMenu, trayIcon, trayAvailable, confirmQuit, trayHintShown, rememberTrayHint }

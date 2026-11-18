@@ -247,13 +247,31 @@ than its neighbours.
 
 Linux takes `icon.png` as is: electron-builder makes the hicolor size set from it.
 
+The macOS menu bar has an icon of its own: a template image, black with the shape in alpha only, which macOS
+tints for a light or dark menu bar. Windows and Linux show the colour `icon.png` in the tray.
+
+| File | Purpose |
+|---|---|
+| `build/icons/trayTemplate.svg` | Source of the menu bar icon: the quill, 16 pt in an 18 pt frame |
+| `electron/assets/trayTemplate.png` | Menu bar icon, 18×18 (generated) |
+| `electron/assets/trayTemplate@2x.png` | Menu bar icon for Retina, 36×36 (generated) |
+
+Electron marks an image as a template by the `Template` at the end of its name and loads the `@2x` file next
+to it, so the names stay as they are. After changing the SVG, render both PNG files from it (`rsvg-convert`
+from librsvg):
+```bash
+rsvg-convert -w 18 -h 18 build/icons/trayTemplate.svg -o electron/assets/trayTemplate.png
+rsvg-convert -w 36 -h 36 build/icons/trayTemplate.svg -o electron/assets/trayTemplate@2x.png
+```
+
 The masters are drawn in the design file (page "Logo") and exported at 1×. After replacing a master, rebuild
 the installer icons and commit them:
 ```bash
 node scripts/build-icons.js
 ```
 The script uses the `png2icons` npm package. `tests/build/app-icons.test.js` checks the plate geometry of both
-masters and that `icon.icns` and `icon.ico` were built from them.
+masters, that `icon.icns` and `icon.ico` were built from them, and that both menu bar icons are template
+images of the right size.
 
 ---
 
