@@ -69,3 +69,12 @@ the audio system of Windows or CoreAudio on macOS (both through the `sonorus-cap
 the app's name is read (on Windows and macOS, from its program file or app bundle), never its audio, and nothing leaves the computer. The names of the apps
 seen are kept in `app-state.json` in the app's data folder, for the list in Settings → Notifications.
 Turning the notifications off does not stop the backend from asking; `SONORUS_MIC_WATCH=0` does.
+
+## Recording system audio
+
+System audio is recorded only while a recording you started runs, into the recording's file on your
+computer. On macOS it is a Core Audio tap of the sound every app plays: the system asks once for
+the System Audio Recording permission (System Settings → Privacy & Security → Screen & System Audio
+Recording), and Sonorus asks for nothing broader — no Screen Recording, no screen content. On
+Windows it is a loopback of the chosen output device, on Linux the monitor of an output; neither
+asks for a permission. See [Live recording](ui/electron/live-recording.md).

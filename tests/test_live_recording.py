@@ -347,3 +347,54 @@ def test_the_call_ended_event_matches_its_model(capture, queue):
         assert CallEndedEvent.model_validate(event).model_dump() == event
     finally:
         service.shutdown()
+
+
+# ── System audio that held nothing ───────────────────────────────────────────
+#
+# macOS gives a system track of zeros when Sonorus may not record system audio.
+# The recording is saved and queued all the same; an event says where to allow
+# it, as nothing playing looks the same.
+
+def test_a_system_track_of_zeros_only_is_saved_and_told(service, capture, queue):
+    capture.only_zeros = {"system"}
+    service.start(_request())
+    service.stop()
+    _wait_idle(service)
+    assert len(queue.snapshot()["jobs"]) == 1
+    assert [e for e in queue.events if e["type"] == "recording_system_silent"] == [
+        {"type": "recording_system_silent", "title": "Standup"}]
+    assert "recording_failed" not in _types(queue)
+
+
+def test_a_system_track_with_sound_tells_nothing(service, capture, queue):
+    service.start(_request())
+    service.stop()
+    _wait_idle(service)
+    assert "recording_system_silent" not in _types(queue)
+
+
+def test_a_silent_microphone_is_not_a_system_audio_hint(service, capture, queue):
+    capture.only_zeros = {"mic"}
+    service.start(_request(system=False))
+    service.stop()
+    _wait_idle(service)
+    assert "recording_system_silent" not in _types(queue)
+
+
+def test_a_recording_that_failed_gives_no_silence_hint(service, capture, queue):
+    capture.only_zeros = {"system"}
+    capture.fail_stop = RuntimeError("boom")
+    service.start(_request())
+    service.stop()
+    _wait_idle(service)
+    assert _types(queue) == ["recording_failed"]
+
+
+def test_the_system_silent_event_matches_its_model(service, capture, queue):
+    from app.api.schemas import RecordingSystemSilentEvent
+    capture.only_zeros = {"system"}
+    service.start(_request())
+    service.stop()
+    _wait_idle(service)
+    event = next(e for e in queue.events if e["type"] == "recording_system_silent")
+    assert RecordingSystemSilentEvent.model_validate(event).model_dump() == event

@@ -28,7 +28,7 @@ Returns available system audio sources for the current platform.
 
 ```json
 // macOS
-[{ "id": "sckit", "label": "System audio (ScreenCaptureKit)" }]
+[{ "id": "system", "label": "System audio" }]   // a tap of every process; the id is not checked
 
 // Linux: the default output's monitor first, then each output device's monitor
 // named after the device (pactl sink description); without pactl only the first entry
@@ -74,6 +74,8 @@ The microphones by name, alphabetically. The default microphone is not listed: a
 Answers at once with the recording in phase `stopping`. Then the tracks stop, are levelled and mixed ([AudioCaptureService](../services/AudioCaptureService.md#loudness-levelling-and-mic-merge)), the file is queued with the title, model and language of the start, and the queue is let go last, so the recording goes to the end of the queue. How it ended comes over `WS /ws/queue`: the snapshot with `recording: null` and the new job, or a `recording_failed` event. `409` without a live recording.
 
 A track whose capture process ends by itself (a microphone unplugged, a helper that failed) stops the recording the same way, with a `recording_source_lost` event.
+
+On macOS a saved recording whose system audio held zeros only also gets a `recording_system_silent` event: a refused System Audio Recording permission gives that silence without an error, so it is a hint of where to allow it, not a failure.
 
 ### `GET /audio/mic-watch`
 
@@ -188,6 +190,7 @@ Sends the current snapshot on connect, then a snapshot after every change and th
   "error": "CUDA out of memory", "error_code": null, "error_language": null }
 { "type": "recording_failed", "title": "Standup", "error": "No audio was captured from the microphone." }
 { "type": "recording_source_lost", "source": "mic", "title": "Standup" }   // stopped, saved and queued
+{ "type": "recording_system_silent", "title": "Standup" }   // saved and queued; macOS system audio held zeros only
 { "type": "mic_app_active", "app_id": "discord", "name": "Discord" }   // a call may have started
 { "type": "call_ended", "reason": "mic_released" }   // or "silence": the call may have ended
 { "type": "heartbeat" }   // every 10 s while nothing changes — ignore

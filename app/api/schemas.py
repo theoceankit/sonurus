@@ -261,6 +261,14 @@ class RecordingSourceLostEvent(BaseModel):
     title: str
 
 
+class RecordingSystemSilentEvent(BaseModel):
+    """The recording was saved and queued, but its system audio held zeros
+    only. On macOS that is also what a refused System Audio Recording
+    permission gives: a hint where to allow it, not an error."""
+    type: Literal["recording_system_silent"]
+    title: str
+
+
 class MicAppActiveEvent(BaseModel):
     """Another app has held a microphone for a while and no recording runs:
     a call may have started. Once per hold; app_id is stable across holds,

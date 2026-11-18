@@ -24,7 +24,10 @@ start(request)                         mic / mic_device, system / system_source,
 stop()                                 NotRecording unless live
   → phase stopping: queue.recording_updated(state); answers at once
   → on its own thread: capture.stop_recording(system_job, mic_job) → one file in recordings/
-  → queue.add(file, title, model, language) — the recording joins the end of the queue
+  → before it, capture.only_silence(system_job): a macOS system track of zeros only, which a
+    refused System Audio Recording permission gives too
+  → queue.add(file, title, model, language) — the recording joins the end of the queue;
+    with that silent system track, a recording_system_silent event {title}: a hint, not an error
   → queue.recording_stopped(*events): the queue may run again only now; the events and the
     snapshot that ends the recording go out, and only then is the state cleared
 

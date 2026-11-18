@@ -7,13 +7,13 @@ from pydantic.json_schema import models_json_schema
 from app.api.main import app
 from app.api.schemas import (
     CallEndedEvent, HeartbeatEvent, JobDoneEvent, JobFailedEvent, MicAppActiveEvent, RecordingFailedEvent,
-    RecordingSourceLostEvent,
+    RecordingSourceLostEvent, RecordingSystemSilentEvent,
 )
 
 # WebSocket routes are not part of OpenAPI. QueueSnapshot, the other event of
 # WS /ws/queue, is already there through GET /queue.
 _QUEUE_EVENTS = (JobDoneEvent, JobFailedEvent, RecordingFailedEvent, RecordingSourceLostEvent,
-                 MicAppActiveEvent, CallEndedEvent, HeartbeatEvent)
+                 RecordingSystemSilentEvent, MicAppActiveEvent, CallEndedEvent, HeartbeatEvent)
 
 
 def build_schema() -> dict:

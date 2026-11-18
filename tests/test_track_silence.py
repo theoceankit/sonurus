@@ -107,3 +107,45 @@ def test_a_frame_cut_in_the_middle_is_read_with_the_next_bytes(tmp_path):
     _append(track, quiet[12345:])
     clock.now = 10.5
     assert watch.check()
+
+
+# ── Digital silence: a track with not one sample that is not zero ─────────────
+#
+# A macOS system track the system may not record holds zeros only: a hint to
+# allow it, not an error, as nothing playing gives the same.
+
+def test_a_track_of_zeros_only_is_digital_silence(tmp_path):
+    from app.services.track_silence import only_zeros
+    track = _track(tmp_path, "sys.wav", channels=2)
+    _append(track, bytes(48000 * 2 * 2 * 3))
+    assert only_zeros(str(track))
+
+
+def test_one_sample_that_is_not_zero_is_not_digital_silence(tmp_path):
+    from app.services.track_silence import only_zeros
+    track = _track(tmp_path, "sys.wav", channels=2)
+    # Far below anything SilenceWatch calls loud, and still a sound.
+    _append(track, bytes(48000 * 4 * 2) + struct.pack("<hh", 0, 1) + bytes(4000))
+    assert not only_zeros(str(track))
+
+
+def test_float_zeros_are_digital_silence_too(tmp_path):
+    from app.services.track_silence import only_zeros
+    track = _track(tmp_path, "sys.wav", bits=32, fmt=3)
+    _append(track, bytes(48000 * 4))
+    assert only_zeros(str(track))
+    _append(track, _float32(0.1, -90))
+    assert not only_zeros(str(track))
+
+
+def test_a_track_that_cannot_be_read_is_not_called_silent(tmp_path):
+    from app.services.track_silence import only_zeros
+    assert not only_zeros(str(tmp_path / "missing.wav"))
+    broken = tmp_path / "broken.wav"
+    broken.write_bytes(b"RIF")
+    assert not only_zeros(str(broken))
+
+
+def test_a_header_with_no_samples_heard_nothing(tmp_path):
+    from app.services.track_silence import only_zeros
+    assert only_zeros(str(_track(tmp_path, "sys.wav")))

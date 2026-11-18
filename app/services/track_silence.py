@@ -112,6 +112,24 @@ class _Track:
         return bool(np.any(rms > threshold))
 
 
+def only_zeros(path: str, chunk: int = 1 << 20) -> bool:
+    """Whether a track holds not one sample that is not zero: digital silence,
+    as a capture the system gave nothing writes it. A header with no samples
+    counts as silent; a file that cannot be read does not."""
+    fmt = _read_format(path)
+    if fmt is None:
+        return False
+    try:
+        with open(path, "rb") as f:
+            f.seek(fmt.data_start)
+            while data := f.read(chunk):
+                if data.count(0) != len(data):
+                    return False
+    except OSError:
+        return False
+    return True
+
+
 class SilenceWatch:
     def __init__(self, paths: list[str], after: float, threshold_db: float = SILENCE_DB, clock=time.monotonic):
         self._tracks = [_Track(p) for p in paths]

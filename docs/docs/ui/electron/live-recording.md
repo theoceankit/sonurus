@@ -20,7 +20,7 @@ The user clicks **+** in the titlebar, chooses audio sources in the New recordin
 
 | Platform | Microphone | System audio | Notes |
 |---|---|---|---|
-| macOS | `sonorus-capture --input <uniqueID\|default>` (AVCaptureSession) | `sonorus-capture` (ScreenCaptureKit) | Built with `npm run build:capture`; microphone access and Screen Recording permission, asked for the app that started the backend |
+| macOS 14.2+ | `sonorus-capture --input <uniqueID\|default>` (AVCaptureSession) | `sonorus-capture` (Core Audio tap of every process) | Built with `npm run build:capture`; Microphone and System Audio Recording permissions, asked for the app that started the backend; a refused system audio permission gives silence, not an error |
 | Linux | `parec -d <input source>`, mono | `parec -d <monitor_source>` (PulseAudio / PipeWire) | Inputs and outputs by name from `pactl`; without `pactl` only the defaults; needs `pulseaudio-utils` (`libpulse` on Arch Linux) |
 | Windows | `sonorus-capture.exe --input --device <id\|default>` (WASAPI) | `sonorus-capture.exe --device <id\|default>` (WASAPI loopback) | Built with `npm run build:capture:win`; writes silence while nothing plays; a microphone switched off for desktop apps fails the start |
 
@@ -40,7 +40,8 @@ POST /audio/recording/stop
   → answers at once: phase "stopping"
   → the tracks stop, are levelled and mixed into recordings/sonorus-rec-<id>.wav, queued with the
     title, model and language of the start; the queue is let go last
-  → WS /ws/queue: the snapshot with recording null and the new job, or recording_failed
+  → WS /ws/queue: the snapshot with recording null and the new job, or recording_failed;
+    recording_system_silent before the snapshot when a macOS system track held zeros only
 A capture process that ends by itself (a microphone unplugged) → the same stop + recording_source_lost
 ```
 
@@ -50,9 +51,9 @@ A capture process that ends by itself (a microphone unplugged) → the same stop
 
 The backend records and writes every file; the window drives and shows the recording.
 
-- **Starting.** New recording ([Home](./home.md#new-recording-dialog)) picks the sources and devices and calls `start()` of `RecordingProvider`, which sits in `App` above the screens, so a recording shows while the user moves between them. It sends `POST /audio/recording/start` and shows Starting until the backend answers. A refusal is a toast "Could not start recording: …" (on macOS a Screen Recording refusal says where to allow it, `captureStartError()`).
+- **Starting.** New recording ([Home](./home.md#new-recording-dialog)) picks the sources and devices and calls `start()` of `RecordingProvider`, which sits in `App` above the screens, so a recording shows while the user moves between them. It sends `POST /audio/recording/start` and shows Starting until the backend answers. A refusal is a toast "Could not start recording: …" (on macOS a start the system refused says where to allow system audio recording, `captureStartError()`).
 - **Recording.** The state comes from the queue snapshot (`recording`), which `useQueueEventsSync` keeps up from `WS /ws/queue`: a window opened mid-recording shows it from its first snapshot. The sidebar shows a Recording section above the queue with one row (`LiveRecordingRow`): a red dot the size of the new-recording dot, breathing, the title and the time, Starting or Stopping in its place while the backend gets ready or finishes. Stop comes in under the pointer or the focus. With the sidebar hidden, a pill in the title bar (`RecordingPill`) shows the same before the Speakers button; its arrow opens a menu with Stop recording. The time counts from `started_at` of the backend, so a late timer adds nothing and a new window shows the right time.
-- **Stopping.** Stop sends `POST /audio/recording/stop` and shows Stopping; the recording ends when the snapshot no longer has it, with the new job at the end of the queue. A refused Stop is a toast "Recording error: …" and the recording goes on. A `recording_failed` event is a toast "Recording error: …"; `recording_source_lost` says "The microphone was disconnected. The recording was stopped and saved." (or "System audio was lost. …") — the recording is in the queue (`queueEventToast()` in `ui/src/screens/Queue/queue-toasts.ts`).
+- **Stopping.** Stop sends `POST /audio/recording/stop` and shows Stopping; the recording ends when the snapshot no longer has it, with the new job at the end of the queue. A refused Stop is a toast "Recording error: …" and the recording goes on. A `recording_failed` event is a toast "Recording error: …"; `recording_source_lost` says "The microphone was disconnected. The recording was stopped and saved." (or "System audio was lost. …") — the recording is in the queue (`queueEventToast()` in `ui/src/screens/Queue/queue-toasts.ts`). `recording_system_silent` is a hint, not an error, shown for 10 s: "No system audio was heard in "…". If something played, allow Sonorus in System Settings → Privacy & Security → Screen & System Audio Recording." The recording is in the queue all the same.
 - **Elsewhere.** While a recording runs New recording says so and only offers Import files, and Delete all data in Settings is off.
 
 ---
@@ -82,7 +83,7 @@ Sonorus can suggest a recording when a call seems to start, and its end when the
 | `app/services/live_recording_service.py` | The recording from start to the queue |
 | `app/services/audio_capture_service.py` | Platform drivers, ffmpeg merge |
 | `app/api/routers/audio_capture.py` | `/audio/capture/*` and `/audio/recording/*` endpoints |
-| `native/macos/sonorus-capture/main.swift` | Swift helper — ScreenCaptureKit and the microphone — build with `npm run build:capture` (requires Xcode Command Line Tools: `xcode-select --install`) |
+| `native/macos/sonorus-capture/main.swift` | Swift helper — the Core Audio tap, the microphone and the microphone watch — build with `npm run build:capture` (requires Xcode Command Line Tools: `xcode-select --install`) |
 | `native/windows/sonorus-capture/main.cpp` | C++ WASAPI helper, loopback and input, and the microphone watch (`--watch-mic`) — build with `npm run build:capture:win` (MSVC Build Tools on Windows, or mingw-w64) |
 | `ui/src/recording/` | `RecordingProvider.tsx` (start, stop, the state from the snapshot), `useRecordingSetup.ts` (the dialog's sources and devices), `sources.ts`, `LiveRecording.tsx` (the sidebar section and the title bar pill), `StopRecordingDialog.tsx` (the question of a call that ended) |
 | `app/services/mic_activity_service.py`, `app/services/track_silence.py` | Which other apps hold a microphone; the silence of the tracks |
@@ -97,14 +98,16 @@ Sonorus can suggest a recording when a call seems to start, and its end when the
 
 ## Notes
 
-### macOS SCK fix
+### macOS sample buffers
 
-`CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer` fails on SCK buffers with `kCMSampleBufferError_BufferHasNoSampleSizes` (-12737) because SCK buffers lack per-sample size metadata. The correct API is `CMSampleBufferCopyPCMDataIntoAudioBufferList`.
+The microphone's sample buffers are copied with `CMSampleBufferCopyPCMDataIntoAudioBufferList`: `CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer` refuses buffers without per-sample sizes (`kCMSampleBufferError_BufferHasNoSampleSizes`, -12737).
 
 ### Electron permissions
 
 `session.defaultSession.setPermissionRequestHandler` in `app.whenReady()` refuses every permission request of the page, `media` included: the backend records, and without a handler Electron would grant them all.
 
-### Screen Recording permission (macOS)
+### System audio permission (macOS)
 
-Must be granted once in System Settings → Privacy & Security → Screen Recording for the terminal or app that launches the server, and the microphone under Microphone (the helper asks on the first microphone recording). The entitlements `com.apple.security.screen-capture` and `com.apple.security.device.audio-input` are declared in `build/entitlements.mac.plist` for signed distribution builds.
+System audio is a Core Audio process tap (`AudioHardwareCreateProcessTap`, macOS 14.2 and newer), recorded under the System Audio Recording permission of the app that started the backend: Sonorus in the installed app, the terminal under `npm start` or a backend started by hand. The system asks once, when the first tap starts, and only if that app's `Info.plist` says why (`NSAudioCaptureUsageDescription` in `build.mac.extendInfo`); without the key, or when the user refused, the tap runs and gives zeros, with no error. So the backend cannot tell a refusal from nothing playing: when the system track of a saved recording held zeros only (`AudioCaptureService.only_silence()`), a `recording_system_silent` event says where to allow it. The permission is listed under System Settings → Privacy & Security → Screen & System Audio Recording (System Audio Recording Only) and reset with `tccutil reset AudioCapture com.sonorus.app`. Screen Recording is not used.
+
+The microphone is asked for on the first microphone recording and listed under Microphone. `com.apple.security.device.audio-input` in `build/entitlements.mac.plist` lets the hardened runtime use it; the tap needs no entitlement.

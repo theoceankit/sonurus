@@ -519,9 +519,12 @@ def test_linux_empty_capture_error_does_not_mention_macos(tmp_path):
     assert "System Settings" not in msg
 
 
-def test_macos_empty_capture_error_mentions_screen_recording(tmp_path):
+def test_macos_empty_capture_error_does_not_send_to_screen_recording(tmp_path):
+    # System audio is a Core Audio tap: a refused permission gives silence, not
+    # an empty file, so an empty file is a helper that failed.
     msg = _stop_with_empty_output("darwin", tmp_path, capture_bin="/opt/sonorus-capture")
-    assert "Screen Recording" in msg
+    assert "No system audio was captured" in msg
+    assert "Screen Recording" not in msg
 
 
 def test_macos_driver_runs_capture_helper():
@@ -529,7 +532,57 @@ def test_macos_driver_runs_capture_helper():
     with patch("app.services.audio_capture_service.sys.platform", "darwin"):
         svc = AudioCaptureService(capture_bin="/opt/sonorus-capture")
         assert svc._build_command(None, "/tmp/out.wav") == ["/opt/sonorus-capture", "--output", "/tmp/out.wav"]
-        assert svc.get_sources() == [{"id": "sckit", "label": "System audio (ScreenCaptureKit)"}]
+        assert svc.get_sources() == [{"id": "system", "label": "System audio"}]
+
+
+def _wav(path, data: bytes, channels=2):
+    import struct
+    rate = 48000
+    fmt = struct.pack("<HHIIHH", 1, channels, rate, rate * channels * 2, channels * 2, 16)
+    path.write_bytes(b"RIFF" + struct.pack("<I", 0) + b"WAVE" + b"fmt " + struct.pack("<I", 16) + fmt
+                     + b"data" + struct.pack("<I", 0) + data)
+
+
+def _running_capture(platform, tmp_path, track: bytes):
+    """A system capture started on platform, its track holding these samples."""
+    AudioCaptureService = _get_service_class()
+
+    def _popen(cmd, **kwargs):
+        proc = _make_mock_popen()
+        proc.stdout.readline.return_value = b"READY\n"
+        return proc
+
+    with patch("app.services.audio_capture_service.subprocess.Popen", side_effect=_popen), \
+         patch("select.select", side_effect=lambda r, w, x, t: (r, [], [])), \
+         patch("app.services.audio_capture_service.sys.platform", platform):
+        svc = AudioCaptureService(capture_bin="/opt/sonorus-capture", recordings_dir=tmp_path)
+        job_id = svc.start_capture()
+    _wav(Path(svc.track_path(job_id)), track)
+    return svc, job_id
+
+
+def test_macos_system_track_of_zeros_only_may_be_a_refused_permission(tmp_path):
+    svc, job_id = _running_capture("darwin", tmp_path, bytes(48000 * 4))
+    with patch("app.services.audio_capture_service.sys.platform", "darwin"):
+        assert svc.only_silence(job_id)
+        _wav(Path(svc.track_path(job_id)), bytes(48000 * 4) + b"\x01\x00")
+        assert not svc.only_silence(job_id)
+    svc.discard(job_id)
+
+
+@pytest.mark.parametrize("platform", ["linux", "win32"])
+def test_silence_on_other_systems_is_only_silence(tmp_path, platform):
+    # Nothing there refuses system audio by giving zeros: no hint to give.
+    svc, job_id = _running_capture(platform, tmp_path, bytes(48000 * 4))
+    with patch("app.services.audio_capture_service.sys.platform", platform):
+        assert not svc.only_silence(job_id)
+    svc.discard(job_id)
+
+
+def test_only_silence_of_an_unknown_job_is_false(tmp_path):
+    AudioCaptureService = _get_service_class()
+    with patch("app.services.audio_capture_service.sys.platform", "darwin"):
+        assert not AudioCaptureService(capture_bin="/opt/sonorus-capture", recordings_dir=tmp_path).only_silence("x")
 
 
 # ── Windows: WASAPI loopback helper (sonorus-capture.exe) ─────────────────────

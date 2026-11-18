@@ -21,8 +21,9 @@ closed and opened again while it runs.
 
 Phases in the snapshot: starting → live → stopping → none. A failure after
 the start is a recording_failed event, a lost source a recording_source_lost
-event; both go out over WS /ws/queue with the snapshot that ends the
-recording.
+event; a saved recording whose system track held zeros only where that may be
+a refused permission (macOS) a recording_system_silent event. They go out over
+WS /ws/queue with the snapshot that ends the recording.
 """
 import threading
 import time
@@ -176,11 +177,15 @@ class LiveRecordingService:
             request, jobs = self._request, dict(self._jobs)
         events = []
         try:
+            # Read before the stop, which removes the track.
+            silent = "system" in jobs and self._capture.only_silence(jobs["system"])
             path = self._capture.stop_recording(system_job=jobs.get("system"), mic_job=jobs.get("mic"))
             self._queue.add(audio_path=path, title=request.title,
                             whisper_model=request.whisper_model, language=request.language)
             if lost:
                 events.append({"type": "recording_source_lost", "source": lost, "title": request.title})
+            if silent:
+                events.append({"type": "recording_system_silent", "title": request.title})
         except Exception as exc:
             log.exception("The recording could not be saved")
             events.append({"type": "recording_failed", "title": request.title, "error": str(exc)})

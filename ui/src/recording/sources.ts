@@ -63,8 +63,8 @@ export function startBlockReason({ sources, systemAvailable, recording }: {
 // where to allow it.
 export function captureStartError(platform: string, detail: string): string {
   const message = detail || 'Failed to start system audio capture.'
-  if (platform === 'darwin' && /permission|denied|SCStream|TCC|Screen Recording/i.test(message)) {
-    return 'Screen Recording access is required. Open System Settings → Privacy & Security → Screen Recording and enable Sonorus, then try again.'
+  if (platform === 'darwin' && /permission|denied|TCC/i.test(message)) {
+    return 'Sonorus may not record system audio. Allow it in System Settings → Privacy & Security → Screen & System Audio Recording, then try again.'
   }
   return message
 }

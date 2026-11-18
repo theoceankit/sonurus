@@ -942,6 +942,26 @@
         "title": "RecordingStartRequest",
         "type": "object"
       },
+      "RecordingSystemSilentEvent": {
+        "description": "The recording was saved and queued, but its system audio held zeros\nonly. On macOS that is also what a refused System Audio Recording\npermission gives: a hint where to allow it, not an error.",
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "recording_system_silent",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title"
+        ],
+        "title": "RecordingSystemSilentEvent",
+        "type": "object"
+      },
       "RefusalResponse": {
         "description": "A refusal of the queue's job routes (400, and 409 for a job that started)\nand of a speaker's handle (400, and 409 for a taken one): a message for the\nuser and what it is about.",
         "properties": {

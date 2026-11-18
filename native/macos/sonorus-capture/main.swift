@@ -1,8 +1,18 @@
-// sonorus-capture — system audio (ScreenCaptureKit) and the microphone
-// (AVCaptureSession) for Sonorus on macOS.
+// sonorus-capture — system audio (a Core Audio tap) and the microphone
+// (AVCaptureSession) for Sonorus on macOS 14.2 and newer.
 //
 //   sonorus-capture --output <file.wav>
-//       Records system audio. Prints READY once capture runs; stops on SIGINT.
+//       Records system audio: a Core Audio tap of every process, WAV 16-bit in
+//       the tap's rate and channels. Prints READY once capture runs; stops on
+//       SIGINT. Under the System Audio Recording permission of the app that
+//       started the backend (NSAudioCaptureUsageDescription in its Info.plist):
+//       the system asks at the first start; refused, the tap gives zeros and
+//       no error, so a recording without one sound ends with a WARNING on
+//       stderr. When the output device changes the tap is built again, and the
+//       time that took is written as silence, so the track keeps its length
+//       against the microphone. A tap that cannot be built again closes the
+//       file: "ERROR: system audio was lost", exit 3. One that cannot start:
+//       "ERROR: …", exit 2, before READY.
 //   sonorus-capture --list-inputs
 //       Microphones as JSON on stdout:
 //       [{"id": "<uniqueID>", "label": "<name>", "default": true|false}, ...]
@@ -30,66 +40,14 @@ import AVFoundation
 import CoreAudio
 import Darwin
 import Foundation
-import ScreenCaptureKit
-
-// ─── Audio writer ─────────────────────────────────────────────────────────────
-
-final class AudioWriter: NSObject, SCStreamOutput, SCStreamDelegate {
-    private var file: AVAudioFile?
-    private let url: URL
-
-    init(url: URL) { self.url = url }
-
-    func stream(
-        _ stream: SCStream,
-        didOutputSampleBuffer buffer: CMSampleBuffer,
-        of type: SCStreamOutputType
-    ) {
-        guard type == .audio else { return }
-
-        if file == nil,
-           let fmt = buffer.formatDescription
-        {
-            let sckFmt = AVAudioFormat(cmAudioFormatDescription: fmt)
-            guard let int16Fmt = AVAudioFormat(
-                commonFormat: .pcmFormatInt16,
-                sampleRate: sckFmt.sampleRate,
-                channels: sckFmt.channelCount,
-                interleaved: true
-            ) else {
-                fputs("ERROR: could not construct int16 output format\n", stderr)
-                return
-            }
-            if let f = try? AVAudioFile(forWriting: url, settings: int16Fmt.settings) {
-                file = f
-            } else {
-                fputs("ERROR: AVAudioFile(forWriting:) failed for \(url.path)\n", stderr)
-            }
-        }
-        guard let file else { return }
-
-        if let pcm = buffer.toPCMBuffer(format: file.processingFormat) {
-            do {
-                try file.write(from: pcm)
-            } catch {
-                fputs("ERROR: write failed: \(error)\n", stderr)
-            }
-        }
-    }
-
-    func stream(_ stream: SCStream, didStopWithError error: Error) {
-        fputs("ERROR: stream stopped: \(error)\n", stderr)
-    }
-
-    func close() { file = nil }
-}
 
 // ─── CMSampleBuffer → AVAudioPCMBuffer ────────────────────────────────────────
 
 extension CMSampleBuffer {
-    // SCK buffers lack per-sample size info, so CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer
-    // returns kCMSampleBufferError_BufferHasNoSampleSizes (-12737).
-    // CMSampleBufferCopyPCMDataIntoAudioBufferList is the correct API for SCK audio.
+    // Copies the samples into a buffer of the given format;
+    // CMSampleBufferCopyPCMDataIntoAudioBufferList also reads buffers that carry
+    // no per-sample sizes, which CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer
+    // refuses (kCMSampleBufferError_BufferHasNoSampleSizes, -12737).
     func toPCMBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
         let numFrames = Int32(numSamples)
         guard numFrames > 0 else { return nil }
@@ -106,6 +64,294 @@ extension CMSampleBuffer {
         }
         return pcm
     }
+}
+
+// ─── System audio: Core Audio tap ─────────────────────────────────────────────
+
+struct CaptureError: Error, CustomStringConvertible {
+    let description: String
+}
+
+// A gap between two buffers longer than this is written as silence. Buffers
+// follow each other within a fraction of a millisecond; a gap is a tap built
+// again or a device that stalled.
+let gapNanos: UInt64 = 10_000_000
+// A gap longer than this is a clock that jumped, not lost audio.
+let maxGapNanos: UInt64 = 600_000_000_000
+
+// A tap of every process, read through a private aggregate device that holds
+// nothing but the tap. The file keeps the format of the first tap; a tap built
+// again in another format (the output device changed) is converted to it.
+//
+// Two serial queues: `control` builds and takes apart the tap (start, stop and
+// the output device listener), `io` runs the IOProc and owns what it writes
+// with. The IOProc is never blocked by a build, so AudioDeviceStop, which waits
+// for a running IOProc, does not wait on the queue that called it.
+@available(macOS 14.2, *)
+final class TapCapture {
+    private let url: URL
+    private let control = DispatchQueue(label: "sonorus-capture.tap.control")
+    private let io = DispatchQueue(label: "sonorus-capture.tap.io")
+
+    // control
+    private var tapID = AudioObjectID(kAudioObjectUnknown)
+    private var deviceID = AudioObjectID(kAudioObjectUnknown)
+    private var procID: AudioDeviceIOProcID?
+    private var listener: AudioObjectPropertyListenerBlock?
+    private var stopped = false
+    private var lost = false
+
+    // io
+    private var file: AVAudioFile?
+    private var tapFormat: AVAudioFormat?
+    private var converter: AVAudioConverter?
+    private var heardSound = false
+    // Host time (ns) where the last buffer ended; nil before the first.
+    private var expectedNanos: UInt64?
+    private var filledNanos: UInt64 = 0
+
+    init(url: URL) { self.url = url }
+
+    var wasLost: Bool { control.sync { lost } }
+    var heard: Bool { io.sync { heardSound } }
+    // How much silence stood in for gaps, in seconds.
+    var filledSeconds: Double { io.sync { Double(filledNanos) / 1e9 } }
+
+    func start() throws {
+        try control.sync {
+            try build()
+            var address = propertyAddress(kAudioHardwarePropertyDefaultOutputDevice)
+            let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in self?.rebuild() }
+            if AudioObjectAddPropertyListenerBlock(systemObject, &address, control, block) == noErr {
+                listener = block
+            } else {
+                fputs("WARNING: output device changes will not be followed\n", stderr)
+            }
+        }
+    }
+
+    func stop() {
+        control.sync {
+            stopped = true
+            if let listener {
+                var address = propertyAddress(kAudioHardwarePropertyDefaultOutputDevice)
+                AudioObjectRemovePropertyListenerBlock(systemObject, &address, control, listener)
+                self.listener = nil
+            }
+            teardown()
+        }
+        io.sync { file = nil }
+    }
+
+    private func check(_ status: OSStatus, _ what: String) throws {
+        guard status == noErr else {
+            throw CaptureError(description: "could not \(what) (status \(status))")
+        }
+    }
+
+    // On control.
+    private func build() throws {
+        let description = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
+        description.uuid = UUID()
+        description.name = "Sonorus system audio"
+        description.isPrivate = true
+        description.muteBehavior = .unmuted
+        var tap = AudioObjectID(kAudioObjectUnknown)
+        try check(AudioHardwareCreateProcessTap(description, &tap), "create the audio tap")
+        tapID = tap
+
+        var address = propertyAddress(kAudioTapPropertyFormat)
+        var asbd = AudioStreamBasicDescription()
+        var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+        try check(AudioObjectGetPropertyData(tapID, &address, 0, nil, &size, &asbd), "read the tap format")
+        guard let format = AVAudioFormat(streamDescription: &asbd) else {
+            throw CaptureError(description: "the tap has no usable format")
+        }
+
+        // The IOProc is not running: nothing writes while the format changes.
+        try io.sync {
+            if file == nil {
+                guard let int16Fmt = AVAudioFormat(
+                    commonFormat: .pcmFormatInt16, sampleRate: format.sampleRate,
+                    channels: format.channelCount, interleaved: true
+                ) else {
+                    throw CaptureError(description: "could not construct the output format")
+                }
+                file = try AVAudioFile(forWriting: url, settings: int16Fmt.settings,
+                                       commonFormat: .pcmFormatFloat32, interleaved: format.isInterleaved)
+            }
+            guard let file else { return }
+            if format != file.processingFormat {
+                guard let made = AVAudioConverter(from: format, to: file.processingFormat) else {
+                    throw CaptureError(description: "could not convert the tap format")
+                }
+                converter = made
+            } else {
+                converter = nil
+            }
+            tapFormat = format
+        }
+
+        let aggregate: [String: Any] = [
+            kAudioAggregateDeviceNameKey: "Sonorus system audio",
+            kAudioAggregateDeviceUIDKey: UUID().uuidString,
+            kAudioAggregateDeviceIsPrivateKey: true,
+            kAudioAggregateDeviceIsStackedKey: false,
+            kAudioAggregateDeviceTapAutoStartKey: true,
+            // No physical device: a headset would bring its input streams along.
+            kAudioAggregateDeviceSubDeviceListKey: [[String: Any]](),
+            kAudioAggregateDeviceTapListKey: [
+                [kAudioSubTapUIDKey: description.uuid.uuidString, kAudioSubTapDriftCompensationKey: true],
+            ],
+        ]
+        var device = AudioObjectID(kAudioObjectUnknown)
+        try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device),
+                  "create the capture device")
+        deviceID = device
+
+        var proc: AudioDeviceIOProcID?
+        try check(AudioDeviceCreateIOProcIDWithBlock(&proc, deviceID, io) { [weak self] _, input, inputTime, _, _ in
+            self?.write(input, at: inputTime)
+        }, "read the capture device")
+        procID = proc
+        // The system asks for System Audio Recording here, the first time.
+        try check(AudioDeviceStart(deviceID, procID), "start the capture device")
+    }
+
+    // On control.
+    private func teardown() {
+        if deviceID != kAudioObjectUnknown {
+            if let procID {
+                AudioDeviceStop(deviceID, procID)
+                AudioDeviceDestroyIOProcID(deviceID, procID)
+            }
+            AudioHardwareDestroyAggregateDevice(deviceID)
+        }
+        if tapID != kAudioObjectUnknown { AudioHardwareDestroyProcessTap(tapID) }
+        procID = nil
+        deviceID = AudioObjectID(kAudioObjectUnknown)
+        tapID = AudioObjectID(kAudioObjectUnknown)
+    }
+
+    // On control: the default output device changed.
+    private func rebuild() {
+        guard !stopped, !lost else { return }
+        teardown()
+        do {
+            try build()
+        } catch {
+            fputs("ERROR: \(error)\n", stderr)
+            teardown()
+            lost = true
+            keepRunning = false
+        }
+    }
+
+    // On io, for every buffer of the capture device.
+    private func write(_ input: UnsafePointer<AudioBufferList>, at inputTime: UnsafePointer<AudioTimeStamp>) {
+        guard let file, let tapFormat,
+              let buffer = AVAudioPCMBuffer(pcmFormat: tapFormat, bufferListNoCopy: input, deallocator: nil),
+              buffer.frameLength > 0
+        else { return }
+        if !heardSound { heardSound = hasSound(input) }
+        let stamp = inputTime.pointee
+        if stamp.mFlags.contains(.hostTimeValid) {
+            let start = AudioConvertHostTimeToNanos(stamp.mHostTime)
+            if let expected = expectedNanos, start > expected + gapNanos, start - expected < maxGapNanos {
+                writeSilence(nanos: start - expected, to: file)
+            }
+            expectedNanos = start + UInt64(Double(buffer.frameLength) / tapFormat.sampleRate * 1e9)
+        }
+        do {
+            guard let converter else {
+                try file.write(from: buffer)
+                return
+            }
+            let ratio = file.processingFormat.sampleRate / tapFormat.sampleRate
+            let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 64
+            guard let converted = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: capacity)
+            else { return }
+            var fed = false
+            var failure: NSError?
+            converter.convert(to: converted, error: &failure) { _, status in
+                if fed {
+                    status.pointee = .noDataNow
+                    return nil
+                }
+                fed = true
+                status.pointee = .haveData
+                return buffer
+            }
+            if let failure { throw failure }
+            if converted.frameLength > 0 { try file.write(from: converted) }
+        } catch {
+            fputs("ERROR: write failed: \(error)\n", stderr)
+        }
+    }
+
+    // On io: zeros in the file's format for a gap, so the track keeps its
+    // length against the microphone.
+    private func writeSilence(nanos: UInt64, to file: AVAudioFile) {
+        let format = file.processingFormat
+        var frames = AVAudioFrameCount(Double(nanos) / 1e9 * format.sampleRate)
+        let chunk: AVAudioFrameCount = 4800
+        guard frames > 0, let zeros = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunk) else { return }
+        // The byte sizes of the buffer list follow frameLength.
+        zeros.frameLength = chunk
+        for buffer in UnsafeMutableAudioBufferListPointer(zeros.mutableAudioBufferList) {
+            if let data = buffer.mData { memset(data, 0, Int(buffer.mDataByteSize)) }
+        }
+        filledNanos += nanos
+        do {
+            while frames > 0 {
+                zeros.frameLength = min(frames, chunk)
+                try file.write(from: zeros)
+                frames -= zeros.frameLength
+            }
+        } catch {
+            fputs("ERROR: write failed: \(error)\n", stderr)
+        }
+    }
+
+    private func hasSound(_ input: UnsafePointer<AudioBufferList>) -> Bool {
+        for buffer in UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input)) {
+            guard let data = buffer.mData else { continue }
+            let bytes = UnsafeRawBufferPointer(start: data, count: Int(buffer.mDataByteSize))
+            if bytes.contains(where: { $0 != 0 }) { return true }
+        }
+        return false
+    }
+}
+
+@available(macOS 14.2, *)
+func recordSystemAudio(outputPath: String) -> Int32 {
+    let capture = TapCapture(url: URL(fileURLWithPath: outputPath))
+    do {
+        try capture.start()
+    } catch {
+        fputs("ERROR: \(error)\n", stderr)
+        capture.stop()
+        return 2
+    }
+    print("READY")
+    fflush(stdout)
+    while keepRunning { Thread.sleep(forTimeInterval: 0.1) }
+    let lost = capture.wasLost
+    let heard = capture.heard
+    let filled = capture.filledSeconds
+    capture.stop()
+    if filled > 0 {
+        fputs(String(format: "INFO: %.2f s of gaps written as silence\n", filled), stderr)
+    }
+    if lost {
+        fputs("ERROR: system audio was lost\n", stderr)
+        return 3
+    }
+    if !heard {
+        fputs("WARNING: only silence was captured; if something played, allow System Audio Recording " +
+              "in System Settings → Privacy & Security → Screen & System Audio Recording\n", stderr)
+    }
+    return 0
 }
 
 // ─── Microphone writer ────────────────────────────────────────────────────────
@@ -429,6 +675,7 @@ func watchMicrophone() -> Never {
     withExtendedLifetime(timer) { dispatchMain() }
 }
 
+
 // ─── CLI argument parsing ─────────────────────────────────────────────────────
 
 var outputPath = ""
@@ -476,42 +723,8 @@ signal(SIGTERM) { _ in keepRunning = false }
 if let inputID {
     exit(recordMicrophone(id: inputID, outputPath: outputPath))
 }
-
-let writer = AudioWriter(url: URL(fileURLWithPath: outputPath))
-let sema   = DispatchSemaphore(value: 0)
-
-Task {
-    do {
-        let content = try await SCShareableContent.current
-        guard let display = content.displays.first else {
-            fputs("ERROR: no display available\n", stderr)
-            exit(1)
-        }
-
-        let filter = SCContentFilter(display: display, excludingWindows: [])
-        let cfg    = SCStreamConfiguration()
-        cfg.capturesAudio               = true
-        cfg.excludesCurrentProcessAudio = true
-        cfg.minimumFrameInterval        = CMTime(value: 1, timescale: 1)
-        cfg.width  = 2
-        cfg.height = 2
-
-        let stream = SCStream(filter: filter, configuration: cfg, delegate: writer)
-        try stream.addStreamOutput(writer, type: .audio, sampleHandlerQueue: .global())
-        try await stream.startCapture()
-        print("READY")
-        fflush(stdout)
-
-        while keepRunning {
-            try await Task.sleep(nanoseconds: 100_000_000)
-        }
-
-        try await stream.stopCapture()
-    } catch {
-        fputs("ERROR: \(error)\n", stderr)
-    }
-    writer.close()
-    sema.signal()
+if #available(macOS 14.2, *) {
+    exit(recordSystemAudio(outputPath: outputPath))
 }
-
-sema.wait()
+fputs("ERROR: system audio needs macOS 14.2 or newer\n", stderr)
+exit(2)
