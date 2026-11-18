@@ -143,7 +143,7 @@ npm run build:linux  # build:ui → bundle-backend.js → electron-builder (x64)
 
 Output goes to `dist/`.
 
-Of the [UI](../ui/electron/overview.md) only `ui/dist` is listed in `build.files`, so its sources, tooling and Storybook stay out; `electron/**/*` holds only the main process. Every CI build job runs `node scripts/check-packaged-ui.js dist` after electron-builder, which reads `app.asar` and fails if `ui/dist/index.html` is missing or anything else from `ui/`, a story, Storybook or the old renderer (`electron/renderer/`, `electron/assets/icons/`) got in.
+Of the [UI](../ui/electron/overview.md) only `ui/dist` is listed in `build.files`, so its sources, tooling and Storybook stay out; `electron/**/*` holds only the main process. Every CI build job runs `node scripts/check-packaged-ui.js dist` after electron-builder, which reads `app.asar` and fails if `ui/dist/index.html` is missing or anything else from `ui/`, a story, Storybook or the old renderer (`electron/renderer/`, `electron/assets/icons/`) got in. `build-mac` also checks the signature of the app in the `.dmg` ([Code signing](#macos-ad-hoc-signature)).
 
 ---
 
@@ -280,10 +280,24 @@ images of the right size.
 
 ## Code signing
 
-Current releases are **unsigned**. Users will see:
+Releases carry no certificate: they are not notarized for macOS and not signed for Windows.
 
-- **macOS**: Gatekeeper warning → right-click → Open to bypass
+### macOS: ad hoc signature
+
+`build.mac.identity` is `"-"`, so electron-builder signs the whole `Sonorus.app` **ad hoc**: every executable and library in it (the capture helper and the bundled Python included) with the hardened runtime and `build/entitlements.mac.plist`, and the bundle with its `Info.plist` and resources sealed. No certificate is looked up in the keychain, so a local build is signed the same way as the CI one, whatever certificates the machine holds.
+
+Without it electron-builder leaves only the signature the linker puts on every arm64 binary (`flags=0x20002(adhoc,linker-signed)`, `Info.plist=not bound`, `Sealed Resources=none`). macOS refuses such an app notifications, and Microphone and System Audio Recording permissions need a signed bundle to be tied to.
+
+`build-mac` runs `node scripts/check-mac-signature.js dist` after electron-builder. It mounts the `.dmg` and fails if `codesign --verify --deep --strict` fails for `Sonorus.app`, if the app's `Info.plist` is not bound or its resources are not sealed, if the app, `sonorus-capture` or the bundled Python is signed only by the linker or without the hardened runtime, if an entitlement of `build/entitlements.mac.plist` is missing from one of them, or if `Info.plist` lacks a usage description of `build.mac.extendInfo`. It needs macOS (`codesign`, `hdiutil`); to check a local build: `npm run build:mac && node scripts/check-mac-signature.js dist` with only the new `.dmg` in `dist/`.
+
+What an ad hoc signature does not give:
+
+- **Gatekeeper.** A `.dmg` downloaded from GitHub is still blocked on first launch: the signature names no developer and is not notarized ([Install on macOS](../build-and-install/macos.md#install)).
+- **Permissions across updates.** Each build has its own signature, so after installing a new version macOS asks for Microphone and System Audio Recording again.
+
+### Windows and Linux
+
 - **Windows**: SmartScreen warning → "More info" → "Run anyway"
 - **Linux**: no signing required
 
-Code signing requires an Apple Developer account ($99/yr) for macOS notarization and an EV certificate ($300+/yr) for Windows SmartScreen trust.
+A Developer ID certificate and notarization (Apple Developer account, $99/yr) would remove the Gatekeeper prompt and keep permissions across updates; an EV certificate ($300+/yr) would give Windows SmartScreen trust.

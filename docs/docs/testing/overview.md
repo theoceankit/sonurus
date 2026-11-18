@@ -84,7 +84,7 @@ The tests refuse to start while something answers on port 8000, as Electron woul
 
 ### Build tests
 
-`tests/build/` checks the packaging inputs without building anything: the UI's window entry, CSP and packaging rules, the per-platform lock files and GPU manifests in `locks/`, the pruning of the bundled Python and the bundled import check (see [Packaging](../distribution/packaging.md#python-packages-lock-files)), the installer size check, the absence of a first-run setup in the Electron main process, the Electron version (native Wayland), the Visual C++ runtime copied into the Windows build and the app icons (PNG, ICNS and ICO are read with Node built-ins, since CI has no `node_modules`). Installers themselves are verified by building and running them.
+`tests/build/` checks the packaging inputs without building anything: the UI's window entry, CSP and packaging rules, the per-platform lock files and GPU manifests in `locks/`, the pruning of the bundled Python and the bundled import check (see [Packaging](../distribution/packaging.md#python-packages-lock-files)), the installer size check, the absence of a first-run setup in the Electron main process, the Electron version (native Wayland), the Visual C++ runtime copied into the Windows build, the ad hoc signature of the macOS build and the app icons (PNG, ICNS and ICO are read with Node built-ins, since CI has no `node_modules`). Installers themselves are verified by building and running them.
 
 ---
 
@@ -182,6 +182,7 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 | `tests/build/electron-version.test.js` | Electron 38+ in `package.json` and `package-lock.json` (native Wayland by default, needed for drops from Wayland file managers), no ozone workarounds in `electron/`, no stale `allowScripts` entry for Electron, clipboard writes awaited in the main process |
 | `tests/build/capture-helper.test.js` | Windows capture helper: source in `native/windows/`, shipped as `win/sonorus-capture.exe` (`extraResources`), built by `build:win` and CI `build-win` before electron-builder and not in the CI test job; MSVC command links the C runtime statically, mingw command is static + Unicode; an existing helper is kept without a compiler only if not older than its source; `backend.js` passes the path; binary gitignored |
 | `tests/build/app-icons.test.js` | App icons: `package.json` points macOS, Windows and Linux at their icon; the macOS master has its plate at 824 with margin 100, the Windows / Linux master at 896 with margin 64 (8 px up); `icon.icns` has 128–1024 px images and its 1024 px image equals the macOS master; `icon.ico` has 16, 24, 32, 48 and 256 px images with the plate where the Windows / Linux master has it; the macOS menu bar icons are 18 and 36 px template images (black, shape in alpha) |
+| `tests/build/mac-signature.test.js` | macOS builds signed ad hoc (`build.mac.identity` `"-"`) with the hardened runtime and the entitlements; `build-mac` runs `check-mac-signature.js` after electron-builder and before the upload; its reading of `codesign` output on samples: a linker signature refused with a reason for each missing part, a full ad hoc signature passed, unreadable output refused; entitlements and the `Info.plist` usage descriptions of `build.mac.extendInfo` required |
 
 ---
 

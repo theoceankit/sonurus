@@ -76,7 +76,8 @@ Each build job:
 2. `node scripts/bundle-backend.js` — Python standalone + every library from `locks/` + `app/`, precompiled
    (pip downloads are cached between runs, keyed by the lock files)
 3. `npx electron-builder --<platform> --<arch> --publish never`
-4. `node scripts/check-installer-size.js dist` — fails above 1900 MiB (see [Packaging → Installer size](./packaging.md#installer-size))
+4. `build-mac` only: `node scripts/check-mac-signature.js dist` — fails unless the app in the `.dmg` is fully signed ad hoc (see [Packaging → macOS: ad hoc signature](./packaging.md#macos-ad-hoc-signature))
+5. `node scripts/check-installer-size.js dist` — fails above 1900 MiB (see [Packaging → Installer size](./packaging.md#installer-size))
 
 Build jobs time out after 60 minutes.
 
@@ -126,6 +127,6 @@ Output in `dist/`. For macOS builds on an arm64 machine, add `--arm64` to get on
 
 ## Notes
 
-- Builds are **unsigned** — see [Packaging → Code signing](./packaging.md#code-signing)
+- Builds carry no certificate: macOS builds are signed ad hoc, Windows builds are unsigned — see [Packaging → Code signing](./packaging.md#code-signing)
 - `backend-dist/` and `dist/` are gitignored — never commit them
 - The Python tarball is cached in `backend-dist/` locally between builds but not in CI (each CI run re-downloads)
