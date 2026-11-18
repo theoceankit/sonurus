@@ -77,6 +77,22 @@ function startingPoint(content: HTMLElement, type: ModalType) {
   return firstIn(content, '[data-modal-body]') ?? firstIn(content, '[data-modal-footer]') ?? firstIn(content, '[data-modal-header]')
 }
 
+// How long past its way out a closed window may stay before it is let go regardless.
+const WAY_OUT_SLACK_MS = 250
+
+// The longest animation of the element, delay included, in milliseconds.
+function wayOutTime(node: HTMLElement): number {
+  const style = getComputedStyle(node)
+  const times = (list: string) => list.split(',').map(time => {
+    const value = parseFloat(time)
+    if (Number.isNaN(value)) return 0
+    return time.trim().endsWith('ms') ? value : value * 1000
+  })
+  const durations = times(style.animationDuration)
+  const delays = times(style.animationDelay)
+  return Math.max(0, ...durations.map((duration, i) => duration + (delays[i % delays.length] ?? 0)))
+}
+
 export function Modal({ size = 'small', type = 'default', open, defaultOpen, onOpenChange, onExited, skipEnter, scrim = 'dim', children, preview }: ModalProps) {
   const [hasDescription, setHasDescription] = useState(false)
   const content = useRef<HTMLDivElement | null>(null)
@@ -108,6 +124,22 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
       release()
     }
   }, [isOpen])
+  // Radix keeps a closed window until it sees the end of the way out, and now and then
+  // it misses it (seen when a window closes as another opens over the same one): the
+  // closed window then stays in the page and keeps the one under it hidden from
+  // assistive technology. A window still there well after its way out is let go by
+  // its owner, as if the way out had been seen to end.
+  const exited = useRef(onExited)
+  exited.current = onExited
+  useEffect(() => {
+    if (isOpen || preview) return undefined
+    const node = content.current
+    if (!node) return undefined
+    const timer = globalThis.setTimeout(() => {
+      if (node.isConnected) exited.current?.()
+    }, wayOutTime(node) + WAY_OUT_SLACK_MS)
+    return () => globalThis.clearTimeout(timer)
+  }, [isOpen, preview])
   const others = useOpenModalCount() - (counted.current ? 1 : 0)
   const clearScrim = scrim === 'clear' || (scrim === 'auto' && others > 0)
 

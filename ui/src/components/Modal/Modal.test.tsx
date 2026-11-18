@@ -396,6 +396,47 @@ test('says when the way out has played', async () => {
   await waitFor(() => expect(onExited).toHaveBeenCalledOnce())
 })
 
+test('a way out that Radix misses the end of still lets the window go', async () => {
+  // Radix keeps a closed window until it sees the end of the way out. Now and then it
+  // does not (seen when a window closes as another opens over the same one), and the
+  // closed window stays in the page, hiding the window under it. Played here: the
+  // window animates, and the end that comes is not one Radix counts.
+  const real = window.getComputedStyle
+  const computed = vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
+    const style = real(element, pseudo)
+    if (!element.matches('[role="dialog"]')) return style
+    // Read when asked, as a live computed style is.
+    Object.defineProperty(style, 'animationName', { get: () => element.getAttribute('data-state') === 'closed' ? 'exit' : 'enter' })
+    return style
+  })
+  function Owner() {
+    const [open, setOpen] = useState(true)
+    const [shown, setShown] = useState(true)
+    return (
+      <OverlayProvider>
+        <Button>Behind</Button>
+        {shown && (
+          <Modal open={open} onOpenChange={setOpen} onExited={() => setShown(false)}>
+            <ModalHeader title="Choose" />
+            <ModalFooter confirm={{ children: 'Done', onClick: () => setOpen(false) }} />
+          </Modal>
+        )}
+      </OverlayProvider>
+    )
+  }
+  try {
+    render(<Owner />)
+    const window_ = screen.getByRole('dialog', { name: 'Choose' })
+    await userEvent.click(button('Done'))
+    expect(window_.getAttribute('data-state')).toBe('closed')
+    act(() => { window_.dispatchEvent(Object.assign(new Event('animationend', { bubbles: true }), { animationName: 'other' })) })
+    await waitFor(() => expect(window_.isConnected).toBe(false))
+    expect(screen.getByRole('button', { name: 'Behind' }).closest('[aria-hidden="true"]')).toBeNull()
+  } finally {
+    computed.mockRestore()
+  }
+})
+
 test('a window taking over from another has no way in, and still a way out', () => {
   render(<Modal open skipEnter><ModalHeader title="Rename" /></Modal>)
   expect(screen.getByRole('dialog').className).toContain('skipEnter')
