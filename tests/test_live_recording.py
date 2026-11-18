@@ -167,6 +167,51 @@ def test_a_failed_stop_tells_why_and_lets_go(service, capture, queue):
     assert queue.snapshot()["recording"] is None
 
 
+@pytest.mark.parametrize("how", ["failed", "lost"])
+def test_the_events_are_out_before_the_recording_is_over(service, capture, queue, monkeypatch, how):
+    # A slow publish must not leave a gap where is_recording() is already
+    # False but the event and the closing snapshot are not out yet.
+    stopped = queue.recording_stopped
+
+    def _slow(*events):
+        time.sleep(0.2)
+        stopped(*events)
+
+    monkeypatch.setattr(queue, "recording_stopped", _slow)
+    service.start(_request(system=False))
+    if how == "failed":
+        capture.fail_stop = RuntimeError("boom")
+        service.stop()
+    else:
+        capture.lose("mic")
+    _wait_idle(service)
+    expected = "recording_failed" if how == "failed" else "recording_source_lost"
+    assert expected in _types(queue)
+    assert queue.events[-1]["type"] == "snapshot"
+    assert queue.events[-1]["recording"] is None
+
+
+def test_a_start_right_after_a_stop_is_not_let_go_by_the_old_recording(service, capture, queue, monkeypatch):
+    stopped = queue.recording_stopped
+    restarted = []
+
+    def _start_in_between(*events):
+        # The old recording is not over yet: a new one must wait for it.
+        try:
+            service.start(_request())
+            restarted.append(True)
+        except RecordingBusy:
+            restarted.append(False)
+        stopped(*events)
+
+    monkeypatch.setattr(queue, "recording_stopped", _start_in_between)
+    service.start(_request())
+    service.stop()
+    _wait_idle(service)
+    assert restarted == [False]
+    assert queue.snapshot()["recording"] is None
+
+
 def test_a_recording_that_cannot_be_queued_tells_why(service, queue, monkeypatch):
     monkeypatch.setattr(queue, "add", lambda **kw: (_ for _ in ()).throw(OSError("disk full")))
     service.start(_request())
