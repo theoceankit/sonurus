@@ -1,0 +1,306 @@
+{
+  "speech_level_dbfs": -30.0,
+  "fleurs": {
+    "source": "FLEURS (Google), https://huggingface.co/datasets/google/fleurs — CC BY 4.0",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "tsv_url": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/{code}/dev.tsv",
+    "audio_url": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/{code}/audio/dev.tar.gz",
+    "clip_seconds": 180,
+    "pause_s": [
+      0.6,
+      1.2
+    ],
+    "languages": {
+      "ru": {
+        "code": "ru_ru",
+        "tsv_sha256": "25d9dc88a7533fc0f303354a8e6d3c8186c557229c9a0024487090a11226171e",
+        "audio_sha256": "4dc533cd0f312f749bd6d0fe968f3183288d938e07ed97dc141d9f10570457f9",
+        "clips": [
+          {
+            "id": "ru1",
+            "files": [
+              "11650213950805746980.wav",
+              "8975942316022161593.wav",
+              "11229318337232860387.wav",
+              "17370299765881971684.wav",
+              "11045999658009248618.wav",
+              "15443112433434816718.wav",
+              "6507906531538592053.wav",
+              "12333591673744602709.wav",
+              "5546540204680355430.wav",
+              "6481310752513289020.wav",
+              "11624622061889399422.wav",
+              "3967187950824382837.wav",
+              "8090558351475711545.wav",
+              "9007807144594340757.wav",
+              "5462996566050810266.wav"
+            ]
+          },
+          {
+            "id": "ru2",
+            "files": [
+              "15678348075250041721.wav",
+              "12088572238727034402.wav",
+              "8163471807773500204.wav",
+              "11390460149275538909.wav",
+              "7775687297396308565.wav",
+              "3765091626090272810.wav",
+              "5719072688646466317.wav",
+              "16869134591463756101.wav",
+              "4899144079403872996.wav",
+              "1058855104882293960.wav",
+              "17036589354589725457.wav",
+              "14210988561188787203.wav",
+              "16697941833010483340.wav"
+            ]
+          },
+          {
+            "id": "ru3",
+            "files": [
+              "4212250271455185496.wav",
+              "17759731324642522129.wav",
+              "13809950885346476628.wav",
+              "3538730999010542375.wav",
+              "8546790106490485194.wav",
+              "13624814710514403064.wav",
+              "6399001730638392127.wav",
+              "11037520222095225046.wav",
+              "13064540794409324048.wav",
+              "17103673108586618915.wav",
+              "11408842935408464737.wav",
+              "14887150788095903696.wav",
+              "12368734240311629257.wav",
+              "13832101856805153728.wav",
+              "16088098477705156961.wav"
+            ]
+          }
+        ]
+      },
+      "uk": {
+        "code": "uk_ua",
+        "tsv_sha256": "0fb2f48b216b74d503c3cebb80906407fd812cd464ad2eb61baf840f2bcb6951",
+        "audio_sha256": "0f2b35ffe6277d53a19ce440a0195e86a34aaf94a2063c7f8d75b2afbe3f38da",
+        "clips": [
+          {
+            "id": "uk1",
+            "files": [
+              "17207403270766497563.wav",
+              "15743824618438295158.wav",
+              "7491443697189183793.wav",
+              "14181744547398036410.wav",
+              "16921500525745207921.wav",
+              "12758563637841232113.wav",
+              "13075390102466100250.wav",
+              "10807823027517450889.wav",
+              "13232956710592176512.wav",
+              "3397279860560447647.wav",
+              "1440496903649552265.wav",
+              "16456068369025060811.wav",
+              "14514432071962218154.wav",
+              "14376217470452166187.wav",
+              "14813631731259606280.wav"
+            ]
+          },
+          {
+            "id": "uk2",
+            "files": [
+              "10397666982733330743.wav",
+              "18056089187508734943.wav",
+              "3102225872863493360.wav",
+              "17272895113979919655.wav",
+              "11299678918452970734.wav",
+              "10275110423183381243.wav",
+              "16396485267078751466.wav",
+              "16965782268974900715.wav",
+              "13374397642142305369.wav",
+              "2959252786138212872.wav",
+              "7886564945278969910.wav",
+              "11579351410671528989.wav",
+              "11946130893099217773.wav",
+              "11931184542281086941.wav",
+              "3697556091792008363.wav"
+            ]
+          },
+          {
+            "id": "uk3",
+            "files": [
+              "15075547770200327039.wav",
+              "17778406653445878571.wav",
+              "13491213514926838272.wav",
+              "13687468868162116949.wav",
+              "15692535072685643603.wav",
+              "6894218624773350819.wav",
+              "17186180377393145022.wav",
+              "2541126784947602186.wav",
+              "16848694202945446044.wav",
+              "10739772711523257689.wav",
+              "3448435291403945306.wav",
+              "13106535517215112823.wav",
+              "1739643239660249831.wav",
+              "15163594562521984327.wav",
+              "11263960587745060844.wav",
+              "12743100437426753515.wav",
+              "10188490613319561246.wav",
+              "10854629782263985341.wav"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "music": {
+    "title": "Local Forecast – Elevator",
+    "author": "Kevin MacLeod (incompetech.com)",
+    "license": "CC BY 3.0, https://creativecommons.org/licenses/by/3.0/",
+    "page": "https://commons.wikimedia.org/wiki/File:Local_Forecast_-_Elevator_(ISRC_USUAN1300012).mp3",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Local_Forecast_-_Elevator_%28ISRC_USUAN1300012%29.mp3",
+    "file": "Local_Forecast_-_Elevator_(ISRC_USUAN1300012).mp3",
+    "sha256": "8c46b44e65324bc339fbbc3e770611d671f6c74a40f3ec8dd50332c082b25cc9"
+  },
+  "bases": [
+    {
+      "id": "es2002b-clean",
+      "source": "ami",
+      "clip": "es2002b",
+      "file": "clean.wav",
+      "language": "en"
+    },
+    {
+      "id": "es2002c-clean",
+      "source": "ami",
+      "clip": "es2002c",
+      "file": "clean.wav",
+      "language": "en"
+    },
+    {
+      "id": "es2002d-clean",
+      "source": "ami",
+      "clip": "es2002d",
+      "file": "clean.wav",
+      "language": "en"
+    },
+    {
+      "id": "es2002b-call",
+      "source": "ami",
+      "clip": "es2002b",
+      "file": "call.wav",
+      "language": "en"
+    },
+    {
+      "id": "es2002c-call",
+      "source": "ami",
+      "clip": "es2002c",
+      "file": "call.wav",
+      "language": "en"
+    },
+    {
+      "id": "es2002d-call",
+      "source": "ami",
+      "clip": "es2002d",
+      "file": "call.wav",
+      "language": "en"
+    },
+    {
+      "id": "ru1",
+      "source": "fleurs",
+      "language": "ru"
+    },
+    {
+      "id": "ru2",
+      "source": "fleurs",
+      "language": "ru"
+    },
+    {
+      "id": "ru3",
+      "source": "fleurs",
+      "language": "ru"
+    },
+    {
+      "id": "uk1",
+      "source": "fleurs",
+      "language": "uk"
+    },
+    {
+      "id": "uk2",
+      "source": "fleurs",
+      "language": "uk"
+    },
+    {
+      "id": "uk3",
+      "source": "fleurs",
+      "language": "uk"
+    }
+  ],
+  "inserts": {
+    "silence": {
+      "what": "digital silence"
+    },
+    "room": {
+      "what": "pink noise, a quiet room",
+      "dbfs": -50.0,
+      "seed": 7
+    },
+    "ring": {
+      "what": "ring-back tone, 425 Hz, 1 s on, 4 s off",
+      "hz": 425,
+      "on": 1.0,
+      "off": 4.0,
+      "dbfs": -30.0
+    },
+    "music": {
+      "what": "instrumental hold music at speech level",
+      "dbfs": -30.0,
+      "from_s": 0.0
+    }
+  },
+  "variants": [
+    {
+      "name": "silence15",
+      "insert": "silence",
+      "seconds": 15,
+      "gaps": []
+    },
+    {
+      "name": "silence45",
+      "insert": "silence",
+      "seconds": 45,
+      "gaps": []
+    },
+    {
+      "name": "room15",
+      "insert": "room",
+      "seconds": 15,
+      "gaps": []
+    },
+    {
+      "name": "room45",
+      "insert": "room",
+      "seconds": 45,
+      "gaps": []
+    },
+    {
+      "name": "ring15",
+      "insert": "ring",
+      "seconds": 15,
+      "gaps": []
+    },
+    {
+      "name": "ring45",
+      "insert": "ring",
+      "seconds": 45,
+      "gaps": []
+    },
+    {
+      "name": "music15",
+      "insert": "music",
+      "seconds": 15,
+      "gaps": []
+    },
+    {
+      "name": "music45",
+      "insert": "music",
+      "seconds": 45,
+      "gaps": []
+    }
+  ]
+}
