@@ -47,6 +47,12 @@ if DEVICE == "cuda":
     except Exception:
         pass
 
+# Language auto-detection (app/services/language_detection.py): windows of
+# speech found by VAD; more windows only when the first one is not confident.
+LANGUAGE_WINDOW_S = 30.0
+LANGUAGE_CONFIDENT = 0.8
+LANGUAGE_MAX_WINDOWS = 3
+
 # EmbeddingService: WeSpeaker ResNet34-LM (256 values), the embedding model of
 # the diarization pipeline, read from its subfolder of the diarization repo.
 EMBEDDING_REPO = "pyannote/speaker-diarization-community-1"

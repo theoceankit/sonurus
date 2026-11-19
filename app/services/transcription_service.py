@@ -5,6 +5,7 @@ from pathlib import Path
 from app.config import MODELS_DIR, WHISPER_MODEL, WHISPER_BATCH_SIZE, WHISPER_COMPUTE_TYPE_CUDA, WHISPER_COMPUTE_TYPE_CPU
 # AlignmentModelMissingError is imported from here by the queue and the pipeline child.
 from app.services.model_service import ALIGNMENT_CATALOG, AlignmentModelMissingError, ModelService  # noqa: F401
+from app.services import language_detection
 from app.services.diarization import diarize
 from app.services.transcript_builder import assign_gap_sentences
 from app.logger import get_logger
@@ -28,6 +29,9 @@ class TranscriptionService:
             )
         except (OSError, RuntimeError) as exc:
             raise RuntimeError(f"Failed to load Whisper model: {exc}") from exc
+        # Auto-detect the language from the speech VAD finds in transcribe(),
+        # not from the first 30 s of the file.
+        self.language = language_detection.install(self.model)
 
     def transcribe(self, audio_path: str, language: str | None = None):
         log.info(f"Loading audio: {audio_path}")
