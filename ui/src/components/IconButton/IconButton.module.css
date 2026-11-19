@@ -8,7 +8,8 @@
   color: var(--color-text-secondary);
 }
 
-.iconButton:disabled {
+.iconButton:disabled,
+.iconButton[aria-disabled='true'] {
   opacity: var(--opacity-disabled);
 }
 

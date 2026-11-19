@@ -829,6 +829,7 @@ describe('Back and Forward', () => {
   const emptyShown = () => within(panel()).queryByText(/To make a new transcription/) !== null
   const button = (name: 'Back' | 'Forward') => screen.getByLabelText(name, { selector: 'button' }) as HTMLButtonElement
   const go = (name: 'Back' | 'Forward') => userEvent.click(button(name))
+  const off = (name: 'Back' | 'Forward') => button(name).getAttribute('aria-disabled') === 'true'
   const opened = async (row: RegExp) => {
     await userEvent.click(sidebarRow(row))
     await waitFor(() => expect(title()).toMatch(row))
@@ -841,8 +842,8 @@ describe('Back and Forward', () => {
 
   test('go through the recordings opened, and what was forward goes when another opens', async () => {
     await start()
-    expect(button('Back').disabled).toBe(true)
-    expect(button('Forward').disabled).toBe(true)
+    expect(off('Back')).toBe(true)
+    expect(off('Forward')).toBe(true)
     await opened(/Design review/)
     await opened(/Call with Mark/)
     await go('Back')
@@ -850,12 +851,12 @@ describe('Back and Forward', () => {
     expect(sidebarRow(/Design review/).getAttribute('aria-current')).toBe('true')
     await go('Back')
     await waitFor(() => expect(title()).toMatch(/Weekly product sync/))
-    expect(button('Back').disabled).toBe(true)
+    expect(off('Back')).toBe(true)
     await go('Forward')
     await waitFor(() => expect(title()).toMatch(/Design review/))
-    expect(button('Forward').disabled).toBe(false)
+    expect(off('Forward')).toBe(false)
     await opened(/Customer call, Acme/)
-    expect(button('Forward').disabled).toBe(true)
+    expect(off('Forward')).toBe(true)
     await go('Back')
     await waitFor(() => expect(title()).toMatch(/Design review/))
   })
@@ -870,7 +871,7 @@ describe('Back and Forward', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     await go('Back')
     await waitFor(() => expect(title()).toMatch(/Weekly product sync/))
-    expect(button('Back').disabled).toBe(true)
+    expect(off('Back')).toBe(true)
   })
 
   test('Back after Escape opens the closed recording, and Forward closes it again', async () => {
@@ -878,7 +879,7 @@ describe('Back and Forward', () => {
     await opened(/Design review/)
     await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(emptyShown()).toBe(true))
-    expect(button('Back').disabled).toBe(false)
+    expect(off('Back')).toBe(false)
     await go('Back')
     await waitFor(() => expect(title()).toMatch(/Design review/))
     await go('Forward')
@@ -903,11 +904,11 @@ describe('Back and Forward', () => {
     await waitFor(() => expect(within(screen.getByLabelText('Recordings')).queryByText('Design review')).toBeNull())
     await go('Back')
     await waitFor(() => expect(title()).toMatch(/Weekly product sync/))
-    expect(button('Back').disabled).toBe(true)
+    expect(off('Back')).toBe(true)
     await client.deleteTranscript(WEEKLY_SYNC_ID)
     await act(async () => { await queries!.invalidateQueries({ queryKey: ['transcripts'] }) })
     await waitFor(() => expect(title()).toMatch(/Call with Mark/))
-    expect(button('Back').disabled).toBe(true)
+    expect(off('Back')).toBe(true)
   })
 
   test('Alt with an arrow and the side buttons of a mouse go back and forward', async () => {
@@ -960,9 +961,9 @@ describe('Back and Forward', () => {
     const queue = await screen.findByRole('region', { name: 'Transcription queue' })
     await userEvent.click(within(queue).getByRole('button', { name: /Queued call$/ }))
     await waitFor(() => expect(title()).toBeNull())
-    expect(button('Back').disabled).toBe(false)
+    expect(off('Back')).toBe(false)
     await go('Back')
     await waitFor(() => expect(title()).toMatch(/Weekly product sync/))
-    expect(button('Back').disabled).toBe(true)
+    expect(off('Back')).toBe(true)
   })
 })

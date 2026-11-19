@@ -9,7 +9,9 @@ import styles from './Titlebar.module.css'
 interface TitlebarProps {
   sidebarOpen?: boolean
   onToggleSidebar?: () => void
-  // Through the recordings opened. Each button is off while there is nowhere to go.
+  // Through the recordings opened. Each button is off while there is nowhere to go:
+  // aria-disabled rather than disabled, so a button pressed from the keyboard at the
+  // last step keeps the focus.
   canGoBack?: boolean
   canGoForward?: boolean
   onBack?: () => void
@@ -96,8 +98,8 @@ export function Titlebar({ sidebarOpen = true, onToggleSidebar, canGoBack = fals
         <TooltipGroup>
           <span className={styles.nav}>
             <SidebarToggle open={sidebarOpen} onToggle={onToggleSidebar} />
-            <Tool icon="arrow-left" label="Back" disabled={!canGoBack} onClick={onBack} />
-            <Tool icon="arrow-right" label="Forward" disabled={!canGoForward} onClick={onForward} />
+            <Tool icon="arrow-left" label="Back" aria-disabled={!canGoBack || undefined} onClick={canGoBack ? onBack : undefined} />
+            <Tool icon="arrow-right" label="Forward" aria-disabled={!canGoForward || undefined} onClick={canGoForward ? onForward : undefined} />
           </span>
         </TooltipGroup>
         <span className={styles.spacer} />
