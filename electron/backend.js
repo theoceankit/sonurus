@@ -5,6 +5,7 @@ const http = require('http')
 const fs   = require('fs')
 const { gpuBackendEnv, gpuSupported, markPackError, prepareGpuStart, runProbe } = require('./gpu-pack')
 const { reuseDecision, servesDataDir } = require('./backend-identity')
+const { backendOutput, log } = require('./log')
 
 let proc = null
 
@@ -114,11 +115,11 @@ async function prepareGpu() {
     const { usePack, applied, probe: result } = await prepareGpuStart({
       gpuDir, manifest, appVersion: app.getVersion(), probe,
     })
-    if (applied) console.log(`[backend] GPU pack ${applied}`)
-    if (result) console.log(`[backend] GPU check: ${result.ok ? `ok (${result.device})` : result.error}`)
+    if (applied) log(`[backend] GPU pack ${applied}`)
+    if (result) log(`[backend] GPU check: ${result.ok ? `ok (${result.device})` : result.error}`)
     return { gpuDir, manifestPath, usePack }
   } catch (err) {
-    console.error(`[backend] GPU pack not used: ${err.message}`)
+    log(`[backend] GPU pack not used: ${err.message}`)
     return { gpuDir, manifestPath, usePack: false }
   }
 }
@@ -138,11 +139,13 @@ async function startBackend(hfToken = '') {
     ...process.env,
     HF_TOKEN: hfToken,
     SONORUS_DATA_DIR: userData,
-    LOG_FILE: path.join(userData, 'sonorus.log'),
     PYTHONUNBUFFERED: '1',
     VERBOSE: 'false',
     SONORUS_VERSION: app.getVersion(),
   }
+  // The backend's log lines reach sonorus.log through its stderr (spawnBackend):
+  // the main process is the log's only writer (electron/log.js).
+  delete env.LOG_FILE
   // GET /health tells whether the packaged app started this backend.
   if (app.isPackaged) env.SONORUS_PACKAGED = '1'
   else delete env.SONORUS_PACKAGED
@@ -179,13 +182,13 @@ async function startBackend(hfToken = '') {
     if (!gpu?.usePack) throw err
     // The pack broke the start (e.g. a library the check did not load): run
     // on the CPU from now on; Settings shows why.
-    console.error(`[backend] did not start with GPU acceleration: ${err.message}`)
+    log(`[backend] did not start with GPU acceleration: ${err.message}`)
     await stopBackendAndWait()
     markPackError(gpu.gpuDir, `The backend did not start with GPU acceleration: ${err.message}`)
     delete env.PYTHONPATH
     await spawnBackend(env)
   }
-  console.log(`[backend] ready in ${Date.now() - startedAt} ms`)
+  log(`[backend] ready in ${Date.now() - startedAt} ms`)
 }
 
 async function spawnBackend(env) {
@@ -196,8 +199,13 @@ async function spawnBackend(env) {
   )
   proc = child
 
+  // stderr carries the backend's log, tracebacks and the pipeline's output: to the
+  // console and the app log. stdout is uvicorn's line per request: the console only.
+  const out = backendOutput()
   child.stdout.on('data', d => process.stdout.write(`[backend] ${d}`))
-  child.stderr.on('data', d => process.stderr.write(`[backend] ${d}`))
+  child.stderr.setEncoding('utf8')
+  child.stderr.on('data', d => { process.stderr.write(`[backend] ${d}`); out.write(d) })
+  child.stderr.on('end', () => out.end())
   child.on('exit', () => { if (proc === child) proc = null })
 
   await waitForReady(child)

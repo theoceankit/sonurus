@@ -12,6 +12,7 @@ const { appUserModelId, micApps, notificationsOn, promptFor, rememberMicApp, sto
 const { createNotifier, notificationRefusal, rememberNotificationRefusal } = require('./notifications')
 const { uiEntry } = require('./ui-entry')
 const { windowChrome, themeSource, overlayDimmer } = require('./window-chrome')
+const { configureLog, log, rotateLog } = require('./log')
 
 // Dev mode keeps its data apart from the packaged app (electron/backend-identity.js).
 // Must run before the app is ready: settings, the backend's data dir and logs follow it.
@@ -27,6 +28,10 @@ if (devUserData) app.setPath('userData', devUserData)
 // userData path, which the lock is taken in.
 const singleInstance = app.requestSingleInstanceLock()
 if (!singleInstance) app.quit()
+
+// The app log: lines of the main process and the backend's stderr (electron/log.js).
+const getLogPath = () => path.join(app.getPath('userData'), 'sonorus.log')
+configureLog({ file: getLogPath() })
 
 // Notifications on Windows need an AppUserModelID (electron/recording-prompts.js).
 if (process.platform === 'win32') {
@@ -267,13 +272,16 @@ app.whenReady().then(async () => {
     callback(false)
   })
 
+  // A new log once it grew too big; only here, so a second instance leaves it alone.
+  rotateLog(getLogPath())
+
   // Start the backend first so index.html loads with a ready API.
   try {
     await startBackend(savedHfToken())
   } catch (err) {
     dialog.showErrorBox('Sonorus — backend error', err instanceof BackendRefusedError
       ? err.message
-      : `Failed to start the backend:\n${err.message}\n\nCheck ${app.getPath('userData')}/sonorus.log for details.`)
+      : `Failed to start the backend:\n${err.message}\n\nCheck ${getLogPath()} for details.`)
     quitNow()
     return
   }
@@ -326,7 +334,7 @@ function endAutoStop(notice) {
 // notification shows again (electron/notifications.js).
 const notifier = createNotifier({
   Notification,
-  log: line => console.error(line),
+  log,
   onRefused: refusal => setNotificationRefusal(refusal),
   onShown: () => { if (notificationRefusal(getAppStatePath())) setNotificationRefusal(null) },
 })
