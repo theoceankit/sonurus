@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { expect, test, vi } from 'vitest'
 import inspectorIcon from '../../assets/icons/inspector.svg?raw'
 import toggleIcon from '../../assets/icons/sidebar-toggle.svg?raw'
@@ -115,13 +116,37 @@ test('Back and Forward go where they can', async () => {
 test('Back and Forward are off with nowhere to go, as they are by default', async () => {
   const onBack = vi.fn()
   setup({ canGoForward: true, onBack })
-  const back = screen.getByRole('button', { name: 'Back' }) as HTMLButtonElement
-  expect(back.disabled).toBe(true)
-  expect((screen.getByRole('button', { name: 'Forward' }) as HTMLButtonElement).disabled).toBe(false)
+  const back = screen.getByRole('button', { name: 'Back' })
+  expect(back.getAttribute('aria-disabled')).toBe('true')
+  expect(screen.getByRole('button', { name: 'Forward' }).getAttribute('aria-disabled')).toBeNull()
   await userEvent.click(back)
   expect(onBack).not.toHaveBeenCalled()
   setup()
-  expect(screen.getAllByRole('button', { name: 'Forward' }).at(-1)).toHaveProperty('disabled', true)
+  expect(screen.getAllByRole('button', { name: 'Forward' }).at(-1)!.getAttribute('aria-disabled')).toBe('true')
+})
+
+// A button that turned off under the keyboard keeps the focus, so Tab goes on from
+// it rather than from the top of the window. Chromium drops the focus of a button that
+// becomes disabled, jsdom does not, so the button must not become disabled at all.
+test.each([
+  ['Back', 'Forward'],
+  ['Forward', 'New recording'],
+])('%s pressed from the keyboard at the last step keeps the focus', async (name, next) => {
+  function History() {
+    const [step, setStep] = useState(name === 'Back' ? 1 : 0)
+    return <Titlebar canGoBack={step > 0} canGoForward={step < 1} onBack={() => setStep(0)} onForward={() => setStep(1)} />
+  }
+  render(<OverlayProvider><History /></OverlayProvider>)
+  const button = screen.getByRole('button', { name })
+  button.focus()
+  await userEvent.keyboard('{Enter}')
+  expect((button as HTMLButtonElement).disabled).toBe(false)
+  expect(button.getAttribute('aria-disabled')).toBe('true')
+  expect(document.activeElement).toBe(button)
+  await userEvent.keyboard(' ')
+  expect(document.activeElement).toBe(button)
+  await userEvent.tab()
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: next }))
 })
 
 test('search says it is not available yet and takes no text', async () => {
