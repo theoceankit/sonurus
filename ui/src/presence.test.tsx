@@ -40,6 +40,13 @@ test('the same value again keeps its key', () => {
   expect(result.current.key).toBe(first)
 })
 
+// Windows shown side by side for lingering values are siblings with these keys: two
+// with the same key make React lose one of them, which then stays in the page.
+test('lingering values of different windows never share a key', () => {
+  const { result } = renderHook(() => [useLingering(a), useLingering(b)])
+  expect(result.current[0].key).not.toBe(result.current[1].key)
+})
+
 test('ExitSignal fires on the real unmount only', async () => {
   const onExited = vi.fn()
   const { unmount } = render(<StrictMode><ExitSignal onExited={onExited} /></StrictMode>)
