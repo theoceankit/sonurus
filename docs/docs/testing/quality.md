@@ -153,6 +153,54 @@ A quality run of both sets with the models (the app as is, against the plain mea
 
 The two recognitions gained are a quiet participant of the clean 10-minute clip, missed at 0.59 and now a possible match at 0.66 (in "10 min" and in "three groups"). The one still missed (0.54, clean "three groups") is the same voice in both.
 
+## Padded set
+
+The AMI clips are speech from the first second to the last, in one language. A real recording often starts with silence, a ring tone or hold music, and pauses in it. The padded set puts such sounds before the speech of English, Russian and Ukrainian recordings, for what they do to language detection (and, with inserts between sentences, to text Whisper invents over non-speech).
+
+**Bases** (`tests/quality/padded_manifest.json`, `bases`):
+
+| Base | Source |
+|---|---|
+| `es2002b-clean` … `es2002d-call` | The fast set's `clean.wav` and `call.wav` (English) |
+| `ru1`–`ru3`, `uk1`–`uk3` | Russian and Ukrainian read speech of [FLEURS](https://huggingface.co/datasets/google/fleurs) (CC BY 4.0), its dev split: 13–18 utterances per clip, about 3 minutes, one recording per sentence with female and male readers alternating, 0.6–1.2 s pauses between them, each utterance brought to −30 dBFS speech level as the AMI tracks |
+
+**Inserts** (`inserts`): digital silence (`silence`), pink noise at −50 dBFS as a quiet room (`room`), a ring-back tone of 425 Hz, 1 s on and 4 s off, at −30 dBFS (`ring`), and instrumental hold music at −30 dBFS RMS, as loud as the speech (`music`: "Local Forecast – Elevator" by Kevin MacLeod, incompetech.com, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Local_Forecast_-_Elevator_(ISRC_USUAN1300012).mp3)). Each insert fades in and out over 20 ms.
+
+**Variants** (`variants`): each insert before the speech for 15 s (Whisper's first 30 s still hold speech) and for 45 s (they hold none): `silence15` … `music45`. A variant may also list `gaps`, inserts at a second of the base, put in a pause; the reference is shifted past every insert at or before a word.
+
+`scripts/eval/build_padded_set.py` builds it into `$SONORUS_EVAL_CACHE/padded` (about 760 MB): per base `base.wav` and each `<variant>.wav`, with `.json` next to it holding the language, the inserts (where, what, how long) and the reference shifted by them: AMI words, FLEURS sentences with their times. The FLEURS archives (about 180 MB per language) are downloaded once from a fixed revision of the dataset and deleted once the utterances are taken out; every download is checked against the sha256 in the manifest. The build is deterministic.
+
+```bash
+.venv/bin/python scripts/eval/build_ami_set.py      # the AMI bases, if not built yet
+.venv/bin/python scripts/eval/build_padded_set.py
+```
+
+`--record` fills in missing sha256 values and picks the utterances of a clip whose list in the manifest is empty.
+
+### Language detection
+
+`tests/quality/test_language.py` (part of `SONORUS_QUALITY=1`, or on its own) detects the language of every recording of the padded set two ways: as WhisperX does on its own, from the first 30 s of the file, and as the app does, from the speech VAD found ([TranscriptionService](../services/TranscriptionService.md#transcribeaudio_path--result-audio-diarization)). Only VAD and Whisper's encoder run; the 12 bases with 9 recordings each take about a minute and a half on an 8 GB GPU, models loaded. A base's test fails if the app's way gets any of its recordings wrong; the old way is reported. One more test runs `transcribe()` itself on a recording with 45 s of room noise first and checks that the language came from the speech after it: a WhisperX update that changes the order inside `transcribe()` fails there.
+
+```bash
+SONORUS_QUALITY=1 .venv/bin/python -m pytest tests/quality/test_language.py -v -s
+```
+
+Results (November 2026, Whisper `large-v3`, 108 recordings, 12 per lead-in):
+
+| Lead-in | Old way right | App's way right | App's lowest probability |
+|---|---|---|---|
+| none | 12 | 12 | 0.88 |
+| silence, 15 s | 12 | 12 | 0.83 |
+| silence, 45 s | 6 | 12 | 0.87 |
+| room noise, 15 s | 12 | 12 | 0.88 |
+| room noise, 45 s | 0 | 12 | 0.89 |
+| ring tone, 15 s | 12 | 12 | 0.89 |
+| ring tone, 45 s | 0 | 12 | 0.85 |
+| music, 15 s | 12 | 12 | 0.90 |
+| music, 45 s | 6 | 12 | 0.86 |
+
+With 45 s of non-speech first, the old way sees none of the speech: silence and music came out English (right only for the English bases), room noise and the ring tone Norwegian Nynorsk, at probabilities of 0.31–0.38. The app's way got every recording right, the Russian and Ukrainian ones at 0.93–1.00 and never one for the other; the English call clips are the least sure, down to 0.83. One recording needed more windows (`es2002c-call` with 45 s of ring tone: 0.85 over three). VAD takes the ring tone and parts of the music for speech (the speech "starts" at 0 s and at 15.5 s); 30 s of speech still hold enough of the real speech for Whisper there.
+
 ## Report
 
-At the end, pytest prints a Markdown report and saves it as `$SONORUS_EVAL_CACHE/reports/<date-time>.md`, with the raw results next to it as `<date-time>.json` (which also holds each person's own and best other similarity per clip, under `scores`, for choosing thresholds) and the voices as `<date-time>.npz` (see [Recomputing thresholds](#recomputing-thresholds)). It holds the models, device and library versions of the run, a summary per variant, the words recognised per speaker, the segment counts above per variant and per clip, every clip (WER split into substitutions / deletions / insertions, speakers found, detected language, time), and the text of each missed utterance with its level. Numbers depend on the versions of the models and libraries, so variants are compared within one run, never with numbers from another one. Reports are not kept in the repository.
+At the end, pytest prints a Markdown report and saves it as `$SONORUS_EVAL_CACHE/reports/<date-time>.md`, with the raw results next to it as `<date-time>.json` (which also holds each person's own and best other similarity per clip, under `scores`, for choosing thresholds) and the voices as `<date-time>.npz` (see [Recomputing thresholds](#recomputing-thresholds)). It holds the models, device and library versions of the run, a summary per variant, the words recognised per speaker, the segment counts above per variant and per clip, every clip (WER split into substitutions / deletions / insertions, speakers found, detected language, time), the text of each missed utterance with its level, and, when the language test ran, its results per lead-in and per recording. Numbers depend on the versions of the models and libraries, so variants are compared within one run, never with numbers from another one. Reports are not kept in the repository.

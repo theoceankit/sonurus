@@ -54,7 +54,15 @@ Returns `np.array` (mono, 16 kHz).
 ```python
 result = self.model.transcribe(audio, batch_size=4)
 ```
-Whisper detects the language and splits speech into segments with text.
+Whisper detects the language (unless the job names one) and splits speech into segments with text.
+
+**Language detection.** WhisperX on its own detects the language from the first 30 s of the file, silence, ring tones and music included, and takes the most likely language however unsure. A live recording usually starts with silence, and a wrong language puts the whole transcript into another language or fails the job on an alignment model it does not need. So `__init__` hooks `app/services/language_detection.py` into the pipeline (`install()`): the VAD model's `merge_chunks()` is wrapped to keep what it returns, and the pipeline's `detect_language()`, which `transcribe()` calls right after it when no language was given, is replaced. The language then comes from the speech of the same VAD pass, with no second VAD run:
+
+- the first 30 s of speech (`LANGUAGE_WINDOW_S`), the intervals glued together and padded to Whisper's 30 s window; Whisper's encoder gives the probability of every language;
+- if the most likely language is below `LANGUAGE_CONFIDENT` (0.8), up to two more windows (`LANGUAGE_MAX_WINDOWS` = 3 in all): 30 s around the middle of the speech and 30 s at its end, never overlapping a window already taken; the probabilities are averaged over the windows, weighted by their seconds of speech, and the most likely language wins;
+- if VAD found no speech, WhisperX's own detection runs as before.
+
+The log names the language, its probability, how much speech in how many windows and where in the recording it was, e.g. `Language: ru (0.97) from 30 s of speech in 1 window, speech 0:42–3:10`. How the old and the new way compare on recordings with silence, noise, a ring tone or music before the speech: [Quality tests → Language detection](../testing/quality.md#language-detection).
 
 **3. Alignment**
 ```python

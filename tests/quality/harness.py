@@ -375,3 +375,42 @@ def _totals(variant: Variant, clips: list[dict]) -> dict:
             for spk in sorted({s for c in clips for s in c["recall_by_speaker"]})
         },
     }
+
+
+# ── language detection on the padded set (test_language.py) ─────────────────
+
+def padded_dir() -> Path:
+    return set_dir().parent / "padded"
+
+
+def load_wav(path: Path) -> np.ndarray:
+    import wave
+    with wave.open(str(path)) as w:
+        return np.frombuffer(w.readframes(w.getnframes()), dtype="<i2").astype(np.float32) / 32768
+
+
+def detect_language(pipeline: "Pipeline", audio: np.ndarray) -> dict:
+    """The language of a recording the old way (WhisperX: the first 30 s of the
+    file, top language) and the app's way (from the speech of the VAD pass), as
+    the first steps of FasterWhisperPipeline.transcribe() run them: VAD, merge
+    the chunks, detect. No decoding."""
+    from app.services import language_detection as ld
+
+    model, hook = pipeline.transcription.model, pipeline.transcription.language
+    probs = ld.whisper_probs(model)
+    first = probs(audio, [(0.0, min(30.0, len(audio) / ld.SAMPLE_RATE))])
+    old = max(first, key=first.get)
+
+    started = time.monotonic()
+    scores = model.vad_model({"waveform": model.vad_model.preprocess_audio(audio), "sample_rate": ld.SAMPLE_RATE})
+    model.vad_model.merge_chunks(scores, 30, onset=model._vad_params["vad_onset"],
+                                 offset=model._vad_params["vad_offset"])
+    new = model.detect_language(audio)
+    det = hook.last
+    return {
+        "old": old, "old_p": first[old],
+        "new": new, "new_p": det.probability if det else None,
+        "speech_s": det.speech_s if det else 0.0, "windows": det.windows if det else 0,
+        "speech_start": det.start if det else None,
+        "seconds": time.monotonic() - started,
+    }
