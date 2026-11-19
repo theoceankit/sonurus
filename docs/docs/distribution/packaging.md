@@ -35,7 +35,8 @@ User data lives outside the bundle in `app.getPath('userData')` and is never pac
   speaker_memory.db              ← transcripts + speaker memory
   recordings/                    ← live recordings + copies of imported audio
   settings.json                  ← user settings
-  sonorus.log                    ← backend log
+  sonorus.log                    ← app log: main process + backend stderr
+  sonorus.log.1                  ← the previous app log (rotated over 5 MiB)
 ```
 
 ---

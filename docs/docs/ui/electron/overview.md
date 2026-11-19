@@ -90,10 +90,21 @@ A right click on a row, or the Menu key or Shift+F10 on a focused one, opens its
 1. `checkHealth()` — polls `GET /health`. If already responding, skips spawn (`electron/backend-identity.js` decides whether that backend may be reused: see [Configuration](../../environment/configuration.md#sonorus_data_dir)).
 2. Spawns `uvicorn` with the bundled interpreter (packaged: `resources/backend/python-dist`, which
    already contains every library — see [Packaging](../../distribution/packaging.md); dev: `.venv`) and env
-   `HF_TOKEN`, `SONORUS_DATA_DIR`, `LOG_FILE`, `SONORUS_VERSION`; packaged builds also put the bundled
-   `ffmpeg` first on `PATH`.
+   `HF_TOKEN`, `SONORUS_DATA_DIR`, `SONORUS_VERSION`, and without `LOG_FILE`, even one inherited from the
+   environment: its log reaches `sonorus.log` through its stderr (see [The app log](#the-app-log)); packaged
+   builds also put the bundled `ffmpeg` first on `PATH`.
 3. `waitForReady()` — polls `/health` up to 60s, logs `[backend] ready in N ms`, then `main.js` opens the window.
 4. `stopBackend()` — kills the process on `will-quit`.
+
+### The app log
+
+`sonorus.log` in `userData` is the log to look at, or to send, on every OS. The main process is its only writer (`electron/log.js`):
+
+- **Lines of the main process** go through `log(line)`, never `console.*` (a test checks it): `log('[tray] …')` writes `HH:MM:SS [tray] …`, the format of the backend's lines, and shows the line in the console too. The source in brackets is part of the line: `[backend]` for the start-up and the GPU pack, `[notifications]` for refusals of the system.
+- **The backend's stderr**, when the main process started the backend: its own log (`HH:MM:SS [Service] …`, [Logging](../../environment/logging.md)), uvicorn's start-up lines and tracebacks, and whatever the pipeline or the ML libraries print. It goes in as it is, a whole line at a time; a line redrawn with `\r` (a progress bar) keeps its last state. It shows in the console as before, after `[backend] `. stdout — uvicorn's line per request — only goes to the console.
+- **One writer**, because on Windows Python appends with a seek and a write, so lines of two writers could overwrite each other, and a file Python holds open cannot be renamed. A reused backend (dev, or one that outlived a crash of the app) writes nothing there: its stderr is not ours.
+- **Rotation.** At start-up, in the first instance only and before the backend starts, a log over 5 MiB becomes `sonorus.log.1` (replacing the previous one) and a new one starts.
+- **A log that cannot be written** (no access, a full disk) loses the line and nothing else; the next line tries again.
 
 There is no first-run setup: every launch, packaged or dev, goes straight to the window.
 
@@ -119,6 +130,7 @@ electron/
   main.js              — BrowserWindow, IPC handlers, backend lifecycle orchestration
   backend.js           — Backend process spawn, health check, restart
   backend-identity.js  — Dev and packaged data dirs; whether a running backend may be reused
+  log.js               — The app log, sonorus.log: lines of the main process, the backend's stderr, rotation
   dialog-folder.js     — Folder the file dialog opens in (last picked file, dialog-state.json)
   tray.js              — Close to the tray, the tray menu, what to ask before quitting
   backend-events.js    — WS /ws/queue in the main process, for the notifications of a call

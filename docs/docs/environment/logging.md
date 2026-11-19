@@ -105,7 +105,13 @@ Examples:
 | Variable | Default | Description |
 |---|---|---|
 | `LOG_LEVEL` | `off` | Log level: `debug`, `info`, `warning`, `error`, `off` |
-| `LOG_FILE` | — | Path to a log file; output goes to both stderr and the file |
+| `LOG_FILE` | — | Path to a log file; output goes to both stderr and the file. Electron does not set it: see below |
+
+---
+
+## In the app
+
+The backend Electron starts gets no `LOG_FILE`: Electron reads its stderr and writes it, with the lines of the main process, to `sonorus.log` in the app's data dir, rotated over 5 MiB. See [The app log](../ui/electron/overview.md#the-app-log).
 
 ---
 
