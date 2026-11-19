@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+// Keys of all lingering values, of every window: windows shown side by side are
+// siblings, and two siblings with one key make React lose one of them, which then
+// stays in the page after it has closed.
+let nextKey = 0
+
 // A window or menu shown for a value of state: the value goes, and the window still
 // has its way out to play. This keeps the last value until onExited, and `open` says
 // which way it is going. A new value starts over, with a new `key`.
 export function useLingering<T>(value: T | null) {
   const [kept, setKept] = useState<{ value: T; key: number } | null>(null)
-  const counter = useRef(0)
   const closed = useRef(value === null)
   closed.current = value === null
   const drop = useCallback(() => setKept(null), [])
@@ -14,7 +18,7 @@ export function useLingering<T>(value: T | null) {
 
   let current = kept
   if (value !== null && value !== kept?.value) {
-    current = { value, key: counter.current++ }
+    current = { value, key: nextKey++ }
     setKept(current)
   }
   return { value: current?.value ?? null, key: current?.key ?? 0, open: value !== null, exited, drop }
