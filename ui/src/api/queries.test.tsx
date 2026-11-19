@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { onlineManager } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider, useApi } from './ApiProvider'
 import { ApiError, type ApiClient } from './client'
 import { QUEUE_JOB, SPEAKER_IDS, WEEKLY_SYNC_ID, queueSnapshot } from './fixtures/data'
@@ -423,6 +424,49 @@ describe('adding files to the queue', () => {
     expect(failure).toBeInstanceOf(AddToQueueError)
     expect(failure).toMatchObject({ added: 1, message: '"b.mp3" could not be read.', error: { status: 400 } })
     expect(calls).toBe(2)
+  })
+})
+
+// The backend is on 127.0.0.1: the network of the computer going away (an
+// offline event in the window) must neither pause nor refetch anything.
+describe('without the network of the computer', () => {
+  beforeEach(() => onlineManager.setOnline(false))
+  afterEach(() => onlineManager.setOnline(true))
+
+  const files = [{ audioPath: '/in/a.mp3', title: null }]
+
+  test('a read reaches the backend', async () => {
+    const listTranscripts = vi.fn(createFixtureClient().listTranscripts)
+    const { result } = renderWith(useTranscripts, { overrides: { listTranscripts } })
+    await waitFor(() => expect(result.current.data).toHaveLength(16))
+    expect(listTranscripts).toHaveBeenCalledTimes(1)
+  })
+
+  test('a change reaches the backend', async () => {
+    const { client, result } = renderWith(useAddToQueue)
+    const add = vi.spyOn(client, 'addQueueJob')
+    act(() => result.current.mutate({ files, whisperModel: null, language: null }))
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(add).toHaveBeenCalledTimes(1)
+  })
+
+  test('a refusal of the backend reaches the screen', async () => {
+    const addQueueJob = vi.fn(() => Promise.reject(new ApiError(400, '"a.mp3" could not be read.', 'audio_not_readable')))
+    const { result } = renderWith(useAddToQueue, { overrides: { addQueueJob } })
+    act(() => result.current.mutate({ files, whisperModel: null, language: null }))
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toMatchObject({ added: 0, error: { status: 400 } })
+  })
+
+  test('the network coming back refetches nothing', async () => {
+    onlineManager.setOnline(true)
+    const listTranscripts = vi.fn(createFixtureClient().listTranscripts)
+    const { result } = renderWith(useTranscripts, { overrides: { listTranscripts } })
+    await waitFor(() => expect(result.current.data).toHaveLength(16))
+    act(() => onlineManager.setOnline(false))
+    act(() => onlineManager.setOnline(true))
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(listTranscripts).toHaveBeenCalledTimes(1)
   })
 })
 
