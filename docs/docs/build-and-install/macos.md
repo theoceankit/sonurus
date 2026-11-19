@@ -46,10 +46,12 @@ npm run build:mac
 1. Open the `.dmg` and drag **Sonorus** to **Applications**.
 2. Start Sonorus from Applications or Launchpad.
 
-The app is not code-signed. A `.dmg` you built yourself opens normally; one downloaded from GitHub
-is blocked by Gatekeeper on first launch. Then open **System Settings → Privacy & Security**, find
+The app is signed ad hoc, without a developer certificate, and is not notarized
+([Packaging → Code signing](../distribution/packaging.md#macos-ad-hoc-signature)). A `.dmg` you built
+yourself opens normally; one downloaded from GitHub is blocked by Gatekeeper on first launch. Then open **System Settings → Privacy & Security**, find
 the message about Sonorus and click **Open Anyway** (on older macOS: right-click the app → Open →
-Open). This is needed once per installed version.
+Open). This is needed once per installed version. For the same reason each new version asks for
+Microphone and System Audio Recording again on its first recording.
 
 ---
 

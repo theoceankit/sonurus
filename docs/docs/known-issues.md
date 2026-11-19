@@ -96,7 +96,7 @@ After integration, the Sonorus icon appears correctly in the taskbar, app switch
 
 ---
 
-### Gatekeeper / SmartScreen warnings on unsigned builds
+### Gatekeeper / SmartScreen warnings
 
 **Severity:** minor UX friction — does not affect functionality.
 
@@ -104,7 +104,7 @@ After integration, the Sonorus icon appears correctly in the taskbar, app switch
 - **macOS:** "Sonorus cannot be opened because it is from an unidentified developer."
 - **Windows:** "Windows protected your PC" / SmartScreen warning.
 
-**Cause:** current releases are not code-signed. macOS Gatekeeper and Windows SmartScreen flag unsigned apps from unknown publishers.
+**Cause:** releases carry no developer certificate: the macOS app is signed only ad hoc and not notarized, the Windows installer is unsigned. macOS Gatekeeper and Windows SmartScreen flag apps from unknown publishers.
 
 **Workaround:**
 - macOS: System Settings → Privacy & Security → **Open Anyway** (older macOS: right-click the `.app` → Open → Open), once per installed version. A `.dmg` built locally is not blocked.

@@ -58,6 +58,7 @@
       "icon": "build/icons/icon.icns",
       "category": "public.app-category.productivity",
       "minimumSystemVersion": "14.2",
+      "identity": "-",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
