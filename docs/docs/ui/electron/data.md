@@ -97,7 +97,7 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 
 ## Hooks
 
-`queries.ts` has one hook per read and per change. A change refreshes what it affects. Queries do not retry and do not refetch on window focus: the backend is local, and data changes only through this app and the queue events.
+`queries.ts` has one hook per read and per change. A change refreshes what it affects. Queries do not retry and do not refetch on window focus: the backend is local, and data changes only through this app and the queue events. For the same reason the network of the computer plays no part (`networkMode: 'always'`): when it goes away with the window open, reads and changes still go to the backend on 127.0.0.1 at once, and when it comes back nothing is refetched. Only the backend's own connection coming back refreshes the data ([Connection to the backend](#connection-to-the-backend)).
 
 `useMarkOpened(id, loaded)` is called by `TranscriptPanel`. Once the recording has loaded and the list says it is not opened, it sets `opened` in the list at once and calls `markTranscriptOpened`, then refreshes the list only, not the recording. A failure says nothing: the next list brings the dot back. It asks once per opening, because after a failure the list says not opened again and it would ask forever; a recording opened before counts as asked, so one marked unread while open keeps its dot.
 

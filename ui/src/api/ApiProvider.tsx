@@ -6,9 +6,16 @@ const ApiContext = createContext<ApiClient | null>(null)
 
 // The backend is local, and data changes only through this app and the queue
 // events: retrying only delays an error, and a window focus changes nothing.
+// Nor does the network of the computer: the backend is on 127.0.0.1, so a
+// request is never held back while the window is offline, and nothing is
+// refetched when the network comes back. Losing the backend itself is the
+// queue socket's business (useQueueEventsSync).
 function createQueryClient() {
   return new QueryClient({
-    defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
+    defaultOptions: {
+      queries: { networkMode: 'always', retry: false, refetchOnWindowFocus: false, refetchOnReconnect: false },
+      mutations: { networkMode: 'always' },
+    },
   })
 }
 
