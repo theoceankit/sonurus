@@ -9,6 +9,7 @@ from pathlib import Path
 ROWS: list[dict] = []   # one per variant, from harness.evaluate()
 DEVICES: dict[str, str] = {}  # speaker → device in call.wav, from the manifest
 NOTES: list[str] = []
+LANGUAGE: list[dict] = []  # one per padded-set recording, from test_language.py
 
 LEGEND = """\
 How to read it:
@@ -63,9 +64,45 @@ def _num(x, digits=3) -> str:
     return "–" if x is None or math.isnan(x) else f"{x:.{digits}f}"
 
 
+def language_markdown() -> list[str]:
+    """Language detection on the padded set: the old way (WhisperX, the first
+    30 s of the file) against the app's (from the speech VAD found)."""
+    if not LANGUAGE:
+        return []
+    lines = ["", "## Language detection", "",
+             "Each recording of the padded set: the expected language, the one WhisperX's own detection takes "
+             "from the first 30 s of the file (old), and the one the app takes from the speech VAD found (new), "
+             "with its probability, seconds of speech and windows used. Lead-in: what was put before the speech "
+             "and for how long.", "",
+             "| Lead-in | Recordings | Old right | New right | New probability, lowest | More windows |",
+             "|---|---|---|---|---|---|"]
+    groups: dict[str, list[dict]] = {}
+    for r in LANGUAGE:
+        groups.setdefault(r["variant"], []).append(r)
+    for variant, rows in groups.items():
+        probs = [r["new_p"] for r in rows if r["new_p"] is not None]
+        lines.append(
+            f"| {variant} | {len(rows)} | {sum(r['old'] == r['expected'] for r in rows)} "
+            f"| {sum(r['new'] == r['expected'] for r in rows)} | {_num(min(probs) if probs else None, 2)} "
+            f"| {sum(r['windows'] > 1 for r in rows)} |")
+    lines += ["", "| Recording | Lead-in | Expected | Old (p) | New (p) | Speech, s | Windows | Speech from, s |",
+              "|---|---|---|---|---|---|---|---|"]
+    for r in LANGUAGE:
+        mark = "" if r["new"] == r["expected"] else " ✗"
+        old_mark = "" if r["old"] == r["expected"] else " ✗"
+        lines.append(
+            f"| {r['base']} | {r['variant']} | {r['expected']} | {r['old']} ({_num(r['old_p'], 2)}){old_mark} "
+            f"| {r['new']} ({_num(r['new_p'], 2)}){mark} | {r['speech_s']:.0f} | {r['windows']} "
+            f"| {_num(r['speech_start'], 1)} |")
+    return lines
+
+
 def markdown() -> str:
     lines = ["# Audio quality run", "", time.strftime("%Y-%m-%d %H:%M"), ""]
-    lines += [f"- {n}" for n in NOTES] + ["", LEGEND, "## Summary per variant (three clips together)", "",
+    lines += [f"- {n}" for n in NOTES]
+    if not ROWS:
+        return "\n".join(lines + language_markdown()) + "\n"
+    lines += ["", LEGEND, "## Summary per variant (three clips together)", "",
               "| Variant | Base | WER | Speaker words | Missed utterances (3+ words) | Missed short "
               "| Recognised | Similarity own / other | What |",
               "|---|---|---|---|---|---|---|---|---|"]
@@ -141,7 +178,7 @@ def markdown() -> str:
         for c in r["clips"]:
             for text, lvl in zip(c["missed_text"], c["missed_level"]):
                 lines.append(f"- {_name(r)}, {c['clip']} ({_num(lvl, 1)} dBFS): {text}")
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines + language_markdown()) + "\n"
 
 
 def voices_key(series: str | None, variant: str, clip: str, field: str) -> str:
@@ -163,7 +200,8 @@ def write(text: str) -> Path:
                 arrays[voices_key(r.get("series"), r["variant"], c["clip"], field)] = a
             clips.append({k: v for k, v in c.items() if not k.startswith("_")})
         rows.append({**r, "clips": clips})
-    (out / f"{stem}.json").write_text(json.dumps({"notes": NOTES, "variants": rows}, indent=1, default=float))
+    (out / f"{stem}.json").write_text(json.dumps({"notes": NOTES, "variants": rows, "language": LANGUAGE},
+                                                indent=1, default=float))
     if arrays:
         import numpy as np
         np.savez_compressed(out / f"{stem}.npz", **arrays)
