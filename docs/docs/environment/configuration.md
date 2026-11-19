@@ -44,7 +44,7 @@ Used when the backend is started manually (`uvicorn ...`) or set by `electron/ba
 | `SONORUS_DATA_DIR` | `.` (CWD) | Root directory for user data: models, database, audio, log. Set automatically to `app.getPath('userData')` when launched via Electron. |
 | `VERBOSE` | `false` | If `true`, ML library warnings are printed. Useful for debugging. |
 | `LOG_LEVEL` | `info` | Server log level: `debug`, `info`, `warning`, `error`, `off`. |
-| `LOG_FILE` | — | If set, logs are also written to this file. Set to `$SONORUS_DATA_DIR/sonorus.log` in packaged mode. |
+| `LOG_FILE` | — | If set, logs are also written to this file. For a backend started by hand: Electron does not pass it, and removes an inherited one — the backend Electron starts writes its log to stderr, which Electron puts in `sonorus.log` ([The app log](../ui/electron/overview.md#the-app-log)). |
 | `SONORUS_PACKAGED` | — | `1` when the installed app started the backend (set by Electron); reported by `GET /health` as `packaged`. |
 | `SONORUS_DEV_UI_ORIGIN` | — | One more origin the backend accepts, for the UI's dev server. Set by `npm run dev:ui`; ignored with `SONORUS_PACKAGED=1`. |
 | `SONORUS_UI_DEV_URL` | — | Read by Electron, not the backend: the page the window loads in development. Set by `npm run dev:ui`; ignored by the installed app. |
@@ -67,7 +67,8 @@ $SONORUS_DATA_DIR/
   recordings/         ← Audio referenced by the DB: live recordings (sonorus-rec-*)
                         and copies of imported files (sonorus-import-*)
   speaker_photos/     ← Speaker photos, named in speaker_meta.photo
-  sonorus.log         ← Backend log (packaged mode)
+  sonorus.log         ← App log: main process + backend stderr (written by Electron)
+  sonorus.log.1       ← The previous one, once a log grew over 5 MiB
   settings.json       ← App settings (written by Electron)
 ```
 
