@@ -1,5 +1,4 @@
 import { useRef, type ComponentPropsWithRef, type ReactNode } from 'react'
-import { markNotImplemented } from '../../not-implemented'
 import { cx } from '../../styles/cx'
 import { Button } from '../Button/Button'
 import { Reveal } from '../Reveal/Reveal'
@@ -49,7 +48,6 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, notes, 
         tabs={(
           <>
             <Tab value="speakers">Speakers</Tab>
-            <Tab value="chapters" {...markNotImplemented('inspector.chapters')}>Chapters</Tab>
             <Tab value="notes">Notes</Tab>
           </>
         )}

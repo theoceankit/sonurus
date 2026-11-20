@@ -15,13 +15,9 @@ test('opens on Speakers, with its content', () => {
   expect(screen.getByText('content')).toBeTruthy()
 })
 
-test('Chapters is not there yet: it says so and stays on Speakers', async () => {
+test('has two tabs, Speakers and Notes', () => {
   panel()
-  const tab = screen.getByRole('tab', { name: 'Chapters' })
-  expect(tab.getAttribute('aria-disabled')).toBe('true')
-  await userEvent.click(tab)
-  expect(screen.getByRole('tab', { name: 'Speakers' }).getAttribute('aria-selected')).toBe('true')
-  expect(await screen.findByText('Not available yet')).toBeTruthy()
+  expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['Speakers', 'Notes'])
 })
 
 test('Notes opens and shows the note in place of the speakers', async () => {
