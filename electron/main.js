@@ -10,6 +10,7 @@ const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown
 const { watchBackendEvents } = require('./backend-events')
 const { appUserModelId, micApps, notificationsOn, promptFor, rememberMicApp, stopOutcome, stopTimedOut } = require('./recording-prompts')
 const { createNotifier, notificationRefusal, rememberNotificationRefusal } = require('./notifications')
+const { createJobNotices, windowAway } = require('./job-notices')
 const { uiEntry } = require('./ui-entry')
 const { windowChrome, themeSource, overlayDimmer } = require('./window-chrome')
 const { configureLog, log, rotateLog } = require('./log')
@@ -121,6 +122,8 @@ function createWindow() {
       showTrayHint()
     })
   })
+  // In front, the window has said what finished: the next notification starts anew.
+  win.on('focus', () => jobNotices.reset())
   win.on('closed', () => {
     titleBarDimmer?.stop()
     titleBarDimmer = null
@@ -160,6 +163,7 @@ const DEFAULT_SETTINGS = {
   theme: 'system',
   closeToTray: true,
   notifications: true,
+  notifyTranscriptions: true,
   promptStart: true,
   promptStartApps: 'any',
   promptStartSelected: [],
@@ -292,10 +296,12 @@ app.whenReady().then(async () => {
   if (await hasTray) createTray()
 })
 
-// A call may have started or ended: a notification, an automatic stop or nothing,
+// A transcription finished or failed (electron/job-notices.js); a call may have started
+// or ended: a notification, an automatic stop or nothing,
 // as the settings say (electron/recording-prompts.js).
 function onBackendEvent(event) {
   onAutoStopOutcome(event)
+  jobNotices.onEvent(event, openWithIntent)
   if (event.type === 'mic_app_active') rememberMicApp(getAppStatePath(), event)
   const recording = backendEvents?.recording() ?? null
   const prompt = promptFor(event, { settings: savedSettings(), recording })
@@ -340,8 +346,16 @@ const notifier = createNotifier({
 })
 
 function notify(notice, onClick) {
-  notifier.notify(notice, { onClick })
+  return notifier.notify(notice, { onClick })
 }
+
+// A transcription that finished or failed while the window is not in front
+// (electron/job-notices.js).
+const jobNotices = createJobNotices({
+  notify,
+  settings: () => savedSettings(),
+  windowAway: () => windowAway(mainWin),
+})
 
 function setNotificationRefusal(refusal) {
   rememberNotificationRefusal(getAppStatePath(), refusal)

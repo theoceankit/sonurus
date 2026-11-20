@@ -20,11 +20,12 @@ function createNotifier({ Notification, log, onRefused, onShown }) {
     onRefused?.({ title, error })
   }
 
-  // onClick: a click on it; onShow: the system showed it.
+  // onClick: a click on it; onShow: the system showed it. Returns { close }, which takes
+  // it off the screen (a summary replacing it).
   function notify({ title, body }, { onClick, onShow } = {}) {
     if (!Notification.isSupported()) {
       refused(title, UNSUPPORTED)
-      return
+      return { close() {} }
     }
     const notification = new Notification({ title, body })
     kept.add(notification)
@@ -40,6 +41,12 @@ function createNotifier({ Notification, log, onRefused, onShown }) {
       refused(title, String(error))
     })
     notification.show()
+    return {
+      close() {
+        forget()
+        notification.close()
+      },
+    }
   }
 
   return { notify, onScreen: () => kept.size }
