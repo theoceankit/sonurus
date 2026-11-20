@@ -150,7 +150,7 @@ def test_migration_to_v8_adds_an_empty_match_table(tmp_path):
     storage = _storage(tmp_path)
     assert storage.speaker_matches(db_id) == {}
     with sqlite3.connect(storage.db_path) as conn:
-        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION == 8
+        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION
 
 
 # ── API ───────────────────────────────────────────────────────────────────────

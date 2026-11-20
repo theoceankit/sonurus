@@ -109,11 +109,13 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 
 `useQueueControl()` (start or pause) and `useReorderQueue()` put the queue they answer into the cache at once, before its snapshot arrives on the socket. `useRetryQueueJob()` and `useDeleteQueueJob()` ask for the queue again.
 
-`useDeleteTranscript()` counts a recording already gone as deleted. It takes the recording off the list at once and does not ask for its details again, as the panels still show it until `EditorScreen` closes it.
+`useDeleteTranscript()` counts a recording already gone as deleted. It takes the recording off the list at once and does not ask for its details again, as the panels still show it until `EditorScreen` closes it. Its note leaves the cache with it.
+
+`useNote(id)` reads the note of a recording once: its key, `queryKeys.note(id)`, is not under the transcripts, so a refresh of the list does not load it again under the text being typed, and it is never stale. `useKeepNote()` puts what the editor has into that cache at once, saved or not; `useWriteNote()` saves a note, or deletes it for `null`, and sets `has_note` of the recording in the list. Saving itself is the screen's ([Notes](notes.md#saving)). Delete all data drops every note of the cache (`queryKeys.notes`).
 
 ## Fixtures
 
-`createFixtureClient(options)` in `ui/src/api/fixtures/fixture-client.ts` implements the same interface on data in memory. Each client has its own copy.
+`createFixtureClient(options)` in `ui/src/api/fixtures/fixture-client.ts` implements the same interface on data in memory. Each client has its own copy. Weekly product sync has a note (`fixtures/notes.ts`: headings, a list, checkboxes, a quote and a link), the other recordings none.
 
 | Option | Values | |
 |---|---|---|

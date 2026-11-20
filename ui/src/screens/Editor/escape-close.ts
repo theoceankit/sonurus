@@ -15,23 +15,25 @@ export interface EscapeContext {
   overlayOpen: boolean
   // A menu, a select list, a popover or a tooltip is on the screen, wherever the focus is.
   layerShown: boolean
+  // Escape closes from a text field too: the note expanded over the transcript, typed in.
+  fromTextFields?: boolean
 }
 
 // What Escape does, from the key, the element in focus and what is on the screen.
-export function escapeAction(key: EscapeKey, target: Element | null, { overlayOpen, layerShown }: EscapeContext): EscapeAction {
+export function escapeAction(key: EscapeKey, target: Element | null, { overlayOpen, layerShown, fromTextFields = false }: EscapeContext): EscapeAction {
   if (key.key !== 'Escape' || key.ctrlKey || key.altKey || key.shiftKey || key.metaKey || key.isComposing) return 'pass'
   if (overlayOpen || layerShown) return 'pass'
-  if (target && (target.closest(OVERLAY) || isTextField(target))) return 'pass'
+  if (target && (target.closest(OVERLAY) || (!fromTextFields && isTextField(target)))) return 'pass'
   return 'close'
 }
 
-// Escape closes the open recording while enabled. Heard on the window on the way
+// Escape closes the open recording while enabled, or what the caller says it closes. Heard on the window on the way
 // down, before Radix, which closes its layers on an Escape it hears on the
 // document: a toast is one, and it stays when Escape closes the recording.
 // Chromium shows the focus ring at the keydown of any key, so an element focused
 // by a click, such as the row that opened the recording, lets go of the focus;
 // one reached from the keyboard keeps it, and its ring, as before.
-export function useEscapeClose(onClose: () => void, enabled: boolean) {
+export function useEscapeClose(onClose: () => void, enabled: boolean, { fromTextFields = false } = {}) {
   const close = useRef(onClose)
   close.current = onClose
   // Followed from the start, so the click that opened the recording counts.
@@ -42,7 +44,7 @@ export function useEscapeClose(onClose: () => void, enabled: boolean) {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target instanceof Element ? event.target : null
       const layerShown = document.querySelector(LAYER) !== null
-      if (escapeAction(event, target, { overlayOpen: openModalCount() > 0, layerShown }) === 'pass') return
+      if (escapeAction(event, target, { overlayOpen: openModalCount() > 0, layerShown, fromTextFields }) === 'pass') return
       event.preventDefault()
       event.stopPropagation()
       const clicked = origin.pointerFocused()
@@ -51,5 +53,5 @@ export function useEscapeClose(onClose: () => void, enabled: boolean) {
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [enabled, origin])
+  }, [enabled, origin, fromTextFields])
 }

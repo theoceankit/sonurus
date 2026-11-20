@@ -117,6 +117,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | Transcription: models, the default model, downloads, languages, the queue in the sidebar, the Alignment model and job settings dialogs | `ui/src/transcribe/`, `ui/src/screens/Queue/` | `docs/docs/ui/electron/transcribe.md` |
 | Settings: the Settings dialog, its sections and what they change | `ui/src/screens/Settings/`, `ui/src/platform/settings.ts` | `docs/docs/ui/electron/settings.md` |
 | Speakers: the Speakers window, a speaker's card, voice samples from any recording | `ui/src/screens/Speakers/`, `ui/src/media/sample-playback.ts`, `ui/src/components/AppearanceRow/` | `docs/docs/ui/electron/speakers.md` |
+| Notes: the note of a recording, its editor, saving, expanded view, Copy notes | `ui/src/screens/Editor/EditorNotes.tsx`, `note-autosave.ts`, `useNotesSaver.ts`, `ui/src/components/NoteEditor/`, `NotesPanel/`, `ui/src/platform/before-close.ts`, `electron/window-closing.js`, `electron/links.js` | `docs/docs/ui/electron/notes.md` |
 | Tokens, font, icons, overlays | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/` | `docs/docs/ui/electron/foundations.md` |
 | Development: data, isolated checks, restarts, test pitfalls | `scripts/dev-ui.js`, `ui/vite.config.ts`, `ui/src/test-setup.ts` | `docs/docs/ui/electron/development.md` |
 | Live recording | `app/api/routers/audio_capture.py`, `native/`, `ui/src/recording/` | `docs/docs/ui/electron/live-recording.md` |

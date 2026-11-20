@@ -25,13 +25,15 @@ export interface NoteEditorHandle {
 
 interface NoteEditorProps {
   content?: JSONContent | null
-  // Who @ offers.
-  candidates: readonly MentionCandidate[]
+  // Who @ offers; without them @ is plain text.
+  candidates?: readonly MentionCandidate[]
   findSpeaker: FindSpeaker
   onSeek?: (seconds: number) => void
   onChange?: (doc: JSONContent) => void
   // The shortcut for the player's time; the panel knows the time.
   onTimeShortcut?: () => void
+  // Ctrl/⌘+click on a link; a plain click only puts the cursor there.
+  onOpenLink?: (href: string) => void
   // Tab: the column of the right panel. Expanded: in place of the transcript.
   size?: 'tab' | 'expanded'
   autoFocus?: boolean
@@ -39,7 +41,8 @@ interface NoteEditorProps {
   ref?: Ref<NoteEditorHandle>
 }
 
-const PLACEHOLDER = 'Write notes for this recording. Markdown works as you type: # for a heading, - for a list, [ ] for a checkbox, @ to mention someone.'
+const PLACEHOLDER = 'Write notes for this recording. Markdown works as you type: # for a heading, - for a list, [ ] for a checkbox'
+const placeholder = (mentions: boolean) => `${PLACEHOLDER}${mentions ? ', @ to mention someone' : ''}.`
 
 const POPUP_GAP = 4
 
@@ -53,13 +56,13 @@ interface Suggesting {
 // A note in basic Markdown, rendered as it is typed: headings, bold, italic, lists,
 // checkboxes, quotes and links, with timecodes and mentions as chips.
 export function NoteEditor({
-  content, candidates, findSpeaker, onSeek, onChange, onTimeShortcut, size = 'tab', autoFocus, className, ref,
+  content, candidates, findSpeaker, onSeek, onChange, onTimeShortcut, onOpenLink, size = 'tab', autoFocus, className, ref,
 }: NoteEditorProps) {
   const [suggesting, setSuggesting] = useState<Suggesting | null>(null)
-  const latest = useRef({ suggesting, candidates, onChange, onTimeShortcut })
-  latest.current = { suggesting, candidates, onChange, onTimeShortcut }
+  const latest = useRef({ suggesting, candidates, onChange, onTimeShortcut, onOpenLink })
+  latest.current = { suggesting, candidates, onChange, onTimeShortcut, onOpenLink }
 
-  const options = (state: Suggesting | null) => (state ? mentionList(latest.current.candidates, state.query).options : [])
+  const options = (state: Suggesting | null) => (state ? mentionList(latest.current.candidates ?? [], state.query).options : [])
   const choose = (option: MentionOption | undefined, state: Suggesting | null) => {
     if (!option || !state) return
     state.command(option.kind === 'speaker'
@@ -82,12 +85,13 @@ export function NoteEditor({
       NoteLink.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: PLACEHOLDER }),
+      Placeholder.configure({ placeholder: () => placeholder(latest.current.candidates !== undefined) }),
       Timecode,
       NoteMention.configure({
         suggestion: {
           char: '@',
           allowSpaces: true,
+          allow: () => latest.current.candidates !== undefined,
           items: () => [],
           render: () => ({
             onStart: props => setSuggesting(fromProps(props)),
@@ -120,8 +124,9 @@ export function NoteEditor({
         name: 'playerTime',
         addKeyboardShortcuts: () => ({
           'Mod-t': () => {
-            latest.current.onTimeShortcut?.()
-            return true
+            const insert = latest.current.onTimeShortcut
+            insert?.()
+            return insert !== undefined
           },
         }),
       }),
@@ -133,7 +138,20 @@ export function NoteEditor({
     extensions,
     content: content ?? undefined,
     autofocus: autoFocus ? 'end' : false,
-    editorProps: { attributes: { class: cx(styles.prose, styles[size]), 'aria-label': 'Notes', 'aria-multiline': 'true', role: 'textbox' } },
+    editorProps: {
+      attributes: { class: cx(styles.prose, styles[size]), 'aria-label': 'Notes', 'aria-multiline': 'true', role: 'textbox' },
+      handleDOMEvents: {
+        // The window never follows a link; Ctrl/⌘+click hands it to the system.
+        click: (_view, event) => {
+          const link = event.target instanceof Element ? event.target.closest('a[href]') : null
+          if (!link) return false
+          event.preventDefault()
+          const href = link.getAttribute('href')
+          if (href && (event.ctrlKey || event.metaKey)) latest.current.onOpenLink?.(href)
+          return false
+        },
+      },
+    },
     onUpdate: ({ editor: changed }) => latest.current.onChange?.(changed.getJSON()),
   })
 
@@ -153,7 +171,7 @@ export function NoteEditor({
   }), [editor])
 
   const chips = useMemo(() => ({ findSpeaker, onSeek }), [findSpeaker, onSeek])
-  const list = suggesting && mentionList(candidates, suggesting.query)
+  const list = suggesting && mentionList(candidates ?? [], suggesting.query)
 
   // The list follows the @ when the note scrolls, and opens above it near the bottom.
   const [, reposition] = useReducer((n: number) => n + 1, 0)

@@ -122,10 +122,23 @@ async function startApp({ seed: profile = 'full' } = {}) {
 
     const env = { ...process.env }
     delete env.SONORUS_UI_DEV_URL
-    app = await electron.launch({ args: [ROOT, `--user-data-dir=${profileDir}`, '--mute-audio'], cwd: ROOT, env })
-    const page = await app.firstWindow()
-    await page.waitForLoadState('domcontentloaded')
-    return { app, page, dataDir, stop }
+    const launch = async () => {
+      app = await electron.launch({ args: [ROOT, `--user-data-dir=${profileDir}`, '--mute-audio'], cwd: ROOT, env })
+      const page = await app.firstWindow()
+      await page.waitForLoadState('domcontentloaded')
+      return page
+    }
+    const page = await launch()
+    // Quits the app as the user does and starts it again on the same data and profile.
+    const relaunch = async () => {
+      await app.close()
+      const next = await launch()
+      handle.app = app
+      handle.page = next
+      return next
+    }
+    const handle = { app, page, dataDir, stop, relaunch }
+    return handle
   } catch (err) {
     await stop()
     throw err

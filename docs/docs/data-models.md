@@ -90,6 +90,27 @@ A speaker is not a dataclass: it is a UUID4 with rows in the speaker memory tabl
 
 ---
 
+## Note
+
+The note of a recording (meeting minutes), one per transcript at most, stored in the `notes` table (schema v9, see [TranscriptStorageService](services/TranscriptStorageService.md)) apart from the segments and read and written through `GET`/`PUT`/`DELETE /transcripts/{id}/note`. An empty note is not stored. It is deleted with its recording.
+
+`content` is the editor's document, Tiptap (ProseMirror) JSON, kept as the UI sends it:
+
+```json
+{ "type": "doc", "content": [
+  { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "Decisions" }] },
+  { "type": "taskList", "content": [{ "type": "taskItem", "attrs": { "checked": false }, "content": [
+    { "type": "paragraph", "content": [{ "type": "text", "text": "Send the draft", "marks": [{ "type": "bold" }] }] }
+  ]}]}
+]}
+```
+
+Blocks: `paragraph`, `heading` (levels 1–3), `bulletList`, `orderedList`, `taskList` with `listItem`/`taskItem`, `blockquote`, `hardBreak`; marks `bold`, `italic`, `link` (`href`). The editor's schema also has two inline nodes that point into the app rather than holding text: `timecode` (`seconds`) and `mention` (`kind` `speaker` with the speaker's `id` and the `label` last seen, or `person` with a `label` only), so a speaker is referred to by id and never by name. Markdown is derived from the document (Copy notes), never stored: the document keeps what Markdown cannot, such as the id behind a mention.
+
+`format` (`1`) is the version of this document shape, for a migration if the editor's nodes change.
+
+---
+
 ## Object lifecycle
 
 ```

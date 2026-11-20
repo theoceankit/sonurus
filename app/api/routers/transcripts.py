@@ -17,6 +17,7 @@ from app.api.schemas import (
     TranscriptListItem, TranscriptResponse, SegmentResponse, TranscriptUpdateRequest,
     SegmentTextRequest, SpeakerCandidate, UnknownSpeakerCandidates, VoiceClip, SpeakerAssignmentRequest,
     SpeakerAssignmentResponse, SpeakerAssignmentUndoRequest, WaveformResponse, RefusalResponse,
+    NoteResponse, NoteRequest,
 )
 from app.services.audio_store import discard_levels
 from app.services.speaker_candidates import is_possible_match, possible_match_candidates, rank_candidates, voice_centroid
@@ -112,6 +113,7 @@ def list_transcripts(storage: TranscriptStorageService = Depends(get_storage_ser
             created_at=row["created_at"],
             status=row["status"],
             opened=row["opened"],
+            has_note=row["has_note"],
             speakers=row.get("speakers", []),
             section=row.get("section", ""),
             duration=row.get("duration", ""),
@@ -320,6 +322,40 @@ def mark_transcript_unopened(
     POST /transcripts/{id}/opened. Only this flag changes."""
     if not storage.mark_unopened(transcript_id):
         raise HTTPException(status_code=404, detail="Transcript not found")
+
+
+@router.get("/{transcript_id}/note", response_model=NoteResponse)
+def get_note(
+    transcript_id: int,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """The note of the recording; content is null when it has none."""
+    if not storage.exists(transcript_id):
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    return storage.get_note(transcript_id) or NoteResponse(content=None, updated_at=None)
+
+
+@router.put("/{transcript_id}/note", status_code=204)
+def save_note(
+    transcript_id: int,
+    body: NoteRequest,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """Store the note of the recording as the editor's document, replacing the
+    one it had. An empty note is deleted by the UI rather than saved."""
+    if not storage.save_note(transcript_id, body.content):
+        raise HTTPException(status_code=404, detail="Transcript not found")
+
+
+@router.delete("/{transcript_id}/note", status_code=204)
+def delete_note(
+    transcript_id: int,
+    storage: TranscriptStorageService = Depends(get_storage_service),
+):
+    """The recording no longer has a note. Deleting a note it does not have is fine."""
+    if not storage.exists(transcript_id):
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    storage.delete_note(transcript_id)
 
 
 @router.delete("/{transcript_id}", status_code=204)

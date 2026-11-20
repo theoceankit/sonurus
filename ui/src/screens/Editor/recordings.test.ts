@@ -4,7 +4,7 @@ import type { Speaker, TranscriptListItem } from '../../api/types'
 import { deleteRecordingPrompt, goneFromList, groupRecordings, leftList, stackSpeakers } from './recordings'
 
 const item = (id: number, created_at: string, speakers: string[] = []): TranscriptListItem => ({
-  id, created_at, speakers, title: `Recording ${id}`, status: 'done', opened: true, section: '', duration: '',
+  id, created_at, speakers, title: `Recording ${id}`, status: 'done', opened: true, has_note: false, section: '', duration: '',
 })
 const titles = (sections: ReturnType<typeof groupRecordings>) =>
   sections.map(section => [section.title, section.items.map(i => i.id)])
@@ -75,6 +75,11 @@ test('delete prompt: names the recording and says it cannot be undone', () => {
   expect(prompt.title).toBe('Delete "Weekly sync"?')
   expect(prompt.body).not.toMatch(/cannot be undone/i)
   expect(prompt.warning).toBe('This cannot be undone.')
+})
+
+test('delete prompt: names the notes when the recording has them', () => {
+  expect(deleteRecordingPrompt('Weekly sync').body).not.toMatch(/notes/)
+  expect(deleteRecordingPrompt('Weekly sync', true).body).toBe('The transcript, its notes and its recording made in Sonorus will be deleted. Imported audio files are kept.')
 })
 
 test('delete prompt: falls back for an empty title', () => {

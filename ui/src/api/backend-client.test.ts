@@ -9,13 +9,13 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
 // A client over a stub fetch; `sent` collects what it asked for.
-function setup(respond: () => Response = () => new Response(null, { status: 204 })) {
+function setup(respond: (request: Request) => Response = () => new Response(null, { status: 204 })) {
   const sent: Sent[] = []
   const fetch = vi.fn(async (input: RequestInfo | URL) => {
     const request = input as Request
     const text = await request.text()
     sent.push({ url: request.url, method: request.method, body: text ? JSON.parse(text) : undefined })
-    return respond()
+    return respond(request)
   })
   return { client: createBackendClient({ fetch: fetch as typeof globalThis.fetch }), sent }
 }
@@ -112,6 +112,19 @@ describe('requests', () => {
     sent.length = 0
     await client.markTranscriptUnopened(7)
     expect(sent).toEqual([{ url: 'http://localhost:8000/transcripts/7/opened', method: 'DELETE' }])
+  })
+
+  test('the note: GET, PUT and DELETE', async () => {
+    const doc = { type: 'doc', content: [] }
+    const { client, sent } = setup(request => (request.method === 'GET' ? json({ content: doc, updated_at: 'x' }) : new Response(null, { status: 204 })))
+    expect(await client.getNote(7)).toEqual({ content: doc, updated_at: 'x' })
+    await client.saveNote(7, doc)
+    await client.deleteNote(7)
+    expect(sent.map(({ url, method, body }) => [method, url, body])).toEqual([
+      ['GET', 'http://localhost:8000/transcripts/7/note', undefined],
+      ['PUT', 'http://localhost:8000/transcripts/7/note', { content: doc }],
+      ['DELETE', 'http://localhost:8000/transcripts/7/note', undefined],
+    ])
   })
 
   test('confirming a possible match and its undo', async () => {

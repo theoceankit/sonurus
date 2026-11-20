@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 from datetime import datetime, date, timedelta
@@ -121,8 +122,45 @@ class TranscriptStorageService:
         with self._connect() as conn:
             conn.execute("DELETE FROM segments WHERE transcription_id = ?", (db_id,))
             conn.execute("DELETE FROM speaker_matches WHERE transcription_id = ?", (db_id,))
+            conn.execute("DELETE FROM notes WHERE transcription_id = ?", (db_id,))
             conn.execute("DELETE FROM transcriptions WHERE id = ?", (db_id,))
         log.info(f"DELETE transcription id={db_id} and its segments")
+
+    # ── Notes ─────────────────────────────────────────────────────────────────
+
+    def exists(self, db_id: int) -> bool:
+        with self._connect() as conn:
+            return conn.execute("SELECT 1 FROM transcriptions WHERE id = ?", (db_id,)).fetchone() is not None
+
+    def get_note(self, db_id: int) -> dict | None:
+        """The note of a transcript as {content, updated_at}, or None without one."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT content, updated_at FROM notes WHERE transcription_id = ?", (db_id,)
+            ).fetchone()
+        if row is None:
+            return None
+        return {"content": json.loads(row[0]), "updated_at": row[1]}
+
+    def save_note(self, db_id: int, content: dict) -> bool:
+        """Store the note of a transcript, replacing the one it had. Returns False
+        if the transcript does not exist."""
+        now = datetime.now().isoformat()
+        with self._connect() as conn:
+            if conn.execute("SELECT 1 FROM transcriptions WHERE id = ?", (db_id,)).fetchone() is None:
+                return False
+            conn.execute(
+                """INSERT INTO notes (transcription_id, content, created_at, updated_at)
+                   VALUES (?, ?, ?, ?)
+                   ON CONFLICT(transcription_id) DO UPDATE
+                   SET content = excluded.content, updated_at = excluded.updated_at""",
+                (db_id, json.dumps(content, ensure_ascii=False), now, now),
+            )
+        return True
+
+    def delete_note(self, db_id: int) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM notes WHERE transcription_id = ?", (db_id,))
 
     def unassign_speaker(self, speaker_id: str) -> dict:
         """Detach every segment of a deleted speaker: speaker_id becomes NULL and
@@ -190,6 +228,7 @@ class TranscriptStorageService:
             count = conn.execute("SELECT COUNT(*) FROM transcriptions").fetchone()[0]
             conn.execute("DELETE FROM segments")
             conn.execute("DELETE FROM speaker_matches")
+            conn.execute("DELETE FROM notes")
             conn.execute("DELETE FROM transcriptions")
         log.info(f"DELETE all transcriptions ({count}) and their segments")
         return count
@@ -275,7 +314,8 @@ class TranscriptStorageService:
                           t.status,
                           t.opened,
                           MAX(s.end)                         AS duration_sec,
-                          GROUP_CONCAT(DISTINCT s.speaker_id) AS speaker_ids
+                          GROUP_CONCAT(DISTINCT s.speaker_id) AS speaker_ids,
+                          EXISTS (SELECT 1 FROM notes n WHERE n.transcription_id = t.id) AS has_note
                    FROM transcriptions t
                    LEFT JOIN segments s ON s.transcription_id = t.id
                    GROUP BY t.id
@@ -288,7 +328,7 @@ class TranscriptStorageService:
 
         records = []
         for r in rows:
-            db_id, audio_file, title_db, created_at_str, status, opened, duration_sec, speaker_ids_str = r
+            db_id, audio_file, title_db, created_at_str, status, opened, duration_sec, speaker_ids_str, has_note = r
 
             created = date.fromisoformat(created_at_str[:10]) if created_at_str else today
             if created == today:
@@ -311,6 +351,7 @@ class TranscriptStorageService:
                 "section":    section,
                 "status":     status,
                 "opened":     bool(opened),
+                "has_note":   bool(has_note),
                 "duration":   duration_str,
                 "speakers":   speaker_ids,
             })

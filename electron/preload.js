@@ -14,6 +14,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeClipboard:  (text) => ipcRenderer.invoke('write-clipboard', text),
   restartBackend:  () => ipcRenderer.invoke('restart-backend'),
   showModelsFolder: () => ipcRenderer.invoke('show-models-folder'),
+  openLink:        (address) => ipcRenderer.invoke('open-link', address),
+  onWindowClosing: (callback) => {
+    const listener = async (_event, id) => {
+      try { await callback() } finally { ipcRenderer.send('window-closing-done', id) }
+    }
+    ipcRenderer.on('window-closing', listener)
+    return () => ipcRenderer.removeListener('window-closing', listener)
+  },
   setWindowDimmed: (dimmed, startedAt) => ipcRenderer.send('window-dimmed', dimmed, startedAt),
   takeWindowIntent: () => ipcRenderer.invoke('take-window-intent'),
   onWindowIntent:  (callback) => {

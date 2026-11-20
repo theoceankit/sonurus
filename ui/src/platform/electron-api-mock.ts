@@ -21,6 +21,8 @@ export function createMockElectronAPI(changes: Partial<ElectronAPI> = {}): MockE
     writeClipboard: async text => { clipboard = text },
     restartBackend: async () => {},
     showModelsFolder: async () => '',
+    openLink: async address => /^(https?|mailto):/.test(address),
+    onWindowClosing: () => () => {},
     setWindowDimmed: () => {},
     takeWindowIntent: async () => null,
     onWindowIntent: () => () => {},

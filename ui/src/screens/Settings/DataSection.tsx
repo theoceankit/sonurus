@@ -26,7 +26,7 @@ const RESET: ConfirmPrompt = {
 
 const DELETE_ALL: ConfirmPrompt = {
   title: 'Delete all data?',
-  body: 'All transcripts, all speakers and their voice profiles and the recordings made in Sonorus are deleted. '
+  body: 'All transcripts and their notes, all speakers and their voice profiles and the recordings made in Sonorus are deleted. '
     + 'This cannot be undone. Audio files you imported stay where they are; downloaded models and preferences are kept.',
   confirmLabel: 'Delete everything',
 }
@@ -64,6 +64,7 @@ export function DataSection() {
       queries.invalidateQueries({ queryKey: queryKeys.speakers }),
       queries.invalidateQueries({ queryKey: queryKeys.queue }),
     ])
+    queries.removeQueries({ queryKey: queryKeys.notes })
   }
 
   const deleteButton = <Button variant="danger" size="small" disabled={!!blocked} onClick={() => setStep({ prompt: DELETE_ALL, run: deleteAll })}>Delete</Button>
@@ -75,7 +76,7 @@ export function DataSection() {
         </FieldRow>
       </SectionCard>
       <SectionCard title="Delete all data">
-        <FieldRow label="Start over with an empty library" hint="Deletes every transcript, speaker and recording made in Sonorus. This cannot be undone.">
+        <FieldRow label="Start over with an empty library" hint="Deletes every transcript, note, speaker and recording made in Sonorus. This cannot be undone.">
           {blocked
             // A disabled button gets no pointer events: the tooltip hangs on a wrapper.
             ? <Tooltip text={blocked}><span className={styles.blocked} tabIndex={0} aria-label={`Delete all data: ${blocked}`}>{deleteButton}</span></Tooltip>

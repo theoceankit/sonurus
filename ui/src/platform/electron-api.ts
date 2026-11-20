@@ -64,6 +64,12 @@ export type ElectronAPI = {
   restartBackend: () => Promise<void>
   // '' once the file manager opened the models folder, else why it did not.
   showModelsFolder: () => Promise<string>
+  // A link of a note, in the user's browser or mail app: true once handed over,
+  // false for an address that is not http, https or mailto.
+  openLink: (address: string) => Promise<boolean>
+  // Called before the window closes or the app quits, and waited for: saves what
+  // still waits. Returns what stops listening.
+  onWindowClosing: (callback: () => Promise<void>) => () => void
   setWindowDimmed: (dimmed: boolean, startedAt: number) => void
   // The dialog a notification asked for, once; null when none waits.
   takeWindowIntent: () => Promise<WindowIntent | null>

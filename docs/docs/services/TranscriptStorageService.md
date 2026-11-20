@@ -9,6 +9,7 @@ sidebar_position: 6
 Used in two scenarios:
 - **Write** — after the transcription pipeline (`save`)
 - **Read** — when opening past recordings from the sidebar (`load`, `list_all`) and when assigning speakers (`set_segments_speaker`)
+- **Notes** — the note of a recording (`get_note`, `save_note`, `delete_note`)
 - **Speakers section** — usage statistics, a speaker's transcripts and voice-sample candidates (`speaker_stats`, `transcripts_for_speaker`, `speaker_segments`), detaching a deleted speaker (`unassign_speaker`) and moving a merged one (`move_speaker`)
 
 ---
@@ -48,6 +49,15 @@ CREATE TABLE speaker_matches (                                          -- schem
     confirmed        INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (transcription_id, speaker_id)
 )
+
+CREATE TABLE notes (                                                    -- schema v9
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    transcription_id INTEGER UNIQUE,
+    content          TEXT NOT NULL,
+    format           INTEGER NOT NULL DEFAULT 1,
+    created_at       TEXT NOT NULL,
+    updated_at       TEXT NOT NULL
+)
 ```
 
 `speaker_id` — current effective speaker ID (`speaker_final or speaker_resolved`), always a UUID4 or `NULL`. Updated when segments get a speaker, via `set_segments_speaker()`.
@@ -61,6 +71,8 @@ CREATE TABLE speaker_matches (                                          -- schem
 `embedding` — per-segment pyannote embedding blob (float32). Used by `CommitService` after load.
 
 `speaker_matches` — one row per speaker that `resolve()` recognized from memory when the transcript was made: `score` is the similarity of the match, `confirmed` is `1` once the user confirmed the speaker as a possible match. Speakers assigned by hand have no row, and nothing else writes one, so the similarity is never worked out again later (by then the profile contains this recording).
+
+`notes` — the note of a recording: `content` is the editor's document as JSON (see [Note](../data-models.md#note)), `format` its version. At most one note per transcript. A note has its own `id` and `transcription_id` may be `NULL`, so a note can exist before its transcript does; today every note has a transcript. An empty note has no row.
 
 ---
 
@@ -106,6 +118,7 @@ Each item:
     "section":  "Today",           # "Today" | "Yesterday" | "Last week" | "May 01, 2026"
     "status":   "draft",
     "opened":   False,             # True once the user has opened it
+    "has_note": False,             # True when the recording has a note
     "duration": "12 min",          # or "1h 5m"
     "speakers": ["spk_abc", "spk_def"]
 }
@@ -171,9 +184,27 @@ Deletes a single segment identified by its time range.
 
 ---
 
+### `get_note(db_id) → dict | None`
+
+The note of a transcript as `{"content": dict, "updated_at": str}`, or `None` when it has none.
+
+---
+
+### `save_note(db_id, content) → bool`
+
+Stores the editor's document as the transcript's note, replacing the one it had (`updated_at` changes, `created_at` stays). Returns `False` if the transcript does not exist.
+
+---
+
+### `delete_note(db_id)`
+
+Deletes the transcript's note, if it has one.
+
+---
+
 ### `delete(db_id)`
 
-Deletes a transcription, all its segments and its `speaker_matches` rows.
+Deletes a transcription, all its segments, its `speaker_matches` rows and its note.
 
 ---
 
@@ -185,7 +216,7 @@ Number of transcriptions whose `audio_file` equals the given path. `DELETE /tran
 
 ### `clear() → int`
 
-Deletes every transcription, segment and `speaker_matches` row in one transaction and returns the number of transcriptions removed. Schema tables are kept. Used only by `POST /data/reset`.
+Deletes every transcription, segment, `speaker_matches` row and note in one transaction and returns the number of transcriptions removed. Schema tables are kept. Used only by `POST /data/reset`.
 
 ---
 

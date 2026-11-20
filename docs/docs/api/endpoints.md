@@ -379,13 +379,14 @@ Returns all transcripts for the sidebar, newest first.
     "section": "Today",
     "status": "draft",
     "opened": false,
+    "has_note": false,
     "speakers": ["385dbc1d-ec85-4486-9b91-f80b7dfdf1ca"],
     "duration": "14 min"
   }
 ]
 ```
 
-`speakers` is a list of speaker UUIDs (may include unrecognized ones without a display name). `opened` is false until the user opens the transcript (`POST /transcripts/{id}/opened`), and again after Mark as unread (`DELETE /transcripts/{id}/opened`); transcripts that existed before the flag count as opened.
+`speakers` is a list of speaker UUIDs (may include unrecognized ones without a display name). `opened` is false until the user opens the transcript (`POST /transcripts/{id}/opened`), and again after Mark as unread (`DELETE /transcripts/{id}/opened`); transcripts that existed before the flag count as opened. `has_note` is true when the recording has a note (`GET /transcripts/{id}/note`).
 
 ### `GET /transcripts/{id}`
 
@@ -479,9 +480,31 @@ Marks the transcript as opened by the user. No body. Only this flag changes: spe
 
 Marks the transcript as not opened, as Mark as unread in the recordings list asks. No body. Only this flag changes, as with `POST`; calling it again is fine. Returns `204`, or `404` for an unknown id. The transcript is listed as new until `POST /transcripts/{id}/opened`.
 
+### `GET /transcripts/{id}/note`
+
+The note of the recording:
+
+```json
+{ "content": { "type": "doc", "content": [] }, "updated_at": "2026-11-20T15:02:11.482113" }
+```
+
+`content` is the editor's document ([Note](../data-models.md#note)); both fields are `null` when the recording has no note, which is not an error. Returns `404` for an unknown id.
+
+### `PUT /transcripts/{id}/note`
+
+```json
+{ "content": { "type": "doc", "content": [ … ] } }
+```
+
+Stores the note, replacing the one the recording had. `content` must be an object of `type` `"doc"` and at most 1 MB as JSON (`422` otherwise); the rest of it is kept as sent. Returns `204`, or `404` for an unknown id. The UI deletes an empty note instead of saving it. Only the note changes: segments, speakers and speaker memory are untouched.
+
+### `DELETE /transcripts/{id}/note`
+
+The recording no longer has a note. No body. Calling it again is fine. Returns `204`, or `404` for an unknown id.
+
 ### `DELETE /transcripts/{id}`
 
-Deletes transcript and all its segments, then calls `CommitService.recompute_or_remove()` for every speaker that appeared in it: the deleted audio no longer contributes to their stored embeddings, and unnamed speakers left without segments are removed from memory. If the transcript's audio file is inside `$SONORUS_DATA_DIR/recordings/` (a live recording or the copy of an imported file) and no other transcript references it, the file is deleted too; the user's original imported file elsewhere on disk is never touched (a symlink is removed as a link). Returns `204`, or `404` for an unknown id.
+Deletes transcript, all its segments and its note, then calls `CommitService.recompute_or_remove()` for every speaker that appeared in it: the deleted audio no longer contributes to their stored embeddings, and unnamed speakers left without segments are removed from memory. If the transcript's audio file is inside `$SONORUS_DATA_DIR/recordings/` (a live recording or the copy of an imported file) and no other transcript references it, the file is deleted too; the user's original imported file elsewhere on disk is never touched (a symlink is removed as a link). Returns `204`, or `404` for an unknown id.
 
 ### `PATCH /transcripts/{id}/segments/{start}/text`
 
@@ -703,7 +726,7 @@ Transcripts in which the speaker has segments, newest first. `has_audio` is fals
 
 Deletes all user data and returns the backend to an empty library:
 
-- every transcription and segment (`transcriptions`, `segments`);
+- every transcription, segment and note (`transcriptions`, `segments`, `speaker_matches`, `notes`);
 - every speaker, **named ones included** — `speaker_embeddings`, `speaker_names`, `speaker_meta`;
 - the contents of `$SONORUS_DATA_DIR/recordings/` (live recordings and copies of imported files);
 - the contents of `$SONORUS_DATA_DIR/speaker_photos/` (speaker photos);

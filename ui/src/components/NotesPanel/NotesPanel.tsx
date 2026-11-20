@@ -28,13 +28,16 @@ interface NotesPanelProps {
   // The recording, over the expanded note.
   title?: string
   content?: JSONContent | null
-  candidates: readonly MentionCandidate[]
+  // Who @ offers; without them @ is plain text.
+  candidates?: readonly MentionCandidate[]
   findSpeaker: FindSpeaker
-  // Where the player stands, to the second: what the time button inserts.
-  time: number
+  // Where the player stands, to the second: what the time button inserts. Without
+  // it there is no time button.
+  time?: number
   onSeek?: (seconds: number) => void
   onChange?: (doc: JSONContent) => void
   onCopy?: (markdown: string) => void
+  onOpenLink?: (href: string) => void
   // Expand in the tab, collapse when expanded.
   onToggleExpanded?: () => void
   autoFocus?: boolean
@@ -47,7 +50,7 @@ const shortcut = () => (currentOs() === 'mac' ? '⌘T' : 'Ctrl T')
 // The note of a recording: the player's time, Copy notes and the way to expand or
 // collapse it over the editor. It saves itself, so there is no Save.
 export function NotesPanel({
-  mode = 'tab', title, content, candidates, findSpeaker, time, onSeek, onChange, onCopy, onToggleExpanded, autoFocus, className, ref,
+  mode = 'tab', title, content, candidates, findSpeaker, time, onSeek, onChange, onCopy, onOpenLink, onToggleExpanded, autoFocus, className, ref,
 }: NotesPanelProps) {
   const editor = useRef<NoteEditorHandle>(null)
   const [empty, setEmpty] = useState(() => isEmptyNote(content))
@@ -60,7 +63,9 @@ export function NotesPanel({
     type: text => editor.current?.type(text),
   }), [])
 
-  const insertTime = useCallback(() => editor.current?.insertTimecode(Math.floor(now.current)), [])
+  const insertTime = useCallback(() => {
+    if (now.current !== undefined) editor.current?.insertTimecode(Math.floor(now.current))
+  }, [])
   const change = useCallback((doc: JSONContent) => {
     setEmpty(isEmptyNote(doc))
     onChange?.(doc)
@@ -81,11 +86,13 @@ export function NotesPanel({
               {title && <span className={styles.recording}>{title}</span>}
             </Inline>
           )}
-          <Tooltip text={`Insert player time, ${shortcut()}`}>
-            <Button variant="ghost" size="small" icon="clock" aria-label="Insert player time" onMouseDown={event => event.preventDefault()} onClick={insertTime}>
-              {formatClock(time)}
-            </Button>
-          </Tooltip>
+          {time !== undefined && (
+            <Tooltip text={`Insert player time, ${shortcut()}`}>
+              <Button variant="ghost" size="small" icon="clock" aria-label="Insert player time" onMouseDown={event => event.preventDefault()} onClick={insertTime}>
+                {formatClock(time)}
+              </Button>
+            </Tooltip>
+          )}
           <span className={styles.spacer} />
           <Tooltip text="Copy notes">
             <IconButton icon="copy" size="small" label="Copy notes" disabled={empty} onClick={copy} />
@@ -105,7 +112,8 @@ export function NotesPanel({
               findSpeaker={findSpeaker}
               onSeek={onSeek}
               onChange={change}
-              onTimeShortcut={insertTime}
+              onTimeShortcut={time === undefined ? undefined : insertTime}
+              onOpenLink={onOpenLink}
               size={mode}
               autoFocus={autoFocus}
             />

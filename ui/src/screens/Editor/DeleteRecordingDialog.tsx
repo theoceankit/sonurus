@@ -1,4 +1,4 @@
-import { useDeleteTranscript } from '../../api/queries'
+import { useDeleteTranscript, useTranscripts } from '../../api/queries'
 import { Modal } from '../../components/Modal/Modal'
 import { ModalBody } from '../../components/ModalBody/ModalBody'
 import { ModalFooter } from '../../components/ModalFooter/ModalFooter'
@@ -21,7 +21,8 @@ interface DeleteRecordingDialogProps {
 
 export function DeleteRecordingDialog({ recording: { id, title }, open, onDeleted, onClose, onExited }: DeleteRecordingDialogProps) {
   const { mutateAsync: remove, isPending } = useDeleteTranscript()
-  const prompt = deleteRecordingPrompt(title)
+  const hasNote = useTranscripts().data?.find(item => item.id === id)?.has_note ?? false
+  const prompt = deleteRecordingPrompt(title, hasNote)
 
   const confirm = async () => {
     try {

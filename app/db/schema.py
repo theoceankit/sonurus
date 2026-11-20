@@ -1,7 +1,7 @@
 """Transcript DB schema management: creation and versioned migrations."""
 import uuid
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 def init_db(conn) -> None:
@@ -119,6 +119,24 @@ def _run_migrations(conn, current: int) -> None:
             """
         )
         conn.execute("UPDATE _ts_schema_version SET version = 8")
+        current = 8
+    if current < 9:
+        # The note of a recording: the editor's document as JSON, apart from the
+        # segments. A note has its own id and transcription_id may be NULL, so a
+        # note can exist before its transcript does and be attached to it later.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                transcription_id INTEGER UNIQUE,
+                content TEXT NOT NULL,
+                format INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute("UPDATE _ts_schema_version SET version = 9")
 
 
 def _assign_raw_speakers(conn) -> None:

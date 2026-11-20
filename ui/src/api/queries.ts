@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useApi } from './ApiProvider'
 import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
-import type { HandleFormat, QueueJobUpdate, QueueStartMode, QueueUpdate, Speaker, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
+import type { HandleFormat, Note, NoteDocument, QueueJobUpdate, QueueStartMode, QueueUpdate, Speaker, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
 
 // Everything below a transcript starts with its key, so invalidating
 // queryKeys.transcripts reaches the list, the details and the candidates.
@@ -10,6 +10,10 @@ export const queryKeys = {
   transcripts: ['transcripts'],
   transcript: (id: number) => ['transcripts', id],
   candidates: (id: number) => ['transcripts', id, 'candidates'],
+  // Not under the transcript: a refresh of the list must not load the note again
+  // under the text being typed.
+  notes: ['note'],
+  note: (id: number) => ['note', id],
   speakers: ['speakers'],
   sample: (speakerId: string, transcriptId?: number) => ['speakers', speakerId, 'sample', transcriptId],
   speakerTranscripts: (speakerId: string) => ['speakers', speakerId, 'transcripts'],
@@ -252,10 +256,46 @@ export function useDeleteTranscript() {
     // it is still open until the caller closes it, and would only answer 404.
     onSuccess: (_result, transcriptId) => {
       queries.setQueryData<TranscriptListItem[]>(queryKeys.transcripts, items => items?.filter(item => item.id !== transcriptId))
+      queries.removeQueries({ queryKey: queryKeys.note(transcriptId) })
       void queries.invalidateQueries({ queryKey: queryKeys.transcripts, predicate: query => query.queryKey[1] !== transcriptId })
       void queries.invalidateQueries({ queryKey: queryKeys.speakers })
     },
   })
+}
+
+// The note of a recording. The cache holds what the editor has, saved or not
+// (useKeepNote), so it is never asked for again while the recording is open.
+export function useNote(id: number | null) {
+  const api = useApi()
+  return useQuery({
+    queryKey: queryKeys.note(id ?? -1),
+    queryFn: () => api.getNote(id!),
+    enabled: id !== null,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  })
+}
+
+// The editor's document, kept as the note of the recording at once: the note opens
+// with it in the tab or expanded, whether or not it has been saved yet.
+export function useKeepNote() {
+  const queries = useQueryClient()
+  return useCallback((transcriptId: number, content: NoteDocument) => {
+    queries.setQueryData<Note>(queryKeys.note(transcriptId), before => ({ content, updated_at: before?.updated_at ?? null }))
+  }, [queries])
+}
+
+// Saves the note, or deletes it when empty, and says so in the list.
+export function useWriteNote() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useCallback(async (transcriptId: number, content: NoteDocument | null) => {
+    if (content) await api.saveNote(transcriptId, content)
+    else await api.deleteNote(transcriptId)
+    queries.setQueryData<TranscriptListItem[]>(queryKeys.transcripts, items => items?.map(item => (
+      item.id === transcriptId ? { ...item, has_note: content !== null } : item
+    )))
+  }, [api, queries])
 }
 
 export function useUpdateSegmentText() {

@@ -1,3 +1,5 @@
+import json
+
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -26,6 +28,8 @@ class TranscriptListItem(BaseModel):
     status: str
     # False until the user opens the transcript: the UI marks it as new.
     opened: bool
+    # The recording has a note; the delete dialog says it goes too.
+    has_note: bool
     speakers: list[str]
     section: str
     duration: str
@@ -38,6 +42,29 @@ class TranscriptResponse(ResponseModel):
     status: str
     title: str | None = None
     segments: list[SegmentResponse]
+
+
+# What a note may weigh as JSON: far more than a meeting's minutes ever need.
+NOTE_MAX_BYTES = 1_000_000
+
+
+class NoteResponse(ResponseModel):
+    # The editor's document (Tiptap JSON), or null when the recording has no note.
+    content: dict | None
+    updated_at: str | None
+
+
+class NoteRequest(BaseModel):
+    content: dict
+
+    @field_validator('content')
+    @classmethod
+    def check_document(cls, v):
+        if v.get('type') != 'doc':
+            raise ValueError('content must be an editor document of type "doc"')
+        if len(json.dumps(v, ensure_ascii=False).encode('utf-8')) > NOTE_MAX_BYTES:
+            raise ValueError(f'the note is over {NOTE_MAX_BYTES} bytes')
+        return v
 
 
 class TranscriptUpdateRequest(BaseModel):

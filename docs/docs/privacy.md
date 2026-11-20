@@ -4,7 +4,7 @@ sidebar_position: 97
 
 # Privacy
 
-Sonorus runs on your computer. Audio, transcripts, speaker profiles and speaker photos stay in the data directory
+Sonorus runs on your computer. Audio, transcripts, notes, speaker profiles and speaker photos stay in the data directory
 (see [SONORUS_DATA_DIR](environment/configuration.md#sonorus_data_dir)); Sonorus sends no usage data
 to anyone.
 
@@ -54,6 +54,9 @@ bundled backend of every installer build.
 
 The app starts no crash reporter, contains no analytics and loads no remote content: the window shows
 local files and talks only to the backend on `127.0.0.1`.
+
+A link in a note opens only on Ctrl+click (⌘ on macOS), in your own browser or mail app, and only an
+`http`, `https` or `mailto` address; the app's window never follows a link.
 
 Spell checking is off (`electron/main.js`): `spellcheck: false` in the window, and the session has the
 spell checker disabled and no languages. With a language set, Chromium on Windows and Linux downloads

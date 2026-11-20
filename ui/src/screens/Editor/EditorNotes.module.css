@@ -1,0 +1,4 @@
+.message {
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}

@@ -61,6 +61,7 @@ export const LONG_RECORDING_ITEM: TranscriptListItem = {
   created_at: '2026-10-05T09:00:00',
   status: 'done',
   opened: true,
+  has_note: false,
   speakers: [SPEAKER_IDS.anna, SPEAKER_IDS.mark, SPEAKER_IDS.unknown1, SPEAKER_IDS.oliver, SPEAKER_IDS.lena, SPEAKER_IDS.sofia],
   section: 'Today',
   duration: '180 min',

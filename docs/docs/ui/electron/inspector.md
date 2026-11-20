@@ -4,7 +4,7 @@ sidebar_position: 7
 
 # Inspector
 
-The right panel of the Editor in the UI: who speaks and for how long, and the review of speakers with no name.
+The right panel of the Editor in the UI: who speaks and for how long, and the review of speakers with no name. Its tabs are Speakers, Chapters (not there yet) and Notes, the note of the recording ([Notes](notes.md)). `EditorScreen` keeps which tab shows, so every recording opens on Speakers.
 
 ```
 EditorScreen → InspectorPanel → Inspector → TalkTime, SpeakerRow

@@ -26,6 +26,8 @@ import { LiveRecordingPill, LiveRecordingSection } from '../../recording/LiveRec
 import { SpeakersDialog } from '../Speakers/SpeakersDialog'
 import type { Playback } from '../../media/playback'
 import { DeleteRecordingDialog, type RecordingToDelete } from './DeleteRecordingDialog'
+import { EditorNotes, NotesElsewhere } from './EditorNotes'
+import { useNotesSaver } from './useNotesSaver'
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
 import { InspectorPanel } from './InspectorPanel'
 import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
@@ -63,12 +65,14 @@ interface EditorScreenProps {
   initialHighlight?: string
   // For a story: the Speakers window open.
   initialSpeakersOpen?: boolean
-  // For a story: the note of the recording, until notes are stored.
-  notes?: EditorNotes
+  // For a story: the Notes tab and the tabs as the story keeps them.
+  notes?: EditorNotesSlot
+  // For a story: the tab of the right panel, and the note expanded, for the recording open at the start.
+  initialNotes?: { tab?: 'speakers' | 'notes'; expanded?: boolean }
 }
 
 // The Notes tab, the tab of the right panel shown, and Quote to notes in the transcript.
-export interface EditorNotes {
+export interface EditorNotesSlot {
   tab: ReactNode
   inspectorTab: string
   onInspectorTab: (tab: string) => void
@@ -91,7 +95,7 @@ function useWidth() {
   return { element, width }
 }
 
-export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, initialSpeakerId, initialHighlight, initialSpeakersOpen = false, notes }: EditorScreenProps) {
+export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, initialSpeakerId, initialHighlight, initialSpeakersOpen = false, notes, initialNotes }: EditorScreenProps) {
   const api = useApi()
   const queries = useQueryClient()
   const transcripts = useTranscripts()
@@ -105,8 +109,21 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
   const goBack = useCallback(() => select({ type: 'back' }), [])
   const goForward = useCallback(() => select({ type: 'forward' }), [])
   useHistoryKeys(goBack, goForward)
-  // Escape closes the recording or the job in the centre, and the sound stops with it.
-  useEscapeClose(() => select({ type: 'close' }), selectedId !== null || jobId !== null)
+  // The tab of the right panel and whether the note is expanded over the transcript,
+  // for the recording shown: another one opens on Speakers, with its transcript.
+  const [notesState, setNotesState] = useState<{ id: number | null; tab: string; expanded: boolean }>({ id: shownId, tab: initialNotes?.tab ?? 'speakers', expanded: initialNotes?.expanded ?? false })
+  const notesView = notesState.id === shownId ? notesState : { id: shownId, tab: 'speakers', expanded: false }
+  const notesExpanded = !notes && !transcript && shownId !== null && notesView.expanded
+  const setInspectorTab = useCallback((tab: string) => setNotesState({ ...notesView, tab }), [notesView])
+  // Expanded, the right panel goes back to Speakers; collapsed, the note is in its tab again.
+  const toggleNotes = useCallback(() => setNotesState(notesView.expanded
+    ? { ...notesView, expanded: false, tab: 'notes' }
+    : { ...notesView, expanded: true, tab: 'speakers' }), [notesView])
+  const notesSaver = useNotesSaver(shownId)
+  // Escape closes the recording or the job in the centre, and the sound stops with it;
+  // with the note expanded it puts the transcript back first, typed in or not.
+  useEscapeClose(() => select({ type: 'close' }), (selectedId !== null || jobId !== null) && !notesExpanded)
+  useEscapeClose(toggleNotes, notesExpanded, { fromTextFields: true })
   const recent = useRecentRecordings()
   const newTranscription = useNewTranscription()
   // A click on a notification of a call: New recording, or the question to stop. Of a
@@ -286,14 +303,24 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
   // Only an answer with no recordings is empty: loading and failing are the sidebar's to say.
   // A recording closed by the user leaves the same: how to make a new one.
   const empty = transcripts.data?.length === 0 || selection.closed
+  const shownTitle = transcripts.data?.find(item => item.id === shownId)?.title
   const center = useMemo(
     () => transcript ?? (jobId !== null
       ? <QueueJobPanel jobId={jobId} onGone={clearJob} />
       : empty
         ? <EmptyState onOpenSettings={() => settingsDialog.open('models')} />
-        : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} onQuote={notes?.onQuote} />),
-    [transcript, jobId, clearJob, empty, selectedId, playback, highlight, showAllSpeakers, settingsDialog, notes?.onQuote],
+        : notesExpanded && selectedId !== null
+          ? <EditorNotes transcriptId={selectedId} mode="expanded" title={shownTitle} saver={notesSaver} onToggleExpanded={toggleNotes} />
+          : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} onQuote={notes?.onQuote} />),
+    [transcript, jobId, clearJob, empty, selectedId, playback, highlight, showAllSpeakers, settingsDialog, notes?.onQuote, notesExpanded, shownTitle, notesSaver, toggleNotes],
   )
+  const notesTab = notes
+    ? notes.tab
+    : shownId === null
+      ? null
+      : notesExpanded
+        ? <NotesElsewhere onCollapse={toggleNotes} />
+        : <EditorNotes transcriptId={shownId} mode="tab" saver={notesSaver} onToggleExpanded={toggleNotes} />
 
   // A refresh that fails leaves what was loaded on the screen.
   const failed = (transcripts.isError && !transcripts.data) || (speakers.isError && !speakers.data)
@@ -349,9 +376,9 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
                 onChooseSpeaker={setSpeakerRequest}
                 initialSpeakerId={initialSpeakerId}
                 highlight={highlight}
-                notes={notes?.tab}
-                tab={notes?.inspectorTab}
-                onTabChange={notes?.onInspectorTab}
+                notes={notesTab}
+                tab={notes ? notes.inspectorTab : notesView.tab}
+                onTabChange={notes ? notes.onInspectorTab : setInspectorTab}
               />
             )}
           </div>

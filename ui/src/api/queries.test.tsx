@@ -8,7 +8,7 @@ import { QUEUE_JOB, SPEAKER_IDS, WEEKLY_SYNC_ID, queueSnapshot } from './fixture
 import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
-  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useHandleSuggestion, useDeleteQueueJob, useDeleteSpeaker, useMergeSpeaker, useDeleteTranscript, useModels, useQueue, useQueueControl, useQueueEventsSync,
+  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useHandleSuggestion, useDeleteQueueJob, useDeleteSpeaker, useMergeSpeaker, useDeleteTranscript, useKeepNote, useModels, useNote, useWriteNote, useQueue, useQueueControl, useQueueEventsSync,
   useReorderQueue, useRetryQueueJob, useSpeakerCandidates, useSpeakers, useSpeakerTranscripts, useTranscript, useTranscripts,
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle, useWaveform,
 } from './queries'
@@ -206,6 +206,58 @@ describe('undoing an assignment', () => {
     await client.assignSpeaker({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [16], target: { id: mark } })
     await act(() => result.current.undo.mutateAsync({ transcriptId: WEEKLY_SYNC_ID, segmentStarts: [16], speakerId: unknown1 }))
     await waitFor(() => expect(result.current.candidates.data?.[unknown1]).toBeTruthy())
+  })
+})
+
+describe('the note of a recording', () => {
+  const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hi' }] }] }
+  const setup = () => {
+    const client = createFixtureClient()
+    const getNote = vi.spyOn(client, 'getNote')
+    const view = renderHook(() => ({
+      list: useTranscripts(),
+      note: useNote(WEEKLY_SYNC_ID),
+      keep: useKeepNote(),
+      write: useWriteNote(),
+      remove: useDeleteTranscript(),
+    }), { wrapper: wrapperFor(client) })
+    return { client, getNote, ...view }
+  }
+  const listed = (rows: { id: number; has_note: boolean }[] | undefined) => rows?.find(row => row.id === WEEKLY_SYNC_ID)?.has_note
+
+  test('loads once, and what the editor has is the note at once', async () => {
+    const { result, getNote } = setup()
+    await waitFor(() => expect(result.current.note.data?.content).toMatchObject({ type: 'doc' }))
+    act(() => result.current.keep(WEEKLY_SYNC_ID, doc))
+    await waitFor(() => expect(result.current.note.data?.content).toEqual(doc))
+    await act(() => result.current.list.refetch())
+    expect(getNote).toHaveBeenCalledTimes(1)
+  })
+
+  test('writing it saves, and null deletes; the list follows', async () => {
+    const { client, result } = setup()
+    await waitFor(() => expect(listed(result.current.list.data)).toBe(true))
+    await act(() => result.current.write(WEEKLY_SYNC_ID, null))
+    await waitFor(() => expect(listed(result.current.list.data)).toBe(false))
+    expect((await client.getNote(WEEKLY_SYNC_ID)).content).toBeNull()
+    await act(() => result.current.write(WEEKLY_SYNC_ID, doc))
+    await waitFor(() => expect(listed(result.current.list.data)).toBe(true))
+    expect((await client.getNote(WEEKLY_SYNC_ID)).content).toEqual(doc)
+  })
+
+  test('nothing is asked for without a recording', async () => {
+    const client = createFixtureClient()
+    const getNote = vi.spyOn(client, 'getNote')
+    renderHook(() => useNote(null), { wrapper: wrapperFor(client) })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(getNote).not.toHaveBeenCalled()
+  })
+
+  test('deleting the recording drops its note', async () => {
+    const { result } = setup()
+    await waitFor(() => expect(result.current.note.data).toBeTruthy())
+    await act(() => result.current.remove.mutateAsync(WEEKLY_SYNC_ID))
+    await waitFor(() => expect(result.current.note.data).toBeUndefined())
   })
 })
 

@@ -40,5 +40,5 @@ export const Empty: Story = { args: { children: undefined } }
 // The pointer on Close inspector: the line of its icon moves towards the frame.
 export const CloseHover: Story = { parameters: { pseudo: { hover: ['button[aria-label="Close inspector"]'] } } }
 
-// Notes in place: the tab is live once there is a note to show (the Editor's notes sketch).
+// The Notes tab, with what the screen puts in it.
 export const NotesTab: Story = { args: { notes: <p>The note of the recording</p>, tab: 'notes' } }

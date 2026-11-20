@@ -10,6 +10,7 @@ import { RecordingProvider } from './recording/RecordingProvider'
 import { SettingsProvider } from './screens/Settings/SettingsProvider'
 import { useGpu } from './settings/gpu'
 import { useDefaultModelSync } from './transcribe/default-model-sync'
+import { useBeforeCloseBridge } from './platform/before-close'
 
 // What is on the screen stays, so this is the only sign that it may be out of date.
 // Not while the app restarts the backend itself to apply GPU acceleration.
@@ -35,6 +36,7 @@ function Screens() {
   useQueueEventsSync(onQueueEvent)
   useBackendLostToast()
   useDefaultModelSync()
+  useBeforeCloseBridge()
   return (
     <>
       <EditorScreen openRequest={opening} onAlignmentRequest={requestAlignment} />
