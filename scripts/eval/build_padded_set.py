@@ -12,12 +12,16 @@ Bases (tests/quality/padded_manifest.json, "bases"):
 Inserts ("inserts"): digital silence, pink room noise, a 425 Hz ring tone
 (1 s on, 4 s off) and music (one instrumental track, pinned in the manifest).
 A variant ("variants") places inserts at seconds of the base: at 0 before the
-speech, elsewhere in a pause ("gaps"). Writes into
+speech, elsewhere in a pause ("gaps": at a given second, or "near" one, in the
+longest pause of the reference within 15 s of it, or the nearest pause when
+there is none so close, never one pause twice; a music gap may take its
+piece from a later second of the track, "from_s"). Writes into
 $SONORUS_EVAL_CACHE/padded (default ~/.cache/sonorus-eval/padded), per base:
 
   base.wav, base.json           the base and its reference (language, words or sentences)
   <variant>.wav, <variant>.json the base with the variant's inserts; the
                                 reference shifted by them, and where they are
+                                (in the base, "at", and in the variant, "start"-"end")
 
 Downloads (FLEURS archives ~180 MB per language, the music track 7.5 MB) are
 checked against the sha256 in the manifest; the archives are deleted once the
@@ -158,11 +162,57 @@ def place(base: np.ndarray, inserts: list[tuple[float, np.ndarray]]) -> np.ndarr
     return np.concatenate(parts)
 
 
-def variant_inserts(variant: dict) -> list[dict]:
-    """The variant's inserts as {at, insert, seconds}: its lead-in at 0, then its gaps."""
+GAP_REACH_S = 15.0   # a gap "near" a second goes into the longest pause this close to it
+MIN_PAUSE_S = 0.1    # shorter pauses between words are not taken
+
+
+def pauses_of(items: list[dict]) -> list[tuple[float, float]]:
+    """(middle, length) of every pause of the reference: no word or sentence,
+    overlapping ones included, for at least MIN_PAUSE_S."""
+    out, covered = [], None
+    for item in sorted(items, key=lambda i: i["start"]):
+        if covered is not None and item["start"] - covered >= MIN_PAUSE_S:
+            out.append(((covered + item["start"]) / 2, item["start"] - covered))
+        covered = item["end"] if covered is None else max(covered, item["end"])
+    return out
+
+
+def pause_near(items: list[dict], near: float, reach: float = GAP_REACH_S, taken=()) -> float:
+    """The middle of the longest pause of the reference within `reach` of
+    `near`; with none there (dense overlapping speech), the nearest pause.
+    A pause in `taken` (middles) is never given twice."""
+    free = [p for p in pauses_of(items) if all(abs(p[0] - t) > 1e-6 for t in taken)]
+    if not free:
+        raise RuntimeError(f"no free pause in the reference for a gap near {near} s")
+    close = [p for p in free if abs(p[0] - near) <= reach]
+    mid = max(close, key=lambda p: p[1])[0] if close else min(free, key=lambda p: abs(p[0] - near))[0]
+    return round(mid, 3)
+
+
+def variant_inserts(variant: dict, items: list[dict] | None = None) -> list[dict]:
+    """The variant's inserts as {at, insert, seconds[, from_s]}: its lead-in at 0,
+    then its gaps, each at a given second ("at") or in the pause of the
+    reference `items` nearest to one ("near")."""
     lead = [{"at": 0.0, "insert": variant["insert"], "seconds": variant["seconds"]}] if variant.get("insert") else []
-    gaps = [{"at": float(g["at"]), "insert": g["insert"], "seconds": g["seconds"]} for g in variant.get("gaps", [])]
+    gaps = []
+    for g in variant.get("gaps", []):
+        at = float(g["at"]) if "at" in g else pause_near(items or [], float(g["near"]),
+                                                         taken=[x["at"] for x in gaps])
+        gap = {"at": at, "insert": g["insert"], "seconds": g["seconds"]}
+        if "from_s" in g:
+            gap["from_s"] = g["from_s"]
+        gaps.append(gap)
     return lead + sorted(gaps, key=lambda g: g["at"])
+
+
+def insert_spans(inserts: list[dict]) -> list[tuple[float, float]]:
+    """Where each insert sounds in the variant: (start, end) seconds."""
+    spans, before = [], 0.0
+    for i in sorted(inserts, key=lambda i: i["at"]):
+        start = i["at"] + before
+        spans.append((round(start, 3), round(start + i["seconds"], 3)))
+        before += i["seconds"]
+    return spans
 
 
 # ── FLEURS ───────────────────────────────────────────────────────────────────
@@ -312,10 +362,14 @@ def load_bases(manifest: dict, out: Path, record: bool) -> dict[str, tuple[np.nd
 
 def build_variant(audio: np.ndarray, ref: dict, variant: dict, manifest: dict,
                   music: np.ndarray | None) -> tuple[np.ndarray, dict]:
-    inserts = variant_inserts(variant)
-    pieces = [(i["at"], make_insert(i["insert"], i["seconds"], manifest["inserts"][i["insert"]], music))
+    inserts = variant_inserts(variant, ref.get("words") or ref.get("sentences"))
+    pieces = [(i["at"], make_insert(i["insert"], i["seconds"],
+                                    {**manifest["inserts"][i["insert"]], **({"from_s": i["from_s"]} if "from_s" in i else {})},
+                                    music))
               for i in inserts]
-    out = {"language": ref["language"], "variant": variant["name"], "inserts": inserts}
+    spans = insert_spans(inserts)
+    out = {"language": ref["language"], "variant": variant["name"],
+           "inserts": [{**i, "start": a, "end": b} for i, (a, b) in zip(inserts, spans)]}
     for key in ("words", "sentences"):
         if key in ref:
             out[key] = shift_reference(ref[key], inserts)

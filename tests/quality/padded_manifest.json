@@ -301,6 +301,76 @@
       "insert": "music",
       "seconds": 45,
       "gaps": []
+    },
+    {
+      "name": "silence-gaps",
+      "insert": "silence",
+      "seconds": 45,
+      "gaps": [
+        {
+          "near": 60,
+          "insert": "silence",
+          "seconds": 30
+        },
+        {
+          "near": 120,
+          "insert": "silence",
+          "seconds": 60
+        }
+      ]
+    },
+    {
+      "name": "room-gaps",
+      "insert": "room",
+      "seconds": 45,
+      "gaps": [
+        {
+          "near": 60,
+          "insert": "room",
+          "seconds": 30
+        },
+        {
+          "near": 120,
+          "insert": "room",
+          "seconds": 60
+        }
+      ]
+    },
+    {
+      "name": "ring-gaps",
+      "insert": "ring",
+      "seconds": 45,
+      "gaps": [
+        {
+          "near": 60,
+          "insert": "ring",
+          "seconds": 30
+        },
+        {
+          "near": 120,
+          "insert": "ring",
+          "seconds": 60
+        }
+      ]
+    },
+    {
+      "name": "music-gaps",
+      "insert": "music",
+      "seconds": 45,
+      "gaps": [
+        {
+          "near": 60,
+          "insert": "music",
+          "seconds": 30,
+          "from_s": 50
+        },
+        {
+          "near": 120,
+          "insert": "music",
+          "seconds": 60,
+          "from_s": 90
+        }
+      ]
     }
   ]
 }
