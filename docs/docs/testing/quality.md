@@ -70,8 +70,9 @@ Metrics (`tests/quality/metrics.py`, unit-tested in `tests/test_quality_metrics.
 | Words per speaker | Share of each reference speaker's words found in the transcript — shows whether the quiet participant or one device loses more |
 | Recognised | In the second and third clip: transcript speakers matched by the memory to the right named speaker / all named speakers present |
 | Similarity (own / other) | Cosine similarity between a speaker's mean segment embedding in a later clip and their own profile from the first clip, and the highest one to another person's profile — `resolve()` compares this kind of value with `SPEAKER_SIMILARITY_THRESHOLD` |
+| No speech dropped | Chunks the no-speech check ([TranscriptionService](../services/TranscriptionService.md#transcribeaudio_path--result-audio-diarization)) dropped, out of all decoded, and how many of them overlapped reference words; also the highest no-speech probability of a chunk with speech, for choosing the threshold |
 
-A variant with a **base** is processing applied to that base (for example `chromium-default` against `chromium-raw`); its test fails if it is worse than the base by more than 2 points of WER, 5 points of speaker words or 0.03 of own similarity. Short utterances, unassigned, mixed segments and segment shape are reported, not checked. The recognised count is reported but not checked: while similarities sit near the threshold it moves by two between nearly equal inputs. Variants without a base (`clean`, `call`, `uneven`) are listening conditions and only report. Recognition does not depend on the run order: every variant starts from an empty memory. When a later clip's speaker is matched to another named person, it counts as wrong.
+A variant with a **base** is processing applied to that base (for example `chromium-default` against `chromium-raw`); its test fails if it is worse than the base by more than 2 points of WER, 5 points of speaker words or 0.03 of own similarity. Every variant also fails if the no-speech check dropped a chunk with reference speech, base or not (the long set's series too). Short utterances, unassigned, mixed segments and segment shape are reported, not checked. The recognised count is reported but not checked: while similarities sit near the threshold it moves by two between nearly equal inputs. Variants without a base (`clean`, `call`, `uneven`) are listening conditions and only report. Recognition does not depend on the run order: every variant starts from an empty memory. When a later clip's speaker is matched to another named person, it counts as wrong.
 
 `clean-nosplit` and `call-nosplit` only report as well: the same audio with sentences never cut at a word-speaker change ([TranscriptBuilder](../services/TranscriptBuilder.md#splitting-at-a-speaker-change)), for comparing with `clean` and `call` in one run. `call-nogap`, `chromium-default-nogap` and `uneven-nogap` only report too: a sentence between diarization turns left unassigned instead of given to the nearest turn ([Sentences between turns](../services/TranscriptBuilder.md#sentences-between-turns)), for comparing with `call`, `chromium-default` and `uneven`.
 
@@ -155,7 +156,7 @@ The two recognitions gained are a quiet participant of the clean 10-minute clip,
 
 ## Padded set
 
-The AMI clips are speech from the first second to the last, in one language. A real recording often starts with silence, a ring tone or hold music, and pauses in it. The padded set puts such sounds before the speech of English, Russian and Ukrainian recordings, for what they do to language detection (and, with inserts between sentences, to text Whisper invents over non-speech).
+The AMI clips are speech from the first second to the last, in one language. A real recording often starts with silence, a ring tone or hold music, and pauses in it. The padded set puts such sounds before the speech of English, Russian and Ukrainian recordings, for what they do to language detection and, with inserts between the speech too, for the text Whisper invents over them.
 
 **Bases** (`tests/quality/padded_manifest.json`, `bases`):
 
@@ -166,9 +167,9 @@ The AMI clips are speech from the first second to the last, in one language. A r
 
 **Inserts** (`inserts`): digital silence (`silence`), pink noise at −50 dBFS as a quiet room (`room`), a ring-back tone of 425 Hz, 1 s on and 4 s off, at −30 dBFS (`ring`), and instrumental hold music at −30 dBFS RMS, as loud as the speech (`music`: "Local Forecast – Elevator" by Kevin MacLeod, incompetech.com, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Local_Forecast_-_Elevator_(ISRC_USUAN1300012).mp3)). Each insert fades in and out over 20 ms.
 
-**Variants** (`variants`): each insert before the speech for 15 s (Whisper's first 30 s still hold speech) and for 45 s (they hold none): `silence15` … `music45`. A variant may also list `gaps`, inserts at a second of the base, put in a pause; the reference is shifted past every insert at or before a word.
+**Variants** (`variants`): each insert before the speech for 15 s (Whisper's first 30 s still hold speech) and for 45 s (they hold none): `silence15` … `music45`. A variant may also list `gaps`, inserts between the speech: `silence-gaps` … `music-gaps` have 45 s of the insert before the speech, 30 s near the 60th second of the base and 60 s near the 120th. A gap given `near` a second goes into the longest pause of the reference (no word or sentence of anyone, at least 0.1 s) within 15 s of it, or into the nearest free pause when there is none so close (the first 100 s of `es2002b` are overlapping speech without a pause; its gaps land at 104 s and 143 s); a gap may also be given `at` an exact second. Two gaps never share a pause, so an insert never cuts a word. The music of a gap is taken from a later part of the track (`from_s`: 50 s and 90 s), never repeating the lead-in. The reference is shifted past every insert at or before a word.
 
-`scripts/eval/build_padded_set.py` builds it into `$SONORUS_EVAL_CACHE/padded` (about 760 MB): per base `base.wav` and each `<variant>.wav`, with `.json` next to it holding the language, the inserts (where, what, how long) and the reference shifted by them: AMI words, FLEURS sentences with their times. The FLEURS archives (about 180 MB per language) are downloaded once from a fixed revision of the dataset and deleted once the utterances are taken out; every download is checked against the sha256 in the manifest. The build is deterministic.
+`scripts/eval/build_padded_set.py` builds it into `$SONORUS_EVAL_CACHE/padded` (about 1.2 GB): per base `base.wav` and each `<variant>.wav`, with `.json` next to it holding the language, the inserts (what, how long, where in the base, `at`, and where they sound in the variant, `start`–`end`) and the reference shifted by them: AMI words, FLEURS sentences with their times. The FLEURS archives (about 180 MB per language) are downloaded once from a fixed revision of the dataset and deleted once the utterances are taken out; every download is checked against the sha256 in the manifest. The build is deterministic.
 
 ```bash
 .venv/bin/python scripts/eval/build_ami_set.py      # the AMI bases, if not built yet
@@ -179,7 +180,7 @@ The AMI clips are speech from the first second to the last, in one language. A r
 
 ### Language detection
 
-`tests/quality/test_language.py` (part of `SONORUS_QUALITY=1`, or on its own) detects the language of every recording of the padded set two ways: as WhisperX does on its own, from the first 30 s of the file, and as the app does, from the speech VAD found ([TranscriptionService](../services/TranscriptionService.md#transcribeaudio_path--result-audio-diarization)). Only VAD and Whisper's encoder run; the 12 bases with 9 recordings each take about a minute and a half on an 8 GB GPU, models loaded. A base's test fails if the app's way gets any of its recordings wrong; the old way is reported. One more test runs `transcribe()` itself on a recording with 45 s of room noise first and checks that the language came from the speech after it: a WhisperX update that changes the order inside `transcribe()` fails there.
+`tests/quality/test_language.py` (part of `SONORUS_QUALITY=1`, or on its own) detects the language of every recording of the padded set two ways: as WhisperX does on its own, from the first 30 s of the file, and as the app does, from the speech VAD found ([TranscriptionService](../services/TranscriptionService.md#transcribeaudio_path--result-audio-diarization)). Only VAD and Whisper's encoder run; the 12 bases with 9 recordings each (the base and the lead-in variants; the variants with gaps are left to [Hallucinations](#hallucinations)) take about a minute and a half on an 8 GB GPU, models loaded. A base's test fails if the app's way gets any of its recordings wrong; the old way is reported. One more test runs `transcribe()` itself on a recording with 45 s of room noise first and checks that the language came from the speech after it: a WhisperX update that changes the order inside `transcribe()` fails there.
 
 ```bash
 SONORUS_QUALITY=1 .venv/bin/python -m pytest tests/quality/test_language.py -v -s
@@ -201,6 +202,36 @@ Results (November 2026, Whisper `large-v3`, 108 recordings, 12 per lead-in):
 
 With 45 s of non-speech first, the old way sees none of the speech: silence and music came out English (right only for the English bases), room noise and the ring tone Norwegian Nynorsk, at probabilities of 0.31–0.38. The app's way got every recording right, the Russian and Ukrainian ones at 0.93–1.00 and never one for the other; the English call clips are the least sure, down to 0.83. One recording needed more windows (`es2002c-call` with 45 s of ring tone: 0.85 over three). VAD takes the ring tone and parts of the music for speech (the speech "starts" at 0 s and at 15.5 s); 30 s of speech still hold enough of the real speech for Whisper there.
 
+### Hallucinations
+
+`tests/quality/test_hallucinations.py` (part of `SONORUS_QUALITY=1`, or on its own) runs the base, the 45 s lead-ins and the `*-gaps` variants of every base (the 15 s lead-ins are the first part of the 45 s ones): `transcribe()` as the app calls it, with the no-speech check off, then alignment with the app's model for the detected language, no diarization. The old way is every chunk Whisper decoded, the new way without the chunks the check drops; both come from the one decoding, since WhisperX aligns each segment on its own. A word counts as inside an insert when its middle lies there, more than 0.5 s from its edges (alignment puts the first and last word of speech a little into the silence next to it), and as invented when, besides, the WER alignment matches it to no reference word: alignment sometimes stretches a real word over a whole pause, and that is not something Whisper made up. WER is against the base's reference: AMI words, FLEURS sentences (Russian and Ukrainian normalised by Unicode words, digits kept). A base fails if the new way drops a chunk with reference speech, and a last test fails if the invented words the new way leaves over the whole set exceed `INVENTED_BUDGET` (10; it needs every recording of the set to have run); the test also checks that there is one no-speech probability per chunk, so a WhisperX change that decodes past the hook fails here. A base whose language has no alignment model in the models folder is skipped.
+
+```bash
+SONORUS_QUALITY=1 .venv/bin/python -m pytest tests/quality/test_hallucinations.py -v -s
+```
+
+Results (November 2026, Whisper `large-v3`, 108 recordings, 12 per variant; inserts of 45 s before the speech, the gaps variants with 30 s and 60 s more inside it):
+
+| Variant | Invented, old way | New way | Chunks dropped (with speech) | Highest p of speech | Lowest p of non-speech |
+|---|---|---|---|---|---|
+| none | 0 | 0 | 0 / 85 (0) | 0.54 | – |
+| silence, 45 s | 0 | 0 | 0 / 85 (0) | 0.48 | – |
+| room noise, 45 s | 0 | 0 | 0 / 85 (0) | 0.48 | – |
+| ring tone, 45 s | 28 | 0 | 14 / 106 (0) | 0.48 | 0.97 |
+| music, 45 s | 20 | 0 | 12 / 97 (0) | 0.48 | 0.89 |
+| silence, gaps | 0 | 0 | 0 / 93 (0) | 0.54 | – |
+| room noise, gaps | 0 | 0 | 0 / 93 (0) | 0.54 | – |
+| ring tone, gaps | 70 | 1 | 34 / 141 (0) | 0.54 | 0.85 |
+| music, gaps | 29 | 9 | 12 / 111 (0) | 0.54 | 0.63 |
+
+Silence and room noise never reach the decoder. Over the ring tone and music the old way wrote 127 words, all stock phrases: "Thank you.", "Продолжение следует...", "Субтитры создавал DimaTorzok", "Дякую за перегляд!". The check drops them with no chunk of speech lost; WER of the speech moves by a few tenths, mostly down (the dropped phrases were insertions). Ten words are left:
+
+- "Thank you." twice, each the only text of a chunk of pure music, at a no-speech probability of 0.63. On the long set (`test_length.py`) real speech reaches 0.71, so a threshold that drops these would drop speech too;
+- "used to going to be": the end of a real sentence that alignment stretched over the music after it, and which the WER alignment pairs with no reference word;
+- "цыпленка": one word Whisper added to a chunk that holds both speech and the ring tone; chunks with speech are kept whole.
+
+The highest no-speech probability of a chunk with speech was 0.54 here, 0.57 on the whole meeting and 0.71 on three groups of the long set; no chunk of the fast or long set was dropped.
+
 ## Report
 
-At the end, pytest prints a Markdown report and saves it as `$SONORUS_EVAL_CACHE/reports/<date-time>.md`, with the raw results next to it as `<date-time>.json` (which also holds each person's own and best other similarity per clip, under `scores`, for choosing thresholds) and the voices as `<date-time>.npz` (see [Recomputing thresholds](#recomputing-thresholds)). It holds the models, device and library versions of the run, a summary per variant, the words recognised per speaker, the segment counts above per variant and per clip, every clip (WER split into substitutions / deletions / insertions, speakers found, detected language, time), the text of each missed utterance with its level, and, when the language test ran, its results per lead-in and per recording. Numbers depend on the versions of the models and libraries, so variants are compared within one run, never with numbers from another one. Reports are not kept in the repository.
+At the end, pytest prints a Markdown report and saves it as `$SONORUS_EVAL_CACHE/reports/<date-time>.md`, with the raw results next to it as `<date-time>.json` (which also holds each person's own and best other similarity per clip, under `scores`, for choosing thresholds) and the voices as `<date-time>.npz` (see [Recomputing thresholds](#recomputing-thresholds)). It holds the models, device and library versions of the run, a summary per variant, the words recognised per speaker, the segment counts above per variant and per clip, every clip (WER split into substitutions / deletions / insertions, speakers found, detected language, time), the text of each missed utterance with its level, and, when the language and hallucination tests ran, their results per variant and per recording. Numbers depend on the versions of the models and libraries, so variants are compared within one run, never with numbers from another one. Reports are not kept in the repository.

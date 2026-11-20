@@ -59,7 +59,7 @@ def pytest_collection_modifyitems(config, items):
 
 
 def pytest_terminal_summary(terminalreporter):
-    if not report.ROWS and not report.NOTES:
+    if not report.ROWS and not report.NOTES and not report.HALLUCINATIONS:
         return
     text = report.markdown()
     path = report.write(text)

@@ -287,6 +287,8 @@ def _run_clip(pipeline, variant, work, clip, naming, memory, storage, named, rec
         "lag": lag, "seconds": seconds,
     }
     row.update(segment_scores(ref, segments, hyp, hyp_to_ref, utts, result.segments))
+    # Chunks the no-speech check dropped, and whether any held real speech.
+    row.update(metrics.no_speech_scores(pipeline.transcription.no_speech.last, ref, lag))
 
     storage.save(transcript)
     raw_to_ref = metrics.map_speakers(metrics.turns(ref), metrics.turns(metrics.segment_words(
@@ -350,6 +352,9 @@ SEGMENT_COUNTS = ("segments", "unassigned", "unassigned_s", "mixed", "mixed_mino
                   "short_right", "short_found", "raw_segments", "no_words", "empty_text", "long_segments")
 
 
+NO_SPEECH_COUNTS = ("no_speech_chunks", "no_speech_dropped", "no_speech_dropped_speech", "no_speech_dropped_words")
+
+
 def _totals(variant: Variant, clips: list[dict]) -> dict:
     total_ref = sum(c["ref_words"] for c in clips)
     later = [c for c in clips if not c["named_here"]]
@@ -370,6 +375,9 @@ def _totals(variant: Variant, clips: list[dict]) -> dict:
         "own_min": float(np.nanmin([s["own"] for c in later for s in c["scores"].values()] or [np.nan])),
         "other_max": float(np.nanmax([s["other"] for c in later for s in c["scores"].values()] or [np.nan])),
         **{k: sum(c[k] for c in clips) for k in SEGMENT_COUNTS},
+        **{k: sum(c[k] for c in clips) for k in NO_SPEECH_COUNTS},
+        "no_speech_max_speech": float(np.nanmax([c["no_speech_max_speech"] for c in clips] + [np.nan])),
+        "no_speech_min_other": float(np.nanmin([c["no_speech_min_other"] for c in clips] + [np.nan])),
         "recall_by_speaker": {
             spk: float(np.mean([c["recall_by_speaker"][spk] for c in clips if spk in c["recall_by_speaker"]]))
             for spk in sorted({s for c in clips for s in c["recall_by_speaker"]})
@@ -414,3 +422,94 @@ def detect_language(pipeline: "Pipeline", audio: np.ndarray) -> dict:
         "speech_start": det.start if det else None,
         "seconds": time.monotonic() - started,
     }
+
+
+# ── hallucinations on the padded set (test_hallucinations.py) ───────────────
+
+HALLUCINATION_MARGIN_S = 0.5  # a word this close to an insert's edge is not counted
+
+
+def _align_model(pipeline: "Pipeline", language: str):
+    """The app's alignment model of a language (the catalog's repo, from disk),
+    loaded once; None when it is not installed in the models folder."""
+    cache = pipeline.__dict__.setdefault("_align_models", {})
+    if language not in cache:
+        import whisperx
+        from app.services.model_service import ALIGNMENT_CATALOG, ModelService
+        svc = pipeline.transcription
+        models = ModelService(svc.models_dir / "whisper", alignment_models_dir=svc.models_dir / "alignment")
+        if language in ALIGNMENT_CATALOG and not models.is_installed(language):
+            cache[language] = None
+        else:
+            cache[language] = whisperx.load_align_model(
+                language_code=language, device=pipeline.device,
+                model_name=ALIGNMENT_CATALOG.get(language, {}).get("hf_repo"),
+                model_dir=str(svc.models_dir / "alignment"), model_cache_only=True)
+    return cache[language]
+
+
+def _aligned_words(pipeline, segments, language, audio) -> list[metrics.Word]:
+    import whisperx
+    if not segments:
+        return []
+    model, meta = _align_model(pipeline, language)
+    out = []
+    for seg in whisperx.align([dict(s) for s in segments], model, meta, audio, pipeline.device)["segments"]:
+        for w in seg.get("words", []):
+            start, end = w.get("start", seg["start"]), w.get("end", seg["end"])
+            out += [metrics.Word(t, start, end, None) for t in metrics.normalize(w["word"], language)]
+    return out
+
+
+def _reference(ref: dict, language: str) -> list[metrics.Word]:
+    """AMI words or FLEURS sentences as normalised words with their times."""
+    if "words" in ref:
+        return [metrics.Word(t, w["start"], w["end"], None)
+                for w in ref["words"] for t in metrics.normalize(w["word"], language)]
+    return [metrics.Word(t, s["start"], s["end"], None)
+            for s in ref["sentences"] for t in metrics.normalize(s["text"], language)]
+
+
+def hallucinations(pipeline: "Pipeline", audio: np.ndarray, ref: dict) -> dict | None:
+    """Words in the inserts of one padded recording, without the no-speech
+    check (old) and with it (new), from one decoding: transcribe() as the app
+    calls it with the check off, the chunks it would drop taken out after, then
+    alignment of each list as the app aligns. No diarization. None when the
+    alignment model of the detected language is not installed."""
+    from app.config import NO_SPEECH_THRESHOLD, WHISPER_BATCH_SIZE
+    from app.services import no_speech
+
+    svc = pipeline.transcription
+    saved = no_speech.THRESHOLD
+    no_speech.THRESHOLD = None
+    started = time.monotonic()
+    try:
+        svc.no_speech.reset()
+        result = svc.model.transcribe(audio, batch_size=WHISPER_BATCH_SIZE)
+        segments = svc.no_speech.filter(result["segments"])
+    finally:
+        no_speech.THRESHOLD = saved
+    chunks = svc.no_speech.last
+    assert len(chunks) == len(segments), (
+        f"{len(chunks)} no-speech probabilities for {len(segments)} chunks: WhisperX no longer decodes "
+        "through the model the hook wraps")
+    language = result["language"]
+    if _align_model(pipeline, language) is None:
+        return None
+    kept, _dropped = no_speech.drop(segments, [c["no_speech_prob"] for c in chunks], NO_SPEECH_THRESHOLD)
+    chunks = [{**c, "dropped": c["no_speech_prob"] >= NO_SPEECH_THRESHOLD} for c in chunks]
+
+    spans = [(i["start"], i["end"]) for i in ref["inserts"]]
+    reference = _reference(ref, ref["language"])
+    out = {"language": language, "inserts_s": sum(b - a for a, b in spans)}
+    for way, segs in (("old", segments), ("new", kept)):
+        words = _aligned_words(pipeline, segs, language, audio)
+        inserted = metrics.words_in_spans(words, spans, HALLUCINATION_MARGIN_S)
+        invented = metrics.invented_in_spans([x.text for x in reference], words, spans, HALLUCINATION_MARGIN_S)
+        w = metrics.wer([x.text for x in reference], [x.text for x in words])
+        out[way] = {"inserted": len(inserted), "inserted_text": " ".join(x.text for x in inserted),
+                    "invented": len(invented), "invented_text": " ".join(x.text for x in invented),
+                    "wer": w.wer, "errors": w.errors, "ref_words": w.ref_words}
+    out.update(metrics.no_speech_scores(chunks, reference))
+    out["seconds"] = time.monotonic() - started
+    return out

@@ -309,12 +309,98 @@ def test_segment_scores_of_a_clip_and_their_totals_in_the_report(monkeypatch):
             "ins": 0, "ref_speakers": 2, "hyp_speakers": 1, "speaker_acc": 0.75, "recall_by_speaker": {},
             "utterances": 1, "missed": 0, "short": 1, "missed_short": 0, "missed_level": [],
             "found_level_median": -30.0, "missed_text": [], "lag": 0.0, "seconds": 1.0, "named_here": True,
-            **scores}
+            **scores,
+            **metrics.no_speech_scores([{"start": 0.0, "end": 1.2, "text": " Hello", "no_speech_prob": 0.3,
+                                         "dropped": False},
+                                        {"start": 1.2, "end": 4.0, "text": " Thank you.", "no_speech_prob": 0.9,
+                                         "dropped": True}], ref)}
     total = harness._totals(harness.Variant("v", "clean.wav"), [clip, {**clip, "clip": "es2002c"}])
     assert (total["segments"], total["unassigned_s"], total["long_segments"]) == (4, 1.0, 2)
+    assert (total["no_speech_chunks"], total["no_speech_dropped"], total["no_speech_dropped_speech"]) == (4, 2, 0)
+    assert (total["no_speech_max_speech"], total["no_speech_min_other"]) == (0.3, 0.9)
 
     monkeypatch.setattr(report, "ROWS", [{**total, "what": "", "base": None, "series": None}])
     text = report.markdown()
     assert "## Segments" in text
     assert "| v | all | 2 (1.0) | 2 / 4 (2) | 2 / 6 (33.3%) | 2 | 2 | 2 / 4 |" in text
     assert "| v | es2002b | 1 (0.5) | 1 / 2 (1) | 1 / 3 (33.3%) | 1 | 1 | 1 / 2 |" in text
+    assert "| 2 / 4 (0), 0.30 |" in text   # the summary's no-speech column
+
+
+# ── hallucinations (padded set) and dropped chunks ──────────────────────────
+
+def test_normalize_keeps_cyrillic_words_for_other_languages():
+    assert metrics.normalize("ООН також сподівається, «Дякую за перегляд!»", language="uk") == [
+        "оон", "також", "сподівається", "дякую", "за", "перегляд"]
+
+
+def test_normalize_keeps_ukrainian_apostrophes_and_digits_for_other_languages():
+    assert metrics.normalize("М'ясо, пʼять — 25 кг.", language="uk") == ["м'ясо", "пʼять", "25", "кг"]
+
+
+def test_normalize_english_is_unchanged_by_the_language_argument():
+    assert metrics.normalize("Hi, I'm 25.", language="en") == metrics.normalize("Hi, I'm 25.")
+
+
+def _word(text, start, end):
+    return metrics.Word(text, start, end, None)
+
+
+def test_words_in_spans_counts_by_the_middle_of_the_word_with_a_margin():
+    spans = [(0.0, 45.0), (100.0, 130.0)]
+    words = [_word("thank", 15.5, 16.0),      # inside the lead-in
+             _word("but", 44.8, 45.3),        # middle 45.05: past the margin, speech after the insert
+             _word("so", 99.6, 100.2),        # middle 99.9: before the gap
+             _word("you", 129.4, 129.8),      # middle 129.6: inside the gap's margin, not counted
+             _word("okay", 110.0, 110.4)]     # inside the gap
+    assert [w.text for w in metrics.words_in_spans(words, spans, margin=0.5)] == ["thank", "okay"]
+
+
+def test_chunk_with_speech_is_one_that_overlaps_a_reference_item():
+    ref = [_word("but", 45.1, 45.4), _word("natural", 60.0, 60.5)]
+    assert metrics.overlaps_any(0.0, 26.1, ref) is False
+    assert metrics.overlaps_any(29.9, 58.7, ref) is True
+    assert metrics.overlaps_any(45.4, 60.0, ref) is False   # touching is not overlapping
+
+
+def test_no_speech_scores_of_a_clip():
+    ref = [_word("but", 45.1, 45.4), _word("natural", 60.0, 60.5), _word("yeah", 90.0, 90.3)]
+    chunks = [{"start": 0.0, "end": 26.1, "text": " Thank you.", "no_speech_prob": 0.97, "dropped": True},
+              {"start": 45.0, "end": 70.0, "text": " But", "no_speech_prob": 0.01, "dropped": False},
+              {"start": 89.9, "end": 90.6, "text": " Yeah.", "no_speech_prob": 0.85, "dropped": True}]
+    scores = metrics.no_speech_scores(chunks, ref)
+    assert scores == {
+        "no_speech_chunks": 3, "no_speech_dropped": 2, "no_speech_dropped_speech": 1,
+        "no_speech_dropped_words": 1, "no_speech_max_speech": 0.85, "no_speech_min_other": 0.97,
+        "no_speech_dropped_text": [" Thank you.", " Yeah."],
+    }
+
+
+def test_no_speech_scores_shift_the_chunks_by_the_lag():
+    ref = [_word("yeah", 10.0, 10.3)]
+    chunks = [{"start": 10.5, "end": 11.0, "text": " Yeah.", "no_speech_prob": 0.9, "dropped": True}]
+    assert metrics.no_speech_scores(chunks, ref, lag=0.6)["no_speech_dropped_speech"] == 1
+    assert metrics.no_speech_scores(chunks, ref)["no_speech_dropped_speech"] == 0
+
+
+def test_no_speech_scores_without_chunks():
+    scores = metrics.no_speech_scores([], [])
+    assert scores["no_speech_chunks"] == 0 and scores["no_speech_dropped"] == 0
+    assert math.isnan(scores["no_speech_max_speech"]) and math.isnan(scores["no_speech_min_other"])
+
+
+def test_invented_words_are_those_in_spans_that_match_no_reference_word():
+    # Real speech aligned a little into the music ("i think") is not invented;
+    # "thank you" over the music matches nothing in the reference.
+    ref = ["so", "i", "think", "we", "should"]
+    hyp = [_word("so", 10.0, 10.2), _word("thank", 30.0, 30.3), _word("you", 30.3, 30.6),
+           _word("i", 39.0, 39.2), _word("think", 39.2, 39.5), _word("we", 41.0, 41.2), _word("should", 41.2, 41.5)]
+    spans = [(20.0, 40.0)]
+    assert [w.text for w in metrics.invented_in_spans(ref, hyp, spans, margin=0.5)] == ["thank", "you"]
+    assert [w.text for w in metrics.words_in_spans(hyp, spans, margin=0.5)] == ["thank", "you", "i", "think"]
+
+
+def test_a_misheard_word_in_a_span_counts_as_invented():
+    ref = ["hello"]
+    hyp = [_word("yellow", 30.0, 30.3)]
+    assert [w.text for w in metrics.invented_in_spans(ref, hyp, [(20.0, 40.0)])] == ["yellow"]

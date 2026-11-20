@@ -19,7 +19,8 @@ from tests.quality import harness, report
 
 MANIFEST = json.loads((Path(__file__).parent / "padded_manifest.json").read_text())
 BASES = [b["id"] for b in MANIFEST["bases"]]
-VARIANTS = ["base", *(v["name"] for v in MANIFEST["variants"])]
+# Lead-ins only: the variants with inserts between the speech are for test_hallucinations.py.
+VARIANTS = ["base", *(v["name"] for v in MANIFEST["variants"] if not v["gaps"])]
 
 
 def _recording(base: str, variant: str):

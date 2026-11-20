@@ -39,9 +39,16 @@ def _spell(n: int) -> list[str]:
     return _spell(n // 1000) + ["thousand"] + (_spell(n % 1000) if n % 1000 else [])
 
 
-def normalize(text: str) -> list[str]:
+_ANY_TOKEN = re.compile(r"[^\W_]+(?:['’ʼ][^\W_]+)*")
+
+
+def normalize(text: str, language: str = "en") -> list[str]:
     """Lowercase words without punctuation and fillers; hyphens split words;
-    numbers written as digits are spelled out, as the AMI reference has them."""
+    numbers written as digits are spelled out, as the AMI reference has them.
+    Another language (the padded set's Russian and Ukrainian) keeps the words
+    of any script, apostrophes inside them and numbers as digits."""
+    if language != "en":
+        return _ANY_TOKEN.findall(text.lower().replace("-", " "))
     text = _THOUSANDS.sub("", text.lower().replace("%", " percent"))
     text = _DECIMAL.sub(r"\1 point \2", text.replace("-", " "))
     words = []
@@ -335,3 +342,59 @@ def speaker_recall(ref: list[Word], hyp: list[Word]) -> dict[str, float]:
         idx = [k for k, w in enumerate(ref) if w.speaker == spk]
         out[spk] = sum(k in found for k in idx) / len(idx)
     return out
+
+
+# ── inserted non-speech (padded set) and dropped chunks ──────────────────────
+
+def words_in_spans(words: list[Word], spans: list[tuple[float, float]], margin: float = 0.5) -> list[Word]:
+    """The words whose middle lies inside a span, more than `margin` seconds
+    from its edges (alignment puts the first or last word of speech a little
+    into the silence next to it)."""
+    out = []
+    for w in words:
+        mid = (w.start + w.end) / 2
+        if any(a + margin < mid < b - margin for a, b in spans):
+            out.append(w)
+    return out
+
+
+def invented_in_spans(ref: list[str], hyp: list[Word], spans: list[tuple[float, float]],
+                     margin: float = 0.5) -> list[Word]:
+    """The words of `hyp` inside a span (as words_in_spans) that the WER
+    alignment matches to no reference word: text Whisper made up there, not
+    real speech that alignment stretched or moved into the span."""
+    matched = {j for op, _i, j in align(ref, [w.text for w in hyp]) if op == "equal"}
+    inside = {id(w) for w in words_in_spans(hyp, spans, margin)}
+    return [w for j, w in enumerate(hyp) if id(w) in inside and j not in matched]
+
+
+def overlaps_any(start: float, end: float, items) -> bool:
+    """Whether [start, end] overlaps any item's time (touching does not count)."""
+    return any(i.start < end and start < i.end for i in items)
+
+
+def no_speech_scores(chunks: list[dict], ref: list[Word], lag: float = 0.0) -> dict:
+    """The no-speech check on one recording: chunks (from NoSpeech.last, times
+    of the recording, `lag` seconds later than the reference), how many were
+    dropped, how many of those held reference speech and how many of its
+    words, the highest no-speech probability of a chunk with speech and the
+    lowest of one without (where the threshold can go)."""
+    speech_p, other_p = [], []
+    dropped, dropped_speech, dropped_words, texts = 0, 0, 0, []
+    for c in chunks:
+        a, b = c["start"] - lag, c["end"] - lag
+        inside = [w for w in ref if w.start < b and a < w.end]
+        (speech_p if inside else other_p).append(c["no_speech_prob"])
+        if c["dropped"]:
+            dropped += 1
+            texts.append(c["text"])
+            if inside:
+                dropped_speech += 1
+                dropped_words += len(inside)
+    return {
+        "no_speech_chunks": len(chunks), "no_speech_dropped": dropped,
+        "no_speech_dropped_speech": dropped_speech, "no_speech_dropped_words": dropped_words,
+        "no_speech_max_speech": max(speech_p) if speech_p else float("nan"),
+        "no_speech_min_other": min(other_p) if other_p else float("nan"),
+        "no_speech_dropped_text": texts,
+    }

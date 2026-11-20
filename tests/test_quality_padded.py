@@ -118,6 +118,103 @@ def test_build_variant_shifts_reference_and_keeps_language():
     assert out["sentences"] == [{"text": "x", "start": 16.0, "end": 18.0}]
 
 
+def _words(*spans):
+    return [{"word": f"w{i}", "start": a, "end": b} for i, (a, b) in enumerate(spans)]
+
+
+def test_pause_near_takes_the_middle_of_the_longest_pause_in_reach():
+    words = _words((0.0, 50.0), (50.4, 58.0), (59.6, 70.0), (70.2, 80.0))  # pauses 0.4, 1.6, 0.2 s
+    assert build.pause_near(words, 60.0, reach=15.0) == pytest.approx(58.8)
+
+
+def test_pause_near_ignores_pauses_out_of_reach():
+    words = _words((0.0, 10.0), (14.0, 55.0), (55.3, 80.0))  # the 4 s pause is 45 s away
+    assert build.pause_near(words, 60.0, reach=15.0) == pytest.approx(55.15)
+
+
+def test_pause_near_never_lands_inside_overlapping_speech():
+    # Two people at once: the second word starts before the first ends; the only
+    # real pause is after both.
+    words = _words((40.0, 62.0), (55.0, 60.0), (63.0, 70.0))
+    assert build.pause_near(words, 58.0, reach=15.0) == pytest.approx(62.5)
+
+
+def test_pause_near_without_a_pause_in_reach_takes_the_nearest_one():
+    # Dense overlapping speech for the first 100 s (as AMI es2002b): the gap
+    # goes to the nearest pause further away.
+    words = _words((0.0, 103.7), (104.3, 142.0), (143.0, 180.0))
+    assert build.pause_near(words, 60.0, reach=15.0) == pytest.approx(104.0)
+
+
+def test_pause_near_skips_pauses_already_taken():
+    words = _words((0.0, 103.7), (104.3, 142.0), (143.0, 180.0))
+    assert build.pause_near(words, 120.0, reach=15.0, taken=[104.0]) == pytest.approx(142.5)
+
+
+def test_pause_near_ignores_pauses_shorter_than_a_tenth_of_a_second():
+    words = _words((0.0, 59.95), (60.0, 100.0), (101.0, 120.0))
+    assert build.pause_near(words, 60.0, reach=15.0) == pytest.approx(100.5)
+
+
+def test_pause_near_without_any_pause_fails():
+    with pytest.raises(RuntimeError):
+        build.pause_near(_words((0.0, 200.0)), 60.0, reach=15.0)
+
+
+def test_two_gaps_near_each_other_never_share_a_pause():
+    variant = {"name": "v", "insert": "ring", "seconds": 45,
+               "gaps": [{"near": 60, "insert": "ring", "seconds": 30}, {"near": 120, "insert": "ring", "seconds": 60}]}
+    words = _words((0.0, 103.7), (104.3, 142.0), (143.0, 180.0))
+    assert [i["at"] for i in build.variant_inserts(variant, words)] == [0.0, 104.0, 142.5]
+
+
+def test_gaps_near_a_second_are_put_into_pauses_of_the_reference():
+    variant = {"name": "ring-gaps", "insert": "ring", "seconds": 45,
+               "gaps": [{"near": 60, "insert": "ring", "seconds": 30}, {"near": 120, "insert": "ring", "seconds": 60}]}
+    words = _words((0.0, 59.0), (60.0, 119.5), (120.5, 180.0))
+    assert build.variant_inserts(variant, words) == [
+        {"at": 0.0, "insert": "ring", "seconds": 45},
+        {"at": 59.5, "insert": "ring", "seconds": 30},
+        {"at": 120.0, "insert": "ring", "seconds": 60}]
+
+
+def test_a_gap_keeps_its_own_music_offset():
+    variant = {"name": "music-gaps", "insert": "music", "seconds": 45,
+               "gaps": [{"near": 60, "insert": "music", "seconds": 30, "from_s": 50}]}
+    inserts = build.variant_inserts(variant, _words((0.0, 59.0), (60.0, 100.0)))
+    assert inserts[1] == {"at": 59.5, "insert": "music", "seconds": 30, "from_s": 50}
+
+
+def test_music_insert_from_a_later_second_of_the_track():
+    music = np.concatenate([np.full(10 * SR, 0.1), np.linspace(-0.5, 0.5, 5 * SR), np.zeros(5 * SR)])
+    spec = {**MANIFEST["inserts"]["music"], "from_s": 10.0}
+    x = build.make_insert("music", 5, spec, music)
+    assert len(x) == 5 * SR
+    assert x[SR] < 0 < x[4 * SR]   # the ramp, not the flat start
+
+
+def test_insert_spans_are_in_the_variant_timeline():
+    inserts = [{"at": 0.0, "insert": "ring", "seconds": 45}, {"at": 59.5, "insert": "ring", "seconds": 30},
+               {"at": 120.0, "insert": "ring", "seconds": 60}]
+    assert build.insert_spans(inserts) == [(0.0, 45.0), (104.5, 134.5), (195.0, 255.0)]
+
+
+def test_build_variant_with_gaps_never_cuts_a_word():
+    base = np.zeros(180 * SR)
+    words = _words((0.0, 59.0), (60.0, 119.5), (120.5, 179.0))
+    ref = {"language": "en", "words": words}
+    variant = {"name": "silence-gaps", "insert": "silence", "seconds": 45,
+               "gaps": [{"near": 60, "insert": "silence", "seconds": 30},
+                        {"near": 120, "insert": "silence", "seconds": 60}]}
+    audio, out = build.build_variant(base, ref, variant, MANIFEST, music=None)
+    assert len(audio) == (180 + 135) * SR
+    spans = [(i["start"], i["end"]) for i in out["inserts"]]
+    assert spans == [(0.0, 45.0), (104.5, 134.5), (195.0, 255.0)]
+    for w in out["words"]:
+        assert all(w["end"] <= a or w["start"] >= b for a, b in spans), w
+    assert [(w["start"], w["end"]) for w in out["words"]] == [(45.0, 104.0), (135.0, 194.5), (255.5, 314.0)]
+
+
 # ── FLEURS ───────────────────────────────────────────────────────────────────
 
 def _rows():
@@ -177,8 +274,22 @@ def test_manifest_variants_are_named_uniquely_and_use_known_inserts():
     for v in MANIFEST["variants"]:
         assert v["insert"] in MANIFEST["inserts"]
         assert all(g["insert"] in MANIFEST["inserts"] for g in v["gaps"])
-    assert {(v["insert"], v["seconds"]) for v in MANIFEST["variants"]} == {
+    lead_ins = [v for v in MANIFEST["variants"] if not v["gaps"]]
+    assert {(v["insert"], v["seconds"]) for v in lead_ins} == {
         (k, s) for k in ("silence", "room", "ring", "music") for s in (15, 45)}
+
+
+def test_manifest_gap_variants_put_30_and_60_s_between_the_speech():
+    gapped = {v["name"]: v for v in MANIFEST["variants"] if v["gaps"]}
+    assert set(gapped) == {f"{k}-gaps" for k in ("silence", "room", "ring", "music")}
+    for v in gapped.values():
+        assert v["seconds"] == 45
+        assert [(g["near"], g["seconds"], g["insert"]) for g in v["gaps"]] == [
+            (60, 30, v["insert"]), (120, 60, v["insert"])]
+    # the music never repeats a piece of the track: lead-in 0-45 s, then later parts
+    pieces = sorted([(0, 45)] + [(g["from_s"], g["from_s"] + g["seconds"]) for g in gapped["music-gaps"]["gaps"]])
+    assert all(a[1] <= b[0] for a, b in zip(pieces, pieces[1:]))
+    assert pieces[-1][1] <= 189
 
 
 def test_manifest_bases_cover_english_russian_and_ukrainian():

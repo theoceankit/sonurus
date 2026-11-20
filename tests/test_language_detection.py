@@ -5,6 +5,8 @@ models; the hook into WhisperX's pipeline is checked on a stand-in that calls
 VAD, merge_chunks and detect_language in the order FasterWhisperPipeline.transcribe()
 does.
 """
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -153,6 +155,7 @@ class _Pipeline:
 
     def __init__(self):
         self.vad_model = _Vad()
+        self.model = SimpleNamespace(model=SimpleNamespace())  # WhisperModel and its CTranslate2 model
         self.original_calls = 0
 
     def detect_language(self, _audio):

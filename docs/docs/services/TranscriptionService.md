@@ -64,6 +64,10 @@ Whisper detects the language (unless the job names one) and splits speech into s
 
 The log names the language, its probability, how much speech in how many windows and where in the recording it was, e.g. `Language: ru (0.97) from 30 s of speech in 1 window, speech 0:42–3:10`. How the old and the new way compare on recordings with silence, noise, a ring tone or music before the speech: [Quality tests → Language detection](../testing/quality.md#language-detection).
 
+**Chunks without speech.** WhisperX decodes each chunk the VAD passes (up to 30 s) in one `generate()` call, without Whisper's own safeguards: no temperature fallback and no compression-ratio, log-probability or no-speech check. Digital silence and room noise never reach the decoder, the VAD drops them; ring tones and music do, and Whisper writes a stock phrase there ("Thank you.", "Продолжение следует...", "Дякую за перегляд!"). On such a chunk Whisper's own no-speech probability is high while its log probability is not low, so `app/services/no_speech.py` checks the no-speech probability alone. `__init__` wraps the pipeline's CTranslate2 model (`install()`): `generate()` is called as WhisperX calls it, plus `return_no_speech_prob=True`, and the probability of every chunk is kept in order. Right after `transcribe()`, before alignment, a segment (one per chunk) whose probability is at or above `NO_SPEECH_THRESHOLD` (0.8) is dropped with its text; nothing is decoded again. If the probabilities do not match the segments one to one (a WhisperX change), every segment is kept and a warning is logged. A recording whose chunks are all dropped goes on with no segments, as one where the VAD found no speech. The log names what was dropped, e.g. `Dropped 1 of 8 chunks as no speech: 0:15–0:16 (0.89) "Thank you."`.
+
+The threshold was chosen on Whisper large-v3, the default model; for small and medium it is not checked. How it does on recordings with silence, noise, a ring tone or music before and between the speech: [Quality tests → Hallucinations](../testing/quality.md#hallucinations).
+
 **3. Alignment**
 ```python
 align_model, metadata = whisperx.load_align_model(
