@@ -25,7 +25,7 @@ function Screens() {
   const alignment = useAlignmentDialogs()
   // A new object each time, so Open opens the recording again after the user left it.
   const [opening, setOpening] = useState<RecordingRequest | null>(null)
-  const { onQueueEvent: alignmentEvent } = alignment
+  const { onQueueEvent: alignmentEvent, request: requestAlignment } = alignment
   const openRecording = useCallback((id: number) => setOpening({ id }), [])
   const showToast = useQueueToasts(openRecording)
   const onQueueEvent = useCallback((event: QueueUpdate) => {
@@ -37,7 +37,7 @@ function Screens() {
   useDefaultModelSync()
   return (
     <>
-      <EditorScreen openRequest={opening} />
+      <EditorScreen openRequest={opening} onAlignmentRequest={requestAlignment} />
       {alignment.dialog && <AlignmentDialog key={alignment.dialog.language} {...alignment.dialog} />}
     </>
   )

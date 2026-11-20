@@ -159,3 +159,23 @@ test('main.js makes every notification through the notifier, the tray hint remem
   assert.match(hint, /onShow: \(\) => rememberTrayHint\(/)
   assert.equal(hint.match(/rememberTrayHint\(/g).length, 1)
 })
+
+test('notify() returns what closes the notification; closed so, it is no refusal and not kept', () => {
+  const fake = fakeNotification()
+  const refused = []
+  class Closable extends fake.Notification {
+    close() { this.closedByApp = true; this.emit('close', {}) }
+  }
+  const notifier = createNotifier({ Notification: Closable, log: () => {}, onRefused: r => refused.push(r) })
+  const handle = notifier.notify({ title: 'A', body: '' })
+  assert.equal(notifier.onScreen(), 1)
+  handle.close()
+  assert.equal(fake.made[0].closedByApp, true)
+  assert.equal(notifier.onScreen(), 0)
+  assert.equal(refused.length, 0)
+})
+
+test('without notifications on this system, notify() still returns a close that does nothing', () => {
+  const { notifier } = setup({ supported: false })
+  assert.doesNotThrow(() => notifier.notify({ title: 'A', body: '' }).close())
+})

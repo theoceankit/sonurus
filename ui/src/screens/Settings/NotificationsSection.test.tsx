@@ -151,3 +151,34 @@ test('the note follows the main process: it comes with a refusal and goes once a
   tell()
   await waitFor(() => expect(screen.queryByRole('status', { name: 'Notifications refused' })).toBeNull())
 })
+
+const TRANSCRIPTIONS = 'When a transcription is ready or fails'
+
+test('notifications of transcriptions are on by default, and can be turned off on their own', async () => {
+  const { bridge, settings } = await setup()
+  expect(within(settings).getByRole('heading', { name: 'Transcriptions' })).toBeTruthy()
+  expect(toggle(TRANSCRIPTIONS).getAttribute('aria-checked')).toBe('true')
+  await userEvent.click(toggle(TRANSCRIPTIONS))
+  await waitFor(async () => expect((await saved(bridge)).notifyTranscriptions).toBe(false))
+  expect((await saved(bridge)).notifications).toBe(true)
+})
+
+test('an older settings file without the key has them on', async () => {
+  const { notifyTranscriptions: _absent, ...older } = DEFAULT_SETTINGS
+  const bridge = createMockElectronAPI({ getMicApps: async () => [] })
+  await bridge.writeSettings(older as ElectronSettings)
+  vi.stubGlobal('electronAPI', bridge)
+  render(<ApiProvider client={createFixtureClient()}><OverlayProvider><App /></OverlayProvider></ApiProvider>)
+  await screen.findByRole('region', { name: 'This week' })
+  await userEvent.click(await findTitlebarButton('Settings'))
+  const settings = await findDialog('Settings')
+  await userEvent.click(within(settings).getByRole('tab', { name: 'Notifications' }))
+  await within(settings).findByRole('heading', { name: 'Transcriptions' })
+  expect(toggle(TRANSCRIPTIONS).getAttribute('aria-checked')).toBe('true')
+})
+
+test('all notifications off turns notifications of transcriptions off with them', async () => {
+  await setup({}, { notifications: false })
+  expect(toggle(TRANSCRIPTIONS).hasAttribute('disabled')).toBe(true)
+  expect(toggle(TRANSCRIPTIONS).getAttribute('aria-checked')).toBe('false')
+})

@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
-import { queryKeys, useSetOpened, useSpeakers, useTranscripts, useUpdateTranscriptTitle } from '../../api/queries'
+import { queryKeys, useQueue, useSetOpened, useSpeakers, useTranscripts, useUpdateTranscriptTitle } from '../../api/queries'
 import { MenuAction, MenuDivider } from '../../components/Menu/Menu'
 import { Sidebar, type SidebarRecording, type SidebarSection } from '../../components/Sidebar/Sidebar'
 import { toast } from '../../components/Toast/toast-store'
@@ -15,6 +15,7 @@ import { EmptyState } from '../Home/EmptyState'
 import { ImportDialog } from '../Home/ImportDialog'
 import { NewRecordingDialog } from '../Home/NewRecordingDialog'
 import { StopRecordingDialog } from '../../recording/StopRecordingDialog'
+import type { WindowIntent } from '../../platform/electron-api'
 import { useWindowIntent } from '../../platform/window-intent'
 import { pickRecording, useRecentRecordings } from '../Home/last-opened'
 import { useNewTranscription } from '../Home/useNewTranscription'
@@ -36,6 +37,7 @@ import { SpeakerDialogs, type SpeakerRequest } from './SpeakerDialogs'
 import { titleToSave } from './transcript'
 import { TranscriptPanel, type SpeakerMenuTarget } from './TranscriptPanel'
 import { useSpeakerChange } from './useSpeakerChange'
+import { intentTarget } from './window-intents'
 import styles from './EditorScreen.module.css'
 
 // A recording to open from elsewhere, such as the toast of a finished job. Each
@@ -44,6 +46,8 @@ export type RecordingRequest = { id: number }
 
 interface EditorScreenProps {
   openRequest?: RecordingRequest | null
+  // A click on a notification of a job that lacked an alignment model: its dialog.
+  onAlignmentRequest?: (language: string) => void
   // Nothing in the API says a recording is pinned yet.
   pinnedIds?: number[]
   initialSelectedId?: number | null
@@ -76,7 +80,7 @@ function useWidth() {
   return { element, width }
 }
 
-export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, initialSpeakerId, initialHighlight, initialSpeakersOpen = false }: EditorScreenProps) {
+export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, initialSpeakerId, initialHighlight, initialSpeakersOpen = false }: EditorScreenProps) {
   const api = useApi()
   const queries = useQueryClient()
   const transcripts = useTranscripts()
@@ -94,14 +98,27 @@ export function EditorScreen({ openRequest, pinnedIds, initialSelectedId = null,
   useEscapeClose(() => select({ type: 'close' }), selectedId !== null || jobId !== null)
   const recent = useRecentRecordings()
   const newTranscription = useNewTranscription()
-  // A click on a notification of a call: New recording, or the question to stop.
+  // A click on a notification of a call: New recording, or the question to stop. Of a
+  // transcription: its recording, its failed job, or the Alignment model dialog, once the
+  // list or the queue says it is still there (window-intents.ts).
   const [askStop, setAskStop] = useState(false)
   const closeAskStop = useCallback(() => setAskStop(false), [])
   const { openRecordingFor } = newTranscription
-  useWindowIntent(intent => {
-    if (intent.dialog === 'new-recording') openRecordingFor(intent.app)
-    else setAskStop(true)
-  })
+  const queue = useQueue()
+  const [intent, setIntent] = useState<WindowIntent | null>(null)
+  useWindowIntent(setIntent)
+  const target = intent && intentTarget(intent, { transcripts: transcripts.data, transcriptsFetching: transcripts.isFetching, queue: queue.data })
+  useEffect(() => {
+    if (!intent || target === 'wait') return
+    setIntent(null)
+    if (target === 'gone') return
+    if ('dialog' in intent) {
+      if (intent.dialog === 'new-recording') openRecordingFor(intent.app)
+      else setAskStop(true)
+    } else if (intent.open === 'recording') openRecording(intent.transcriptId)
+    else if (intent.open === 'job') showJob(intent.jobId)
+    else onAlignmentRequest?.(intent.language)
+  }, [intent, target, openRecordingFor, openRecording, showJob, onAlignmentRequest])
   const settingsDialog = useSettingsDialog()
   const [panels, setPanels] = useState(INITIAL_PANELS)
   const ownPlayback = useTranscriptPlayback(givenPlayback ? null : shownId)

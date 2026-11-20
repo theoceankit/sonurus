@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS: ElectronSettings = {
   theme: 'system',
   closeToTray: true,
   notifications: true,
+  notifyTranscriptions: true,
   promptStart: true,
   promptStartApps: 'any',
   promptStartSelected: [],

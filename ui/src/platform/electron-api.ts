@@ -19,6 +19,8 @@ export type ElectronSettings = {
   closeToTray: boolean
   // Every notification of the main process, the tray notice included.
   notifications: boolean
+  // Notifications of transcriptions that finished or failed, while the window is not in front.
+  notifyTranscriptions: boolean
   // A notification when another app has held a microphone for a while: a call may
   // have started (electron/recording-prompts.js).
   promptStart: boolean
@@ -33,6 +35,10 @@ export type ElectronSettings = {
 export type WindowIntent =
   | { dialog: 'new-recording'; app: string | null }
   | { dialog: 'stop-recording' }
+  // A transcription finished, or failed (electron/job-notices.js).
+  | { open: 'recording'; transcriptId: number }
+  | { open: 'job'; jobId: string }
+  | { open: 'alignment-model'; language: string }
 
 // An app that held a microphone long enough to suggest a recording.
 export type MicApp = { id: string; name: string }

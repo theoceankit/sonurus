@@ -24,6 +24,7 @@ const END_ACTIONS: { value: ElectronSettings['promptEnd']; label: string }[] = [
 ]
 
 const ALL = 'Show notifications'
+const TRANSCRIPTIONS = 'When a transcription is ready or fails'
 const START = 'Suggest recording when a call seems to start'
 
 const patch = (change: Partial<ElectronSettings>) => void settingsStore().patch(change)
@@ -111,6 +112,16 @@ export function NotificationsSection() {
           note={refusal ? <RefusedNote refusal={refusal} platform={platform} /> : undefined}
         >
           <Toggle label={ALL} checked={all} onChange={on => patch({ notifications: on })} />
+        </FieldRow>
+      </SectionCard>
+      <SectionCard title="Transcriptions" description="A click on a notification opens the recording, or the job that failed.">
+        <FieldRow label={TRANSCRIPTIONS} hint="While the Sonorus window is not in front.">
+          <Toggle
+            label={TRANSCRIPTIONS}
+            checked={all && settings.notifyTranscriptions !== false}
+            disabled={!all}
+            onChange={on => patch({ notifyTranscriptions: on })}
+          />
         </FieldRow>
       </SectionCard>
       <SectionCard title="Calls" description="A click on a notification opens Sonorus. Nothing records without you.">

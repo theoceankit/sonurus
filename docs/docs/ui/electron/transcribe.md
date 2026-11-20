@@ -58,6 +58,8 @@ In Storybook, `Screens/Editor` shows the whole app on the fixtures' queue: With 
 - `job_done` — a toast "Title" is ready, with Open. Open asks `EditorScreen` for the recording (`openRequest`, a new object each time, so the same recording can be asked for again after leaving it). The toast goes as soon as its recording has been in the list of recordings and is no longer there (deleted in the Editor, or Delete all data), and Open opens nothing that the list has lost. A recording only just made may be missing from a list loaded before it, so that alone does not close the toast.
 - `job_failed` — an error toast Transcription failed: "Title". A job that failed on a missing alignment model has the [Alignment model dialog](#alignment-model-dialog) instead.
 
+While the window is not in front, or closed to the tray, the main process also tells of both with a system notification, whose click opens the recording, the failed job or the Alignment model dialog ([Overview → Tray and quitting](overview.md#tray-and-quitting)).
+
 ## Alignment model dialog
 
 A job in a language whose alignment model is not downloaded fails mid-pipeline with `alignment_model_missing`, as a detected language is known only then. `useAlignmentDialogs()` in `ui/src/screens/Queue/`, called by `App`, takes these `job_failed` events from `useQueueEventsSync()` and shows `AlignmentDialog` for the language of the job, so the model can be downloaded and the jobs retried without going to Settings.
