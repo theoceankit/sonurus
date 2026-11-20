@@ -6,7 +6,6 @@ import { useSpeakers, useTranscript } from '../../api/queries'
 import { effectiveSpeaker } from '../../api/types'
 import { Button } from '../../components/Button/Button'
 import { Stack } from '../../components/Stack/Stack'
-import { quoteBlock, type NoteQuote } from '../../components/NoteEditor/note-content'
 import { NotesPanel, type NotesPanelHandle } from '../../components/NotesPanel/NotesPanel'
 import { usePlayback } from '../../media/playback'
 import { useTranscriptPlayback } from './EditorPlayer'
@@ -29,6 +28,32 @@ function AppNotes({ id = WEEKLY_SYNC_ID, tab, expanded }: { id?: number; tab?: '
   )
 }
 
+// Text selected in the transcript, from the start of one paragraph to the end of another,
+// as a drag does; then, if asked, Quote to notes on the bar that comes up.
+const selectInTranscript = async (canvasElement: HTMLElement, [from, to]: [string, string], quote = false) => {
+  const root = canvasElement.querySelector('main')!
+  // The screen settles after the first paint (turns off screen start at an estimate,
+  // text is drawn again): select once the paragraphs stop moving.
+  let last = NaN
+  for (let i = 0; i < 20; i++) {
+    await new Promise(resolve => setTimeout(resolve, 250))
+    const top = (await paragraph(root, from)).getBoundingClientRect().top
+    if (top === last) break
+    last = top
+  }
+  const first = await paragraph(root, from)
+  const end = await paragraph(root, to)
+  const range = document.createRange()
+  range.setStart(first.firstChild!, 0)
+  range.setEnd(end.firstChild!, end.textContent!.length)
+  window.getSelection()!.removeAllRanges()
+  window.getSelection()!.addRange(range)
+  document.dispatchEvent(new MouseEvent('mouseup'))
+  if (!quote) return
+  const button = await waitFor(() => [...canvasElement.querySelectorAll('button')].find(node => node.textContent === 'Quote to notes'))
+  button.click()
+}
+
 // What a story types into the note, as the keyboard would.
 const typeInNote = async (canvasElement: HTMLElement, text: string) => {
   const box = await waitFor(() => canvasElement.querySelector('[role="textbox"][aria-label="Notes"]')) as HTMLElement & { editor?: Editor }
@@ -36,7 +61,7 @@ const typeInNote = async (canvasElement: HTMLElement, text: string) => {
 }
 
 // A sketch of notes on the Editor: the note lives in the story, nothing is stored.
-// Timecodes, Quote to notes and mentions are still sketches here.
+// Mentions are still sketches here.
 interface NotesSketchProps {
   tab?: 'speakers' | 'notes'
   expanded?: boolean
@@ -45,22 +70,16 @@ interface NotesSketchProps {
   typing?: string
   // The Markdown that Copy notes gives, shown next to the screen.
   showCopied?: boolean
-  // Text selected in the transcript, from the start of one paragraph to the end of another.
-  select?: [string, string]
-  // Quotes taken before the story starts.
-  quoted?: NoteQuote[]
 }
 
-function NotesSketch({ tab: initialTab = 'notes', expanded: initialExpanded = false, content = null, typing, showCopied, select, quoted }: NotesSketchProps) {
+function NotesSketch({ tab: initialTab = 'notes', expanded: initialExpanded = false, content = null, typing, showCopied }: NotesSketchProps) {
   const speakers = useSpeakers().data
   const transcript = useTranscript(WEEKLY_SYNC_ID).data
   const playback = useTranscriptPlayback(WEEKLY_SYNC_ID)
   const time = usePlayback(playback, state => Math.floor(state.currentTime))
   const [tab, setTab] = useState(initialExpanded ? 'speakers' : initialTab)
   const [expanded, setExpanded] = useState(initialExpanded)
-  const [doc, setDoc] = useState<JSONContent | null>(() => (
-    quoted ? { type: 'doc', content: [...(content?.content ?? []), ...quoted.map(quoteBlock), { type: 'paragraph' }] } : content
-  ))
+  const [doc, setDoc] = useState<JSONContent | null>(content)
   const latest = useRef(doc)
   const [copied, setCopied] = useState<string | null>(null)
   const panel = useRef<NotesPanelHandle>(null)
@@ -82,15 +101,6 @@ function NotesSketch({ tab: initialTab = 'notes', expanded: initialExpanded = fa
     void window.electronAPI.writeClipboard(markdown)
     setCopied(markdown)
   }
-  const quote = useCallback((quotes: NoteQuote[]) => {
-    if (panel.current && tab === 'notes') return panel.current.insertQuotes(quotes)
-    const base = latest.current?.content ?? []
-    const next = { type: 'doc', content: [...base, ...quotes.map(quoteBlock), { type: 'paragraph' }] }
-    latest.current = next
-    setDoc(next)
-    setTab('notes')
-  }, [tab])
-
   useEffect(() => {
     if (!typing || !speakers) return
     const timer = setTimeout(() => panel.current?.type(typing), 300)
@@ -101,30 +111,6 @@ function NotesSketch({ tab: initialTab = 'notes', expanded: initialExpanded = fa
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape' && !event.defaultPrevented && expanded) toggleExpanded()
   }
-
-  useEffect(() => {
-    if (!select) return
-    void (async () => {
-      const root = document.querySelector('main')!
-      // The screen settles after the first paint (turns off screen start at an
-      // estimate, text is drawn again): select once the paragraphs stop moving.
-      let last = NaN
-      for (let i = 0; i < 20; i++) {
-        await new Promise(resolve => setTimeout(resolve, 250))
-        const top = (await paragraph(root, select[0])).getBoundingClientRect().top
-        if (top === last) break
-        last = top
-      }
-      const from = await paragraph(root, select[0])
-      const to = await paragraph(root, select[1])
-      const range = document.createRange()
-      range.setStart(from.firstChild!, 0)
-      range.setEnd(to.firstChild!, to.textContent!.length)
-      window.getSelection()!.removeAllRanges()
-      window.getSelection()!.addRange(range)
-      document.dispatchEvent(new MouseEvent('mouseup'))
-    })()
-  }, [select])
 
   const ready = speakers !== undefined
   const notesPanel = (mode: 'tab' | 'expanded') => (
@@ -167,7 +153,6 @@ function NotesSketch({ tab: initialTab = 'notes', expanded: initialExpanded = fa
               keep()
               setTab(next as 'speakers' | 'notes')
             },
-            onQuote: quote,
           }}
         />
       </div>
@@ -219,17 +204,24 @@ export const NarrowWindow: AppStory = {
 // Sketches of what comes next: mentions, quotes and the Markdown of Copy notes with chips.
 export const MentionListOpen: Story = { args: { content: WEEKLY_SYNC_MINUTES, typing: '@an' } }
 export const MentionSomeoneElse: Story = { args: { content: WEEKLY_SYNC_MINUTES, typing: '@Sam from support' } }
+const ACROSS_TWO_TURNS: [string, string] = ['Good. What about the import flow', 'That was me. Files over two hours']
 // Text across two turns selected in the transcript: the bar offers Quote to notes.
-export const QuoteToNotes: Story = {
-  args: { tab: 'speakers', content: WEEKLY_SYNC_MINUTES, select: ['Good. What about the import flow', 'That was me. Files over two hours'] },
+export const QuoteToNotes: AppStory = {
+  render: args => <AppNotes {...args} />,
+  args: { tab: 'speakers' },
+  play: ({ canvasElement }) => selectInTranscript(canvasElement, ACROSS_TWO_TURNS),
 }
-// What the quote above gives: a quote for each turn, with who and when.
-export const QuoteInserted: Story = {
-  args: {
-    quoted: [
-      { speaker: { kind: 'speaker', id: '0b1a6c52-4f0e-4a39-9d57-3c1e8a7f1001', label: 'Anna Petrova' }, start: 10, text: 'Good. What about the import flow? I saw a couple of complaints about large files.' },
-      { speaker: { kind: 'speaker', id: 'd2eb392f-b0df-4b0e-8a2e-03efb14a100e', label: 'Unknown speaker 1' }, start: 16, text: 'That was me. Files over two hours took a long time to copy before the job even started.' },
-    ],
-  },
+// What the quote above gives: the Notes tab opens with a quote for each turn, who and
+// when; a speaker with no name yet reads as the transcript calls them.
+export const QuoteInserted: AppStory = {
+  render: args => <AppNotes {...args} />,
+  args: { tab: 'speakers' },
+  play: ({ canvasElement }) => selectInTranscript(canvasElement, ACROSS_TWO_TURNS, true),
+}
+// Into a recording with no note: the note is made.
+export const QuoteIntoEmptyNote: AppStory = {
+  render: args => <AppNotes {...args} />,
+  args: { id: DESIGN_REVIEW_ID, tab: 'speakers' },
+  play: ({ canvasElement }) => selectInTranscript(canvasElement, ["Let's look at the new inspector", "Let's look at the new inspector"], true),
 }
 export const CopyNotes: Story = { args: { content: WEEKLY_SYNC_MINUTES, showCopied: true } }

@@ -120,6 +120,10 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
     ? { ...notesView, expanded: false, tab: 'notes' }
     : { ...notesView, expanded: true, tab: 'speakers' }), [notesView])
   const notesSaver = useNotesSaver(shownId)
+  // Quotes from the transcript on their way into the note of their recording: the Notes
+  // tab takes them once its editor is there.
+  const [quoting, setQuoting] = useState<{ id: number; quotes: NoteQuote[] } | null>(null)
+  const quoted = useCallback(() => setQuoting(null), [])
   // Escape closes the recording or the job in the centre, and the sound stops with it;
   // with the note expanded it puts the transcript back first, typed in or not.
   useEscapeClose(() => select({ type: 'close' }), (selectedId !== null || jobId !== null) && !notesExpanded)
@@ -254,6 +258,17 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
     if (from instanceof HTMLButtonElement && from.matches(':focus-visible')) focusNext.current = { from, to: visible.inspector ? 'Show inspector' : 'Close inspector' }
     toggle('inspector')
   }
+  // Quote to notes: into the Notes tab, opened for it, with the right panel shown if
+  // it was closed or gave way to the sidebar in a narrow window.
+  const quote = (quotes: NoteQuote[]) => {
+    if (selectedId === null || quotes.length === 0) return
+    setQuoting({ id: selectedId, quotes })
+    setNotesState({ id: shownId, tab: 'notes', expanded: false })
+    if (!visible.inspector) toggle('inspector')
+  }
+  const latestQuote = useRef(quote)
+  latestQuote.current = quote
+  const onQuote = useCallback((quotes: NoteQuote[]) => latestQuote.current(quotes), [])
   // The opening panel stays hidden for the first frame of its move (visibility, which
   // cannot take focus), so the focus waits for it. Anything else taking the focus first wins.
   useEffect(() => {
@@ -310,9 +325,9 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
       : empty
         ? <EmptyState onOpenSettings={() => settingsDialog.open('models')} />
         : notesExpanded && selectedId !== null
-          ? <EditorNotes transcriptId={selectedId} mode="expanded" title={shownTitle} saver={notesSaver} onToggleExpanded={toggleNotes} />
-          : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} onQuote={notes?.onQuote} />),
-    [transcript, jobId, clearJob, empty, selectedId, playback, highlight, showAllSpeakers, settingsDialog, notes?.onQuote, notesExpanded, shownTitle, notesSaver, toggleNotes],
+          ? <EditorNotes transcriptId={selectedId} mode="expanded" title={shownTitle} saver={notesSaver} playback={playback} onToggleExpanded={toggleNotes} />
+          : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} onQuote={notes ? notes.onQuote : onQuote} />),
+    [transcript, jobId, clearJob, empty, selectedId, playback, highlight, showAllSpeakers, settingsDialog, notes, onQuote, notesExpanded, shownTitle, notesSaver, toggleNotes],
   )
   const notesTab = notes
     ? notes.tab
@@ -320,7 +335,17 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
       ? null
       : notesExpanded
         ? <NotesElsewhere onCollapse={toggleNotes} />
-        : <EditorNotes transcriptId={shownId} mode="tab" saver={notesSaver} onToggleExpanded={toggleNotes} />
+        : (
+            <EditorNotes
+              transcriptId={shownId}
+              mode="tab"
+              saver={notesSaver}
+              playback={playback}
+              quotes={quoting?.id === shownId ? quoting.quotes : null}
+              onQuoted={quoted}
+              onToggleExpanded={toggleNotes}
+            />
+          )
 
   // A refresh that fails leaves what was loaded on the screen.
   const failed = (transcripts.isError && !transcripts.data) || (speakers.isError && !speakers.data)

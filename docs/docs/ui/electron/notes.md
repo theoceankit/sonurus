@@ -28,7 +28,21 @@ A plain click on a link only puts the cursor in it; Ctrl+click (⌘ on macOS) ha
 
 The editor is a third of the UI's code, so it is a chunk of its own (`React.lazy` in `EditorNotes.tsx`), loaded the first time a note opens.
 
-The schema also has two chips, a moment of the recording and a mention of a speaker or a person, which a note may hold; the app has no way to add them yet, and @ is plain text.
+## Timecodes
+
+A moment of the recording is a chip in the note, "12:34", one node the cursor goes around (`timecode` in `note-extensions.tsx`). A click on it takes the player there (`playback.seek`); the player and the transcript follow as with any seek. The time is kept in whole seconds. A time typed as text stays text.
+
+The button in the header of the note shows where the player stands, to the second, and inserts it as a chip. It goes where the cursor was last in the note, or at the end if the cursor has not been in it since it opened, and the focus goes there, to type on after it. While the player has no audio (loading, or the file gone) the button is there but out of use. Only the button renders with the player's time: `NoteEditor` is memoized, and what it is given stays the same from one second to the next. There is no keyboard shortcut for it.
+
+## Quotes from the transcript
+
+Quote to notes, on the bar over text selected in the transcript, puts the selection into the note as quotes, one for each turn it touches (`selectionQuotes()` in `quotes.ts`): a quote block opening with the speaker and the start of the first paragraph selected in that turn, as chips, and the words selected under them. They go where the cursor was last in the note, or at the end, as the time does, with an empty paragraph after them, and the selection in the transcript clears.
+
+`EditorScreen` keeps the quotes as a request for the recording, opens the Notes tab, and shows the right panel if it was closed or gave way to the sidebar in a narrow window. The tab takes them once its editor is there, after the note and the editor's chunk have loaded (`quotes` and `onQuoted` of `EditorNotes`), each request once. They go in through the editor, as typing does: the note saves itself, a recording without a note gets one, and Undo takes them back.
+
+The speaker of a quote is a mention by id, with the label the transcript shows. A named speaker is a chip with the avatar and the name as they are now; a speaker with no name yet, Unassigned or a deleted one reads as the label as text, and becomes a chip once named.
+
+The mention list of @ is not there yet: @ is plain text.
 
 ## Saving
 
@@ -45,7 +59,7 @@ Closing the window to the tray destroys it and quitting gives the page no unload
 
 ## Copy notes
 
-Copy notes, in the header, puts the note on the clipboard as Markdown (`note-markdown.ts`): headings `#`, lists `-` and `1.`, checkboxes `- [ ]` and `- [x]`, quotes `>`, `**bold**`, `*italic*`, `[text](address)`; empty paragraphs are left out. It is off while the note is empty. It says nothing when done, as Copy transcript.
+Copy notes, in the header, puts the note on the clipboard as Markdown (`note-markdown.ts`): headings `#`, lists `-` and `1.`, checkboxes `- [ ]` and `- [x]`, quotes `>`, `**bold**`, `*italic*`, `[text](address)`, a timecode as `[12:34]` (`[1:02:03]` from an hour on), a speaker as "Name (@handle)", a person as "@Name"; empty paragraphs are left out. Text copied from the note with Ctrl+C has a timecode in the same form. It is off while the note is empty. It says nothing when done, as Copy transcript.
 
 ## Deleting
 
@@ -53,4 +67,4 @@ A note goes with its recording: Delete recording and Delete all data remove it o
 
 ## Stories
 
-Screens / Editor / Notes shows the notes as the app has them on fixtures (the weekly sync has a note): Closed, Notes Tab Empty, Notes Tab With Text, Notes Expanded, Save Failed (every save refused, typing says so) and Narrow Window. The stories after them are sketches of what the chips will do: the mention list, quotes from the transcript and Copy notes with chips. Components / NoteEditor and NotesPanel have a story for each of their states.
+Screens / Editor / Notes shows the notes as the app has them on fixtures (the weekly sync has a note): Closed, Notes Tab Empty, Notes Tab With Text, Notes Expanded, Save Failed (every save refused, typing says so), Narrow Window, Quote To Notes (two turns selected), Quote Inserted (their quotes in the opened tab) and Quote Into Empty Note. The stories after them are sketches of what mentions will do: the mention list and Copy notes with chips. Components / NoteEditor and NotesPanel have a story for each of their states, NotesPanel's No Audio the time button out of use. Components / NoteEditor and NotesPanel have a story for each of their states.

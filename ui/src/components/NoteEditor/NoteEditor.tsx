@@ -1,10 +1,10 @@
-import { Extension } from '@tiptap/core'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Placeholder } from '@tiptap/extensions'
+import { NodeSelection } from '@tiptap/pm/state'
 import { EditorContent, useEditor, type JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion'
-import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useReducer, useRef, useState, type Ref } from 'react'
+import { memo, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useReducer, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
 import { cx } from '../../styles/cx'
 import { mentionList, type MentionCandidate, type MentionOption } from '../MentionList/mention-list'
@@ -14,7 +14,8 @@ import { NoteChips, NoteLink, NoteMention, TaskFromListItem, Timecode, type Find
 import styles from './NoteEditor.module.css'
 
 export interface NoteEditorHandle {
-  // At the cursor, or at the end when the note has not been in focus.
+  // Where the cursor was last, or at the end when the note has not been in focus since
+  // it opened. Both take the focus, to go on typing after them.
   insertTimecode: (seconds: number) => void
   insertQuotes: (quotes: NoteQuote[]) => void
   // For a story: text typed at the end, as from the keyboard.
@@ -30,8 +31,11 @@ interface NoteEditorProps {
   findSpeaker: FindSpeaker
   onSeek?: (seconds: number) => void
   onChange?: (doc: JSONContent) => void
-  // The shortcut for the player's time; the panel knows the time.
-  onTimeShortcut?: () => void
+  // Quotes to insert as soon as the editor is there, each array once; onQuoted says
+  // they are in. The editor may be made again as it mounts, so a handle could still
+  // point at the one that went.
+  quotes?: NoteQuote[] | null
+  onQuoted?: () => void
   // Ctrl/⌘+click on a link; a plain click only puts the cursor there.
   onOpenLink?: (href: string) => void
   // Tab: the column of the right panel. Expanded: in place of the transcript.
@@ -54,13 +58,17 @@ interface Suggesting {
 }
 
 // A note in basic Markdown, rendered as it is typed: headings, bold, italic, lists,
-// checkboxes, quotes and links, with timecodes and mentions as chips.
-export function NoteEditor({
-  content, candidates, findSpeaker, onSeek, onChange, onTimeShortcut, onOpenLink, size = 'tab', autoFocus, className, ref,
+// checkboxes, quotes and links, with timecodes and mentions as chips. It renders again
+// only when what it is given changes, not with the player's time over it.
+export const NoteEditor = memo(function NoteEditor({
+  content, candidates, findSpeaker, onSeek, onChange, quotes, onQuoted, onOpenLink, size = 'tab', autoFocus, className, ref,
 }: NoteEditorProps) {
   const [suggesting, setSuggesting] = useState<Suggesting | null>(null)
-  const latest = useRef({ suggesting, candidates, onChange, onTimeShortcut, onOpenLink })
-  latest.current = { suggesting, candidates, onChange, onTimeShortcut, onOpenLink }
+  const latest = useRef({ suggesting, candidates, onChange, onOpenLink })
+  latest.current = { suggesting, candidates, onChange, onOpenLink }
+  // Whether the cursor has been in the note since it opened: the editor keeps where it
+  // was after the focus goes, and what is inserted goes there.
+  const visited = useRef(Boolean(autoFocus))
 
   const options = (state: Suggesting | null) => (state ? mentionList(latest.current.candidates ?? [], state.query).options : [])
   const choose = (option: MentionOption | undefined, state: Suggesting | null) => {
@@ -121,16 +129,6 @@ export function NoteEditor({
           }),
         },
       }),
-      Extension.create({
-        name: 'playerTime',
-        addKeyboardShortcuts: () => ({
-          'Mod-t': () => {
-            const insert = latest.current.onTimeShortcut
-            insert?.()
-            return insert !== undefined
-          },
-        }),
-      }),
     ]
   // The editor is made once; what changes is read through `latest`.
   }, [])
@@ -154,18 +152,34 @@ export function NoteEditor({
       },
     },
     onUpdate: ({ editor: changed }) => latest.current.onChange?.(changed.getJSON()),
+    onFocus: () => { visited.current = true },
+  })
+  // Where an insert goes: the cursor as the note left it, or the end. A chip selected
+  // by a click on it stays, with the insert after it.
+  const at = () => {
+    if (!visited.current) return 'end'
+    const selection = editor?.state.selection
+    return selection instanceof NodeSelection ? selection.to : null
+  }
+
+  const insertQuotes = (quotes: NoteQuote[]) => {
+    if (!editor || editor.isDestroyed || quotes.length === 0) return
+    editor.chain().focus(at()).insertContent([...quotes.map(quoteBlock), { type: 'paragraph' }]).run()
+  }
+  const inserted = useRef<NoteQuote[] | null>(null)
+  useEffect(() => {
+    if (!quotes || !editor || editor.isDestroyed || inserted.current === quotes) return
+    inserted.current = quotes
+    insertQuotes(quotes)
+    onQuoted?.()
   })
 
   useImperativeHandle(ref, () => ({
     insertTimecode: seconds => {
-      if (!editor) return
-      const chain = editor.chain()
-      ;(editor.isFocused ? chain.focus() : chain.focus('end')).insertContent([timecode(seconds), { type: 'text', text: ' ' }]).run()
+      if (!editor || editor.isDestroyed) return
+      editor.chain().focus(at()).insertContent([timecode(seconds), { type: 'text', text: ' ' }]).run()
     },
-    insertQuotes: quotes => {
-      if (!editor || quotes.length === 0) return
-      editor.chain().focus(editor.isFocused ? undefined : 'end').insertContent([...quotes.map(quoteBlock), { type: 'paragraph' }]).run()
-    },
+    insertQuotes,
     type: text => { editor?.chain().focus('end').insertContent(text).run() },
     getJSON: () => editor?.getJSON() ?? null,
     focus: () => { editor?.commands.focus() },
@@ -210,4 +224,4 @@ export function NoteEditor({
       )}
     </NoteChips.Provider>
   )
-}
+})
