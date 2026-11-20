@@ -14,7 +14,7 @@ EditorScreen → useNotesSaver (note-autosave.ts)
 
 ## Where
 
-The Notes tab of the [Inspector](inspector.md), next to Speakers and Chapters. Every recording opens on Speakers, also after another one was on Notes. A recording without a note opens an empty editor with a hint of what Markdown does; an empty note is no note, and nothing is stored for it.
+The Notes tab of the [Inspector](inspector.md), next to Speakers. Every recording opens on Speakers, also after another one was on Notes. A recording without a note opens an empty editor with a hint of what Markdown does; an empty note is no note, and nothing is stored for it.
 
 Expand notes, in the header of the tab, puts the note in place of the transcript, with the title of the recording over it; the player stays and plays. The right panel goes back to Speakers, and its Notes tab says the note is open in place of the transcript, with Collapse notes. The button over the note, Collapse notes in the tab, or Escape puts the transcript back, and the Notes tab with it. Escape collapses wherever the focus is, in the note too, unless a menu, a list or a window is open, which takes it first; the next Escape closes the recording as usual. Another recording opens with its transcript.
 

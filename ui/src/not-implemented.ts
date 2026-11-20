@@ -14,7 +14,6 @@ import { toast } from './components/Toast/toast-store'
 export const NOT_IMPLEMENTED = [
   'choose-speaker.invited',
   'choose-speaker.recently-added',
-  'inspector.chapters',
   'settings.app-language',
   'settings.call-start-prompts',
   'settings.export',

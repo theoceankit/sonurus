@@ -192,7 +192,7 @@ type Story = StoryObj<typeof NotesSketch>
 
 type AppStory = StoryObj<typeof AppNotes>
 
-// A recording opens on Speakers; the Notes tab is next to Chapters.
+// A recording opens on Speakers; the Notes tab is next to it.
 export const Closed: AppStory = { render: args => <AppNotes {...args} />, args: { tab: 'speakers' } }
 // No note yet: an empty editor that says what Markdown does.
 export const NotesTabEmpty: AppStory = { render: args => <AppNotes {...args} />, args: { id: DESIGN_REVIEW_ID, tab: 'notes' } }
