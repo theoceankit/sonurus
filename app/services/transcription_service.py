@@ -5,7 +5,7 @@ from pathlib import Path
 from app.config import MODELS_DIR, WHISPER_MODEL, WHISPER_BATCH_SIZE, WHISPER_COMPUTE_TYPE_CUDA, WHISPER_COMPUTE_TYPE_CPU
 # AlignmentModelMissingError is imported from here by the queue and the pipeline child.
 from app.services.model_service import ALIGNMENT_CATALOG, AlignmentModelMissingError, ModelService  # noqa: F401
-from app.services import language_detection
+from app.services import language_detection, no_speech
 from app.services.diarization import diarize
 from app.services.transcript_builder import assign_gap_sentences
 from app.logger import get_logger
@@ -32,13 +32,18 @@ class TranscriptionService:
         # Auto-detect the language from the speech VAD finds in transcribe(),
         # not from the first 30 s of the file.
         self.language = language_detection.install(self.model)
+        # Chunks Whisper judges to hold no speech (ring tones, music) are
+        # dropped before alignment, with the text it made up for them.
+        self.no_speech = no_speech.install(self.model)
 
     def transcribe(self, audio_path: str, language: str | None = None):
         log.info(f"Loading audio: {audio_path}")
         audio = whisperx.load_audio(audio_path)
 
         log.info("Transcribing...")
+        self.no_speech.reset()
         result = self.model.transcribe(audio, batch_size=WHISPER_BATCH_SIZE, language=language or None)
+        result["segments"] = self.no_speech.filter(result["segments"])
 
         # Guard: when the language was auto-detected (language=None), the HTTP
         # pre-flight in the router cannot check it in advance.  Check here

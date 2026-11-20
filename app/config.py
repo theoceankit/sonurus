@@ -53,6 +53,11 @@ LANGUAGE_WINDOW_S = 30.0
 LANGUAGE_CONFIDENT = 0.8
 LANGUAGE_MAX_WINDOWS = 3
 
+# A chunk Whisper gives a no-speech probability at or above this is dropped
+# before alignment: on ring tones and music it writes stock phrases ("Thank
+# you.") with 0.89-0.97, on speech it stays below 0.55 (large-v3, quality set).
+NO_SPEECH_THRESHOLD = 0.8
+
 # EmbeddingService: WeSpeaker ResNet34-LM (256 values), the embedding model of
 # the diarization pipeline, read from its subfolder of the diarization repo.
 EMBEDDING_REPO = "pyannote/speaker-diarization-community-1"
