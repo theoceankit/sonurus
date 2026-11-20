@@ -22,7 +22,7 @@ While the note is in the tab, Escape in it does nothing: it is a text field, and
 
 ## The editor
 
-`NoteEditor` is [Tiptap](https://tiptap.dev) 3 (ProseMirror), headless and drawn with the tokens only. Markdown typed turns into what it means at once, as in Typora: `#`, `##` and `###` and a space for headings, `-` or `*` for a list, `1.` for a numbered one, `[ ]` for a checkbox, `>` for a quote, `**bold**`, `*italic*`, `[text](address)` for a link; Ctrl+B and Ctrl+I (⌘ on macOS) too. No tables, images or code. A ticked checkbox turns grey, not struck through. Undo and Redo (Ctrl+Z, Ctrl+Shift+Z) are the editor's own: they reach back to when the note opened in the tab or expanded, not across them.
+`NoteEditor` is [Tiptap](https://tiptap.dev) 3 (ProseMirror), headless and drawn with the tokens only. Markdown typed turns into what it means at once, as in Typora: `#`, `##` and `###` and a space for headings, `-` or `*` for a list, `1.` for a numbered one, `- [ ]` or `[ ]` for a checkbox (`[x]` for a ticked one); `[ ]` at the start of a list item makes that item a checkbox, the list splitting around it and the checkbox joining any right before it, `>` for a quote, `**bold**`, `*italic*`, `[text](address)` for a link; Ctrl+B and Ctrl+I (⌘ on macOS) too. No tables, images or code. A ticked checkbox turns grey, not struck through. Undo and Redo (Ctrl+Z, Ctrl+Shift+Z) are the editor's own: they reach back to when the note opened in the tab or expanded, not across them.
 
 A plain click on a link only puts the cursor in it; Ctrl+click (⌘ on macOS) hands it to the system browser or mail app through `openLink()` of the preload. Only `http`, `https` and `mailto` addresses open (`electron/links.js`); the window itself never follows a link.
 

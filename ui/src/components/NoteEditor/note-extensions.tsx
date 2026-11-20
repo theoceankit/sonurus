@@ -1,4 +1,6 @@
-import { InputRule, mergeAttributes, Node } from '@tiptap/core'
+import { Extension, InputRule, mergeAttributes, Node } from '@tiptap/core'
+import { Fragment, type Node as PMNode } from '@tiptap/pm/model'
+import { TextSelection } from '@tiptap/pm/state'
 import Link from '@tiptap/extension-link'
 import Mention from '@tiptap/extension-mention'
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from '@tiptap/react'
@@ -81,6 +83,44 @@ export const NoteLink = Link.extend({
         handler: ({ state, range, match }) => {
           const [, label, href] = match
           state.tr.replaceWith(range.from, range.to, state.schema.text(label, [this.type.create({ href })]))
+        },
+      }),
+    ]
+  },
+})
+
+// "- [ ] " as in Obsidian: the list item just made by "- " becomes a checkbox, rather
+// than keeping "[ ]" as text. Only an item with nothing before the mark. The item
+// leaves its list, which splits around it, and joins a list of checkboxes right
+// before it, if there is one.
+export const TaskFromListItem = Extension.create({
+  name: 'taskFromListItem',
+  // Before the checkbox rule of TaskItem, which would put a checkbox list inside the item.
+  priority: 1000,
+  addInputRules() {
+    return [
+      new InputRule({
+        find: /^\[([ xX]?)\]\s$/,
+        handler: ({ state, range, match }) => {
+          const $from = state.doc.resolve(range.from)
+          if ($from.depth < 3 || $from.index(-1) !== 0) return null
+          if ($from.node(-1).type.name !== 'listItem' || $from.node(-2).type.name !== 'bulletList') return null
+          const { taskList, taskItem } = state.schema.nodes
+          const tr = state.tr.delete(range.from, range.to)
+          const $item = tr.doc.resolve(tr.mapping.map(range.from))
+          const list = $item.node(-2)
+          const listPos = $item.before(-2)
+          const index = $item.index(-2)
+          const before: PMNode[] = []
+          const after: PMNode[] = []
+          list.forEach((child, _offset, i) => { if (i < index) before.push(child); else if (i > index) after.push(child) })
+          const task = taskList.create(null, taskItem.create({ checked: match[1].toLowerCase() === 'x' }, list.child(index).content))
+          const pieces = [...(before.length ? [list.copy(Fragment.from(before))] : []), task, ...(after.length ? [list.copy(Fragment.from(after))] : [])]
+          tr.replaceWith(listPos, listPos + list.nodeSize, pieces)
+          const taskPos = listPos + (before.length ? pieces[0].nodeSize : 0)
+          // Into the checkbox's text: taskList, taskItem, paragraph.
+          tr.setSelection(TextSelection.create(tr.doc, taskPos + 3))
+          if (tr.doc.resolve(taskPos).nodeBefore?.type === taskList) tr.join(taskPos)
         },
       }),
     ]

@@ -1,8 +1,8 @@
 'use strict'
 
-// A note written in the Notes tab with a heading, a list and a checkbox is there,
-// rendered, after the app quits and starts again, even when it quits right after
-// the typing, before the save a second later.
+// A note written in the Notes tab with a heading, a list and a checkbox typed as
+// "- [ ] " is there, rendered, after the app quits and starts again, even when it
+// quits right after the typing, before the save a second later.
 
 const test   = require('node:test')
 const assert = require('node:assert')
@@ -24,7 +24,8 @@ test('a note survives quitting the app right after typing', async t => {
   const editor = inspector().getByRole('textbox', { name: 'Notes' })
   await editor.click()
   await page.keyboard.type('# Decisions\n')
-  await page.keyboard.type('- Ship the fix\n\n')
+  await page.keyboard.type('- Ship the fix\n')
+  // As in Obsidian: "[ ] " at the start of the next list item makes it a checkbox.
   await page.keyboard.type('[ ] Write the notes')
 
   await assertEventually(async () => JSON.stringify(await notesOf() ?? {}).includes('Ship the fix'), 'the note is saved after typing stops')
