@@ -617,6 +617,53 @@
         "title": "ModelsFolder",
         "type": "object"
       },
+      "NoteRequest": {
+        "properties": {
+          "content": {
+            "additionalProperties": true,
+            "title": "Content",
+            "type": "object"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "NoteRequest",
+        "type": "object"
+      },
+      "NoteResponse": {
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "content",
+          "updated_at"
+        ],
+        "title": "NoteResponse",
+        "type": "object"
+      },
       "QueueJob": {
         "properties": {
           "audio_path": {
@@ -1572,6 +1619,10 @@
             "title": "Duration",
             "type": "string"
           },
+          "has_note": {
+            "title": "Has Note",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -1606,6 +1657,7 @@
           "created_at",
           "status",
           "opened",
+          "has_note",
           "speakers",
           "section",
           "duration"
@@ -3556,6 +3608,127 @@
           }
         },
         "summary": "Get Transcript Audio",
+        "tags": [
+          "transcripts"
+        ]
+      }
+    },
+    "/transcripts/{transcript_id}/note": {
+      "delete": {
+        "description": "The recording no longer has a note. Deleting a note it does not have is fine.",
+        "operationId": "delete_note_transcripts__transcript_id__note_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Note",
+        "tags": [
+          "transcripts"
+        ]
+      },
+      "get": {
+        "description": "The note of the recording; content is null when it has none.",
+        "operationId": "get_note_transcripts__transcript_id__note_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Note",
+        "tags": [
+          "transcripts"
+        ]
+      },
+      "put": {
+        "description": "Store the note of the recording as the editor's document, replacing the\none it had. An empty note is deleted by the UI rather than saved.",
+        "operationId": "save_note_transcripts__transcript_id__note_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transcript_id",
+            "required": true,
+            "schema": {
+              "title": "Transcript Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Note",
         "tags": [
           "transcripts"
         ]

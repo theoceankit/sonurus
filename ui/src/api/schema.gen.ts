@@ -695,6 +695,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transcripts/{transcript_id}/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Note
+         * @description The note of the recording; content is null when it has none.
+         */
+        get: operations["get_note_transcripts__transcript_id__note_get"];
+        /**
+         * Save Note
+         * @description Store the note of the recording as the editor's document, replacing the
+         *     one it had. An empty note is deleted by the UI rather than saved.
+         */
+        put: operations["save_note_transcripts__transcript_id__note_put"];
+        post?: never;
+        /**
+         * Delete Note
+         * @description The recording no longer has a note. Deleting a note it does not have is fine.
+         */
+        delete: operations["delete_note_transcripts__transcript_id__note_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transcripts/{transcript_id}/opened": {
         parameters: {
             query?: never;
@@ -1113,6 +1142,22 @@ export interface components {
             /** Path */
             path: string;
         };
+        /** NoteRequest */
+        NoteRequest: {
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            };
+        };
+        /** NoteResponse */
+        NoteResponse: {
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            } | null;
+            /** Updated At */
+            updated_at: string | null;
+        };
         /** QueueJob */
         QueueJob: {
             /** Audio Path */
@@ -1494,6 +1539,8 @@ export interface components {
             created_at: string;
             /** Duration */
             duration: string;
+            /** Has Note */
+            has_note: boolean;
             /** Id */
             id: number;
             /** Opened */
@@ -2959,6 +3006,99 @@ export interface operations {
             };
             /** @description No such transcript, or its audio file is gone */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_note_transcripts__transcript_id__note_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_note_transcripts__transcript_id__note_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_note_transcripts__transcript_id__note_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
