@@ -80,7 +80,7 @@ Shown and marked with `markNotImplemented()` as a whole: export does not exist y
 ## Data
 
 - **Reset preferences** puts every preference of `DEFAULT_SETTINGS` back (`defaultSettingsPatch`), applies 100% scale and says so in a toast. The HuggingFace token and the recordings opened last are not preferences and stay; so do transcripts, models and recordings. Start transcription belongs to the queue and is not reset; Handle format is a preference the backend keeps, and goes back to `@olivia.brown`.
-- **Delete all data** sends `POST /data/reset`: every transcript, speaker with its voice profile and recording made in Sonorus goes; imported audio files, models and preferences stay. A toast says what was deleted, "Deleted 3 transcripts, 2 speakers and 4 files." The recordings, speakers and queue are read again, so the window behind shows the empty state. The button is off while a transcription or a live recording runs, with the reason in a tooltip; the backend also refuses then, and its refusal is said in a toast.
+- **Delete all data** sends `POST /data/reset`: every transcript with its notes, speaker with its voice profile and recording made in Sonorus goes; imported audio files, models and preferences stay. A toast says what was deleted, "Deleted 3 transcripts, 2 speakers and 4 files." The recordings, speakers and queue are read again and the notes left in memory are dropped, so the window behind shows the empty state. The button is off while a transcription or a live recording runs, with the reason in a tooltip; the backend also refuses then, and its refusal is said in a toast.
 
 Both ask first ([Confirmations](#confirmations)).
 

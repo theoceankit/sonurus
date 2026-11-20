@@ -21,7 +21,7 @@ type InspectorProps = Omit<ComponentPropsWithRef<'div'>, 'children'> & {
   children?: ReactNode
   review?: InspectorReview
   onClose?: () => void
-  // The note of the recording. Without it Notes is a tab still to come.
+  // The note of the recording, in the Notes tab.
   notes?: ReactNode
   // The tab shown, when the screen keeps it.
   tab?: string
@@ -50,9 +50,7 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, notes, 
           <>
             <Tab value="speakers">Speakers</Tab>
             <Tab value="chapters" {...markNotImplemented('inspector.chapters')}>Chapters</Tab>
-            {notes === undefined
-              ? <Tab value="notes" {...markNotImplemented('inspector.notes')}>Notes</Tab>
-              : <Tab value="notes">Notes</Tab>}
+            <Tab value="notes">Notes</Tab>
           </>
         )}
       >
@@ -89,7 +87,7 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, notes, 
             </Reveal>
           )}
         </TabPanel>
-        {notes !== undefined && <TabPanel value="notes" className={styles.panel}>{notes}</TabPanel>}
+        <TabPanel value="notes" className={styles.panel}>{notes}</TabPanel>
       </Tabs>
     </div>
   )

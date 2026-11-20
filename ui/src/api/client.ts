@@ -1,5 +1,5 @@
 import type {
-  AudioSource, DataResetSummary, GpuStatus, HandleFormat, LiveRecording, MicWatch, ModelInfo, ModelsFolder, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RecordingStart, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerMergeSummary, SpeakerSample, SpeakerTranscript, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem,
+  AudioSource, DataResetSummary, GpuStatus, HandleFormat, LiveRecording, MicWatch, ModelInfo, ModelsFolder, Note, NoteDocument, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RecordingStart, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerMergeSummary, SpeakerSample, SpeakerTranscript, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
@@ -54,6 +54,11 @@ export interface ApiClient {
   // Mark as unread: listed as not opened until markTranscriptOpened.
   markTranscriptUnopened(transcriptId: number): Promise<void>
   deleteTranscript(transcriptId: number): Promise<void>
+  // The note of the recording; content is null when it has none.
+  getNote(transcriptId: number): Promise<Note>
+  // Replaces the note. An empty note is deleted instead.
+  saveNote(transcriptId: number, content: NoteDocument): Promise<void>
+  deleteNote(transcriptId: number): Promise<void>
   updateSegmentText(transcriptId: number, segmentStart: number, text: string): Promise<void>
   deleteSegment(transcriptId: number, segmentStart: number): Promise<void>
   assignSpeaker(assignment: SpeakerAssignment): Promise<{ speakerId: string }>

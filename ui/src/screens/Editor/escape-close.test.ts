@@ -42,6 +42,15 @@ test('a field being typed in keeps Escape', () => {
   }
 })
 
+test('the expanded note takes Escape from its text too, but not from a layer', () => {
+  const note = { ...free, fromTextFields: true }
+  const field = make('<div contenteditable="true"><span>x</span></div>', 'span')
+  expect(escapeAction(escape(), field, note)).toBe('close')
+  expect(escapeAction(escape(), document.body, note)).toBe('close')
+  expect(escapeAction(escape(), field, { ...note, layerShown: true })).toBe('pass')
+  expect(escapeAction(escape(), make('<div role="listbox"><button>Anna</button></div>', 'button'), note)).toBe('pass')
+})
+
 test('a window or a layer on the screen takes Escape first', () => {
   expect(escapeAction(escape(), document.body, { overlayOpen: true, layerShown: false })).toBe('pass')
   expect(escapeAction(escape(), document.body, { overlayOpen: false, layerShown: true })).toBe('pass')

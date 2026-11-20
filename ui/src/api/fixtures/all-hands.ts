@@ -36,6 +36,7 @@ export const ALL_HANDS_ITEM: TranscriptListItem = {
   created_at: '2026-10-05T10:00:00',
   status: 'done',
   opened: true,
+  has_note: false,
   speakers: SPEAKERS,
   section: 'Today',
   duration: '6 min',

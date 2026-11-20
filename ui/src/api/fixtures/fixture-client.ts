@@ -1,8 +1,9 @@
 import type { GpuDownloadEvent } from '../gpu-events'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
-import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type LiveRecording, type MicWatch, type RecordingStart, type HandleFormat, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type Speaker, type SpeakerCandidates } from '../types'
+import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type LiveRecording, type MicWatch, type RecordingStart, type HandleFormat, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type NoteDocument, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
-import { FIXTURE_GPU, FIXTURE_NOW, GONE_AUDIO_IDS, queueSnapshot } from './data'
+import { FIXTURE_GPU, FIXTURE_NOW, GONE_AUDIO_IDS, queueSnapshot, WEEKLY_SYNC_ID } from './data'
+import { weeklySyncNote } from './notes'
 import { fixtureModels } from './models'
 import type { EventScript } from './event-scripts'
 import type { ModelDownloadEvent } from '../model-download-events'
@@ -119,6 +120,10 @@ export function createFixtureClient({
   let modelsFolderMade = false
   const data = structuredClone(scenario === 'empty' ? EMPTY : BOARDS[board])
   let queue: QueueSnapshot = queueSnapshot()
+  // Notes by recording: the weekly sync has one, wherever it is.
+  const notes = new Map<number, { content: NoteDocument; updated_at: string }>(
+    data.details.some(t => t.id === WEEKLY_SYNC_ID) ? [[WEEKLY_SYNC_ID, { content: weeklySyncNote(), updated_at: FIXTURE_NOW.toISOString() }]] : [],
+  )
   const listeners = new Set<(event: QueueUpdate) => void>()
 
   // Every call goes through here, so the scenario covers all of them. Results
@@ -483,7 +488,7 @@ export function createFixtureClient({
 
   const client: ApiClient = {
     now: () => new Date(FIXTURE_NOW),
-    listTranscripts: () => answer(() => data.transcripts),
+    listTranscripts: () => answer(() => data.transcripts.map(t => ({ ...t, has_note: notes.has(t.id) }))),
     getTranscript: id => answer(() => transcript(id)),
     getAudioUrl: ({ id, segments }) => {
       if (noAudio) return null
@@ -514,6 +519,19 @@ export function createFixtureClient({
       transcript(id)
       data.details = data.details.filter(t => t.id !== id)
       data.transcripts = data.transcripts.filter(t => t.id !== id)
+      notes.delete(id)
+    }),
+    getNote: id => answer(() => {
+      transcript(id)
+      return notes.get(id) ?? { content: null, updated_at: null }
+    }),
+    saveNote: (id, content) => answer(() => {
+      transcript(id)
+      notes.set(id, { content: structuredClone(content), updated_at: FIXTURE_NOW.toISOString() })
+    }),
+    deleteNote: id => answer(() => {
+      transcript(id)
+      notes.delete(id)
     }),
     updateSegmentText: (id, start, text) => answer(() => {
       segmentAt(id, start).text = text

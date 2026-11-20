@@ -37,9 +37,10 @@ export function stackSpeakers(speakerIds: string[], speakers: Speaker[]): StackS
   })
 }
 
-export const deleteRecordingPrompt = (title: string) => ({
+// The notes go with the recording, so a recording that has them says so.
+export const deleteRecordingPrompt = (title: string, hasNote = false) => ({
   title: title ? `Delete "${title}"?` : 'Delete this transcript?',
-  body: 'The transcript and its recording made in Sonorus will be deleted. Imported audio files are kept.',
+  body: `The transcript${hasNote ? ', its notes' : ''} and its recording made in Sonorus will be deleted. Imported audio files are kept.`,
   warning: 'This cannot be undone.',
 })
 

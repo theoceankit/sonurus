@@ -5,6 +5,9 @@ type Schemas = components['schemas']
 export type Segment = Schemas['SegmentResponse']
 export type Transcript = Schemas['TranscriptResponse']
 export type TranscriptListItem = Schemas['TranscriptListItem']
+// The note of a recording: the editor's document (Tiptap JSON), null without one.
+export type Note = Schemas['NoteResponse']
+export type NoteDocument = NonNullable<Note['content']>
 // photo_url: what an img shows as the speaker's photo, added by the client from
 // photo; null without one.
 export type Speaker = Schemas['SpeakerResponse'] & { photo_url?: string | null }

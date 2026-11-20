@@ -15,7 +15,6 @@ export const NOT_IMPLEMENTED = [
   'choose-speaker.invited',
   'choose-speaker.recently-added',
   'inspector.chapters',
-  'inspector.notes',
   'settings.app-language',
   'settings.call-start-prompts',
   'settings.export',

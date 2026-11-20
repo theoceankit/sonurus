@@ -176,6 +176,30 @@ describe('changes', () => {
     await expect(client.deleteSegment(WEEKLY_SYNC_ID, 8)).rejects.toMatchObject({ status: 404 })
   })
 
+  test('the note of a recording: stored, listed and deleted with it', async () => {
+    const client = createFixtureClient()
+    const hasNote = async (id: number) => (await client.listTranscripts()).find(t => t.id === id)?.has_note
+    expect((await client.getNote(DESIGN_REVIEW_ID)).content).toBeNull()
+    expect(await hasNote(DESIGN_REVIEW_ID)).toBe(false)
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hi' }] }] }
+    await client.saveNote(DESIGN_REVIEW_ID, doc)
+    expect((await client.getNote(DESIGN_REVIEW_ID)).content).toEqual(doc)
+    expect(await hasNote(DESIGN_REVIEW_ID)).toBe(true)
+    await client.deleteNote(DESIGN_REVIEW_ID)
+    expect((await client.getNote(DESIGN_REVIEW_ID)).content).toBeNull()
+    expect(await hasNote(DESIGN_REVIEW_ID)).toBe(false)
+    await expect(client.getNote(999)).rejects.toMatchObject({ status: 404 })
+    await expect(client.saveNote(999, doc)).rejects.toMatchObject({ status: 404 })
+  })
+
+  test('the weekly sync comes with a note', async () => {
+    const client = createFixtureClient()
+    expect((await client.getNote(WEEKLY_SYNC_ID)).content).toMatchObject({ type: 'doc' })
+    expect((await client.listTranscripts()).find(t => t.id === WEEKLY_SYNC_ID)?.has_note).toBe(true)
+    await client.deleteTranscript(WEEKLY_SYNC_ID)
+    await expect(client.getNote(WEEKLY_SYNC_ID)).rejects.toMatchObject({ status: 404 })
+  })
+
   test('deleting a recording', async () => {
     const client = createFixtureClient()
     await client.deleteTranscript(WEEKLY_SYNC_ID)
