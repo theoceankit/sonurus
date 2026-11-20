@@ -6,6 +6,8 @@ const { BackendRefusedError, backendRequest, restartBackend, startBackend, stopB
 const { devUserDataPath } = require('./backend-identity')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 const { showModelsFolder } = require('./models-folder')
+const { openLink } = require('./links')
+const { askWindowToFinish } = require('./window-closing')
 const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown, trayIcon, trayMenu } = require('./tray')
 const { watchBackendEvents } = require('./backend-events')
 const { appUserModelId, micApps, notificationsOn, promptFor, rememberMicApp, stopOutcome, stopTimedOut } = require('./recording-prompts')
@@ -113,7 +115,8 @@ function createWindow() {
     if (quitConfirmed) return
     // Held while the tray check settles; then destroyed for the tray, or quit as asked.
     event.preventDefault()
-    void hasTray.then(available => {
+    // The page saves what waits first: a note typed a moment ago.
+    void askWindowToFinish(win, { ipc: ipcMain }).then(() => hasTray).then(available => {
       if (closeAction({ closeToTray: savedSettings().closeToTray, trayAvailable: available }) === 'quit') {
         void requestQuit()
         return
@@ -236,6 +239,9 @@ ipcMain.handle('get-tray-available', () => hasTray)
 ipcMain.handle('get-app-version', () => app.getVersion())
 
 ipcMain.handle('write-clipboard', async (_e, text) => { await clipboard.writeText(text) })
+
+// Ctrl/⌘+click on a link in a note.
+ipcMain.handle('open-link', (_e, address) => openLink(address, { openExternal: url => shell.openExternal(url) }))
 
 ipcMain.handle('show-models-folder', () => showModelsFolder({ openPath: p => shell.openPath(p) }))
 
@@ -434,7 +440,9 @@ async function requestQuit() {
       },
       sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
     })
-    if (go) quitNow()
+    if (!go) return
+    await askWindowToFinish(mainWin, { ipc: ipcMain })
+    quitNow()
   } finally {
     quitAsked = false
   }
