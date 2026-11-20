@@ -40,9 +40,8 @@ export function useAlignmentDialogs() {
   const othersOpen = useOpenModalCount() > 0
   if (language && !waiting.shown && !waiting.closing && !othersOpen) setWaiting({ ...waiting, shown: true })
 
-  const onQueueEvent = useCallback((event: QueueUpdate) => {
-    if (event.type !== 'job_failed' || event.error_code !== ALIGNMENT_MISSING || !event.error_language) return
-    const failed = event.error_language
+  // The dialog of a language, as a failure or a click on its notification asks.
+  const request = useCallback((failed: string) => {
     // A failure of the language on its way out opens it again after.
     setWaiting(current => ({
       ...current,
@@ -51,6 +50,10 @@ export function useAlignmentDialogs() {
         : addLanguage(current.languages, failed),
     }))
   }, [])
+
+  const onQueueEvent = useCallback((event: QueueUpdate) => {
+    if (event.type === 'job_failed' && event.error_code === ALIGNMENT_MISSING && event.error_language) request(event.error_language)
+  }, [request])
 
   const { refetch: refetchModels } = models
   useEffect(() => {
@@ -67,7 +70,7 @@ export function useAlignmentDialogs() {
     setWaiting(current => ({ languages: current.closing ? current.languages.slice(1) : current.languages, closing: false, watched: false, shown: false }))
   }, [])
 
-  if (!language) return { onQueueEvent, dialog: null }
+  if (!language) return { onQueueEvent, request, dialog: null }
 
   const row = models.data?.find(model => model.kind === 'alignment' && model.id === language)
   const installed = !!row?.installed
@@ -112,5 +115,5 @@ export function useAlignmentDialogs() {
     },
     onExited: exited,
   }
-  return { onQueueEvent, dialog }
+  return { onQueueEvent, request, dialog }
 }
