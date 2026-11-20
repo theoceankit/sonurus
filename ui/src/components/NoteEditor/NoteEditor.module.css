@@ -1,0 +1,146 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* The editable area itself: ProseMirror puts the class on it. */
+.prose {
+  flex: 1;
+  padding-bottom: var(--space-6);
+  color: var(--color-text-primary);
+  font: var(--font-body);
+  overflow-wrap: anywhere;
+  outline: none;
+  white-space: pre-wrap;
+}
+
+.expanded {
+  font: var(--font-body-lg);
+}
+
+.prose > * + * {
+  margin-top: var(--space-2);
+}
+
+.prose p {
+  margin: 0;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.prose h1 {
+  font: var(--font-title-lg);
+}
+
+.prose h2 {
+  font: var(--font-title);
+}
+
+.prose h3 {
+  font: var(--font-body-lg);
+  font-weight: var(--type-weight-semibold);
+}
+
+.prose > :is(h1, h2, h3):not(:first-child) {
+  margin-top: var(--space-4);
+}
+
+.prose strong {
+  font-weight: var(--type-weight-semibold);
+}
+
+.prose a {
+  color: var(--color-accent-fg);
+  text-decoration: underline;
+  text-underline-offset: var(--space-half);
+  cursor: text;
+}
+
+.prose ul,
+.prose ol {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.prose li + li,
+.prose li > * + * {
+  margin-top: var(--space-1);
+}
+
+.prose li::marker {
+  color: var(--color-text-secondary);
+}
+
+.prose blockquote {
+  margin: 0;
+  padding: var(--space-1) 0 var(--space-1) var(--space-3);
+  border-left: var(--border-width-strong) solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+}
+
+.prose blockquote > * + * {
+  margin-top: var(--space-1);
+}
+
+.prose ul[data-type='taskList'] {
+  padding-left: 0;
+  list-style: none;
+}
+
+.prose ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.prose ul[data-type='taskList'] li > label {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: calc(1em * 1.5385);
+  user-select: none;
+}
+
+.prose ul[data-type='taskList'] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.prose ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--color-text-secondary);
+}
+
+.prose input[type='checkbox'] {
+  width: var(--size-icon-xs-plus);
+  height: var(--size-icon-xs-plus);
+  margin: 0;
+  accent-color: var(--color-accent-fg);
+  cursor: pointer;
+}
+
+/* The empty note says what can be typed. */
+.prose p:global(.is-editor-empty):first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--color-text-placeholder);
+  pointer-events: none;
+}
+
+.prose :global(.ProseMirror-selectednode) {
+  outline: none;
+}
+
+.prose ::selection {
+  background: var(--color-selection);
+}
+
+.popup {
+  position: fixed;
+}

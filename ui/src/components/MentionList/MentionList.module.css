@@ -1,0 +1,74 @@
+.surface {
+  composes: presence popup from '../../styles/motion.module.css';
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  width: var(--size-menu);
+  max-height: var(--size-speaker-list);
+  padding: var(--space-1);
+  overflow-y: auto;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-md);
+  outline: var(--border-width-default) solid var(--color-border-default);
+  outline-offset: calc(var(--border-width-default) * -1);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-half);
+}
+
+.section + .section {
+  margin-top: var(--space-1);
+}
+
+/* The person as typed stands apart from the speakers. */
+.typed {
+  padding-top: var(--space-1);
+  border-top: var(--border-width-default) solid var(--color-border-default);
+}
+
+.heading {
+  padding: var(--space-1) var(--space-2) var(--space-half);
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--size-control-md);
+  padding-inline: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font: var(--font-body);
+  cursor: pointer;
+  user-select: none;
+}
+
+.active {
+  background: var(--color-fill-pressed);
+}
+
+.leading {
+  flex: none;
+  margin-inline: var(--space-half);
+  color: var(--color-text-secondary);
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  flex: none;
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}

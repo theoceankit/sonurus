@@ -38,6 +38,7 @@ import { titleToSave } from './transcript'
 import { TranscriptPanel, type SpeakerMenuTarget } from './TranscriptPanel'
 import { useSpeakerChange } from './useSpeakerChange'
 import { intentTarget } from './window-intents'
+import type { NoteQuote } from '../../components/NoteEditor/note-content'
 import styles from './EditorScreen.module.css'
 
 // A recording to open from elsewhere, such as the toast of a finished job. Each
@@ -62,6 +63,16 @@ interface EditorScreenProps {
   initialHighlight?: string
   // For a story: the Speakers window open.
   initialSpeakersOpen?: boolean
+  // For a story: the note of the recording, until notes are stored.
+  notes?: EditorNotes
+}
+
+// The Notes tab, the tab of the right panel shown, and Quote to notes in the transcript.
+export interface EditorNotes {
+  tab: ReactNode
+  inspectorTab: string
+  onInspectorTab: (tab: string) => void
+  onQuote?: (quotes: NoteQuote[]) => void
 }
 
 // Wide until measured, and a width from the screen itself rather than the window,
@@ -80,7 +91,7 @@ function useWidth() {
   return { element, width }
 }
 
-export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, initialSpeakerId, initialHighlight, initialSpeakersOpen = false }: EditorScreenProps) {
+export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, initialSpeakerId, initialHighlight, initialSpeakersOpen = false, notes }: EditorScreenProps) {
   const api = useApi()
   const queries = useQueryClient()
   const transcripts = useTranscripts()
@@ -280,8 +291,8 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
       ? <QueueJobPanel jobId={jobId} onGone={clearJob} />
       : empty
         ? <EmptyState onOpenSettings={() => settingsDialog.open('models')} />
-        : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} />),
-    [transcript, jobId, clearJob, empty, selectedId, playback, highlight, showAllSpeakers, settingsDialog],
+        : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} onQuote={notes?.onQuote} />),
+    [transcript, jobId, clearJob, empty, selectedId, playback, highlight, showAllSpeakers, settingsDialog, notes?.onQuote],
   )
 
   // A refresh that fails leaves what was loaded on the screen.
@@ -338,6 +349,9 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
                 onChooseSpeaker={setSpeakerRequest}
                 initialSpeakerId={initialSpeakerId}
                 highlight={highlight}
+                notes={notes?.tab}
+                tab={notes?.inspectorTab}
+                onTabChange={notes?.onInspectorTab}
               />
             )}
           </div>
