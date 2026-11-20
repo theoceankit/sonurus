@@ -37,6 +37,9 @@ def test_variant(pipeline, tmp_path_factory, name):
     if variant.base:
         _result(pipeline, variant.base, tmp_path_factory)
     result = _result(pipeline, name, tmp_path_factory)
+    assert result["no_speech_dropped_speech"] == 0, (
+        f"{name}: the no-speech check dropped {result['no_speech_dropped_speech']} chunks with speech "
+        f"({result['no_speech_dropped_words']} reference words)")
     if not variant.base:
         return
     base = _results[variant.base]

@@ -55,7 +55,8 @@ LANGUAGE_MAX_WINDOWS = 3
 
 # A chunk Whisper gives a no-speech probability at or above this is dropped
 # before alignment: on ring tones and music it writes stock phrases ("Thank
-# you.") with 0.89-0.97, on speech it stays below 0.55 (large-v3, quality set).
+# you.") with 0.85-0.99, on speech it stayed at 0.71 at most (large-v3,
+# quality set, long recordings included); 0.6 would drop real speech.
 NO_SPEECH_THRESHOLD = 0.8
 
 # EmbeddingService: WeSpeaker ResNet34-LM (256 values), the embedding model of

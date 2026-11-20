@@ -6,7 +6,7 @@ log-probability or no-speech check. Digital silence and room noise never reach
 the decoder (the VAD drops them), but ring tones and music do, and Whisper
 writes its stock phrases there: "Thank you.", "Продолжение следует...",
 "Дякую за перегляд!". On those chunks its no-speech probability is high
-(0.89–0.97 on the quality set) while the log probability is not low, so the
+(0.85–0.99 on the quality set) while the log probability is not low, so the
 check here is the no-speech probability alone.
 
 install() wraps the pipeline's CTranslate2 Whisper model: generate() is called

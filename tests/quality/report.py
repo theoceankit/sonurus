@@ -10,6 +10,7 @@ ROWS: list[dict] = []   # one per variant, from harness.evaluate()
 DEVICES: dict[str, str] = {}  # speaker → device in call.wav, from the manifest
 NOTES: list[str] = []
 LANGUAGE: list[dict] = []  # one per padded-set recording, from test_language.py
+HALLUCINATIONS: list[dict] = []  # one per padded-set recording, from test_hallucinations.py
 
 LEGEND = """\
 How to read it:
@@ -28,6 +29,8 @@ matched to the reference belong to 2+ people, out of all, and the words of anyon
 in them; short utterances (1–2 words) with a word recognised, how many are under the right person; and, in what \
 the pipeline returned before the transcript was built, segments without timed words, with empty text and longer \
 than 15 s.
+- **No speech dropped**: chunks the no-speech check took out before alignment, out of all decoded; in brackets \
+those that overlapped reference speech (must be 0), and the highest no-speech probability of a chunk with speech.
 - **Base**: the variant a processing step is compared with; the test fails when the variant is worse than its base \
 by more than the tolerance. Variants without a base are listening conditions and only report.
 - Every variant runs the same three 3-minute clips (es2002b, es2002c, es2002d) in this order on an empty speaker \
@@ -62,6 +65,66 @@ def _share(part, whole):
 
 def _num(x, digits=3) -> str:
     return "–" if x is None or math.isnan(x) else f"{x:.{digits}f}"
+
+
+def _no_speech(r) -> str:
+    if "no_speech_chunks" not in r:
+        return "–"
+    return (f"{r['no_speech_dropped']} / {r['no_speech_chunks']} ({r['no_speech_dropped_speech']}), "
+            f"{_num(r['no_speech_max_speech'], 2)}")
+
+
+def hallucinations_markdown() -> list[str]:
+    """Words in the inserts of the padded set without the no-speech check (old)
+    and with it (new)."""
+    if not HALLUCINATIONS:
+        return []
+    lines = ["", "## Hallucinations", "",
+             "Each recording of the padded set, transcribed and aligned without diarization: invented words "
+             "(middle inside an insert, more than 0.5 s from its edges, matching no reference word), all words "
+             "inside inserts (also real speech alignment stretched into them) and WER against the reference, "
+             "without the no-speech check (old) and with it (new). Dropped: chunks the check took out, out of all decoded, in "
+             "brackets those with reference speech (must be 0). Highest p of speech / lowest p of non-speech: the "
+             "no-speech probabilities either side of the threshold.", "",
+             "| Variant | Recordings | Invented, old | New | All words in inserts, old / new | WER old | WER new "
+             "| Dropped (with speech) | Highest p of speech | Lowest p of non-speech |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
+    groups: dict[str, list[dict]] = {}
+    for r in HALLUCINATIONS:
+        groups.setdefault(r["variant"], []).append(r)
+
+    def wer(rows, way):
+        ref = sum(r[way]["ref_words"] for r in rows)
+        return sum(r[way]["errors"] for r in rows) / ref if ref else None
+
+    def nanmax(xs):
+        xs = [x for x in xs if not math.isnan(x)]
+        return max(xs) if xs else None
+
+    def nanmin(xs):
+        xs = [x for x in xs if not math.isnan(x)]
+        return min(xs) if xs else None
+
+    for variant, rows in groups.items():
+        lines.append(
+            f"| {variant} | {len(rows)} | {sum(r['old']['invented'] for r in rows)} "
+            f"| {sum(r['new']['invented'] for r in rows)} "
+            f"| {sum(r['old']['inserted'] for r in rows)} / {sum(r['new']['inserted'] for r in rows)} "
+            f"| {_pct(wer(rows, 'old'))} | {_pct(wer(rows, 'new'))} "
+            f"| {sum(r['no_speech_dropped'] for r in rows)} / {sum(r['no_speech_chunks'] for r in rows)} "
+            f"({sum(r['no_speech_dropped_speech'] for r in rows)}) "
+            f"| {_num(nanmax([r['no_speech_max_speech'] for r in rows]), 2)} "
+            f"| {_num(nanmin([r['no_speech_min_other'] for r in rows]), 2)} |")
+    lines += ["", "| Recording | Variant | Lang | Invented, old | New | WER old / new | Dropped "
+              "| Highest p of speech | Lowest p of non-speech | Invented text, old |",
+              "|---|---|---|---|---|---|---|---|---|---|"]
+    for r in HALLUCINATIONS:
+        lines.append(
+            f"| {r['base']} | {r['variant']} | {r['language']} | {r['old']['invented']} | {r['new']['invented']} "
+            f"| {_pct(r['old']['wer'])} / {_pct(r['new']['wer'])} | {r['no_speech_dropped']} / "
+            f"{r['no_speech_chunks']} ({r['no_speech_dropped_speech']}) | {_num(r['no_speech_max_speech'], 2)} "
+            f"| {_num(r['no_speech_min_other'], 2)} | {r['old']['invented_text'][:120] or '–'} |")
+    return lines
 
 
 def language_markdown() -> list[str]:
@@ -101,17 +164,18 @@ def markdown() -> str:
     lines = ["# Audio quality run", "", time.strftime("%Y-%m-%d %H:%M"), ""]
     lines += [f"- {n}" for n in NOTES]
     if not ROWS:
-        return "\n".join(lines + language_markdown()) + "\n"
+        return "\n".join(lines + language_markdown() + hallucinations_markdown()) + "\n"
     lines += ["", LEGEND, "## Summary per variant (three clips together)", "",
               "| Variant | Base | WER | Speaker words | Missed utterances (3+ words) | Missed short "
-              "| Recognised | Similarity own / other | What |",
-              "|---|---|---|---|---|---|---|---|---|"]
+              "| Recognised | Similarity own / other | No speech dropped (with speech), highest p of speech | What |",
+              "|---|---|---|---|---|---|---|---|---|---|"]
     for r in ROWS:
         lines.append(
             f"| {_name(r)} | {r['base'] or '–'} | {_pct(r['wer'])} | {_pct(r['speaker_acc'])} "
             f"| {r['missed']} / {r['utterances']} | {r['missed_short']} / {r['short']} "
             f"| {r['recognised']} / {r['named_total']} "
-            f"| {_num(r['similarity'])} / {_num(r['other_similarity'])} | {r['what']} |")
+            f"| {_num(r['similarity'])} / {_num(r['other_similarity'])} "
+            f"| {_no_speech(r)} | {r['what']} |")
 
     speakers = sorted({s for r in ROWS for s in r["recall_by_speaker"]})
     if speakers:
@@ -178,7 +242,7 @@ def markdown() -> str:
         for c in r["clips"]:
             for text, lvl in zip(c["missed_text"], c["missed_level"]):
                 lines.append(f"- {_name(r)}, {c['clip']} ({_num(lvl, 1)} dBFS): {text}")
-    return "\n".join(lines + language_markdown()) + "\n"
+    return "\n".join(lines + language_markdown() + hallucinations_markdown()) + "\n"
 
 
 def voices_key(series: str | None, variant: str, clip: str, field: str) -> str:
@@ -200,7 +264,8 @@ def write(text: str) -> Path:
                 arrays[voices_key(r.get("series"), r["variant"], c["clip"], field)] = a
             clips.append({k: v for k, v in c.items() if not k.startswith("_")})
         rows.append({**r, "clips": clips})
-    (out / f"{stem}.json").write_text(json.dumps({"notes": NOTES, "variants": rows, "language": LANGUAGE},
+    (out / f"{stem}.json").write_text(json.dumps({"notes": NOTES, "variants": rows, "language": LANGUAGE,
+                                                 "hallucinations": HALLUCINATIONS},
                                                 indent=1, default=float))
     if arrays:
         import numpy as np

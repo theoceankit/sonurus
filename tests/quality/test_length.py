@@ -54,5 +54,7 @@ def test_series(pipeline, tmp_path_factory, series, variant):
     result = harness.evaluate(pipeline, v, tmp_path_factory.mktemp(f"{series}-{variant}".replace(" ", "_")),
                               clips=s.clips, named=frozenset(s.named))
     report.add(result, v, series=s.name)
+    assert result["no_speech_dropped_speech"] == 0, (
+        f"the no-speech check dropped {result['no_speech_dropped_speech']} chunks with speech")
     if s.name == "three groups":
         assert result["wrong"] == 0, f"{result['wrong']} false matches between people of different groups"
