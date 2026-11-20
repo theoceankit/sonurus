@@ -10,7 +10,7 @@ import { cx } from '../../styles/cx'
 import { mentionList, type MentionCandidate, type MentionOption } from '../MentionList/mention-list'
 import { MentionList } from '../MentionList/MentionList'
 import { quoteBlock, timecode, type NoteQuote } from './note-content'
-import { NoteChips, NoteLink, NoteMention, Timecode, type FindSpeaker } from './note-extensions'
+import { NoteChips, NoteLink, NoteMention, TaskFromListItem, Timecode, type FindSpeaker } from './note-extensions'
 import styles from './NoteEditor.module.css'
 
 export interface NoteEditorHandle {
@@ -41,7 +41,7 @@ interface NoteEditorProps {
   ref?: Ref<NoteEditorHandle>
 }
 
-const PLACEHOLDER = 'Write notes for this recording. Markdown works as you type: # for a heading, - for a list, [ ] for a checkbox'
+const PLACEHOLDER = 'Write notes for this recording. Markdown works as you type: # for a heading, - for a list, - [ ] for a checkbox'
 const placeholder = (mentions: boolean) => `${PLACEHOLDER}${mentions ? ', @ to mention someone' : ''}.`
 
 const POPUP_GAP = 4
@@ -85,6 +85,7 @@ export function NoteEditor({
       NoteLink.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
       TaskList,
       TaskItem.configure({ nested: true }),
+      TaskFromListItem,
       Placeholder.configure({ placeholder: () => placeholder(latest.current.candidates !== undefined) }),
       Timecode,
       NoteMention.configure({
