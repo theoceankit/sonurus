@@ -5,6 +5,7 @@ import Link from '@tiptap/extension-link'
 import Mention from '@tiptap/extension-mention'
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from '@tiptap/react'
 import { createContext, useContext } from 'react'
+import { formatClock } from '../../media/timeline'
 import type { SpeakerColor } from '../../styles/speaker-colors'
 import { MentionChip } from '../MentionChip/MentionChip'
 import { TimecodeChip } from '../TimecodeChip/TimecodeChip'
@@ -43,7 +44,8 @@ export const Timecode = Node.create({
   }),
   parseHTML: () => [{ tag: 'span[data-timecode]' }],
   renderHTML: ({ HTMLAttributes }) => ['span', mergeAttributes(HTMLAttributes)],
-  renderText: ({ node }) => `[${node.attrs.seconds}]`,
+  // As Copy notes writes it.
+  renderText: ({ node }) => `[${formatClock(node.attrs.seconds as number)}]`,
   addNodeView: () => ReactNodeViewRenderer(TimecodeView),
 })
 
