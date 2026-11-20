@@ -21,12 +21,17 @@ type InspectorProps = Omit<ComponentPropsWithRef<'div'>, 'children'> & {
   children?: ReactNode
   review?: InspectorReview
   onClose?: () => void
+  // The note of the recording. Without it Notes is a tab still to come.
+  notes?: ReactNode
+  // The tab shown, when the screen keeps it.
+  tab?: string
+  onTabChange?: (tab: string) => void
 }
 
 const TITLE = 'Review speakers'
 
 // The right panel: its tabs, and the review docked at the bottom.
-export function Inspector({ children, review = { mode: 'off' }, onClose, className, ...props }: InspectorProps) {
+export function Inspector({ children, review = { mode: 'off' }, onClose, notes, tab, onTabChange, className, ...props }: InspectorProps) {
   const { area, scrollRef, bottom } = useScrollEdges()
   // What the dock showed last, for its way out after the review has moved on.
   const last = useRef<{ counter?: string; card?: ReactNode; left?: number; onResume?: () => void }>({})
@@ -37,13 +42,17 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, classNa
     <div className={cx(styles.inspector, className)} {...props}>
       <Tabs
         defaultValue="speakers"
+        value={tab}
+        onValueChange={onTabChange}
         aria-label="Inspector tabs"
         className={styles.tabs}
         tabs={(
           <>
             <Tab value="speakers">Speakers</Tab>
             <Tab value="chapters" {...markNotImplemented('inspector.chapters')}>Chapters</Tab>
-            <Tab value="notes" {...markNotImplemented('inspector.notes')}>Notes</Tab>
+            {notes === undefined
+              ? <Tab value="notes" {...markNotImplemented('inspector.notes')}>Notes</Tab>
+              : <Tab value="notes">Notes</Tab>}
           </>
         )}
       >
@@ -80,6 +89,7 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, classNa
             </Reveal>
           )}
         </TabPanel>
+        {notes !== undefined && <TabPanel value="notes" className={styles.panel}>{notes}</TabPanel>}
       </Tabs>
     </div>
   )

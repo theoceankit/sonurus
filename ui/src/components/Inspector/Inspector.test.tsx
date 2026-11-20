@@ -24,6 +24,16 @@ test.each(['Chapters', 'Notes'])('%s is not there yet: it says so and stays on S
   expect(await screen.findByText('Not available yet')).toBeTruthy()
 })
 
+test('with a note, Notes opens and shows it in place of the speakers', async () => {
+  panel({ notes: <p>the note</p> })
+  const tab = screen.getByRole('tab', { name: 'Notes' })
+  expect(tab.getAttribute('aria-disabled')).toBeNull()
+  await userEvent.click(tab)
+  expect(tab.getAttribute('aria-selected')).toBe('true')
+  expect(screen.getByText('the note')).toBeTruthy()
+  expect(screen.queryByText('content')).toBeNull()
+})
+
 test('the button closes the panel', async () => {
   const onClose = vi.fn()
   panel({ onClose })

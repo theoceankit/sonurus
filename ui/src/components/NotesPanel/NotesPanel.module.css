@@ -1,0 +1,64 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.header {
+  flex: none;
+  padding-inline: var(--space-1);
+}
+
+.expanded .header {
+  padding: var(--space-3) var(--space-4) var(--space-2);
+}
+
+.heading {
+  min-width: 0;
+  margin-inline-end: var(--space-2);
+}
+
+.title {
+  flex: none;
+  color: var(--color-text-primary);
+  font: var(--font-title);
+}
+
+.recording {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.scrollArea {
+  position: relative;
+  display: flex;
+  flex: 1 0 0;
+  min-height: 0;
+}
+
+.scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.column {
+  height: 100%;
+  padding: var(--space-2) var(--space-2) 0;
+}
+
+/* A column for reading, in the middle of the room the transcript had. */
+.expanded .column {
+  max-width: var(--size-note-column);
+  margin-inline: auto;
+  padding: var(--space-2) var(--space-6) 0;
+}

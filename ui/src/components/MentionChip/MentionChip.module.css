@@ -1,0 +1,43 @@
+/* Sits in a line of text, so it keeps to the line's height and baseline. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  height: var(--size-control-xs);
+  border-radius: var(--radius-full);
+  color: var(--color-text-primary);
+  font: var(--font-body-strong);
+  vertical-align: bottom;
+  user-select: none;
+}
+
+.speaker {
+  padding-inline: var(--space-half) var(--space-2);
+  background: var(--color-fill-pressed);
+}
+
+.person {
+  padding-inline: var(--space-2);
+  box-shadow: inset 0 0 0 var(--border-width-default) var(--color-border-strong);
+}
+
+.at {
+  color: var(--color-text-secondary);
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected {
+  outline: var(--border-width-strong) solid var(--color-focus);
+  outline-offset: 0;
+}
+
+.person .at + .name {
+  margin-inline-start: calc(var(--space-1) * -1);
+}

@@ -1,0 +1,31 @@
+/* Sits in a line of text, so it keeps to the line's height and baseline. */
+.chip {
+  composes: reset stateLayer focusRing from '../../styles/control.module.css';
+  --state-hover: var(--color-fill-pressed);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-half);
+  height: var(--size-control-xs);
+  padding-inline: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-bg);
+  color: var(--color-accent-fg);
+  font: var(--font-body-strong);
+  font-variant-numeric: tabular-nums;
+  vertical-align: bottom;
+  cursor: pointer;
+  user-select: none;
+}
+
+.icon {
+  flex: none;
+}
+
+.time {
+  text-box: trim-both cap alphabetic;
+}
+
+.selected {
+  outline: var(--border-width-strong) solid var(--color-focus);
+  outline-offset: 0;
+}

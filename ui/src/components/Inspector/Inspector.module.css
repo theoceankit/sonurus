@@ -38,6 +38,11 @@
   overflow-y: auto;
 }
 
+/* A tab not shown keeps its element, and display above would show it. */
+.panel[hidden] {
+  display: none;
+}
+
 .scrollArea {
   position: relative;
   display: flex;

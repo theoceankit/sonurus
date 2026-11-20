@@ -39,18 +39,23 @@ export interface InspectorPanelProps {
   // The speaker under the pointer or the keyboard here, for the transcript and the
   // player to show too.
   highlight?: KeyStore<string | null>
+  // The Notes tab and which tab shows (EditorNotes); without them Notes is still to come.
+  notes?: ReactNode
+  tab?: string
+  onTabChange?: (tab: string) => void
 }
 
 // Nothing shows until the recording has loaded, as in the transcript.
-export function InspectorPanel({ transcriptId, playback, open = true, onClose, onChooseSpeaker, initialSpeakerId, highlight }: InspectorPanelProps) {
+export function InspectorPanel({ transcriptId, playback, open = true, onClose, onChooseSpeaker, initialSpeakerId, highlight, notes, tab, onTabChange }: InspectorPanelProps) {
+  const tabs = { notes, tab, onTabChange }
   const transcript = useTranscript(transcriptId)
   const speakers = useSpeakers()
   const candidates = useSpeakerCandidates(transcriptId)
 
-  if (transcriptId === null) return <Inspector onClose={onClose} />
+  if (transcriptId === null) return <Inspector onClose={onClose} {...tabs} />
   if ((transcript.isError && !transcript.data) || (speakers.isError && !speakers.data)) {
     return (
-      <Inspector onClose={onClose}>
+      <Inspector onClose={onClose} {...tabs}>
         <div className={styles.message}>
           <span>Could not load the speakers</span>
           <Button
@@ -67,7 +72,7 @@ export function InspectorPanel({ transcriptId, playback, open = true, onClose, o
       </Inspector>
     )
   }
-  if (!transcript.data || !speakers.data || candidates.isPending) return <Inspector onClose={onClose} />
+  if (!transcript.data || !speakers.data || candidates.isPending) return <Inspector onClose={onClose} {...tabs} />
 
   return (
     <InspectorView
@@ -82,6 +87,7 @@ export function InspectorPanel({ transcriptId, playback, open = true, onClose, o
       onChooseSpeaker={onChooseSpeaker}
       initialSpeakerId={initialSpeakerId}
       highlight={highlight}
+      {...tabs}
     />
   )
 }
@@ -92,7 +98,7 @@ interface InspectorViewProps extends Omit<InspectorPanelProps, 'transcriptId'> {
   candidates: SpeakerCandidates
 }
 
-function InspectorView({ transcript, speakers, candidates, playback, open, onClose, onChooseSpeaker, initialSpeakerId, highlight: givenHighlight }: InspectorViewProps) {
+function InspectorView({ transcript, speakers, candidates, playback, open, onClose, onChooseSpeaker, initialSpeakerId, highlight: givenHighlight, notes, tab, onTabChange }: InspectorViewProps) {
   const api = useApi()
   const { id: transcriptId, segments } = transcript
   const { change, busy } = useSpeakerChange()
@@ -267,7 +273,7 @@ function InspectorView({ transcript, speakers, candidates, playback, open, onClo
   )
 
   return (
-    <Inspector review={dock} onClose={onClose}>
+    <Inspector review={dock} onClose={onClose} notes={notes} tab={tab} onTabChange={onTabChange}>
       {rows.length === 0
         ? <span className={styles.message}>No speakers</span>
         : (

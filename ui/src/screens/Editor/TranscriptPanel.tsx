@@ -9,16 +9,17 @@ import { SpeakerMenu } from '../../components/SpeakerMenu/SpeakerMenu'
 import { Stack } from '../../components/Stack/Stack'
 import { toast } from '../../components/Toast/toast-store'
 import { ScrollBar } from '../../components/ScrollBar/ScrollBar'
-import { Toolbar, ToolbarDivider, ToolbarItem } from '../../components/Toolbar/Toolbar'
+import { TextSelectionBar } from '../../components/TextSelectionBar/TextSelectionBar'
 import { TranscriptHeader } from '../../components/TranscriptHeader/TranscriptHeader'
 import { createKeyStore, useActiveSegment, type KeyStore } from '../../media/active-segment'
 import type { Playback } from '../../media/playback'
-import { markNotImplemented } from '../../not-implemented'
 import { useLingering } from '../../presence'
 import {
   buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave, transcriptText,
 } from './transcript'
+import type { NoteQuote } from '../../components/NoteEditor/note-content'
 import type { RecordingToDelete } from './DeleteRecordingDialog'
+import { selectionQuotes } from './quotes'
 import { useKeepRowInPlace } from './useKeepRowInPlace'
 import { useSpeakerChange } from './useSpeakerChange'
 import { TranscriptList, type MenuKey, type TranscriptRows } from './TranscriptList'
@@ -38,11 +39,13 @@ interface TranscriptPanelProps {
   onDelete?: (recording: RecordingToDelete) => void
   // The speaker under the pointer in the inspector: their turns are marked.
   highlight?: KeyStore<string | null>
+  // Quote to notes on the selection bar; without it there is none.
+  onQuote?: (quotes: NoteQuote[]) => void
 }
 
 // Nothing shows until there is a recording and it has loaded: a flash of a spinner
 // on data from this machine says less than a moment of an empty panel.
-export function TranscriptPanel({ transcriptId, playback, onShowAllSpeakers, onDelete, highlight }: TranscriptPanelProps) {
+export function TranscriptPanel({ transcriptId, playback, onShowAllSpeakers, onDelete, highlight, onQuote }: TranscriptPanelProps) {
   const transcript = useTranscript(transcriptId)
   const speakers = useSpeakers()
   useMarkOpened(transcriptId, transcript.isSuccess)
@@ -75,6 +78,7 @@ export function TranscriptPanel({ transcriptId, playback, onShowAllSpeakers, onD
       onShowAllSpeakers={onShowAllSpeakers}
       onDelete={onDelete}
       highlight={highlight}
+      onQuote={onQuote}
     />
   )
 }
@@ -88,6 +92,7 @@ interface TranscriptViewProps {
   onShowAllSpeakers?: (target: SpeakerMenuTarget) => void
   onDelete?: (recording: RecordingToDelete) => void
   highlight?: KeyStore<string | null>
+  onQuote?: (quotes: NoteQuote[]) => void
 }
 
 async function copyToClipboard(text: string) {
@@ -99,7 +104,7 @@ async function copyToClipboard(text: string) {
   }
 }
 
-function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onDelete, highlight: givenHighlight }: TranscriptViewProps) {
+function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onDelete, highlight: givenHighlight, onQuote }: TranscriptViewProps) {
   const { id: transcriptId, segments } = transcript
   const listed = useTranscripts().data?.find(item => item.id === transcriptId)
   const { mutate: rename } = useUpdateTranscriptTitle()
@@ -212,23 +217,23 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
               style={{ left: selection.x, top: selection.y }}
               onMouseDown={event => event.preventDefault()}
             >
-              <Toolbar label="Selected text">
-                <ToolbarItem>
-                  <Button
-                    variant="toolbar"
-                    icon="copy"
-                    onClick={() => {
-                      const chosen = window.getSelection()
-                      void copyToClipboard(chosen?.toString() ?? '')
-                      chosen?.removeAllRanges()
-                    }}
-                  >
-                    Copy
-                  </Button>
-                </ToolbarItem>
-                <ToolbarDivider />
-                <ToolbarItem><Button variant="toolbar" icon="highlight" {...markNotImplemented('transcript.highlight')}>Highlight</Button></ToolbarItem>
-              </Toolbar>
+              <TextSelectionBar
+                onCopy={() => {
+                  const chosen = window.getSelection()
+                  void copyToClipboard(chosen?.toString() ?? '')
+                  chosen?.removeAllRanges()
+                }}
+                onQuote={onQuote && (() => {
+                  const chosen = window.getSelection()
+                  const list = content.current?.querySelector('[data-transcript-list]')
+                  if (!chosen || chosen.rangeCount === 0 || !list) return
+                  onQuote(selectionQuotes(chosen.getRangeAt(0), list, id => {
+                    const speaker = turns.find(turn => turn.speaker.id === id)?.speaker
+                    return { kind: 'speaker', id, label: speaker?.name ?? id }
+                  }))
+                  chosen.removeAllRanges()
+                })}
+              />
             </div>
           )}
         </div>
