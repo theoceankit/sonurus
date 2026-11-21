@@ -162,6 +162,30 @@ class TranscriptStorageService:
         with self._connect() as conn:
             conn.execute("DELETE FROM notes WHERE transcription_id = ?", (db_id,))
 
+    def rewrite_note_mentions(self, speaker_id: str, into_id: str | None = None, name: str | None = None) -> int:
+        """Make the notes follow a speaker who is gone. With into_id (a merge) every
+        mention of speaker_id mentions into_id; without it (a deletion) each becomes
+        plain text: name, or the label the mention kept. Notes that do not mention
+        the speaker are not written. Returns the number of notes rewritten."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, content FROM notes WHERE instr(content, ?) > 0", (speaker_id,)
+            ).fetchall()
+            rewritten = 0
+            for note_id, content in rows:
+                doc = json.loads(content)
+                new_doc, changed = _rewrite_mentions(doc, speaker_id, into_id, name)
+                if not changed:
+                    continue
+                conn.execute(
+                    "UPDATE notes SET content = ? WHERE id = ?",
+                    (json.dumps(new_doc, ensure_ascii=False), note_id),
+                )
+                rewritten += 1
+        if rewritten:
+            log.info(f"UPDATE notes mentions of {speaker_id} → {into_id or 'text'}: {rewritten} notes")
+        return rewritten
+
     def unassign_speaker(self, speaker_id: str) -> dict:
         """Detach every segment of a deleted speaker: speaker_id becomes NULL and
         the segment is flagged unassigned. Returns affected segment/transcript counts."""
@@ -478,3 +502,31 @@ class TranscriptStorageService:
 def _fmt_duration(seconds: float) -> str:
     mins = int(seconds) // 60
     return f"{mins} min" if mins < 60 else f"{mins // 60}h {mins % 60}m"
+
+
+def _rewrite_mentions(node: dict, speaker_id: str, into_id: str | None, name: str | None) -> tuple[dict, bool]:
+    """A copy of a note's node with every mention of speaker_id given to into_id, or
+    replaced by its name as text when into_id is None. Returns (node, changed)."""
+    children = node.get("content")
+    if not isinstance(children, list):
+        return node, False
+    changed = False
+    content = []
+    for child in children:
+        attrs = (child.get("attrs") or {}) if isinstance(child, dict) else {}
+        if isinstance(child, dict) and child.get("type") == "mention" \
+                and attrs.get("kind", "speaker") == "speaker" and attrs.get("id") == speaker_id:
+            changed = True
+            if into_id is not None:
+                content.append({**child, "attrs": {**attrs, "id": into_id}})
+            else:
+                text = name or attrs.get("label") or ""
+                if text:
+                    marks = {"marks": child["marks"]} if child.get("marks") else {}
+                    content.append({"type": "text", "text": text, **marks})
+            continue
+        if isinstance(child, dict):
+            child, inner = _rewrite_mentions(child, speaker_id, into_id, name)
+            changed = changed or inner
+        content.append(child)
+    return ({**node, "content": content}, True) if changed else (node, False)
