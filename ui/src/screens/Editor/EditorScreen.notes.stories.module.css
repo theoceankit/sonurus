@@ -4,11 +4,6 @@
   align-items: flex-start;
 }
 
-.elsewhere {
-  color: var(--color-text-secondary);
-  font: var(--font-body);
-}
-
 .copied {
   width: var(--size-panel-side);
   padding: var(--space-4);

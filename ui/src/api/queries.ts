@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef } from 'react'
+import type { JSONContent } from '@tiptap/react'
+import { rewriteMentions, type MentionChange } from '../components/NoteEditor/note-content'
 import { useApi } from './ApiProvider'
 import { ApiError, type SpeakerAssignment, type SpeakerUndo, type WaveformStretch } from './client'
 import type { HandleFormat, Note, NoteDocument, QueueJobUpdate, QueueStartMode, QueueUpdate, Speaker, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem } from './types'
+import { announceMentionChange } from './note-mentions'
 
 // Everything below a transcript starts with its key, so invalidating
 // queryKeys.transcripts reaches the list, the details and the candidates.
@@ -403,6 +406,13 @@ export function useRemoveSpeakerPhoto() {
   })
 }
 
+// The backend has rewritten the mentions of a speaker who is gone: the notes kept
+// here and the ones open in an editor follow.
+function rewriteNotes(queries: QueryClient, change: MentionChange) {
+  queries.setQueriesData<Note>({ queryKey: queryKeys.notes }, note => (note?.content ? { ...note, content: rewriteMentions(note.content as JSONContent, change) as NoteDocument } : note))
+  announceMentionChange(change)
+}
+
 // Their segments become Unassigned in every recording, so the recordings are asked
 // for again; the speaker leaves the list at once and is not asked about again.
 export function useDeleteSpeaker() {
@@ -418,6 +428,8 @@ export function useDeleteSpeaker() {
       }
     },
     onSuccess: (_result, speakerId) => {
+      const name = queries.getQueryData<Speaker[]>(queryKeys.speakers)?.find(speaker => speaker.id === speakerId)?.name ?? null
+      rewriteNotes(queries, { kind: 'delete', id: speakerId, name })
       queries.setQueryData<Speaker[]>(queryKeys.speakers, speakers => speakers?.filter(speaker => speaker.id !== speakerId))
       queries.removeQueries({ queryKey: [...queryKeys.speakers, speakerId] })
       void queries.invalidateQueries({ queryKey: queryKeys.speakers })
@@ -432,6 +444,7 @@ export function useMergeSpeaker() {
   return useMutation({
     mutationFn: ({ speakerId, intoId }: { speakerId: string; intoId: string }) => api.mergeSpeaker(speakerId, intoId),
     onSuccess: ({ speaker }, { speakerId }) => {
+      rewriteNotes(queries, { kind: 'merge', from: speakerId, into: speaker.id })
       queries.setQueryData<Speaker[]>(queryKeys.speakers, speakers => speakers
         ?.filter(s => s.id !== speakerId)
         .map(s => (s.id === speaker.id ? speaker : s)))

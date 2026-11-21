@@ -160,9 +160,12 @@ class CommitService:
 
     def delete_speaker(self, speaker_id: str) -> dict:
         """Delete a speaker: its segments become unassigned (they no longer feed
-        any profile), then its profile, names and color are removed.
+        any profile), its mentions in notes become text with the name it had,
+        then its profile, names and color are removed.
         Returns the affected {segments, transcripts} counts."""
         result = self.storage.unassign_speaker(speaker_id)
+        self.memory.reload_names()
+        self.storage.rewrite_note_mentions(speaker_id, name=self.memory.get_name(speaker_id))
         self.memory.remove_speaker(speaker_id)
         log.info(f"Deleted speaker {speaker_id} ({result['segments']} segments unassigned)")
         return result
@@ -172,10 +175,11 @@ class CommitService:
 
         Every segment and possible match of from_id goes to into_id. into_id keeps
         their name, handle, colour and photo; one without a name takes from_id's.
-        from_id is then removed entirely. into_id's voice is recomputed from all
-        their segments.
+        Mentions of from_id in notes mention into_id. from_id is then removed
+        entirely. into_id's voice is recomputed from all their segments.
         Returns the moved {segments, transcripts} counts."""
         result = self.storage.move_speaker(from_id, into_id)
+        self.storage.rewrite_note_mentions(from_id, into_id=into_id)
         self.memory.reload_names()
         if self.memory.get_name(into_id) is None and self.memory.get_name(from_id) is not None:
             self.memory.take_identity(from_id, into_id)

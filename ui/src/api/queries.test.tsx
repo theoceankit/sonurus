@@ -13,6 +13,7 @@ import {
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle, useWaveform,
 } from './queries'
 import { effectiveSpeaker, type QueueUpdate } from './types'
+import { onMentionChange } from './note-mentions'
 import { createMockElectronAPI } from '../platform/electron-api-mock'
 
 const wrapperFor = (client: ApiClient) => ({ children }: { children: ReactNode }) => (
@@ -343,6 +344,39 @@ describe('the speakers section', () => {
     await waitFor(() => expect(result.current.speakers.data?.some(s => s.id === SPEAKER_IDS.unknown1)).toBe(false))
     expect(result.current.speakers.data?.find(s => s.id === mark)?.segments).toBe(marks + 1)
     await waitFor(() => expect(result.current.open.data?.segments.find(s => s.start === 16)?.speaker_resolved).toBe(mark))
+  })
+
+  const mentioning = (id: string, label: string) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'mention', attrs: { kind: 'speaker', id, label } }] }] })
+
+  test('merging a speaker moves their mentions in notes kept here, and tells the open editors', async () => {
+    const client = createFixtureClient()
+    await client.saveNote(WEEKLY_SYNC_ID, mentioning(SPEAKER_IDS.unknown1, 'Speaker 3'))
+    const heard = vi.fn()
+    const stop = onMentionChange(heard)
+    const { result } = renderHook(() => ({ note: useNote(WEEKLY_SYNC_ID), merge: useMergeSpeaker() }), { wrapper: wrapperFor(client) })
+    await waitFor(() => expect(result.current.note.data?.content).toBeTruthy())
+    await act(() => result.current.merge.mutateAsync({ speakerId: SPEAKER_IDS.unknown1, intoId: mark }))
+    stop()
+    expect(heard).toHaveBeenCalledWith({ kind: 'merge', from: SPEAKER_IDS.unknown1, into: mark })
+    await waitFor(() => expect(result.current.note.data?.content).toEqual(mentioning(mark, 'Speaker 3')))
+    expect((await client.getNote(WEEKLY_SYNC_ID)).content).toEqual(mentioning(mark, 'Speaker 3'))
+  })
+
+  test('deleting a speaker makes their mentions the name they had, as text', async () => {
+    const client = createFixtureClient()
+    await client.saveNote(WEEKLY_SYNC_ID, mentioning(mark, 'Mark'))
+    const heard = vi.fn()
+    const stop = onMentionChange(heard)
+    const { result } = renderHook(() => ({ speakers: useSpeakers(), note: useNote(WEEKLY_SYNC_ID), remove: useDeleteSpeaker() }), { wrapper: wrapperFor(client) })
+    await waitFor(() => expect(result.current.note.data?.content).toBeTruthy())
+    await waitFor(() => expect(result.current.speakers.data).toBeTruthy())
+    await act(() => result.current.remove.mutateAsync(mark))
+    stop()
+    const name = 'Mark Ellis'
+    const asText = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: name }] }] }
+    expect(heard).toHaveBeenCalledWith({ kind: 'delete', id: mark, name })
+    await waitFor(() => expect(result.current.note.data?.content).toEqual(asText))
+    expect((await client.getNote(WEEKLY_SYNC_ID)).content).toEqual(asText)
   })
 
   test('a refused merge changes nothing in the list', async () => {

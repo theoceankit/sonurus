@@ -1,14 +1,16 @@
 import type { JSONContent } from '@tiptap/react'
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { queryKeys, useKeepNote, useNote, useSpeakers } from '../../api/queries'
-import type { Note, NoteDocument } from '../../api/types'
+import { onMentionChange } from '../../api/note-mentions'
+import { queryKeys, useKeepNote, useNote, useSpeakers, useTranscript } from '../../api/queries'
+import { effectiveSpeaker, type Note, type NoteDocument } from '../../api/types'
 import { Button } from '../../components/Button/Button'
 import type { NoteQuote } from '../../components/NoteEditor/note-content'
 import { Stack } from '../../components/Stack/Stack'
 import { usePlayback, type Playback } from '../../media/playback'
 import type { NoteAutosave } from './note-autosave'
-import { speakerFinder } from './note-speakers'
+import { mentionCandidates, speakerFinder } from './note-speakers'
+import type { MentionCandidate } from '../../components/MentionList/mention-list'
 import styles from './EditorNotes.module.css'
 
 interface EditorNotesProps {
@@ -38,6 +40,12 @@ export function EditorNotes({ transcriptId, mode, title, saver, playback, quotes
   const note = useNote(transcriptId)
   const speakers = useSpeakers().data
   const findSpeaker = useMemo(() => speakerFinder(speakers ?? []), [speakers])
+  // Who @ offers: everyone named, those of this recording first, as they first speak.
+  const segments = useTranscript(transcriptId).data?.segments
+  const candidates = useMemo(() => {
+    const inRecording = [...new Set(segments?.map(effectiveSpeaker) ?? [])]
+    return mentionCandidates(speakers ?? [], inRecording)
+  }, [speakers, segments])
   const keep = useKeepNote()
   // The same function for every render, so the editor does not render with the player's time.
   const change = useCallback((doc: JSONContent) => {
@@ -62,6 +70,7 @@ export function EditorNotes({ transcriptId, mode, title, saver, playback, quotes
         mode={mode}
         title={title}
         findSpeaker={findSpeaker}
+        candidates={candidates}
         playback={playback}
         quotes={quotes}
         onQuoted={onQuoted}
@@ -74,12 +83,13 @@ export function EditorNotes({ transcriptId, mode, title, saver, playback, quotes
 
 interface NoteBodyProps extends Omit<EditorNotesProps, 'saver'> {
   findSpeaker: ReturnType<typeof speakerFinder>
+  candidates: readonly MentionCandidate[]
   onChange: (doc: JSONContent) => void
 }
 
 // The editor reads the note once, as it opens: what it has after that is its own,
 // and the cache follows it rather than the other way round.
-function NoteBody({ transcriptId, mode, title, findSpeaker, playback, quotes, onQuoted, onChange, onToggleExpanded }: NoteBodyProps) {
+function NoteBody({ transcriptId, mode, title, findSpeaker, candidates, playback, quotes, onQuoted, onChange, onToggleExpanded }: NoteBodyProps) {
   const queries = useQueryClient()
   const [content] = useState(() => queries.getQueryData<Note>(queryKeys.note(transcriptId))?.content as JSONContent | null | undefined)
   const time = usePlayback(playback, state => Math.floor(state.currentTime))
@@ -91,6 +101,8 @@ function NoteBody({ transcriptId, mode, title, findSpeaker, playback, quotes, on
       title={title}
       content={content}
       findSpeaker={findSpeaker}
+      candidates={candidates}
+      mentionChanges={onMentionChange}
       time={time}
       timeDisabled={!ready}
       onSeek={seek}

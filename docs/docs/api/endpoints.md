@@ -678,7 +678,7 @@ The file, with its image type and `Cache-Control: private, max-age=31536000, imm
 
 ### `DELETE /speakers/{id}`
 
-Deletes a speaker through `CommitService.delete_speaker()`: every segment assigned to it becomes **unassigned** (`speaker_id = NULL`, `unassigned = 1`), then its embedding, names, color, handle and photo (the file too) are removed. Future recordings no longer match the deleted voice.
+Deletes a speaker through `CommitService.delete_speaker()`: every segment assigned to it becomes **unassigned** (`speaker_id = NULL`, `unassigned = 1`), its mentions in notes become plain text with the name it had ([Data Models → Note](../data-models.md#note)), then its embedding, names, color, handle and photo (the file too) are removed. Future recordings no longer match the deleted voice.
 
 ```json
 { "segments": 12, "transcripts": 3 }
@@ -690,7 +690,7 @@ Returns the number of segments and transcripts that became unassigned, `404` for
 
 Merges the speaker into another who turned out to be the same person, through `CommitService.merge_speaker()`. Body: `{ "into_id": "<speaker id>" }`, the speaker who stays.
 
-Every segment of the merged speaker, in every recording, goes to `into_id`, and so do its possible matches (one per recording: the higher score, confirmed if either was). `into_id` keeps their name, handle, colour and photo; one without a name takes the merged speaker's, handle and photo included. The merged speaker is then removed, its handle freed and, when `into_id` had a name, its photo file deleted. `into_id`'s voice profile is recomputed from all their segments. There is no undo.
+Every segment of the merged speaker, in every recording, goes to `into_id`, and so do its possible matches (one per recording: the higher score, confirmed if either was) and its mentions in notes. `into_id` keeps their name, handle, colour and photo; one without a name takes the merged speaker's, handle and photo included. The merged speaker is then removed, its handle freed and, when `into_id` had a name, its photo file deleted. `into_id`'s voice profile is recomputed from all their segments. There is no undo.
 
 ```json
 { "speaker": { "id": "…", "name": "Mark Ellis", "handle": "mark.ellis", "segments": 52, "transcripts": 10, "…": "…" }, "segments": 12, "transcripts": 3 }
