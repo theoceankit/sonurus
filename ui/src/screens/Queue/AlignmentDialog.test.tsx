@@ -100,8 +100,11 @@ test('a download started elsewhere shows as progress, not as Download', async ()
   // As Settings will: through the downloads of the same client.
   await act(() => modelDownloadsFor(client).start('cs'))
   await fail(failedJob('a', 'cs'))
-  expect(await within(dialog()!).findByRole('progressbar')).toBeTruthy()
-  expect(within(dialog()!).queryByRole('button', { name: /^Download/ })).toBeNull()
+  // The dialog opens once the failure has gone through the queue, which can take
+  // longer than fail() waits on a loaded machine.
+  const shown = await screen.findByRole('dialog')
+  expect(await within(shown).findByRole('progressbar')).toBeTruthy()
+  expect(within(shown).queryByRole('button', { name: /^Download/ })).toBeNull()
 })
 
 test('a model installed by the time the dialog opens is ready at once', async () => {
