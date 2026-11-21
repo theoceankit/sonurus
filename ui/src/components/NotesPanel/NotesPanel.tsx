@@ -1,7 +1,6 @@
 import type { JSONContent } from '@tiptap/react'
 import { useCallback, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import { formatClock } from '../../media/timeline'
-import { currentOs } from '../../platform/os'
 import { cx } from '../../styles/cx'
 import { Button } from '../Button/Button'
 import { IconButton } from '../IconButton/IconButton'
@@ -34,8 +33,13 @@ interface NotesPanelProps {
   // Where the player stands, to the second: what the time button inserts. Without
   // it there is no time button.
   time?: number
+  // While the player has no audio: the button stays, out of use.
+  timeDisabled?: boolean
   onSeek?: (seconds: number) => void
   onChange?: (doc: JSONContent) => void
+  // Quotes from the transcript to insert once the editor is there; onQuoted says they are in.
+  quotes?: NoteQuote[] | null
+  onQuoted?: () => void
   onCopy?: (markdown: string) => void
   onOpenLink?: (href: string) => void
   // Expand in the tab, collapse when expanded.
@@ -45,18 +49,16 @@ interface NotesPanelProps {
   ref?: Ref<NotesPanelHandle>
 }
 
-const shortcut = () => (currentOs() === 'mac' ? '⌘T' : 'Ctrl T')
-
 // The note of a recording: the player's time, Copy notes and the way to expand or
 // collapse it over the editor. It saves itself, so there is no Save.
 export function NotesPanel({
-  mode = 'tab', title, content, candidates, findSpeaker, time, onSeek, onChange, onCopy, onOpenLink, onToggleExpanded, autoFocus, className, ref,
+  mode = 'tab', title, content, candidates, findSpeaker, time, timeDisabled = false, onSeek, onChange, quotes, onQuoted, onCopy, onOpenLink, onToggleExpanded, autoFocus, className, ref,
 }: NotesPanelProps) {
   const editor = useRef<NoteEditorHandle>(null)
   const [empty, setEmpty] = useState(() => isEmptyNote(content))
   const { area, scrollRef, top, bottom } = useScrollEdges()
   const now = useRef(time)
-  now.current = time
+  now.current = timeDisabled ? undefined : time
 
   useImperativeHandle(ref, () => ({
     insertQuotes: quotes => editor.current?.insertQuotes(quotes),
@@ -87,8 +89,8 @@ export function NotesPanel({
             </Inline>
           )}
           {time !== undefined && (
-            <Tooltip text={`Insert player time, ${shortcut()}`}>
-              <Button variant="ghost" size="small" icon="clock" aria-label="Insert player time" onMouseDown={event => event.preventDefault()} onClick={insertTime}>
+            <Tooltip text="Insert player time">
+              <Button variant="ghost" size="small" icon="clock" aria-label="Insert player time" disabled={timeDisabled} onMouseDown={event => event.preventDefault()} onClick={insertTime}>
                 {formatClock(time)}
               </Button>
             </Tooltip>
@@ -112,7 +114,8 @@ export function NotesPanel({
               findSpeaker={findSpeaker}
               onSeek={onSeek}
               onChange={change}
-              onTimeShortcut={time === undefined ? undefined : insertTime}
+              quotes={quotes}
+              onQuoted={onQuoted}
               onOpenLink={onOpenLink}
               size={mode}
               autoFocus={autoFocus}

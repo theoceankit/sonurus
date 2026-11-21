@@ -83,3 +83,10 @@ describe('a checkbox typed as Markdown', () => {
     expect(blocks(editor)?.[0].type).toBe('bulletList')
   })
 })
+
+describe('a timecode', () => {
+  test('as plain text, such as a copy from the note, reads as the chip does', () => {
+    const editor = editorWith({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Agreed ' }, { type: 'timecode', attrs: { seconds: 754 } }, { type: 'text', text: ' and ' }, { type: 'timecode', attrs: { seconds: 3725 } }] }] })
+    expect(editor.getText()).toBe('Agreed [12:34] and [1:02:05]')
+  })
+})

@@ -21,3 +21,5 @@ export const Expanded: Story = {
 }
 // The player past an hour: the button shows the time it inserts.
 export const LongRecording: Story = { args: { content: minutesNote(SAMPLE_IDS), time: 3723 } }
+// The player has no audio yet, or its file is gone: the button stays, out of use.
+export const NoAudio: Story = { args: { content: minutesNote(SAMPLE_IDS), time: 0, timeDisabled: true } }
