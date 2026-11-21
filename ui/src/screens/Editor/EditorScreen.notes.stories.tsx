@@ -1,16 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import type { JSONContent } from '@tiptap/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { WEEKLY_SYNC_ID } from '../../api/fixtures/data'
-import { useSpeakers, useTranscript } from '../../api/queries'
-import { effectiveSpeaker } from '../../api/types'
-import { Button } from '../../components/Button/Button'
 import { Stack } from '../../components/Stack/Stack'
-import { NotesPanel, type NotesPanelHandle } from '../../components/NotesPanel/NotesPanel'
-import { usePlayback } from '../../media/playback'
-import { useTranscriptPlayback } from './EditorPlayer'
 import { EditorScreen } from './EditorScreen'
-import { mentionCandidates, speakerFinder, WEEKLY_SYNC_MINUTES } from './notes-fixtures'
+import { WEEKLY_SYNC_MINUTES } from './notes-fixtures'
 import { paragraph, waitFor } from './story-helpers'
 import { ApiError } from '../../api/client'
 import { DESIGN_REVIEW_ID } from '../../api/fixtures/data'
@@ -60,120 +53,38 @@ const typeInNote = async (canvasElement: HTMLElement, text: string) => {
   box.editor?.chain().focus('end').insertContent(text).run()
 }
 
-// A sketch of notes on the Editor: the note lives in the story, nothing is stored.
-// Mentions are still sketches here.
-interface NotesSketchProps {
-  tab?: 'speakers' | 'notes'
-  expanded?: boolean
-  content?: JSONContent | null
-  // Text typed into the note once it is there, such as "@an".
-  typing?: string
-  // The Markdown that Copy notes gives, shown next to the screen.
-  showCopied?: boolean
-}
+// The notes of the weekly sync with every chip, as stored: two speakers of the
+// recording, others from the base, someone not in it and a speaker deleted since.
+const withMinutes = { api: { overrides: { getNote: (id: number) => Promise.resolve(id === WEEKLY_SYNC_ID ? { content: WEEKLY_SYNC_MINUTES, updated_at: null } : { content: null, updated_at: null }) } } }
 
-function NotesSketch({ tab: initialTab = 'notes', expanded: initialExpanded = false, content = null, typing, showCopied }: NotesSketchProps) {
-  const speakers = useSpeakers().data
-  const transcript = useTranscript(WEEKLY_SYNC_ID).data
-  const playback = useTranscriptPlayback(WEEKLY_SYNC_ID)
-  const time = usePlayback(playback, state => Math.floor(state.currentTime))
-  const [tab, setTab] = useState(initialExpanded ? 'speakers' : initialTab)
-  const [expanded, setExpanded] = useState(initialExpanded)
-  const [doc, setDoc] = useState<JSONContent | null>(content)
-  const latest = useRef(doc)
+// What Copy notes puts on the clipboard, next to the screen.
+function CopyStand() {
   const [copied, setCopied] = useState<string | null>(null)
-  const panel = useRef<NotesPanelHandle>(null)
-
-  const inRecording = useMemo(() => [...new Set(transcript?.segments.map(effectiveSpeaker) ?? [])], [transcript])
-  const candidates = useMemo(() => mentionCandidates(speakers ?? [], inRecording), [speakers, inRecording])
-  const findSpeaker = useMemo(() => speakerFinder(speakers ?? []), [speakers])
-
-  const change = useCallback((next: JSONContent) => { latest.current = next }, [])
-
-  // What a panel starts from: the note as it was left in the other one.
-  const keep = () => setDoc(latest.current)
-  const toggleExpanded = () => {
-    keep()
-    setExpanded(was => !was)
-    setTab('speakers')
-  }
-  const copy = (markdown: string) => {
-    void window.electronAPI.writeClipboard(markdown)
-    setCopied(markdown)
-  }
   useEffect(() => {
-    if (!typing || !speakers) return
-    const timer = setTimeout(() => panel.current?.type(typing), 300)
-    return () => clearTimeout(timer)
-  }, [typing, speakers])
-
-  // Escape in the expanded note puts the transcript back.
-  const onKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Escape' && !event.defaultPrevented && expanded) toggleExpanded()
-  }
-
-  const ready = speakers !== undefined
-  const notesPanel = (mode: 'tab' | 'expanded') => (
-    <NotesPanel
-      key={mode}
-      ref={panel}
-      mode={mode}
-      title={mode === 'expanded' ? 'Weekly product sync' : undefined}
-      content={doc}
-      candidates={candidates}
-      findSpeaker={findSpeaker}
-      time={time}
-      onSeek={seconds => playback.seek(seconds)}
-      onChange={change}
-      onCopy={copy}
-      onToggleExpanded={toggleExpanded}
-      autoFocus={mode === 'expanded' || typing !== undefined}
-    />
-  )
-
+    const write = window.electronAPI.writeClipboard
+    window.electronAPI.writeClipboard = async text => {
+      setCopied(text)
+      return write(text)
+    }
+    return () => { window.electronAPI.writeClipboard = write }
+  }, [])
   return (
-    <div className={styles.stand} onKeyDown={onKeyDown}>
-      <div className={boards.board}>
-        <EditorScreen
-          pinnedIds={[WEEKLY_SYNC_ID, 2]}
-          initialSelectedId={WEEKLY_SYNC_ID}
-          playback={playback}
-          transcript={expanded && ready ? notesPanel('expanded') : undefined}
-          notes={{
-            tab: !ready ? null : expanded
-              ? (
-                  <Stack gap={2} padding={2} align="start" className={styles.elsewhere}>
-                    <span>The note is open in place of the transcript.</span>
-                    <Button size="small" icon="collapse" onClick={toggleExpanded}>Collapse notes</Button>
-                  </Stack>
-                )
-              : notesPanel('tab'),
-            inspectorTab: tab,
-            onInspectorTab: next => {
-              keep()
-              setTab(next as 'speakers' | 'notes')
-            },
-          }}
-        />
-      </div>
-      {showCopied && (
-        <Stack gap={2} className={styles.copied}>
-          <span className={styles.copiedTitle}>What Copy notes puts on the clipboard</span>
-          <pre className={styles.markdown}>{copied ?? 'Press Copy notes in the Notes tab.'}</pre>
-        </Stack>
-      )}
+    <div className={styles.stand}>
+      <AppNotes tab="notes" />
+      <Stack gap={2} className={styles.copied}>
+        <span className={styles.copiedTitle}>What Copy notes puts on the clipboard</span>
+        <pre className={styles.markdown}>{copied ?? 'Press Copy notes in the Notes tab.'}</pre>
+      </Stack>
     </div>
   )
 }
 
-const meta: Meta<typeof NotesSketch> = {
+const meta: Meta<typeof AppNotes> = {
   title: 'Screens/Editor/Notes',
-  component: NotesSketch,
+  component: AppNotes,
   parameters: { layout: 'fullscreen' },
 }
 export default meta
-
-type Story = StoryObj<typeof NotesSketch>
 
 type AppStory = StoryObj<typeof AppNotes>
 
@@ -201,9 +112,24 @@ export const NarrowWindow: AppStory = {
     show.click()
   },
 }
-// Sketches of what comes next: mentions, quotes and the Markdown of Copy notes with chips.
-export const MentionListOpen: Story = { args: { content: WEEKLY_SYNC_MINUTES, typing: '@an' } }
-export const MentionSomeoneElse: Story = { args: { content: WEEKLY_SYNC_MINUTES, typing: '@Sam from support' } }
+// Chips: speakers by their current name and photo, someone not in the base without
+// an avatar, a deleted speaker as text.
+export const NotesWithMentions: AppStory = { render: args => <AppNotes {...args} />, args: { tab: 'notes' }, parameters: withMinutes }
+// @ offers the speakers of this recording first, then the others; a search looks at
+// names and handles.
+export const MentionListOpen: AppStory = {
+  render: args => <AppNotes {...args} />,
+  args: { tab: 'notes' },
+  parameters: withMinutes,
+  play: ({ canvasElement }) => typeInNote(canvasElement, ' @an'),
+}
+// No one found: the name as typed, for someone not in the base.
+export const MentionSomeoneElse: AppStory = {
+  render: args => <AppNotes {...args} />,
+  args: { tab: 'notes' },
+  parameters: withMinutes,
+  play: ({ canvasElement }) => typeInNote(canvasElement, ' @Sam from support'),
+}
 const ACROSS_TWO_TURNS: [string, string] = ['Good. What about the import flow', 'That was me. Files over two hours']
 // Text across two turns selected in the transcript: the bar offers Quote to notes.
 export const QuoteToNotes: AppStory = {
@@ -224,4 +150,4 @@ export const QuoteIntoEmptyNote: AppStory = {
   args: { id: DESIGN_REVIEW_ID, tab: 'speakers' },
   play: ({ canvasElement }) => selectInTranscript(canvasElement, ["Let's look at the new inspector", "Let's look at the new inspector"], true),
 }
-export const CopyNotes: Story = { args: { content: WEEKLY_SYNC_MINUTES, showCopied: true } }
+export const CopyNotes: AppStory = { render: () => <CopyStand />, parameters: withMinutes }

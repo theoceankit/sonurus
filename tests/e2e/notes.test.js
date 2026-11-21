@@ -89,3 +89,37 @@ test('Quote to notes, a chip that seeks and the player time', async t => {
   await assertEventually(async () => (JSON.stringify(await notesOf() ?? {}).match(/"seconds":12/g) ?? []).length === 2,
     'the time is in the note, next to the quote that had it')
 })
+
+// @ offers the speakers of the recording; Enter mentions the one found, or, with no
+// one found, the name as typed. A speaker is kept by id, a person by name.
+test('mentions with @', async t => {
+  const app = await startApp()
+  t.after(app.stop)
+  const { page } = app
+  const recording = 'Weekly sync'
+  const notesOf = async () => {
+    const { id } = (await api('GET', '/transcripts')).find(item => item.title === recording)
+    return (await api('GET', `/transcripts/${id}/note`)).content
+  }
+  const mark = (await api('GET', '/speakers')).find(speaker => speaker.name === 'Mark Ellis').id
+  const inspector = () => page.getByRole('region', { name: 'Inspector' })
+  await page.getByRole('main', { name: 'Transcript' }).getByRole('heading', { name: recording }).waitFor()
+  await inspector().getByRole('tab', { name: 'Notes' }).click()
+  await inspector().getByRole('textbox', { name: 'Notes' }).click()
+
+  await page.keyboard.type('Ask @mar')
+  const list = page.getByRole('listbox', { name: 'Mention' })
+  await list.getByRole('group', { name: 'In this recording' }).getByRole('option', { name: /Mark Ellis/ }).waitFor()
+  await page.keyboard.press('Enter')
+  await list.waitFor({ state: 'detached' })
+  await page.keyboard.type('and @Sam from support')
+  await list.getByRole('option', { name: 'Mention "Sam from support"' }).waitFor()
+  await page.keyboard.press('Enter')
+
+  await inspector().getByText('Mark Ellis', { exact: true }).waitFor()
+  await inspector().getByText('Sam from support', { exact: true }).waitFor()
+  await assertEventually(async () => {
+    const saved = JSON.stringify(await notesOf() ?? {})
+    return saved.includes(`"id":"${mark}"`) && saved.includes('"kind":"person"') && saved.includes('Sam from support')
+  }, 'the note keeps the speaker by id and the person by name')
+})

@@ -4,6 +4,8 @@ import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type Li
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_GPU, FIXTURE_NOW, GONE_AUDIO_IDS, queueSnapshot, WEEKLY_SYNC_ID } from './data'
 import { weeklySyncNote } from './notes'
+import type { JSONContent } from '@tiptap/react'
+import { rewriteMentions, type MentionChange } from '../../components/NoteEditor/note-content'
 import { fixtureModels } from './models'
 import type { EventScript } from './event-scripts'
 import type { ModelDownloadEvent } from '../model-download-events'
@@ -283,6 +285,14 @@ export function createFixtureClient({
     })
   }
 
+  // As TranscriptStorageService.rewrite_note_mentions().
+  const rewriteNotes = (change: MentionChange) => {
+    for (const [id, note] of notes) {
+      const content = rewriteMentions(note.content as JSONContent, change) as NoteDocument
+      if (content !== note.content) notes.set(id, { ...note, content })
+    }
+  }
+
   const deleteSpeaker = (speakerId: string) => {
     speaker(speakerId)
     if (queue.running_job_id) throw new ApiError(409, 'A transcription is in progress')
@@ -308,6 +318,7 @@ export function createFixtureClient({
       }
       item.speakers = item.speakers.filter(id => id !== speakerId)
     }
+    rewriteNotes({ kind: 'delete', id: speakerId, name: data.speakers.find(s => s.id === speakerId)?.name })
     data.speakers = data.speakers.filter(s => s.id !== speakerId)
     return { segments, transcripts: touched.size }
   }
@@ -347,6 +358,7 @@ export function createFixtureClient({
       if (!item.speakers.includes(intoId)) newRecordings++
       item.speakers = item.speakers.flatMap(id => (id === speakerId ? (item.speakers.includes(intoId) ? [] : [intoId]) : [id]))
     }
+    rewriteNotes({ kind: 'merge', from: speakerId, into: intoId })
     data.speakers = data.speakers.filter(s => s.id !== speakerId)
     if (!into.name && from.name) {
       Object.assign(into, { name: from.name, handle: from.handle, handle_manual: from.handle_manual, color_index: from.color_index, photo: from.photo, photo_url: from.photo_url })

@@ -8,7 +8,7 @@ The note of a recording (meeting minutes): one per recording, in basic Markdown 
 
 ```
 EditorScreen → useNotesSaver (note-autosave.ts)
-     ├ InspectorPanel → Inspector → Notes tab → EditorNotes → NotesPanel → NoteEditor (Tiptap)
+     ├ InspectorPanel → Inspector → Notes tab → EditorNotes → NotesPanel → NoteEditor (Tiptap) → MentionList
      └ centre, expanded → EditorNotes
 ```
 
@@ -42,7 +42,13 @@ Quote to notes, on the bar over text selected in the transcript, puts the select
 
 The speaker of a quote is a mention by id, with the label the transcript shows. A named speaker is a chip with the avatar and the name as they are now; a speaker with no name yet, Unassigned or a deleted one reads as the label as text, and becomes a chip once named.
 
-The mention list of @ is not there yet: @ is plain text.
+## Mentions
+
+@ in the note opens a list under it (`MentionList`, its order in `mention-list.ts`): the speakers of this recording first, as they first speak in it, then the other speakers of the base as the speaker list has them (`mentionCandidates()` in `note-speakers.ts`). Only named speakers are there. What is typed after the @, spaces included, narrows both by name and handle, a leading @ left out. With something typed, the last row is Mention "…", for someone not in the base, such as a colleague from a chat. The arrow keys move through the list, Enter or Tab takes the highlighted row (the first speaker of the recording at first), and when no speaker is found the only row left, Mention "…", is the one Enter takes. Escape closes the list and leaves the text as typed. The focus stays in the note.
+
+A speaker becomes a chip with the avatar and the name, kept by id (`mention` in `note-extensions.tsx`): a new name, handle or photo shows at once, in every note. A person not in the base is a chip with "@" and the name, kept as text; it is never linked to a speaker, even one of the same name. There is no way to create a speaker from @.
+
+A speaker merged into another or deleted (in the [Speakers window](speakers.md)) is rewritten in every note by the backend: the mentions follow the speaker merged into; a deleted speaker becomes plain text, the name they had. A note open in the editor keeps its own document and would save the old one over the backend's, so it rewrites itself too: `useMergeSpeaker` and `useDeleteSpeaker` rewrite the notes in the cache and tell the open editor (`announceMentionChange()` in `api/note-mentions.ts`, `rewriteMentions()` in `note-content.ts`), which changes its mentions in one step that Undo leaves out, and saves.
 
 ## Saving
 
@@ -67,4 +73,4 @@ A note goes with its recording: Delete recording and Delete all data remove it o
 
 ## Stories
 
-Screens / Editor / Notes shows the notes as the app has them on fixtures (the weekly sync has a note): Closed, Notes Tab Empty, Notes Tab With Text, Notes Expanded, Save Failed (every save refused, typing says so), Narrow Window, Quote To Notes (two turns selected), Quote Inserted (their quotes in the opened tab) and Quote Into Empty Note. The stories after them are sketches of what mentions will do: the mention list and Copy notes with chips. Components / NoteEditor and NotesPanel have a story for each of their states, NotesPanel's No Audio the time button out of use. Components / NoteEditor and NotesPanel have a story for each of their states.
+Screens / Editor / Notes shows the notes as the app has them on fixtures (the weekly sync has a note): Closed, Notes Tab Empty, Notes Tab With Text, Notes Expanded, Save Failed (every save refused, typing says so), Narrow Window, Quote To Notes (two turns selected), Quote Inserted (their quotes in the opened tab) and Quote Into Empty Note. Notes With Mentions, Mention List Open, Mention Someone Else and Copy Notes have a note with every chip: speakers of the recording and others, a person not in the base and a deleted speaker. Components / NoteEditor, NotesPanel, MentionList and MentionChip have a story for each of their states, NotesPanel's No Audio the time button out of use.

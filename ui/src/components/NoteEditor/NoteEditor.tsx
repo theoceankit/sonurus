@@ -1,6 +1,7 @@
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Placeholder } from '@tiptap/extensions'
-import { NodeSelection } from '@tiptap/pm/state'
+import type { Node as PMNode } from '@tiptap/pm/model'
+import { NodeSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { EditorContent, useEditor, type JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion'
@@ -9,7 +10,7 @@ import { createPortal } from 'react-dom'
 import { cx } from '../../styles/cx'
 import { mentionList, type MentionCandidate, type MentionOption } from '../MentionList/mention-list'
 import { MentionList } from '../MentionList/MentionList'
-import { quoteBlock, timecode, type NoteQuote } from './note-content'
+import { quoteBlock, timecode, type MentionChange, type NoteQuote } from './note-content'
 import { NoteChips, NoteLink, NoteMention, TaskFromListItem, Timecode, type FindSpeaker } from './note-extensions'
 import styles from './NoteEditor.module.css'
 
@@ -28,6 +29,9 @@ interface NoteEditorProps {
   content?: JSONContent | null
   // Who @ offers; without them @ is plain text.
   candidates?: readonly MentionCandidate[]
+  // Speakers merged or deleted while the note is open: its mentions follow, as the
+  // backend has done with the notes it keeps. Returns a way to stop listening.
+  mentionChanges?: (listener: (change: MentionChange) => void) => () => void
   findSpeaker: FindSpeaker
   onSeek?: (seconds: number) => void
   onChange?: (doc: JSONContent) => void
@@ -50,6 +54,28 @@ const placeholder = (mentions: boolean) => `${PLACEHOLDER}${mentions ? ', @ to m
 
 const POPUP_GAP = 4
 
+// The mentions of a speaker who is gone, rewritten in one step that Undo leaves
+// alone: Undo cannot bring back a speaker. Null when the note does not mention them.
+function followSpeaker(state: EditorState, change: MentionChange): Transaction | null {
+  const id = change.kind === 'merge' ? change.from : change.id
+  const found: { pos: number; node: PMNode }[] = []
+  state.doc.descendants((node, pos) => {
+    if (node.type.name === 'mention' && node.attrs.kind === 'speaker' && node.attrs.id === id) found.push({ pos, node })
+  })
+  if (found.length === 0) return null
+  const tr = state.tr
+  for (const { pos, node } of found.reverse()) {
+    if (change.kind === 'merge') {
+      tr.setNodeMarkup(pos, undefined, { ...node.attrs, id: change.into })
+      continue
+    }
+    const name = change.name || (node.attrs.label as string)
+    if (name) tr.replaceWith(pos, pos + node.nodeSize, state.schema.text(name, node.marks))
+    else tr.delete(pos, pos + node.nodeSize)
+  }
+  return tr.setMeta('addToHistory', false)
+}
+
 interface Suggesting {
   query: string
   command: (attrs: object) => void
@@ -61,7 +87,7 @@ interface Suggesting {
 // checkboxes, quotes and links, with timecodes and mentions as chips. It renders again
 // only when what it is given changes, not with the player's time over it.
 export const NoteEditor = memo(function NoteEditor({
-  content, candidates, findSpeaker, onSeek, onChange, quotes, onQuoted, onOpenLink, size = 'tab', autoFocus, className, ref,
+  content, candidates, mentionChanges, findSpeaker, onSeek, onChange, quotes, onQuoted, onOpenLink, size = 'tab', autoFocus, className, ref,
 }: NoteEditorProps) {
   const [suggesting, setSuggesting] = useState<Suggesting | null>(null)
   const latest = useRef({ suggesting, candidates, onChange, onOpenLink })
@@ -173,6 +199,15 @@ export const NoteEditor = memo(function NoteEditor({
     insertQuotes(quotes)
     onQuoted?.()
   })
+
+  useEffect(() => {
+    if (!editor || !mentionChanges) return
+    return mentionChanges(change => {
+      if (editor.isDestroyed) return
+      const tr = followSpeaker(editor.state, change)
+      if (tr) editor.view.dispatch(tr)
+    })
+  }, [editor, mentionChanges])
 
   useImperativeHandle(ref, () => ({
     insertTimecode: seconds => {

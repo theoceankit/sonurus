@@ -1,6 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import type { Editor } from '@tiptap/core'
-import { describe, expect, test } from 'vitest'
+import type { JSONContent } from '@tiptap/react'
+import { describe, expect, test, vi } from 'vitest'
+import type { MentionChange } from './note-content'
 import { NoteEditor } from './NoteEditor'
 
 function editorWith(content: object | null = null) {
@@ -88,5 +90,63 @@ describe('a timecode', () => {
   test('as plain text, such as a copy from the note, reads as the chip does', () => {
     const editor = editorWith({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Agreed ' }, { type: 'timecode', attrs: { seconds: 754 } }, { type: 'text', text: ' and ' }, { type: 'timecode', attrs: { seconds: 3725 } }] }] })
     expect(editor.getText()).toBe('Agreed [12:34] and [1:02:05]')
+  })
+})
+
+describe('mentions of a speaker who is gone, in an open note', () => {
+  const A = 'a0000000-0000-4000-8000-00000000000a'
+  const B = 'b0000000-0000-4000-8000-00000000000b'
+  const doc = {
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [
+      { type: 'text', text: 'Ask ' },
+      { type: 'mention', attrs: { kind: 'speaker', id: A, label: 'Anna' } },
+      { type: 'text', text: ' and ' },
+      { type: 'mention', attrs: { kind: 'speaker', id: B, label: 'Mark' } },
+    ] }],
+  }
+
+  function open() {
+    let listener: ((change: MentionChange) => void) | null = null
+    const subscribe = (next: (change: MentionChange) => void) => {
+      listener = next
+      return () => { listener = null }
+    }
+    const onChange = vi.fn()
+    const view = render(<NoteEditor content={doc} findSpeaker={() => null} mentionChanges={subscribe} onChange={onChange} />)
+    const editor = (screen.getByRole('textbox', { name: 'Notes' }) as HTMLElement & { editor: Editor }).editor
+    const send = (change: MentionChange) => act(() => listener?.(change))
+    return { editor, send, onChange, view, listening: () => listener !== null }
+  }
+  const mentions = (editor: Editor) => ((editor.getJSON() as JSONContent).content![0].content ?? []).filter(node => node.type === 'mention').map(node => node.attrs?.id)
+
+  test('merged: they follow the speaker merged into, and the change is saved', () => {
+    const { editor, send, onChange } = open()
+    send({ kind: 'merge', from: A, into: B })
+    expect(mentions(editor)).toEqual([B, B])
+    expect(onChange).toHaveBeenCalled()
+  })
+
+  test('deleted: the name as text; Undo does not bring the speaker back', () => {
+    const { editor, send } = open()
+    send({ kind: 'delete', id: A, name: 'Anna Petrova' })
+    expect(editor.getText()).toBe('Ask Anna Petrova and @Mark')
+    expect(mentions(editor)).toEqual([B])
+    act(() => { editor.commands.undo() })
+    expect(mentions(editor)).toEqual([B])
+  })
+
+  test('another speaker leaves the note as it is', () => {
+    const { editor, send, onChange } = open()
+    send({ kind: 'merge', from: 'c0000000-0000-4000-8000-00000000000c', into: B })
+    expect(mentions(editor)).toEqual([A, B])
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  test('the note stops listening once it closes', () => {
+    const { view, listening } = open()
+    expect(listening()).toBe(true)
+    view.unmount()
+    expect(listening()).toBe(false)
   })
 })

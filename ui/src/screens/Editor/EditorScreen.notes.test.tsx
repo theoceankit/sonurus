@@ -12,6 +12,7 @@ import { OverlayProvider } from '../../OverlayProvider'
 import type { Playback, PlaybackState } from '../../media/playback'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { runBeforeClose } from '../../platform/before-close'
+import { announceMentionChange } from '../../api/note-mentions'
 import { EditorScreen } from './EditorScreen'
 
 afterEach(() => {
@@ -455,5 +456,76 @@ describe('Quote to notes', () => {
     expect(tab('Notes').getAttribute('aria-selected')).toBe('true')
     const editor = await editorIn(inspector())
     await waitFor(() => expect(quotes(editor)).toHaveLength(1))
+  })
+})
+
+describe('mentions', () => {
+  // As the keyboard types: the @ list follows the text before the cursor.
+  const typeIn = (editor: Editor, value: string) => act(() => {
+    for (const char of value) {
+      const { view } = editor
+      const { from, to } = view.state.selection
+      view.dispatch(view.state.tr.insertText(char, from, to))
+    }
+  })
+  const list = () => screen.findByRole('listbox', { name: 'Mention' })
+  const key = (editor: Editor, name: string) => act(() => {
+    editor.view.someProp('handleKeyDown', handle => handle(editor.view, new KeyboardEvent('keydown', { key: name })))
+  })
+  const mentionsIn = (editor: Editor) => {
+    const found: Record<string, unknown>[] = []
+    editor.state.doc.descendants(node => { if (node.type.name === 'mention') found.push(node.attrs) })
+    return found
+  }
+
+  test('@ offers the speakers of this recording, then the others; Enter mentions the first', async () => {
+    await open(DESIGN_REVIEW_ID)
+    const editor = await openNotes()
+    act(() => { editor.commands.focus('end') })
+    typeIn(editor, '@')
+    const shown = await list()
+    const groups = within(shown).getAllByRole('group')
+    expect(groups.map(group => group.getAttribute('aria-label'))).toEqual(['In this recording', 'Other speakers'])
+    const first = within(groups[0]).getAllByRole('option')[0]
+    expect(first.getAttribute('aria-selected')).toBe('true')
+    const name = first.querySelector('[class*=label]')!.textContent!
+    key(editor, 'Enter')
+    await waitFor(() => expect(screen.queryByRole('listbox', { name: 'Mention' })).toBeNull())
+    expect(mentionsIn(editor)).toEqual([expect.objectContaining({ kind: 'speaker', label: name })])
+    expect(await within(inspector()).findByText(name)).toBeTruthy()
+  })
+
+  test('a search finds a speaker by handle; someone not in the base is mentioned as typed', async () => {
+    await open(DESIGN_REVIEW_ID)
+    const editor = await openNotes()
+    act(() => { editor.commands.focus('end') })
+    typeIn(editor, '@mark.ellis')
+    expect(within(await list()).getAllByRole('option').map(option => option.querySelector('[class*=label]')!.textContent)).toEqual(['Mark Ellis', 'Mention "mark.ellis"'])
+    key(editor, 'Escape')
+    act(() => { editor.commands.setContent({ type: 'doc', content: [{ type: 'paragraph' }] }) })
+    act(() => { editor.commands.focus('end') })
+    typeIn(editor, '@Sam from support')
+    expect(within(await list()).getAllByRole('option').map(option => option.querySelector('[class*=label]')!.textContent)).toEqual(['Mention "Sam from support"'])
+    key(editor, 'Enter')
+    expect(mentionsIn(editor)).toEqual([expect.objectContaining({ kind: 'person', id: null, label: 'Sam from support' })])
+  })
+
+  test('a merged or deleted speaker: the open note follows and is saved', async () => {
+    const { client } = await open(DESIGN_REVIEW_ID)
+    const editor = await openNotes()
+    act(() => {
+      editor.commands.insertContent([
+        { type: 'mention', attrs: { kind: 'speaker', id: SPEAKER_IDS.mark, label: 'Mark' } },
+        { type: 'text', text: ' and ' },
+        { type: 'mention', attrs: { kind: 'speaker', id: SPEAKER_IDS.anna, label: 'Anna' } },
+      ])
+    })
+    act(() => announceMentionChange({ kind: 'merge', from: SPEAKER_IDS.mark, into: SPEAKER_IDS.lena }))
+    act(() => announceMentionChange({ kind: 'delete', id: SPEAKER_IDS.anna, name: 'Anna Petrova' }))
+    expect(mentionsIn(editor).map(attrs => attrs.id)).toEqual([SPEAKER_IDS.lena])
+    expect(await within(inspector()).findByText('Lena Kovacs')).toBeTruthy()
+    expect(editor.getText()).toBe('@Mark and Anna Petrova')
+    await waitFor(async () => expect(JSON.stringify((await client.getNote(DESIGN_REVIEW_ID)).content)).toContain('Anna Petrova'), { timeout: 3000 })
+    expect(JSON.stringify((await client.getNote(DESIGN_REVIEW_ID)).content)).not.toContain(SPEAKER_IDS.anna)
   })
 })

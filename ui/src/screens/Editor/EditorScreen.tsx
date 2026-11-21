@@ -65,18 +65,8 @@ interface EditorScreenProps {
   initialHighlight?: string
   // For a story: the Speakers window open.
   initialSpeakersOpen?: boolean
-  // For a story: the Notes tab and the tabs as the story keeps them.
-  notes?: EditorNotesSlot
   // For a story: the tab of the right panel, and the note expanded, for the recording open at the start.
   initialNotes?: { tab?: 'speakers' | 'notes'; expanded?: boolean }
-}
-
-// The Notes tab, the tab of the right panel shown, and Quote to notes in the transcript.
-export interface EditorNotesSlot {
-  tab: ReactNode
-  inspectorTab: string
-  onInspectorTab: (tab: string) => void
-  onQuote?: (quotes: NoteQuote[]) => void
 }
 
 // Wide until measured, and a width from the screen itself rather than the window,
@@ -95,7 +85,7 @@ function useWidth() {
   return { element, width }
 }
 
-export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, initialSpeakerId, initialHighlight, initialSpeakersOpen = false, notes, initialNotes }: EditorScreenProps) {
+export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initialSelectedId = null, transcript, inspector, player, playback: givenPlayback, initialSpeakerId, initialHighlight, initialSpeakersOpen = false, initialNotes }: EditorScreenProps) {
   const api = useApi()
   const queries = useQueryClient()
   const transcripts = useTranscripts()
@@ -113,7 +103,7 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
   // for the recording shown: another one opens on Speakers, with its transcript.
   const [notesState, setNotesState] = useState<{ id: number | null; tab: string; expanded: boolean }>({ id: shownId, tab: initialNotes?.tab ?? 'speakers', expanded: initialNotes?.expanded ?? false })
   const notesView = notesState.id === shownId ? notesState : { id: shownId, tab: 'speakers', expanded: false }
-  const notesExpanded = !notes && !transcript && shownId !== null && notesView.expanded
+  const notesExpanded = !transcript && shownId !== null && notesView.expanded
   const setInspectorTab = useCallback((tab: string) => setNotesState({ ...notesView, tab }), [notesView])
   // Expanded, the right panel goes back to Speakers; collapsed, the note is in its tab again.
   const toggleNotes = useCallback(() => setNotesState(notesView.expanded
@@ -326,26 +316,24 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
         ? <EmptyState onOpenSettings={() => settingsDialog.open('models')} />
         : notesExpanded && selectedId !== null
           ? <EditorNotes transcriptId={selectedId} mode="expanded" title={shownTitle} saver={notesSaver} playback={playback} onToggleExpanded={toggleNotes} />
-          : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} onQuote={notes ? notes.onQuote : onQuote} />),
-    [transcript, jobId, clearJob, empty, selectedId, playback, highlight, showAllSpeakers, settingsDialog, notes, onQuote, notesExpanded, shownTitle, notesSaver, toggleNotes],
+          : <TranscriptPanel transcriptId={selectedId} playback={playback} highlight={highlight} onShowAllSpeakers={showAllSpeakers} onDelete={setToDelete} onQuote={onQuote} />),
+    [transcript, jobId, clearJob, empty, selectedId, playback, highlight, showAllSpeakers, settingsDialog, onQuote, notesExpanded, shownTitle, notesSaver, toggleNotes],
   )
-  const notesTab = notes
-    ? notes.tab
-    : shownId === null
-      ? null
-      : notesExpanded
-        ? <NotesElsewhere onCollapse={toggleNotes} />
-        : (
-            <EditorNotes
-              transcriptId={shownId}
-              mode="tab"
-              saver={notesSaver}
-              playback={playback}
-              quotes={quoting?.id === shownId ? quoting.quotes : null}
-              onQuoted={quoted}
-              onToggleExpanded={toggleNotes}
-            />
-          )
+  const notesTab = shownId === null
+    ? null
+    : notesExpanded
+      ? <NotesElsewhere onCollapse={toggleNotes} />
+      : (
+          <EditorNotes
+            transcriptId={shownId}
+            mode="tab"
+            saver={notesSaver}
+            playback={playback}
+            quotes={quoting?.id === shownId ? quoting.quotes : null}
+            onQuoted={quoted}
+            onToggleExpanded={toggleNotes}
+          />
+        )
 
   // A refresh that fails leaves what was loaded on the screen.
   const failed = (transcripts.isError && !transcripts.data) || (speakers.isError && !speakers.data)
@@ -402,8 +390,8 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
                 initialSpeakerId={initialSpeakerId}
                 highlight={highlight}
                 notes={notesTab}
-                tab={notes ? notes.inspectorTab : notesView.tab}
-                onTabChange={notes ? notes.onInspectorTab : setInspectorTab}
+                tab={notesView.tab}
+                onTabChange={setInspectorTab}
               />
             )}
           </div>
