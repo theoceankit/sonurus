@@ -39,7 +39,7 @@ interface TranscriptPanelProps {
   onDelete?: (recording: RecordingToDelete) => void
   // The speaker under the pointer in the inspector: their turns are marked.
   highlight?: KeyStore<string | null>
-  // Quote to notes on the selection bar; without it there is none.
+  // Quote on the selection bar; without it there is none.
   onQuote?: (quotes: NoteQuote[]) => void
 }
 

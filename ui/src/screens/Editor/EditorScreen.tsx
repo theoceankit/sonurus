@@ -248,7 +248,7 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
     if (from instanceof HTMLButtonElement && from.matches(':focus-visible')) focusNext.current = { from, to: visible.inspector ? 'Show inspector' : 'Close inspector' }
     toggle('inspector')
   }
-  // Quote to notes: into the Notes tab, opened for it, with the right panel shown if
+  // Quote: into the Notes tab, opened for it, with the right panel shown if
   // it was closed or gave way to the sidebar in a narrow window.
   const quote = (quotes: NoteQuote[]) => {
     if (selectedId === null || quotes.length === 0) return

@@ -365,7 +365,7 @@ describe('the player time', () => {
   })
 })
 
-describe('Quote to notes', () => {
+describe('Quote', () => {
   const paragraphOf = (text: string) => within(center()).getByText(text)
   // From the start of one paragraph of the transcript to the end of another, as a drag does.
   const select = async (from: string, to: string) => {
@@ -382,7 +382,7 @@ describe('Quote to notes', () => {
     return screen.findByRole('toolbar', { name: 'Selected text' })
   }
   const quote = async (from: string, to: string) => {
-    await userEvent.click(within(await select(from, to)).getByRole('button', { name: 'Quote to notes' }))
+    await userEvent.click(within(await select(from, to)).getByRole('button', { name: 'Quote' }))
   }
   const GOOD = 'Good. What about the import flow? I saw a couple of complaints about large files.'
   const THAT_WAS_ME = 'That was me. Files over two hours took a long time to copy before the job even started.'

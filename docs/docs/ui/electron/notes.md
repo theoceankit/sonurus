@@ -36,7 +36,7 @@ The button in the header of the note shows where the player stands, to the secon
 
 ## Quotes from the transcript
 
-Quote to notes, on the bar over text selected in the transcript, puts the selection into the note as quotes, one for each turn it touches (`selectionQuotes()` in `quotes.ts`): a quote block opening with the speaker and the start of the first paragraph selected in that turn, as chips, and the words selected under them. They go where the cursor was last in the note, or at the end, as the time does, with an empty paragraph after them, and the selection in the transcript clears.
+Quote, on the bar over text selected in the transcript, puts the selection into the note as quotes, one for each turn it touches (`selectionQuotes()` in `quotes.ts`): a quote block opening with the speaker and the start of the first paragraph selected in that turn, as chips, and the words selected under them. They go where the cursor was last in the note, or at the end, as the time does, with an empty paragraph after them, and the selection in the transcript clears.
 
 `EditorScreen` keeps the quotes as a request for the recording, opens the Notes tab, and shows the right panel if it was closed or gave way to the sidebar in a narrow window. The tab takes them once its editor is there, after the note and the editor's chunk have loaded (`quotes` and `onQuoted` of `EditorNotes`), each request once. They go in through the editor, as typing does: the note saves itself, a recording without a note gets one, and Undo takes them back.
 

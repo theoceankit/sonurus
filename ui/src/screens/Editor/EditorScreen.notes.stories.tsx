@@ -22,7 +22,7 @@ function AppNotes({ id = WEEKLY_SYNC_ID, tab, expanded }: { id?: number; tab?: '
 }
 
 // Text selected in the transcript, from the start of one paragraph to the end of another,
-// as a drag does; then, if asked, Quote to notes on the bar that comes up.
+// as a drag does; then, if asked, Quote on the bar that comes up.
 const selectInTranscript = async (canvasElement: HTMLElement, [from, to]: [string, string], quote = false) => {
   const root = canvasElement.querySelector('main')!
   // The screen settles after the first paint (turns off screen start at an estimate,
@@ -43,7 +43,7 @@ const selectInTranscript = async (canvasElement: HTMLElement, [from, to]: [strin
   window.getSelection()!.addRange(range)
   document.dispatchEvent(new MouseEvent('mouseup'))
   if (!quote) return
-  const button = await waitFor(() => [...canvasElement.querySelectorAll('button')].find(node => node.textContent === 'Quote to notes'))
+  const button = await waitFor(() => [...canvasElement.querySelectorAll('button')].find(node => node.textContent === 'Quote'))
   button.click()
 }
 
@@ -131,7 +131,7 @@ export const MentionSomeoneElse: AppStory = {
   play: ({ canvasElement }) => typeInNote(canvasElement, ' @Sam from support'),
 }
 const ACROSS_TWO_TURNS: [string, string] = ['Good. What about the import flow', 'That was me. Files over two hours']
-// Text across two turns selected in the transcript: the bar offers Quote to notes.
+// Text across two turns selected in the transcript: the bar offers Quote.
 export const QuoteToNotes: AppStory = {
   render: args => <AppNotes {...args} />,
   args: { tab: 'speakers' },
