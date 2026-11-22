@@ -4,7 +4,8 @@
 // installer icons built from them by scripts/build-icons.js.
 //   electron/assets/icon-macos.png — macOS: plate 824 on a 1024 canvas, margin 100
 //   electron/assets/icon.png       — Windows, Linux: plate 896, margin 64, 8 px up
-// The macOS tray icon is a template image drawn apart (build/icons/trayTemplate.svg).
+// The tray icons are the quill drawn apart (build/icons/trayTemplate.svg): a template
+// image on macOS, made for Windows and Linux by scripts/build-tray-icons.js.
 // The tests read PNG, ICNS and ICO with Node built-ins only (CI has no node_modules).
 
 const test   = require('node:test')
@@ -151,3 +152,54 @@ for (const [file, size] of [['electron/assets/trayTemplate.png', 18], ['electron
     assert.ok(shown > size * size / 4, `only ${shown} pixels shown`)
   })
 }
+
+// A frame of a Windows tray icon: 32-bit BGRA, bottom-up, as Windows reads it at any size.
+function icoFrame({ size, data }) {
+  assert.equal(data.readUInt32LE(0), 40, `${size} px frame is not a bitmap`)
+  assert.equal(data.readUInt16LE(14), 32, `${size} px frame is not 32-bit`)
+  const pixels = data.subarray(40, 40 + size * size * 4)
+  const rgba = Buffer.alloc(pixels.length)
+  for (let i = 0; i < pixels.length; i += 4) {
+    rgba[i] = pixels[i + 2]; rgba[i + 1] = pixels[i + 1]; rgba[i + 2] = pixels[i]; rgba[i + 3] = pixels[i + 3]
+  }
+  return rgba
+}
+
+// Windows: one colour with the shape in alpha, a frame for each scale from 100% to 300%.
+for (const [file, colour] of [['electron/assets/trayOnDark.ico', 255], ['electron/assets/trayOnLight.ico', 0]]) {
+  test(`${file} is a one-colour quill at every taskbar scale`, () => {
+    const entries = icoEntries(read(file))
+    assert.deepEqual(entries.map(e => e.size), [16, 20, 24, 32, 40, 48])
+    for (const entry of entries) {
+      const rgba = icoFrame(entry)
+      let shown = 0
+      for (let i = 0; i < rgba.length; i += 4) {
+        if (rgba[i + 3] === 0) continue
+        shown++
+        assert.deepEqual([...rgba.subarray(i, i + 3)], [colour, colour, colour], `${entry.size} px, pixel ${i / 4}`)
+      }
+      assert.ok(shown > entry.size * entry.size / 8, `${entry.size} px: only ${shown} pixels shown`)
+    }
+  })
+}
+
+// Linux: the colour of the panel is unknown, so a white quill in a dark outline shows on any.
+test('electron/assets/trayLinux.png is a 44 px white quill with a whole dark outline', () => {
+  const size = 44
+  const img = decodePng(read('electron/assets/trayLinux.png'))
+  assert.deepEqual([img.width, img.height], [size, size])
+  let light = 0, dark = 0
+  for (let i = 0; i < img.rgba.length; i += 4) {
+    if (img.rgba[i + 3] < 200) continue
+    const level = (img.rgba[i] + img.rgba[i + 1] + img.rgba[i + 2]) / 3
+    if (level > 230) light++
+    if (level < 60) dark++
+  }
+  assert.ok(light > size * size / 16, `only ${light} white pixels`)
+  assert.ok(dark > size * size / 16, `only ${dark} dark pixels`)
+  for (let n = 0; n < size; n++) {
+    for (const [x, y] of [[n, 0], [n, size - 1], [0, n], [size - 1, n]]) {
+      assert.ok(img.rgba[(y * size + x) * 4 + 3] < 128, `the outline is cut at ${x},${y}`)
+    }
+  }
+})

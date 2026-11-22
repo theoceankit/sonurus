@@ -58,6 +58,7 @@ if (process.platform === 'darwin') {
 let mainWin = null
 let titleBarDimmer = null
 let tray = null
+let trayFile = null
 // Whether there is a tray to stay in (electron/tray.js); found out at start-up.
 let hasTray = Promise.resolve(false)
 // Set once the app may quit: the question was asked, or there was nothing to ask.
@@ -182,6 +183,7 @@ ipcMain.handle('set-theme', (_e, source) => {
 // The OS or the setting changed the theme: the window behind the page takes it, and
 // the strip of the window buttons moves to it as the page cross-fades.
 nativeTheme.on('updated', () => {
+  updateTrayIcon()
   if (!mainWin || mainWin.isDestroyed()) return
   mainWin.setBackgroundColor(windowChrome(nativeTheme.shouldUseDarkColors).backgroundColor)
   titleBarDimmer?.setTheme(nativeTheme.shouldUseDarkColors)
@@ -388,12 +390,22 @@ function showWindow() {
   mainWin.focus()
 }
 
-// A template image in the macOS menu bar, the colour app icon elsewhere (electron/tray.js).
+const currentTrayFile = () => trayIcon(process.platform, nativeTheme.shouldUseDarkColorsForSystemIntegratedUI)
+const trayImage = file => nativeImage.createFromPath(path.join(__dirname, 'assets', file))
+
+// The system theme changed: on Windows the quill takes the colour of the new taskbar.
+function updateTrayIcon() {
+  if (!tray) return
+  const file = currentTrayFile()
+  if (file === trayFile) return
+  trayFile = file
+  tray.setImage(trayImage(file))
+}
+
+// The quill in the tray, in the file for this system and theme (electron/tray.js).
 function createTray() {
-  const { file, size } = trayIcon(process.platform)
-  const image = nativeImage.createFromPath(path.join(__dirname, 'assets', file))
-  const icon = size ? image.resize({ width: size, height: size }) : image
-  tray = new Tray(icon)
+  trayFile = currentTrayFile()
+  tray = new Tray(trayImage(trayFile))
   tray.setToolTip('Sonorus')
   tray.setContextMenu(Menu.buildFromTemplate(trayMenu({ open: showWindow, quit: () => void requestQuit() })))
   // Where the tray sends clicks (Windows, KDE); on GNOME a click opens the menu.

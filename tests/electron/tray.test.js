@@ -174,17 +174,38 @@ test('a damaged state file counts as not shown', () => {
   } finally { t.done() }
 })
 
-test('macOS takes the template image as it is: the menu bar tints it and picks @2x', () => {
-  assert.deepEqual(trayIcon('darwin'), { file: 'trayTemplate.png', size: null })
+test('macOS takes the template image whatever the theme: the menu bar tints it', () => {
+  assert.equal(trayIcon('darwin', true), 'trayTemplate.png')
+  assert.equal(trayIcon('darwin', false), 'trayTemplate.png')
 })
 
-test('Windows and Linux take the colour app icon, made small', () => {
-  assert.deepEqual(trayIcon('win32'), { file: 'icon.png', size: 32 })
-  assert.deepEqual(trayIcon('linux'), { file: 'icon.png', size: 22 })
+test('Windows takes the quill that shows on the taskbar of the system theme', () => {
+  assert.equal(trayIcon('win32', true), 'trayOnDark.ico')
+  assert.equal(trayIcon('win32', false), 'trayOnLight.ico')
+})
+
+test('Linux takes the outlined quill whatever the theme: the colour of the panel is unknown', () => {
+  assert.equal(trayIcon('linux', true), 'trayLinux.png')
+  assert.equal(trayIcon('linux', false), 'trayLinux.png')
 })
 
 test('every tray icon file is in electron/assets', () => {
   for (const platform of ['darwin', 'win32', 'linux']) {
-    assert.ok(fs.existsSync(path.join(ROOT, 'electron', 'assets', trayIcon(platform).file)), platform)
+    for (const dark of [true, false]) {
+      assert.ok(fs.existsSync(path.join(ROOT, 'electron', 'assets', trayIcon(platform, dark))), `${platform} ${dark}`)
+    }
   }
+})
+
+test('main.js asks for the theme of the system, not the one of the app, for the tray', () => {
+  const main = fs.readFileSync(path.join(ROOT, 'electron', 'main.js'), 'utf8')
+  assert.match(main, /trayIcon\(process\.platform, nativeTheme\.shouldUseDarkColorsForSystemIntegratedUI\)/)
+})
+
+test('main.js updates the tray icon before the theme handler leaves for a missing window', () => {
+  const main = fs.readFileSync(path.join(ROOT, 'electron', 'main.js'), 'utf8')
+  const handler = main.slice(main.indexOf("nativeTheme.on('updated'"))
+  const update = handler.indexOf('updateTrayIcon()')
+  assert.ok(update > 0, 'the handler does not update the tray')
+  assert.ok(update < handler.indexOf('if (!mainWin'), 'a window closed to the tray would keep the old icon')
 })

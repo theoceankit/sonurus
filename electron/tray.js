@@ -43,13 +43,16 @@ function trayMenu({ open, quit }) {
   ]
 }
 
-// The tray icon in electron/assets. macOS: a template image (black, shape in alpha), the
-// name ending in Template tells Electron so; the menu bar tints it for its light or dark
-// look and takes trayTemplate@2x.png on Retina, so it is not resized. Elsewhere: the
-// colour app icon, made small.
-function trayIcon(platform) {
-  if (platform === 'darwin') return { file: 'trayTemplate.png', size: null }
-  return { file: 'icon.png', size: platform === 'win32' ? 32 : 22 }
+// The file of the tray icon in electron/assets, the same quill everywhere. macOS: a
+// template image (black, shape in alpha), the name ending in Template tells Electron so;
+// the menu bar tints it and takes the @2x file on Retina. Windows: white or black for the
+// taskbar of the system theme (systemDark), which the theme of the app does not change,
+// with a frame for each display scale. Linux: nothing tells the colour of the panel, so
+// a white quill in a dark outline that shows on any, with an @2x file.
+function trayIcon(platform, systemDark) {
+  if (platform === 'darwin') return 'trayTemplate.png'
+  if (platform === 'win32') return systemDark ? 'trayOnDark.ico' : 'trayOnLight.ico'
+  return 'trayLinux.png'
 }
 
 // Windows and macOS always have one. On Linux the tray is the StatusNotifierItem host
