@@ -15,7 +15,11 @@ export type ElectronSettings = {
   transcribeLang: string
   transcribeModel: string | null
   transcribeModelHistory: string[]
+  // A file of an older version may hold a format that is gone: read it with exportFormatOf().
   exportFormat: string
+  exportTimestamps: boolean
+  exportSpeakers: boolean
+  exportNotes: boolean
   // What a live recording takes, as the New recording dialog last started it.
   recordingAudioSource: 'mic' | 'system' | 'both'
   // Null is the default microphone, or the default system audio source.

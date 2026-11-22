@@ -1,10 +1,10 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Profiler, useState, type ReactNode } from 'react'
+import { Profiler, useEffect, useState, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiProvider } from '../../api/ApiProvider'
 import { ApiError } from '../../api/client'
-import { useSetSpeakerPhoto } from '../../api/queries'
+import { useKeepNote, useSetSpeakerPhoto } from '../../api/queries'
 import { DESIGN_REVIEW_ID, SPEAKER_IDS, WEEKLY_SYNC_ID } from '../../api/fixtures/data'
 import { effectiveSpeaker } from '../../api/types'
 import { createFixtureClient, type FixtureOptions } from '../../api/fixtures/fixture-client'
@@ -13,6 +13,9 @@ import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { createKeyStore, type KeyStore } from '../../media/active-segment'
 import type { Playback, PlaybackState } from '../../media/playback'
 import { OverlayProvider } from '../../OverlayProvider'
+import type { ElectronSettings, ExportRequest, ExportResult } from '../../platform/electron-api'
+import { createMockElectronAPI } from '../../platform/electron-api-mock'
+import { DEFAULT_SETTINGS } from '../../platform/settings'
 import { TranscriptPanel } from './TranscriptPanel'
 
 const paragraphRenders = vi.hoisted(() => ({ count: 0 }))
@@ -718,4 +721,106 @@ test('opening another recording starts clean', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'other' }))
   await screen.findByRole('heading', { name: 'Long recording, 3 hours' })
   expect(screen.queryByRole('textbox', { name: 'Paragraph text' })).toBeNull()
+})
+
+describe('Export', () => {
+  const prepare = async (settings: Partial<ElectronSettings> = {}, result: ExportResult = { status: 'saved' }) => {
+    const saveExport = vi.fn(async (_request: ExportRequest) => result)
+    const bridge = createMockElectronAPI({ saveExport })
+    await bridge.writeSettings({ ...DEFAULT_SETTINGS, ...settings })
+    vi.stubGlobal('electronAPI', bridge)
+    return saveExport
+  }
+  const press = async () => userEvent.click(await screen.findByRole('button', { name: 'Export' }))
+  const sent = (saveExport: ReturnType<typeof vi.fn>) => saveExport.mock.calls[0][0] as ExportRequest
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  test('hands over every format, starting on the default one, and says it is done', async () => {
+    const saveExport = await prepare({ exportFormat: 'md' })
+    setup()
+    await press()
+    await screen.findByText('Exported')
+    const request = sent(saveExport)
+    expect(request.title).toBe('Weekly product sync')
+    expect(request.format).toBe('md')
+    expect(request.contents.txt.startsWith('Weekly product sync\n\n')).toBe(true)
+    expect(request.contents.md.startsWith('# Weekly product sync\n\n')).toBe(true)
+    expect(JSON.parse(request.contents.json).segments.length).toBeGreaterThan(0)
+  })
+
+  test('a format saved by an older version starts on text', async () => {
+    const saveExport = await prepare({ exportFormat: 'vtt' })
+    setup()
+    await press()
+    await waitFor(() => expect(saveExport).toHaveBeenCalled())
+    expect(sent(saveExport).format).toBe('txt')
+  })
+
+  test('follows the settings of what goes in', async () => {
+    const saveExport = await prepare({ exportTimestamps: false, exportSpeakers: false })
+    setup()
+    await press()
+    await waitFor(() => expect(saveExport).toHaveBeenCalled())
+    const [first] = JSON.parse(sent(saveExport).contents.json).segments
+    expect(Object.keys(first)).toEqual(['text'])
+  })
+
+  test('leaves the note out unless asked', async () => {
+    const saveExport = await prepare()
+    const { client } = setup()
+    const getNote = vi.spyOn(client, 'getNote')
+    await press()
+    await waitFor(() => expect(saveExport).toHaveBeenCalled())
+    expect(getNote).not.toHaveBeenCalled()
+    expect('note' in JSON.parse(sent(saveExport).contents.json)).toBe(false)
+  })
+
+  test('with notes on, the note goes in', async () => {
+    const saveExport = await prepare({ exportNotes: true })
+    setup()
+    await press()
+    await waitFor(() => expect(saveExport).toHaveBeenCalled())
+    expect(JSON.parse(sent(saveExport).contents.json).note).toBeTruthy()
+    expect(sent(saveExport).contents.md).toContain('## Notes')
+  })
+
+  test('the note goes in as the editor has it, saved or not', async () => {
+    const saveExport = await prepare({ exportNotes: true })
+    const Typed = () => {
+      const keep = useKeepNote()
+      useEffect(() => keep(WEEKLY_SYNC_ID, { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Not saved yet' }] }] }), [keep])
+      return null
+    }
+    setup({}, WEEKLY_SYNC_ID, panel => <><Typed />{panel}</>)
+    await press()
+    await waitFor(() => expect(saveExport).toHaveBeenCalled())
+    expect(JSON.parse(sent(saveExport).contents.json).note).toBe('Not saved yet')
+  })
+
+  test('a note that cannot be read stops the export', async () => {
+    const saveExport = await prepare({ exportNotes: true })
+    const { client } = setup()
+    vi.spyOn(client, 'getNote').mockRejectedValue(new Error('backend is gone'))
+    await press()
+    await screen.findByText('Failed to export: backend is gone')
+    expect(saveExport).not.toHaveBeenCalled()
+  })
+
+  test('a cancelled dialog says nothing', async () => {
+    const saveExport = await prepare({}, { status: 'canceled' })
+    setup()
+    await press()
+    await waitFor(() => expect(saveExport).toHaveBeenCalled())
+    await act(async () => { await Promise.resolve() })
+    expect(screen.queryByText('Exported')).toBeNull()
+    expect(screen.queryByText(/Failed to export/)).toBeNull()
+  })
+
+  test('a failed write says why', async () => {
+    await prepare({}, { status: 'failed', message: 'disk full' })
+    setup()
+    await press()
+    await screen.findByText('Failed to export: disk full')
+  })
 })

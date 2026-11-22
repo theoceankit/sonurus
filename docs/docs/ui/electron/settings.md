@@ -75,7 +75,7 @@ The HuggingFace token (`hfToken`), hidden until the eye button shows it. The ico
 
 ## Export
 
-Shown and marked with `markNotImplemented()` as a whole: export does not exist yet, so its format, Duplicate on export and what to include change nothing.
+What [Export in the transcript header](transcript.md#export) does: Default format (Plain text, Markdown or JSON; `exportFormat`), the format the save dialog starts on, and what goes in: Timestamps, Speaker labels and Notes (`exportTimestamps`, `exportSpeakers`, `exportNotes`), the first two on and Notes off by default, as an export is often passed on and a note may be private. Bookmarks and Original audio file are marked with `markNotImplemented()`. Reset preferences puts all of them back.
 
 ## Data
 

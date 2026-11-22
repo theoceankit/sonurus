@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
@@ -38,11 +38,19 @@ test('leaves out what it does not know', () => {
   expect(screen.queryByText('English')).toBeNull()
 })
 
-test.each([false, true])('sticky %s: Pin and Export are not available yet', sticky => {
+test.each([false, true])('sticky %s: Pin is not available yet', sticky => {
   setup({ sticky })
-  for (const name of ['Pin', 'Export']) {
-    expect(screen.getByRole('button', { name }).getAttribute('aria-disabled')).toBe('true')
-  }
+  expect(screen.getByRole('button', { name: 'Pin' }).getAttribute('aria-disabled')).toBe('true')
+})
+
+test.each([false, true])('sticky %s: Export exports, and is off with nothing to export', async sticky => {
+  const onExport = vi.fn()
+  setup({ sticky, onExport })
+  await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+  expect(onExport).toHaveBeenCalledOnce()
+  cleanup()
+  setup({ sticky })
+  expect((screen.getByRole('button', { name: 'Export' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
 test.each([false, true])('sticky %s: More offers to delete the recording', async sticky => {

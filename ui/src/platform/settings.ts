@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
-import type { ElectronAPI, ElectronSettings } from './electron-api'
+import type { ElectronAPI, ElectronSettings, ExportFormat } from './electron-api'
 
 // Electron's settings file (settings.json in userData). writeSettings writes it whole,
 // so every change here goes through one queue: each write reads the file again and
@@ -12,6 +12,9 @@ export const DEFAULT_SETTINGS: ElectronSettings = {
   transcribeModel: null,
   transcribeModelHistory: [],
   exportFormat: 'txt',
+  exportTimestamps: true,
+  exportSpeakers: true,
+  exportNotes: false,
   recordingAudioSource: 'both',
   recordingMicDevice: null,
   recordingSystemDevice: null,
@@ -26,6 +29,9 @@ export const DEFAULT_SETTINGS: ElectronSettings = {
   promptStartSelected: [],
   promptEnd: 'suggest',
 }
+
+// Older versions could save srt or vtt, which are no longer offered.
+export const exportFormatOf = (saved: string): ExportFormat => (saved === 'md' || saved === 'json' ? saved : 'txt')
 
 export type SettingsStore = {
   // What the app knows of the settings: null until the file has been read once.

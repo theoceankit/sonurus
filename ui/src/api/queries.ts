@@ -279,6 +279,18 @@ export function useNote(id: number | null) {
   })
 }
 
+// The note once, for an export: what the cache holds, saved or not, else from the backend.
+export function useReadNote() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useCallback((id: number) => queries.fetchQuery({
+    queryKey: queryKeys.note(id),
+    queryFn: () => api.getNote(id),
+    staleTime: Infinity,
+    gcTime: Infinity,
+  }), [api, queries])
+}
+
 // The editor's document, kept as the note of the recording at once: the note opens
 // with it in the tab or expanded, whether or not it has been saved yet.
 export function useKeepNote() {

@@ -10,7 +10,7 @@ import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
-import { DEFAULT_SETTINGS } from '../../platform/settings'
+import { DEFAULT_SETTINGS, exportFormatOf } from '../../platform/settings'
 import { findDialog, findTitlebarButton, queryDialog } from '../../test-queries'
 
 afterEach(() => {
@@ -100,14 +100,35 @@ test('a token left as it was is not written again on closing', async () => {
   expect(write).not.toHaveBeenCalled()
 })
 
-test('Export is shown and not available yet; its controls change nothing', async () => {
+test('Export: what goes in is saved', async () => {
   const bridge = await setup()
   const settings = await openSection('Export')
   const card = within(settings).getByRole('region', { name: 'Export' })
-  expect(card.closest('[data-not-implemented]')?.getAttribute('data-not-implemented')).toBe('settings.export')
-  const toggle = within(card).getByRole('switch', { name: 'Bookmarks' })
+  for (const [name, key, before] of [['Timestamps', 'exportTimestamps', true], ['Speaker labels', 'exportSpeakers', true], ['Notes', 'exportNotes', false]] as const) {
+    const toggle = within(card).getByRole('switch', { name })
+    expect(toggle.getAttribute('aria-checked')).toBe(String(before))
+    await userEvent.click(toggle)
+    expect(toggle.getAttribute('aria-checked')).toBe(String(!before))
+    await waitFor(async () => expect((await bridge.readSettings())[key]).toBe(!before))
+  }
+  expect(within(card).queryByRole('switch', { name: 'Duplicate on export' })).toBeNull()
+})
+
+test('Export: the default format is one of three, and an old srt reads as text', () => {
+  expect(exportFormatOf('srt')).toBe('txt')
+  expect(exportFormatOf('vtt')).toBe('txt')
+  expect(exportFormatOf('md')).toBe('md')
+  expect(exportFormatOf('json')).toBe('json')
+})
+
+test.each([['Bookmarks', 'settings.export-bookmarks'], ['Original audio file', 'settings.export-audio']])('Export: %s is not available yet', async (name, id) => {
+  const bridge = await setup()
+  const settings = await openSection('Export')
+  const before = await bridge.readSettings()
+  const toggle = within(within(settings).getByRole('region', { name: 'Export' })).getByRole('switch', { name })
+  expect(toggle.getAttribute('data-not-implemented')).toBe(id)
   await userEvent.click(toggle)
   expect(toggle.getAttribute('aria-checked')).toBe('false')
   expect((await screen.findAllByText(NOT_IMPLEMENTED_TOAST)).length).toBeGreaterThan(0)
-  expect((await bridge.readSettings()).exportFormat).toBe('txt')
+  expect(await bridge.readSettings()).toEqual(before)
 })
