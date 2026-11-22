@@ -8,7 +8,7 @@ const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
 const { showModelsFolder } = require('./models-folder')
 const { openLink } = require('./links')
 const { askWindowToFinish } = require('./window-closing')
-const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown, trayIcon, trayMenu } = require('./tray')
+const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown, trayIcon, trayMenu, trayRecordingState } = require('./tray')
 const { watchTaskbarTheme, WM_SETTINGCHANGE } = require('./taskbar-theme')
 const { watchBackendEvents } = require('./backend-events')
 const { appUserModelId, micApps, notificationsOn, promptFor, rememberMicApp, stopOutcome, stopTimedOut } = require('./recording-prompts')
@@ -73,7 +73,7 @@ let quitAsked = false
 let started = false
 // The backend's queue events, heard here for the notifications of a call.
 let backendEvents = null
-// What a click on a notification asks the window to open, until the window takes it.
+// What a click on a notification or the tray menu asks the window to open, until the window takes it.
 let windowIntent = null
 // A recording stopped automatically, until the backend says how it ended.
 let autoStop = null
@@ -307,7 +307,11 @@ app.whenReady().then(async () => {
 
   createWindow()
   started = true
-  backendEvents = watchBackendEvents({ url: 'ws://127.0.0.1:8000/ws/queue', onEvent: onBackendEvent, onSnapshot: onAutoStopOutcome })
+  backendEvents = watchBackendEvents({ url: 'ws://127.0.0.1:8000/ws/queue',
+    onEvent: onBackendEvent,
+    onSnapshot: onQueueSnapshot,
+    onDisconnect: () => setTrayRecording('unknown'),
+  })
   if (await hasTray) createTray()
 })
 
@@ -326,6 +330,11 @@ function onBackendEvent(event) {
     return
   }
   notify(prompt, () => openWithIntent(prompt.intent))
+}
+
+function onQueueSnapshot(event) {
+  onAutoStopOutcome(event)
+  setTrayRecording(trayRecordingState(event.recording))
 }
 
 // Stop answers before the recording is saved: the notice waits for how it ended.
@@ -422,9 +431,30 @@ function createTray() {
   trayFile = currentTrayFile()
   tray = new Tray(trayImage(trayFile))
   tray.setToolTip('Sonorus')
-  tray.setContextMenu(Menu.buildFromTemplate(trayMenu({ open: showWindow, quit: () => void requestQuit() })))
+  buildTrayMenu()
   // Where the tray sends clicks (Windows, KDE); on GNOME a click opens the menu.
   tray.on('click', showWindow)
+}
+
+// The state of the recording item (electron/tray.js). Kept here, as the first snapshot
+// may come before the tray exists.
+let trayRecording = 'unknown'
+
+// Only on a change: a menu set again while it is open may close on some systems.
+function setTrayRecording(state) {
+  if (state === trayRecording) return
+  trayRecording = state
+  if (tray) buildTrayMenu()
+}
+
+function buildTrayMenu() {
+  tray.setContextMenu(Menu.buildFromTemplate(trayMenu({
+    recording: trayRecording,
+    open: showWindow,
+    quit: () => void requestQuit(),
+    newRecording: () => openWithIntent({ dialog: 'new-recording', app: null }),
+    stopRecording: () => openWithIntent({ dialog: 'stop-recording' }),
+  })))
 }
 
 // The first time the window closes to the tray, the system says where the app went. It

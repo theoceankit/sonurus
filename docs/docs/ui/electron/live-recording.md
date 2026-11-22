@@ -58,6 +58,10 @@ The backend records and writes every file; the window drives and shows the recor
 
 ---
 
+## Starting and stopping from the tray
+
+The tray menu has one recording item ([Tray and quitting](overview.md#tray-and-quitting)). New recording brings the window to the front, making it again if it was closed to the tray, and opens the New recording dialog; the recording starts only with Start recording there. With Import files open, that dialog stays; with New recording open, it keeps what it has, also the title named after the app of a call. Stop recording brings the window up the same way with the Stop recording? question, and the recording stops only with Stop recording there. Both use the same intents as a click on a notification, and errors show as toasts in the window. The main process sends no start or stop for them.
+
 ## Calls starting and ending
 
 Sonorus can suggest a recording when a call seems to start, and its end when the call seems to end. The backend tells; the Electron main process decides, by Settings → Notifications ([Settings](settings.md#notifications)), so it works with the window closed to the tray. Nothing records without the user.

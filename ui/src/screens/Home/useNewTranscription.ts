@@ -141,9 +141,10 @@ export function useNewTranscription() {
     if (current.open === 'import') return { ...current, sticky: true }
     return current.open ? current : opening(current, 'record', true)
   }), [])
-  // From a notification of a call that seemed to start; over whatever is already open.
+  // From a notification of a call that seemed to start, or from the tray, which names no
+  // app: the dialog already open keeps the one it has. Over whatever is already open.
   const openRecordingFor = useCallback((app: string | null) => setState(current => {
-    if (current.open === 'record') return { ...current, app }
+    if (current.open === 'record') return { ...current, app: app ?? current.app }
     if (current.open === 'import') return current
     return { ...opening(current, 'record', true), app }
   }), [])

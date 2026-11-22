@@ -63,6 +63,21 @@ test('an intent for the open window opens the dialog too', async () => {
   expect(await screen.findByRole('dialog', { name: 'New recording' })).toBeTruthy()
 })
 
+test('New recording from the tray keeps the app a notification named the dialog after', async () => {
+  const { tell } = await setup({ dialog: 'new-recording', app: 'Discord' })
+  const dialog = await screen.findByRole('dialog', { name: 'New recording' })
+  tell({ dialog: 'new-recording', app: null })
+  await new Promise(resolve => setTimeout(resolve, 50))
+  expect(within(dialog).getByRole('textbox', { name: 'Title' }).getAttribute('placeholder')).toMatch(/Discord call$/)
+})
+
+test('a later call with a name retitles the dialog already open', async () => {
+  const { tell } = await setup({ dialog: 'new-recording', app: 'Discord' })
+  const dialog = await screen.findByRole('dialog', { name: 'New recording' })
+  tell({ dialog: 'new-recording', app: 'Zoom' })
+  await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Title' }).getAttribute('placeholder')).toMatch(/Zoom call$/))
+})
+
 test('a call that ended asks whether to stop the recording, and Stop recording stops it', async () => {
   const { client } = await setup({ dialog: 'stop-recording' }, true)
   const dialog = await screen.findByRole('dialog', { name: 'Stop recording?' })
