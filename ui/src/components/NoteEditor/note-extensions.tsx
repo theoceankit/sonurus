@@ -1,6 +1,7 @@
-import { Extension, InputRule, mergeAttributes, Node } from '@tiptap/core'
+import { Extension, InputRule, mergeAttributes, Node, type Editor } from '@tiptap/core'
 import { Fragment, type Node as PMNode } from '@tiptap/pm/model'
-import { TextSelection } from '@tiptap/pm/state'
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import Link from '@tiptap/extension-link'
 import Mention from '@tiptap/extension-mention'
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from '@tiptap/react'
@@ -123,6 +124,36 @@ export const TaskFromListItem = Extension.create({
           // Into the checkbox's text: taskList, taskItem, paragraph.
           tr.setSelection(TextSelection.create(tr.doc, taskPos + 3))
           if (tr.doc.resolve(taskPos).nodeBefore?.type === taskList) tr.join(taskPos)
+        },
+      }),
+    ]
+  },
+})
+
+const keptSelection = new PluginKey<boolean>('keptSelection')
+
+// On while the link window or a menu of the note's bar has the focus, and only then:
+// Tiptap's own Selection paints whenever the note has no focus.
+export function keepSelection(editor: Editor, keep: boolean) {
+  editor.view.dispatch(editor.state.tr.setMeta(keptSelection, keep).setMeta('addToHistory', false))
+}
+
+// What is selected, painted while it is kept and the note has no focus.
+export const KeptSelection = Extension.create<{ className: string }>({
+  name: 'keptSelection',
+  addOptions: () => ({ className: '' }),
+  addProseMirrorPlugins() {
+    const { editor, options } = this
+    return [
+      new Plugin({
+        key: keptSelection,
+        state: { init: () => false, apply: (tr, kept): boolean => tr.getMeta(keptSelection) ?? kept },
+        props: {
+          decorations(state) {
+            const { selection } = state
+            if (!keptSelection.getState(state) || selection.empty || editor.isFocused) return null
+            return DecorationSet.create(state.doc, [Decoration.inline(selection.from, selection.to, { class: options.className })])
+          },
         },
       }),
     ]

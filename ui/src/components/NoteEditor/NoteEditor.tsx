@@ -1,5 +1,5 @@
 import { TaskItem, TaskList } from '@tiptap/extension-list'
-import { Placeholder, Selection } from '@tiptap/extensions'
+import { Placeholder } from '@tiptap/extensions'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { NodeSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { EditorContent, useEditor, type Editor, type JSONContent } from '@tiptap/react'
@@ -11,7 +11,7 @@ import { cx } from '../../styles/cx'
 import { mentionList, type MentionCandidate, type MentionOption } from '../MentionList/mention-list'
 import { MentionList } from '../MentionList/MentionList'
 import { quoteBlock, timecode, type MentionChange, type NoteQuote } from './note-content'
-import { NoteChips, NoteLink, NoteMention, TaskFromListItem, Timecode, type FindSpeaker } from './note-extensions'
+import { KeptSelection, NoteChips, NoteLink, NoteMention, TaskFromListItem, Timecode, type FindSpeaker } from './note-extensions'
 import styles from './NoteEditor.module.css'
 
 export interface NoteEditorHandle {
@@ -123,7 +123,7 @@ export const NoteEditor = memo(function NoteEditor({
       TaskFromListItem,
       Placeholder.configure({ placeholder: PLACEHOLDER }),
       // What is selected stays visible while the link window or a menu has the focus.
-      Selection.configure({ className: styles.keptSelection }),
+      KeptSelection.configure({ className: styles.keptSelection }),
       Timecode,
       NoteMention.configure({
         suggestion: {

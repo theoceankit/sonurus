@@ -6,6 +6,7 @@ import { Icon } from '../Icon/Icon'
 import type { IconName } from '../Icon/icon-names'
 import { IconButton } from '../IconButton/IconButton'
 import { Menu, MenuOption, MenuOptions } from '../Menu/Menu'
+import { keepSelection } from '../NoteEditor/note-extensions'
 import { NoteLinkPopover } from '../NoteLinkPopover/NoteLinkPopover'
 import { Toolbar, ToolbarDivider, ToolbarItem } from '../Toolbar/Toolbar'
 import { Tooltip } from '../Tooltip/Tooltip'
@@ -73,8 +74,10 @@ function FormatRow({ editor, onInsertTime, timeDisabled = false, className }: No
   const openNow = useRef<BarWindow | null>(null)
   const wentElsewhere = useRef(false)
   const openChange = (which: BarWindow) => (next: boolean) => {
-    if (next) wentElsewhere.current = false
-    else if (openNow.current !== which) return
+    if (next) {
+      wentElsewhere.current = false
+      if (editor) keepSelection(editor, true)
+    } else if (openNow.current !== which) return
     openNow.current = next ? which : null
     setOpen(openNow.current)
   }
@@ -85,7 +88,9 @@ function FormatRow({ editor, onInsertTime, timeDisabled = false, className }: No
     wentElsewhere.current = !(bar.current?.contains(to) || editor?.view.dom.contains(to))
   }
   const giveBack = () => {
-    if (!openNow.current && !wentElsewhere.current && editor && !editor.isDestroyed) editor.commands.focus()
+    if (openNow.current || !editor || editor.isDestroyed) return
+    keepSelection(editor, false)
+    if (!wentElsewhere.current) editor.commands.focus()
   }
   const run = (command: (editor: Editor) => void) => () => { if (editor) command(editor) }
 

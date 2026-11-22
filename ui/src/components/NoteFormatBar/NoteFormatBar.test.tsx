@@ -480,3 +480,31 @@ describe('a click that leaves the link window or the menu', () => {
     await waitFor(() => expect(editor.isFocused).toBe(true))
   })
 })
+
+describe('the selection of the note', () => {
+  const kept = (editor: Editor) => editor.view.dom.querySelector('[class*="keptSelection"]')?.textContent ?? null
+
+  test.each([['Link', 'textbox', 'Link address'], ['Text style', 'menuitemradio', 'Heading 1']] as const)('stays visible while %s is open, and not after', async (opener, role, name) => {
+    const user = userEvent.setup()
+    const editor = setup()
+    act(() => { editor.commands.focus() })
+    await waitFor(() => expect(editor.isFocused).toBe(true))
+    select(editor, 1, 6)
+    await user.click(button(opener))
+    await screen.findByRole(role, { name })
+    await waitFor(() => expect(kept(editor)).toBe('Hello'))
+    await user.click(document.body)
+    await waitFor(() => expect(screen.queryByRole(role, { name })).toBeNull())
+    await waitFor(() => expect(kept(editor)).toBeNull())
+  })
+
+  test('is not painted while the focus is just elsewhere', async () => {
+    const editor = setup()
+    act(() => { editor.commands.focus() })
+    await waitFor(() => expect(editor.isFocused).toBe(true))
+    select(editor, 1, 6)
+    act(() => { editor.view.dom.blur() })
+    await waitFor(() => expect(editor.isFocused).toBe(false))
+    expect(kept(editor)).toBeNull()
+  })
+})

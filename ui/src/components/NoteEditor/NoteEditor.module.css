@@ -147,6 +147,11 @@
   background: var(--color-selection);
 }
 
+/* A menu leaves the browser's selection in the note: not a second tint over the kept one. */
+.prose .keptSelection::selection {
+  background: transparent;
+}
+
 .popup {
   position: fixed;
 }
