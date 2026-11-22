@@ -301,7 +301,7 @@ Inside a `Modal` the list does not go past the window: `Modal` hands its window 
 </Toolbar>
 ```
 
-One stop for Tab, arrows move inside it. The screen decides where it stands and when it shows. `ToolbarAction` is a button with only an icon, which names itself in a tooltip: `<ToolbarAction icon="play" label="Play" />`.
+One stop for Tab, arrows move inside it. The screen decides where it stands and when it shows. `variant` is `floating` by default, a bar with a surface, stroke and shadow of its own, or `flat`, which stands in a row of a panel with none of them, as the format bar of a note. `ToolbarAction` is a button with only an icon, which names itself in a tooltip: `<ToolbarAction icon="play" label="Play" />`.
 
 ### Toast
 
