@@ -165,7 +165,6 @@ const DEFAULT_SETTINGS = {
   transcribeLang: 'auto',
   transcribeModel: null,
   transcribeModelHistory: [],
-  exportFormat: 'txt',
   exportTimestamps: true,
   exportSpeakers: true,
   exportNotes: false,

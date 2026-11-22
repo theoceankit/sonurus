@@ -10,7 +10,7 @@ import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { OverlayProvider } from '../../OverlayProvider'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
-import { DEFAULT_SETTINGS, exportFormatOf } from '../../platform/settings'
+import { DEFAULT_SETTINGS } from '../../platform/settings'
 import { findDialog, findTitlebarButton, queryDialog } from '../../test-queries'
 
 afterEach(() => {
@@ -112,13 +112,7 @@ test('Export: what goes in is saved', async () => {
     await waitFor(async () => expect((await bridge.readSettings())[key]).toBe(!before))
   }
   expect(within(card).queryByRole('switch', { name: 'Duplicate on export' })).toBeNull()
-})
-
-test('Export: the default format is one of three, and an old srt reads as text', () => {
-  expect(exportFormatOf('srt')).toBe('txt')
-  expect(exportFormatOf('vtt')).toBe('txt')
-  expect(exportFormatOf('md')).toBe('md')
-  expect(exportFormatOf('json')).toBe('json')
+  expect(within(card).queryByRole('combobox', { name: 'Default format' })).toBeNull()
 })
 
 test.each([['Bookmarks', 'settings.export-bookmarks'], ['Original audio file', 'settings.export-audio']])('Export: %s is not available yet', async (name, id) => {

@@ -44,11 +44,10 @@ function exportJson({ title, language, turns, note }: ExportSource, { timestamps
   return `${JSON.stringify({ title, language, segments, ...(note !== undefined && { note }) }, null, 2)}\n`
 }
 
-// Every format at once: which one is written depends on the name picked in the save dialog.
-export function exportContents(source: ExportSource, options: ExportOptions): Record<ExportFormat, string> {
-  return {
-    txt: exportText(source, options),
-    md: exportMarkdown(source, options),
-    json: exportJson(source, options),
-  }
+const BUILDERS: Record<ExportFormat, (source: ExportSource, options: ExportOptions) => string> = {
+  txt: exportText,
+  md: exportMarkdown,
+  json: exportJson,
 }
+
+export const exportContent = (format: ExportFormat, source: ExportSource, options: ExportOptions) => BUILDERS[format](source, options)

@@ -16,6 +16,7 @@ import { OverlayProvider } from '../../OverlayProvider'
 import type { ElectronSettings, ExportRequest, ExportResult } from '../../platform/electron-api'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../../platform/settings'
+import { SettingsProvider } from '../Settings/SettingsProvider'
 import { TranscriptPanel } from './TranscriptPanel'
 
 const paragraphRenders = vi.hoisted(() => ({ count: 0 }))
@@ -731,30 +732,38 @@ describe('Export', () => {
     vi.stubGlobal('electronAPI', bridge)
     return saveExport
   }
-  const press = async () => userEvent.click(await screen.findByRole('button', { name: 'Export' }))
+  const LABELS = { txt: 'Plain text', md: 'Markdown', json: 'JSON' } as const
+  const press = async (format: keyof typeof LABELS = 'json') => {
+    await userEvent.click(await screen.findByRole('button', { name: 'Export' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: new RegExp(LABELS[format]) }))
+  }
   const sent = (saveExport: ReturnType<typeof vi.fn>) => saveExport.mock.calls[0][0] as ExportRequest
+  const sentJson = (saveExport: ReturnType<typeof vi.fn>) => JSON.parse(sent(saveExport).text)
 
   afterEach(() => vi.unstubAllGlobals())
 
-  test('hands over every format, starting on the default one, and says it is done', async () => {
-    const saveExport = await prepare({ exportFormat: 'md' })
+  test.each([
+    ['txt', 'Weekly product sync\n\n'],
+    ['md', '# Weekly product sync\n\n'],
+    ['json', '{\n  "title": "Weekly product sync"'],
+  ] as const)('%s from the menu hands over that format and says it is done', async (format, start) => {
+    const saveExport = await prepare()
     setup()
-    await press()
+    await press(format)
     await screen.findByText('Exported')
     const request = sent(saveExport)
     expect(request.title).toBe('Weekly product sync')
-    expect(request.format).toBe('md')
-    expect(request.contents.txt.startsWith('Weekly product sync\n\n')).toBe(true)
-    expect(request.contents.md.startsWith('# Weekly product sync\n\n')).toBe(true)
-    expect(JSON.parse(request.contents.json).segments.length).toBeGreaterThan(0)
+    expect(request.format).toBe(format)
+    expect(request.text.startsWith(start)).toBe(true)
   })
 
-  test('a format saved by an older version starts on text', async () => {
-    const saveExport = await prepare({ exportFormat: 'vtt' })
-    setup()
-    await press()
-    await waitFor(() => expect(saveExport).toHaveBeenCalled())
-    expect(sent(saveExport).format).toBe('txt')
+  test('Export settings opens Settings on Export', async () => {
+    await prepare()
+    setup({}, WEEKLY_SYNC_ID, panel => <SettingsProvider>{panel}</SettingsProvider>)
+    await userEvent.click(await screen.findByRole('button', { name: 'Export' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Export settings' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Settings' })
+    expect(await within(dialog).findByRole('region', { name: 'Export' })).toBeTruthy()
   })
 
   test('follows the settings of what goes in', async () => {
@@ -762,8 +771,7 @@ describe('Export', () => {
     setup()
     await press()
     await waitFor(() => expect(saveExport).toHaveBeenCalled())
-    const [first] = JSON.parse(sent(saveExport).contents.json).segments
-    expect(Object.keys(first)).toEqual(['text'])
+    expect(Object.keys(sentJson(saveExport).segments[0])).toEqual(['text'])
   })
 
   test('leaves the note out unless asked', async () => {
@@ -773,16 +781,15 @@ describe('Export', () => {
     await press()
     await waitFor(() => expect(saveExport).toHaveBeenCalled())
     expect(getNote).not.toHaveBeenCalled()
-    expect('note' in JSON.parse(sent(saveExport).contents.json)).toBe(false)
+    expect('note' in sentJson(saveExport)).toBe(false)
   })
 
   test('with notes on, the note goes in', async () => {
     const saveExport = await prepare({ exportNotes: true })
     setup()
-    await press()
+    await press('md')
     await waitFor(() => expect(saveExport).toHaveBeenCalled())
-    expect(JSON.parse(sent(saveExport).contents.json).note).toBeTruthy()
-    expect(sent(saveExport).contents.md).toContain('## Notes')
+    expect(sent(saveExport).text).toContain('## Notes')
   })
 
   test('the note goes in as the editor has it, saved or not', async () => {
@@ -795,7 +802,7 @@ describe('Export', () => {
     setup({}, WEEKLY_SYNC_ID, panel => <><Typed />{panel}</>)
     await press()
     await waitFor(() => expect(saveExport).toHaveBeenCalled())
-    expect(JSON.parse(sent(saveExport).contents.json).note).toBe('Not saved yet')
+    expect(sentJson(saveExport).note).toBe('Not saved yet')
   })
 
   test('a note that cannot be read stops the export', async () => {

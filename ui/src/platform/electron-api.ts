@@ -3,9 +3,8 @@ export type ExportFormat = 'txt' | 'md' | 'json'
 
 export type ExportRequest = {
   title: string
-  // The format the save dialog starts on.
   format: ExportFormat
-  contents: Record<ExportFormat, string>
+  text: string
 }
 
 export type ExportResult = { status: 'saved' | 'canceled' } | { status: 'failed'; message: string }
@@ -15,8 +14,6 @@ export type ElectronSettings = {
   transcribeLang: string
   transcribeModel: string | null
   transcribeModelHistory: string[]
-  // A file of an older version may hold a format that is gone: read it with exportFormatOf().
-  exportFormat: string
   exportTimestamps: boolean
   exportSpeakers: boolean
   exportNotes: boolean
@@ -76,7 +73,7 @@ export type ElectronAPI = {
   // Sets the theme of the window: its frame, and prefers-color-scheme in the page.
   setTheme: (source: ThemeSource) => Promise<void>
   writeClipboard: (text: string) => Promise<void>
-  // The save dialog, then the text of the format the picked file's extension names.
+  // The save dialog for this format, then the text into the file picked there.
   saveExport: (request: ExportRequest) => Promise<ExportResult>
   restartBackend: () => Promise<void>
   // '' once the file manager opened the models folder, else why it did not.

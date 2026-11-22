@@ -13,6 +13,7 @@ import { TextSelectionBar } from '../../components/TextSelectionBar/TextSelectio
 import { TranscriptHeader } from '../../components/TranscriptHeader/TranscriptHeader'
 import { createKeyStore, useActiveSegment, type KeyStore } from '../../media/active-segment'
 import type { Playback } from '../../media/playback'
+import type { ExportFormat } from '../../platform/electron-api'
 import { useLingering } from '../../presence'
 import {
   buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave, transcriptText,
@@ -25,6 +26,7 @@ import { useTranscriptExport } from './useTranscriptExport'
 import { useSpeakerChange } from './useSpeakerChange'
 import { TranscriptList, type MenuKey, type TranscriptRows } from './TranscriptList'
 import { useTextSelection } from './useTextSelection'
+import { useSettingsDialog } from '../Settings/SettingsProvider'
 import styles from './TranscriptPanel.module.css'
 
 export interface SpeakerMenuTarget {
@@ -128,7 +130,9 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   const deleteRecording = () => onDelete?.({ id: transcriptId, title })
   const copyTranscript = turns.length > 0 ? () => void copyToClipboard(transcriptText(title, turns)) : undefined
   const saveTranscript = useTranscriptExport(transcript, title, turns, speakers)
-  const exportTranscript = turns.length > 0 ? () => void saveTranscript() : undefined
+  const exportTranscript = turns.length > 0 ? (format: ExportFormat) => void saveTranscript(format) : undefined
+  const settingsDialog = useSettingsDialog()
+  const openExportSettings = () => settingsDialog.open('export')
 
   const { area, scrollRef, bottom } = useScrollEdges()
   const keepInPlace = useKeepRowInPlace(area, segments)
@@ -206,6 +210,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
               onDelete={deleteRecording}
               onCopy={copyTranscript}
               onExport={exportTranscript}
+              onExportSettings={openExportSettings}
               onRename={typed => {
                 const next = titleToSave(typed, title)
                 if (next) rename({ transcriptId, title: next }, { onError: error => toast({ message: `Failed to rename: ${error.message}`, type: 'error' }) })
@@ -242,7 +247,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
           )}
         </div>
       </div>
-      {stuck && <TranscriptHeader sticky title={title} onDelete={deleteRecording} onCopy={copyTranscript} onExport={exportTranscript} className={styles.sticky} />}
+      {stuck && <TranscriptHeader sticky title={title} onDelete={deleteRecording} onCopy={copyTranscript} onExport={exportTranscript} onExportSettings={openExportSettings} className={styles.sticky} />}
       <ScrollBar area={area} />
       {bottom && <ScrollFade edge="bottom" />}
       {menu && (

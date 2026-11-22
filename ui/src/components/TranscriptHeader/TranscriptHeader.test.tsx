@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { OverlayProvider } from '../../OverlayProvider'
@@ -43,12 +43,26 @@ test.each([false, true])('sticky %s: Pin is not available yet', sticky => {
   expect(screen.getByRole('button', { name: 'Pin' }).getAttribute('aria-disabled')).toBe('true')
 })
 
-test.each([false, true])('sticky %s: Export exports, and is off with nothing to export', async sticky => {
+test.each([false, true])('sticky %s: Export offers the formats, then its settings', async sticky => {
   const onExport = vi.fn()
   setup({ sticky, onExport })
   await userEvent.click(screen.getByRole('button', { name: 'Export' }))
-  expect(onExport).toHaveBeenCalledOnce()
-  cleanup()
+  expect(screen.getAllByRole('menuitem').map(row => row.textContent?.trim())).toEqual(['Plain text.txt', 'Markdown.md', 'JSON.json', 'Export settings'])
+  await userEvent.click(screen.getByRole('menuitem', { name: /JSON/ }))
+  expect(onExport).toHaveBeenCalledExactlyOnceWith('json')
+})
+
+test.each([false, true])('sticky %s: Export settings is in the menu of Export', async sticky => {
+  const onExport = vi.fn()
+  const onExportSettings = vi.fn()
+  setup({ sticky, onExport, onExportSettings })
+  await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Export settings' }))
+  expect(onExportSettings).toHaveBeenCalledOnce()
+  expect(onExport).not.toHaveBeenCalled()
+})
+
+test.each([false, true])('sticky %s: Export is off with nothing to export', sticky => {
   setup({ sticky })
   expect((screen.getByRole('button', { name: 'Export' }) as HTMLButtonElement).disabled).toBe(true)
 })

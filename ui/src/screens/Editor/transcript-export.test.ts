@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import type { Segment, Speaker } from '../../api/types'
 import { buildTurns, transcriptText } from './transcript'
-import { exportContents, type ExportSource } from './transcript-export'
+import { exportContent, type ExportOptions, type ExportSource } from './transcript-export'
 
 const segment = (start: number, text: string, change: Partial<Segment> = {}): Segment => ({
   start, end: start + 2, text, speaker_raw: 'SPEAKER_00', speaker_resolved: null, speaker_final: null, unassigned: false, ...change,
@@ -19,6 +19,11 @@ const segments = [
 ]
 const source: ExportSource = { title: 'Weekly sync', language: 'en', turns: buildTurns(segments, speakers) }
 const all = { timestamps: true, speakers: true }
+const exportContents = (from: ExportSource, options: ExportOptions) => ({
+  txt: exportContent('txt', from, options),
+  md: exportContent('md', from, options),
+  json: exportContent('json', from, options),
+})
 
 describe('txt', () => {
   test('with everything on it reads as Copy transcript', () => {

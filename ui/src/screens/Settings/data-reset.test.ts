@@ -4,7 +4,7 @@ import { dataResetBlockReason, defaultSettingsPatch, formatDataResetSummary } fr
 
 test('defaultSettingsPatch: every default preference', () => {
   const patch = defaultSettingsPatch(DEFAULT_SETTINGS)
-  expect(patch).toMatchObject({ scale: 100, transcribeLang: 'auto', transcribeModel: null, transcribeModelHistory: [], exportFormat: 'txt' })
+  expect(patch).toMatchObject({ scale: 100, transcribeLang: 'auto', transcribeModel: null, transcribeModelHistory: [], exportTimestamps: true, exportSpeakers: true, exportNotes: false })
 })
 
 test('defaultSettingsPatch: keeps the HuggingFace token and the recordings opened last', () => {

@@ -4,7 +4,7 @@ import styles from './TranscriptHeader.stories.module.css'
 
 const meta: Meta<typeof TranscriptHeader> = {
   component: TranscriptHeader,
-  args: { title: 'Weekly product sync', date: '4 Oct 2026, 02:33', language: 'English', onCopy: () => {}, onExport: () => {} },
+  args: { title: 'Weekly product sync', date: '4 Oct 2026, 02:33', language: 'English', onCopy: () => {}, onExport: () => {}, onExportSettings: () => {} },
   decorators: [Story => <div className={styles.panel}><Story /></div>],
 }
 export default meta

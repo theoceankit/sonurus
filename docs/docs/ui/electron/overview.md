@@ -134,7 +134,7 @@ electron/
   backend-identity.js  — Dev and packaged data dirs; whether a running backend may be reused
   log.js               — The app log, sonorus.log: lines of the main process, the backend's stderr, rotation
   dialog-folder.js     — Folder the file dialog opens in (last picked file, dialog-state.json)
-  export-file.js       — Export of a transcript: the save dialog, the format by extension, the file
+  export-file.js       — Export of a transcript: the save dialog for one format, the file
   tray.js              — Close to the tray, the tray menu, what to ask before quitting
   backend-events.js    — WS /ws/queue in the main process, for the notifications of a call or a transcription
   recording-prompts.js — A call that seems to start or end: notification, stop or nothing
@@ -186,7 +186,7 @@ ui/
 | `setZoom(factor)` | Call `webContents.setZoomFactor(factor)` |
 | `setTheme(source)` | Set `nativeTheme.themeSource` to `system`, `light` or `dark` (see [Settings](#settings)) |
 | `writeClipboard(text)` | Write text to the system clipboard |
-| `saveExport(request)` | Export of a transcript: the save dialog, then the text of the format the picked file's extension names (`export-file.js`). Takes the title, the default format and the text of every format, never a path. Resolves to `saved`, `canceled` or `failed` with a message. See [Transcript](transcript.md#export) |
+| `saveExport(request)` | Export of a transcript: the save dialog for one format, then the text into the file picked there (`export-file.js`). Takes the title, the format and the text, never a path. Resolves to `saved`, `canceled` or `failed` with a message. See [Transcript](transcript.md#export) |
 | `restartBackend()` | Restart the backend to apply a GPU download or removal (asked once `POST /gpu/restart` says `ready`); resolves when the new backend is up. See [GPU acceleration](./gpu-acceleration.md) |
 | `showModelsFolder()` | Open the models folder in the file manager (Settings → Models). Takes no path: main asks the backend (`GET /models/folder`, `models-folder.js`) and opens that folder with `shell.openPath`, so the window cannot open anything else. Main opens only an absolute path to an existing folder named `.models`: `shell.openPath` runs a file with its default application, so not even what answers on the port can have it open anything else. Resolves to `''` once opened, else why not: the backend does not answer, the folder does not exist yet, the path is not a models folder, or the error of `shell.openPath` |
 | `openLink(address)` | Ctrl/⌘+click on a link of a note: opens it with `shell.openExternal`, only `http`, `https` and `mailto` (`links.js`); resolves to `false` for anything else. See [Notes](notes.md#the-editor) |

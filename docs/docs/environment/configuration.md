@@ -30,7 +30,6 @@ These are the paths of the installed app. Dev mode (`npm start`) uses `sonorus-d
 | Whisper model | `transcribeModel` | Default model ID (e.g. `"small"`, `"large-v3"`); `null` until a Whisper model is installed — there is no built-in default |
 | Previous Whisper models | `transcribeModelHistory` | The last five default models, oldest first; a deleted default falls back to the latest one still installed |
 | Interface scale | `scale` | Zoom factor in percent |
-| Export format | `exportFormat` | `"txt"`, `"md"`, `"json"`; a value saved by an older version (`"srt"`, `"vtt"`) reads as `"txt"` |
 | Export: timestamps | `exportTimestamps` | Start times in an export, on by default |
 | Export: speakers | `exportSpeakers` | Speaker labels in an export, on by default |
 | Export: notes | `exportNotes` | The note of the recording in an export, off by default |

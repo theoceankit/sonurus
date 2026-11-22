@@ -1,16 +1,9 @@
 import { FieldRow } from '../../components/FieldRow/FieldRow'
 import { SectionCard } from '../../components/SectionCard/SectionCard'
-import { Select } from '../../components/Select/Select'
 import { Toggle } from '../../components/Toggle/Toggle'
 import { markNotImplemented } from '../../not-implemented'
-import type { ElectronSettings, ExportFormat } from '../../platform/electron-api'
-import { DEFAULT_SETTINGS, exportFormatOf, settingsStore, useSettings } from '../../platform/settings'
-
-const FORMATS: { value: ExportFormat; label: string; meta: string }[] = [
-  { value: 'txt', label: 'Plain text', meta: '.txt' },
-  { value: 'md', label: 'Markdown', meta: '.md' },
-  { value: 'json', label: 'JSON', meta: '.json' },
-]
+import type { ElectronSettings } from '../../platform/electron-api'
+import { DEFAULT_SETTINGS, settingsStore, useSettings } from '../../platform/settings'
 
 const INCLUDE = [
   { key: 'exportTimestamps', label: 'Timestamps', hint: undefined },
@@ -20,18 +13,11 @@ const INCLUDE = [
 
 const patch = (change: Partial<ElectronSettings>) => void settingsStore().patch(change)
 
+// The format is picked each time, in the menu of Export in the transcript header.
 export function ExportSection() {
   const settings = useSettings() ?? DEFAULT_SETTINGS
   return (
-    <SectionCard title="Export" description="Default format and what goes into an export.">
-      <FieldRow label="Default format" hint="The save dialog starts on it. The extension of the file name decides.">
-        <Select
-          aria-label="Default format"
-          value={exportFormatOf(settings.exportFormat)}
-          options={FORMATS}
-          onValueChange={value => patch({ exportFormat: value })}
-        />
-      </FieldRow>
+    <SectionCard title="Export" description="What goes into an export.">
       {INCLUDE.map(({ key, label, hint }) => (
         <FieldRow key={key} label={label} hint={hint}>
           <Toggle label={label} checked={settings[key]} onChange={checked => patch({ [key]: checked })} />
