@@ -2,7 +2,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Placeholder } from '@tiptap/extensions'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { NodeSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
-import { EditorContent, useEditor, type JSONContent } from '@tiptap/react'
+import { EditorContent, useEditor, type Editor, type JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion'
 import { memo, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useReducer, useRef, useState, type Ref } from 'react'
@@ -11,7 +11,7 @@ import { cx } from '../../styles/cx'
 import { mentionList, type MentionCandidate, type MentionOption } from '../MentionList/mention-list'
 import { MentionList } from '../MentionList/MentionList'
 import { quoteBlock, timecode, type MentionChange, type NoteQuote } from './note-content'
-import { NoteChips, NoteLink, NoteMention, TaskFromListItem, Timecode, type FindSpeaker } from './note-extensions'
+import { KeptSelection, NoteChips, NoteLink, NoteMention, TaskFromListItem, Timecode, type FindSpeaker } from './note-extensions'
 import styles from './NoteEditor.module.css'
 
 export interface NoteEditorHandle {
@@ -35,6 +35,8 @@ interface NoteEditorProps {
   findSpeaker: FindSpeaker
   onSeek?: (seconds: number) => void
   onChange?: (doc: JSONContent) => void
+  // The editor once it is made, for the format bar.
+  onEditor?: (editor: Editor | null) => void
   // Quotes to insert as soon as the editor is there, each array once; onQuoted says
   // they are in. The editor may be made again as it mounts, so a handle could still
   // point at the one that went.
@@ -49,8 +51,7 @@ interface NoteEditorProps {
   ref?: Ref<NoteEditorHandle>
 }
 
-const PLACEHOLDER = 'Write notes for this recording. Markdown works as you type: # for a heading, - for a list, - [ ] for a checkbox'
-const placeholder = (mentions: boolean) => `${PLACEHOLDER}${mentions ? ', @ to mention someone' : ''}.`
+const PLACEHOLDER = 'Write notes'
 
 const POPUP_GAP = 4
 
@@ -87,7 +88,7 @@ interface Suggesting {
 // checkboxes, quotes and links, with timecodes and mentions as chips. It renders again
 // only when what it is given changes, not with the player's time over it.
 export const NoteEditor = memo(function NoteEditor({
-  content, candidates, mentionChanges, findSpeaker, onSeek, onChange, quotes, onQuoted, onOpenLink, size = 'tab', autoFocus, className, ref,
+  content, candidates, mentionChanges, findSpeaker, onSeek, onChange, onEditor, quotes, onQuoted, onOpenLink, size = 'tab', autoFocus, className, ref,
 }: NoteEditorProps) {
   const [suggesting, setSuggesting] = useState<Suggesting | null>(null)
   const latest = useRef({ suggesting, candidates, onChange, onOpenLink })
@@ -120,7 +121,9 @@ export const NoteEditor = memo(function NoteEditor({
       TaskList,
       TaskItem.configure({ nested: true }),
       TaskFromListItem,
-      Placeholder.configure({ placeholder: () => placeholder(latest.current.candidates !== undefined) }),
+      Placeholder.configure({ placeholder: PLACEHOLDER }),
+      // What is selected stays visible while the link window or a menu has the focus.
+      KeptSelection.configure({ className: styles.keptSelection }),
       Timecode,
       NoteMention.configure({
         suggestion: {
@@ -180,6 +183,8 @@ export const NoteEditor = memo(function NoteEditor({
     onUpdate: ({ editor: changed }) => latest.current.onChange?.(changed.getJSON()),
     onFocus: () => { visited.current = true },
   })
+  useEffect(() => { onEditor?.(editor) }, [editor, onEditor])
+
   // Where an insert goes: the cursor as the note left it, or the end. A chip selected
   // by a click on it stays, with the insert after it.
   const at = () => {

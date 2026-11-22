@@ -1,0 +1,18 @@
+.frame {
+  display: flex;
+  height: calc(var(--size-panel-side) / 2);
+}
+
+.box {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--color-bg-window);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-panel);
+}
+
+.side {
+  flex: none;
+  width: var(--side-width);
+}

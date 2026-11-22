@@ -15,7 +15,7 @@ interface Shown {
   setOpen: (open: boolean) => void
 }
 
-interface Group {
+export interface Group {
   id: string
   // The tooltip of the group last shown; it may be on its way out.
   last: { current: Shown | null }
@@ -28,22 +28,33 @@ const GroupContext = createContext<Group | null>(null)
 
 type GroupArea = ReactElement<{ onPointerLeave?: (event: PointerEvent<HTMLElement>) => void }>
 
+// A group for more than one TooltipGroup: for a row with a part that comes in
+// through a portal, which React keeps where the part was rendered.
+export function useTooltipGroup(): Group {
+  const id = useId()
+  const last = useRef<Shown | null>(null)
+  const [active, setActive] = useState<string | null>(null)
+  return { id, last, active: active !== null, setActive }
+}
+
 // Neighbouring controls share one tooltip: moving from one to the next, it changes
 // its text and width and points at the next one instead of going away and coming
 // again. The child is the area of the group: the tooltip stays over the gaps
 // between the controls and goes once the pointer leaves the area.
-export function TooltipGroup({ children }: { children: GroupArea }) {
-  const id = useId()
-  const last = useRef<Shown | null>(null)
-  const [active, setActive] = useState<string | null>(null)
+export function TooltipGroup({ children, group: shared }: { children: GroupArea; group?: Group }) {
+  const own = useTooltipGroup()
+  const group = shared ?? own
   const area = cloneElement(children, {
-    'data-tooltip-group': id,
+    'data-tooltip-group': group.id,
     onPointerLeave: (event: PointerEvent<HTMLElement>) => {
       children.props.onPointerLeave?.(event)
-      last.current?.setOpen(false)
+      // For React it leaves one part of a shared group on the way to another.
+      const to = event.relatedTarget
+      if (to instanceof Element && to.closest(`[data-tooltip-group="${group.id}"]`)) return
+      group.last.current?.setOpen(false)
     },
   } as object)
-  return <GroupContext.Provider value={{ id, last, active: active !== null, setActive }}>{area}</GroupContext.Provider>
+  return <GroupContext.Provider value={group}>{area}</GroupContext.Provider>
 }
 
 interface From {

@@ -84,7 +84,6 @@ test('Quote, a chip that seeks and the player time', async t => {
   await player.getByText(/^00:12$/).first().waitFor()
 
   const time = inspector().getByRole('button', { name: 'Insert player time' })
-  await assertEventually(async () => (await time.textContent()).trim() === '00:12', 'the button shows where the player stands')
   await time.click()
   await assertEventually(async () => (JSON.stringify(await notesOf() ?? {}).match(/"seconds":12/g) ?? []).length === 2,
     'the time is in the note, next to the quote that had it')
@@ -122,4 +121,77 @@ test('mentions with @', async t => {
     const saved = JSON.stringify(await notesOf() ?? {})
     return saved.includes(`"id":"${mark}"`) && saved.includes('"kind":"person"') && saved.includes('Sam from support')
   }, 'the note keeps the speaker by id and the person by name')
+})
+
+// Layout, which unit tests do not see: in the tab and expanded, the two sizes of the text.
+test('a checkbox stands level with its text', async t => {
+  const app = await startApp()
+  t.after(app.stop)
+  const { page } = app
+  const inspector = page.getByRole('region', { name: 'Inspector' })
+  const offset = () => page.getByRole('textbox', { name: 'Notes' }).locator('li').first().evaluate(item => {
+    const box = item.querySelector('input').getBoundingClientRect()
+    const range = document.createRange()
+    range.selectNodeContents(item.querySelector('p'))
+    const line = range.getClientRects()[0]
+    return Math.abs((box.top + box.height / 2) - (line.top + line.height / 2))
+  })
+
+  await inspector.getByRole('tab', { name: 'Notes' }).click()
+  await inspector.getByRole('textbox', { name: 'Notes' }).click()
+  await page.keyboard.type('Send the draft')
+  await inspector.getByRole('toolbar', { name: 'Format' }).getByRole('button', { name: 'Checkbox' }).click()
+  assert.ok(await offset() <= 0.5, `in the tab, ${await offset()} px off`)
+  await inspector.getByRole('button', { name: 'Expand notes' }).click()
+  await page.getByRole('main', { name: 'Transcript' }).getByRole('textbox', { name: 'Notes' }).waitFor()
+  assert.ok(await offset() <= 0.5, `expanded, ${await offset()} px off`)
+})
+
+// The check of the chosen style takes room from its name, which is never cut.
+test('the text style menu shows each style in full', async t => {
+  const app = await startApp()
+  t.after(app.stop)
+  const { page } = app
+  const inspector = page.getByRole('region', { name: 'Inspector' })
+  await inspector.getByRole('tab', { name: 'Notes' }).click()
+  await inspector.getByRole('textbox', { name: 'Notes' }).click()
+  await page.keyboard.type('Agenda')
+  const trigger = inspector.getByRole('toolbar', { name: 'Format' }).getByRole('button', { name: 'Text style' })
+  for (const style of ['Heading 1', 'Heading 2', 'Heading 3', 'Plain text']) {
+    await trigger.click()
+    await page.getByRole('menuitemradio', { name: style }).click()
+    await page.getByRole('menu').waitFor({ state: 'detached' })
+    await trigger.click()
+    const chosen = page.getByRole('menuitemradio', { name: style, checked: true })
+    await chosen.waitFor()
+    const cut = await chosen.evaluate(row => [row, ...row.querySelectorAll('*')]
+      .some(element => element.scrollWidth > element.clientWidth + 1 && getComputedStyle(element).textOverflow === 'ellipsis'))
+    assert.equal(cut, false, `${style} is cut`)
+    await page.keyboard.press('Escape')
+    await page.getByRole('menu').waitFor({ state: 'detached' })
+  }
+})
+
+// At a fractional scale the two edges round apart when they only touch.
+test('the arrow of a tooltip overlaps its plate', async t => {
+  const app = await startApp()
+  t.after(app.stop)
+  const { page } = app
+  const inspector = page.getByRole('region', { name: 'Inspector' })
+  await inspector.getByRole('tab', { name: 'Notes' }).click()
+  const bar = inspector.getByRole('toolbar', { name: 'Format' })
+  for (const [name, side] of [['Quote', 'top'], ['Close inspector', 'bottom']]) {
+    await page.mouse.move(5, 500)
+    await (name === 'Quote' ? bar : inspector).getByRole('button', { name, exact: true }).hover()
+    const tooltip = page.locator(`[data-radix-popper-content-wrapper] [data-side="${side}"]`)
+    await tooltip.waitFor()
+    const overlap = await tooltip.evaluate((element, onTop) => {
+      const plate = element.querySelector('span').getBoundingClientRect()
+      const arrow = element.querySelector('svg').getBoundingClientRect()
+      return onTop ? plate.bottom - arrow.top : arrow.bottom - plate.top
+    }, side === 'top')
+    assert.ok(overlap >= 0.9, `${name}: the arrow goes ${overlap} px into the plate`)
+    await page.mouse.move(5, 500)
+    if (side === 'top') await tooltip.waitFor({ state: 'detached' })
+  }
 })

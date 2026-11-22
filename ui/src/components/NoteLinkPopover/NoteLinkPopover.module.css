@@ -1,0 +1,15 @@
+.popover {
+  composes: presence popup from '../../styles/motion.module.css';
+  z-index: var(--z-popover);
+  width: var(--size-menu);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-md);
+  outline: var(--border-width-default) solid var(--color-border-default);
+  outline-offset: calc(var(--border-width-default) * -1);
+}
+
+.spacer {
+  flex: 1;
+}

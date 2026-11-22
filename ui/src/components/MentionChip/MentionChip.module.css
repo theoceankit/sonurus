@@ -13,7 +13,8 @@
 }
 
 .speaker {
-  padding-inline: var(--space-half) var(--space-2);
+  /* The avatar is as high as the chip, so it makes the rounded end. */
+  padding-inline: 0 var(--space-2);
   background: var(--color-fill-pressed);
 }
 

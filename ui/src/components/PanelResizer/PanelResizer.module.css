@@ -1,0 +1,6 @@
+.resizer {
+  width: var(--space-2);
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}

@@ -29,6 +29,8 @@ interface MenuProps {
   onOpenChange?: (open: boolean) => void
   // Prevent it when an action leaves the focus somewhere else, such as in another layer.
   onCloseAutoFocus?: (event: Event) => void
+  // A press or the focus outside, which closes it; the target is where that was.
+  onInteractOutside?: (event: Event) => void
 }
 
 const OFFSET = 4
@@ -52,12 +54,12 @@ const givingFocusBack = (own?: (event: Event) => void) => (event: Event) => {
 
 // Not modal: a modal menu locks the scroll and shifts the page behind it, and an
 // outside click closes this one all the same.
-export function Menu({ trigger, children, align = 'start', side = 'bottom', offset = OFFSET, size = 'default', onCloseAutoFocus, ...props }: MenuProps) {
+export function Menu({ trigger, children, align = 'start', side = 'bottom', offset = OFFSET, size = 'default', onCloseAutoFocus, onInteractOutside, ...props }: MenuProps) {
   return (
     <RadixDropdownMenu.Root modal={false} {...props}>
       <RadixDropdownMenu.Trigger asChild>{trigger}</RadixDropdownMenu.Trigger>
       <RadixDropdownMenu.Portal>
-        <RadixDropdownMenu.Content asChild align={align} side={side} sideOffset={offset} onCloseAutoFocus={givingFocusBack(onCloseAutoFocus)} onPointerMove={pointerInput} onKeyDownCapture={keyboardInput}>
+        <RadixDropdownMenu.Content asChild align={align} side={side} sideOffset={offset} onCloseAutoFocus={givingFocusBack(onCloseAutoFocus)} onInteractOutside={onInteractOutside} onPointerMove={pointerInput} onKeyDownCapture={keyboardInput}>
           <MenuSurface className={size === 'default' ? undefined : styles[size]}>
             <Parts.Provider value={RadixDropdownMenu}>{children}</Parts.Provider>
           </MenuSurface>

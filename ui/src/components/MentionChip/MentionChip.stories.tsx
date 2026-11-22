@@ -32,6 +32,8 @@ export const Matrix: Story = {
 export const Speaker: Story = {}
 export const WithPhoto: Story = { args: { target: TARGETS[1].target } }
 export const NotInTheBase: Story = { args: { target: TARGETS[2].target } }
+// The widest pairs of letters still fit the circle.
+export const WideInitials: Story = { args: { target: { kind: 'speaker', name: 'Walter Wong', color: 2 } } }
 export const LongName: Story = {
   args: { target: { kind: 'speaker', name: 'Maximiliana Alexandrovna Konstantinopolskaya', color: 3 } },
   decorators: [Story => <div style={{ width: 200 }}><Story /></div>],

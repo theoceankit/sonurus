@@ -103,13 +103,15 @@
   display: flex;
   align-items: center;
   flex: none;
-  height: calc(1em * 1.5385);
+  height: 1lh;
   user-select: none;
 }
 
 .prose ul[data-type='taskList'] li > div {
   flex: 1;
   min-width: 0;
+  /* Beside the checkbox, not under it as the next block of an item. */
+  margin-top: 0;
 }
 
 .prose ul[data-type='taskList'] li[data-checked='true'] > div {
@@ -137,8 +139,17 @@
   outline: none;
 }
 
+.keptSelection {
+  background: var(--color-selection);
+}
+
 .prose ::selection {
   background: var(--color-selection);
+}
+
+/* A menu leaves the browser's selection in the note: not a second tint over the kept one. */
+.prose .keptSelection::selection {
+  background: transparent;
 }
 
 .popup {

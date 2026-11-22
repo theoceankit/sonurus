@@ -110,7 +110,7 @@ Each component with states has a `Matrix` story from `ui/src/foundations/StateMa
 
 Only `Avatar` works out initials; a test in `Avatar.test.tsx` fails if anything else imports them.
 
-- Sizes: `xs`, `small`, `medium`, `large` and `xlarge`, the last only in the Avatar window. The letters take about the same share of the circle at every size; `xlarge` has its own `--font-initials-xl` for that, as the type scale stops at 22 px, and a test keeps the share. One word gives its first two letters, several give the first letter of the first and of the last word. `xs` shows one letter. An empty name is a circle without letters.
+- Sizes: `xs`, `small`, `medium`, `large` and `xlarge`, the last only in the Avatar window. The letters take about the same share of the circle at every size; `xlarge` has its own `--font-initials-xl` for that, as the type scale stops at 22 px, and a test keeps the share. One word gives its first two letters, several give the first letter of the first and of the last word. `xs` shows one letter; where two are wanted in a line of text, as in a mention chip, `small` is as high as the line, and 16 px would cut wide pairs such as WM. An empty name is a circle without letters.
 - A colour is a number from 1 to 6. Which speaker gets which is decided by the data layer.
 - `kind="unknown"` and `kind="unassigned"` are a gray "?".
 - `photo`, the address of a named speaker's photo, covers the circle instead of the initials (`object-fit: cover`, cut to the circle). The colour shows behind it while it loads; one that fails to load leaves the initials, and a new address is tried again. An unknown or unassigned speaker takes no photo, a type error. The data layer gives the address: `photo_url` of a speaker from `useSpeakers()`, which the API client makes from `photo`.
@@ -257,7 +257,9 @@ Controls that stand next to each other in one row, each with a tooltip, go into 
 </TooltipGroup>
 ```
 
-Every `Toolbar` is a group by itself. The Editor has groups for the window buttons on each side of the title bar, the transport and the speed and volume of the player, and the segments of talk time.
+Every `Toolbar` is a group by itself. The Editor has groups for the window buttons on each side of the title bar, the transport and the speed and volume of the player, the segments of talk time, and the buttons at the end of the inspector's tabs.
+
+A row with a part that comes in through a portal, as the note's buttons next to Close inspector, gives `useTooltipGroup()` to a `TooltipGroup` around each part (`group`): React keeps a portal where it was rendered, so the group of the row does not reach it by itself.
 
 In a group there is one tooltip. Moving to the next control, the block stays where it is and its arrow moves to the new control in 100 ms on `--ease-standard`, while the block's width follows the new text from its middle. The block moves only as far as it must to keep the arrow under it and itself in the window, and up or down to a control of another size, as Play in the player. The text changes at once and shows only over the block as it grows. The next tooltip of a group comes at once, however long the last one was shown, and keyboard focus passes the same way. Over the gaps the tooltip stays; it goes as any other once the pointer leaves the group. One that would turn over to the other side of its control changes at once, with no travel.
 
@@ -299,7 +301,7 @@ Inside a `Modal` the list does not go past the window: `Modal` hands its window 
 </Toolbar>
 ```
 
-One stop for Tab, arrows move inside it. The screen decides where it stands and when it shows. `ToolbarAction` is a button with only an icon, which names itself in a tooltip: `<ToolbarAction icon="play" label="Play" />`.
+One stop for Tab, arrows move inside it. The screen decides where it stands and when it shows. `variant` is `floating` by default, a bar with a surface, stroke and shadow of its own, or `flat`, which stands in a row of a panel with none of them, as the format bar of a note. `ToolbarAction` is a button with only an icon, which names itself in a tooltip: `<ToolbarAction icon="play" label="Play" />`.
 
 ### Toast
 

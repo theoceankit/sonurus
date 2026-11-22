@@ -599,6 +599,18 @@ describe('moving the panels', () => {
     watch.disconnect()
   })
 
+  // A build writes 250ms as .25s.
+  test('they count as moving for the whole move, whatever unit the build gives it', async () => {
+    atWidth(1200)
+    setup()
+    await waitFor(() => expect(shown('Inspector')).toBe(true))
+    panels().style.setProperty('--duration-move', '.25s')
+    await userEvent.click(screen.getByRole('button', { name: 'Toggle sidebar' }))
+    await act(() => new Promise(resolve => setTimeout(resolve, 100)))
+    expect(panels().hasAttribute('data-moving')).toBe(true)
+    await waitFor(() => expect(panels().hasAttribute('data-moving')).toBe(false))
+  })
+
   test('a closed panel keeps its column and cannot be reached', async () => {
     atWidth(1200)
     setup()

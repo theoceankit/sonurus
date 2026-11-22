@@ -6,7 +6,7 @@ import { createBackendClient } from './api/backend-client'
 import type { ApiClient } from './api/client'
 import { App } from './App'
 import { OverlayProvider } from './OverlayProvider'
-import { applySavedScale } from './platform/settings'
+import { applySavedScale, settingsStore } from './platform/settings'
 import './styles/index.css'
 
 // VITE_SONORUS_FIXTURES=1 npm run dev:ui shows the screens on fixtures in the
@@ -24,7 +24,8 @@ async function createClient(): Promise<ApiClient> {
 followTheme()
 void applySavedScale()
 
-createClient().then(client => {
+// The settings before the first render, so the right panel opens at its saved width.
+Promise.all([createClient(), settingsStore().read()]).then(([client]) => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <ApiProvider client={client}>

@@ -182,6 +182,7 @@ const DEFAULT_SETTINGS = {
   promptStartApps: 'any',
   promptStartSelected: [],
   promptEnd: 'suggest',
+  inspectorWidth: null,
 }
 
 // The theme: 'system' follows the OS. themeSource also sets prefers-color-scheme in

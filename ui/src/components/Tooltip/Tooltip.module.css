@@ -31,6 +31,9 @@
 }
 
 .arrow {
+  /* Into the plate: at a fractional scale two edges that only touch round apart and
+     leave a line between them. */
+  margin-block-start: calc(var(--border-width-default) * -1);
   fill: var(--color-bg-inverse);
 }
 

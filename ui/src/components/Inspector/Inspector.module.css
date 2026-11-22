@@ -22,6 +22,10 @@
 .close {
   composes: panelLine from '../../styles/motion.module.css';
   --panel-line-shift: var(--panel-line-to-end);
+}
+
+/* Close inspector, and left of it the buttons of the tab shown. */
+.buttons {
   position: absolute;
   inset-block-start: 0;
   inset-inline-end: var(--space-2);
