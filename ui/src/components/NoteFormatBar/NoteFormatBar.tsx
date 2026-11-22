@@ -112,12 +112,14 @@ function FormatRow({ editor, onInsertTime, timeDisabled = false, className }: No
           onOpenChange={openChange('style')}
           onInteractOutside={outside}
           trigger={(
-            <ToolbarItem disabled={!styleEnabled} aria-label="Text style" className={cx(styles.style, heading && styles.styleActive)}>
-              <button type="button">
-                <span>{current?.short ?? 'Text'}</span>
-                <Icon name="chevron-down" size={12} />
-              </button>
-            </ToolbarItem>
+            <Tooltip text="Text style">
+              <ToolbarItem disabled={!styleEnabled} aria-label="Text style" className={cx(styles.style, heading && styles.styleActive)}>
+                <button type="button">
+                  <span>{current?.short ?? 'Text'}</span>
+                  <Icon name="chevron-down" size={12} />
+                </button>
+              </ToolbarItem>
+            </Tooltip>
           )}
           onCloseAutoFocus={event => { event.preventDefault(); giveBack() }}
         >
