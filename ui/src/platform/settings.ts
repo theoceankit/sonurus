@@ -28,6 +28,7 @@ export const DEFAULT_SETTINGS: ElectronSettings = {
   promptStartApps: 'any',
   promptStartSelected: [],
   promptEnd: 'suggest',
+  inspectorWidth: null,
 }
 
 export type SettingsStore = {
@@ -109,6 +110,14 @@ export function useSettings(): ElectronSettings | null {
   const settings = useSyncExternalStore(store.subscribe, store.current)
   useEffect(() => { void store.read() }, [store])
   return settings
+}
+
+// The width the user gave the right panel; null until they do. Only a change of it renders.
+export function useSavedInspectorWidth(): number | null {
+  const store = settingsStore()
+  const width = useSyncExternalStore(store.subscribe, () => store.current()?.inspectorWidth ?? null)
+  useEffect(() => { void store.read() }, [store])
+  return width
 }
 
 // The saved interface scale applies from the start.

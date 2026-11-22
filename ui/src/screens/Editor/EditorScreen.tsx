@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useApi } from '../../api/ApiProvider'
 import { queryKeys, useQueue, useSetOpened, useSpeakers, useTranscripts, useUpdateTranscriptTitle } from '../../api/queries'
 import { MenuAction, MenuDivider } from '../../components/Menu/Menu'
+import { PanelResizer } from '../../components/PanelResizer/PanelResizer'
 import { Sidebar, type SidebarRecording, type SidebarSection } from '../../components/Sidebar/Sidebar'
 import { toast } from '../../components/Toast/toast-store'
 import { markNotImplemented } from '../../not-implemented'
@@ -16,6 +17,7 @@ import { ImportDialog } from '../Home/ImportDialog'
 import { NewRecordingDialog } from '../Home/NewRecordingDialog'
 import { StopRecordingDialog } from '../../recording/StopRecordingDialog'
 import type { WindowIntent } from '../../platform/electron-api'
+import { settingsStore, useSavedInspectorWidth } from '../../platform/settings'
 import { useWindowIntent } from '../../platform/window-intent'
 import { pickRecording, useRecentRecordings } from '../Home/last-opened'
 import { useNewTranscription } from '../Home/useNewTranscription'
@@ -30,7 +32,7 @@ import { EditorNotes, NotesElsewhere } from './EditorNotes'
 import { useNotesSaver } from './useNotesSaver'
 import { EditorPlayer, useTranscriptPlayback } from './EditorPlayer'
 import { InspectorPanel } from './InspectorPanel'
-import { INITIAL_PANELS, togglePanel, visiblePanels, type Panel } from './panels'
+import { INITIAL_PANELS, shownInspectorWidth, togglePanel, visiblePanels, type Panel } from './panels'
 import { goneFromList, groupRecordings, leftList, stackSpeakers } from './recordings'
 import { useEscapeClose } from './escape-close'
 import { useHistoryKeys } from './history-keys'
@@ -190,6 +192,17 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
   const panelsArea = useRef<HTMLDivElement>(null)
   const stopMoving = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(stopMoving.current), [])
+  const savedInspectorWidth = useSavedInspectorWidth()
+  const inspectorWidth = shownInspectorWidth(savedInspectorWidth, width, visible.sidebar)
+  const draggedWidth = useRef(inspectorWidth)
+
+  // On the element and not in state, as a move of a panel: the transcript does not render
+  // for each pixel. The width is written once, when the mouse lets go.
+  const showInspectorWidth = (value: number) => panelsArea.current!.style.setProperty('--inspector-width', `${value}px`)
+  const resizeInspector = (travel: number) => {
+    draggedWidth.current = shownInspectorWidth(inspectorWidth - travel, width, visible.sidebar)
+    showInspectorWidth(draggedWidth.current)
+  }
 
   // A recording deleted elsewhere lets go: nothing of it stays on the screen or in the
   // cache, and the effect below opens another one. Any other one gone from the list
@@ -358,6 +371,7 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
       <div
         ref={panelsArea}
         className={cx(styles.panels, !visible.sidebar && styles.noSidebar, !visible.inspector && styles.noInspector)}
+        style={{ '--inspector-width': `${inspectorWidth}px` } as CSSProperties}
       >
         <aside aria-label="Recordings" inert={!visible.sidebar} className={cx(styles.slot, styles.sidebarSlot)}>
           <div className={styles.sidebar}>
@@ -396,6 +410,15 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
             )}
           </div>
         </section>
+        {visible.inspector && (
+          <PanelResizer
+            className={styles.inspectorResizer}
+            label="Resize inspector"
+            onResize={resizeInspector}
+            onResizeEnd={() => { void settingsStore().patch({ inspectorWidth: draggedWidth.current }) }}
+            onResizeCancel={() => showInspectorWidth(inspectorWidth)}
+          />
+        )}
         <section aria-label="Player" className={cx(styles.panel, styles.player)}>{player ?? <EditorPlayer transcriptId={shownId} playback={playback} highlight={highlight} />}</section>
       </div>
       {speakerDialog.value && (

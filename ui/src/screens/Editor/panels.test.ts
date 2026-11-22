@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { parseTokens } from '../../styles/tokens'
 import css from '../../styles/tokens.css?raw'
-import { BOTH_PANELS_MIN_WIDTH, CENTER_MIN_WIDTH, INITIAL_PANELS, togglePanel, visiblePanels } from './panels'
+import { BOTH_PANELS_MIN_WIDTH, CENTER_MIN_WIDTH, INITIAL_PANELS, INSPECTOR_MIN_WIDTH, inspectorMaxWidth, shownInspectorWidth, togglePanel, visiblePanels } from './panels'
 
 const WIDE = 1200
 const NARROW = 900
@@ -63,4 +63,35 @@ test('the one panel left open on a wide window stays when the window narrows', (
 test('reopening on a wide window still gives way to the sidebar when it narrows', () => {
   const closed = togglePanel(INITIAL_PANELS, 'inspector', WIDE)
   expect(visiblePanels(togglePanel(closed, 'inspector', WIDE), NARROW)).toEqual(onlySidebar)
+})
+
+test('the right panel can grow until the centre is at its smallest', () => {
+  expect(inspectorMaxWidth(1600, true)).toBe(1600 - 24 - 308 - CENTER_MIN_WIDTH)
+  expect(inspectorMaxWidth(1600, false)).toBe(1600 - 24 - CENTER_MIN_WIDTH)
+})
+
+test('at the boundary of two panels the right panel has only its smallest width', () => {
+  expect(inspectorMaxWidth(BOTH_PANELS_MIN_WIDTH, true)).toBe(INSPECTOR_MIN_WIDTH)
+  expect(shownInspectorWidth(700, BOTH_PANELS_MIN_WIDTH, true)).toBe(INSPECTOR_MIN_WIDTH)
+})
+
+test('the right panel is never narrower than its smallest width', () => {
+  expect(shownInspectorWidth(100, 1600, true)).toBe(INSPECTOR_MIN_WIDTH)
+  expect(inspectorMaxWidth(700, false)).toBe(INSPECTOR_MIN_WIDTH)
+})
+
+test('with nothing usable saved the right panel has its smallest width', () => {
+  expect(shownInspectorWidth(null, 1600, true)).toBe(INSPECTOR_MIN_WIDTH)
+  expect(shownInspectorWidth(Number.NaN, 1600, true)).toBe(INSPECTOR_MIN_WIDTH)
+  expect(shownInspectorWidth('wide' as unknown as number, 1600, true)).toBe(INSPECTOR_MIN_WIDTH)
+})
+
+test('a narrower window shrinks the shown width and the saved one comes back', () => {
+  expect(shownInspectorWidth(500, 1600, true)).toBe(500)
+  expect(shownInspectorWidth(500, 1200, true)).toBe(388)
+  expect(shownInspectorWidth(500, 1600, true)).toBe(500)
+})
+
+test('a window not measured yet shows the saved width', () => {
+  expect(shownInspectorWidth(500, Infinity, true)).toBe(500)
 })

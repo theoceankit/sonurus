@@ -44,6 +44,8 @@ export type ElectronSettings = {
   promptStartSelected: string[]
   // When a call seems to have ended during a recording: a notification, a stop, or nothing.
   promptEnd: 'suggest' | 'auto' | 'off'
+  // The width the user dragged the right panel to; null is the narrowest.
+  inspectorWidth: number | null
 }
 
 // What a click on a notification asks the window to open.

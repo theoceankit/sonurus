@@ -8,7 +8,8 @@
 
 .panels {
   --track-sidebar: calc(var(--size-panel-side) + var(--space-2));
-  --track-inspector: calc(var(--size-panel-side) + var(--space-2));
+  --inspector-width: var(--size-panel-side);
+  --track-inspector: calc(var(--inspector-width) + var(--space-2));
   flex: 1;
   min-height: 0;
   display: grid;
@@ -92,8 +93,13 @@
 
 .inspector {
   flex: none;
-  width: var(--size-panel-side);
+  width: var(--inspector-width);
   margin-inline-start: var(--space-2);
+}
+
+.inspectorResizer {
+  grid-area: inspector;
+  justify-self: start;
 }
 
 .player {

@@ -13,6 +13,24 @@ export const CENTER_MIN_WIDTH = 480
 // Window padding and two gaps at 8, two side panels at 300, the smallest centre.
 export const BOTH_PANELS_MIN_WIDTH = 1112
 
+// The window padding and the gap of the right panel; the left panel with its gap.
+const INSPECTOR_CHROME = 24
+const SIDEBAR_TRACK = 308
+export const INSPECTOR_MIN_WIDTH = 300
+
+// The widest the right panel can be with the centre at its smallest.
+export function inspectorMaxWidth(width: number, sidebarVisible: boolean) {
+  const max = width - INSPECTOR_CHROME - (sidebarVisible ? SIDEBAR_TRACK : 0) - CENTER_MIN_WIDTH
+  return Math.max(INSPECTOR_MIN_WIDTH, max)
+}
+
+// The width shown for the saved one. A narrower window changes only this, so the panel
+// is back at the saved width when the window widens again.
+export function shownInspectorWidth(saved: number | null, width: number, sidebarVisible: boolean) {
+  if (typeof saved !== 'number' || !Number.isFinite(saved)) return INSPECTOR_MIN_WIDTH
+  return Math.max(INSPECTOR_MIN_WIDTH, Math.min(Math.round(saved), inspectorMaxWidth(width, sidebarVisible)))
+}
+
 const bothFit = (width: number) => width >= BOTH_PANELS_MIN_WIDTH
 
 export function visiblePanels(state: PanelsState, width: number): Record<Panel, boolean> {
