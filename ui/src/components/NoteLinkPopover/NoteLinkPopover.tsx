@@ -18,6 +18,8 @@ interface NoteLinkPopoverProps {
   onRemove: () => void
   // Where the focus goes when it closes.
   onClosed: () => void
+  // A press or the focus outside, which closes it; the target is where that was.
+  onInteractOutside?: (event: Event) => void
 }
 
 function LinkForm({ href, onApply, onRemove }: Pick<NoteLinkPopoverProps, 'href' | 'onApply' | 'onRemove'>) {
@@ -51,7 +53,7 @@ function LinkForm({ href, onApply, onRemove }: Pick<NoteLinkPopoverProps, 'href'
 }
 
 // The address of a link: Enter applies, Escape closes and changes nothing.
-export function NoteLinkPopover({ open, onOpenChange, children, href, onApply, onRemove, onClosed }: NoteLinkPopoverProps) {
+export function NoteLinkPopover({ open, onOpenChange, children, href, onApply, onRemove, onClosed, onInteractOutside }: NoteLinkPopoverProps) {
   return (
     <Popover.Root open={open} onOpenChange={onOpenChange}>
       {children}
@@ -63,6 +65,7 @@ export function NoteLinkPopover({ open, onOpenChange, children, href, onApply, o
           collisionPadding={8}
           aria-label="Link"
           className={styles.popover}
+          onInteractOutside={onInteractOutside}
           onCloseAutoFocus={event => { event.preventDefault(); onClosed() }}
         >
           <LinkForm href={href} onApply={onApply} onRemove={onRemove} />

@@ -430,3 +430,53 @@ describe('what is around the block changed', () => {
     expect(md(editor)).toBe('> - One\n> - Two')
   })
 })
+
+describe('a click that leaves the link window or the menu', () => {
+  const inside = { Link: () => screen.findByRole('textbox', { name: 'Link address' }), 'Text style': () => screen.findByRole('menuitemradio', { name: 'Heading 1' }) }
+  const closed = () => new Promise(resolve => setTimeout(resolve, 50))
+
+  async function opened(name: keyof typeof inside) {
+    const user = userEvent.setup()
+    const editor = setup()
+    act(() => { editor.commands.focus(3) })
+    await waitFor(() => expect(editor.isFocused).toBe(true))
+    await user.click(button(name))
+    await inside[name]()
+    return { user, editor }
+  }
+
+  test.each(['Link', 'Text style'] as const)('%s: a field clicked keeps the focus', async name => {
+    const { user, editor } = await opened(name)
+    const field = document.body.appendChild(document.createElement('input'))
+    try {
+      await user.click(field)
+      await act(closed)
+      expect(document.activeElement).toBe(field)
+      expect(editor.isFocused).toBe(false)
+    } finally {
+      field.remove()
+    }
+  })
+
+  test.each(['Link', 'Text style'] as const)('%s: after a click on plain text, what is typed is not in the note', async name => {
+    const { user, editor } = await opened(name)
+    await user.click(document.body)
+    await act(closed)
+    expect(editor.isFocused).toBe(false)
+  })
+
+  test.each([['Link', 'Text style'], ['Text style', 'Link']] as const)('%s gives way to %s, which stays', async (from, to) => {
+    const { user, editor } = await opened(from)
+    await user.click(button(to))
+    await inside[to]()
+    await act(closed)
+    expect(await inside[to]()).toBeTruthy()
+    expect(editor.isFocused).toBe(false)
+  })
+
+  test.each(['Link', 'Text style'] as const)('%s: Escape gives the focus back to the note', async name => {
+    const { user, editor } = await opened(name)
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(editor.isFocused).toBe(true))
+  })
+})

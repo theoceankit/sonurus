@@ -1,6 +1,6 @@
 import * as Popover from '@radix-ui/react-popover'
 import { useEditorState, type Editor } from '@tiptap/react'
-import { memo, useState, type MouseEvent } from 'react'
+import { memo, useRef, useState, type MouseEvent } from 'react'
 import { cx } from '../../styles/cx'
 import { Icon } from '../Icon/Icon'
 import type { IconName } from '../Icon/icon-names'
@@ -24,6 +24,8 @@ const STYLES: { value: TextStyle; short: string; label: string }[] = [
 
 // The press does not take the focus: the cursor and the selection stay in the note.
 const keepFocus = (event: MouseEvent) => event.preventDefault()
+
+type BarWindow = 'link' | 'style'
 
 interface FormatButtonProps {
   icon: IconName
@@ -65,7 +67,26 @@ function FormatRow({ editor, onInsertTime, timeDisabled = false, className }: No
     editor,
     selector: ({ editor: current }) => (current ? formatState(current) : NO_FORMAT),
   }) ?? NO_FORMAT
-  const [linkOpen, setLinkOpen] = useState(false)
+  const bar = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState<BarWindow | null>(null)
+  // As open, for what runs as the other one closes, before a render.
+  const openNow = useRef<BarWindow | null>(null)
+  const wentElsewhere = useRef(false)
+  const openChange = (which: BarWindow) => (next: boolean) => {
+    if (next) wentElsewhere.current = false
+    else if (openNow.current !== which) return
+    openNow.current = next ? which : null
+    setOpen(openNow.current)
+  }
+  // The link window and the menu give the focus back to the note, unless they were
+  // left for something outside it and its bar, or for the other one of them.
+  const outside = (event: Event) => {
+    const to = event.target as Node
+    wentElsewhere.current = !(bar.current?.contains(to) || editor?.view.dom.contains(to))
+  }
+  const giveBack = () => {
+    if (!openNow.current && !wentElsewhere.current && editor && !editor.isDestroyed) editor.commands.focus()
+  }
   const run = (command: (editor: Editor) => void) => () => { if (editor) command(editor) }
 
   const chooseStyle = (value: string) => {
@@ -78,10 +99,13 @@ function FormatRow({ editor, onInsertTime, timeDisabled = false, className }: No
   const heading = state.textStyle !== null && state.textStyle !== 'paragraph'
 
   return (
-    <div className={cx(styles.bar, className)}>
+    <div ref={bar} className={cx(styles.bar, className)}>
       <Toolbar label="Format" variant="flat">
         <Menu
           size="narrow"
+          open={open === 'style'}
+          onOpenChange={openChange('style')}
+          onInteractOutside={outside}
           trigger={(
             <ToolbarItem disabled={!styleEnabled} aria-label="Text style" className={cx(styles.style, heading && styles.styleActive)}>
               <button type="button">
@@ -90,7 +114,7 @@ function FormatRow({ editor, onInsertTime, timeDisabled = false, className }: No
               </button>
             </ToolbarItem>
           )}
-          onCloseAutoFocus={event => { event.preventDefault(); editor?.commands.focus() }}
+          onCloseAutoFocus={event => { event.preventDefault(); giveBack() }}
         >
           <MenuOptions value={state.textStyle ?? ''} onValueChange={chooseStyle}>
             {STYLES.map(style => (
@@ -110,12 +134,13 @@ function FormatRow({ editor, onInsertTime, timeDisabled = false, className }: No
         <FormatButton icon="quote" label="Quote" active={state.blockquote} enabled={state.can.blockquote} onPress={run(toggleBlockquote)} />
         <ToolbarDivider />
         <NoteLinkPopover
-          open={linkOpen}
-          onOpenChange={setLinkOpen}
+          open={open === 'link'}
+          onOpenChange={openChange('link')}
+          onInteractOutside={outside}
           href={state.link ? editor?.getAttributes('link').href : undefined}
-          onApply={href => { if (editor) setNoteLink(editor, href); setLinkOpen(false) }}
-          onRemove={() => { if (editor) removeNoteLink(editor); setLinkOpen(false) }}
-          onClosed={() => editor?.commands.focus()}
+          onApply={href => { if (editor) setNoteLink(editor, href); openChange('link')(false) }}
+          onRemove={() => { if (editor) removeNoteLink(editor); openChange('link')(false) }}
+          onClosed={giveBack}
         >
           <Tooltip text="Link">
             <Popover.Trigger asChild>
