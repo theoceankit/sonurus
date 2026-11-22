@@ -789,7 +789,20 @@ describe('Export', () => {
     setup()
     await press('md')
     await waitFor(() => expect(saveExport).toHaveBeenCalled())
-    expect(sent(saveExport).text).toContain('## Notes')
+    expect(sent(saveExport).text).toMatch(/^# Notes$/m)
+  })
+
+  test.each([['md', '## Decisions'], ['txt', '# Decisions']] as const)('in %s a heading of the note reads %s', async (format, line) => {
+    const saveExport = await prepare({ exportNotes: true })
+    const Typed = () => {
+      const keep = useKeepNote()
+      useEffect(() => keep(WEEKLY_SYNC_ID, { type: 'doc', content: [{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Decisions' }] }] }), [keep])
+      return null
+    }
+    setup({}, WEEKLY_SYNC_ID, panel => <><Typed />{panel}</>)
+    await press(format)
+    await waitFor(() => expect(saveExport).toHaveBeenCalled())
+    expect(sent(saveExport).text.endsWith(`\n\n${line}\n`)).toBe(true)
   })
 
   test('the note goes in as the editor has it, saved or not', async () => {

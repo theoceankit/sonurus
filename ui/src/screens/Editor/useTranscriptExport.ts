@@ -7,7 +7,7 @@ import type { ExportFormat } from '../../platform/electron-api'
 import { settingsStore } from '../../platform/settings'
 import { speakerFinder } from './note-speakers'
 import type { TranscriptTurn } from './transcript'
-import { exportContent } from './transcript-export'
+import { exportContent, headingsBelowNotes } from './transcript-export'
 
 // Export in the header: the format picked in its menu, with what Settings asks for, into
 // the file picked in the save dialog.
@@ -25,7 +25,7 @@ export function useTranscriptExport(transcript: Transcript, title: string, turns
       let note: string | null | undefined
       if (settings.exportNotes) {
         const { content } = await readNote(id)
-        note = content ? noteMarkdown(content, speakerFinder(speakers)) || null : null
+        note = content ? noteMarkdown(format === 'md' ? headingsBelowNotes(content) : content, speakerFinder(speakers)) || null : null
       }
       const text = exportContent(
         format,

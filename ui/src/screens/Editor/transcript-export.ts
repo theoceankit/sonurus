@@ -1,3 +1,4 @@
+import type { JSONContent } from '@tiptap/react'
 import { formatClock } from '../../media/timeline'
 import type { ExportFormat, ExportSpeakerLabel } from '../../platform/electron-api'
 import type { TranscriptTurn, TurnSpeaker } from './transcript'
@@ -36,7 +37,7 @@ function exportMarkdown({ title, turns, note }: ExportSource, { timestamps, spea
     const head = [speakers && `**${labelOf(turn.speaker, speakerLabel)}**`, timestamps && `[${formatClock(turn.start)}]`].filter(Boolean).join(' ')
     return [...(head ? [head] : []), ...turn.segments.map(segment => segment.text)]
   })
-  return blocks(`# ${title}`, ...body, note && `## Notes\n\n${note}`)
+  return blocks(`# ${title}`, ...body, note && `# Notes\n\n${note}`)
 }
 
 // A switched-off option takes its fields out; "note" is there only with notes on.
@@ -47,6 +48,15 @@ function exportJson({ title, language, turns, note }: ExportSource, { timestamps
     text: segment.text,
   })))
   return `${JSON.stringify({ title, language, segments, ...(note !== undefined && { note }) }, null, 2)}\n`
+}
+
+// In Markdown the note stands under its own "# Notes", so its headings go one level below it.
+export function headingsBelowNotes(node: JSONContent): JSONContent {
+  return {
+    ...node,
+    ...(node.type === 'heading' && { attrs: { ...node.attrs, level: (node.attrs?.level ?? 1) + 1 } }),
+    ...(node.content && { content: node.content.map(headingsBelowNotes) }),
+  }
 }
 
 const BUILDERS: Record<ExportFormat, (source: ExportSource, options: ExportOptions) => string> = {

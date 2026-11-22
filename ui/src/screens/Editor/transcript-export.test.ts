@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import type { Segment, Speaker } from '../../api/types'
 import { buildTurns, transcriptText } from './transcript'
-import { exportContent, type ExportOptions, type ExportSource } from './transcript-export'
+import { exportContent, headingsBelowNotes, type ExportOptions, type ExportSource } from './transcript-export'
 
 const segment = (start: number, text: string, change: Partial<Segment> = {}): Segment => ({
   start, end: start + 2, text, speaker_raw: 'SPEAKER_00', speaker_resolved: null, speaker_final: null, unassigned: false, ...change,
@@ -56,7 +56,7 @@ describe('md', () => {
   })
 
   test('the note closes it, and an empty one adds nothing', () => {
-    expect(exportContents({ ...short, note: '**Done**' }, all).md).toMatch(/Second line\.\n\n## Notes\n\n\*\*Done\*\*\n$/)
+    expect(exportContents({ ...short, note: '**Done**' }, all).md).toMatch(/Second line\.\n\n# Notes\n\n\*\*Done\*\*\n$/)
     expect(exportContents({ ...short, note: null }, all).md).not.toContain('Notes')
   })
 })
@@ -104,5 +104,16 @@ describe('speakers by handle', () => {
   test('a named speaker with no handle keeps the name', () => {
     const turns = buildTurns([segment(0, 'Hi.', { speaker_final: 'bo' })], [{ id: 'bo', name: 'Bo', handle: null, color_index: 2 }] as unknown as Speaker[])
     expect(exportContents({ ...source, turns }, byHandle).txt).toContain('Bo 00:00')
+  })
+})
+
+describe('headingsBelowNotes', () => {
+  const heading = (level: number, text: string) => ({ type: 'heading', attrs: { level }, content: [{ type: 'text', text }] })
+
+  test('every heading goes one level down, in a quote too, and the rest stays', () => {
+    const paragraph = { type: 'paragraph', content: [{ type: 'text', text: '# Not a heading' }] }
+    const doc = { type: 'doc', content: [heading(1, 'One'), heading(3, 'Three'), paragraph, { type: 'blockquote', content: [heading(2, 'Two')] }] }
+    expect(headingsBelowNotes(doc)).toEqual({ type: 'doc', content: [heading(2, 'One'), heading(4, 'Three'), paragraph, { type: 'blockquote', content: [heading(3, 'Two')] }] })
+    expect(doc.content[0]).toEqual(heading(1, 'One'))
   })
 })
