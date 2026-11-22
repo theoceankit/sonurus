@@ -26,12 +26,12 @@ describe('what it has', () => {
     expect(within(dialog).getByRole('button', { name: 'Import files' })).toBeTruthy()
   })
 
-  test('closes by its cross alone, and has no Diarize speakers', async () => {
+  test('closes by its cross alone, and asks whether to identify speakers', async () => {
     await setup()
     const dialog = await openRecording()
     expect(within(dialog).queryByRole('button', { name: 'Cancel' })).toBeNull()
     expect(within(dialog).queryByRole('button', { name: 'Diarize speakers' })).toBeNull()
-    expect(within(dialog).queryAllByRole('switch')).toHaveLength(0)
+    expect(await within(dialog).findByRole('switch', { name: 'Identify speakers' })).toBeTruthy()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
     await waitFor(() => expect(recordDialog()).toBeNull())
   })

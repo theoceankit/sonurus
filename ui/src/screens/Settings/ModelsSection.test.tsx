@@ -63,7 +63,7 @@ test('Use makes a model the default, saved with its history and without a toast'
 
 test.each([
   [['diarize'], 'No model selected — download a Whisper model to transcribe'],
-  [['small'], 'Diarization model not installed — download it to transcribe'],
+  [['small'], 'Diarization model not installed — download it to identify speakers'],
 ])('without the models a job needs, a hint over the list (%o)', async (installedModels, hint) => {
   await setup({ installedModels })
   await openSection('Models')

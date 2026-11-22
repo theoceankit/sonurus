@@ -22,6 +22,7 @@ export interface NewRecordingDialogProps {
   choice: TranscribeChoice
   onModelChange: (model: string) => void
   onLanguageChange: (language: string) => void
+  onDiarizeChange: (diarize: boolean) => void
   // The sources and devices of the recording.
   record: RecordingSetup
   onStartRecording: () => void
@@ -38,7 +39,7 @@ export interface NewRecordingDialogProps {
 // New recording: a title, a model and a language for this run, and the sources to
 // record. Files go in through Import files, which takes its place.
 export function NewRecordingDialog({
-  open, title, defaultTitle, onTitleChange, choice, onModelChange, onLanguageChange, record, onStartRecording,
+  open, title, defaultTitle, onTitleChange, choice, onModelChange, onLanguageChange, onDiarizeChange, record, onStartRecording,
   onImportFiles, onClose, onOpenSettings, onExited, preview,
 }: NewRecordingDialogProps) {
   const ready = !choice.checking && !choice.blocked
@@ -54,7 +55,7 @@ export function NewRecordingDialog({
             maxLength={TITLE_MAX_LENGTH}
             onChange={event => onTitleChange(event.target.value)}
           />
-          <TranscribeFields choice={choice} onModelChange={onModelChange} onLanguageChange={onLanguageChange} />
+          <TranscribeFields choice={choice} onModelChange={onModelChange} onLanguageChange={onLanguageChange} onDiarizeChange={onDiarizeChange} onOpenSettings={onOpenSettings} />
           <Stack gap={1} role="group" aria-label="Record">
             <span className={styles.label}>Record</span>
             {record.recording && <span className={styles.recordingNotice}>A recording is already in progress.</span>}

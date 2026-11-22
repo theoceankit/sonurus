@@ -164,7 +164,7 @@ export function useNewTranscription() {
 
   const importFiles = useCallback(async () => {
     const { files } = latest.current
-    const { model, language, checking, blocked } = latestChoice.current
+    const { model, language, diarize, checking, blocked } = latestChoice.current
     if (checking || blocked) return
     const titles = queueTitles(files)
     importing.current = true
@@ -173,6 +173,7 @@ export function useNewTranscription() {
         files: files.map((file, index) => ({ audioPath: file.path, title: titles[index] })),
         whisperModel: model,
         language: apiLanguage(language),
+        diarize,
       })
       setState(current => ({ ...current, open: null }))
       toast({ message: importingMessage(files) })
@@ -189,9 +190,9 @@ export function useNewTranscription() {
   // Starts with the title typed, or the one the field shows; the dialog closes.
   const startRecording = () => {
     const { title } = latest.current
-    const { model, language, checking, blocked } = latestChoice.current
+    const { model, language, diarize, checking, blocked } = latestChoice.current
     if (checking || blocked) return
-    const started = recording.start({ title: title.trim() || defaultTitle(openedAt, latest.current.app), model, language: apiLanguage(language) })
+    const started = recording.start({ title: title.trim() || defaultTitle(openedAt, latest.current.app), model, language: apiLanguage(language), diarize })
     if (started) setState(current => ({ ...current, open: null }))
   }
 
@@ -199,6 +200,7 @@ export function useNewTranscription() {
     choice,
     onModelChange: (model: string) => pick({ model }),
     onLanguageChange: (language: string) => pick({ language }),
+    onDiarizeChange: (diarize: boolean) => pick({ diarize }),
     onClose: close,
     // Over the dialog, which waits under Settings.
     onOpenSettings: (section: 'models' | 'alignment') => settingsDialog.open(section),

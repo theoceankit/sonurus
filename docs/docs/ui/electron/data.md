@@ -128,7 +128,7 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 | `downloadFails` | `true` | A model download ends with an error at 100 % and installs nothing |
 | `overrides` | any methods of `ApiClient` | One method behaving differently, such as a failing save on a loaded screen |
 
-`addQueueJob` on fixtures refuses a job as the backend does, in its order: a Whisper model that is not downloaded, then the diarization model, then the alignment model of the language, each with the backend's message.
+`addQueueJob` on fixtures refuses a job as the backend does, in its order: a Whisper model that is not downloaded, then the diarization model if the job identifies speakers, then the alignment model of the language, each with the backend's message.
 
 `setConnected(false)` on a fixture client loses the connection to the backend, and `setConnected(true)` brings it back.
 

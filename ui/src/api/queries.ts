@@ -486,6 +486,8 @@ export type QueueFiles = {
   files: readonly { audioPath: string; title: string | null }[]
   // Null is the backend's own: its default model, and the language detected from the audio.
   whisperModel: string | null
+  // Off: no speakers, and no diarization model needed.
+  diarize?: boolean
   language: string | null
 }
 
@@ -495,10 +497,10 @@ export function useAddToQueue() {
   const api = useApi()
   const queries = useQueryClient()
   return useMutation({
-    mutationFn: async ({ files, whisperModel, language }: QueueFiles) => {
+    mutationFn: async ({ files, whisperModel, language, diarize }: QueueFiles) => {
       for (const [added, { audioPath, title }] of files.entries()) {
         try {
-          await api.addQueueJob({ audioPath, whisperModel, language, title })
+          await api.addQueueJob({ audioPath, whisperModel, language, title, diarize })
         } catch (error) {
           throw new AddToQueueError(added, error instanceof ApiError ? error : new ApiError(0, String(error)))
         }

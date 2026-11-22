@@ -27,6 +27,7 @@ export interface ImportDialogProps {
   choice: TranscribeChoice
   onModelChange: (model: string) => void
   onLanguageChange: (language: string) => void
+  onDiarizeChange: (diarize: boolean) => void
   failure: Refusal | null
   importing: boolean
   onChooseFiles: () => void
@@ -44,7 +45,7 @@ export interface ImportDialogProps {
 // each renamed by a click on its name. Opened by files dragged over the window, or
 // from New recording.
 export function ImportDialog({
-  open, over, files, onRename, choice, onModelChange, onLanguageChange,
+  open, over, files, onRename, choice, onModelChange, onLanguageChange, onDiarizeChange,
   failure, importing, onChooseFiles, onRemove, onImport, onClose, onOpenSettings, onExited, preview,
 }: ImportDialogProps) {
   const ready = !choice.checking && !choice.blocked
@@ -53,7 +54,7 @@ export function ImportDialog({
       <ModalHeader title="Import files" />
       <ModalBody>
         <Stack gap={3}>
-          <TranscribeFields choice={choice} onModelChange={onModelChange} onLanguageChange={onLanguageChange} disabled={importing} />
+          <TranscribeFields choice={choice} onModelChange={onModelChange} onLanguageChange={onLanguageChange} onDiarizeChange={onDiarizeChange} onOpenSettings={onOpenSettings} disabled={importing} />
           {files.length > 0 && (
             <ul aria-label="Files to import" className={styles.files}>
               {files.map(file => (

@@ -122,7 +122,7 @@ export function ModelsSection() {
         title="Speaker diarization"
         description={(
           <>
-            Tells the speakers apart. Every transcription needs it. Its download needs a HuggingFace token, set in{' '}
+            Tells the speakers apart. Without it recordings are transcribed with no speakers. Its download needs a HuggingFace token, set in{' '}
             <button type="button" className={styles.link} onClick={() => settingsDialog.open('apiKeys')}>API Keys</button>.
           </>
         )}

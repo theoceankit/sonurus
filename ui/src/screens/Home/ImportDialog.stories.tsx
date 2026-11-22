@@ -27,6 +27,7 @@ const meta: Meta<typeof ImportDialog> = {
     onChooseFiles: noop,
     onRemove: noop,
     onImport: noop,
+    onDiarizeChange: noop,
     onClose: noop,
   } satisfies ImportDialogProps,
 }

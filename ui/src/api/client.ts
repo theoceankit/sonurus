@@ -32,7 +32,7 @@ export type SpeakerUndo = { transcriptId: number; segmentStarts: readonly number
 
 // A file for the transcription queue. A null model or language is the backend's own:
 // its default model, and the language detected from the audio. No title is the file name.
-export type NewQueueJob = { audioPath: string; whisperModel: string | null; language: string | null; title?: string | null }
+export type NewQueueJob = { audioPath: string; whisperModel: string | null; language: string | null; title?: string | null; diarize?: boolean }
 
 // Bars evenly over a stretch of a recording, in seconds.
 export type WaveformStretch = { bars: number; start: number; end: number }

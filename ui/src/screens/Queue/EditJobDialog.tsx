@@ -62,6 +62,7 @@ export function EditJobDialog({ job, onClose }: EditJobDialogProps) {
       form={form}
       modelOptions={modelOptions}
       languageOptions={choice.languageOptions}
+      diarizeAvailable={!models.data || models.data.some(model => model.kind === 'diarization' && model.installed)}
       error={error}
       refusal={refusal}
       saving={update.isPending}

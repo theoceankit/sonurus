@@ -74,4 +74,5 @@ export const BarPaused: Story = { args: { playing: true, timing: at(3.2, true) }
 export const BarAtTheStart: Story = { args: { playing: true, timing: at(0, true) } }
 export const BarAtTheEnd: Story = { args: { playing: true, timing: at(8, true) } }
 export const Editing: Story = { args: { editing: true } }
+export const WithoutChangeSpeaker: Story = { args: { showActions: true, onChangeSpeaker: undefined } }
 export const LongWord: Story = { args: { text: `A word that does not fit ${'x'.repeat(200)}` } }

@@ -100,14 +100,13 @@ export function defaultModelMessage(id: string | null, models: readonly ModelInf
 
 export type BlockReason =
   | { missing: 'whisper' }
-  | { missing: 'diarization' }
   | { missing: 'alignment'; language: string }
 
-// Why a job in this language cannot start, or null: the Whisper model, the
-// diarization model, then the language's alignment model, as the backend checks.
+// Why a job in this language cannot start, or null: the Whisper model, then the
+// language's alignment model, as the backend checks. The diarization model stops
+// nothing: without it a job runs without speakers.
 export function jobBlockReason(state: ModelState, language: string): BlockReason | null {
   if (!state.model) return { missing: 'whisper' }
-  if (!state.diarizeInstalled) return { missing: 'diarization' }
   if (missingAlignmentModel(language, state.models)) return { missing: 'alignment', language }
   return null
 }
@@ -115,14 +114,13 @@ export function jobBlockReason(state: ModelState, language: string): BlockReason
 // The hint over the models in Settings while new jobs cannot start, or null.
 export function settingsModelHint(state: ModelState): string | null {
   if (!state.model) return 'No model selected — download a Whisper model to transcribe'
-  if (!state.diarizeInstalled) return 'Diarization model not installed — download it to transcribe'
+  if (!state.diarizeInstalled) return 'Diarization model not installed — download it to identify speakers'
   return null
 }
 
 export function blockMessage(reason: BlockReason): string {
   switch (reason.missing) {
     case 'whisper': return 'No transcription model installed'
-    case 'diarization': return 'Diarization model not installed'
     case 'alignment': return `Alignment model for ${languageName(reason.language)} is not installed`
   }
 }

@@ -86,6 +86,8 @@ New recording is a medium `Modal` titled New recording, with "Make sure all part
 - **Start recording.** Saves the sources and devices as the defaults, the ones Settings shows under [Audio devices](settings.md#audio-devices), but not the model and the language, closes and starts the recording with the title typed or the one the field shows, the model and the language: see [Live recording → New UI](live-recording.md#in-the-window).
 - **While recording.** "A recording is already in progress." stands over the sources, which are off, and Start recording is off. Import files works as always.
 
+- **Identify speakers.** `IdentifySpeakers` under Model and Language, in both dialogs. It is on while the diarization model is installed, and a choice is for this run only, as the model and the language. Without the model it is off and cannot be turned on, says "Needs the diarization model" with Download in Settings, and the run goes without speakers.
+
 ## Import files dialog
 
 Import files is a medium `Modal` titled Import files, with no line under the title: Model and Language, the list of files, a `DropZone`, then what is wrong, a notice of missing models or a refusal of the backend, and Cancel and Import. There is no title field: each file is named in the list.

@@ -4,9 +4,9 @@ import { languageName, LANGUAGES } from './languages'
 import type { ModelInfo } from '../api/types'
 import { installedWhisperModels, jobBlockReason, missingAlignmentModel, modelState, whisperModels, type BlockReason } from './models'
 
-// The model and language of one run, as a dialog offers them. They start from the
-// defaults of the settings; what the user picks there is for this run and is not saved.
-export type Picked = { model: string | null; language: string | null }
+// The model, language and speakers of one run, as a dialog offers them. They start from
+// the defaults; what the user picks there is for this run and is not saved.
+export type Picked = { model: string | null; language: string | null; diarize?: boolean }
 
 export const NOTHING_PICKED: Picked = { model: null, language: null }
 
@@ -18,6 +18,9 @@ export type TranscribeChoice = {
   model: string | null
   // Empty while the default is not known yet.
   language: string
+  // Look for speakers: on unless turned off, and off without the model.
+  diarize: boolean
+  diarizeAvailable: boolean
   // Why the run cannot start; null when it can, and while checking.
   blocked: BlockReason | null
   modelOptions: SelectOption[]
@@ -34,12 +37,14 @@ export function transcribeChoice(models: readonly ModelInfo[] | undefined, setti
   })
   // A saved language that is not in the list is still shown.
   if (language && !LANGUAGES.some(({ code }) => code === language)) languageOptions.push({ value: language, label: languageName(language) })
-  if (!models || !settings) return { checking: true, model: null, language, blocked: null, modelOptions: [], languageOptions }
+  if (!models || !settings) return { checking: true, model: null, language, diarize: picked.diarize ?? true, diarizeAvailable: false, blocked: null, modelOptions: [], languageOptions }
 
   const state = modelState(models, settings)
   const model = picked.model && installedWhisperModels(models).includes(picked.model) ? picked.model : state.model
   const modelOptions = whisperModels(models).map(({ id, name, installed }) => ({
     value: id, label: name, ...(installed ? {} : { disabled: true, meta: NOT_INSTALLED }),
   }))
-  return { checking: false, model, language, blocked: jobBlockReason({ ...state, model }, language), modelOptions, languageOptions }
+  const diarizeAvailable = state.diarizeInstalled
+  const diarize = diarizeAvailable && (picked.diarize ?? true)
+  return { checking: false, model, language, diarize, diarizeAvailable, blocked: jobBlockReason({ ...state, model }, language), modelOptions, languageOptions }
 }
