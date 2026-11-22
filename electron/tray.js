@@ -47,7 +47,11 @@ const RECORDING_ITEMS = {
 }
 
 // The state of that item from the recording of a queue snapshot.
-const trayRecordingState = recording => recording?.phase ?? 'idle'
+function trayRecordingState(recording) {
+  if (!recording) return 'idle'
+  // A phase added to the backend and not here: nothing to offer, and the menu still builds.
+  return Object.hasOwn(RECORDING_ITEMS, recording.phase) ? recording.phase : 'unknown'
+}
 
 function trayMenu({ open, quit, recording = 'unknown', ...commands }) {
   const { label, enabled, command } = RECORDING_ITEMS[recording]

@@ -113,6 +113,14 @@ test('the state of the item comes from the recording of the snapshot', () => {
   for (const phase of ['starting', 'live', 'stopping']) assert.equal(trayRecordingState({ ...live, phase }), phase)
 })
 
+test('a phase the menu does not know turns the item off instead of breaking the menu', () => {
+  for (const phase of ['paused', '', 'toString']) {
+    const state = trayRecordingState({ ...live, phase })
+    assert.equal(state, 'unknown', phase)
+    assert.equal(menuFor(state)[1].enabled, false, phase)
+  }
+})
+
 test('Windows and macOS always have a tray', async () => {
   const run = async () => { throw new Error('not called') }
   assert.equal(await trayAvailable({ platform: 'win32', run }), true)
