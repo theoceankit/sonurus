@@ -296,3 +296,137 @@ test('every button names itself, with no keys in its name', () => {
   for (const name of ['Text style', 'Bold', 'Italic', 'Bulleted list', 'Numbered list', 'Checkbox', 'Quote', 'Link']) button(name)
   expect(button('Bold').getAttribute('aria-keyshortcuts')).toBeNull()
 })
+
+describe('what is around the block changed', () => {
+  type Block = Record<string, unknown>
+  const item = (...content: Block[]) => ({ type: 'listItem', content })
+  const bullets = (...content: Block[]) => ({ type: 'bulletList', content })
+  const tasks = (...items: [string, boolean][]) => ({ type: 'taskList', content: items.map(([text, checked]) => ({ type: 'taskItem', attrs: { checked }, content: [p(text)] })) })
+  const quote = (...content: Block[]) => ({ type: 'blockquote', content })
+  const nested = () => doc(bullets(item(p('Parent'), list('Alpha', 'Beta', 'Gamma')), item(p('Next'))))
+  const cursorIn = (editor: Editor, text: string) => act(() => {
+    let at = -1
+    editor.state.doc.descendants((node, pos) => {
+      if (at < 0 && node.isText && node.text === text) at = pos + 1
+    })
+    editor.commands.setTextSelection(at)
+  })
+  const selectAll = (editor: Editor) => act(() => { editor.commands.selectAll() })
+
+  test.each([
+    ['Checkbox', '- Parent\n  - Alpha\n  - [ ] Beta\n  - Gamma\n- Next'],
+    ['Numbered list', '- Parent\n  - Alpha\n  1. Beta\n  - Gamma\n- Next'],
+    ['Bulleted list', '- Parent\n  - Alpha\n  Beta\n  - Gamma\n- Next'],
+  ])('%s on a nested item leaves the others nested, one Undo takes it back', (name, marked) => {
+    const editor = setup(nested())
+    cursorIn(editor, 'Beta')
+    act(() => { press(name) })
+    expect(md(editor)).toBe(marked)
+    act(() => { editor.commands.undo() })
+    expect(md(editor)).toBe('- Parent\n  - Alpha\n  - Beta\n  - Gamma\n- Next')
+  })
+
+  test('a nested item taken off is not lit, and a second press puts it back', () => {
+    const editor = setup(nested())
+    cursorIn(editor, 'Beta')
+    act(() => { press('Bulleted list') })
+    expect(pressed('Bulleted list')).toBe('false')
+    act(() => { press('Bulleted list') })
+    expect(md(editor)).toBe('- Parent\n  - Alpha\n  - Beta\n  - Gamma\n- Next')
+  })
+
+  test.each([
+    ['Checkbox', '- [ ] Parent\n  - Alpha\n  - Beta\n  - Gamma\n\n- Next'],
+    ['Bulleted list', 'Parent\n\n- Alpha\n- Beta\n- Gamma\n\n- Next'],
+  ])('%s works on an item with items of its own', (name, marked) => {
+    const editor = setup(nested())
+    cursorIn(editor, 'Parent')
+    act(() => { press(name) })
+    expect(md(editor)).toBe(marked)
+  })
+
+  test('only the kind of list of the item itself is lit', () => {
+    const editor = setup(doc({ type: 'orderedList', content: [item(p('Outer'), list('Inner'))] }))
+    cursorIn(editor, 'Inner')
+    expect([pressed('Bulleted list'), pressed('Numbered list')]).toEqual(['true', 'false'])
+  })
+
+  test.each([
+    ['Numbered list', '> - One\n>\n> 1. Two\n>\n> - Three'],
+    ['Bulleted list', '> - One\n>\n> Two\n>\n> - Three'],
+    ['Quote', '> - One\n\n- Two\n\n> - Three'],
+  ])('%s on an item in a quote changes only that item', (name, marked) => {
+    const editor = setup(doc(quote(list('One', 'Two', 'Three'))))
+    cursorIn(editor, 'Two')
+    act(() => { press(name) })
+    expect(md(editor)).toBe(marked)
+  })
+
+  test('a paragraph in a quote becomes a list there', () => {
+    const editor = setup(doc(quote(p('First'), p('Second'), p('Third'))))
+    cursorIn(editor, 'Second')
+    act(() => { press('Bulleted list') })
+    expect(md(editor)).toBe('> First\n>\n> - Second\n>\n> Third')
+  })
+
+  test('Checkbox keeps the ticks of what is a checkbox already', () => {
+    const editor = setup(doc(tasks(['Done', true]), p('Plain')))
+    selectAll(editor)
+    act(() => { press('Checkbox') })
+    expect(md(editor)).toBe('- [x] Done\n- [ ] Plain')
+  })
+
+  test('Checkbox keeps the ticks next to items of another list', () => {
+    const editor = setup(doc(tasks(['Done', true], ['Open', false]), list('More')))
+    selectAll(editor)
+    act(() => { press('Checkbox') })
+    expect(md(editor)).toBe('- [x] Done\n- [ ] Open\n- [ ] More')
+  })
+
+  // The note ends on an empty paragraph after a list, which a selection of all takes in.
+  test('all of a checklist is lit, so a press takes it off, with no item added', () => {
+    const editor = setup(doc(tasks(['Done', true], ['Open', false]), { type: 'paragraph' }))
+    selectAll(editor)
+    expect(pressed('Checkbox')).toBe('true')
+    act(() => { press('Checkbox') })
+    expect(md(editor)).toBe('Done\n\nOpen')
+    act(() => { editor.commands.undo() })
+    expect(md(editor)).toBe('- [x] Done\n- [ ] Open')
+  })
+
+  test('all of a nested list changes its type and keeps its levels', () => {
+    const editor = setup(nested())
+    selectAll(editor)
+    act(() => { press('Numbered list') })
+    expect(md(editor)).toBe('1. Parent\n   1. Alpha\n   2. Beta\n   3. Gamma\n2. Next')
+  })
+
+  test('all of a quote is lit and comes off, not quoted twice', () => {
+    const editor = setup(doc(quote(p('One'), p('Two')), { type: 'paragraph' }))
+    selectAll(editor)
+    expect(pressed('Quote')).toBe('true')
+    act(() => { press('Quote') })
+    expect(md(editor)).toBe('One\n\nTwo')
+  })
+
+  test('a quote in the quote taken off keeps its own', () => {
+    const editor = setup(doc(quote(p('One'), quote(p('Inner')), p('Two'))))
+    selectAll(editor)
+    act(() => { press('Quote') })
+    expect(md(editor)).toBe('One\n\n> Inner\n\nTwo')
+  })
+
+  test('Quote over a quote and a paragraph makes one quote', () => {
+    const editor = setup(doc(quote(p('One')), p('Two')))
+    selectAll(editor)
+    act(() => { press('Quote') })
+    expect(md(editor)).toBe('> One\n>\n> Two')
+  })
+
+  test('Quote takes a whole list selected', () => {
+    const editor = setup(doc(list('One', 'Two')))
+    selectAll(editor)
+    act(() => { press('Quote') })
+    expect(md(editor)).toBe('> - One\n> - Two')
+  })
+})
