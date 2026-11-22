@@ -90,7 +90,7 @@ A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/spea
 The WebSocket is also how the app knows the backend is there. `useBackendConnected()` is false from the moment the connection drops until it opens again, and a first attempt that fails counts as a drop.
 
 - While it is down, `App` shows a toast that stays. What is on the screen stays too, and an action fails with its own toast.
-- When it is back, every query is refreshed, as a job may have finished unheard. That also clears the error of a first load, with no click on Retry.
+- When it is back, every query but the notes already loaded is refreshed, as a job may have finished unheard. That also clears the error of a first load, with no click on Retry. A loaded note is left alone: the cache has what was typed while the backend was away, and the backend does not.
 - A load of audio that failed is tried again from the same position (`Playback.reload()`). While the backend is down the player does not call the file missing.
 
 Reading a query, screens show an error only when there is no data: a refresh that fails leaves what was loaded.

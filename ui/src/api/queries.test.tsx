@@ -8,7 +8,7 @@ import { QUEUE_JOB, SPEAKER_IDS, WEEKLY_SYNC_ID, queueSnapshot } from './fixture
 import { EVENT_SCRIPTS } from './fixtures/event-scripts'
 import { createFixtureClient, type FixtureClient, type FixtureOptions } from './fixtures/fixture-client'
 import {
-  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useHandleSuggestion, useDeleteQueueJob, useDeleteSpeaker, useMergeSpeaker, useDeleteTranscript, useKeepNote, useModels, useNote, useWriteNote, useQueue, useQueueControl, useQueueEventsSync,
+  AddToQueueError, useAddToQueue, useAssignSpeaker, useBackendConnected, useHandleSuggestion, useDeleteQueueJob, useDeleteSpeaker, useMergeSpeaker, useDeleteTranscript, useKeepNote, useModels, useNote, useReadNote, useWriteNote, useQueue, useQueueControl, useQueueEventsSync,
   useReorderQueue, useRetryQueueJob, useSpeakerCandidates, useSpeakers, useSpeakerTranscripts, useTranscript, useTranscripts,
   useUndoSpeakerAssignment, useUpdateSegmentText, useUpdateTranscriptTitle, useWaveform,
 } from './queries'
@@ -440,6 +440,40 @@ describe('the connection to the backend', () => {
     act(() => client.setConnected(true))
     await waitFor(() => expect(result.current.data).toHaveLength(16))
     expect(list).toHaveBeenCalledTimes(2)
+  })
+
+  // With the backend away a save fails, so the cache holds the only copy of what was typed.
+  test.each([true, false])('being back keeps the note as typed, for an export too (the note shown: %s)', async shown => {
+    const typed = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Not saved yet' }] }] }
+    const client = createFixtureClient()
+    const { result, rerender } = renderHook(({ id }: { id: number | null }) => {
+      useQueueEventsSync()
+      return { note: useNote(id), keep: useKeepNote(), read: useReadNote(), list: useTranscripts() }
+    }, { wrapper: wrapperFor(client), initialProps: { id: WEEKLY_SYNC_ID as number | null } })
+    await waitFor(() => expect(result.current.note.data).toBeTruthy())
+    await waitFor(() => expect(result.current.list.data).toBeTruthy())
+    act(() => client.setConnected(false))
+    act(() => result.current.keep(WEEKLY_SYNC_ID, typed))
+    if (!shown) rerender({ id: null })
+    const getNote = vi.spyOn(client, 'getNote')
+    const list = vi.spyOn(client, 'listTranscripts')
+    act(() => client.setConnected(true))
+    await waitFor(() => expect(list).toHaveBeenCalled())
+    await act(async () => { expect((await result.current.read(WEEKLY_SYNC_ID)).content).toEqual(typed) })
+    expect(getNote).not.toHaveBeenCalled()
+  })
+
+  test('being back still loads a note that failed to load', async () => {
+    const client = createFixtureClient()
+    vi.spyOn(client, 'getNote').mockRejectedValueOnce(new ApiError(0, 'Failed to fetch'))
+    const { result } = renderHook(() => {
+      useQueueEventsSync()
+      return useNote(WEEKLY_SYNC_ID)
+    }, { wrapper: wrapperFor(client) })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    act(() => client.setConnected(false))
+    act(() => client.setConnected(true))
+    await waitFor(() => expect(result.current.data?.content).toBeTruthy())
   })
 })
 
