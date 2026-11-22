@@ -105,3 +105,53 @@ test('no text writes nothing and opens no dialog', async t => {
   assert.equal(calls.dialog.length, 0)
   assert.equal(fs.existsSync(path.join(dir, 'call.md')), false)
 })
+
+test('a write that fails halfway leaves the file it was to replace as it was', async t => {
+  const { dir, deps } = setup(t, 'call.txt')
+  const file = path.join(dir, 'call.txt')
+  fs.writeFileSync(file, 'the export before')
+  const write = fs.promises.writeFile
+  t.mock.method(fs.promises, 'writeFile', async (to, text, options) => {
+    await write(to, text.slice(0, 3), options)
+    throw Object.assign(new Error('ENOSPC: no space left on device, write'), { code: 'ENOSPC' })
+  })
+  const result = await saveExport({ title: 'Call', format: 'txt', text: 'the new export' }, deps)
+  assert.deepEqual(result, { status: 'failed', message: 'ENOSPC: no space left on device, write' })
+  assert.equal(fs.readFileSync(file, 'utf8'), 'the export before')
+  assert.deepEqual(fs.readdirSync(dir), ['call.txt'])
+})
+
+test('a failed write names the file picked', async t => {
+  const { dir, deps } = setup(t, path.join('no-such-folder', 'call.txt'))
+  const { message } = await saveExport({ title: 'Call', format: 'txt', text: 'x' }, deps)
+  assert.ok(message.includes(path.join(dir, 'no-such-folder', 'call.txt')), message)
+})
+
+const POSIX = { skip: process.platform === 'win32' && 'POSIX file modes and links' }
+
+test('a file replaced keeps its permissions', POSIX, async t => {
+  const { dir, deps } = setup(t, 'call.txt')
+  const file = path.join(dir, 'call.txt')
+  fs.writeFileSync(file, 'old')
+  fs.chmodSync(file, 0o600)
+  assert.deepEqual(await saveExport({ title: 'Call', format: 'txt', text: 'new' }, deps), { status: 'saved' })
+  assert.equal(fs.statSync(file).mode & 0o777, 0o600)
+})
+
+test('a link stays a link, and the file it points to is replaced', POSIX, async t => {
+  const { dir, deps } = setup(t, 'call.txt')
+  fs.writeFileSync(path.join(dir, 'real.txt'), 'old')
+  fs.symlinkSync('real.txt', path.join(dir, 'call.txt'))
+  assert.deepEqual(await saveExport({ title: 'Call', format: 'txt', text: 'new' }, deps), { status: 'saved' })
+  assert.ok(fs.lstatSync(path.join(dir, 'call.txt')).isSymbolicLink())
+  assert.equal(fs.readFileSync(path.join(dir, 'real.txt'), 'utf8'), 'new')
+})
+
+test('a file that may not be written is not replaced', { skip: POSIX.skip || (process.getuid?.() === 0 && 'root writes any file') }, async t => {
+  const { dir, deps } = setup(t, 'call.txt')
+  const file = path.join(dir, 'call.txt')
+  fs.writeFileSync(file, 'old')
+  fs.chmodSync(file, 0o444)
+  assert.equal((await saveExport({ title: 'Call', format: 'txt', text: 'new' }, deps)).status, 'failed')
+  assert.equal(fs.readFileSync(file, 'utf8'), 'old')
+})

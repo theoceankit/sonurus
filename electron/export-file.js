@@ -3,6 +3,7 @@
 // The dialog offers that format only, as Electron does not report a file type
 // changed in it.
 
+const { randomBytes } = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
@@ -31,6 +32,33 @@ function exportTarget(chosen, format) {
   return { filePath: `${chosen}.${format}`, extended: true }
 }
 
+// Written next to the file and renamed over it: a write that fails halfway, as on a
+// full disk, leaves what was there. As a write in place would, it goes through a link,
+// keeps the permissions and refuses a file that may not be written.
+async function replaceFile(chosen, text) {
+  let filePath = chosen
+  let mode
+  try {
+    filePath = await fs.promises.realpath(chosen)
+    await fs.promises.access(filePath, fs.constants.W_OK)
+    mode = (await fs.promises.stat(filePath)).mode & 0o777
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
+  const temporary = path.join(path.dirname(filePath), `.sonorus-export-${randomBytes(6).toString('hex')}.tmp`)
+  try {
+    await fs.promises.writeFile(temporary, text, { encoding: 'utf8', mode, flush: true })
+    // Past the umask. A file system without permissions (FAT) may refuse it.
+    if (mode !== undefined) await fs.promises.chmod(temporary, mode).catch(() => {})
+    await fs.promises.rename(temporary, filePath)
+  } catch (error) {
+    await fs.promises.rm(temporary, { force: true }).catch(() => {})
+    // The file picked is the one the user knows.
+    error.message = error.message.replaceAll(temporary, filePath)
+    throw error
+  }
+}
+
 // The dialog asks before replacing the name it was given. A name extended here is
 // another one, so asking about it is left to confirmReplace.
 async function saveExport(request, { showSaveDialog, confirmReplace, statePath }) {
@@ -49,7 +77,7 @@ async function saveExport(request, { showSaveDialog, confirmReplace, statePath }
   const target = exportTarget(chosen, format)
   try {
     if (target.extended && fs.existsSync(target.filePath) && !(await confirmReplace(target.filePath))) return { status: 'canceled' }
-    await fs.promises.writeFile(target.filePath, text, 'utf8')
+    await replaceFile(target.filePath, text)
   } catch (error) {
     return { status: 'failed', message: error.message }
   }
