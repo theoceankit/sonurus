@@ -229,6 +229,24 @@ describe('links', () => {
     expect(md(editor)).toBe('See [https://localhost/a](https://localhost/a)!')
   })
 
+  test('an email address becomes a mailto link, with the email as its text', async () => {
+    const user = userEvent.setup()
+    const editor = setup(doc(p('Ask ')))
+    select(editor, 5, 5)
+    await user.click(button('Link'))
+    await user.type(await address(), 'team@example.com{Enter}')
+    expect(md(editor)).toBe('Ask [team@example.com](mailto:team@example.com)')
+  })
+
+  test('an email address on selected text links it to mailto', async () => {
+    const user = userEvent.setup()
+    const editor = setup()
+    select(editor, 1, 6)
+    await user.click(button('Link'))
+    await user.type(await address(), 'team@example.com{Enter}')
+    expect(md(editor)).toBe('[Hello](mailto:team@example.com) world')
+  })
+
   test('on a link it changes the address of the whole link', async () => {
     const user = userEvent.setup()
     const editor = setup(linkDoc())

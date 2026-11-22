@@ -36,7 +36,7 @@ A button is highlighted when its format holds at the cursor, and a second press 
 
 A press does not take the focus from the note, and the menu and the link window give it back. Each use is one step of Undo, also right after typing (`note-format.ts`). The bar reads the editor through `useEditorState`, so it renders with the cursor and `NoteEditor` does not.
 
-Link opens a small window with the address (`NoteLinkPopover`). With a selection the selected text becomes the link; without one the address goes in as the link's text. With the cursor on a link the window shows its address, to change it or remove the link. Enter or Apply applies, Escape closes the window and leaves the note expanded. What is selected stays visible meanwhile. `parseNoteLink()` in `note-link.ts` accepts `http`, `https` and `mailto`, and adds `https://` to a host with no scheme, such as `example.com`; anything else, a bare email address included, gets an error under the field.
+Link opens a small window with the address (`NoteLinkPopover`). With a selection the selected text becomes the link; without one the address goes in as the link's text, an email address without its `mailto:`. With the cursor on a link the window shows its address, to change it or remove the link. Enter or Apply applies, Escape closes the window and leaves the note expanded. What is selected stays visible meanwhile. `parseNoteLink()` in `note-link.ts` accepts `http`, `https` and `mailto`, adds `https://` to a host with no scheme, such as `example.com`, and `mailto:` to an email address; anything else gets an error under the field.
 
 ## Timecodes
 

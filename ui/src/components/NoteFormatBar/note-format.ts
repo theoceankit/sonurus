@@ -60,8 +60,10 @@ export function setNoteLink(editor: Editor, href: string) {
     return apply(editor, chain => chain.extendMarkRange('link').setLink({ href }).setTextSelection({ from, to }))
   }
   if (empty) {
-    // The address is the text, and what is typed after it is not part of the link.
-    return apply(editor, chain => chain.insertContent({ type: 'text', text: href, marks: [{ type: 'link', attrs: { href } }] }).unsetMark('link'))
+    // The address is the text, an email without its mailto:, and what is typed after it
+    // is not part of the link.
+    const text = href.replace(/^mailto:/i, '')
+    return apply(editor, chain => chain.insertContent({ type: 'text', text, marks: [{ type: 'link', attrs: { href } }] }).unsetMark('link'))
   }
   apply(editor, chain => chain.setLink({ href }))
 }
