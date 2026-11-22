@@ -32,6 +32,7 @@ These are the paths of the installed app. Dev mode (`npm start`) uses `sonorus-d
 | Interface scale | `scale` | Zoom factor in percent |
 | Export: timestamps | `exportTimestamps` | Start times in an export, on by default |
 | Export: speakers | `exportSpeakers` | Speaker labels in an export, on by default |
+| Export: speakers by | `exportSpeakerLabel` | `"name"` (default) or `"handle"`; a speaker without a handle keeps their label |
 | Export: notes | `exportNotes` | The note of the recording in an export, off by default |
 
 ---

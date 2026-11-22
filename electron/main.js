@@ -167,6 +167,7 @@ const DEFAULT_SETTINGS = {
   transcribeModelHistory: [],
   exportTimestamps: true,
   exportSpeakers: true,
+  exportSpeakerLabel: 'name',
   exportNotes: false,
   recordingAudioSource: 'both',
   recordingMicDevice: null,

@@ -115,6 +115,26 @@ test('Export: what goes in is saved', async () => {
   expect(within(card).queryByRole('combobox', { name: 'Default format' })).toBeNull()
 })
 
+test('Export: speakers by name or handle, off with the labels off', async () => {
+  const bridge = await setup()
+  const settings = await openSection('Export')
+  const card = within(settings).getByRole('region', { name: 'Export' })
+  const select = within(card).getByRole('combobox', { name: 'Show speakers by' })
+  expect(select.textContent).toContain('Name')
+  await userEvent.click(select)
+  await userEvent.click(await screen.findByRole('option', { name: 'Handle' }))
+  await waitFor(async () => expect((await bridge.readSettings()).exportSpeakerLabel).toBe('handle'))
+  await userEvent.click(within(card).getByRole('switch', { name: 'Speaker labels' }))
+  await waitFor(() => expect((select as HTMLButtonElement).disabled).toBe(true))
+})
+
+test('Export: no lines between the rows', async () => {
+  await setup()
+  const settings = await openSection('Export')
+  const rows = within(settings).getByRole('group', { name: 'Timestamps' }).parentElement!
+  expect(rows.className).toMatch(/undivided/)
+})
+
 test.each([['Bookmarks', 'settings.export-bookmarks'], ['Original audio file', 'settings.export-audio']])('Export: %s is not available yet', async (name, id) => {
   const bridge = await setup()
   const settings = await openSection('Export')

@@ -7,8 +7,8 @@ const segment = (start: number, text: string, change: Partial<Segment> = {}): Se
   start, end: start + 2, text, speaker_raw: 'SPEAKER_00', speaker_resolved: null, speaker_final: null, unassigned: false, ...change,
 })
 const speakers = [
-  { id: 'anna', name: 'Anna', color_index: 0 },
-  { id: 'mark', name: 'Mark', color_index: 1 },
+  { id: 'anna', name: 'Anna', handle: 'anna.p', color_index: 0 },
+  { id: 'mark', name: 'Mark', handle: 'mark', color_index: 1 },
 ] as Speaker[]
 const segments = [
   segment(0, 'Hello.', { speaker_resolved: 'mark', speaker_final: 'anna' }),
@@ -82,5 +82,27 @@ describe('json', () => {
     expect('note' in parsed()).toBe(false)
     expect(parsed({ note: null }).note).toBeNull()
     expect(parsed({ note: 'Text' }).note).toBe('Text')
+  })
+})
+
+describe('speakers by handle', () => {
+  const byHandle = { ...all, speakerLabel: 'handle' as const }
+
+  test('a named speaker is @handle in every format', () => {
+    const short = { ...source, turns: source.turns.slice(0, 1) }
+    const { txt, md, json } = exportContents(short, byHandle)
+    expect(txt).toContain('@anna.p 00:00')
+    expect(md).toContain('**@anna.p** [00:00]')
+    expect(JSON.parse(json).segments[0].speaker).toBe('@anna.p')
+  })
+
+  test('Unknown speaker and Unassigned have no handle and keep their label', () => {
+    const labels = JSON.parse(exportContents(source, byHandle).json).segments.map((row: { speaker: string }) => row.speaker)
+    expect(labels).toEqual(['@anna.p', '@anna.p', '@mark', 'Unknown speaker 1', 'Unassigned'])
+  })
+
+  test('a named speaker with no handle keeps the name', () => {
+    const turns = buildTurns([segment(0, 'Hi.', { speaker_final: 'bo' })], [{ id: 'bo', name: 'Bo', handle: null, color_index: 2 }] as unknown as Speaker[])
+    expect(exportContents({ ...source, turns }, byHandle).txt).toContain('Bo 00:00')
   })
 })

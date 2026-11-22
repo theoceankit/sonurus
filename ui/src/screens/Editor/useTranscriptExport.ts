@@ -30,7 +30,7 @@ export function useTranscriptExport(transcript: Transcript, title: string, turns
       const text = exportContent(
         format,
         { title, language, turns, note },
-        { timestamps: settings.exportTimestamps, speakers: settings.exportSpeakers },
+        { timestamps: settings.exportTimestamps, speakers: settings.exportSpeakers, speakerLabel: settings.exportSpeakerLabel },
       )
       const result = await window.electronAPI.saveExport({ title, format, text })
       if (result.status === 'saved') toast({ message: 'Exported' })

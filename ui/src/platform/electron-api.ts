@@ -1,5 +1,6 @@
 // What electron/preload.js exposes. A build test keeps the keys the same.
 export type ExportFormat = 'txt' | 'md' | 'json'
+export type ExportSpeakerLabel = 'name' | 'handle'
 
 export type ExportRequest = {
   title: string
@@ -16,6 +17,8 @@ export type ElectronSettings = {
   transcribeModelHistory: string[]
   exportTimestamps: boolean
   exportSpeakers: boolean
+  // A speaker in an export: by name, or by @handle where they have one.
+  exportSpeakerLabel: ExportSpeakerLabel
   exportNotes: boolean
   // What a live recording takes, as the New recording dialog last started it.
   recordingAudioSource: 'mic' | 'system' | 'both'
