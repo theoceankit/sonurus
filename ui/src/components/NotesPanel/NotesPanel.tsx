@@ -98,7 +98,7 @@ export function NotesPanel({
   return (
     <div className={cx(styles.panel, styles[mode], className)}>
       {inTabRow
-        ? createPortal(<TooltipGroup><Inline gap={1}>{actions}</Inline></TooltipGroup>, tabRow)
+        ? createPortal(<TooltipGroup group={tabRow.tooltips}><Inline gap={1}>{actions}</Inline></TooltipGroup>, tabRow.element)
         : (
           <TooltipGroup>
             <Inline gap={1} className={styles.header}>

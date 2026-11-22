@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { dismissAllToasts } from '../Toast/toast-store'
 import { OverlayProvider } from '../../OverlayProvider'
+import { NotesPanel } from '../NotesPanel/NotesPanel'
 import { Inspector } from './Inspector'
 
 afterEach(dismissAllToasts)
@@ -61,4 +62,45 @@ test('review collapsed: how many are left, and Resume', async () => {
   expect(screen.getByText('4 left')).toBeTruthy()
   await userEvent.click(screen.getByRole('button', { name: 'Resume' }))
   expect(onResume).toHaveBeenCalledOnce()
+})
+
+// The note's buttons come into the row through a portal, next to Close inspector.
+test('Copy notes, Expand notes and Close inspector share one tooltip', async () => {
+  const content = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Agenda' }] }] }
+  panel({ notes: <NotesPanel content={content} findSpeaker={() => null} /> })
+  await userEvent.click(screen.getByRole('tab', { name: 'Notes' }))
+  const button = (name: string) => screen.getByRole('button', { name })
+  // As a browser does: out of one element into the next, then a move over it.
+  const move = (from: Element, to: Element) => {
+    fireEvent.pointerOut(from, { relatedTarget: to })
+    fireEvent.pointerOver(to, { relatedTarget: from })
+    fireEvent.pointerMove(to)
+  }
+  const waited = (ms: number) => act(async () => { vi.advanceTimersByTime(ms) })
+  const shown = () => screen.queryAllByRole('tooltip').map(tooltip => tooltip.textContent)
+  vi.useFakeTimers()
+  try {
+    fireEvent.pointerMove(button('Expand notes'))
+    await waited(350)
+    expect(shown()).toEqual(['Expand notes'])
+    await waited(1000)
+    const row = button('Expand notes').closest('[data-tooltip-group]')!
+    expect(button('Close inspector').closest('[data-tooltip-group]')?.getAttribute('data-tooltip-group')).toBe(row.getAttribute('data-tooltip-group'))
+
+    // Over the gap between them it stays, either way, and the next comes at once.
+    move(button('Expand notes'), button('Close inspector').parentElement!)
+    await waited(50)
+    expect(shown()).toEqual(['Expand notes'])
+    move(button('Close inspector').parentElement!, button('Close inspector'))
+    await waited(0)
+    expect(shown()).toEqual(['Close inspector'])
+    move(button('Close inspector'), button('Copy notes'))
+    await waited(0)
+    expect(shown()).toEqual(['Copy notes'])
+    move(button('Copy notes'), document.body)
+    await waited(200)
+    expect(shown()).toEqual([])
+  } finally {
+    vi.useRealTimers()
+  }
 })

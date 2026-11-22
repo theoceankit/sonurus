@@ -8,7 +8,7 @@ import { ScrollBar } from '../ScrollBar/ScrollBar'
 import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
 import { Tab } from '../Tab/Tab'
 import { TabPanel, Tabs } from '../Tabs/Tabs'
-import { Tooltip } from '../Tooltip/Tooltip'
+import { Tooltip, TooltipGroup, useTooltipGroup } from '../Tooltip/Tooltip'
 import { InspectorActions } from './inspector-actions'
 import styles from './Inspector.module.css'
 
@@ -40,6 +40,7 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, notes, 
   if (review.mode === 'collapsed') last.current = { ...last.current, left: review.left, onResume: review.onResume }
   const shown = last.current
   const [actions, setActions] = useState<HTMLElement | null>(null)
+  const tooltips = useTooltipGroup()
   return (
     <div className={cx(styles.inspector, className)} {...props}>
       <Tabs
@@ -55,10 +56,14 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, notes, 
           </>
         )}
       >
-        <Inline ref={setActions} gap={1} className={styles.actions} />
-        <Tooltip text="Close inspector" placement="below">
-          <IconButton icon="inspector" size="small" label="Close inspector" className={styles.close} onClick={onClose} />
-        </Tooltip>
+        <TooltipGroup group={tooltips}>
+          <Inline gap={1} className={styles.buttons}>
+            <Inline ref={setActions} gap={1} />
+            <Tooltip text="Close inspector" placement="below">
+              <IconButton icon="inspector" size="small" label="Close inspector" className={styles.close} onClick={onClose} />
+            </Tooltip>
+          </Inline>
+        </TooltipGroup>
         <TabPanel value="speakers" className={styles.panel}>
           <div className={styles.scrollArea}>
             <div ref={scrollRef} className={styles.scroll}>{children}</div>
@@ -90,7 +95,7 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, notes, 
           )}
         </TabPanel>
         <TabPanel value="notes" className={styles.panel}>
-          <InspectorActions.Provider value={actions}>{notes}</InspectorActions.Provider>
+          <InspectorActions.Provider value={actions && { element: actions, tooltips }}>{notes}</InspectorActions.Provider>
         </TabPanel>
       </Tabs>
     </div>
