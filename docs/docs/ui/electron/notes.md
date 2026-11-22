@@ -32,7 +32,7 @@ The editor is a third of the UI's code, so it is a chunk of its own (`React.lazy
 
 `NoteFormatBar` is a row right over the text of the note, in the tab and expanded; it does not scroll with the text and fits a tab 300 wide. From the left: the text style menu (Plain text, Heading 1 to 3), Bold, Italic, Bulleted list, Numbered list, Checkbox, Quote, Link, and the player's time. Each has a tooltip with its name.
 
-A button is highlighted when its format holds at the cursor, and a second press takes the format off. One that cannot apply there is out of use. Bold and Italic work on the selection, or without one on what is typed next. The styles, lists and Quote work on the block with the cursor or on all those selected, and on nothing around them (`note-blocks.ts`):
+A button is highlighted when its format holds at the cursor, and a second press takes the format off. One that cannot apply there is out of use; in the style menu the style the text has is checked and never out of use. Bold and Italic work on the selection, or without one on what is typed next. The styles, lists and Quote work on the block with the cursor or on all those selected, and on nothing around them (`note-blocks.ts`):
 
 - The item of a line is the one whose bullet, number or checkbox it has, and only that list is lit. A block further down in an item is no item itself: a list button makes it one, inside.
 - An item changed to another type keeps its place in a list around it or in a quote, the items under it and, if it is a checkbox already, its tick. Its list splits around it, and it joins a list of that type right next to it.

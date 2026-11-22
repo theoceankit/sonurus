@@ -195,6 +195,16 @@ describe('headings', () => {
     expect(md(editor)).toBe('Hello world')
   })
 
+  test('the style the text has is not out of use in the menu', async () => {
+    const user = userEvent.setup()
+    const editor = setup()
+    select(editor, 3, 3)
+    await user.click(button('Text style'))
+    const plain = await screen.findByRole('menuitemradio', { name: 'Plain text' })
+    expect(plain.getAttribute('aria-checked')).toBe('true')
+    expect(plain.hasAttribute('data-disabled')).toBe(false)
+  })
+
   test('the focus is back in the note after the menu', async () => {
     const user = userEvent.setup()
     const editor = setup()

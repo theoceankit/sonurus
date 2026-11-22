@@ -107,7 +107,7 @@ function FormatRow({ editor, onInsertTime, timeDisabled = false, className }: No
     <div ref={bar} className={cx(styles.bar, className)}>
       <Toolbar label="Format" variant="flat">
         <Menu
-          size="narrow"
+          size="compact"
           open={open === 'style'}
           onOpenChange={openChange('style')}
           onInteractOutside={outside}
@@ -125,7 +125,7 @@ function FormatRow({ editor, onInsertTime, timeDisabled = false, className }: No
         >
           <MenuOptions value={state.textStyle ?? ''} onValueChange={chooseStyle}>
             {STYLES.map(style => (
-              <MenuOption key={style.value} value={style.value} disabled={style.value === 'paragraph' ? !state.can.paragraph : !state.can.heading}>
+              <MenuOption key={style.value} value={style.value} disabled={style.value !== state.textStyle && !(style.value === 'paragraph' ? state.can.paragraph : state.can.heading)}>
                 {style.label}
               </MenuOption>
             ))}

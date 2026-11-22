@@ -147,6 +147,31 @@ test('a checkbox stands level with its text', async t => {
   assert.ok(await offset() <= 0.5, `expanded, ${await offset()} px off`)
 })
 
+// The check of the chosen style takes room from its name, which is never cut.
+test('the text style menu shows each style in full', async t => {
+  const app = await startApp()
+  t.after(app.stop)
+  const { page } = app
+  const inspector = page.getByRole('region', { name: 'Inspector' })
+  await inspector.getByRole('tab', { name: 'Notes' }).click()
+  await inspector.getByRole('textbox', { name: 'Notes' }).click()
+  await page.keyboard.type('Agenda')
+  const trigger = inspector.getByRole('toolbar', { name: 'Format' }).getByRole('button', { name: 'Text style' })
+  for (const style of ['Heading 1', 'Heading 2', 'Heading 3', 'Plain text']) {
+    await trigger.click()
+    await page.getByRole('menuitemradio', { name: style }).click()
+    await page.getByRole('menu').waitFor({ state: 'detached' })
+    await trigger.click()
+    const chosen = page.getByRole('menuitemradio', { name: style, checked: true })
+    await chosen.waitFor()
+    const cut = await chosen.evaluate(row => [row, ...row.querySelectorAll('*')]
+      .some(element => element.scrollWidth > element.clientWidth + 1 && getComputedStyle(element).textOverflow === 'ellipsis'))
+    assert.equal(cut, false, `${style} is cut`)
+    await page.keyboard.press('Escape')
+    await page.getByRole('menu').waitFor({ state: 'detached' })
+  }
+})
+
 // At a fractional scale the two edges round apart when they only touch.
 test('the arrow of a tooltip overlaps its plate', async t => {
   const app = await startApp()
