@@ -1,10 +1,25 @@
 // What electron/preload.js exposes. A build test keeps the keys the same.
+export type ExportFormat = 'txt' | 'md' | 'json'
+export type ExportSpeakerLabel = 'name' | 'handle'
+
+export type ExportRequest = {
+  title: string
+  format: ExportFormat
+  text: string
+}
+
+export type ExportResult = { status: 'saved' | 'canceled' } | { status: 'failed'; message: string }
+
 export type ElectronSettings = {
   scale: number
   transcribeLang: string
   transcribeModel: string | null
   transcribeModelHistory: string[]
-  exportFormat: string
+  exportTimestamps: boolean
+  exportSpeakers: boolean
+  // A speaker in an export: by name, or by @handle where they have one.
+  exportSpeakerLabel: ExportSpeakerLabel
+  exportNotes: boolean
   // What a live recording takes, as the New recording dialog last started it.
   recordingAudioSource: 'mic' | 'system' | 'both'
   // Null is the default microphone, or the default system audio source.
@@ -61,6 +76,8 @@ export type ElectronAPI = {
   // Sets the theme of the window: its frame, and prefers-color-scheme in the page.
   setTheme: (source: ThemeSource) => Promise<void>
   writeClipboard: (text: string) => Promise<void>
+  // The save dialog for this format, then the text into the file picked there.
+  saveExport: (request: ExportRequest) => Promise<ExportResult>
   restartBackend: () => Promise<void>
   // '' once the file manager opened the models folder, else why it did not.
   showModelsFolder: () => Promise<string>

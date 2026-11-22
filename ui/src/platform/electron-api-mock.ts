@@ -19,6 +19,7 @@ export function createMockElectronAPI(changes: Partial<ElectronAPI> = {}): MockE
     setZoom: async () => {},
     setTheme: async () => {},
     writeClipboard: async text => { clipboard = text },
+    saveExport: async () => ({ status: 'saved' }),
     restartBackend: async () => {},
     showModelsFolder: async () => '',
     openLink: async address => /^(https?|mailto):/.test(address),

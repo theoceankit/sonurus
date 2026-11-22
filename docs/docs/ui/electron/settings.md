@@ -75,7 +75,7 @@ The HuggingFace token (`hfToken`), hidden until the eye button shows it. The ico
 
 ## Export
 
-Shown and marked with `markNotImplemented()` as a whole: export does not exist yet, so its format, Duplicate on export and what to include change nothing.
+What goes into [Export in the transcript header](transcript.md#export), which picks the format each time: Timestamps, Speaker labels and Notes (`exportTimestamps`, `exportSpeakers`, `exportNotes`), the first two on and Notes off by default, as an export is often passed on and a note may be private. Show speakers by (`exportSpeakerLabel`) picks Name or Handle and is off while Speaker labels is. The rows of this card have no lines between them (`undivided` of `SectionCard`). Export settings, in the menu of Export, opens this section. Bookmarks and Original audio file are marked with `markNotImplemented()`. Reset preferences puts all of them back.
 
 ## Data
 

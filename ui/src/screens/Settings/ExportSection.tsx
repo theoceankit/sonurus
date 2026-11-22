@@ -1,44 +1,47 @@
-import { useState } from 'react'
 import { FieldRow } from '../../components/FieldRow/FieldRow'
 import { SectionCard } from '../../components/SectionCard/SectionCard'
 import { Select } from '../../components/Select/Select'
 import { Toggle } from '../../components/Toggle/Toggle'
 import { markNotImplemented } from '../../not-implemented'
+import type { ElectronSettings, ExportSpeakerLabel } from '../../platform/electron-api'
+import { DEFAULT_SETTINGS, settingsStore, useSettings } from '../../platform/settings'
 
-// Export is not there yet: the titlebar copy is always plain text. The section is
-// shown, marked as not available.
-const FORMATS = [
-  { value: 'txt', label: 'Plain text', meta: '.txt' },
-  { value: 'md', label: 'Markdown', meta: '.md' },
-  { value: 'srt', label: 'SubRip', meta: '.srt' },
-  { value: 'vtt', label: 'WebVTT', meta: '.vtt' },
-  { value: 'json', label: 'JSON', meta: '.json' },
+const SPEAKER_LABELS: { value: ExportSpeakerLabel; label: string }[] = [
+  { value: 'name', label: 'Name' },
+  { value: 'handle', label: 'Handle' },
 ]
 
-const INCLUDE = [
-  { key: 'timestamps', label: 'Timestamps', on: true },
-  { key: 'speakers', label: 'Speaker labels', on: true },
-  { key: 'bookmarks', label: 'Bookmarks', on: false },
-  { key: 'audio', label: 'Original audio file', on: false },
-]
+const patch = (change: Partial<ElectronSettings>) => void settingsStore().patch(change)
 
+// The format is picked each time, in the menu of Export in the transcript header.
 export function ExportSection() {
-  const [format] = useState('txt')
+  const settings = useSettings() ?? DEFAULT_SETTINGS
   return (
-    <div {...markNotImplemented('settings.export')}>
-      <SectionCard title="Export" description="Default format and what goes into an export.">
-        <FieldRow label="Default format" hint="Used when exporting without picking a format.">
-          <Select aria-label="Default format" value={format} options={FORMATS} onValueChange={() => {}} />
-        </FieldRow>
-        <FieldRow label="Duplicate on export" hint="Keeps the original and writes a copy.">
-          <Toggle label="Duplicate on export" checked />
-        </FieldRow>
-        {INCLUDE.map(({ key, label, on }) => (
-          <FieldRow key={key} label={label} hint={key === 'timestamps' ? 'What every export format includes.' : undefined}>
-            <Toggle label={label} checked={on} />
-          </FieldRow>
-        ))}
-      </SectionCard>
-    </div>
+    <SectionCard title="Export" description="What goes into an export." undivided>
+      <FieldRow label="Timestamps">
+        <Toggle label="Timestamps" checked={settings.exportTimestamps} onChange={checked => patch({ exportTimestamps: checked })} />
+      </FieldRow>
+      <FieldRow label="Speaker labels">
+        <Toggle label="Speaker labels" checked={settings.exportSpeakers} onChange={checked => patch({ exportSpeakers: checked })} />
+      </FieldRow>
+      <FieldRow label="Show speakers by" hint="A speaker without a handle keeps their label.">
+        <Select
+          aria-label="Show speakers by"
+          value={settings.exportSpeakerLabel}
+          options={SPEAKER_LABELS}
+          disabled={!settings.exportSpeakers}
+          onValueChange={value => patch({ exportSpeakerLabel: value as ExportSpeakerLabel })}
+        />
+      </FieldRow>
+      <FieldRow label="Notes" hint="The note of the recording, at the end.">
+        <Toggle label="Notes" checked={settings.exportNotes} onChange={checked => patch({ exportNotes: checked })} />
+      </FieldRow>
+      <FieldRow label="Bookmarks">
+        <Toggle label="Bookmarks" checked={false} {...markNotImplemented('settings.export-bookmarks')} />
+      </FieldRow>
+      <FieldRow label="Original audio file">
+        <Toggle label="Original audio file" checked={false} {...markNotImplemented('settings.export-audio')} />
+      </FieldRow>
+    </SectionCard>
   )
 }

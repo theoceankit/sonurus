@@ -22,8 +22,8 @@ interface MenuProps {
   side?: 'top' | 'bottom'
   // The distance from the trigger.
   offset?: number
-  // Narrow is for a short list of short values.
-  size?: 'default' | 'narrow'
+  // Compact is for a few short commands, narrow for a short list of short values.
+  size?: 'default' | 'compact' | 'narrow'
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
@@ -58,7 +58,7 @@ export function Menu({ trigger, children, align = 'start', side = 'bottom', offs
       <RadixDropdownMenu.Trigger asChild>{trigger}</RadixDropdownMenu.Trigger>
       <RadixDropdownMenu.Portal>
         <RadixDropdownMenu.Content asChild align={align} side={side} sideOffset={offset} onCloseAutoFocus={givingFocusBack(onCloseAutoFocus)} onPointerMove={pointerInput} onKeyDownCapture={keyboardInput}>
-          <MenuSurface className={size === 'narrow' ? styles.narrow : undefined}>
+          <MenuSurface className={size === 'default' ? undefined : styles[size]}>
             <Parts.Provider value={RadixDropdownMenu}>{children}</Parts.Provider>
           </MenuSurface>
         </RadixDropdownMenu.Content>

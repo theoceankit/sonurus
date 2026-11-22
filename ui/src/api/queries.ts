@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type Query, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef } from 'react'
 import type { JSONContent } from '@tiptap/react'
 import { rewriteMentions, type MentionChange } from '../components/NoteEditor/note-content'
@@ -277,6 +277,18 @@ export function useNote(id: number | null) {
     staleTime: Infinity,
     gcTime: Infinity,
   })
+}
+
+// The note once, for an export: what the cache holds, saved or not, else from the backend.
+export function useReadNote() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useCallback((id: number) => queries.fetchQuery({
+    queryKey: queryKeys.note(id),
+    queryFn: () => api.getNote(id),
+    staleTime: Infinity,
+    gcTime: Infinity,
+  }), [api, queries])
 }
 
 // The editor's document, kept as the note of the recording at once: the note opens
@@ -558,6 +570,12 @@ export function useDeleteQueueJob() {
   })
 }
 
+// What is asked for again when the backend is back. Not a note that has loaded: the cache
+// has what was typed, which could not be saved while the backend was away.
+const refreshedOnReturn = ({ queryKey: [kind], state }: Query) => (
+  kind !== queryKeys.connected[0] && !(kind === queryKeys.notes[0] && state.data !== undefined)
+)
+
 // Keeps the cache up with WS /ws/queue while the calling component is mounted:
 // the app's root calls it once. onEvent is for what a screen shows itself, such
 // as the toast of a failed job.
@@ -574,6 +592,6 @@ export function useQueueEventsSync(onEvent?: (event: QueueUpdate) => void) {
   }, connected => {
     queries.setQueryData(queryKeys.connected, connected)
     // A job may have finished while no one was listening.
-    if (connected) void queries.invalidateQueries({ predicate: query => query.queryKey[0] !== queryKeys.connected[0] })
+    if (connected) void queries.invalidateQueries({ predicate: refreshedOnReturn })
   }), [api, queries])
 }

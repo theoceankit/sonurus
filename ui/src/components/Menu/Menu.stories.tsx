@@ -81,6 +81,21 @@ export const NarrowAbove: Story = {
   ),
 }
 
+// A few short commands, as Export in the transcript header.
+export const Compact: Story = {
+  render: () => (
+    <Inline padding={8} paddingY={8}>
+      <Menu size="compact" defaultOpen trigger={<Button size="small">Export</Button>}>
+        <MenuAction meta=".txt">Plain text</MenuAction>
+        <MenuAction meta=".md">Markdown</MenuAction>
+        <MenuAction meta=".json">JSON</MenuAction>
+        <MenuDivider />
+        <MenuAction icon="settings">Export settings</MenuAction>
+      </Menu>
+    </Inline>
+  ),
+}
+
 export const Surface: Story = {
   render: () => <MenuSurface><span>Any content, such as a search field and a list</span></MenuSurface>,
 }

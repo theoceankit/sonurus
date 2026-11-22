@@ -38,11 +38,33 @@ test('leaves out what it does not know', () => {
   expect(screen.queryByText('English')).toBeNull()
 })
 
-test.each([false, true])('sticky %s: Pin and Export are not available yet', sticky => {
+test.each([false, true])('sticky %s: Pin is not available yet', sticky => {
   setup({ sticky })
-  for (const name of ['Pin', 'Export']) {
-    expect(screen.getByRole('button', { name }).getAttribute('aria-disabled')).toBe('true')
-  }
+  expect(screen.getByRole('button', { name: 'Pin' }).getAttribute('aria-disabled')).toBe('true')
+})
+
+test.each([false, true])('sticky %s: Export offers the formats, then its settings', async sticky => {
+  const onExport = vi.fn()
+  setup({ sticky, onExport })
+  await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+  expect(screen.getAllByRole('menuitem').map(row => row.textContent?.trim())).toEqual(['Plain text.txt', 'Markdown.md', 'JSON.json', 'Export settings'])
+  await userEvent.click(screen.getByRole('menuitem', { name: /JSON/ }))
+  expect(onExport).toHaveBeenCalledExactlyOnceWith('json')
+})
+
+test.each([false, true])('sticky %s: Export settings is in the menu of Export', async sticky => {
+  const onExport = vi.fn()
+  const onExportSettings = vi.fn()
+  setup({ sticky, onExport, onExportSettings })
+  await userEvent.click(screen.getByRole('button', { name: 'Export' }))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Export settings' }))
+  expect(onExportSettings).toHaveBeenCalledOnce()
+  expect(onExport).not.toHaveBeenCalled()
+})
+
+test.each([false, true])('sticky %s: Export is off with nothing to export', sticky => {
+  setup({ sticky })
+  expect((screen.getByRole('button', { name: 'Export' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
 test.each([false, true])('sticky %s: More offers to delete the recording', async sticky => {

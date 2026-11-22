@@ -8,6 +8,7 @@ export interface TurnSpeaker {
   id: string
   kind: 'named' | 'unknown' | 'unassigned'
   name: string
+  handle?: string | null
   color: SpeakerColor
   photo?: string | null
 }
@@ -41,7 +42,7 @@ export function buildTurns(segments: readonly Segment[], speakers: readonly Spea
     if (id === UNASSIGNED) return { id, kind: 'unassigned', name: 'Unassigned', color: GRAY }
     const found = namedSpeaker(known, id)
     return found
-      ? { id, kind: 'named', name: found.name!, color: speakerColor(found.color_index), photo: found.photo_url }
+      ? { id, kind: 'named', name: found.name!, handle: found.handle, color: speakerColor(found.color_index), photo: found.photo_url }
       : { id, kind: 'unknown', name: unknown.get(id)!, color: GRAY }
   }
 

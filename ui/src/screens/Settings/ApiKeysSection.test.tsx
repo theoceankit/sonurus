@@ -100,14 +100,49 @@ test('a token left as it was is not written again on closing', async () => {
   expect(write).not.toHaveBeenCalled()
 })
 
-test('Export is shown and not available yet; its controls change nothing', async () => {
+test('Export: what goes in is saved', async () => {
   const bridge = await setup()
   const settings = await openSection('Export')
   const card = within(settings).getByRole('region', { name: 'Export' })
-  expect(card.closest('[data-not-implemented]')?.getAttribute('data-not-implemented')).toBe('settings.export')
-  const toggle = within(card).getByRole('switch', { name: 'Bookmarks' })
+  for (const [name, key, before] of [['Timestamps', 'exportTimestamps', true], ['Speaker labels', 'exportSpeakers', true], ['Notes', 'exportNotes', false]] as const) {
+    const toggle = within(card).getByRole('switch', { name })
+    expect(toggle.getAttribute('aria-checked')).toBe(String(before))
+    await userEvent.click(toggle)
+    expect(toggle.getAttribute('aria-checked')).toBe(String(!before))
+    await waitFor(async () => expect((await bridge.readSettings())[key]).toBe(!before))
+  }
+  expect(within(card).queryByRole('switch', { name: 'Duplicate on export' })).toBeNull()
+  expect(within(card).queryByRole('combobox', { name: 'Default format' })).toBeNull()
+})
+
+test('Export: speakers by name or handle, off with the labels off', async () => {
+  const bridge = await setup()
+  const settings = await openSection('Export')
+  const card = within(settings).getByRole('region', { name: 'Export' })
+  const select = within(card).getByRole('combobox', { name: 'Show speakers by' })
+  expect(select.textContent).toContain('Name')
+  await userEvent.click(select)
+  await userEvent.click(await screen.findByRole('option', { name: 'Handle' }))
+  await waitFor(async () => expect((await bridge.readSettings()).exportSpeakerLabel).toBe('handle'))
+  await userEvent.click(within(card).getByRole('switch', { name: 'Speaker labels' }))
+  await waitFor(() => expect((select as HTMLButtonElement).disabled).toBe(true))
+})
+
+test('Export: no lines between the rows', async () => {
+  await setup()
+  const settings = await openSection('Export')
+  const rows = within(settings).getByRole('group', { name: 'Timestamps' }).parentElement!
+  expect(rows.className).toMatch(/undivided/)
+})
+
+test.each([['Bookmarks', 'settings.export-bookmarks'], ['Original audio file', 'settings.export-audio']])('Export: %s is not available yet', async (name, id) => {
+  const bridge = await setup()
+  const settings = await openSection('Export')
+  const before = await bridge.readSettings()
+  const toggle = within(within(settings).getByRole('region', { name: 'Export' })).getByRole('switch', { name })
+  expect(toggle.getAttribute('data-not-implemented')).toBe(id)
   await userEvent.click(toggle)
   expect(toggle.getAttribute('aria-checked')).toBe('false')
   expect((await screen.findAllByText(NOT_IMPLEMENTED_TOAST)).length).toBeGreaterThan(0)
-  expect((await bridge.readSettings()).exportFormat).toBe('txt')
+  expect(await bridge.readSettings()).toEqual(before)
 })

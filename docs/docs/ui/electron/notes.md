@@ -59,7 +59,7 @@ There is no Save. `useNotesSaver()` in `EditorScreen` holds one saver for the sc
 - One request at a time, with the newest text only: a change made during a save goes after it.
 - A save that fails says so once, "Failed to save notes: …", until one succeeds. The text stays in the editor and is tried again with the next change and at each of the moments above. A recording deleted meanwhile is no failure: its note went with it.
 
-Every change is also kept in the query cache of the note at once (`useKeepNote()`), which is never loaded again while the app runs, so the note moving between the tab and the centre, or the recording opened again, shows what was typed, saved or not.
+Every change is also kept in the query cache of the note at once (`useKeepNote()`), which is never loaded again while the app runs, also when the backend comes back ([Data](data.md#connection-to-the-backend)), so the note moving between the tab and the centre, or the recording opened again, shows what was typed, saved or not.
 
 Closing the window to the tray destroys it and quitting gives the page no unload, so before either the main process asks the page to finish (`askWindowToFinish()` in `electron/window-closing.js`, the `window-closing` message) and waits for its answer, up to 1.5 s; the page runs what `onBeforeClose()` registered (`ui/src/platform/before-close.ts`), the saver among them. A reload or a page left in the browser runs them on `pagehide`, without waiting.
 
