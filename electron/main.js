@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, Notification, Tray, nativeImage, nativeTheme, session, clipboard, shell } = require('electron')
+const { app, BaseWindow, BrowserWindow, ipcMain, dialog, Menu, Notification, Tray, nativeImage, nativeTheme, session, clipboard, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { execFile } = require('child_process')
@@ -9,6 +9,7 @@ const { showModelsFolder } = require('./models-folder')
 const { openLink } = require('./links')
 const { askWindowToFinish } = require('./window-closing')
 const { closeAction, confirmQuit, rememberTrayHint, trayAvailable, trayHintShown, trayIcon, trayMenu } = require('./tray')
+const { watchTaskbarTheme, WM_SETTINGCHANGE } = require('./taskbar-theme')
 const { watchBackendEvents } = require('./backend-events')
 const { appUserModelId, micApps, notificationsOn, promptFor, rememberMicApp, stopOutcome, stopTimedOut } = require('./recording-prompts')
 const { createNotifier, notificationRefusal, rememberNotificationRefusal } = require('./notifications')
@@ -58,6 +59,11 @@ if (process.platform === 'darwin') {
 let mainWin = null
 let titleBarDimmer = null
 let tray = null
+let trayFile = null
+// Windows: the colour of the taskbar (electron/taskbar-theme.js), and the window that is
+// never shown and only hears the system say a setting changed.
+let taskbar = null
+let settingsListener = null
 // Whether there is a tray to stay in (electron/tray.js); found out at start-up.
 let hasTray = Promise.resolve(false)
 // Set once the app may quit: the question was asked, or there was nothing to ask.
@@ -182,6 +188,7 @@ ipcMain.handle('set-theme', (_e, source) => {
 // The OS or the setting changed the theme: the window behind the page takes it, and
 // the strip of the window buttons moves to it as the page cross-fades.
 nativeTheme.on('updated', () => {
+  taskbar?.changed()
   if (!mainWin || mainWin.isDestroyed()) return
   mainWin.setBackgroundColor(windowChrome(nativeTheme.shouldUseDarkColors).backgroundColor)
   titleBarDimmer?.setTheme(nativeTheme.shouldUseDarkColors)
@@ -251,6 +258,10 @@ function savedSettings() {
   } catch { return {} /* settings not yet created */ }
 }
 
+const runCommand = (cmd, args) => new Promise((resolve, reject) => {
+  execFile(cmd, args, { timeout: 2000, windowsHide: true }, (err, stdout) => (err ? reject(err) : resolve(stdout)))
+})
+
 const savedHfToken = () => savedSettings().hfToken || ''
 
 // GPU acceleration applied or removed: the renderer asks once the backend
@@ -261,12 +272,7 @@ ipcMain.handle('restart-backend', async () => {
 
 app.whenReady().then(async () => {
   if (!singleInstance) return
-  hasTray = trayAvailable({
-    platform: process.platform,
-    run: (cmd, args) => new Promise((resolve, reject) => {
-      execFile(cmd, args, { timeout: 2000 }, (err, stdout) => (err ? reject(err) : resolve(stdout)))
-    }),
-  })
+  hasTray = trayAvailable({ platform: process.platform, run: runCommand })
   // The saved theme before the window exists, so it opens in its colours.
   nativeTheme.themeSource = themeSource(savedSettings().theme)
 
@@ -284,6 +290,9 @@ app.whenReady().then(async () => {
 
   // A new log once it grew too big; only here, so a second instance leaves it alone.
   rotateLog(getLogPath())
+
+  // Before the tray, so that it starts in the colour of the taskbar.
+  if (process.platform === 'win32') await watchTaskbar()
 
   // Start the backend first so index.html loads with a ready API.
   try {
@@ -388,12 +397,30 @@ function showWindow() {
   mainWin.focus()
 }
 
-// A template image in the macOS menu bar, the colour app icon elsewhere (electron/tray.js).
+const currentTrayFile = () => trayIcon(process.platform, taskbar?.dark() ?? true)
+const trayImage = file => nativeImage.createFromPath(path.join(__dirname, 'assets', file))
+
+function watchTaskbar() {
+  taskbar = watchTaskbarTheme({ run: runCommand, onChange: updateTrayIcon })
+  // Not the main window: that one is gone while Sonorus is in the tray.
+  settingsListener = new BaseWindow({ show: false })
+  settingsListener.hookWindowMessage(WM_SETTINGCHANGE, () => taskbar.changed())
+  return taskbar.refresh()
+}
+
+// The Windows mode changed: the quill takes the colour of the new taskbar.
+function updateTrayIcon() {
+  if (!tray) return
+  const file = currentTrayFile()
+  if (file === trayFile) return
+  trayFile = file
+  tray.setImage(trayImage(file))
+}
+
+// The quill in the tray, in the file for this system and theme (electron/tray.js).
 function createTray() {
-  const { file, size } = trayIcon(process.platform)
-  const image = nativeImage.createFromPath(path.join(__dirname, 'assets', file))
-  const icon = size ? image.resize({ width: size, height: size }) : image
-  tray = new Tray(icon)
+  trayFile = currentTrayFile()
+  tray = new Tray(trayImage(trayFile))
   tray.setToolTip('Sonorus')
   tray.setContextMenu(Menu.buildFromTemplate(trayMenu({ open: showWindow, quit: () => void requestQuit() })))
   // Where the tray sends clicks (Windows, KDE); on GNOME a click opens the menu.

@@ -174,17 +174,57 @@ test('a damaged state file counts as not shown', () => {
   } finally { t.done() }
 })
 
-test('macOS takes the template image as it is: the menu bar tints it and picks @2x', () => {
-  assert.deepEqual(trayIcon('darwin'), { file: 'trayTemplate.png', size: null })
+test('macOS takes the template image whatever the theme: the menu bar tints it', () => {
+  assert.equal(trayIcon('darwin', true), 'trayTemplate.png')
+  assert.equal(trayIcon('darwin', false), 'trayTemplate.png')
 })
 
-test('Windows and Linux take the colour app icon, made small', () => {
-  assert.deepEqual(trayIcon('win32'), { file: 'icon.png', size: 32 })
-  assert.deepEqual(trayIcon('linux'), { file: 'icon.png', size: 22 })
+test('Windows takes the quill that shows on the taskbar of the system theme', () => {
+  assert.equal(trayIcon('win32', true), 'trayOnDark.ico')
+  assert.equal(trayIcon('win32', false), 'trayOnLight.ico')
+})
+
+test('Linux takes the outlined quill whatever the theme: the colour of the panel is unknown', () => {
+  assert.equal(trayIcon('linux', true), 'trayLinux.png')
+  assert.equal(trayIcon('linux', false), 'trayLinux.png')
 })
 
 test('every tray icon file is in electron/assets', () => {
   for (const platform of ['darwin', 'win32', 'linux']) {
-    assert.ok(fs.existsSync(path.join(ROOT, 'electron', 'assets', trayIcon(platform).file)), platform)
+    for (const dark of [true, false]) {
+      assert.ok(fs.existsSync(path.join(ROOT, 'electron', 'assets', trayIcon(platform, dark))), `${platform} ${dark}`)
+    }
   }
+})
+
+const main = () => fs.readFileSync(path.join(ROOT, 'electron', 'main.js'), 'utf8')
+
+test('main.js colours the tray by the taskbar, not by a theme of nativeTheme', () => {
+  assert.match(main(), /trayIcon\(process\.platform, taskbar\?\.dark\(\)/)
+  assert.doesNotMatch(main(), /shouldUseDarkColorsForSystemIntegratedUI/)
+})
+
+test('main.js reads the taskbar before it makes the tray', () => {
+  const ready = main().slice(main().indexOf('app.whenReady()'))
+  const read = ready.indexOf('await watchTaskbar()')
+  assert.ok(read > 0, 'the taskbar is not read at start-up')
+  assert.ok(read < ready.indexOf('createTray()'), 'the tray would start in a guessed colour')
+})
+
+test('main.js hears a change of the Windows mode alone, with the window closed too', () => {
+  const watch = main().slice(main().indexOf('function watchTaskbar()'))
+  const body = watch.slice(0, watch.indexOf('\n}'))
+  assert.match(body, /new BaseWindow\(\{ show: false \}\)/)
+  assert.match(body, /hookWindowMessage\(WM_SETTINGCHANGE/)
+})
+
+test('main.js reads the taskbar again before the theme handler leaves for a missing window', () => {
+  const handler = main().slice(main().indexOf("nativeTheme.on('updated'"))
+  const update = handler.indexOf('taskbar?.changed()')
+  assert.ok(update > 0, 'the handler does not read the taskbar')
+  assert.ok(update < handler.indexOf('if (!mainWin'), 'a window closed to the tray would keep the old icon')
+})
+
+test('main.js runs commands without a console window flashing on Windows', () => {
+  assert.match(main(), /execFile\(cmd, args, \{ timeout: 2000, windowsHide: true \}/)
 })
