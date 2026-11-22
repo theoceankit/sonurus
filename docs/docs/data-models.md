@@ -58,6 +58,10 @@ class Segment:
 | `speaker_final` | `str \| None` | ID after user correction |
 | `embedding` | `np.ndarray \| None` | Per-segment speaker embedding (WeSpeaker ResNet34-LM, 256 values) |
 
+### Transcript without diarization
+
+`Transcript.diarized` (`transcriptions.diarized`, schema v10, `1` for every older transcript) is `false` when the job did not look for speakers. Its segments are stored unassigned, with no speaker and no embedding, so it never reaches speaker memory. The flag is what tells it from a recording whose speakers were all deleted.
+
 ### Speaker ID priority
 
 Three fields form a hierarchy — the first non-null value always wins:

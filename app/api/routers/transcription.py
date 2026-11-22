@@ -71,7 +71,7 @@ def reorder(body: QueueOrderRequest, queue: TranscriptionQueue = Depends(get_tra
 async def add_job(body: TranscribeRequest, queue: TranscriptionQueue = Depends(get_transcription_queue)):
     whisper_model = body.whisper_model or WHISPER_MODEL
     language = job_language(body.language)
-    require_models(whisper_model, language, check_diarize=True)
+    require_models(whisper_model, language, check_diarize=body.diarize)
 
     # Named, not shown by path: the message is for the user.
     name = os.path.basename(body.audio_path)
@@ -89,7 +89,8 @@ async def add_job(body: TranscribeRequest, queue: TranscriptionQueue = Depends(g
         raise Refusal("audio_copy_failed", f'"{name}" could not be copied.')
     title = body.title or os.path.splitext(os.path.basename(body.audio_path))[0]
     try:
-        return queue.add(audio_path=audio_path, title=title, whisper_model=whisper_model, language=language)
+        return queue.add(audio_path=audio_path, title=title, whisper_model=whisper_model, language=language,
+                         diarize=body.diarize)
     except Exception:
         discard_import(audio_path, config.RECORDINGS_DIR)
         raise
@@ -105,7 +106,9 @@ def update_job(job_id: str, body: JobUpdateRequest,
         fields["whisper_model"] = body.whisper_model
     if "language" in body.model_fields_set:
         fields["language"] = job_language(body.language)
-    require_models(fields.get("whisper_model"), fields.get("language"))
+    if body.diarize is not None:
+        fields["diarize"] = body.diarize
+    require_models(fields.get("whisper_model"), fields.get("language"), check_diarize=fields.get("diarize", False))
     try:
         return queue.update(job_id, **fields)
     except JobNotFound:
@@ -128,7 +131,7 @@ def retry_job(job_id: str, queue: TranscriptionQueue = Depends(get_transcription
         job = queue.get(job_id)
         if job["status"] == "failed":
             # A retry that would fail again at once is refused, like add / edit.
-            require_models(job["whisper_model"], job["language"], check_diarize=True)
+            require_models(job["whisper_model"], job["language"], check_diarize=job["diarize"])
         return queue.retry(job_id)
     except JobNotFound:
         raise HTTPException(status_code=404, detail="Job not found")

@@ -11,9 +11,9 @@ import sqlite3
 import uuid
 from datetime import datetime
 
-_FIELDS = ("id", "audio_path", "title", "whisper_model", "language", "status",
+_FIELDS = ("id", "audio_path", "title", "whisper_model", "language", "diarize", "status",
            "error", "error_code", "error_language", "created_at")
-_EDITABLE = {"title", "whisper_model", "language", "status", "error", "error_code", "error_language"}
+_EDITABLE = {"title", "whisper_model", "language", "diarize", "status", "error", "error_code", "error_language"}
 
 
 class JobStore:
@@ -32,9 +32,14 @@ class JobStore:
                     error          TEXT,
                     error_code     TEXT,
                     error_language TEXT,
-                    created_at     TEXT NOT NULL
+                    created_at     TEXT NOT NULL,
+                    diarize        INTEGER NOT NULL DEFAULT 1
                 )
             """)
+            # A queue from before the choice: its jobs find speakers, as they would have.
+            columns = {r[1] for r in conn.execute("PRAGMA table_info(transcription_jobs)")}
+            if "diarize" not in columns:
+                conn.execute("ALTER TABLE transcription_jobs ADD COLUMN diarize INTEGER NOT NULL DEFAULT 1")
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS transcription_queue_settings (
                     key   TEXT PRIMARY KEY,
@@ -49,18 +54,19 @@ class JobStore:
 
     @staticmethod
     def _job(row) -> dict:
-        return {f: row[f] for f in _FIELDS}
+        return {**{f: row[f] for f in _FIELDS}, "diarize": bool(row["diarize"])}
 
     # ── Jobs ────────────────────────────────────────────────────────────────
 
-    def add(self, audio_path: str, title: str, whisper_model: str, language: str | None) -> dict:
+    def add(self, audio_path: str, title: str, whisper_model: str, language: str | None,
+            diarize: bool = True) -> dict:
         job_id = str(uuid.uuid4())
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO transcription_jobs "
-                "(id, position, audio_path, title, whisper_model, language, created_at) "
-                "VALUES (?, (SELECT COALESCE(MAX(position), -1) + 1 FROM transcription_jobs), ?, ?, ?, ?, ?)",
-                (job_id, audio_path, title, whisper_model, language, datetime.now().isoformat()),
+                "(id, position, audio_path, title, whisper_model, language, diarize, created_at) "
+                "VALUES (?, (SELECT COALESCE(MAX(position), -1) + 1 FROM transcription_jobs), ?, ?, ?, ?, ?, ?)",
+                (job_id, audio_path, title, whisper_model, language, int(diarize), datetime.now().isoformat()),
             )
         return self.get(job_id)
 

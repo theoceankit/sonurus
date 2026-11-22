@@ -22,7 +22,7 @@ The cost is the child's start-up: it imports torch, WhisperX and PyAnnote again,
 |---|---|
 | `create_controller()`, `TranscriptionController.analyse()` — models, ASR, alignment, diarization, embeddings | Speaker resolution and the `Transcript` (`build_transcript()`), title, `storage.save()`, `CommitService.commit_recognized_speakers()`, `api_memory.reload()` |
 
-The child only computes and sends its analysis back, pickled: `{"result": aligned WhisperX result with diarization speakers, "voices": {SPEAKER_XX: voice}, "turns": [{start, end, speaker, embedding}]}`. It never reads speaker memory. The backend resolves the speakers once the child is done, against memory read from the database at that moment, so names, speakers and profiles changed while the job ran (in the editor, the Speakers window or by an earlier job's commit) count, and a speaker removed meanwhile is never matched. A stopped job never leaves anything in the database.
+The child only computes and sends its analysis back, pickled: `{"result": aligned WhisperX result with diarization speakers, "voices": {SPEAKER_XX: voice}, "turns": [{start, end, speaker, embedding}], "diarized": bool}`, the speakers, voices and turns empty for a job without diarization. It never reads speaker memory. The backend resolves the speakers once the child is done, against memory read from the database at that moment, so names, speakers and profiles changed while the job ran (in the editor, the Speakers window or by an earlier job's commit) count, and a speaker removed meanwhile is never matched. A stopped job never leaves anything in the database.
 
 ---
 

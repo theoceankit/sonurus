@@ -33,9 +33,10 @@ class TranscriptStorageService:
         """Insert transcript + segments, set transcript.db_id. Returns new id."""
         with self._connect() as conn:
             cursor = conn.execute(
-                "INSERT INTO transcriptions (audio_file, language, status, created_at, title) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO transcriptions (audio_file, language, status, created_at, title, diarized) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
                 (transcript.audio_path, transcript.language,
-                 transcript.status, datetime.now().isoformat(), transcript.title),
+                 transcript.status, datetime.now().isoformat(), transcript.title, int(transcript.diarized)),
             )
             db_id = cursor.lastrowid
 
@@ -267,14 +268,14 @@ class TranscriptStorageService:
         """
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT audio_file, language, status, title FROM transcriptions WHERE id = ?",
+                "SELECT audio_file, language, status, title, diarized FROM transcriptions WHERE id = ?",
                 (db_id,),
             ).fetchone()
 
             if not row:
                 raise ValueError(f"Transcription {db_id} not found")
 
-            audio_file, language, status, title_db = row
+            audio_file, language, status, title_db, diarized = row
             log.info(f"SELECT transcriptions id={db_id}")
 
             emb_col = "embedding" if with_embeddings else "NULL"
@@ -304,6 +305,7 @@ class TranscriptStorageService:
             language=language or "",
             status=status or "draft",
             title=title_db,
+            diarized=bool(diarized),
             db_id=db_id,
         )
 

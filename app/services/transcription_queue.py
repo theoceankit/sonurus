@@ -45,7 +45,7 @@ START_MODES = ("auto", "manual")
 # A restart prepared longer ago than this was not a restart (the app quit
 # instead): the next start is an ordinary one.
 RESUME_AFTER_RESTART_WINDOW = 300  # seconds
-_EDITABLE = {"title", "whisper_model", "language"}
+_EDITABLE = {"title", "whisper_model", "language", "diarize"}
 
 
 class JobNotFound(Exception):
@@ -267,10 +267,11 @@ class TranscriptionQueue:
 
     # ── Jobs ────────────────────────────────────────────────────────────────
 
-    def add(self, audio_path: str, title: str, whisper_model: str, language: str | None) -> dict:
+    def add(self, audio_path: str, title: str, whisper_model: str, language: str | None,
+            diarize: bool = True) -> dict:
         with self._cond:
             job = self._store.add(audio_path=audio_path, title=title,
-                                  whisper_model=whisper_model, language=language)
+                                  whisper_model=whisper_model, language=language, diarize=diarize)
             self._cond.notify_all()
         self._publish()
         return job

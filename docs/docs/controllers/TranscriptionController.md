@@ -18,11 +18,13 @@ Keeps references to the three services the pipeline needs.
 
 ---
 
-### `analyse(audio_path, on_progress=None, language=None) → dict`
+### `analyse(audio_path, on_progress=None, language=None, diarize=True) → dict`
 
 The part of the pipeline that needs the models and reads no speaker memory:
 1. `TranscriptionService.transcribe(audio_path, language)` — ASR + alignment + diarization (`language=None` auto-detects)
 2. `EmbeddingService.extract_all()` — aggregated and per-segment embeddings in a single pass
+
+With `diarize=False` only the first step runs, without diarization, and `voices` and `turns` are empty. `create_controller(diarize=False)` makes no `EmbeddingService`, which loads its model from the diarization repo as it is made.
 
 Returns plain data, so the [Pipeline Process](../services/PipelineProcess.md) child can send it back: `{"result": aligned WhisperX result, "voices": {SPEAKER_XX: voice}, "turns": [{start, end, speaker, embedding}]}`.
 

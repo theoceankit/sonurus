@@ -63,7 +63,7 @@ The microphones by name, alphabetically. The default microphone is not listed: a
 { "phase": "live", "title": "Standup", "started_at": 1763170000.25, "sources": ["mic", "system"] }
 ```
 
-`whisper_model` null is the default model; `language` null or `"auto"` is auto-detect. The models are checked first, as for `POST /queue/jobs`, so a recording that could not be queued does not start. Then the queue pauses (if it runs, `paused_by_recording`) and each track starts; `started_at` is when the first one started, Unix time in seconds.
+`whisper_model` null is the default model; `language` null or `"auto"` is auto-detect; `diarize` (default `true`) goes to the job the recording becomes. The models are checked first, as for `POST /queue/jobs`, so a recording that could not be queued does not start. Then the queue pauses (if it runs, `paused_by_recording`) and each track starts; `started_at` is when the first one started, Unix time in seconds.
 
 - `400` with a `code` — a model the job needs is not installed (`whisper_model_missing`, `diarization_model_missing`, `alignment_model_missing`)
 - `400` — no source, or a track cannot run; `detail` says why and nothing is recorded: macOS helper missing or not ready, microphone access refused (macOS, or switched off for desktop apps on Windows), Linux `parec` not installed (names the package), the selected microphone or source is no longer available, no Windows output or input device, or the capture process exited right after start (its stderr)
@@ -137,6 +137,8 @@ The control endpoints below return the snapshot after the change.
 
 ### `POST /queue/jobs`
 
+`diarize` (default `true`) says whether to look for speakers. With `false` the job needs neither the diarization model nor a HuggingFace token, and its transcript has no speakers. `QueueJob` carries the field.
+
 Adds a job at the end of the queue and returns it (`status: "waiting"`). In `auto` mode a running queue picks it up; a paused queue stays paused.
 
 ```json
@@ -170,6 +172,8 @@ A job never downloads a model. Before it starts, the worker checks that its Whis
 
 ### `PATCH /queue/jobs/{id}`
 
+`diarize` can be changed with the other fields. Turning it on is refused with `400 diarization_model_missing` while that model is not installed.
+
 Changes `title`, `whisper_model` and/or `language` — only the fields sent (`language: null` or `"auto"` = auto-detect). Allowed for waiting and failed jobs. `404` unknown job, `409` with `code: "job_running"` for the running job, `400` with a model `code` as above if the new Whisper or alignment model is not installed, `422` for a blank title or one over 200 characters.
 
 ### `DELETE /queue/jobs/{id}`
@@ -178,7 +182,7 @@ Deletes the job **and its audio** — the live recording, or the copy of an impo
 
 ### `POST /queue/jobs/{id}/retry`
 
-A failed job becomes `waiting` again at the end of the queue, its error cleared. `404` unknown job, `409` if the job has not failed, `400` if its Whisper, diarization or (explicit-language) alignment model is not installed (same codes and texts as `POST /queue/jobs`; the job stays failed).
+A failed job becomes `waiting` again at the end of the queue, its error cleared. `404` unknown job, `409` if the job has not failed, `400` if its Whisper, diarization (when the job looks for speakers) or (explicit-language) alignment model is not installed (same codes and texts as `POST /queue/jobs`; the job stays failed).
 
 ### `WS /ws/queue`
 
@@ -287,6 +291,8 @@ Streams download progress. Sends heartbeats every 15 s to keep the connection al
 An `Unknown job` error (the job never was, or ended long ago) has no `code`.
 
 ### `DELETE /models/{model_id}`
+
+The diarization model counts as in use only while the running job looks for speakers.
 
 Removes the model's HuggingFace cache directory from disk.
 
@@ -515,6 +521,8 @@ Deletes transcript, all its segments and its note, then calls `CommitService.rec
 Returns `204`.
 
 ### `POST /transcripts/{id}/speaker-assignments`
+
+A transcript with `diarized: false` has no speakers to assign: `409 transcript_not_diarized`.
 
 Gives the listed segments one speaker, all or none. The UI uses it for a turn, a paragraph and all segments of a voice.
 

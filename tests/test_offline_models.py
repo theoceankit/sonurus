@@ -48,7 +48,7 @@ def test_worker_refuses_torch_hub_downloads_before_loading_models(monkeypatch):
     with patch("app.offline.refuse_torch_hub_downloads", side_effect=lambda: order.append("refuse")), \
          patch("app.services.service_factory.create_controller",
                side_effect=lambda **k: (order.append("models"), (controller, MagicMock()))[1]):
-        _pipeline_worker({"audio_path": "/rec/a.wav", "db_path": "/data/x.db", "whisper_model": "small", "language": "en"},
+        _pipeline_worker({"audio_path": "/rec/a.wav", "db_path": "/data/x.db", "whisper_model": "small", "language": "en", "diarize": True},
                          MagicMock())
 
     assert order == ["refuse", "models", "pipeline"]

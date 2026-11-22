@@ -80,6 +80,8 @@ Refines timestamps to word level. The alignment model depends on the language de
 After loading the align model, `torch.cuda.empty_cache()` is called to free VRAM before the next inference step.
 
 **4. Diarization**
+
+Skipped with `diarize_speakers=False`: nothing of the diarization model is loaded, the result has no speakers and `diarization` is `None`.
 ```python
 diarize_model = whisperx.diarize.DiarizationPipeline(device=device)
 regular, exclusive = diarize(diarize_model, audio)   # app/services/diarization.py
@@ -116,5 +118,5 @@ The exclusive diarization is returned for the voice embeddings: its spans hold o
 
 ## Requirements
 
-- HuggingFace token in `.env` (`HF_TOKEN`) — required for downloading PyAnnote diarization models
+- HuggingFace token in `.env` (`HF_TOKEN`) — required for downloading PyAnnote diarization models, and not for a job without diarization
 - Any audio/video file `ffmpeg` can decode — `whisperx.load_audio()` resamples it to 16 kHz mono

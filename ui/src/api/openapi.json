@@ -459,6 +459,17 @@
       "JobUpdateRequest": {
         "description": "PATCH /queue/jobs/{id}: only the fields sent are changed; language\nnull or \"auto\" = auto-detect.",
         "properties": {
+          "diarize": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diarize"
+          },
           "language": {
             "anyOf": [
               {
@@ -674,6 +685,10 @@
             "title": "Created At",
             "type": "string"
           },
+          "diarize": {
+            "title": "Diarize",
+            "type": "boolean"
+          },
           "error": {
             "anyOf": [
               {
@@ -746,6 +761,7 @@
           "title",
           "whisper_model",
           "language",
+          "diarize",
           "status",
           "error",
           "error_code",
@@ -920,8 +936,13 @@
         "type": "object"
       },
       "RecordingStartRequest": {
-        "description": "POST /audio/recording/start. mic_device / system_source null = the\ndefault; whisper_model null = the default model; language null or\n\"auto\" = auto-detect. The recording is queued with title, model and\nlanguage when it stops.",
+        "description": "POST /audio/recording/start. mic_device / system_source null = the\ndefault; whisper_model null = the default model; language null or\n\"auto\" = auto-detect; diarize false = no speakers. The recording is\nqueued with title, model, language and diarize when it stops.",
         "properties": {
+          "diarize": {
+            "default": true,
+            "title": "Diarize",
+            "type": "boolean"
+          },
           "language": {
             "anyOf": [
               {
@@ -1025,7 +1046,8 @@
               "handle_taken",
               "handle_needs_name",
               "photo_needs_name",
-              "merge_into_self"
+              "merge_into_self",
+              "transcript_not_diarized"
             ],
             "title": "Code",
             "type": "string"
@@ -1563,11 +1585,16 @@
         "type": "object"
       },
       "TranscribeRequest": {
-        "description": "POST /queue/jobs. language null or \"auto\" = auto-detect; no title =\nthe file name without its extension.",
+        "description": "POST /queue/jobs. language null or \"auto\" = auto-detect; no title =\nthe file name without its extension. diarize false = no speakers, and\nneither the diarization model nor a token is needed.",
         "properties": {
           "audio_path": {
             "title": "Audio Path",
             "type": "string"
+          },
+          "diarize": {
+            "default": true,
+            "title": "Diarize",
+            "type": "boolean"
           },
           "language": {
             "anyOf": [
@@ -1671,6 +1698,10 @@
             "title": "Audio Path",
             "type": "string"
           },
+          "diarized": {
+            "title": "Diarized",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -1708,6 +1739,7 @@
           "language",
           "status",
           "title",
+          "diarized",
           "segments"
         ],
         "title": "TranscriptResponse",

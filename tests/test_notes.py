@@ -119,9 +119,9 @@ def test_v8_database_migrates_to_notes(tmp_path):
     svc = TranscriptStorageService(db_path=db)
 
     from app.db.schema import SCHEMA_VERSION
-    assert SCHEMA_VERSION == 9
+    assert SCHEMA_VERSION >= 9
     with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == 9
+        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION
     assert svc.list_all()[0]["has_note"] is False
     assert svc.save_note(1, DOC) is True
 

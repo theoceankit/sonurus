@@ -20,7 +20,7 @@ def _ids(store):
 
 def test_add_returns_a_waiting_job_with_all_fields(store):
     job = _add(store, "a", language="ru")
-    assert set(job) == {"id", "audio_path", "title", "whisper_model", "language", "status",
+    assert set(job) == {"id", "audio_path", "title", "whisper_model", "language", "diarize", "status",
                         "error", "error_code", "error_language", "created_at"}
     assert job["status"] == "waiting"
     assert job["audio_path"] == "/rec/a.wav" and job["title"] == "a"

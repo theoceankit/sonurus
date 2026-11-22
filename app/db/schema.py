@@ -1,7 +1,7 @@
 """Transcript DB schema management: creation and versioned migrations."""
 import uuid
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 
 def init_db(conn) -> None:
@@ -137,6 +137,14 @@ def _run_migrations(conn, current: int) -> None:
             """
         )
         conn.execute("UPDATE _ts_schema_version SET version = 9")
+        current = 9
+    if current < 10:
+        # Whether speakers were looked for: all-unassigned segments alone do not
+        # tell a recording without diarization from one whose speakers were deleted.
+        txn_cols = {r[1] for r in conn.execute("PRAGMA table_info(transcriptions)").fetchall()}
+        if "diarized" not in txn_cols:
+            conn.execute("ALTER TABLE transcriptions ADD COLUMN diarized INTEGER NOT NULL DEFAULT 1")
+        conn.execute("UPDATE _ts_schema_version SET version = 10")
 
 
 def _assign_raw_speakers(conn) -> None:

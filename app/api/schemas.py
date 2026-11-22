@@ -41,6 +41,8 @@ class TranscriptResponse(ResponseModel):
     language: str
     status: str
     title: str | None = None
+    # False: transcribed without looking for speakers.
+    diarized: bool
     segments: list[SegmentResponse]
 
 
@@ -191,6 +193,7 @@ RefusalCode = Literal[
     "whisper_model_missing", "diarization_model_missing", "alignment_model_missing",
     "audio_not_found", "audio_not_readable", "audio_copy_failed", "job_running",
     "handle_invalid", "handle_taken", "handle_needs_name", "photo_needs_name", "merge_into_self",
+    "transcript_not_diarized",
 ]
 
 HandleFormat = Literal["first.last", "f.last", "first.l"]
@@ -215,11 +218,13 @@ class RefusalResponse(BaseModel):
 
 class TranscribeRequest(BaseModel):
     """POST /queue/jobs. language null or "auto" = auto-detect; no title =
-    the file name without its extension."""
+    the file name without its extension. diarize false = no speakers, and
+    neither the diarization model nor a token is needed."""
     audio_path: str
     whisper_model: str | None = None
     language: str | None = None
     title: str | None = None
+    diarize: bool = True
 
 
 class QueueJob(BaseModel):
@@ -228,6 +233,7 @@ class QueueJob(BaseModel):
     title: str
     whisper_model: str
     language: str | None
+    diarize: bool
     status: Literal["waiting", "running", "failed"]
     error: str | None
     error_code: str | None
@@ -330,6 +336,7 @@ class JobUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     whisper_model: str | None = Field(default=None, min_length=1)
     language: str | None = None
+    diarize: bool | None = None
 
     @field_validator('title', mode='before')
     @classmethod

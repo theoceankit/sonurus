@@ -157,5 +157,5 @@ def test_the_pipeline_child_disables_onnxruntime_telemetry_before_loading_models
     with patch("app.disable_onnxruntime_telemetry", side_effect=lambda: order.append("ort off")), \
          patch("app.services.service_factory.create_controller", side_effect=create_controller):
         _pipeline_worker({"audio_path": "/rec/a.wav", "whisper_model": "small",
-                          "language": None, "db_path": "/data/x.db"}, Conn())
+                          "language": None, "diarize": True, "db_path": "/data/x.db"}, Conn())
     assert order == ["ort off", "models"]

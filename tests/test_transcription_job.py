@@ -10,7 +10,7 @@ from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.transcription_job import make_job_runner
 
 JOB = {"id": "j1", "audio_path": "/rec/sonorus-import-1.wav", "title": "Weekly sync",
-       "whisper_model": "small", "language": "en"}
+       "whisper_model": "small", "language": "en", "diarize": True}
 
 
 def _analysis():
@@ -49,7 +49,7 @@ def test_runs_the_pipeline_saves_with_the_job_title_and_commits(tmp_path):
          patch("app.services.transcription_job.CommitService") as commit:
         assert run(JOB, steps.append, threading.Event()) == 42
 
-    create.assert_called_once_with(whisper_model="small")
+    create.assert_called_once_with(whisper_model="small", diarize=True)
     controller.analyse.assert_called_once()
     assert controller.analyse.call_args.args[0] == JOB["audio_path"]
     assert controller.analyse.call_args.kwargs["language"] == "en"
@@ -70,7 +70,7 @@ def test_cancel_after_the_pipeline_saves_nothing(tmp_path):
     cancel = threading.Event()
     controller = MagicMock()
 
-    def pipeline(audio_path, on_progress, language=None):
+    def pipeline(audio_path, on_progress, language=None, diarize=True):
         cancel.set()
         return _analysis()
 
@@ -103,7 +103,7 @@ def test_models_are_released_when_cancelled_mid_pipeline():
         if cancel.is_set():
             raise PipelineCancelled()
 
-    def pipeline(audio_path, on_progress, language=None):
+    def pipeline(audio_path, on_progress, language=None, diarize=True):
         cancel.set()
         on_progress("Transcribing audio…")
 
@@ -151,7 +151,7 @@ def test_subprocess_mode_loads_no_models_here_and_saves_through_storage(tmp_path
 
     create.assert_not_called()
     assert seen == {"audio_path": JOB["audio_path"], "whisper_model": "small", "language": "en",
-                    "db_path": memory_db}
+                    "diarize": True, "db_path": memory_db}
     saved = storage.load(transcript_id)
     assert saved.title == "Weekly sync" and saved.audio_path == JOB["audio_path"]
     assert [s.text for s in saved.segments] == ["hello"]

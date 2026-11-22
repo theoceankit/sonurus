@@ -68,6 +68,8 @@ CREATE TABLE notes (                                                    -- schem
 
 `status` — transcript status: `'draft'` immediately after the pipeline.
 
+`diarized` — `0` for a recording transcribed without looking for speakers, `1` for all others (schema v10).
+
 `embedding` — per-segment pyannote embedding blob (float32). Used by `CommitService` after load.
 
 `speaker_matches` — one row per speaker that `resolve()` recognized from memory when the transcript was made: `score` is the similarity of the match, `confirmed` is `1` once the user confirmed the speaker as a possible match. Speakers assigned by hand have no row, and nothing else writes one, so the similarity is never worked out again later (by then the profile contains this recording).
