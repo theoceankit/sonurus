@@ -87,7 +87,9 @@ test('the menu of a recording in the list renames it and marks it unread and rea
 
   // From the keyboard, Mark as read takes it away. The pointer goes aside first: an
   // item that comes up under it takes the focus back from the keys, as in any menu.
-  await menu.waitFor({ state: 'detached' })
+  // A closed menu stays mounted for its exit animation, so the two menus opened
+  // above can both be there: a strict locator would fail on them.
+  await assertEventually(async () => await menu.count() === 0, 'every menu has left', 30000)
   await page.mouse.move(900, 700)
   await row('Weekly sync').focus()
   await page.keyboard.press('Shift+F10')
