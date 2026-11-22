@@ -258,3 +258,8 @@ test('the keyup of a space that played or paused is cancelled, and only that one
     release()
   }
 })
+
+test('turns: a recording without speakers has no name to show', () => {
+  const [turn] = playerTurns([segment(0, 1, { unassigned: true })], [], false)
+  expect(turn).toEqual({ start: 0, end: 1, speaker: 'UNASSIGNED', name: '', color: 6 })
+})

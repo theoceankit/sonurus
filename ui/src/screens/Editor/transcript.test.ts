@@ -153,3 +153,11 @@ describe('transcriptText', () => {
     expect(transcriptText('Call', [])).toBe('Call')
   })
 })
+
+test('transcriptText: a recording without speakers is the title and its paragraphs', () => {
+  const turns = buildTurns([
+    { start: 0, end: 1, text: 'One.', speaker_raw: 'UNKNOWN', speaker_resolved: null, speaker_final: null, unassigned: true },
+    { start: 2, end: 3, text: 'Two.', speaker_raw: 'UNKNOWN', speaker_resolved: null, speaker_final: null, unassigned: true },
+  ], [])
+  expect(transcriptText('Call', turns, false)).toBe('Call\n\nOne.\nTwo.')
+})

@@ -8,7 +8,8 @@ export type MentionAttrs =
 
 // A piece of the transcript taken into the note: who said it, from when, and what.
 export interface NoteQuote {
-  speaker: MentionAttrs
+  // None in a recording without speakers: the quote opens with its time.
+  speaker?: MentionAttrs
   start: number
   text: string
 }
@@ -21,7 +22,7 @@ export const paragraph = (...content: JSONContent[]): JSONContent => ({ type: 'p
 // A quote opens with who and when, then what was said.
 export const quoteBlock = ({ speaker, start, text: said }: NoteQuote): JSONContent => ({
   type: 'blockquote',
-  content: [paragraph(mention(speaker), text(' '), timecode(start)), paragraph(text(said))],
+  content: [paragraph(...(speaker ? [mention(speaker), text(' ')] : []), timecode(start)), paragraph(text(said))],
 })
 
 export const isEmptyNote = (doc: JSONContent | null | undefined) =>

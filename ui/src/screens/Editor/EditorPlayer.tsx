@@ -12,7 +12,8 @@ import { speakerColor, type SpeakerColor } from '../../styles/speaker-colors'
 const GRAY: SpeakerColor = 6
 
 // Colours as on the avatars: a speaker without a name is gray.
-export function playerTurns(segments: readonly Segment[], speakers: readonly Speaker[]): Turn[] {
+export function playerTurns(segments: readonly Segment[], speakers: readonly Speaker[], diarized = true): Turn[] {
+  if (!diarized) return segments.map(({ start, end }) => ({ start, end, speaker: UNASSIGNED, name: '', color: GRAY }))
   const known = new Map(speakers.map(speaker => [speaker.id, speaker]))
   return segments.map(segment => {
     const { start, end } = segment
@@ -49,7 +50,7 @@ export function EditorPlayer({ transcriptId, playback, highlight }: EditorPlayer
   const highlightedSpeaker = useKey(highlight ?? ownHighlight)
   useSpaceToggle(playback, state.status === 'ready')
   const turns = useMemo(
-    () => (transcriptId !== null && transcript ? playerTurns(transcript.segments, speakers ?? []) : []),
+    () => (transcriptId !== null && transcript ? playerTurns(transcript.segments, speakers ?? [], transcript.diarized) : []),
     [transcriptId, transcript, speakers],
   )
   // Over the same length as the bars' speakers, also for audio that does not

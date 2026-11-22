@@ -56,7 +56,7 @@ Quote, on the bar over text selected in the transcript, puts the selection into 
 
 `EditorScreen` keeps the quotes as a request for the recording, opens the Notes tab, and shows the right panel if it was closed or gave way to the sidebar in a narrow window. The tab takes them once its editor is there, after the note and the editor's chunk have loaded (`quotes` and `onQuoted` of `EditorNotes`), each request once. They go in through the editor, as typing does: the note saves itself, a recording without a note gets one, and Undo takes them back.
 
-The speaker of a quote is a mention by id, with the label the transcript shows. A named speaker is a chip with the avatar and the name as they are now; a speaker with no name yet, Unassigned or a deleted one reads as the label as text, and becomes a chip once named.
+A quote from a recording without speakers opens with the time alone. The speaker of any other quote is a mention by id, with the label the transcript shows. A named speaker is a chip with the avatar and the name as they are now; a speaker with no name yet, Unassigned or a deleted one reads as the label as text, and becomes a chip once named.
 
 ## Mentions
 

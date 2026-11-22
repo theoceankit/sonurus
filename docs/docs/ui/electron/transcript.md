@@ -13,6 +13,10 @@ EditorScreen → TranscriptPanel → TranscriptHeader
      └ useTranscriptPlayback() → playback, shared with the player
 ```
 
+## Without speakers
+
+A transcript with `diarized: false` shows its paragraphs with no turn header, and the menu of a paragraph has no Change speaker. Copy transcript gives the title and the paragraphs. The player has no speaker name over the time.
+
 ## Turns and paragraphs
 
 `buildTurns()` in `ui/src/screens/Editor/transcript.ts` makes a turn of the neighbouring segments of one speaker, however long the pause between them. Nothing is merged in the data: each segment stays a paragraph, because the API plays, edits and deletes segments. A speaker with no name is `Unknown speaker N`, numbered by first appearance in the recording.

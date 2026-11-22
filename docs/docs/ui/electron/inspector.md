@@ -15,6 +15,10 @@ EditorScreen → InspectorPanel → Inspector → TalkTime, SpeakerRow
 
 The components only draw and report. `InspectorPanel` holds the data and the state of the review, and resets it with another recording: Skip and Close are not saved anywhere.
 
+## Without speakers
+
+For a transcript with `diarized: false` the Speakers tab says "Speakers were not identified": no talk time, rows or review, and candidates are not asked for.
+
 ## Speakers
 
 Rows go by talk time, with Unassigned last, as it is not one person. Talk time is the sum of a speaker's segments.

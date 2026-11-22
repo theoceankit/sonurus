@@ -50,9 +50,13 @@ export function InspectorPanel({ transcriptId, playback, open = true, onClose, o
   const tabs = { notes, tab, onTabChange }
   const transcript = useTranscript(transcriptId)
   const speakers = useSpeakers()
-  const candidates = useSpeakerCandidates(transcriptId)
+  const diarized = transcript.data?.diarized !== false
+  const candidates = useSpeakerCandidates(diarized ? transcriptId : null)
 
   if (transcriptId === null) return <Inspector onClose={onClose} {...tabs} />
+  if (!diarized) {
+    return <Inspector onClose={onClose} {...tabs}><span className={styles.message}>Speakers were not identified</span></Inspector>
+  }
   if ((transcript.isError && !transcript.data) || (speakers.isError && !speakers.data)) {
     return (
       <Inspector onClose={onClose} {...tabs}>

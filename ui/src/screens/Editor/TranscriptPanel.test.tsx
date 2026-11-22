@@ -844,3 +844,28 @@ describe('Export', () => {
     await screen.findByText('Failed to export: disk full')
   })
 })
+
+describe('a recording without speakers', () => {
+  const withoutSpeakers = (): FixtureOptions => {
+    const base = createFixtureClient()
+    return {
+      overrides: {
+        getTranscript: async id => {
+          const transcript = await base.getTranscript(id)
+          return { ...transcript, diarized: false, segments: transcript.segments.map(segment => ({ ...segment, speaker_resolved: null, speaker_final: null, unassigned: true })) }
+        },
+      },
+    }
+  }
+
+  test('shows its paragraphs with no speaker to name or change', async () => {
+    setup(withoutSpeakers())
+    const paragraph = await text(FIRST)
+    expect(screen.queryByText('Unassigned')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Unassigned' })).toBeNull()
+    await userEvent.hover(paragraph)
+    await userEvent.click(within(screen.getByRole('toolbar', { name: 'Paragraph' })).getByRole('button', { name: 'More' }))
+    expect(await screen.findByRole('menuitem', { name: 'Delete' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Change speaker' })).toBeNull()
+  })
+})

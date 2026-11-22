@@ -41,6 +41,10 @@ describe('noteMarkdown', () => {
       .toBe('> Anna Petrova (@anna) [00:10]\n>\n> What about the import flow?')
   })
 
+  test('a quote of a recording without speakers opens with its time', () => {
+    expect(md(quoteBlock({ start: 10, text: 'What about the import flow?' }))).toBe('> [00:10]\n>\n> What about the import flow?')
+  })
+
   test('empty paragraphs are left out', () => {
     expect(md(paragraph(), paragraph(text('Only this')), paragraph())).toBe('Only this')
   })

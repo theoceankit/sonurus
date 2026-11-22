@@ -58,8 +58,9 @@ export function buildTurns(segments: readonly Segment[], speakers: readonly Spea
 
 // The whole transcript as plain text, as the Editor shows it: the title, then each
 // turn its speaker and start time over a line per paragraph, all apart by an empty line.
-export function transcriptText(title: string, turns: readonly TranscriptTurn[]): string {
-  const blocks = turns.map(turn => [`${turn.speaker.name} ${formatClock(turn.start)}`, ...turn.segments.map(segment => segment.text)].join('\n'))
+// A recording without speakers has the paragraphs alone.
+export function transcriptText(title: string, turns: readonly TranscriptTurn[], diarized = true): string {
+  const blocks = turns.map(turn => [...(diarized ? [`${turn.speaker.name} ${formatClock(turn.start)}`] : []), ...turn.segments.map(segment => segment.text)].join('\n'))
   return [title, ...blocks].join('\n\n')
 }
 

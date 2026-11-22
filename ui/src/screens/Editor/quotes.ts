@@ -1,7 +1,8 @@
 import type { NoteQuote } from '../../components/NoteEditor/note-content'
 
 // Who a turn's speaker is to a note: by id, with the label the transcript shows. An
-// unknown speaker reads as that label until they get a name.
+// unknown speaker reads as that label until they get a name. A recording without
+// speakers has none.
 export type QuoteSpeaker = (id: string) => NoteQuote['speaker']
 
 // The selected text as quotes, one for each turn it touches: the speaker, the start
