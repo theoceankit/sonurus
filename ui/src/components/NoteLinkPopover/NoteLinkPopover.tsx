@@ -24,6 +24,8 @@ interface NoteLinkPopoverProps {
 
 function LinkForm({ href, onApply, onRemove }: Pick<NoteLinkPopoverProps, 'href' | 'onApply' | 'onRemove'>) {
   const [value, setValue] = useState(href ?? '')
+  // As it opened: the cursor may be on another thing while the window leaves.
+  const [onLink] = useState(href !== undefined)
   const [error, setError] = useState<string>()
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -43,7 +45,7 @@ function LinkForm({ href, onApply, onRemove }: Pick<NoteLinkPopoverProps, 'href'
           onChange={event => { setValue(event.target.value); setError(undefined) }}
         />
         <Inline gap={1}>
-          {href !== undefined && <Button variant="ghost" size="small" onClick={onRemove}>Remove link</Button>}
+          {onLink && <Button variant="ghost" size="small" onClick={onRemove}>Remove link</Button>}
           <span className={styles.spacer} />
           <Button variant="primary" size="small" type="submit">Apply</Button>
         </Inline>
