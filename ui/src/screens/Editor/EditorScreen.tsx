@@ -18,6 +18,7 @@ import { NewRecordingDialog } from '../Home/NewRecordingDialog'
 import { StopRecordingDialog } from '../../recording/StopRecordingDialog'
 import type { WindowIntent } from '../../platform/electron-api'
 import { settingsStore, useSavedInspectorWidth } from '../../platform/settings'
+import { MOVE_DURATION } from '../../styles/motion'
 import { useWindowIntent } from '../../platform/window-intent'
 import { pickRecording, useRecentRecordings } from '../Home/last-opened'
 import { useNewTranscription } from '../Home/useNewTranscription'
@@ -244,10 +245,9 @@ export function EditorScreen({ openRequest, onAlignmentRequest, pinnedIds, initi
   const toggle = (panel: Panel) => {
     const area = panelsArea.current!
     if (!prefersReducedMotion()) {
-      const duration = parseFloat(getComputedStyle(area).getPropertyValue('--duration-move')) || 0
       area.dataset.moving = ''
       clearTimeout(stopMoving.current)
-      stopMoving.current = setTimeout(() => { delete area.dataset.moving }, duration)
+      stopMoving.current = setTimeout(() => { delete area.dataset.moving }, MOVE_DURATION)
     }
     setPanels(current => togglePanel(current, panel, width))
   }
