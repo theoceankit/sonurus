@@ -18,6 +18,10 @@
   outline: none;
 }
 
+.compact {
+  width: var(--size-menu-compact);
+}
+
 .narrow {
   width: var(--size-menu-narrow);
 }

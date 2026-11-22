@@ -51,7 +51,7 @@ const Actions = ({ onDelete, onCopy, onExport, onExportSettings }: ActionsProps)
     <div className={styles.actions}>
       <Action icon="pin" label="Pin" {...markNotImplemented('transcript.pin')} />
       <Action icon="copy" label="Copy transcript" disabled={!onCopy} onClick={onCopy} />
-      <Menu align="end" trigger={<Tooltip text="Export" placement="below"><IconButton icon="export" label="Export" disabled={!onExport} /></Tooltip>}>
+      <Menu align="end" size="compact" trigger={<Tooltip text="Export" placement="below"><IconButton icon="export" label="Export" disabled={!onExport} /></Tooltip>}>
         {EXPORT_FORMATS.map(({ format, label, meta }) => (
           <MenuAction key={format} meta={meta} onSelect={() => onExport?.(format)}>{label}</MenuAction>
         ))}

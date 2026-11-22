@@ -9,11 +9,14 @@ interface SectionCardProps extends Omit<ComponentPropsWithRef<'section'>, 'title
   action?: ReactNode
   // Under the rows, set apart: where something is kept, what it needs.
   footer?: ReactNode
+  // Rows without the lines between them, for a short list of switches.
+  undivided?: boolean
   children?: ReactNode
 }
 
-// A card of settings that belong together; FieldRow and ModelRow rows are divided by lines.
-export function SectionCard({ title, description, action, footer, children, className, ...props }: SectionCardProps) {
+// A card of settings that belong together; FieldRow and ModelRow rows are divided by lines
+// unless undivided.
+export function SectionCard({ title, description, action, footer, undivided, children, className, ...props }: SectionCardProps) {
   const titleId = useId()
   return (
     <section aria-labelledby={title ? titleId : undefined} className={cx(styles.card, className)} {...props}>
@@ -26,7 +29,7 @@ export function SectionCard({ title, description, action, footer, children, clas
           {action}
         </header>
       )}
-      {children && <div className={styles.rows}>{children}</div>}
+      {children && <div className={cx(styles.rows, undivided && styles.undivided)}>{children}</div>}
       {footer && <div className={styles.footer}>{footer}</div>}
     </section>
   )

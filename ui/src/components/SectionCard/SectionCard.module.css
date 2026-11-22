@@ -45,6 +45,10 @@
   border-top: var(--border-width-default) solid var(--color-border-default);
 }
 
+.undivided > * + * {
+  border-top: none;
+}
+
 .footer {
   padding: var(--space-2) var(--space-4);
   border-top: var(--border-width-default) solid var(--color-border-default);

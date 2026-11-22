@@ -29,6 +29,11 @@ export const Default: Story = {
   render: args => <SectionCard {...args}><Rows /></SectionCard>,
 }
 
+export const Undivided: Story = {
+  args: { title: 'Export', description: 'What goes into an export.', undivided: true },
+  render: args => <SectionCard {...args}><Rows /></SectionCard>,
+}
+
 export const WithAction: Story = {
   args: { title: 'GPU acceleration', description: 'Faster transcription on an NVIDIA graphics card.', action: <Badge tone="success">On</Badge> },
   render: args => <SectionCard {...args}><Rows /></SectionCard>,
