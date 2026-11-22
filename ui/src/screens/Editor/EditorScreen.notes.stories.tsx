@@ -43,7 +43,7 @@ const selectInTranscript = async (canvasElement: HTMLElement, [from, to]: [strin
   window.getSelection()!.addRange(range)
   document.dispatchEvent(new MouseEvent('mouseup'))
   if (!quote) return
-  const button = await waitFor(() => [...canvasElement.querySelectorAll('button')].find(node => node.textContent === 'Quote'))
+  const button = await waitFor(() => [...canvasElement.querySelectorAll('button')].find(node => node.textContent?.trim() === 'Quote'))
   button.click()
 }
 

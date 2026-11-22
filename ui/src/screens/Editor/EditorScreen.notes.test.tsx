@@ -14,6 +14,7 @@ import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { runBeforeClose } from '../../platform/before-close'
 import { announceMentionChange } from '../../api/note-mentions'
 import { EditorScreen } from './EditorScreen'
+import * as stories from './EditorScreen.notes.stories'
 
 afterEach(() => {
   dismissAllToasts()
@@ -367,6 +368,10 @@ describe('the player time', () => {
 
 describe('Quote', () => {
   const paragraphOf = (text: string) => within(center()).getByText(text)
+  // jsdom lays nothing out, and the bar stands over the first line selected.
+  const layOutRanges = () => {
+    Range.prototype.getClientRects = () => [{ left: 10, top: 100, width: 120, height: 20, right: 130, bottom: 120, x: 10, y: 100, toJSON: () => {} }] as unknown as DOMRectList
+  }
   // From the start of one paragraph of the transcript to the end of another, as a drag does.
   const select = async (from: string, to: string) => {
     const first = await within(center()).findByText(from)
@@ -374,7 +379,7 @@ describe('Quote', () => {
     const range = document.createRange()
     range.setStart(first.firstChild!, 0)
     range.setEnd(last.firstChild!, last.textContent!.length)
-    Range.prototype.getClientRects = () => [{ left: 10, top: 100, width: 120, height: 20, right: 130, bottom: 120, x: 10, y: 100, toJSON: () => {} }] as unknown as DOMRectList
+    layOutRanges()
     const selection = window.getSelection()!
     selection.removeAllRanges()
     selection.addRange(range)
@@ -389,6 +394,19 @@ describe('Quote', () => {
   // Quotes taken from the transcript: they open with who said it.
   const quotes = (editor: Editor) => ((editor.getJSON() as JSONContent).content ?? []).filter(node => node.type === 'blockquote' && node.content?.[0].content?.[0]?.type === 'mention')
   const quoteHead = (block: JSONContent) => block.content?.[0].content?.map(node => node.type === 'mention' ? node.attrs : node.type === 'timecode' ? node.attrs?.seconds : node.text)
+
+  // Storybook runs a play by itself and shows its failure only in the browser.
+  test.each([
+    ['QuoteInserted', WEEKLY_SYNC_ID, 2],
+    ['QuoteIntoEmptyNote', DESIGN_REVIEW_ID, 1],
+  ] as const)('the play of the story %s presses Quote', async (name, id, count) => {
+    await open(id)
+    layOutRanges()
+    const play = stories[name].play as (context: { canvasElement: HTMLElement }) => Promise<void>
+    await play({ canvasElement: document.body })
+    const editor = await editorIn(inspector())
+    await waitFor(() => expect(quotes(editor)).toHaveLength(count))
+  })
 
   test('from the Speakers tab: the Notes tab opens with a quote for each turn, and the note is saved', async () => {
     const { client } = await open()
