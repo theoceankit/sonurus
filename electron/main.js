@@ -73,7 +73,7 @@ let quitAsked = false
 let started = false
 // The backend's queue events, heard here for the notifications of a call.
 let backendEvents = null
-// What a click on a notification asks the window to open, until the window takes it.
+// What a click on a notification or the tray menu asks the window to open, until the window takes it.
 let windowIntent = null
 // A recording stopped automatically, until the backend says how it ended.
 let autoStop = null

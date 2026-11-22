@@ -12,8 +12,8 @@ interface StopRecordingDialogProps {
   onClose: () => void
 }
 
-// Asked when a call seems to have ended (a click on the notification): stop the live
-// recording and queue it, or keep recording. Goes by itself once the recording ends.
+// Asked when a call seems to have ended (a click on the notification) or from the tray:
+// stop the live recording and queue it, or keep recording. Goes by itself once the recording ends.
 export function StopRecordingDialog({ open, onClose }: StopRecordingDialogProps) {
   const recording = useRecording()
   const live = recording.phase === 'live'
