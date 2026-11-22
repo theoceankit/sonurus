@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setZoom:         (factor) => ipcRenderer.invoke('set-zoom', factor),
   setTheme:        (source) => ipcRenderer.invoke('set-theme', source),
   writeClipboard:  (text) => ipcRenderer.invoke('write-clipboard', text),
+  saveExport:      (request) => ipcRenderer.invoke('save-export', request),
   restartBackend:  () => ipcRenderer.invoke('restart-backend'),
   showModelsFolder: () => ipcRenderer.invoke('show-models-folder'),
   openLink:        (address) => ipcRenderer.invoke('open-link', address),

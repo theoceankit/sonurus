@@ -1,4 +1,15 @@
 // What electron/preload.js exposes. A build test keeps the keys the same.
+export type ExportFormat = 'txt' | 'md' | 'json'
+
+export type ExportRequest = {
+  title: string
+  // The format the save dialog starts on.
+  format: ExportFormat
+  contents: Record<ExportFormat, string>
+}
+
+export type ExportResult = { status: 'saved' | 'canceled' } | { status: 'failed'; message: string }
+
 export type ElectronSettings = {
   scale: number
   transcribeLang: string
@@ -61,6 +72,8 @@ export type ElectronAPI = {
   // Sets the theme of the window: its frame, and prefers-color-scheme in the page.
   setTheme: (source: ThemeSource) => Promise<void>
   writeClipboard: (text: string) => Promise<void>
+  // The save dialog, then the text of the format the picked file's extension names.
+  saveExport: (request: ExportRequest) => Promise<ExportResult>
   restartBackend: () => Promise<void>
   // '' once the file manager opened the models folder, else why it did not.
   showModelsFolder: () => Promise<string>

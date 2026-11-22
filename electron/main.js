@@ -5,6 +5,7 @@ const { execFile } = require('child_process')
 const { BackendRefusedError, backendRequest, restartBackend, startBackend, stopBackend } = require('./backend')
 const { devUserDataPath } = require('./backend-identity')
 const { dialogFolder, rememberDialogFolder } = require('./dialog-folder')
+const { saveExport } = require('./export-file')
 const { showModelsFolder } = require('./models-folder')
 const { openLink } = require('./links')
 const { askWindowToFinish } = require('./window-closing')
@@ -156,6 +157,7 @@ function createWindow() {
 
 const getSettingsPath = () => path.join(app.getPath('userData'), 'settings.json')
 const getDialogStatePath = () => path.join(app.getPath('userData'), 'dialog-state.json')
+const getExportDialogStatePath = () => path.join(app.getPath('userData'), 'export-dialog-state.json')
 const getAppStatePath = () => path.join(app.getPath('userData'), 'app-state.json')
 
 const DEFAULT_SETTINGS = {
@@ -246,6 +248,24 @@ ipcMain.handle('get-tray-available', () => hasTray)
 ipcMain.handle('get-app-version', () => app.getVersion())
 
 ipcMain.handle('write-clipboard', async (_e, text) => { await clipboard.writeText(text) })
+
+ipcMain.handle('save-export', (event, request) => {
+  if (event.sender !== mainWin?.webContents) return { status: 'canceled' }
+  return saveExport(request, {
+    statePath: getExportDialogStatePath(),
+    showSaveDialog: options => dialog.showSaveDialog(mainWin, options),
+    confirmReplace: async filePath => {
+      const { response } = await dialog.showMessageBox(mainWin, {
+        type: 'question',
+        buttons: ['Replace', 'Cancel'],
+        defaultId: 1,
+        cancelId: 1,
+        message: `"${path.basename(filePath)}" already exists. Replace it?`,
+      })
+      return response === 0
+    },
+  })
+})
 
 // Ctrl/⌘+click on a link in a note.
 ipcMain.handle('open-link', (_e, address) => openLink(address, { openExternal: url => shell.openExternal(url) }))
