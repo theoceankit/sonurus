@@ -197,15 +197,34 @@ test('every tray icon file is in electron/assets', () => {
   }
 })
 
-test('main.js asks for the theme of the system, not the one of the app, for the tray', () => {
-  const main = fs.readFileSync(path.join(ROOT, 'electron', 'main.js'), 'utf8')
-  assert.match(main, /trayIcon\(process\.platform, nativeTheme\.shouldUseDarkColorsForSystemIntegratedUI\)/)
+const main = () => fs.readFileSync(path.join(ROOT, 'electron', 'main.js'), 'utf8')
+
+test('main.js colours the tray by the taskbar, not by a theme of nativeTheme', () => {
+  assert.match(main(), /trayIcon\(process\.platform, taskbar\?\.dark\(\)/)
+  assert.doesNotMatch(main(), /shouldUseDarkColorsForSystemIntegratedUI/)
 })
 
-test('main.js updates the tray icon before the theme handler leaves for a missing window', () => {
-  const main = fs.readFileSync(path.join(ROOT, 'electron', 'main.js'), 'utf8')
-  const handler = main.slice(main.indexOf("nativeTheme.on('updated'"))
-  const update = handler.indexOf('updateTrayIcon()')
-  assert.ok(update > 0, 'the handler does not update the tray')
+test('main.js reads the taskbar before it makes the tray', () => {
+  const ready = main().slice(main().indexOf('app.whenReady()'))
+  const read = ready.indexOf('await watchTaskbar()')
+  assert.ok(read > 0, 'the taskbar is not read at start-up')
+  assert.ok(read < ready.indexOf('createTray()'), 'the tray would start in a guessed colour')
+})
+
+test('main.js hears a change of the Windows mode alone, with the window closed too', () => {
+  const watch = main().slice(main().indexOf('function watchTaskbar()'))
+  const body = watch.slice(0, watch.indexOf('\n}'))
+  assert.match(body, /new BaseWindow\(\{ show: false \}\)/)
+  assert.match(body, /hookWindowMessage\(WM_SETTINGCHANGE/)
+})
+
+test('main.js reads the taskbar again before the theme handler leaves for a missing window', () => {
+  const handler = main().slice(main().indexOf("nativeTheme.on('updated'"))
+  const update = handler.indexOf('taskbar?.changed()')
+  assert.ok(update > 0, 'the handler does not read the taskbar')
   assert.ok(update < handler.indexOf('if (!mainWin'), 'a window closed to the tray would keep the old icon')
+})
+
+test('main.js runs commands without a console window flashing on Windows', () => {
+  assert.match(main(), /execFile\(cmd, args, \{ timeout: 2000, windowsHide: true \}/)
 })

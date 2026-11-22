@@ -46,9 +46,9 @@ function trayMenu({ open, quit }) {
 // The file of the tray icon in electron/assets, the same quill everywhere. macOS: a
 // template image (black, shape in alpha), the name ending in Template tells Electron so;
 // the menu bar tints it and takes the @2x file on Retina. Windows: white or black for the
-// taskbar of the system theme (systemDark), which the theme of the app does not change,
-// with a frame for each display scale. Linux: nothing tells the colour of the panel, so
-// a white quill in a dark outline that shows on any, with an @2x file.
+// taskbar (systemDark, electron/taskbar-theme.js), which neither the mode of the apps nor
+// the theme of Sonorus changes, with a frame for each display scale. Linux: nothing tells
+// the colour of the panel, so a white quill in a dark outline that shows on any, one file.
 function trayIcon(platform, systemDark) {
   if (platform === 'darwin') return 'trayTemplate.png'
   if (platform === 'win32') return systemDark ? 'trayOnDark.ico' : 'trayOnLight.ico'
