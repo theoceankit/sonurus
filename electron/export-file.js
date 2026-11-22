@@ -14,14 +14,18 @@ const EXPORT_FORMATS = [
   { id: 'json', name: 'JSON' },
 ]
 const NAME_MAX_LENGTH = 120
+// Linux and macOS count a name in UTF-8 bytes, Windows in UTF-16 units, which are never more.
+const NAME_MAX_BYTES = 255
 
 // The title as a file name on every system.
 function exportFileName(title, format) {
-  const name = String(title ?? '')
+  const safe = String(title ?? '')
     .replace(/[/\\:*?"<>|\p{Cc}]/gu, ' ')
     .replace(/\s+/g, ' ')
-    .slice(0, NAME_MAX_LENGTH)
-    .replace(/^[\s.]+|[\s.]+$/g, '')
+  // By whole characters: an emoji is two UTF-16 units.
+  const characters = [...safe].slice(0, NAME_MAX_LENGTH)
+  while (Buffer.byteLength(`${characters.join('')}.${format}`) > NAME_MAX_BYTES) characters.pop()
+  const name = characters.join('').replace(/^[\s.]+|[\s.]+$/g, '')
   return `${name || 'Transcript'}.${format}`
 }
 

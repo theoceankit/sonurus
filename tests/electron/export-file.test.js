@@ -155,3 +155,17 @@ test('a file that may not be written is not replaced', { skip: POSIX.skip || (pr
   assert.equal((await saveExport({ title: 'Call', format: 'txt', text: 'new' }, deps)).status, 'failed')
   assert.equal(fs.readFileSync(file, 'utf8'), 'old')
 })
+
+for (const [what, title] of [['Chinese', '会'.repeat(200)], ['Cyrillic', 'ж'.repeat(200)], ['emoji', `a${'😀'.repeat(200)}`]]) {
+  test(`a long title in ${what} gives a name the file system takes`, async t => {
+    for (const format of ['txt', 'md', 'json']) {
+      const name = exportFileName(title, format)
+      assert.ok(Buffer.byteLength(name) <= 255, `${Buffer.byteLength(name)} bytes`)
+      assert.ok(name.endsWith(`.${format}`))
+      assert.doesNotMatch(name, /\p{Surrogate}/u, 'no character is cut in half')
+      assert.ok(title.startsWith(name.slice(0, -format.length - 1)))
+      const { deps } = setup(t, name)
+      assert.deepEqual(await saveExport({ title, format, text: 'x' }, deps), { status: 'saved' })
+    }
+  })
+}
