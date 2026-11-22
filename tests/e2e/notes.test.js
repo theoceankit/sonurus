@@ -84,7 +84,6 @@ test('Quote, a chip that seeks and the player time', async t => {
   await player.getByText(/^00:12$/).first().waitFor()
 
   const time = inspector().getByRole('button', { name: 'Insert player time' })
-  await assertEventually(async () => (await time.textContent()).trim() === '00:12', 'the button shows where the player stands')
   await time.click()
   await assertEventually(async () => (JSON.stringify(await notesOf() ?? {}).match(/"seconds":12/g) ?? []).length === 2,
     'the time is in the note, next to the quote that had it')

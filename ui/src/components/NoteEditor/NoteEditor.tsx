@@ -51,8 +51,7 @@ interface NoteEditorProps {
   ref?: Ref<NoteEditorHandle>
 }
 
-const PLACEHOLDER = 'Write notes for this recording. Markdown works as you type: # for a heading, - for a list, - [ ] for a checkbox'
-const placeholder = (mentions: boolean) => `${PLACEHOLDER}${mentions ? ', @ to mention someone' : ''}.`
+const PLACEHOLDER = 'Write notes'
 
 const POPUP_GAP = 4
 
@@ -122,7 +121,7 @@ export const NoteEditor = memo(function NoteEditor({
       TaskList,
       TaskItem.configure({ nested: true }),
       TaskFromListItem,
-      Placeholder.configure({ placeholder: () => placeholder(latest.current.candidates !== undefined) }),
+      Placeholder.configure({ placeholder: PLACEHOLDER }),
       // What is selected stays visible while the link window or a menu has the focus.
       Selection.configure({ className: styles.keptSelection }),
       Timecode,

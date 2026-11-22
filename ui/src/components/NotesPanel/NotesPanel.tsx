@@ -1,10 +1,10 @@
 import type { Editor, JSONContent } from '@tiptap/react'
-import { useCallback, useImperativeHandle, useRef, useState, type Ref } from 'react'
-import { formatClock } from '../../media/timeline'
+import { useCallback, useContext, useImperativeHandle, useRef, useState, type Ref } from 'react'
+import { createPortal } from 'react-dom'
 import { cx } from '../../styles/cx'
-import { Button } from '../Button/Button'
 import { IconButton } from '../IconButton/IconButton'
 import { Inline } from '../Inline/Inline'
+import { InspectorActions } from '../Inspector/inspector-actions'
 import type { MentionCandidate } from '../MentionList/mention-list'
 import { isEmptyNote, type MentionChange, type NoteQuote } from '../NoteEditor/note-content'
 import type { FindSpeaker } from '../NoteEditor/note-extensions'
@@ -52,8 +52,8 @@ interface NotesPanelProps {
   ref?: Ref<NotesPanelHandle>
 }
 
-// The note of a recording: the player's time, Copy notes and the way to expand or
-// collapse it over the editor. It saves itself, so there is no Save.
+// The note of a recording: the format bar with the player's time over the editor, and
+// Copy notes and the way to expand or collapse it, in the row of the tabs when it has one. It saves itself, so there is no Save.
 export function NotesPanel({
   mode = 'tab', title, content, candidates, mentionChanges, findSpeaker, time, timeDisabled = false, onSeek, onChange, quotes, onQuoted, onCopy, onOpenLink, onToggleExpanded, autoFocus, className, ref,
 }: NotesPanelProps) {
@@ -82,33 +82,38 @@ export function NotesPanel({
   }
 
   const expanded = mode === 'expanded'
+  const tabRow = useContext(InspectorActions)
+  const inTabRow = !expanded && tabRow !== null
+  const placement = inTabRow ? 'below' : 'above'
+  const actions = (
+    <>
+      <Tooltip text="Copy notes" placement={placement}>
+        <IconButton icon="copy" size="small" label="Copy notes" disabled={empty} onClick={copy} />
+      </Tooltip>
+      <Tooltip text={expanded ? 'Collapse notes' : 'Expand notes'} placement={placement}>
+        <IconButton icon={expanded ? 'collapse' : 'expand'} size="small" label={expanded ? 'Collapse notes' : 'Expand notes'} onClick={onToggleExpanded} />
+      </Tooltip>
+    </>
+  )
   return (
     <div className={cx(styles.panel, styles[mode], className)}>
-      <TooltipGroup>
-        <Inline gap={1} className={styles.header}>
-          {expanded && (
-            <Inline gap={2} className={styles.heading}>
-              <span className={styles.title}>Notes</span>
-              {title && <span className={styles.recording}>{title}</span>}
+      {inTabRow
+        ? createPortal(<TooltipGroup><Inline gap={1}>{actions}</Inline></TooltipGroup>, tabRow)
+        : (
+          <TooltipGroup>
+            <Inline gap={1} className={styles.header}>
+              {expanded && (
+                <Inline gap={2} className={styles.heading}>
+                  <span className={styles.title}>Notes</span>
+                  {title && <span className={styles.recording}>{title}</span>}
+                </Inline>
+              )}
+              <span className={styles.spacer} />
+              {actions}
             </Inline>
-          )}
-          {time !== undefined && (
-            <Tooltip text="Insert player time">
-              <Button variant="ghost" size="small" icon="clock" aria-label="Insert player time" disabled={timeDisabled} onMouseDown={event => event.preventDefault()} onClick={insertTime}>
-                {formatClock(time)}
-              </Button>
-            </Tooltip>
-          )}
-          <span className={styles.spacer} />
-          <Tooltip text="Copy notes">
-            <IconButton icon="copy" size="small" label="Copy notes" disabled={empty} onClick={copy} />
-          </Tooltip>
-          <Tooltip text={expanded ? 'Collapse notes' : 'Expand notes'}>
-            <IconButton icon={expanded ? 'collapse' : 'expand'} size="small" label={expanded ? 'Collapse notes' : 'Expand notes'} onClick={onToggleExpanded} />
-          </Tooltip>
-        </Inline>
-      </TooltipGroup>
-      <NoteFormatBar editor={tiptap} className={styles.formatBar} />
+          </TooltipGroup>
+        )}
+      <NoteFormatBar editor={tiptap} onInsertTime={time !== undefined ? insertTime : undefined} timeDisabled={timeDisabled} className={styles.formatBar} />
       <div className={styles.scrollArea}>
         <div ref={scrollRef} className={styles.scroll}>
           <div className={styles.column}>

@@ -14,9 +14,9 @@ EditorScreen → useNotesSaver (note-autosave.ts)
 
 ## Where
 
-The Notes tab of the [Inspector](inspector.md), next to Speakers. Every recording opens on Speakers, also after another one was on Notes. A recording without a note opens an empty editor with a hint of what Markdown does; an empty note is no note, and nothing is stored for it.
+The Notes tab of the [Inspector](inspector.md), next to Speakers. Every recording opens on Speakers, also after another one was on Notes. A recording without a note opens an empty editor with the hint "Write notes"; an empty note is no note, and nothing is stored for it.
 
-Expand notes, in the header of the tab, puts the note in place of the transcript, with the title of the recording over it; the player stays and plays. The right panel goes back to Speakers, and its Notes tab says the note is open in place of the transcript, with Collapse notes. The button over the note, Collapse notes in the tab, or Escape puts the transcript back, and the Notes tab with it. Escape collapses wherever the focus is, in the note too, unless a menu, a list or a window is open, which takes it first; the next Escape closes the recording as usual. Another recording opens with its transcript.
+Expand notes, in the row of the tabs next to Close inspector, puts the note in place of the transcript, with the title of the recording over it; the player stays and plays. The right panel goes back to Speakers, and its Notes tab says the note is open in place of the transcript, with Collapse notes. The button over the note, Collapse notes in the tab, or Escape puts the transcript back, and the Notes tab with it. Escape collapses wherever the focus is, in the note too, unless a menu, a list or a window is open, which takes it first; the next Escape closes the recording as usual. Another recording opens with its transcript.
 
 While the note is in the tab, Escape in it does nothing: it is a text field, and the recording stays open (`escape-close.ts`).
 
@@ -30,7 +30,7 @@ The editor is a third of the UI's code, so it is a chunk of its own (`React.lazy
 
 ## The format bar
 
-`NoteFormatBar` is a row between the header of the note and its text, in the tab and expanded; it does not scroll with the text and fits a tab 300 wide. From the left: the text style menu (Plain text, Heading 1 to 3), Bold, Italic, Bulleted list, Numbered list, Checkbox, Quote, Link. Each has a tooltip with its name, Bold and Italic with their keys too.
+`NoteFormatBar` is a row right over the text of the note, in the tab and expanded; it does not scroll with the text and fits a tab 300 wide. From the left: the text style menu (Plain text, Heading 1 to 3), Bold, Italic, Bulleted list, Numbered list, Checkbox, Quote, Link, and the player's time. Each has a tooltip with its name.
 
 A button is highlighted when its format holds at the cursor, and a second press takes the format off. One that cannot apply there is out of use. Bold and Italic work on the selection, or without one on what is typed next. The styles, lists and Quote work on the block with the cursor or on all those selected; a list item changed to another type leaves its list, which splits around it, and joins a list of that type right next to it.
 
@@ -42,7 +42,7 @@ Link opens a small window with the address (`NoteLinkPopover`). With a selection
 
 A moment of the recording is a chip in the note, "12:34", one node the cursor goes around (`timecode` in `note-extensions.tsx`). A click on it takes the player there (`playback.seek`); the player and the transcript follow as with any seek. The time is kept in whole seconds. A time typed as text stays text.
 
-The button in the header of the note shows where the player stands, to the second, and inserts it as a chip. It goes where the cursor was last in the note, or at the end if the cursor has not been in it since it opened, and the focus goes there, to type on after it. While the player has no audio (loading, or the file gone) the button is there but out of use. Only the button renders with the player's time: `NoteEditor` is memoized, and what it is given stays the same from one second to the next. There is no keyboard shortcut for it.
+The clock button at the end of the format bar inserts where the player stands, to the second, as a chip. It goes where the cursor was last in the note, or at the end if the cursor has not been in it since it opened, and the focus goes there, to type on after it. While the player has no audio (loading, or the file gone) the button is there but out of use. `NoteEditor` and `NoteFormatBar` are memoized, and what they are given stays the same from one second to the next. There is no keyboard shortcut for it.
 
 ## Quotes from the transcript
 
@@ -75,7 +75,7 @@ Closing the window to the tray destroys it and quitting gives the page no unload
 
 ## Copy notes
 
-Copy notes, in the header, puts the note on the clipboard as Markdown (`note-markdown.ts`): headings `#`, lists `-` and `1.`, checkboxes `- [ ]` and `- [x]`, quotes `>`, `**bold**`, `*italic*`, `[text](address)`, a timecode as `[12:34]` (`[1:02:03]` from an hour on), a speaker as "Name (@handle)", a person as "@Name"; empty paragraphs are left out. Text copied from the note with Ctrl+C has a timecode in the same form. It is off while the note is empty. It says nothing when done, as Copy transcript.
+Copy notes, next to Expand notes (in the header of the note when it is expanded), puts the note on the clipboard as Markdown (`note-markdown.ts`): headings `#`, lists `-` and `1.`, checkboxes `- [ ]` and `- [x]`, quotes `>`, `**bold**`, `*italic*`, `[text](address)`, a timecode as `[12:34]` (`[1:02:03]` from an hour on), a speaker as "Name (@handle)", a person as "@Name"; empty paragraphs are left out. Text copied from the note with Ctrl+C has a timecode in the same form. It is off while the note is empty. It says nothing when done, as Copy transcript.
 
 ## Deleting
 

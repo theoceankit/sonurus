@@ -1,7 +1,6 @@
 import * as Popover from '@radix-ui/react-popover'
 import { useEditorState, type Editor } from '@tiptap/react'
-import { useState, type MouseEvent } from 'react'
-import { currentOs } from '../../platform/os'
+import { memo, useState, type MouseEvent } from 'react'
 import { cx } from '../../styles/cx'
 import { Icon } from '../Icon/Icon'
 import type { IconName } from '../Icon/icon-names'
@@ -26,22 +25,19 @@ const STYLES: { value: TextStyle; short: string; label: string }[] = [
 // The press does not take the focus: the cursor and the selection stay in the note.
 const keepFocus = (event: MouseEvent) => event.preventDefault()
 
-const shortcut = (key: string) => (currentOs() === 'mac' ? `⌘${key}` : `Ctrl+${key}`)
-
 interface FormatButtonProps {
   icon: IconName
   label: string
-  keyName?: string
   active: boolean
   enabled: boolean
   onPress: () => void
 }
 
-function FormatButton({ icon, label, keyName, active, enabled, onPress }: FormatButtonProps) {
+function FormatButton({ icon, label, active, enabled, onPress }: FormatButtonProps) {
   return (
-    <Tooltip text={keyName ? `${label} (${shortcut(keyName)})` : label}>
+    <Tooltip text={label}>
       <ToolbarItem disabled={!enabled} onMouseDown={keepFocus} onClick={onPress}>
-        <IconButton icon={icon} label={label} selected={active} aria-keyshortcuts={keyName ? `${currentOs() === 'mac' ? 'Meta' : 'Control'}+${keyName}` : undefined} />
+        <IconButton icon={icon} label={label} selected={active} />
       </ToolbarItem>
     </Tooltip>
   )
@@ -49,17 +45,22 @@ function FormatButton({ icon, label, keyName, active, enabled, onPress }: Format
 
 interface NoteFormatBarProps {
   editor: Editor | null
+  // Inserts where the player stands; without it there is no time button.
+  onInsertTime?: () => void
+  // While the player has no audio: the button stays, out of use.
+  timeDisabled?: boolean
   className?: string
 }
 
 // The row of formats over a note. Made again for each editor: useEditorState keeps what
 // it read until a transaction, and a note just opened has had none.
-export function NoteFormatBar({ editor, className }: NoteFormatBarProps) {
-  return <FormatRow key={editor?.instanceId ?? 'none'} editor={editor} className={className} />
-}
+// Memoized: the panel over it renders with the player's time.
+export const NoteFormatBar = memo(function NoteFormatBar({ editor, ...props }: NoteFormatBarProps) {
+  return <FormatRow key={editor?.instanceId ?? 'none'} editor={editor} {...props} />
+})
 
 // It renders with the cursor; the editor under it does not.
-function FormatRow({ editor, className }: NoteFormatBarProps) {
+function FormatRow({ editor, onInsertTime, timeDisabled = false, className }: NoteFormatBarProps) {
   const state = useEditorState({
     editor,
     selector: ({ editor: current }) => (current ? formatState(current) : NO_FORMAT),
@@ -100,8 +101,8 @@ function FormatRow({ editor, className }: NoteFormatBarProps) {
           </MenuOptions>
         </Menu>
         <ToolbarDivider />
-        <FormatButton icon="bold" label="Bold" keyName="B" active={state.bold} enabled={state.can.bold} onPress={run(toggleBold)} />
-        <FormatButton icon="italic" label="Italic" keyName="I" active={state.italic} enabled={state.can.italic} onPress={run(toggleItalic)} />
+        <FormatButton icon="bold" label="Bold" active={state.bold} enabled={state.can.bold} onPress={run(toggleBold)} />
+        <FormatButton icon="italic" label="Italic" active={state.italic} enabled={state.can.italic} onPress={run(toggleItalic)} />
         <ToolbarDivider />
         <FormatButton icon="list-bullet" label="Bulleted list" active={state.bulletList} enabled={state.can.bulletList} onPress={run(e => toggleList(e, 'bulletList'))} />
         <FormatButton icon="list-numbered" label="Numbered list" active={state.orderedList} enabled={state.can.orderedList} onPress={run(e => toggleList(e, 'orderedList'))} />
@@ -124,6 +125,16 @@ function FormatRow({ editor, className }: NoteFormatBarProps) {
             </Popover.Trigger>
           </Tooltip>
         </NoteLinkPopover>
+        {onInsertTime && (
+          <>
+            <ToolbarDivider />
+            <Tooltip text="Insert player time">
+              <ToolbarItem disabled={timeDisabled || !editor} onMouseDown={keepFocus} onClick={onInsertTime}>
+                <IconButton icon="clock" label="Insert player time" />
+              </ToolbarItem>
+            </Tooltip>
+          </>
+        )}
       </Toolbar>
     </div>
   )

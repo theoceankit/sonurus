@@ -291,9 +291,8 @@ describe('links', () => {
   })
 })
 
-test('every button names itself, Bold and Italic with their keys', () => {
+test('every button names itself, with no keys in its name', () => {
   setup()
   for (const name of ['Text style', 'Bold', 'Italic', 'Bulleted list', 'Numbered list', 'Checkbox', 'Quote', 'Link']) button(name)
-  expect(button('Bold').getAttribute('aria-keyshortcuts')).toBe('Control+B')
-  expect(button('Italic').getAttribute('aria-keyshortcuts')).toBe('Control+I')
+  expect(button('Bold').getAttribute('aria-keyshortcuts')).toBeNull()
 })

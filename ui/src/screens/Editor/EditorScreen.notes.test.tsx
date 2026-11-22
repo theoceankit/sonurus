@@ -294,13 +294,13 @@ describe('the player time', () => {
     return found
   }
 
-  test('the button shows where the player stands and puts it in the note as a chip', async () => {
+  test('the button is only an icon and puts where the player stands in the note as a chip', async () => {
     const { playback, set } = fakePlayback({ currentTime: 754.6 })
     await open(DESIGN_REVIEW_ID, {}, { playback })
     const editor = await openNotes()
-    expect(timeButton().textContent!.trim()).toBe('12:34')
+    expect(timeButton().textContent!.trim()).toBe('')
+    expect(within(within(inspector()).getByRole('toolbar', { name: 'Format' })).getByRole('button', { name: 'Insert player time' })).toBe(timeButton())
     set({ currentTime: 800.2 })
-    expect(timeButton().textContent!.trim()).toBe('13:20')
     await userEvent.click(timeButton())
     expect(timecodes(editor)).toEqual([800])
     expect(within(inspector()).getByRole('button', { name: 'Go to 13:20' })).toBeTruthy()

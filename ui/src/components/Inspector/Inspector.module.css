@@ -27,6 +27,13 @@
   inset-inline-end: var(--space-2);
 }
 
+/* Left of Close inspector: the buttons of the tab shown. */
+.actions {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: calc(var(--space-2) + var(--size-control-sm) + var(--space-1));
+}
+
 /* On a low window the review does not fit: then the whole panel scrolls. */
 .panel {
   container: inspector-panel / size;

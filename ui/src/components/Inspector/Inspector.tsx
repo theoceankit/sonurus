@@ -1,6 +1,7 @@
-import { useRef, type ComponentPropsWithRef, type ReactNode } from 'react'
+import { useRef, useState, type ComponentPropsWithRef, type ReactNode } from 'react'
 import { cx } from '../../styles/cx'
 import { Button } from '../Button/Button'
+import { Inline } from '../Inline/Inline'
 import { Reveal } from '../Reveal/Reveal'
 import { IconButton } from '../IconButton/IconButton'
 import { ScrollBar } from '../ScrollBar/ScrollBar'
@@ -8,6 +9,7 @@ import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
 import { Tab } from '../Tab/Tab'
 import { TabPanel, Tabs } from '../Tabs/Tabs'
 import { Tooltip } from '../Tooltip/Tooltip'
+import { InspectorActions } from './inspector-actions'
 import styles from './Inspector.module.css'
 
 export type InspectorReview =
@@ -37,6 +39,7 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, notes, 
   if (review.mode === 'on') last.current = { ...last.current, counter: review.counter, card: review.card }
   if (review.mode === 'collapsed') last.current = { ...last.current, left: review.left, onResume: review.onResume }
   const shown = last.current
+  const [actions, setActions] = useState<HTMLElement | null>(null)
   return (
     <div className={cx(styles.inspector, className)} {...props}>
       <Tabs
@@ -52,6 +55,7 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, notes, 
           </>
         )}
       >
+        <Inline ref={setActions} gap={1} className={styles.actions} />
         <Tooltip text="Close inspector" placement="below">
           <IconButton icon="inspector" size="small" label="Close inspector" className={styles.close} onClick={onClose} />
         </Tooltip>
@@ -85,7 +89,9 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, notes, 
             </Reveal>
           )}
         </TabPanel>
-        <TabPanel value="notes" className={styles.panel}>{notes}</TabPanel>
+        <TabPanel value="notes" className={styles.panel}>
+          <InspectorActions.Provider value={actions}>{notes}</InspectorActions.Provider>
+        </TabPanel>
       </Tabs>
     </div>
   )
