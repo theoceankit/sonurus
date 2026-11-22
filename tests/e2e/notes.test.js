@@ -122,3 +122,27 @@ test('mentions with @', async t => {
     return saved.includes(`"id":"${mark}"`) && saved.includes('"kind":"person"') && saved.includes('Sam from support')
   }, 'the note keeps the speaker by id and the person by name')
 })
+
+// Layout, which unit tests do not see: in the tab and expanded, the two sizes of the text.
+test('a checkbox stands level with its text', async t => {
+  const app = await startApp()
+  t.after(app.stop)
+  const { page } = app
+  const inspector = page.getByRole('region', { name: 'Inspector' })
+  const offset = () => page.getByRole('textbox', { name: 'Notes' }).locator('li').first().evaluate(item => {
+    const box = item.querySelector('input').getBoundingClientRect()
+    const range = document.createRange()
+    range.selectNodeContents(item.querySelector('p'))
+    const line = range.getClientRects()[0]
+    return Math.abs((box.top + box.height / 2) - (line.top + line.height / 2))
+  })
+
+  await inspector.getByRole('tab', { name: 'Notes' }).click()
+  await inspector.getByRole('textbox', { name: 'Notes' }).click()
+  await page.keyboard.type('Send the draft')
+  await inspector.getByRole('toolbar', { name: 'Format' }).getByRole('button', { name: 'Checkbox' }).click()
+  assert.ok(await offset() <= 0.5, `in the tab, ${await offset()} px off`)
+  await inspector.getByRole('button', { name: 'Expand notes' }).click()
+  await page.getByRole('main', { name: 'Transcript' }).getByRole('textbox', { name: 'Notes' }).waitFor()
+  assert.ok(await offset() <= 0.5, `expanded, ${await offset()} px off`)
+})
