@@ -46,7 +46,7 @@ test('a note survives quitting the app right after typing', async t => {
 // Text selected across two turns goes into the note as a quote for each, with who
 // said it and when; a chip takes the player there, and the time button puts where the
 // player stands into the note.
-test('Quote to notes, a chip that seeks and the player time', async t => {
+test('Quote, a chip that seeks and the player time', async t => {
   const app = await startApp()
   t.after(app.stop)
   const { page } = app
@@ -67,7 +67,7 @@ test('Quote to notes, a chip that seeks and the player time', async t => {
   await page.mouse.down()
   await page.mouse.move(to.x + to.width - 1, to.y + to.height / 2, { steps: 5 })
   await page.mouse.up()
-  await page.getByRole('toolbar', { name: 'Selected text' }).getByRole('button', { name: 'Quote to notes' }).click()
+  await page.getByRole('toolbar', { name: 'Selected text' }).getByRole('button', { name: 'Quote' }).click()
 
   await assertEventually(async () => await inspector().getByRole('tab', { name: 'Notes' }).getAttribute('aria-selected') === 'true',
     'the Notes tab opens')
