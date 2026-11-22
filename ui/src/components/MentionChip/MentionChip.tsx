@@ -27,7 +27,7 @@ export function MentionChip({ target, selected, className, ...props }: MentionCh
       {...props}
     >
       {speaker
-        ? <Avatar name={target.name} color={target.color} photo={target.photo} size="xs" />
+        ? <Avatar name={target.name} color={target.color} photo={target.photo} size="small" className={styles.avatar} />
         : <span className={styles.at}>@</span>}
       <span className={styles.name}>{target.name}</span>
     </span>

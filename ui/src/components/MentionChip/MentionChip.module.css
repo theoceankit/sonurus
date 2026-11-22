@@ -22,6 +22,12 @@
   box-shadow: inset 0 0 0 var(--border-width-default) var(--color-border-strong);
 }
 
+/* Two letters, at the height that keeps the chip in the line of text. */
+.chip .avatar {
+  width: var(--size-avatar-xs);
+  height: var(--size-avatar-xs);
+}
+
 .at {
   color: var(--color-text-secondary);
 }
