@@ -199,6 +199,8 @@ describe('headings', () => {
     const user = userEvent.setup()
     const editor = setup()
     act(() => { editor.commands.focus(3) })
+    // It lands on the next frame, and would close a menu opened before that.
+    await waitFor(() => expect(editor.isFocused).toBe(true))
     await user.click(button('Text style'))
     await user.click(await screen.findByRole('menuitemradio', { name: 'Heading 2' }))
     await waitFor(() => expect(editor.isFocused).toBe(true))
