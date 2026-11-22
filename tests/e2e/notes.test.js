@@ -146,3 +146,27 @@ test('a checkbox stands level with its text', async t => {
   await page.getByRole('main', { name: 'Transcript' }).getByRole('textbox', { name: 'Notes' }).waitFor()
   assert.ok(await offset() <= 0.5, `expanded, ${await offset()} px off`)
 })
+
+// At a fractional scale the two edges round apart when they only touch.
+test('the arrow of a tooltip overlaps its plate', async t => {
+  const app = await startApp()
+  t.after(app.stop)
+  const { page } = app
+  const inspector = page.getByRole('region', { name: 'Inspector' })
+  await inspector.getByRole('tab', { name: 'Notes' }).click()
+  const bar = inspector.getByRole('toolbar', { name: 'Format' })
+  for (const [name, side] of [['Quote', 'top'], ['Close inspector', 'bottom']]) {
+    await page.mouse.move(5, 500)
+    await (name === 'Quote' ? bar : inspector).getByRole('button', { name, exact: true }).hover()
+    const tooltip = page.locator(`[data-radix-popper-content-wrapper] [data-side="${side}"]`)
+    await tooltip.waitFor()
+    const overlap = await tooltip.evaluate((element, onTop) => {
+      const plate = element.querySelector('span').getBoundingClientRect()
+      const arrow = element.querySelector('svg').getBoundingClientRect()
+      return onTop ? plate.bottom - arrow.top : arrow.bottom - plate.top
+    }, side === 'top')
+    assert.ok(overlap >= 0.9, `${name}: the arrow goes ${overlap} px into the plate`)
+    await page.mouse.move(5, 500)
+    if (side === 'top') await tooltip.waitFor({ state: 'detached' })
+  }
+})
