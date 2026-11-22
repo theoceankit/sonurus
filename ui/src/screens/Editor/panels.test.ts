@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
 import { parseTokens } from '../../styles/tokens'
 import css from '../../styles/tokens.css?raw'
+import screenCss from './EditorScreen.module.css?raw'
 import { BOTH_PANELS_MIN_WIDTH, CENTER_MIN_WIDTH, INITIAL_PANELS, INSPECTOR_MIN_WIDTH, inspectorMaxWidth, shownInspectorWidth, togglePanel, visiblePanels } from './panels'
 
 const WIDE = 1200
@@ -94,4 +95,12 @@ test('a narrower window shrinks the shown width and the saved one comes back', (
 
 test('a window not measured yet shows the saved width', () => {
   expect(shownInspectorWidth(500, Infinity, true)).toBe(500)
+})
+
+// Opening or closing the sidebar can change the width the right panel may have: the
+// panel has to go with its column, or it is cut off until the column gets there.
+test('the width of the right panel moves with its column', () => {
+  const column = screenCss.match(/\.panels\[data-moving\] \{\s*transition: grid-template-columns ([^;]+);/)![1]
+  const panel = screenCss.match(/\.panels\[data-moving\] \.inspector \{([^}]*)\}/)?.[1]
+  expect(panel).toContain(`width ${column}`)
 })

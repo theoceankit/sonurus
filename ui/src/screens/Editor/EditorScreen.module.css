@@ -97,6 +97,11 @@
   margin-inline-start: var(--space-2);
 }
 
+/* Its width changes with the sidebar's room, on the curve of its column. */
+.panels[data-moving] .inspector {
+  transition: width var(--duration-move) var(--ease-standard), opacity var(--duration-move) var(--ease-standard);
+}
+
 .inspectorResizer {
   grid-area: inspector;
   justify-self: start;
