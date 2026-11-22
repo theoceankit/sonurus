@@ -35,9 +35,25 @@ function quitQuestion(snapshot) {
   return null
 }
 
-function trayMenu({ open, quit }) {
+// The recording item of the menu, by the phase of the recording; 'unknown' while the
+// backend does not answer. Both commands open a dialog in the window: a recording starts
+// and stops only from there.
+const RECORDING_ITEMS = {
+  unknown: { label: 'New recording', enabled: false },
+  idle: { label: 'New recording', enabled: true, command: 'newRecording' },
+  starting: { label: 'Starting recording…', enabled: false },
+  live: { label: 'Stop recording', enabled: true, command: 'stopRecording' },
+  stopping: { label: 'Saving recording…', enabled: false },
+}
+
+// The state of that item from the recording of a queue snapshot.
+const trayRecordingState = recording => recording?.phase ?? 'idle'
+
+function trayMenu({ open, quit, recording = 'unknown', ...commands }) {
+  const { label, enabled, command } = RECORDING_ITEMS[recording]
   return [
     { label: 'Open Sonorus', click: () => open() },
+    { label, enabled, click: () => { if (command) commands[command]() } },
     { type: 'separator' },
     { label: 'Quit Sonorus', click: () => quit() },
   ]
@@ -118,4 +134,4 @@ function rememberTrayHint(statePath) {
   } catch { /* shown again next time */ }
 }
 
-module.exports = { closeAction, quitQuestion, trayMenu, trayIcon, trayAvailable, confirmQuit, trayHintShown, rememberTrayHint }
+module.exports = { closeAction, quitQuestion, trayMenu, trayRecordingState, trayIcon, trayAvailable, confirmQuit, trayHintShown, rememberTrayHint }

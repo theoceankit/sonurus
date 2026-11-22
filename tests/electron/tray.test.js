@@ -8,7 +8,7 @@ const path = require('path')
 
 const ROOT = path.resolve(__dirname, '..', '..')
 const {
-  closeAction, quitQuestion, trayMenu, trayAvailable, confirmQuit, trayHintShown, rememberTrayHint, trayIcon,
+  closeAction, quitQuestion, trayMenu, trayRecordingState, trayAvailable, confirmQuit, trayHintShown, rememberTrayHint, trayIcon,
 } = require(path.join(ROOT, 'electron', 'tray.js'))
 
 const snapshot = (over = {}) => ({ recording: null, running_job_id: null, ...over })
@@ -58,13 +58,59 @@ test('a recording and a transcription: the recording question says both', () => 
   assert.match(q.detail, /transcription/i)
 })
 
-test('the tray menu: Open, a separator, Quit', () => {
+const menuFor = (recording, calls = []) => trayMenu({
+  recording,
+  open: () => calls.push('open'),
+  quit: () => calls.push('quit'),
+  newRecording: () => calls.push('new'),
+  stopRecording: () => calls.push('stop'),
+})
+
+test('the tray menu: Open, the recording item, a separator, Quit', () => {
   const calls = []
-  const menu = trayMenu({ open: () => calls.push('open'), quit: () => calls.push('quit') })
-  assert.deepEqual(menu.map(i => i.label ?? i.type), ['Open Sonorus', 'separator', 'Quit Sonorus'])
+  const menu = menuFor('idle', calls)
+  assert.deepEqual(menu.map(i => i.label ?? i.type), ['Open Sonorus', 'New recording', 'separator', 'Quit Sonorus'])
   menu[0].click()
-  menu[2].click()
+  menu[3].click()
   assert.deepEqual(calls, ['open', 'quit'])
+})
+
+test('the recording item follows the state of the recording', () => {
+  const items = {
+    idle: ['New recording', true],
+    starting: ['Starting recording…', false],
+    live: ['Stop recording', true],
+    stopping: ['Saving recording…', false],
+    unknown: ['New recording', false],
+  }
+  for (const [state, [label, enabled]] of Object.entries(items)) {
+    const item = menuFor(state)[1]
+    assert.equal(item.label, label, state)
+    assert.equal(item.enabled, enabled, state)
+  }
+})
+
+test('without a known state the recording item is off', () => {
+  assert.equal(trayMenu({ open() {}, quit() {} })[1].enabled, false)
+})
+
+test('New recording and Stop recording each ask for their own dialog', () => {
+  const calls = []
+  menuFor('idle', calls)[1].click()
+  menuFor('live', calls)[1].click()
+  assert.deepEqual(calls, ['new', 'stop'])
+})
+
+test('an item that is off does nothing', () => {
+  const calls = []
+  for (const state of ['starting', 'stopping', 'unknown']) menuFor(state, calls)[1].click()
+  assert.deepEqual(calls, [])
+})
+
+test('the state of the item comes from the recording of the snapshot', () => {
+  assert.equal(trayRecordingState(null), 'idle')
+  assert.equal(trayRecordingState(undefined), 'idle')
+  for (const phase of ['starting', 'live', 'stopping']) assert.equal(trayRecordingState({ ...live, phase }), phase)
 })
 
 test('Windows and macOS always have a tray', async () => {

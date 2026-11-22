@@ -3,7 +3,7 @@
 // tray, and for the live recording of the last snapshot. A lost connection (the backend
 // restarted) is made again.
 function watchBackendEvents({
-  url, onEvent, onSnapshot = () => {}, WebSocketImpl = globalThis.WebSocket, retryMs = 2000, setTimer = setTimeout, clearTimer = clearTimeout,
+  url, onEvent, onSnapshot = () => {}, onDisconnect = () => {}, WebSocketImpl = globalThis.WebSocket, retryMs = 2000, setTimer = setTimeout, clearTimer = clearTimeout,
 }) {
   let socket = null
   let timer = null
@@ -36,6 +36,7 @@ function watchBackendEvents({
     socket.onerror = () => {} // a close follows
     socket.onclose = () => {
       socket = null
+      if (!closed) onDisconnect()
       schedule()
     }
   }
