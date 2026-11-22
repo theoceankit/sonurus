@@ -8,7 +8,7 @@ The note of a recording (meeting minutes): one per recording, in basic Markdown 
 
 ```
 EditorScreen → useNotesSaver (note-autosave.ts)
-     ├ InspectorPanel → Inspector → Notes tab → EditorNotes → NotesPanel → NoteEditor (Tiptap) → MentionList
+     ├ InspectorPanel → Inspector → Notes tab → EditorNotes → NotesPanel → NoteFormatBar, NoteEditor (Tiptap) → MentionList
      └ centre, expanded → EditorNotes
 ```
 
@@ -27,6 +27,16 @@ While the note is in the tab, Escape in it does nothing: it is a text field, and
 A plain click on a link only puts the cursor in it; Ctrl+click (⌘ on macOS) hands it to the system browser or mail app through `openLink()` of the preload. Only `http`, `https` and `mailto` addresses open (`electron/links.js`); the window itself never follows a link.
 
 The editor is a third of the UI's code, so it is a chunk of its own (`React.lazy` in `EditorNotes.tsx`), loaded the first time a note opens.
+
+## The format bar
+
+`NoteFormatBar` is a row between the header of the note and its text, in the tab and expanded; it does not scroll with the text and fits a tab 300 wide. From the left: the text style menu (Plain text, Heading 1 to 3), Bold, Italic, Bulleted list, Numbered list, Checkbox, Quote, Link. Each has a tooltip with its name, Bold and Italic with their keys too.
+
+A button is highlighted when its format holds at the cursor, and a second press takes the format off. One that cannot apply there is out of use. Bold and Italic work on the selection, or without one on what is typed next. The styles, lists and Quote work on the block with the cursor or on all those selected; a list item changed to another type leaves its list, which splits around it, and joins a list of that type right next to it.
+
+A press does not take the focus from the note, and the menu and the link window give it back. Each use is one step of Undo, also right after typing (`note-format.ts`). The bar reads the editor through `useEditorState`, so it renders with the cursor and `NoteEditor` does not.
+
+Link opens a small window with the address (`NoteLinkPopover`). With a selection the selected text becomes the link; without one the address goes in as the link's text. With the cursor on a link the window shows its address, to change it or remove the link. Enter or Apply applies, Escape closes the window and leaves the note expanded. What is selected stays visible meanwhile. `parseNoteLink()` in `note-link.ts` accepts `http`, `https` and `mailto`, and adds `https://` to a host with no scheme, such as `example.com`; anything else, a bare email address included, gets an error under the field.
 
 ## Timecodes
 
@@ -73,4 +83,4 @@ A note goes with its recording: Delete recording and Delete all data remove it o
 
 ## Stories
 
-Screens / Editor / Notes shows the notes as the app has them on fixtures (the weekly sync has a note): Closed, Notes Tab Empty, Notes Tab With Text, Notes Expanded, Save Failed (every save refused, typing says so), Narrow Window, Quote To Notes (two turns selected), Quote Inserted (their quotes in the opened tab) and Quote Into Empty Note. Notes With Mentions, Mention List Open, Mention Someone Else and Copy Notes have a note with every chip: speakers of the recording and others, a person not in the base and a deleted speaker. Components / NoteEditor, NotesPanel, MentionList and MentionChip have a story for each of their states, NotesPanel's No Audio the time button out of use.
+Screens / Editor / Notes shows the notes as the app has them on fixtures (the weekly sync has a note): Closed, Notes Tab Empty, Notes Tab With Text, Notes Expanded, Save Failed (every save refused, typing says so), Narrow Window, Quote To Notes (two turns selected), Quote Inserted (their quotes in the opened tab) and Quote Into Empty Note. Notes With Mentions, Mention List Open, Mention Someone Else and Copy Notes have a note with every chip: speakers of the recording and others, a person not in the base and a deleted speaker. Components / NoteEditor, NoteFormatBar, NoteLinkPopover, NotesPanel, MentionList and MentionChip have a story for each of their states, NotesPanel's No Audio the time button out of use.

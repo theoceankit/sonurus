@@ -1,0 +1,29 @@
+.bar {
+  display: flex;
+  min-width: 0;
+}
+
+.style {
+  composes: reset stateLayer focusRing from '../../styles/control.module.css';
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  gap: var(--space-half);
+  width: calc(var(--size-control-lg) + var(--size-control-xs));
+  height: var(--size-control-sm);
+  padding-inline: var(--space-1);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+  white-space: nowrap;
+}
+
+.style:disabled {
+  opacity: var(--opacity-disabled);
+}
+
+.styleActive {
+  background: var(--color-accent-bg);
+  color: var(--color-accent-fg);
+}

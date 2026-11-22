@@ -8,14 +8,16 @@ import styles from './Toolbar.module.css'
 interface ToolbarProps extends Omit<ComponentPropsWithRef<typeof RadixToolbar.Root>, 'asChild' | 'orientation' | 'aria-label'> {
   // There is no visible name, so this is what assistive technology reads.
   label: string
+  // Floating has a surface of its own; flat stands in a row of a panel.
+  variant?: 'floating' | 'flat'
 }
 
-// A floating bar of actions. It is one stop for Tab, arrows move inside it; the
-// screen decides where it stands and when it shows. Its buttons share a tooltip.
-export function Toolbar({ label, className, ...props }: ToolbarProps) {
+// A bar of actions. It is one stop for Tab, arrows move inside it; the screen decides
+// where it stands and when it shows. Its buttons share a tooltip.
+export function Toolbar({ label, variant = 'floating', className, ...props }: ToolbarProps) {
   return (
     <TooltipGroup>
-      <RadixToolbar.Root aria-label={label} className={cx(styles.toolbar, className)} {...props} />
+      <RadixToolbar.Root aria-label={label} className={cx(styles.toolbar, variant === 'flat' && styles.flat, className)} {...props} />
     </TooltipGroup>
   )
 }

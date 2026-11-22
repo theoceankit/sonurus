@@ -14,6 +14,15 @@
   padding: var(--space-3) var(--space-4) var(--space-2);
 }
 
+.formatBar {
+  flex: none;
+  margin-inline: var(--space-1);
+}
+
+.expanded .formatBar {
+  margin-inline: var(--space-4);
+}
+
 .heading {
   min-width: 0;
   margin-inline-end: var(--space-2);

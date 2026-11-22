@@ -29,3 +29,15 @@ export const Labels: Story = {
     </Toolbar>
   ),
 }
+
+// In a row of a panel: no surface of its own.
+export const Flat: Story = {
+  render: () => (
+    <Toolbar label="Format" variant="flat">
+      <ToolbarAction icon="bold" label="Bold" />
+      <ToolbarAction icon="italic" label="Italic" />
+      <ToolbarDivider />
+      <ToolbarAction icon="link" label="Link" />
+    </Toolbar>
+  ),
+}

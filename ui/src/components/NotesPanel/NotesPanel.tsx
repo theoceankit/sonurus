@@ -1,4 +1,4 @@
-import type { JSONContent } from '@tiptap/react'
+import type { Editor, JSONContent } from '@tiptap/react'
 import { useCallback, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import { formatClock } from '../../media/timeline'
 import { cx } from '../../styles/cx'
@@ -10,6 +10,7 @@ import { isEmptyNote, type MentionChange, type NoteQuote } from '../NoteEditor/n
 import type { FindSpeaker } from '../NoteEditor/note-extensions'
 import { noteMarkdown } from '../NoteEditor/note-markdown'
 import { NoteEditor, type NoteEditorHandle } from '../NoteEditor/NoteEditor'
+import { NoteFormatBar } from '../NoteFormatBar/NoteFormatBar'
 import { ScrollBar } from '../ScrollBar/ScrollBar'
 import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
 import { Tooltip, TooltipGroup } from '../Tooltip/Tooltip'
@@ -57,6 +58,7 @@ export function NotesPanel({
   mode = 'tab', title, content, candidates, mentionChanges, findSpeaker, time, timeDisabled = false, onSeek, onChange, quotes, onQuoted, onCopy, onOpenLink, onToggleExpanded, autoFocus, className, ref,
 }: NotesPanelProps) {
   const editor = useRef<NoteEditorHandle>(null)
+  const [tiptap, setTiptap] = useState<Editor | null>(null)
   const [empty, setEmpty] = useState(() => isEmptyNote(content))
   const { area, scrollRef, top, bottom } = useScrollEdges()
   const now = useRef(time)
@@ -106,6 +108,7 @@ export function NotesPanel({
           </Tooltip>
         </Inline>
       </TooltipGroup>
+      <NoteFormatBar editor={tiptap} className={styles.formatBar} />
       <div className={styles.scrollArea}>
         <div ref={scrollRef} className={styles.scroll}>
           <div className={styles.column}>
@@ -117,6 +120,7 @@ export function NotesPanel({
               findSpeaker={findSpeaker}
               onSeek={onSeek}
               onChange={change}
+              onEditor={setTiptap}
               quotes={quotes}
               onQuoted={onQuoted}
               onOpenLink={onOpenLink}

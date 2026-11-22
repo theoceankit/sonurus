@@ -137,6 +137,10 @@
   outline: none;
 }
 
+.keptSelection {
+  background: var(--color-selection);
+}
+
 .prose ::selection {
   background: var(--color-selection);
 }
