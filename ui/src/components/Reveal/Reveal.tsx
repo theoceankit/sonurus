@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { prefersReducedMotion } from '../../presence'
 import { cx } from '../../styles/cx'
+import { BASE_DURATION, MOVE_DURATION, SLOW_DURATION } from '../../styles/motion'
 import styles from './Reveal.module.css'
 
 interface RevealProps {
@@ -11,8 +12,6 @@ interface RevealProps {
   children: ReactNode
   className?: string
 }
-
-const durationOf = (element: HTMLElement, token: string) => parseFloat(getComputedStyle(element).getPropertyValue(token)) || 0
 
 // Opens in place to the height the layout gives it, which Collapse cannot: Radix
 // measures the content on its own, so content the layout squeezes would grow past its
@@ -58,7 +57,7 @@ export function Reveal({ open, travel = 'short', children, className }: RevealPr
         content.style.flex = ''
       }
       if (!open) setMounted(false)
-    }, durationOf(element, travel === 'long' ? '--duration-move' : open ? '--duration-slow' : '--duration-base'))
+    }, travel === 'long' ? MOVE_DURATION : open ? SLOW_DURATION : BASE_DURATION)
     return undefined
   }, [open])
 
