@@ -1,0 +1,5 @@
+/* A switch needs no more room than its own: the label keeps the rest, in a narrow
+   dialog too, where the column of a select would squeeze it onto two lines. */
+.row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}

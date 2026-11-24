@@ -1,6 +1,7 @@
 import { Button } from '../components/Button/Button'
 import { FieldRow } from '../components/FieldRow/FieldRow'
 import { Toggle } from '../components/Toggle/Toggle'
+import styles from './IdentifySpeakers.module.css'
 
 export interface IdentifySpeakersProps {
   checked: boolean
@@ -15,6 +16,7 @@ export interface IdentifySpeakersProps {
 export function IdentifySpeakers({ checked, available, disabled = false, onChange, onOpenSettings }: IdentifySpeakersProps) {
   return (
     <FieldRow
+      className={styles.row}
       label="Identify speakers"
       hint={available ? undefined : 'Needs the diarization model'}
       note={available ? undefined : (
