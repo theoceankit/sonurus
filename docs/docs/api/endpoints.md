@@ -557,6 +557,7 @@ Puts segments back under the speaker they had before an assignment. A reverse as
 - `speaker_id`: who had the segments, a UUID4 or `"UNASSIGNED"`, otherwise `400`. It need not be in memory, since the assignment may have removed the voice.
 - `created_speaker_id`: optional, the speaker the assignment made.
 - A start with no segment is skipped: it was deleted since the assignment.
+- A transcript with `diarized: false` had no assignment to undo: `409 transcript_not_diarized`, and nothing changes.
 
 `CommitService.undo_assignment()` recomputes `speaker_id`, which brings back a removed voice, and then each speaker who held the segments. A speaker from `created_speaker_id` with no segments left is removed, or the undone voice would stay as their profile and catch the same voice in the next recording. A named speaker left with nothing to compute a voice from keeps the name and color and loses the profile. The color of a voice brought back may differ from the one it had; it shows only once the voice gets a name.
 

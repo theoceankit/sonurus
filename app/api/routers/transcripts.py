@@ -415,7 +415,7 @@ def assign_speaker(
     return SpeakerAssignmentResponse(speaker_id=to_spk_id)
 
 
-@router.post("/{transcript_id}/speaker-assignments/undo", status_code=204)
+@router.post("/{transcript_id}/speaker-assignments/undo", status_code=204, responses={409: {"model": RefusalResponse}})
 def undo_speaker_assignment(
     transcript_id: int,
     body: SpeakerAssignmentUndoRequest,
@@ -431,6 +431,8 @@ def undo_speaker_assignment(
         t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
+    if not t.diarized:
+        raise Refusal("transcript_not_diarized", "This recording was transcribed without speakers.", status_code=409)
     starts = set(body.segment_starts)
     segments = [seg for seg in t.segments if seg.start in starts]
     CommitService(memory, storage).undo_assignment(

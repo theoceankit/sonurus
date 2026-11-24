@@ -221,6 +221,19 @@ def test_the_transcript_says_it_has_no_speakers_and_refuses_one(api):
     assert "Anna" not in [memory.get_name(i) for i in memory.speaker_ids()]
 
 
+def test_an_undo_gives_no_speaker_to_a_transcript_without_speakers(api):
+    client, _, _, db = api
+    memory = app.dependency_overrides[get_memory_service]()
+    transcript = build_transcript({"result": RESULT, "voices": {}, "turns": [], "diarized": False}, memory, "/a.wav")
+    storage = TranscriptStorageService(db_path=db)
+    tid = storage.save(transcript)
+    speaker = "0b6f8f5e-6a0c-4f43-9d8e-3c2a1b0f9e7d"
+    r = client.post(f"/transcripts/{tid}/speaker-assignments/undo",
+                    json={"speaker_id": speaker, "segment_starts": [0.0, 2.0]})
+    assert r.status_code == 409 and r.json()["code"] == "transcript_not_diarized"
+    assert all(s.unassigned and s.speaker_final is None for s in storage.load(tid).segments)
+
+
 def test_transcripts_from_before_the_choice_are_diarized(tmp_path):
     db = str(tmp_path / "old.db")
     storage = TranscriptStorageService(db_path=db)
