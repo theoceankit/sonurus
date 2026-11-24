@@ -24,31 +24,31 @@ export interface TranscribeFieldsProps {
 export function TranscribeFields({ choice, onModelChange, onLanguageChange, onDiarizeChange, onOpenSettings, disabled = false }: TranscribeFieldsProps) {
   return (
     <Stack gap={1}>
-    <Inline gap={3} align="start">
-      <Select
-        label="Model"
-        value={choice.model ?? ''}
-        options={choice.modelOptions}
-        placeholder={choice.checking ? 'Checking models…' : 'No model installed'}
+      <Inline gap={3} align="start">
+        <Select
+          label="Model"
+          value={choice.model ?? ''}
+          options={choice.modelOptions}
+          placeholder={choice.checking ? 'Checking models…' : 'No model installed'}
+          disabled={choice.checking || disabled}
+          onValueChange={onModelChange}
+        />
+        <Select
+          label="Language"
+          value={choice.language}
+          options={choice.languageOptions}
+          placeholder="Checking…"
+          disabled={!choice.language || disabled}
+          onValueChange={onLanguageChange}
+        />
+      </Inline>
+      <IdentifySpeakers
+        checked={choice.diarize}
+        available={choice.checking || choice.diarizeAvailable}
         disabled={choice.checking || disabled}
-        onValueChange={onModelChange}
+        onChange={onDiarizeChange}
+        onOpenSettings={onOpenSettings}
       />
-      <Select
-        label="Language"
-        value={choice.language}
-        options={choice.languageOptions}
-        placeholder="Checking…"
-        disabled={!choice.language || disabled}
-        onValueChange={onLanguageChange}
-      />
-    </Inline>
-    <IdentifySpeakers
-      checked={choice.diarize}
-      available={choice.checking || choice.diarizeAvailable}
-      disabled={choice.checking || disabled}
-      onChange={onDiarizeChange}
-      onOpenSettings={onOpenSettings}
-    />
     </Stack>
   )
 }
