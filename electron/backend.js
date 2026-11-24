@@ -126,7 +126,7 @@ async function prepareGpu() {
 
 // ── public API ────────────────────────────────────────────────────────────────
 
-async function startBackend(hfToken = '') {
+async function startBackend() {
   // Before anything else (the GPU pack included): a backend that already
   // answers is reused only if it is ours (electron/backend-identity.js).
   const decision = reuseDecision(await checkHealth(), identity())
@@ -137,7 +137,6 @@ async function startBackend(hfToken = '') {
   const userData = app.getPath('userData')
   const env = {
     ...process.env,
-    HF_TOKEN: hfToken,
     SONORUS_DATA_DIR: userData,
     PYTHONUNBUFFERED: '1',
     VERBOSE: 'false',
@@ -239,14 +238,14 @@ async function stopBackendAndWait(timeoutMs = 15000) {
 }
 
 // Apply a GPU download or removal: the backend asked for it (POST /gpu/restart).
-async function restartBackend(hfToken = '') {
+async function restartBackend() {
   await stopBackendAndWait()
   // Never reconnect to the backend that was to be restarted: the change
   // would silently not apply.
   if (await checkHealth() !== null) {
     throw new Error('the running backend could not be stopped. Quit Sonorus and start it again to apply the change.')
   }
-  await startBackend(hfToken)
+  await startBackend()
 }
 
 module.exports = { BackendRefusedError, backendRequest, restartBackend, startBackend, stopBackend }

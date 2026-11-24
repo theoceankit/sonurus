@@ -9,7 +9,7 @@ import styles from './Settings.module.css'
 
 // The HuggingFace token, hidden until shown. Saved when the field changes and is left,
 // on Enter, and when the field goes (Settings closed in any way, another section),
-// without spaces around it; model downloads send it, and the backend reads it on start.
+// without spaces around it; model downloads send it, the only way it reaches the backend.
 function HuggingFaceToken({ saved }: { saved: string }) {
   const [token, setToken] = useState(saved)
   const [visible, setVisible] = useState(false)
