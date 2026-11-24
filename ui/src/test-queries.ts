@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 
 // A role query looks at every element under it, and after any change to the DOM
 // jsdom works out the style of each of them again: over the whole app one
@@ -15,3 +15,6 @@ export const findTitlebarButton = (label: string) => screen.findByLabelText(labe
 export const getDialog = (name: string) => screen.getByLabelText(name, { selector: '[role="dialog"]' })
 export const queryDialog = (name: string) => screen.queryByLabelText(name, { selector: '[role="dialog"]' })
 export const findDialog = (name: string) => screen.findByLabelText(name, { selector: '[role="dialog"]' })
+
+// The toasts, in the region Radix names Notifications with its hotkey.
+export const toasts = () => within(screen.getByLabelText(/^Notifications/, { selector: '[role="region"]' }))

@@ -11,12 +11,17 @@ import { createMockElectronAPI } from '../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../platform/settings'
 import { selectTranscribeModel } from '../platform/transcribe-defaults'
 import { modelDownloadsFor } from './model-downloads'
-import { findDialog, findTitlebarButton } from '../test-queries'
+import { findDialog, findTitlebarButton, toasts } from '../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
   vi.unstubAllGlobals()
 })
+
+// A download in the fixture goes up in four steps, then GET /models is read again,
+// each step a render and a round of polling: about 300 ms here, past the default second
+// of waitFor on a slow CI runner. The tests that wait for a download to end allow longer.
+const DOWNLOAD_ENDS = { timeout: 3000 }
 
 async function setup(options: FixtureOptions, saved: Partial<ElectronSettings> = {}) {
   const client = createFixtureClient({ downloadStepMs: 5, ...options })
@@ -31,7 +36,7 @@ async function setup(options: FixtureOptions, saved: Partial<ElectronSettings> =
 test('the first model downloaded becomes the default, saved and said', async () => {
   const { client, bridge } = await setup({ installedModels: ['diarize'] })
   await act(() => modelDownloadsFor(client).start('tiny'))
-  expect(await screen.findByText('Whisper Tiny is now the default transcription model')).toBeTruthy()
+  expect(await toasts().findByText('Whisper Tiny is now the default transcription model', {}, DOWNLOAD_ENDS)).toBeTruthy()
   await waitFor(async () => expect(await bridge.readSettings()).toMatchObject({ transcribeModel: 'tiny', transcribeModelHistory: ['tiny'] }))
 })
 
@@ -44,7 +49,7 @@ test('an installed default at start stays, with nothing said', async () => {
 
 test('a saved default that is not there at start gives way to an installed one', async () => {
   const { bridge } = await setup({ installedModels: ['tiny', 'diarize'] }, { transcribeModel: 'large-v3', transcribeModelHistory: ['large-v3'] })
-  expect(await screen.findByText('Whisper Tiny is now the default transcription model')).toBeTruthy()
+  expect(await toasts().findByText('Whisper Tiny is now the default transcription model')).toBeTruthy()
   await waitFor(async () => expect(await bridge.readSettings()).toMatchObject({ transcribeModel: 'tiny', transcribeModelHistory: ['large-v3', 'tiny'] }))
 })
 
