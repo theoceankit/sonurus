@@ -4,7 +4,7 @@ sidebar_position: 11
 
 # Settings
 
-Settings in the UI (`ui/src/screens/Settings/`) are one large modal with the sections in a column at its side. They apply as they change: there is nothing to save, and the window only closes. What they change lives in Electron's `settings.json` ([Electron overview](overview.md#settings)), except the start mode of the queue, which the backend keeps.
+Settings in the UI (`ui/src/screens/Settings/`) are one large modal with the sections in a column at its side. They apply as they change: there is nothing to save, and the window only closes. What they change lives in Electron's `settings.json` ([Electron overview](overview.md#settings)), except the start mode of the queue and the switch of the MCP server, which the backend keeps.
 
 ## Opening
 
@@ -73,14 +73,23 @@ Calls:
 
 The HuggingFace token (`hfToken`), hidden until the eye button shows it. The icon of the button shows the state of the token: a crossed-out eye (`eye-off`) while it is hidden, an open one while it is shown. The token is saved when the field is left, on Enter, and when the field goes: Settings closed in any way, Escape included, or another section opened. Spaces around it are cut off, and a token left as it was is not written again. Model downloads send it with each request ([Transcription](transcribe.md#downloads)), the only way it reaches the backend: a change applies to the next download, without a restart.
 
+## Integrations
+
+The [MCP server](../../api/mcp.md) of the backend, in two cards:
+
+- **MCP server**: the switch, Let AI agents use Sonorus, from `GET /integrations/mcp` (`useMcpEnabled`) and written with `PUT` (`useSetMcpEnabled`); off until it is turned on. Its hint says what an agent reads and that it may send it to its provider, and that the server works while Sonorus runs, also in the tray. The switch shows the value being written until the backend answers; a refusal puts it back and says so in a toast, "Could not turn on the MCP server: …". Until the first answer it is disabled.
+- **Connect Claude Code**, only while the server is on, opening and closing with `Reveal`: Address (`http://127.0.0.1:8000/mcp`) and Command (`claude mcp add --transport http --scope user sonorus http://127.0.0.1:8000/mcp`), each with a Copy button that writes it through the main process and says "Copied" in a toast. While the server is off there is nothing to copy: a command copied then would not connect.
+
+The switch is a setting of the backend, not of `settings.json`, so it holds for a backend started by hand too.
+
 ## Export
 
 What goes into [Export in the transcript header](transcript.md#export), which picks the format each time: Timestamps, Speaker labels and Notes (`exportTimestamps`, `exportSpeakers`, `exportNotes`), the first two on and Notes off by default, as an export is often passed on and a note may be private. Show speakers by (`exportSpeakerLabel`) picks Name or Handle and is off while Speaker labels is. The rows of this card have no lines between them (`undivided` of `SectionCard`). Export settings, in the menu of Export, opens this section. Bookmarks and Original audio file are marked with `markNotImplemented()`. Reset preferences puts all of them back.
 
 ## Data
 
-- **Reset preferences** puts every preference of `DEFAULT_SETTINGS` back (`defaultSettingsPatch`), applies 100% scale and says so in a toast. The HuggingFace token and the recordings opened last are not preferences and stay; so do transcripts, models and recordings. Start transcription belongs to the queue and is not reset; Handle format is a preference the backend keeps, and goes back to `@olivia.brown`.
-- **Delete all data** sends `POST /data/reset`: every transcript with its notes, speaker with its voice profile and recording made in Sonorus goes; imported audio files, models and preferences stay. A toast says what was deleted, "Deleted 3 transcripts, 2 speakers and 4 files." The recordings, speakers and queue are read again and the notes left in memory are dropped, so the window behind shows the empty state. The button is off while a transcription or a live recording runs, with the reason in a tooltip; the backend also refuses then, and its refusal is said in a toast.
+- **Reset preferences** puts every preference of `DEFAULT_SETTINGS` back (`defaultSettingsPatch`), applies 100% scale and says so in a toast. The HuggingFace token and the recordings opened last are not preferences and stay; so do transcripts, models and recordings. Start transcription belongs to the queue and is not reset; Handle format is a preference the backend keeps, and goes back to `@olivia.brown`; so is the MCP server, which is turned off.
+- **Delete all data** sends `POST /data/reset`: every transcript with its notes, speaker with its voice profile and recording made in Sonorus goes; imported audio files, models and preferences stay, but the backend turns the MCP server off. The switch in Integrations is read again. A toast says what was deleted, "Deleted 3 transcripts, 2 speakers and 4 files." The recordings, speakers and queue are read again and the notes left in memory are dropped, so the window behind shows the empty state. The button is off while a transcription or a live recording runs, with the reason in a tooltip; the backend also refuses then, and its refusal is said in a toast.
 
 Both ask first ([Confirmations](#confirmations)).
 

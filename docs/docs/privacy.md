@@ -50,6 +50,16 @@ setting these variables in your environment cannot turn telemetry back on.
 `tests/test_telemetry.py` covers this, and `scripts/check-bundled-imports.js` checks it on the
 bundled backend of every installer build.
 
+## Agents connected over MCP
+
+Sonorus can serve an [MCP server](api/mcp.md) for AI agents on this computer, such as Claude Code. It
+is off until you turn it on in Settings → Integrations, and it adds no network request of Sonorus's
+own: it listens only on `127.0.0.1`, and refuses pages of other sites and other host names.
+
+An agent connected to it reads your recordings, transcripts and notes, and may send what it reads to
+its own provider, such as the company that runs its language model, under that provider's terms.
+Turn the server off to stop every agent from reading.
+
 ## Electron app
 
 The app starts no crash reporter, contains no analytics and loads no remote content: the window shows

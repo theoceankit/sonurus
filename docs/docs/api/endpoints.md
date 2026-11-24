@@ -741,7 +741,8 @@ Deletes all user data and returns the backend to an empty library:
 - every speaker, **named ones included** — `speaker_embeddings`, `speaker_names`, `speaker_meta`;
 - the contents of `$SONORUS_DATA_DIR/recordings/` (live recordings and copies of imported files);
 - the contents of `$SONORUS_DATA_DIR/speaker_photos/` (speaker photos);
-- every job in the transcription queue.
+- every job in the transcription queue;
+- the backend's own settings (`app_settings`, [AppSettings](../services/AppSettings.md)): the [MCP server](mcp.md) is off again.
 
 The API memory singleton is emptied too, including its pending dirty sets, so a later `save()` cannot write old speakers back. Schema/version tables (`_meta`, `_ts_schema_version`), downloaded models and `settings.json` are kept. The user's original imported files outside the data directory are never deleted; symlinks inside the cleared directories are removed as links without touching their targets.
 
@@ -750,6 +751,16 @@ The API memory singleton is emptied too, including its pending dirty sets, so a 
 ```
 
 Returns `409` while a transcription job is running (pause the queue first) or a live recording runs (from `POST /audio/recording/start` until it is queued): the running job holds its own memory snapshot and would write its transcript and speakers back after the reset. The queue does not start a job while the reset runs.
+
+---
+
+## Integrations
+
+### `GET /integrations/mcp` and `PUT /integrations/mcp`
+
+`{"enabled": false}` — whether the [MCP server](mcp.md) at `/mcp` answers, kept in `app_settings` (`mcp_enabled`); off on a new installation. `PUT` takes the same body and answers with the value kept; a body without a boolean is `422`. The change applies to the next request to `/mcp`, without a restart.
+
+`/mcp` itself is described on its own page, [MCP server](mcp.md); it is not in `/openapi.json`.
 
 ---
 
