@@ -379,6 +379,7 @@ class TranscriptStorageService:
                 "opened":     bool(opened),
                 "has_note":   bool(has_note),
                 "duration":   duration_str,
+                "duration_sec": duration_sec or 0,
                 "speakers":   speaker_ids,
             })
 
