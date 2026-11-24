@@ -56,10 +56,24 @@ export function buildTurns(segments: readonly Segment[], speakers: readonly Spea
   return turns
 }
 
+// A recording without speakers is one turn. The list draws it in blocks of paragraphs,
+// so the browser leaves out what is off screen as it does turn by turn, and an edit
+// draws its block again, not the whole recording. Turns with speakers stay as they are.
+export const PLAIN_BLOCK = 10
+
+export function listBlocks(turns: readonly TranscriptTurn[], diarized: boolean): readonly TranscriptTurn[] {
+  if (diarized) return turns
+  return turns.flatMap(turn => Array.from({ length: Math.ceil(turn.segments.length / PLAIN_BLOCK) }, (_, i) => {
+    const segments = turn.segments.slice(i * PLAIN_BLOCK, (i + 1) * PLAIN_BLOCK)
+    return { ...turn, start: segments[0].start, segments }
+  }))
+}
+
 // The whole transcript as plain text, as the Editor shows it: the title, then each
 // turn its speaker and start time over a line per paragraph, all apart by an empty line.
-export function transcriptText(title: string, turns: readonly TranscriptTurn[]): string {
-  const blocks = turns.map(turn => [`${turn.speaker.name} ${formatClock(turn.start)}`, ...turn.segments.map(segment => segment.text)].join('\n'))
+// A recording without speakers has the paragraphs alone.
+export function transcriptText(title: string, turns: readonly TranscriptTurn[], diarized = true): string {
+  const blocks = turns.map(turn => [...(diarized ? [`${turn.speaker.name} ${formatClock(turn.start)}`] : []), ...turn.segments.map(segment => segment.text)].join('\n'))
   return [title, ...blocks].join('\n\n')
 }
 

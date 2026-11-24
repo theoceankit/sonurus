@@ -16,7 +16,7 @@ import type { Playback } from '../../media/playback'
 import type { ExportFormat } from '../../platform/electron-api'
 import { useLingering } from '../../presence'
 import {
-  buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave, transcriptText,
+  buildTurns, formatRecordingDate, languageLabel, listBlocks, recordingTitle, speakerMenuRows, talkTimes, titleToSave, transcriptText,
 } from './transcript'
 import type { NoteQuote } from '../../components/NoteEditor/note-content'
 import type { RecordingToDelete } from './DeleteRecordingDialog'
@@ -125,10 +125,11 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   const menu = lingeringMenu.value
 
   const turns = useMemo(() => buildTurns(segments, speakers), [segments, speakers])
+  const blocks = useMemo(() => listBlocks(turns, transcript.diarized), [turns, transcript.diarized])
   const times = useMemo(() => talkTimes(segments), [segments])
   const title = recordingTitle(transcript, listed?.title)
   const deleteRecording = () => onDelete?.({ id: transcriptId, title })
-  const copyTranscript = turns.length > 0 ? () => void copyToClipboard(transcriptText(title, turns)) : undefined
+  const copyTranscript = turns.length > 0 ? () => void copyToClipboard(transcriptText(title, turns, transcript.diarized)) : undefined
   const saveTranscript = useTranscriptExport(transcript, title, turns, speakers)
   const exportTranscript = turns.length > 0 ? (format: ExportFormat) => void saveTranscript(format) : undefined
   const settingsDialog = useSettingsDialog()
@@ -172,7 +173,8 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
       keepInPlace(segment.start)
       setMenu({ anchor, currentId: effectiveSpeaker(segment), segmentStarts: [segment.start] })
     },
-  }), [playing, highlight, editing, menuKey, playback, transcriptId, saveText, removeSegment, keepInPlace])
+    diarized: transcript.diarized,
+  }), [playing, highlight, editing, menuKey, playback, transcriptId, saveText, removeSegment, keepInPlace, transcript.diarized])
 
   const closeMenu = () => {
     menuKey.set(null)
@@ -218,7 +220,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
             />
           </div>
           {segments.length === 0 && <div className={styles.noSpeech}>No speech in this recording</div>}
-          {segments.length > 0 && <TranscriptList turns={turns} rows={rows} />}
+          {segments.length > 0 && <TranscriptList turns={blocks} rows={rows} />}
           {selection && (
             <div
               ref={selectionBar}
@@ -237,6 +239,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
                   const list = content.current?.querySelector('[data-transcript-list]')
                   if (!chosen || chosen.rangeCount === 0 || !list) return
                   onQuote(selectionQuotes(chosen.getRangeAt(0), list, id => {
+                    if (!transcript.diarized) return undefined
                     const speaker = turns.find(turn => turn.speaker.id === id)?.speaker
                     return { kind: 'speaker', id, label: speaker?.name ?? id }
                   }))

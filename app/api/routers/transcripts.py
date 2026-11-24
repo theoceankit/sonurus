@@ -13,6 +13,7 @@ from app.services.commit_service import CommitService
 from app.api.dependencies import get_memory_service, get_storage_service
 from app.api.routers.speakers import HANDLE_ERRORS, handle_refusal
 from app.models.segment import UNASSIGNED
+from app.api.refusals import Refusal
 from app.api.schemas import (
     TranscriptListItem, TranscriptResponse, SegmentResponse, TranscriptUpdateRequest,
     SegmentTextRequest, SpeakerCandidate, UnknownSpeakerCandidates, VoiceClip, SpeakerAssignmentRequest,
@@ -137,6 +138,7 @@ def get_transcript(
         language=t.language,
         status=t.status,
         title=t.title,
+        diarized=t.diarized,
         segments=[
             SegmentResponse(
                 start=s.start,
@@ -394,6 +396,8 @@ def assign_speaker(
         t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
+    if not t.diarized:
+        raise Refusal("transcript_not_diarized", "This recording was transcribed without speakers.", status_code=409)
     by_start = {seg.start: seg for seg in t.segments}
     if any(start not in by_start for start in body.segment_starts):
         raise HTTPException(status_code=404, detail="Segment not found")
@@ -411,7 +415,7 @@ def assign_speaker(
     return SpeakerAssignmentResponse(speaker_id=to_spk_id)
 
 
-@router.post("/{transcript_id}/speaker-assignments/undo", status_code=204)
+@router.post("/{transcript_id}/speaker-assignments/undo", status_code=204, responses={409: {"model": RefusalResponse}})
 def undo_speaker_assignment(
     transcript_id: int,
     body: SpeakerAssignmentUndoRequest,
@@ -427,6 +431,8 @@ def undo_speaker_assignment(
         t = storage.load(transcript_id, with_embeddings=False)
     except ValueError:
         raise HTTPException(status_code=404, detail="Transcript not found")
+    if not t.diarized:
+        raise Refusal("transcript_not_diarized", "This recording was transcribed without speakers.", status_code=409)
     starts = set(body.segment_starts)
     segments = [seg for seg in t.segments if seg.start in starts]
     CommitService(memory, storage).undo_assignment(

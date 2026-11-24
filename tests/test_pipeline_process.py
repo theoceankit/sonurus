@@ -16,7 +16,7 @@ from app.services.pipeline_process import (
 )
 from app.services.transcription_service import AlignmentModelMissingError
 
-ARGS = {"audio_path": "/rec/a.wav", "whisper_model": "small", "language": None, "db_path": "/data/x.db"}
+ARGS = {"audio_path": "/rec/a.wav", "whisper_model": "small", "language": None, "diarize": True, "db_path": "/data/x.db"}
 
 
 def _run(worker, on_progress=None, cancel_event=None):
@@ -127,7 +127,7 @@ def test_worker_analyses_and_sends_progress_then_the_analysis():
     speakers, the backend does once the child is done."""
     analysis = {"result": {"segments": []}, "voices": {}, "turns": []}
 
-    def analyse(audio_path, on_progress, language=None):
+    def analyse(audio_path, on_progress, language=None, diarize=True):
         on_progress("Transcribing audio…")
         return analysis
 
@@ -138,7 +138,7 @@ def test_worker_analyses_and_sends_progress_then_the_analysis():
                return_value=(controller, MagicMock())) as create:
         _pipeline_worker({**ARGS, "language": "en"}, conn)
 
-    create.assert_called_once_with(db_path="/data/x.db", whisper_model="small")
+    create.assert_called_once_with(db_path="/data/x.db", whisper_model="small", diarize=True)
     controller.analyse.assert_called_once()
     assert controller.analyse.call_args.args[0] == "/rec/a.wav"
     assert controller.analyse.call_args.kwargs["language"] == "en"

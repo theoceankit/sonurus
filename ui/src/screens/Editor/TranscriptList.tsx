@@ -7,6 +7,7 @@ import { TurnHeader } from '../../components/TurnHeader/TurnHeader'
 import { useIsKey, type KeyStore } from '../../media/active-segment'
 import type { Playback } from '../../media/playback'
 import { formatClock } from '../../media/timeline'
+import { cx } from '../../styles/cx'
 import type { SpeakerColor } from '../../styles/speaker-colors'
 import type { TranscriptTurn, TurnSpeaker } from './transcript'
 import styles from './TranscriptPanel.module.css'
@@ -29,6 +30,8 @@ export interface TranscriptRows {
   remove: (start: number) => void
   openTurnMenu: (anchor: HTMLElement, turn: TranscriptTurn) => void
   openSegmentMenu: (anchor: HTMLElement, segment: Segment, speaker: TurnSpeaker) => void
+  // False for a recording without speakers: paragraphs alone, with nobody to change.
+  diarized: boolean
 }
 
 const Rows = createContext<TranscriptRows | null>(null)
@@ -73,7 +76,7 @@ const ParagraphRow = memo(function ParagraphRow({ segment, speaker, color }: Par
       onPlay={() => rows.play(start)}
       onEdit={() => rows.editing.set(start)}
       onCopy={() => rows.copy(text)}
-      onChangeSpeaker={anchor => rows.openSegmentMenu(anchor, segment, speaker)}
+      onChangeSpeaker={rows.diarized ? anchor => rows.openSegmentMenu(anchor, segment, speaker) : undefined}
       onDelete={() => rows.remove(start)}
       onSave={next => {
         rows.editing.set(null)
@@ -99,13 +102,15 @@ const TurnRow = memo(function TurnRow({ turn }: { turn: TranscriptTurn }) {
   return (
     <div className={styles.turn} data-speaker={turn.speaker.id} style={{ '--turn-tint': `var(--color-speaker-${turn.speaker.color}-tint)` } as CSSProperties}>
       <div className={styles.turnBody}>
-        <TurnHeader
-          speaker={turn.speaker}
-          time={formatClock(turn.start)}
-          open={open}
-          onOpenMenu={anchor => rows.openTurnMenu(anchor, turn)}
-          onSeek={() => rows.seek(turn.start)}
-        />
+        {rows.diarized && (
+          <TurnHeader
+            speaker={turn.speaker}
+            time={formatClock(turn.start)}
+            open={open}
+            onOpenMenu={anchor => rows.openTurnMenu(anchor, turn)}
+            onSeek={() => rows.seek(turn.start)}
+          />
+        )}
         {turn.segments.map(segment => <ParagraphRow key={segment.start} segment={segment} speaker={turn.speaker} color={turn.speaker.color} />)}
       </div>
     </div>
@@ -197,7 +202,7 @@ export const TranscriptList = memo(function TranscriptList({ turns, rows }: Tran
         aria-label="Transcript text"
         role="group"
         tabIndex={inside ? -1 : 0}
-        className={styles.list}
+        className={cx(styles.list, !rows.diarized && styles.plain)}
         onFocus={onFocus}
         onBlur={onBlur}
         onKeyDown={onKeyDown}

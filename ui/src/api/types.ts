@@ -38,7 +38,8 @@ export type AudioSource = Schemas['AudioSource']
 export type LiveRecording = Schemas['LiveRecording']
 // What a recording takes and what it is queued with when it stops. A null device or
 // source is the default one.
-export type RecordingStart = Schemas['RecordingStartRequest']
+// diarize: on unless said, as in the backend.
+export type RecordingStart = Omit<Schemas['RecordingStartRequest'], 'diarize'> & { diarize?: boolean }
 export type RecordingFailedEvent = Schemas['RecordingFailedEvent']
 export type RecordingSourceLostEvent = Schemas['RecordingSourceLostEvent']
 // Saved, but the system audio held zeros only: on macOS also what a refused permission gives.

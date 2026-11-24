@@ -53,6 +53,7 @@ class RecordingRequest:
     title: str
     whisper_model: str
     language: str | None
+    diarize: bool = True
 
 
 # A recording with no sound on any track this long may be a call that ended.
@@ -181,7 +182,8 @@ class LiveRecordingService:
             silent = "system" in jobs and self._capture.only_silence(jobs["system"])
             path = self._capture.stop_recording(system_job=jobs.get("system"), mic_job=jobs.get("mic"))
             self._queue.add(audio_path=path, title=request.title,
-                            whisper_model=request.whisper_model, language=request.language)
+                            whisper_model=request.whisper_model, language=request.language,
+                            diarize=request.diarize)
             if lost:
                 events.append({"type": "recording_source_lost", "source": lost, "title": request.title})
             if silent:

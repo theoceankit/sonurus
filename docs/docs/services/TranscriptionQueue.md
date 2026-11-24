@@ -8,6 +8,10 @@ sidebar_position: 10
 
 ---
 
+## Without diarization
+
+A job stores `diarize` (`transcription_jobs.diarize`, `1` for jobs from before the column). It stays through a restart and a retry and can be changed, like the model and the language, until the job runs. With `false` the job needs no diarization model.
+
 ## Rules
 
 - The queue as a whole is **running** or **paused**. Pausing stops the running job at once; it goes back to `waiting` and later runs again **from the start** (no partial progress is kept).

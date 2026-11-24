@@ -10,16 +10,20 @@ def create_controller(
     db_path: str = DB_PATH,
     device: str = DEVICE,
     whisper_model: str = WHISPER_MODEL,
+    diarize: bool = True,
 ) -> tuple[TranscriptionController, TranscriptStorageService]:
     """
     Constructs all services and returns a ready controller + storage service.
+
+    Without diarize there is no embedding service: it loads its model, part of
+    the diarization repo, as it is made.
 
     Raises RuntimeError if ML models fail to load (missing files, bad HF token).
     Returns a tuple so callers can access storage_service for save() after pipeline.
     """
     memory_service        = SpeakerMemoryService(db_path=db_path)
     transcription_service = TranscriptionService(device, MODELS_DIR, model_name=whisper_model)
-    embedding_service     = EmbeddingService(device, models_dir=MODELS_DIR)
+    embedding_service     = EmbeddingService(device, models_dir=MODELS_DIR) if diarize else None
     storage_service       = TranscriptStorageService(db_path=db_path)
 
     controller = TranscriptionController(

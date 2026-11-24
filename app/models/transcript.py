@@ -14,6 +14,9 @@ class Transcript:
 
     title: str | None = None
 
+    # False when the recording was transcribed without looking for speakers
+    diarized: bool = True
+
     # {speaker id: cosine similarity} of the speakers recognized from memory
     match_scores: dict[str, float] = field(default_factory=dict)
 

@@ -730,3 +730,17 @@ describe('highlighting a speaker', () => {
     expect(highlight.get()).toBeNull()
   })
 })
+
+test('a recording without speakers says so, and asks for no candidates', async () => {
+  const base = createFixtureClient()
+  const getSpeakerCandidates = vi.fn(base.getSpeakerCandidates)
+  setup(WEEKLY_SYNC_ID, {
+    overrides: {
+      getTranscript: async id => ({ ...await base.getTranscript(id), diarized: false }),
+      getSpeakerCandidates,
+    },
+  })
+  expect(await screen.findByText('Speakers were not identified')).toBeTruthy()
+  expect(screen.queryByText('Talk time')).toBeNull()
+  expect(screen.queryByRole('region', { name: /^Who is/ })).toBeNull()
+})

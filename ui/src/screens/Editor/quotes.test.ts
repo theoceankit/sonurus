@@ -36,4 +36,17 @@ describe('selectionQuotes', () => {
       { speaker: { kind: 'speaker', id: 'u1', label: 'Unknown speaker 1' }, start: 16, text: 'That was me.' },
     ])
   })
+
+  test('blocks of one turn next to each other give one quote', () => {
+    const list = document.createElement('div')
+    list.innerHTML = `
+      <div data-speaker="UNASSIGNED"><div data-segment-start="0"><p data-transcript-text="">First block ends.</p></div></div>
+      <div data-speaker="UNASSIGNED"><div data-segment-start="4"><p data-transcript-text="">Second block starts.</p></div></div>`
+    document.body.replaceChildren(list)
+    const [first, second] = [...list.querySelectorAll('p')].map(p => p.firstChild!)
+    const range = document.createRange()
+    range.setStart(first, 6)
+    range.setEnd(second, 6)
+    expect(selectionQuotes(range, list, () => undefined)).toEqual([{ speaker: undefined, start: 0, text: 'block ends. Second' }])
+  })
 })

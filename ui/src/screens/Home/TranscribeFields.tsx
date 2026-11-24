@@ -1,7 +1,9 @@
 import { Button } from '../../components/Button/Button'
 import { Inline } from '../../components/Inline/Inline'
 import { Select } from '../../components/Select/Select'
+import { Stack } from '../../components/Stack/Stack'
 import type { TranscribeChoice } from '../../transcribe/choice'
+import { IdentifySpeakers } from '../../transcribe/IdentifySpeakers'
 import { blockMessage } from '../../transcribe/models'
 import styles from './TranscribeFields.module.css'
 
@@ -11,31 +13,43 @@ export interface TranscribeFieldsProps {
   choice: TranscribeChoice
   onModelChange: (model: string) => void
   onLanguageChange: (language: string) => void
+  onDiarizeChange: (diarize: boolean) => void
+  onOpenSettings?: (section: SettingsSection) => void
   // While the run is being sent: nothing can be changed.
   disabled?: boolean
 }
 
-// What New recording and Import files share: the model and the language of this run.
-export function TranscribeFields({ choice, onModelChange, onLanguageChange, disabled = false }: TranscribeFieldsProps) {
+// What New recording and Import files share: the model, the language and the speakers
+// of this run.
+export function TranscribeFields({ choice, onModelChange, onLanguageChange, onDiarizeChange, onOpenSettings, disabled = false }: TranscribeFieldsProps) {
   return (
-    <Inline gap={3} align="start">
-      <Select
-        label="Model"
-        value={choice.model ?? ''}
-        options={choice.modelOptions}
-        placeholder={choice.checking ? 'Checking models…' : 'No model installed'}
+    <Stack gap={1}>
+      <Inline gap={3} align="start">
+        <Select
+          label="Model"
+          value={choice.model ?? ''}
+          options={choice.modelOptions}
+          placeholder={choice.checking ? 'Checking models…' : 'No model installed'}
+          disabled={choice.checking || disabled}
+          onValueChange={onModelChange}
+        />
+        <Select
+          label="Language"
+          value={choice.language}
+          options={choice.languageOptions}
+          placeholder="Checking…"
+          disabled={!choice.language || disabled}
+          onValueChange={onLanguageChange}
+        />
+      </Inline>
+      <IdentifySpeakers
+        checked={choice.diarize}
+        available={choice.checking || choice.diarizeAvailable}
         disabled={choice.checking || disabled}
-        onValueChange={onModelChange}
+        onChange={onDiarizeChange}
+        onOpenSettings={onOpenSettings}
       />
-      <Select
-        label="Language"
-        value={choice.language}
-        options={choice.languageOptions}
-        placeholder="Checking…"
-        disabled={!choice.language || disabled}
-        onValueChange={onLanguageChange}
-      />
-    </Inline>
+    </Stack>
   )
 }
 

@@ -56,12 +56,12 @@ export type FixtureClient = ApiClient & {
 export const NO_MODELS = 'Diarization model is not installed. Download it in Settings.'
 
 // The backend's 400 for a job whose models are not all downloaded, in its order.
-function missingModelError(models: readonly ModelInfo[], whisperModel: string | null, language: string | null): ApiError | null {
+function missingModelError(models: readonly ModelInfo[], whisperModel: string | null, language: string | null, diarize = true): ApiError | null {
   const installed = (id: string) => models.some(model => model.id === id && model.installed)
   if (whisperModel !== null && !installed(whisperModel)) {
     return new ApiError(400, `Whisper model "${whisperModel}" is not installed. Download it in Settings.`)
   }
-  if (!installed('diarize')) return new ApiError(400, NO_MODELS)
+  if (diarize && !installed('diarize')) return new ApiError(400, NO_MODELS)
   const alignment = models.find(model => model.kind === 'alignment' && model.id === language)
   if (alignment && !alignment.installed) {
     return new ApiError(400, `Alignment model for language "${language}" is not installed. Download it in Settings.`)
@@ -446,7 +446,7 @@ export function createFixtureClient({
     if (queue.recording) throw new ApiError(409, 'A recording is already in progress')
     const whisperModel = request.whisper_model ?? 'large-v3'
     const language = request.language && request.language !== 'auto' ? request.language : null
-    const missing = missingModelError(models, whisperModel, language)
+    const missing = missingModelError(models, whisperModel, language, request.diarize ?? true)
     if (missing) throw missing
     if (!request.mic && !request.system) throw new ApiError(400, 'Turn on the microphone or system audio to record.')
     if (request.mic && request.mic_device === BROKEN_MIC) throw new ApiError(400, BROKEN_MIC_ERROR)
@@ -457,7 +457,7 @@ export function createFixtureClient({
       started_at: Date.now() / 1000,
       sources: [...(request.mic ? ['mic' as const] : []), ...(request.system ? ['system' as const] : [])],
     }
-    recordingJob = { title: request.title, whisperModel, language }
+    recordingJob = { title: request.title, whisperModel, language, diarize: request.diarize ?? true }
     emit(queue.paused
       ? { ...queue, recording }
       : {
@@ -471,12 +471,12 @@ export function createFixtureClient({
       })
     return recording
   }
-  let recordingJob: { title: string; whisperModel: string; language: string | null } | null = null
+  let recordingJob: { title: string; whisperModel: string; language: string | null; diarize: boolean } | null = null
 
   const stopRecording = (): LiveRecording => {
     if (queue.recording?.phase !== 'live' || !recordingJob) throw new ApiError(409, 'No recording is in progress')
     const stopping: LiveRecording = { ...queue.recording, phase: 'stopping' }
-    const { title, whisperModel, language } = recordingJob
+    const { title, whisperModel, language, diarize } = recordingJob
     recordingJob = null
     emit({ ...queue, recording: stopping })
     setTimeout(() => {
@@ -486,6 +486,7 @@ export function createFixtureClient({
         title,
         whisper_model: whisperModel,
         language,
+        diarize,
         status: 'waiting',
         error: null,
         error_code: null,
@@ -714,8 +715,8 @@ export function createFixtureClient({
         jobs: queue.jobs.filter(j => j.id !== jobId),
       })
     }),
-    addQueueJob: ({ audioPath, whisperModel, language, title }) => answer(() => {
-      const missing = missingModelError(models, whisperModel, language)
+    addQueueJob: ({ audioPath, whisperModel, language, title, diarize = true }) => answer(() => {
+      const missing = missingModelError(models, whisperModel, language, diarize)
       if (missing) throw missing
       const job: QueueJob = {
         id: crypto.randomUUID(),
@@ -723,6 +724,7 @@ export function createFixtureClient({
         title: title || audioPath.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, ''),
         whisper_model: whisperModel ?? 'large-v3',
         language,
+        diarize,
         status: 'waiting',
         error: null,
         error_code: null,

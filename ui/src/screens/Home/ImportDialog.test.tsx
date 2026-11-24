@@ -336,7 +336,6 @@ describe('title, model and language', () => {
 
   test.each([
     [{ noModels: true }, 'auto', 'No transcription model installed'],
-    [{ installedModels: ['small'] }, 'auto', 'Diarization model not installed'],
     [{}, 'ru', 'Alignment model for Русский is not installed'],
   ])('without a model a job needs it says which, with a way to Settings, and Import is off (%o, %s)', async (options, language, message) => {
     const client = await setup(options, { chosen: ['/in/a.mp3'], settings: { transcribeLang: language } })
@@ -348,6 +347,35 @@ describe('title, model and language', () => {
     expect(importButton().disabled).toBe(true)
     expect((await client.getQueue()).jobs).toEqual([])
     expect(within(notice).getByRole('button', { name: 'Download in Settings' })).toBeTruthy()
+  })
+
+  test('without the diarization model the import goes, without speakers', async () => {
+    const client = await setup({ installedModels: ['small'] }, { chosen: ['/in/a.mp3'], settings: { transcribeModel: 'small' } })
+    await openImport()
+    const speakers = await screen.findByRole('switch', { name: 'Identify speakers' }) as HTMLButtonElement
+    await waitFor(() => expect(speakers.getAttribute('aria-checked')).toBe('false'))
+    expect(speakers.disabled).toBe(true)
+    expect(screen.getByText('Needs the diarization model')).toBeTruthy()
+    await chooseFiles()
+    await waitFor(() => expect(importButton().disabled).toBe(false))
+    await userEvent.click(importButton())
+    await waitFor(async () => expect((await client.getQueue()).jobs).toMatchObject([{ diarize: false }]))
+  })
+
+  test('speakers turned off go with the job, for this run only', async () => {
+    const client = await setup({ installedModels: ['small', 'diarize'] }, { chosen: ['/in/a.mp3'], settings: { transcribeModel: 'small' } })
+    await openImport()
+    const speakers = await screen.findByRole('switch', { name: 'Identify speakers' })
+    await waitFor(() => expect((speakers as HTMLButtonElement).disabled).toBe(false))
+    expect(speakers.getAttribute('aria-checked')).toBe('true')
+    await userEvent.click(speakers)
+    await chooseFiles()
+    await waitFor(() => expect(importButton().disabled).toBe(false))
+    await userEvent.click(importButton())
+    await waitFor(async () => expect((await client.getQueue()).jobs).toMatchObject([{ diarize: false }]))
+    await waitFor(() => expect(screen.queryByRole('switch', { name: 'Identify speakers' })).toBeNull())
+    await openImport()
+    expect((await screen.findByRole('switch', { name: 'Identify speakers' })).getAttribute('aria-checked')).toBe('true')
   })
 
   test('Download in Settings opens Settings over the dialog, which stays', async () => {

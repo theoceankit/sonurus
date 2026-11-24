@@ -30,7 +30,7 @@ Speaker diarization requires a free HuggingFace token with access to PyAnnote mo
 2. Create a read token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).
 3. In Sonorus: **Settings → API Keys → HuggingFace token**.
 
-Without a token, transcription will fail at the diarization step.
+Without a token the diarization model cannot be downloaded. Recordings can still be transcribed, without speakers.
 
 ---
 

@@ -39,3 +39,12 @@ test('modelDeletePrompt: one job, several jobs; none without queued jobs', () =>
   expect(modelDeletePrompt('Whisper Small', 3)?.body).toBe('3 jobs in the queue use Whisper Small. Delete anyway?')
   expect(modelDeletePrompt('Whisper Small', 0)).toBeNull()
 })
+
+test('the diarization model is needed only by jobs that identify speakers', () => {
+  const jobs = queueSnapshot({
+    jobs: [job('a', { status: 'waiting', diarize: false }), job('b', { status: 'failed', diarize: true }), job('c', { status: 'running', diarize: false })],
+    running_job_id: 'c',
+  })
+  expect(queuedJobsUsingModel(model('diarize'), jobs)).toBe(1)
+  expect(modelInUseByRunningJob(model('diarize'), jobs)).toBe(false)
+})

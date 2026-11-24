@@ -131,6 +131,7 @@ def test_stop_answers_at_once_and_queues_the_recording_with_its_settings(service
     assert capture.stopped == [(system, mic)]
     [job] = queue.snapshot()["jobs"]
     assert (job["title"], job["whisper_model"], job["language"]) == ("Weekly", "medium", "de")
+    assert job["diarize"] is True
     assert job["audio_path"].endswith(f"sonorus-rec-{system}.wav")
     snapshot = queue.snapshot()
     assert snapshot["recording"] is None
@@ -398,3 +399,11 @@ def test_the_system_silent_event_matches_its_model(service, capture, queue):
     _wait_idle(service)
     event = next(e for e in queue.events if e["type"] == "recording_system_silent")
     assert RecordingSystemSilentEvent.model_validate(event).model_dump() == event
+
+
+def test_a_recording_without_diarization_is_queued_without_it(service, queue):
+    service.start(_request(title="Plain", diarize=False))
+    service.stop()
+    _wait_idle(service)
+    [job] = queue.snapshot()["jobs"]
+    assert job["diarize"] is False

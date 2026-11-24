@@ -1,11 +1,11 @@
 import type { ModelInfo, QueueJob, QueueSnapshot } from '../api/types'
 
-// Deleting a model the queue needs. Every job needs the diarization model, a Whisper
-// model only its own jobs, an alignment model the jobs in its language (not detected
+// Deleting a model the queue needs. The jobs that look for speakers need the diarization
+// model, a Whisper model only its own jobs, an alignment model the jobs in its language (not detected
 // ones: their language is known only once they run).
 
 function jobNeedsModel(job: QueueJob, model: ModelInfo): boolean {
-  if (model.kind === 'diarization') return true
+  if (model.kind === 'diarization') return job.diarize
   if (model.kind === 'whisper') return job.whisper_model === model.id
   return model.kind === 'alignment' && job.language === model.id
 }

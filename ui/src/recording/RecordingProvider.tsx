@@ -22,6 +22,8 @@ export type RecordingRequest = {
   title: string
   model: string | null
   language: string | null
+  // Off: no speakers. On unless said.
+  diarize?: boolean
 }
 
 // starting and stopping are the time the backend takes.
@@ -107,6 +109,7 @@ export function RecordingProvider({ children, initial = IDLE }: RecordingProvide
       title: request.title,
       whisper_model: request.model,
       language: request.language,
+      diarize: request.diarize ?? true,
     }).then(
       show,
       async err => {

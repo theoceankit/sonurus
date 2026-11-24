@@ -93,7 +93,8 @@ def delete_model(model_id: str, queue=Depends(get_transcription_queue)):
     # The running job has loaded these files; it may still need them (e.g. the
     # diarization model late in the pipeline). Its alignment model is known only
     # for an explicit language.
-    if running and model_id in (running["whisper_model"], "diarize", running["language"]):
+    in_use = (running["whisper_model"], running["language"], *(("diarize",) if running["diarize"] else ())) if running else ()
+    if model_id in in_use:
         return JSONResponse({"detail": "In use by the running transcription"}, status_code=409)
     try:
         _make_service().delete_model(model_id)

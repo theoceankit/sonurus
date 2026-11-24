@@ -16,22 +16,28 @@ class TranscriptionController:
         self.embedding_service = embedding_service
         self.memory_service = memory_service
 
-    def analyse(self, audio_path: str, on_progress=None, language: str | None = None) -> dict:
+    def analyse(self, audio_path: str, on_progress=None, language: str | None = None,
+                diarize: bool = True) -> dict:
         """Everything that needs the models, nothing that reads speaker memory:
         {"result": aligned WhisperX result with diarization speakers,
          "voices": {SPEAKER_XX: voice embedding},
-         "turns": [{start, end, speaker, embedding}] of the diarization}.
+         "turns": [{start, end, speaker, embedding}] of the diarization,
+         "diarized": whether speakers were looked for}.
+        Without diarize there are no speakers, voices or turns.
         Plain data, so a child process can send it back."""
         def report(msg):
             if on_progress:
                 on_progress(msg)
 
         report("Transcribing audio…")
-        result, audio, diarization = self.transcription_service.transcribe(audio_path, language=language)
+        result, audio, diarization = self.transcription_service.transcribe(
+            audio_path, language=language, diarize_speakers=diarize)
+        if not diarize:
+            return {"result": result, "voices": {}, "turns": [], "diarized": False}
 
         report("Identifying speakers…")
         voices, turns = self.embedding_service.extract_all(audio, diarization)
-        return {"result": result, "voices": voices, "turns": turns}
+        return {"result": result, "voices": voices, "turns": turns, "diarized": True}
 
     def run_pipeline(self, audio_path: str, on_progress=None, language: str | None = None) -> Transcript:
         """analyse(), then build_transcript() against this controller's memory."""
@@ -46,5 +52,6 @@ def build_transcript(analysis: dict, memory: SpeakerMemoryService, audio_path: s
     speaker_map, match_scores = memory.resolve_with_scores(analysis["voices"])
     transcript = TranscriptBuilder.build(analysis["result"], speaker_map, audio_path)
     transcript.match_scores = match_scores
+    transcript.diarized = analysis.get("diarized", True)
     TranscriptBuilder.attach_embeddings(transcript, analysis["turns"])
     return transcript

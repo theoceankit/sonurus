@@ -41,6 +41,7 @@ const meta: Meta<typeof NewRecordingDialog> = {
     record: RECORD,
     onStartRecording: noop,
     onImportFiles: noop,
+    onDiarizeChange: noop,
     onClose: noop,
   } satisfies NewRecordingDialogProps,
 }

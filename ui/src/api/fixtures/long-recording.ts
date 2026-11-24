@@ -71,6 +71,7 @@ export const longRecording = (): Transcript => ({
   id: LONG_RECORDING_ID,
   audio_path: '/fixtures/long-recording.wav',
   language: 'en',
+  diarized: true,
   status: 'done',
   title: LONG_RECORDING_ITEM.title,
   segments: longSegments(),

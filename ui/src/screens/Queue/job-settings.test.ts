@@ -4,7 +4,7 @@ import type { QueueJob } from '../../api/types'
 import { canEditJob, jobEditPatch, jobForm } from './job-settings'
 
 const job = (changes: Partial<QueueJob> = {}): QueueJob => ({ ...QUEUE_JOB, title: 'Weekly sync', whisper_model: 'small', language: null, status: 'waiting', ...changes })
-const form = (changes = {}) => ({ title: 'Weekly sync', model: 'small', language: 'auto', ...changes })
+const form = (changes = {}) => ({ title: 'Weekly sync', model: 'small', language: 'auto', diarize: true, ...changes })
 
 test('canEditJob: every job but the running one', () => {
   expect(canEditJob(job())).toBe(true)
@@ -36,4 +36,9 @@ test('jobEditPatch: a blank or too long title is an error', () => {
   expect(jobEditPatch(job(), form({ title: '   ' })).error).toMatch(/empty/i)
   expect(jobEditPatch(job(), form({ title: 'x'.repeat(201) })).error).toMatch(/200/)
   expect(jobEditPatch(job(), form({ title: 'x'.repeat(200) })).error).toBeUndefined()
+})
+
+test('jobEditPatch: turning speakers off is a change', () => {
+  expect(jobForm(job({ diarize: false })).diarize).toBe(false)
+  expect(jobEditPatch(job(), form({ diarize: false }))).toEqual({ patch: { diarize: false } })
 })

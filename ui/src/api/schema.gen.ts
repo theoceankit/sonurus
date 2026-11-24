@@ -1079,6 +1079,8 @@ export interface components {
          *     null or "auto" = auto-detect.
          */
         JobUpdateRequest: {
+            /** Diarize */
+            diarize?: boolean | null;
             /** Language */
             language?: string | null;
             /** Title */
@@ -1164,6 +1166,8 @@ export interface components {
             audio_path: string;
             /** Created At */
             created_at: string;
+            /** Diarize */
+            diarize: boolean;
             /** Error */
             error: string | null;
             /** Error Code */
@@ -1260,10 +1264,15 @@ export interface components {
          * RecordingStartRequest
          * @description POST /audio/recording/start. mic_device / system_source null = the
          *     default; whisper_model null = the default model; language null or
-         *     "auto" = auto-detect. The recording is queued with title, model and
-         *     language when it stops.
+         *     "auto" = auto-detect; diarize false = no speakers. The recording is
+         *     queued with title, model, language and diarize when it stops.
          */
         RecordingStartRequest: {
+            /**
+             * Diarize
+             * @default true
+             */
+            diarize: boolean;
             /** Language */
             language?: string | null;
             /** Mic */
@@ -1305,7 +1314,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed" | "job_running" | "handle_invalid" | "handle_taken" | "handle_needs_name" | "photo_needs_name" | "merge_into_self";
+            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed" | "job_running" | "handle_invalid" | "handle_taken" | "handle_needs_name" | "photo_needs_name" | "merge_into_self" | "transcript_not_diarized";
             /** Detail */
             detail: string;
         };
@@ -1521,11 +1530,17 @@ export interface components {
         /**
          * TranscribeRequest
          * @description POST /queue/jobs. language null or "auto" = auto-detect; no title =
-         *     the file name without its extension.
+         *     the file name without its extension. diarize false = no speakers, and
+         *     neither the diarization model nor a token is needed.
          */
         TranscribeRequest: {
             /** Audio Path */
             audio_path: string;
+            /**
+             * Diarize
+             * @default true
+             */
+            diarize: boolean;
             /** Language */
             language?: string | null;
             /** Title */
@@ -1558,6 +1573,8 @@ export interface components {
         TranscriptResponse: {
             /** Audio Path */
             audio_path: string;
+            /** Diarized */
+            diarized: boolean;
             /** Id */
             id: number;
             /** Language */
@@ -3371,6 +3388,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusalResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

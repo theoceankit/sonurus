@@ -19,7 +19,7 @@ _BOB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 VOICE = np.array([1.0, 0.0, 0.0], dtype=np.float32)
 
 JOB = {"id": "j1", "audio_path": "/rec/sonorus-import-1.wav", "title": "Weekly sync",
-       "whisper_model": "small", "language": "en"}
+       "whisper_model": "small", "language": "en", "diarize": True}
 
 RESULT = {"segments": [{"start": 0.0, "end": 1.0, "text": "hi", "speaker": "SPEAKER_00"}], "language": "en"}
 TURNS = [{"start": 0.0, "end": 1.0, "speaker": "SPEAKER_00", "embedding": VOICE}]
@@ -55,7 +55,7 @@ def _run_in_process(db, during_pipeline):
 
     transcription = MagicMock()
 
-    def transcribe(audio_path, language=None):
+    def transcribe(audio_path, language=None, diarize_speakers=True):
         during_pipeline(db)
         return RESULT, MagicMock(), MagicMock()
 

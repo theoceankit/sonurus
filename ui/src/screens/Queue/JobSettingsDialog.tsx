@@ -8,6 +8,7 @@ import { Stack } from '../../components/Stack/Stack'
 import { TextField } from '../../components/TextField/TextField'
 import type { Refusal } from '../../transcribe/refusals'
 import { RefusalNote } from '../../transcribe/RefusalNote'
+import { IdentifySpeakers } from '../../transcribe/IdentifySpeakers'
 import { TITLE_MAX_LENGTH } from '../../api/types'
 import type { JobForm } from './job-settings'
 
@@ -16,6 +17,8 @@ export interface JobSettingsDialogProps {
   form: JobForm
   modelOptions: readonly SelectOption[]
   languageOptions: readonly SelectOption[]
+  // The diarization model is installed.
+  diarizeAvailable: boolean
   // What is wrong with the title.
   error: string | null
   // The backend's refusal to save, above the buttons. A job that has started cannot
@@ -32,7 +35,8 @@ export interface JobSettingsDialogProps {
 
 // The title, model and language of a job waiting in the queue or failed.
 export function JobSettingsDialog({
-  open, form, modelOptions, languageOptions, error, refusal, saving, onChange, onSave, onOpenSettings, onClose, onExited, preview,
+  open, form, modelOptions, languageOptions,
+  diarizeAvailable, error, refusal, saving, onChange, onSave, onOpenSettings, onClose, onExited, preview,
 }: JobSettingsDialogProps) {
   return (
     <Modal open={open} preview={preview} onExited={onExited} onOpenChange={next => { if (!next) onClose() }}>
@@ -57,6 +61,13 @@ export function JobSettingsDialog({
             <Select label="Model" value={form.model} options={modelOptions} disabled={saving} onValueChange={model => onChange({ ...form, model })} />
             <Select label="Language" value={form.language} options={languageOptions} disabled={saving} onValueChange={language => onChange({ ...form, language })} />
           </Inline>
+          <IdentifySpeakers
+            checked={form.diarize}
+            available={diarizeAvailable}
+            disabled={saving}
+            onChange={diarize => onChange({ ...form, diarize })}
+            onOpenSettings={onOpenSettings}
+          />
           {refusal && <RefusalNote refusal={refusal} onOpenSettings={onOpenSettings} />}
         </Stack>
       </ModalBody>

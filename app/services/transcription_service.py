@@ -36,7 +36,9 @@ class TranscriptionService:
         # dropped before alignment, with the text it made up for them.
         self.no_speech = no_speech.install(self.model)
 
-    def transcribe(self, audio_path: str, language: str | None = None):
+    def transcribe(self, audio_path: str, language: str | None = None, diarize_speakers: bool = True):
+        """(aligned result, audio, exclusive diarization). Without diarize_speakers
+        nothing of the diarization model is loaded and the diarization is None."""
         log.info(f"Loading audio: {audio_path}")
         audio = whisperx.load_audio(audio_path)
 
@@ -80,6 +82,29 @@ class TranscriptionService:
             self.device
         )
 
+        diarization = None
+        if diarize_speakers:
+            result, diarization = self._assign_speakers(result, audio)
+        # align() and assign_word_speakers() drop the language — keep the one
+        # Whisper detected (or was given) for the transcript.
+        result["language"] = detected_lang
+
+        log.info(f"Done — {len(result['segments'])} segments")
+
+        # Free the temporary GPU model immediately — align_model is PyTorch-based
+        # and holds VRAM. Without explicit deletion here, Python's GC may delay
+        # collection until the next cycle, leaving VRAM occupied when the next
+        # pipeline run tries to load models. The diarization model went with
+        # _assign_speakers().
+        del align_model
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        return result, audio, diarization
+
+    def _assign_speakers(self, result: dict, audio):
+        """Diarizes the audio and gives the aligned result its speakers."""
         log.info("Diarizing...")
         diarize_model = whisperx.diarize.DiarizationPipeline(
             device=self.device,
@@ -98,19 +123,4 @@ class TranscriptionService:
         filled = assign_gap_sentences(result, regular[["start", "end", "speaker"]].itertuples(index=False))
         if filled:
             log.info(f"{filled} sentences between turns given to the nearest turn")
-        # align() and assign_word_speakers() drop the language — keep the one
-        # Whisper detected (or was given) for the transcript.
-        result["language"] = detected_lang
-
-        log.info(f"Done — {len(result['segments'])} segments")
-
-        # Free temporary GPU models immediately — align_model and diarize_model
-        # are PyTorch-based and hold several GiB of VRAM. Without explicit
-        # deletion here, Python's GC may delay collection until the next cycle,
-        # leaving VRAM occupied when the next pipeline run tries to load models.
-        del align_model, diarize_model
-        import gc
-        gc.collect()
-        torch.cuda.empty_cache()
-
-        return result, audio, diarization
+        return result, diarization

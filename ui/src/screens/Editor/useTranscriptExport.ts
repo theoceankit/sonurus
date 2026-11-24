@@ -15,7 +15,7 @@ import { exportContent, headingsBelowNotes } from './transcript-export'
 export function useTranscriptExport(transcript: Transcript, title: string, turns: readonly TranscriptTurn[], speakers: readonly Speaker[]) {
   const readNote = useReadNote()
   const running = useRef(false)
-  const { id, language } = transcript
+  const { id, language, diarized } = transcript
 
   return useCallback(async (format: ExportFormat) => {
     if (running.current) return
@@ -29,7 +29,7 @@ export function useTranscriptExport(transcript: Transcript, title: string, turns
       }
       const text = exportContent(
         format,
-        { title, language, turns, note },
+        { title, language, turns, note, diarized },
         { timestamps: settings.exportTimestamps, speakers: settings.exportSpeakers, speakerLabel: settings.exportSpeakerLabel },
       )
       const result = await window.electronAPI.saveExport({ title, format, text })
@@ -40,5 +40,5 @@ export function useTranscriptExport(transcript: Transcript, title: string, turns
     } finally {
       running.current = false
     }
-  }, [id, language, title, turns, speakers, readNote])
+  }, [id, language, diarized, title, turns, speakers, readNote])
 }

@@ -32,6 +32,11 @@
   padding: var(--space-2) var(--space-4) 0;
 }
 
+/* The blocks of a recording without speakers read as one run of paragraphs. */
+.plain {
+  gap: 0;
+}
+
 .list:focus {
   outline: none;
 }

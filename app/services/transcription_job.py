@@ -28,7 +28,8 @@ def _release_models(controller) -> None:
     """
     if controller is not None:
         controller.transcription_service.model = None
-        controller.embedding_service.inference = None
+        if controller.embedding_service is not None:
+            controller.embedding_service.inference = None
     import gc
     gc.collect()
     import torch
@@ -45,13 +46,13 @@ def make_job_runner(storage: TranscriptStorageService, memory_db_path: str, on_s
         # never downloads) a model that is not installed.
         require_job_models(
             ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR),
-            job["whisper_model"], job["language"],
+            job["whisper_model"], job["language"], job["diarize"],
         )
         on_progress("Loading models…")
         if pipeline_process.RUN_PIPELINE_IN_SUBPROCESS:
             analysis = run_pipeline_process(
                 {"audio_path": job["audio_path"], "whisper_model": job["whisper_model"],
-                 "language": job["language"], "db_path": memory_db_path},
+                 "language": job["language"], "diarize": job["diarize"], "db_path": memory_db_path},
                 on_progress, cancel_event,
             )
             job_storage = storage
@@ -60,9 +61,9 @@ def make_job_runner(storage: TranscriptStorageService, memory_db_path: str, on_s
                 suppress_ml_noise("thread")
             controller = None
             try:
-                controller, job_storage = create_controller(whisper_model=job["whisper_model"])
+                controller, job_storage = create_controller(whisper_model=job["whisper_model"], diarize=job["diarize"])
                 analysis = controller.analyse(job["audio_path"], on_progress=on_progress,
-                                              language=job["language"])
+                                              language=job["language"], diarize=job["diarize"])
             finally:
                 _release_models(controller)
 

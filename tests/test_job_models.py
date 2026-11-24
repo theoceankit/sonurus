@@ -112,7 +112,7 @@ def test_the_error_is_the_one_the_pipeline_raises():
 
 # ── run_job checks before the pipeline ─────────────────────────────────────────
 
-JOB = {"id": "j1", "audio_path": "/rec/a.wav", "title": "Sync", "whisper_model": "small", "language": None}
+JOB = {"id": "j1", "audio_path": "/rec/a.wav", "title": "Sync", "whisper_model": "small", "language": None, "diarize": True}
 
 
 def test_run_job_checks_the_models_before_the_pipeline(tmp_path):
@@ -123,7 +123,7 @@ def test_run_job_checks_the_models_before_the_pipeline(tmp_path):
          patch("app.services.transcription_job.run_pipeline_process") as child:
         with pytest.raises(ModelNotInstalledError):
             run(JOB, lambda step: None, threading.Event())
-    assert check.call_args.args[1:] == ("small", None)
+    assert check.call_args.args[1:] == ("small", None, True)
     create.assert_not_called()
     child.assert_not_called()
 
@@ -180,5 +180,5 @@ def test_the_pipeline_child_loads_models_offline(monkeypatch):
             pass
 
     with patch("app.services.service_factory.create_controller", side_effect=create_controller):
-        _pipeline_worker({"audio_path": "/a.wav", "whisper_model": "small", "language": None, "db_path": "/m.db"}, Conn())
+        _pipeline_worker({"audio_path": "/a.wav", "whisper_model": "small", "language": None, "diarize": True, "db_path": "/m.db"}, Conn())
     assert seen["offline"] == "1"

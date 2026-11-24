@@ -844,3 +844,66 @@ describe('Export', () => {
     await screen.findByText('Failed to export: disk full')
   })
 })
+
+describe('a recording without speakers', () => {
+  const withoutSpeakers = (): FixtureOptions => {
+    const base = createFixtureClient()
+    return {
+      overrides: {
+        getTranscript: async id => {
+          const transcript = await base.getTranscript(id)
+          return { ...transcript, diarized: false, segments: transcript.segments.map(segment => ({ ...segment, speaker_resolved: null, speaker_final: null, unassigned: true })) }
+        },
+      },
+    }
+  }
+
+  test('shows its paragraphs with no speaker to name or change', async () => {
+    setup(withoutSpeakers())
+    const paragraph = await text(FIRST)
+    expect(screen.queryByText('Unassigned')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Unassigned' })).toBeNull()
+    await userEvent.hover(paragraph)
+    await userEvent.click(within(screen.getByRole('toolbar', { name: 'Paragraph' })).getByRole('button', { name: 'More' }))
+    expect(await screen.findByRole('menuitem', { name: 'Delete' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Change speaker' })).toBeNull()
+  })
+
+  test('a long one is drawn in blocks without a speaker over any', async () => {
+    const base = createFixtureClient()
+    setup({
+      overrides: {
+        getTranscript: async id => {
+          const transcript = await base.getTranscript(id)
+          return { ...transcript, diarized: false, segments: longSegments().map(segment => ({ ...segment, speaker_resolved: null, speaker_final: null, unassigned: true })) }
+        },
+      },
+    })
+    const list = await screen.findByRole('group', { name: 'Transcript text' })
+    await waitFor(() => expect(list.querySelectorAll('[data-transcript-text]').length).toBe(longSegments().length))
+    expect(list.querySelectorAll('[data-speaker]').length).toBeGreaterThan(1)
+    expect(within(list).queryByText('Unassigned')).toBeNull()
+  })
+
+  test('exports its paragraphs with no speaker', async () => {
+    const saveExport = vi.fn(async (_request: ExportRequest): Promise<ExportResult> => ({ status: 'saved' }))
+    const bridge = createMockElectronAPI({ saveExport })
+    await bridge.writeSettings(DEFAULT_SETTINGS)
+    vi.stubGlobal('electronAPI', bridge)
+    try {
+      setup(withoutSpeakers())
+      for (const [label, format] of [['Plain text', 'txt'], ['Markdown', 'md'], ['JSON', 'json']] as const) {
+        await userEvent.click(await screen.findByRole('button', { name: 'Export' }))
+        await userEvent.click(await screen.findByRole('menuitem', { name: new RegExp(label) }))
+        await waitFor(() => expect(saveExport.mock.calls.some(([request]) => request.format === format)).toBe(true))
+      }
+      const sent = Object.fromEntries(saveExport.mock.calls.map(([request]) => [request.format, request.text]))
+      expect(sent.txt).not.toMatch(/Unassigned/)
+      expect(sent.md).not.toMatch(/Unassigned/)
+      expect(sent.txt.split('\n')[2]).toBe(FIRST)
+      expect(JSON.parse(sent.json).segments.every((row: { speaker: unknown }) => row.speaker === null)).toBe(true)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})

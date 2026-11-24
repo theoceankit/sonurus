@@ -153,8 +153,8 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     deleteQueueJob: async job_id => {
       await send(http.DELETE('/queue/jobs/{job_id}', { params: { path: { job_id } } }))
     },
-    addQueueJob: ({ audioPath, whisperModel, language, title }) => send(http.POST('/queue/jobs', {
-      body: { audio_path: audioPath, whisper_model: whisperModel, language, ...(title ? { title } : {}) },
+    addQueueJob: ({ audioPath, whisperModel, language, title, diarize = true }) => send(http.POST('/queue/jobs', {
+      body: { audio_path: audioPath, whisper_model: whisperModel, language, diarize, ...(title ? { title } : {}) },
     })),
     updateQueueJob: (job_id, body) => send(http.PATCH('/queue/jobs/{job_id}', { params: { path: { job_id } }, body })),
     retryQueueJob: job_id => send(http.POST('/queue/jobs/{job_id}/retry', { params: { path: { job_id } } })),
@@ -162,7 +162,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     listCaptureSources: async () => (await send(http.GET('/audio/capture/sources'))).sources,
     listMicInputs: async () => (await send(http.GET('/audio/capture/inputs'))).inputs,
     getMicWatch: () => send(http.GET('/audio/mic-watch')),
-    startRecording: body => send(http.POST('/audio/recording/start', { body })),
+    startRecording: body => send(http.POST('/audio/recording/start', { body: { ...body, diarize: body.diarize ?? true } })),
     stopRecording: () => send(http.POST('/audio/recording/stop')),
     subscribeQueueEvents: (listener, onConnection) => connectQueueEvents({
       url: `${baseUrl.replace(/^http/, 'ws')}/ws/queue`,

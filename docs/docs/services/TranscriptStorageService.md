@@ -68,6 +68,8 @@ CREATE TABLE notes (                                                    -- schem
 
 `status` — transcript status: `'draft'` immediately after the pipeline.
 
+`diarized` — `0` for a recording transcribed without looking for speakers, `1` for all others (schema v10).
+
 `embedding` — per-segment pyannote embedding blob (float32). Used by `CommitService` after load.
 
 `speaker_matches` — one row per speaker that `resolve()` recognized from memory when the transcript was made: `score` is the similarity of the match, `confirmed` is `1` once the user confirmed the speaker as a possible match. Speakers assigned by hand have no row, and nothing else writes one, so the similarity is never worked out again later (by then the profile contains this recording).
@@ -258,7 +260,7 @@ Returns the embeddings of the diarization turns a speaker owns, grouped by trans
 
 ### `_init_db()`
 
-Creates tables if they do not exist and runs the versioned migrations in `app/db/schema.py` (tracked in `_ts_schema_version`): v1 base tables + `status`, v2 `segments.embedding`, v3 `transcriptions.title`, v4 indexes, v5 `segments.unassigned`, v6 UUIDs for stored raw diarization labels (`UNKNOWN` rows become unassigned), v7 `transcriptions.opened`, set on every transcript that existed before it so that a library does not show as new all at once, v8 `speaker_matches`, empty for transcripts that existed before it.
+Creates tables if they do not exist and runs the versioned migrations in `app/db/schema.py` (tracked in `_ts_schema_version`): v1 base tables + `status`, v2 `segments.embedding`, v3 `transcriptions.title`, v4 indexes, v5 `segments.unassigned`, v6 UUIDs for stored raw diarization labels (`UNKNOWN` rows become unassigned), v7 `transcriptions.opened`, set on every transcript that existed before it so that a library does not show as new all at once, v8 `speaker_matches`, empty for transcripts that existed before it. v10 adds `transcriptions.diarized`.
 
 ---
 

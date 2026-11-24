@@ -30,8 +30,8 @@ class AudioInputsResponse(BaseModel):
 class RecordingStartRequest(BaseModel):
     """POST /audio/recording/start. mic_device / system_source null = the
     default; whisper_model null = the default model; language null or
-    "auto" = auto-detect. The recording is queued with title, model and
-    language when it stops."""
+    "auto" = auto-detect; diarize false = no speakers. The recording is
+    queued with title, model, language and diarize when it stops."""
     mic: bool
     mic_device: str | None = None
     system: bool
@@ -39,6 +39,7 @@ class RecordingStartRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     whisper_model: str | None = None
     language: str | None = None
+    diarize: bool = True
 
 
 @router.get("/audio/capture/sources", response_model=AudioSourcesResponse)
@@ -65,10 +66,10 @@ def start_recording(body: RecordingStartRequest, recording=Depends(get_live_reco
     whisper_model = body.whisper_model or WHISPER_MODEL
     language = job_language(body.language)
     # Refused now rather than after the recording, when it could not be queued.
-    require_models(whisper_model, language, check_diarize=True)
+    require_models(whisper_model, language, check_diarize=body.diarize)
     request = RecordingRequest(mic=body.mic, mic_device=body.mic_device, system=body.system,
                                system_source=body.system_source, title=body.title.strip(),
-                               whisper_model=whisper_model, language=language)
+                               whisper_model=whisper_model, language=language, diarize=body.diarize)
     try:
         return recording.start(request)
     except RecordingBusy:

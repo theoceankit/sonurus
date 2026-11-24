@@ -71,11 +71,13 @@ def _pipeline_worker(args: dict, conn) -> None:
             # Again once the ML libraries are loaded: Lightning resets its
             # logger levels on import.
             suppress_ml_noise("thread")
-        controller, _ = service_factory.create_controller(db_path=args["db_path"], whisper_model=args["whisper_model"])
+        controller, _ = service_factory.create_controller(
+            db_path=args["db_path"], whisper_model=args["whisper_model"], diarize=args["diarize"])
         analysis = controller.analyse(
             args["audio_path"],
             on_progress=lambda step: conn.send(("progress", step)),
             language=args["language"],
+            diarize=args["diarize"],
         )
         conn.send(("done", analysis))
     except BaseException as exc:
@@ -126,7 +128,7 @@ def run_pipeline_process(args: dict, on_progress, cancel_event, worker=_pipeline
     """Run the pipeline in a child process and return its analysis
     (TranscriptionController.analyse()).
 
-    args: audio_path, whisper_model, language, db_path. Raises PipelineCancelled as soon as cancel_event is set, and
+    args: audio_path, whisper_model, language, diarize, db_path. Raises PipelineCancelled as soon as cancel_event is set, and
     AlignmentModelMissingError / RuntimeError for the child's errors, and
     PipelineInterrupted if the child was stopped from outside. The child
     never outlives this call.

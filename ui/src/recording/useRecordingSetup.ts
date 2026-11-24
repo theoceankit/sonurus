@@ -67,7 +67,7 @@ export function useRecordingSetup(active: boolean, session: number) {
   // Saves the sources and devices as the defaults and starts recording. False when it
   // may not start.
   const { start: startRecording } = recording
-  const start = useCallback((run: Pick<RecordingRequest, 'title' | 'model' | 'language'>): boolean => {
+  const start = useCallback((run: Pick<RecordingRequest, 'title' | 'model' | 'language' | 'diarize'>): boolean => {
     if (setup.blocked) return false
     const setting = sourceSetting(sources)
     if (!setting) return false

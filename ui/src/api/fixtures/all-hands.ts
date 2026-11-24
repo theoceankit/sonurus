@@ -46,6 +46,7 @@ export const allHands = (): Transcript => ({
   id: ALL_HANDS_ID,
   audio_path: '/fixtures/all-hands.wav',
   language: 'en',
+  diarized: true,
   status: 'done',
   title: ALL_HANDS_ITEM.title,
   segments: allHandsSegments(),

@@ -29,8 +29,14 @@ test('models and languages without their model are off with the reason', () => {
 
 test('blocked in the order the backend checks', () => {
   expect(transcribeChoice(fixtureModels([]), SETTINGS, NOTHING_PICKED).blocked).toEqual({ missing: 'whisper' })
-  expect(transcribeChoice(fixtureModels(['small']), SETTINGS, NOTHING_PICKED).blocked).toEqual({ missing: 'diarization' })
+  expect(transcribeChoice(fixtureModels(['small']), SETTINGS, NOTHING_PICKED).blocked).toBeNull()
   expect(transcribeChoice(fixtureModels(DEFAULT_INSTALLED), SETTINGS, { model: null, language: 'ru' }).blocked).toEqual({ missing: 'alignment', language: 'ru' })
+})
+
+test('speakers: on with the model unless turned off, off without it', () => {
+  expect(transcribeChoice(fixtureModels(DEFAULT_INSTALLED), SETTINGS, NOTHING_PICKED)).toMatchObject({ diarize: true, diarizeAvailable: true })
+  expect(transcribeChoice(fixtureModels(DEFAULT_INSTALLED), SETTINGS, { ...NOTHING_PICKED, diarize: false }).diarize).toBe(false)
+  expect(transcribeChoice(fixtureModels(['small']), SETTINGS, { ...NOTHING_PICKED, diarize: true })).toMatchObject({ diarize: false, diarizeAvailable: false })
 })
 
 test('a saved language that is not in the list is still offered', () => {

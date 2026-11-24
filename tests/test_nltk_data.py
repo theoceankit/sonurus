@@ -164,6 +164,6 @@ def test_the_pipeline_process_limits_nltk_before_the_models_load():
     with patch.object(nltk_data, "use_bundled_nltk_data", side_effect=lambda: calls.append("nltk")), \
          patch("app.services.service_factory.create_controller",
                side_effect=lambda **k: calls.append("controller") or (controller, MagicMock())):
-        _pipeline_worker({"audio_path": "/a.wav", "whisper_model": "small", "language": None,
+        _pipeline_worker({"audio_path": "/a.wav", "whisper_model": "small", "language": None, "diarize": True,
                           "db_path": "/x.db"}, MagicMock())
     assert calls == ["nltk", "controller", "pipeline"]
