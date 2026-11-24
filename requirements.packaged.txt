@@ -24,6 +24,7 @@ pandas==3.0.2
 fastapi==0.136.1
 uvicorn[standard]==0.46.0
 httpx==0.28.1
+mcp==2.3.0
 
 # Xet fallback of model downloads (app/services/model_service.py). huggingface-hub
 # requires it only where platform_machine is lowercase "amd64"/"x86_64", which
