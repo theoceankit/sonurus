@@ -103,3 +103,17 @@ def _isolated_transcription_queue(tmp_path_factory):
     app.dependency_overrides[get_transcription_queue] = lambda: queue
     yield
     app.dependency_overrides.pop(get_transcription_queue, None)
+
+
+# The backend's own settings (app_settings) live in DB_PATH too: every test gets
+# them on a database of its own.
+@pytest.fixture(autouse=True)
+def _isolated_app_settings(tmp_path_factory):
+    from app.api.dependencies import get_app_settings
+    from app.api.main import app
+    from app.services.app_settings import AppSettings
+
+    settings = AppSettings(str(tmp_path_factory.mktemp("settings") / "settings.db"))
+    app.dependency_overrides[get_app_settings] = lambda: settings
+    yield
+    app.dependency_overrides.pop(get_app_settings, None)

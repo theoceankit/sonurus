@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 
 import app.config as config
 from app.api.dependencies import (
-    get_live_recording_service, get_memory_service, get_storage_service, get_transcription_queue,
+    get_app_settings, get_live_recording_service, get_memory_service, get_storage_service, get_transcription_queue,
 )
 from app.api.schemas import DataResetResponse
+from app.services.app_settings import AppSettings
 from app.services.data_reset_service import DataResetService
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.transcript_storage_service import TranscriptStorageService
@@ -19,6 +20,7 @@ def reset_data(
     memory: SpeakerMemoryService = Depends(get_memory_service),
     recording=Depends(get_live_recording_service),
     queue: TranscriptionQueue = Depends(get_transcription_queue),
+    settings: AppSettings = Depends(get_app_settings),
 ):
     # A running recording would drop a new file into the recordings dir.
     if recording.is_recording():
@@ -30,7 +32,8 @@ def reset_data(
     try:
         with queue.hold():
             queue.clear()
-            service = DataResetService(storage, memory, [config.RECORDINGS_DIR, config.SPEAKER_PHOTOS_DIR])
+            service = DataResetService(storage, memory, [config.RECORDINGS_DIR, config.SPEAKER_PHOTOS_DIR],
+                                       settings)
             return DataResetResponse(**service.reset())
     except QueueBusy:
         raise HTTPException(status_code=409, detail="A transcription is in progress")

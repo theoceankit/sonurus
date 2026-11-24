@@ -94,6 +94,8 @@ One row per test file: Python unit and API tests (`tests/test_*.py`, no ML model
 
 | File | What it covers |
 |---|---|
+| `test_app_settings.py` | `AppSettings` (table `app_settings`): the MCP server off on a new installation, values kept in the database, reads answered from memory, `clear()` back to the defaults |
+| `test_integrations_api.py` | `GET`/`PUT /integrations/mcp`: off by default, turned on and off and kept, 422 without a boolean; `POST /data/reset` turns the MCP server off |
 | `test_cors.py` | `cors_origins()`: the local origins by default, the dev server's on request, never for a packaged backend; preflights for `null` and the dev server |
 | `tests/build/ui-alignment-catalog.test.js` | The alignment models the UI names are the backend's `ALIGNMENT_CATALOG`, in its order |
 | `tests/build/ui-entry.test.js` | The window loads `ui/dist` in both modes, the dev server only in development; `main.js` uses it, has no UI switch and keeps its security settings |

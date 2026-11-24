@@ -1,9 +1,11 @@
-"""Full data reset — wipes transcripts, speakers and app-owned audio files."""
+"""Full data reset — wipes transcripts, speakers, app-owned audio files and the
+backend's own settings."""
 import os
 import shutil
 from pathlib import Path
 
 from app.logger import get_logger
+from app.services.app_settings import AppSettings
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.transcript_storage_service import TranscriptStorageService
 
@@ -42,16 +44,21 @@ class DataResetService:
         storage: TranscriptStorageService,
         memory: SpeakerMemoryService,
         file_dirs: list[Path],
+        settings: AppSettings | None = None,
     ):
         self.storage = storage
+        self.settings = settings
         self.memory = memory
         self.file_dirs = [Path(d) for d in file_dirs]
 
     def reset(self) -> dict:
         """Delete all transcripts, all speakers (named ones too) and the
-        contents of file_dirs. Schema/version tables are kept."""
+        contents of file_dirs; the backend's settings go back to their defaults
+        (the MCP server is off again). Schema/version tables are kept."""
         transcripts = self.storage.clear()
         speakers = self.memory.clear()
         files = sum(clear_dir_contents(d) for d in self.file_dirs)
+        if self.settings is not None:
+            self.settings.clear()
         log.info(f"Data reset: {transcripts} transcripts, {speakers} speakers, {files} files removed")
         return {"transcripts": transcripts, "speakers": speakers, "files": files}

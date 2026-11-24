@@ -204,6 +204,11 @@ class HandleFormatBody(BaseModel):
     format: HandleFormat
 
 
+class McpSettings(BaseModel):
+    """Whether /mcp answers agents; off on a new installation."""
+    enabled: bool
+
+
 class HandleSuggestionResponse(BaseModel):
     handle: str
 
