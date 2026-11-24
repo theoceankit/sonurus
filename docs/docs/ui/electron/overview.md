@@ -92,7 +92,7 @@ A right click on a row, or the Menu key or Shift+F10 on a focused one, opens its
 1. `checkHealth()` — polls `GET /health`. If already responding, skips spawn (`electron/backend-identity.js` decides whether that backend may be reused: see [Configuration](../../environment/configuration.md#sonorus_data_dir)).
 2. Spawns `uvicorn` with the bundled interpreter (packaged: `resources/backend/python-dist`, which
    already contains every library — see [Packaging](../../distribution/packaging.md); dev: `.venv`) and env
-   `HF_TOKEN`, `SONORUS_DATA_DIR`, `SONORUS_VERSION`, and without `LOG_FILE`, even one inherited from the
+   `SONORUS_DATA_DIR`, `SONORUS_VERSION`, and without `LOG_FILE`, even one inherited from the
    environment: its log reaches `sonorus.log` through its stderr (see [The app log](#the-app-log)); packaged
    builds also put the bundled `ffmpeg` first on `PATH`.
 3. `waitForReady()` — polls `/health` up to 60s, logs `[backend] ready in N ms`, then `main.js` opens the window.

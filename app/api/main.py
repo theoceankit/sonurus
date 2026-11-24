@@ -1,11 +1,8 @@
 import os
 from contextlib import asynccontextmanager
 
-from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-load_dotenv()
 
 _verbose = os.getenv("VERBOSE", "false").lower() == "true"
 if not _verbose:

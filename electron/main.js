@@ -286,12 +286,10 @@ const runCommand = (cmd, args) => new Promise((resolve, reject) => {
   execFile(cmd, args, { timeout: 2000, windowsHide: true }, (err, stdout) => (err ? reject(err) : resolve(stdout)))
 })
 
-const savedHfToken = () => savedSettings().hfToken || ''
-
 // GPU acceleration applied or removed: the renderer asks once the backend
 // said it may restart (POST /gpu/restart → ready).
 ipcMain.handle('restart-backend', async () => {
-  await restartBackend(savedHfToken())
+  await restartBackend()
 })
 
 app.whenReady().then(async () => {
@@ -320,7 +318,7 @@ app.whenReady().then(async () => {
 
   // Start the backend first so index.html loads with a ready API.
   try {
-    await startBackend(savedHfToken())
+    await startBackend()
   } catch (err) {
     dialog.showErrorBox('Sonorus — backend error', err instanceof BackendRefusedError
       ? err.message

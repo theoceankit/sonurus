@@ -1,6 +1,5 @@
 import fnmatch
 import multiprocessing
-import os
 import shutil
 import threading
 from asyncio import CancelledError
@@ -430,8 +429,9 @@ class ModelService:
         else:
             raise ValueError(f"Unknown model_id: {model_id!r}")
 
-    def _get_total_bytes(self, model_id: str) -> int:
-        """Query HF Hub API for the total expected download size.
+    def _get_total_bytes(self, model_id: str, token: str | bool = False) -> int:
+        """Query HF Hub API for the total expected download size, with the
+        download's token (False: no credentials at all).
 
         Falls back to the catalog's size_bytes estimate if the API call fails.
         For Whisper models, only counts files matching _WHISPER_ALLOW_PATTERNS.
@@ -442,7 +442,7 @@ class ModelService:
                 info = huggingface_hub.model_info(
                     entry["hf_repo"],
                     files_metadata=True,
-                    token=os.getenv("HF_TOKEN"),
+                    token=token,
                 )
                 return sum(
                     s.size for s in info.siblings
@@ -450,7 +450,7 @@ class ModelService:
                 )
             if model_id in ALIGNMENT_CATALOG:
                 hf_repo = ALIGNMENT_CATALOG[model_id]["hf_repo"]
-                info = huggingface_hub.model_info(hf_repo, files_metadata=True, token=os.getenv("HF_TOKEN"))
+                info = huggingface_hub.model_info(hf_repo, files_metadata=True, token=token)
                 wanted = set(_alignment_files(s.rfilename for s in info.siblings))
                 return sum(s.size for s in info.siblings if s.size and s.rfilename in wanted)
         except Exception:
@@ -462,7 +462,7 @@ class ModelService:
                     info = huggingface_hub.model_info(
                         repo,
                         files_metadata=True,
-                        token=os.getenv("HF_TOKEN"),
+                        token=token,
                     )
                     total += sum(s.size for s in info.siblings if s.size)
                 except Exception:
@@ -484,6 +484,7 @@ class ModelService:
         model_id: str,
         on_progress,
         cancel_event,
+        token: str | bool,
     ) -> tuple[threading.Event | None, threading.Thread | None]:
         """Start a background progress-polling thread. Returns (stop_event, thread) or (None, None)."""
         if on_progress is None:
@@ -492,7 +493,7 @@ class ModelService:
         _cancel = cancel_event if cancel_event is not None else threading.Event()
         t = threading.Thread(
             target=_poll_and_emit,
-            args=(dirs, lambda: self._get_total_bytes(model_id), on_progress, stop, _cancel),
+            args=(dirs, lambda: self._get_total_bytes(model_id, token), on_progress, stop, _cancel),
             daemon=True,
         )
         t.start()
@@ -506,7 +507,9 @@ class ModelService:
             t.join(timeout=2)
 
     def download_model(self, model_id: str, cancel_event=None, on_progress=None, hf_token: str | None = None) -> None:
-        token = hf_token or os.getenv("HF_TOKEN")
+        # Only the token of the request. False, not None: huggingface_hub would
+        # otherwise fall back to a token in the environment or a saved login.
+        token = hf_token or False
 
         if model_id in WHISPER_CATALOG:
             stop, poller = self._start_poller(
@@ -514,6 +517,7 @@ class ModelService:
                 model_id=model_id,
                 on_progress=on_progress,
                 cancel_event=cancel_event,
+                token=token,
             )
             try:
                 self._download_repo(self._cache_dir(model_id), dict(
@@ -532,6 +536,7 @@ class ModelService:
                 model_id=model_id,
                 on_progress=on_progress,
                 cancel_event=cancel_event,
+                token=token,
             )
             try:
                 for repo in DIARIZATION_CATALOG[model_id]["hf_repos"]:
@@ -551,6 +556,7 @@ class ModelService:
                 model_id=model_id,
                 on_progress=on_progress,
                 cancel_event=cancel_event,
+                token=token,
             )
             try:
                 self._download_repo(self._alignment_dir(hf_repo), dict(

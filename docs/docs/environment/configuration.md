@@ -43,7 +43,6 @@ Used when the backend is started manually (`uvicorn ...`) or set by `electron/ba
 
 | Variable | Default | Description |
 |---|---|---|
-| `HF_TOKEN` | — | HuggingFace token. In packaged/`npm start` mode, taken from `settings.hfToken`. In manual mode, load from `.env`. |
 | `SONORUS_DATA_DIR` | `.` (CWD) | Root directory for user data: models, database, audio, log. Set automatically to `app.getPath('userData')` when launched via Electron. |
 | `VERBOSE` | `false` | If `true`, ML library warnings are printed. Useful for debugging. |
 | `LOG_LEVEL` | `info` | Server log level: `debug`, `info`, `warning`, `error`, `off`. |
@@ -92,17 +91,9 @@ If a backend already answers on port 8000 when the app starts, Electron reuses i
 
 Live recordings end up in the `recordings/` of the backend in use: the backend records them itself and is the only writer of that folder.
 
-### .env file (dev only)
+### HuggingFace token
 
-When the backend is started manually (`uvicorn ...`), variables are loaded from `.env` via `python-dotenv`:
-
-```env
-HF_TOKEN=hf_your_token_here
-VERBOSE=false
-# DB_PATH=./speaker_memory.db   # override if needed
-```
-
-The `.env` file is **not used** when the backend is started by Electron — in that case all variables are set programmatically by `electron/backend.js`.
+The token is not a variable: it is entered in **Settings → API Keys** and sent with each model download request (`hf_token` of [`POST /models/{model_id}/download`](../api/endpoints.md#post-modelsmodel_iddownload)). The backend reads no `.env` file and no `HF_TOKEN`; a backend started by hand gets the token the same way, from the UI or in the body of the request. Set the variables above in the shell that starts it.
 
 ---
 

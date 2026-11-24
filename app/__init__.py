@@ -3,8 +3,7 @@
 Python runs this file before any app module, so the variables below are set
 before pyannote, whisperx or transformers is imported, in the backend and in
 every child process it spawns (which also inherits them). They are assigned,
-not defaulted: neither the user's environment nor a .env file (load_dotenv()
-keeps existing variables) can switch telemetry back on.
+not defaulted: the user's environment cannot switch telemetry back on.
 """
 import os
 

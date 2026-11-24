@@ -681,3 +681,91 @@ def test_cancel_after_a_refusal_does_not_retry_through_xet(tmp_path):
         with pytest.raises(CancelledError):
             svc.download_model("tiny", cancel_event=cancel)
     assert [xet for _repo, xet, _partial in attempts] == [False]
+
+
+# ---------------------------------------------------------------------------
+# HuggingFace token: only the one the download request carries
+# ---------------------------------------------------------------------------
+
+def _recording_snapshot(calls):
+    """A snapshot_download that records its token and completes the repo."""
+    def snapshot(repo, cache_dir, **kw):
+        calls.append(("snapshot", kw.get("token")))
+        cache = Path(cache_dir) / cache_dir_name(repo)
+        (cache / "refs").mkdir(parents=True, exist_ok=True)
+        (cache / "refs" / "main").write_text("abc123")
+    return snapshot
+
+
+def _recording_listing(calls):
+    def listing(repo, **kw):
+        calls.append(("listing", kw.get("token")))
+        return ["config.json", "vocab.json", "model.safetensors"]
+    return listing
+
+
+@pytest.mark.parametrize("model_id", ["tiny", "diarize", "ru"])
+def test_download_uses_the_token_of_the_request(tmp_path, monkeypatch, model_id):
+    from unittest.mock import patch
+    monkeypatch.setenv("HF_TOKEN", "hf_from_environment")
+    calls = []
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=_recording_snapshot(calls)), \
+         patch("app.services.model_service.huggingface_hub.list_repo_files", side_effect=_recording_listing(calls)):
+        ModelService(tmp_path / "whisper").download_model(model_id, hf_token="hf_from_request")
+    assert calls and all(token == "hf_from_request" for _call, token in calls)
+
+
+@pytest.mark.parametrize("model_id", ["tiny", "diarize", "ru"])
+def test_download_without_a_token_uses_no_credentials(tmp_path, monkeypatch, model_id):
+    """token=False keeps huggingface_hub from reading HF_TOKEN or a saved login."""
+    from unittest.mock import patch
+    monkeypatch.setenv("HF_TOKEN", "hf_from_environment")
+    calls = []
+    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=_recording_snapshot(calls)), \
+         patch("app.services.model_service.huggingface_hub.list_repo_files", side_effect=_recording_listing(calls)):
+        ModelService(tmp_path / "whisper").download_model(model_id)
+    assert calls and all(token is False for _call, token in calls)
+
+
+def test_download_progress_asks_the_size_with_the_token_of_the_request(tmp_path, monkeypatch):
+    import threading
+    from unittest.mock import patch
+    monkeypatch.setenv("HF_TOKEN", "hf_from_environment")
+    asked = threading.Event()
+    tokens = []
+
+    def model_info(repo, **kw):
+        tokens.append(kw.get("token"))
+        asked.set()
+        raise ConnectionError("offline")  # the catalog size stands in
+
+    record = _recording_snapshot([])
+
+    def snapshot(repo, cache_dir, **kw):
+        assert asked.wait(5), "the progress never asked the size"
+        record(repo, cache_dir, **kw)
+
+    with patch("app.services.model_service.huggingface_hub.model_info", side_effect=model_info), \
+         patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=snapshot):
+        ModelService(tmp_path / "whisper").download_model("tiny", on_progress=lambda _e: None, hf_token="hf_from_request")
+    assert tokens == ["hf_from_request"]
+
+
+@pytest.mark.parametrize("model_id", ["tiny", "diarize", "ru"])
+def test_size_without_a_token_uses_no_credentials(tmp_path, monkeypatch, model_id):
+    from unittest.mock import patch
+    monkeypatch.setenv("HF_TOKEN", "hf_from_environment")
+    tokens = []
+
+    def model_info(repo, **kw):
+        tokens.append(kw.get("token"))
+        raise ConnectionError("offline")
+
+    with patch("app.services.model_service.huggingface_hub.model_info", side_effect=model_info):
+        ModelService(tmp_path / "whisper")._get_total_bytes(model_id, token=False)
+    assert tokens and all(token is False for token in tokens)
+
+
+def test_model_service_does_not_read_hf_token_from_the_environment():
+    source = (Path(__file__).parent.parent / "app" / "services" / "model_service.py").read_text()
+    assert "HF_TOKEN" not in source
