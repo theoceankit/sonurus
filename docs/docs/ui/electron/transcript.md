@@ -15,7 +15,7 @@ EditorScreen → TranscriptPanel → TranscriptHeader
 
 ## Without speakers
 
-A transcript with `diarized: false` shows its paragraphs with no turn header, and the menu of a paragraph has no Change speaker. Copy transcript and [Export](#export) give the title and the paragraphs. The player has no speaker name over the time.
+A transcript with `diarized: false` shows its paragraphs with no turn header, and the menu of a paragraph has no Change speaker. Copy transcript and [Export](#export) give the title and the paragraphs. The player has no speaker name over the time. Such a recording is one turn; the list draws it in blocks of ten paragraphs with no gap between them (`listBlocks`), so the browser leaves out the blocks off screen as it does turns, and a selection over two blocks is still one quote.
 
 ## Turns and paragraphs
 

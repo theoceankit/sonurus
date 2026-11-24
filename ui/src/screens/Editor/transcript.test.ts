@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { UNASSIGNED, type Segment, type Speaker, type Transcript } from '../../api/types'
 import {
-  buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave, transcriptText, unknownSpeakerNames,
+  buildTurns, formatRecordingDate, languageLabel, listBlocks, PLAIN_BLOCK, recordingTitle, speakerMenuRows, talkTimes, titleToSave, transcriptText, unknownSpeakerNames,
 } from './transcript'
 
 const segment = (start: number, end: number, speaker: string | null, changes: Partial<Segment> = {}) => ({
@@ -160,4 +160,22 @@ test('transcriptText: a recording without speakers is the title and its paragrap
     { start: 2, end: 3, text: 'Two.', speaker_raw: 'UNKNOWN', speaker_resolved: null, speaker_final: null, unassigned: true },
   ], [])
   expect(transcriptText('Call', turns, false)).toBe('Call\n\nOne.\nTwo.')
+})
+
+describe('listBlocks', () => {
+  const plain = (count: number) => buildTurns(Array.from({ length: count }, (_, i) => segment(i * 2, i * 2 + 1, null, { unassigned: true })), [])
+
+  test('a recording without speakers is drawn in blocks of paragraphs, in order', () => {
+    const [turn] = plain(PLAIN_BLOCK * 2 + 3)
+    const blocks = listBlocks([turn], false)
+    expect(blocks.map(block => block.segments.length)).toEqual([PLAIN_BLOCK, PLAIN_BLOCK, 3])
+    expect(blocks.flatMap(block => block.segments)).toEqual(turn.segments)
+    expect(blocks.map(block => block.start)).toEqual(blocks.map(block => block.segments[0].start))
+    expect(blocks.every(block => block.speaker === turn.speaker)).toBe(true)
+  })
+
+  test('the turns of a recording with speakers stay as they are', () => {
+    const turns = buildTurns(Array.from({ length: PLAIN_BLOCK * 3 }, (_, i) => segment(i, i + 1, 'anna')), SPEAKERS)
+    expect(listBlocks(turns, true)).toBe(turns)
+  })
 })

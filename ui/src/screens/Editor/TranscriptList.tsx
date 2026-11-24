@@ -7,6 +7,7 @@ import { TurnHeader } from '../../components/TurnHeader/TurnHeader'
 import { useIsKey, type KeyStore } from '../../media/active-segment'
 import type { Playback } from '../../media/playback'
 import { formatClock } from '../../media/timeline'
+import { cx } from '../../styles/cx'
 import type { SpeakerColor } from '../../styles/speaker-colors'
 import type { TranscriptTurn, TurnSpeaker } from './transcript'
 import styles from './TranscriptPanel.module.css'
@@ -201,7 +202,7 @@ export const TranscriptList = memo(function TranscriptList({ turns, rows }: Tran
         aria-label="Transcript text"
         role="group"
         tabIndex={inside ? -1 : 0}
-        className={styles.list}
+        className={cx(styles.list, !rows.diarized && styles.plain)}
         onFocus={onFocus}
         onBlur={onBlur}
         onKeyDown={onKeyDown}

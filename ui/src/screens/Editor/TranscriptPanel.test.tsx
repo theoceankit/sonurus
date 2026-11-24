@@ -869,6 +869,22 @@ describe('a recording without speakers', () => {
     expect(screen.queryByRole('menuitem', { name: 'Change speaker' })).toBeNull()
   })
 
+  test('a long one is drawn in blocks without a speaker over any', async () => {
+    const base = createFixtureClient()
+    setup({
+      overrides: {
+        getTranscript: async id => {
+          const transcript = await base.getTranscript(id)
+          return { ...transcript, diarized: false, segments: longSegments().map(segment => ({ ...segment, speaker_resolved: null, speaker_final: null, unassigned: true })) }
+        },
+      },
+    })
+    const list = await screen.findByRole('group', { name: 'Transcript text' })
+    await waitFor(() => expect(list.querySelectorAll('[data-transcript-text]').length).toBe(longSegments().length))
+    expect(list.querySelectorAll('[data-speaker]').length).toBeGreaterThan(1)
+    expect(within(list).queryByText('Unassigned')).toBeNull()
+  })
+
   test('exports its paragraphs with no speaker', async () => {
     const saveExport = vi.fn(async (_request: ExportRequest): Promise<ExportResult> => ({ status: 'saved' }))
     const bridge = createMockElectronAPI({ saveExport })

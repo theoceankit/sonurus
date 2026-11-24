@@ -16,7 +16,7 @@ import type { Playback } from '../../media/playback'
 import type { ExportFormat } from '../../platform/electron-api'
 import { useLingering } from '../../presence'
 import {
-  buildTurns, formatRecordingDate, languageLabel, recordingTitle, speakerMenuRows, talkTimes, titleToSave, transcriptText,
+  buildTurns, formatRecordingDate, languageLabel, listBlocks, recordingTitle, speakerMenuRows, talkTimes, titleToSave, transcriptText,
 } from './transcript'
 import type { NoteQuote } from '../../components/NoteEditor/note-content'
 import type { RecordingToDelete } from './DeleteRecordingDialog'
@@ -125,6 +125,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
   const menu = lingeringMenu.value
 
   const turns = useMemo(() => buildTurns(segments, speakers), [segments, speakers])
+  const blocks = useMemo(() => listBlocks(turns, transcript.diarized), [turns, transcript.diarized])
   const times = useMemo(() => talkTimes(segments), [segments])
   const title = recordingTitle(transcript, listed?.title)
   const deleteRecording = () => onDelete?.({ id: transcriptId, title })
@@ -219,7 +220,7 @@ function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onD
             />
           </div>
           {segments.length === 0 && <div className={styles.noSpeech}>No speech in this recording</div>}
-          {segments.length > 0 && <TranscriptList turns={turns} rows={rows} />}
+          {segments.length > 0 && <TranscriptList turns={blocks} rows={rows} />}
           {selection && (
             <div
               ref={selectionBar}
