@@ -160,6 +160,7 @@ export function createFixtureClient({
   // Speaker handles as the backend keeps them: unique whatever the case, refused with a
   // code, made from the name in the handle format unless set by hand.
   let handleFormat: HandleFormat = 'first.last'
+  let mcpEnabled = false
   const takenHandles = (exclude?: string) => data.speakers.flatMap(s => (s.handle && s.id !== exclude ? [s.handle] : []))
   const autoHandle = (name: string, exclude?: string) => uniqueHandle(baseHandle(name, handleFormat), takenHandles(exclude))
   const checkHandle = (text: string, exclude?: string) => {
@@ -583,6 +584,11 @@ export function createFixtureClient({
       handleFormat = format
       return handleFormat
     }),
+    getMcpEnabled: () => answer(() => mcpEnabled),
+    setMcpEnabled: enabled => answer(() => {
+      mcpEnabled = enabled
+      return mcpEnabled
+    }),
     getSpeakerSample: (id, transcriptId) => answer(() => {
       speaker(id)
       // The recordings with all their segments first, as before the others had any.
@@ -626,6 +632,7 @@ export function createFixtureClient({
       data.details = []
       data.speakers = []
       data.candidates = {}
+      mcpEnabled = false
       return summary
     }),
     getGpuStatus: () => answer(() => gpu),

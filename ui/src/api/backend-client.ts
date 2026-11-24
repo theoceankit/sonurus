@@ -114,6 +114,8 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     }))).handle,
     getHandleFormat: async () => (await send(http.GET('/speakers/handle-format'))).format,
     setHandleFormat: async format => (await send(http.PUT('/speakers/handle-format', { body: { format } }))).format,
+    getMcpEnabled: async () => (await send(http.GET('/integrations/mcp'))).enabled,
+    setMcpEnabled: async enabled => (await send(http.PUT('/integrations/mcp', { body: { enabled } }))).enabled,
     getSpeakerSample: (speaker_id, transcript_id) => send(http.GET('/speakers/{speaker_id}/sample', {
       params: { path: { speaker_id }, query: { transcript_id } },
     })),

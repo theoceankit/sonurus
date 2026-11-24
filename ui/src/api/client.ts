@@ -83,6 +83,10 @@ export interface ApiClient {
   // How handles of speakers named from now on are made.
   getHandleFormat(): Promise<HandleFormat>
   setHandleFormat(format: HandleFormat): Promise<HandleFormat>
+  // Whether the MCP server at /mcp answers agents; the backend keeps it, off by default.
+  // A data reset turns it off.
+  getMcpEnabled(): Promise<boolean>
+  setMcpEnabled(enabled: boolean): Promise<boolean>
   getSpeakerSample(speakerId: string, transcriptId?: number): Promise<SpeakerSample>
   // The recordings the speaker talks in, newest first.
   listSpeakerTranscripts(speakerId: string): Promise<SpeakerTranscript[]>

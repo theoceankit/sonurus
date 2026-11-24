@@ -14,6 +14,7 @@ import { DataSection } from './DataSection'
 import { ExportSection } from './ExportSection'
 import { GeneralSection } from './GeneralSection'
 import { GpuSection } from './GpuSection'
+import { IntegrationsSection } from './IntegrationsSection'
 import { ModelsSection } from './ModelsSection'
 import { NotificationsSection } from './NotificationsSection'
 import { useGpu } from '../../settings/gpu'
@@ -38,6 +39,7 @@ const PANELS: Record<SettingsSection, ComponentType> = {
   notifications: NotificationsSection,
   gpu: GpuSection,
   apiKeys: ApiKeysSection,
+  integrations: IntegrationsSection,
   export: ExportSection,
   data: DataSection,
 }
