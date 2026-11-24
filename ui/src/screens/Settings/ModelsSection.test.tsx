@@ -13,7 +13,7 @@ import type { ElectronSettings } from '../../platform/electron-api'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { DEFAULT_SETTINGS } from '../../platform/settings'
 import { folderName } from './ModelsSection'
-import { findDialog, findTitlebarButton, getDialog, queryDialog } from '../../test-queries'
+import { findDialog, findTitlebarButton, getDialog, queryDialog, toasts } from '../../test-queries'
 
 afterEach(() => {
   dismissAllToasts()
@@ -29,12 +29,21 @@ async function setup(options: FixtureOptions = {}, saved: Partial<ElectronSettin
   return { client, bridge }
 }
 
+// A download in the fixture goes up in four steps, then GET /models is read again,
+// and each step renders the whole list again: about 300 ms here, past the default second
+// of waitFor on a slow CI runner. The tests that wait for a download to end allow longer.
+const DOWNLOAD_ENDS = { timeout: 3000 }
+
 const settings = () => getDialog('Settings')
 async function openSection(name: string) {
   await userEvent.click(await findTitlebarButton('Settings'))
   await userEvent.click(within(await findDialog('Settings')).getByRole('tab', { name }))
 }
-const row = (name: string) => within(settings()).getByRole('group', { name })
+// A row and a card by their label, and the folder link by its text: a role query
+// over the whole dialog costs about 30 ms in jsdom, several times that on CI, and
+// the download tests poll these on every change of the progress
+// (development.md, Tests of a whole screen). Buttons are queried by role inside a row.
+const row = (name: string) => within(settings()).getByLabelText(name, { selector: '[role="group"]' })
 const inRow = (name: string, button: string) => within(row(name)).queryByRole('button', { name: button })
 
 test('Models lists Whisper and diarization with what is installed and the one in use', async () => {
@@ -132,7 +141,7 @@ test('Alignment downloads a model', async () => {
   await setup({ installedModels: ['small', 'diarize'] })
   await openSection('Languages')
   await userEvent.click((await within(settings()).findByRole('group', { name: 'Czech' })).querySelector('button')!)
-  await waitFor(() => expect(inRow('Czech', 'Delete Czech')).toBeTruthy())
+  await waitFor(() => expect(inRow('Czech', 'Delete Czech')).toBeTruthy(), DOWNLOAD_ENDS)
 })
 
 test('the empty screen opens Settings on Models', async () => {
@@ -157,7 +166,7 @@ test('delete: a model no queued job needs goes at once, and the default moves on
   expect(alert()).toBeNull()
   expect(remove).toHaveBeenCalledWith('small')
   await waitFor(() => expect(inRow('Whisper Small', 'Download')).toBeTruthy())
-  expect(await screen.findByText('Whisper Large v3 is now the default transcription model')).toBeTruthy()
+  expect(await toasts().findByText('Whisper Large v3 is now the default transcription model')).toBeTruthy()
   await waitFor(async () => expect((await bridge.readSettings()).transcribeModel).toBe('large-v3'))
 })
 
@@ -225,7 +234,7 @@ test('delete: the alignment model of the default language sets it to Detect, wit
   const { bridge } = await setup({ installedModels: ['small', 'diarize', 'ru', 'uk'] }, { transcribeLang: 'ru' })
   await openSection('Languages')
   await userEvent.click(await within(settings()).findByRole('button', { name: 'Delete Russian' }))
-  expect(await screen.findByText('Default language changed to Detect automatically')).toBeTruthy()
+  expect(await toasts().findByText('Default language changed to Detect automatically')).toBeTruthy()
   await waitFor(async () => expect((await bridge.readSettings()).transcribeLang).toBe('auto'))
   await userEvent.click(within(settings()).getByRole('button', { name: 'Delete Ukrainian' }))
   await waitFor(() => expect(inRow('Ukrainian', 'Download')).toBeTruthy())
@@ -251,8 +260,8 @@ test('the diarization card says a HuggingFace token is needed, and API Keys open
 })
 
 // The cards whose description ends in the line of the models folder.
-const card = (name: string) => within(settings()).getByRole('region', { name })
-const folderLink = (name = 'Transcription') => within(card(name)).queryByRole('button', { name: '.models' })
+const card = (name: string) => within(settings()).getByLabelText(name, { selector: 'section' })
+const folderLink = (name = 'Transcription') => within(card(name)).queryByText('.models', { selector: 'button' })
 
 test('the Transcription card names the models folder, and the name opens it', async () => {
   const { bridge } = await setup({ installedModels: ['small', 'diarize'] })
@@ -290,7 +299,7 @@ test('the folder appears with the first download, and its name becomes a link', 
   await openSection('Models')
   await waitFor(() => expect(card('Transcription').textContent).toContain('will be kept'))
   await userEvent.click(inRow('Whisper Tiny', 'Download')!)
-  await waitFor(() => expect(folderLink()).toBeTruthy())
+  await waitFor(() => expect(folderLink()).toBeTruthy(), DOWNLOAD_ENDS)
 })
 
 test('a folder that does not open is said in a toast with the reason', async () => {
@@ -299,7 +308,7 @@ test('a folder that does not open is said in a toast with the reason', async () 
   await openSection('Models')
   await waitFor(() => expect(folderLink()).toBeTruthy())
   await userEvent.click(folderLink()!)
-  expect(await screen.findByText('Could not open the models folder: Failed to open path')).toBeTruthy()
+  expect(await toasts().findByText('Could not open the models folder: Failed to open path')).toBeTruthy()
 })
 
 test('Languages names the models folder the same way, and the name opens it', async () => {

@@ -7,11 +7,11 @@ import { EVENT_SCRIPTS } from './api/fixtures/event-scripts'
 import { createFixtureClient } from './api/fixtures/fixture-client'
 import { App } from './App'
 import { OverlayProvider } from './OverlayProvider'
+import { toasts } from './test-queries'
 
 // The toasts, and the rows open, found inside their own part of the app: a role
 // query over the whole app costs a quarter of a second in jsdom, too much to poll
 // with (development.md, Tests of a whole screen).
-const toasts = () => within(screen.getByLabelText(/^Notifications/))
 const currentRows = () => [...document.querySelectorAll('button[aria-current="true"]')]
 
 test('says so while the backend is away, and stops when it is back', async () => {
