@@ -7,6 +7,9 @@ export interface ExportSource {
   title: string
   language: string
   turns: readonly TranscriptTurn[]
+  // False for a recording transcribed without speakers: its paragraphs go alone, with
+  // no turn heads, and JSON has speaker null.
+  diarized?: boolean
   // The note as Markdown, null for a recording without one. Left out, notes are not exported.
   note?: string | null
 }
@@ -23,28 +26,28 @@ const labelOf = (speaker: TurnSpeaker, as: ExportSpeakerLabel = 'name') => (as =
 
 const blocks = (...parts: (string | null | undefined | false)[]) => `${parts.filter(Boolean).join('\n\n')}\n`
 
-function exportText({ title, turns, note }: ExportSource, { timestamps, speakers, speakerLabel }: ExportOptions): string {
+function exportText({ title, turns, note, diarized = true }: ExportSource, { timestamps, speakers, speakerLabel }: ExportOptions): string {
   const body = turns.map(turn => {
-    const head = [speakers && labelOf(turn.speaker, speakerLabel), timestamps && formatClock(turn.start)].filter(Boolean).join(' ')
+    const head = diarized && [speakers && labelOf(turn.speaker, speakerLabel), timestamps && formatClock(turn.start)].filter(Boolean).join(' ')
     return [...(head ? [head] : []), ...turn.segments.map(segment => segment.text)].join('\n')
   })
   return blocks(title, ...body, note && `Notes\n\n${note}`)
 }
 
 // A paragraph of Markdown ends at an empty line: one line each would run together.
-function exportMarkdown({ title, turns, note }: ExportSource, { timestamps, speakers, speakerLabel }: ExportOptions): string {
+function exportMarkdown({ title, turns, note, diarized = true }: ExportSource, { timestamps, speakers, speakerLabel }: ExportOptions): string {
   const body = turns.flatMap(turn => {
-    const head = [speakers && `**${labelOf(turn.speaker, speakerLabel)}**`, timestamps && `[${formatClock(turn.start)}]`].filter(Boolean).join(' ')
+    const head = diarized && [speakers && `**${labelOf(turn.speaker, speakerLabel)}**`, timestamps && `[${formatClock(turn.start)}]`].filter(Boolean).join(' ')
     return [...(head ? [head] : []), ...turn.segments.map(segment => segment.text)]
   })
   return blocks(`# ${title}`, ...body, note && `# Notes\n\n${note}`)
 }
 
-// A switched-off option takes its fields out; "note" is there only with notes on.
-function exportJson({ title, language, turns, note }: ExportSource, { timestamps, speakers, speakerLabel }: ExportOptions): string {
+// A switched-off option takes its fields out, speaker is null without speakers; "note" is there only with notes on.
+function exportJson({ title, language, turns, note, diarized = true }: ExportSource, { timestamps, speakers, speakerLabel }: ExportOptions): string {
   const segments = turns.flatMap(turn => turn.segments.map(segment => ({
     ...(timestamps && { start: segment.start, end: segment.end }),
-    ...(speakers && { speaker: labelOf(turn.speaker, speakerLabel) }),
+    ...(speakers && { speaker: diarized ? labelOf(turn.speaker, speakerLabel) : null }),
     text: segment.text,
   })))
   return `${JSON.stringify({ title, language, segments, ...(note !== undefined && { note }) }, null, 2)}\n`

@@ -85,6 +85,38 @@ describe('json', () => {
   })
 })
 
+describe('a recording without speakers', () => {
+  const quiet = [segment(3, 'Or is it right?', { unassigned: true }), segment(65, 'It is.', { unassigned: true })]
+  const plain: ExportSource = { title: 'Call', language: 'en', turns: buildTurns(quiet, speakers), diarized: false }
+  const byHandle = { ...all, speakerLabel: 'handle' as const }
+
+  test('txt has the paragraphs alone, as Copy transcript', () => {
+    expect(exportContents(plain, all).txt).toBe('Call\n\nOr is it right?\nIt is.\n')
+    expect(exportContents(plain, all).txt).toBe(`${transcriptText(plain.title, plain.turns, false)}\n`)
+  })
+
+  test('md has the paragraphs alone', () => {
+    expect(exportContents(plain, all).md).toBe('# Call\n\nOr is it right?\n\nIt is.\n')
+  })
+
+  test('json keeps the times and has no speaker: null', () => {
+    const rows = JSON.parse(exportContents(plain, byHandle).json).segments
+    expect(rows).toEqual([
+      { start: 3, end: 5, speaker: null, text: 'Or is it right?' },
+      { start: 65, end: 67, speaker: null, text: 'It is.' },
+    ])
+    expect(JSON.parse(exportContents(plain, { timestamps: true, speakers: false }).json).segments[0]).toEqual({ start: 3, end: 5, text: 'Or is it right?' })
+  })
+
+  test('the settings for time and speakers change nothing in txt and md', () => {
+    for (const options of [all, byHandle, { timestamps: true, speakers: false }, { timestamps: false, speakers: true }]) {
+      const { txt, md } = exportContents(plain, options)
+      expect(txt).toBe('Call\n\nOr is it right?\nIt is.\n')
+      expect(md).toBe('# Call\n\nOr is it right?\n\nIt is.\n')
+    }
+  })
+})
+
 describe('speakers by handle', () => {
   const byHandle = { ...all, speakerLabel: 'handle' as const }
 
