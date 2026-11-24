@@ -122,8 +122,8 @@ npm --prefix ui run storybook   # component catalog at http://localhost:6006
 
 Details: [Electron UI](docs/docs/ui/electron/overview.md).
 
-To run the backend alone (API work), put the token in `.env` (`cp .env.example .env`, set `HF_TOKEN`)
-and start:
+To run the backend alone (API work), start it as below. It reads no `.env`: model downloads take the
+HuggingFace token in the request, and the UI sends the one from Settings → API Keys.
 
 ```bash
 .venv/bin/uvicorn app.api.main:app --host 127.0.0.1 --port 8000

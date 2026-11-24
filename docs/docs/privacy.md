@@ -45,7 +45,7 @@ loads (`app.disable_onnxruntime_telemetry()`; a no-op on macOS and Linux).
 The variables are set in `app/__init__.py`, which Python runs before any other backend module — so before
 pyannote, WhisperX or Transformers is imported — in the backend and in every child process it starts
 (the pipeline, model downloads), which also inherit them. The values are assigned, not defaulted:
-setting these variables in your environment or in `.env` cannot turn telemetry back on.
+setting these variables in your environment cannot turn telemetry back on.
 
 `tests/test_telemetry.py` covers this, and `scripts/check-bundled-imports.js` checks it on the
 bundled backend of every installer build.

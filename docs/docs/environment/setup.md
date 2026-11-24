@@ -100,15 +100,7 @@ npm run build:capture
 
 The binary is placed at `electron/resources/mac/sonorus-capture` and picked up automatically at runtime.
 
-Set the HuggingFace token via **Settings → API Keys** in the UI. It is stored in `settings.json` and passed to the backend as `HF_TOKEN` at startup.
-
-Alternatively, create a `.env` file for the backend (loaded by `python-dotenv`):
-```env
-HF_TOKEN=hf_your_token_here
-VERBOSE=false
-```
-
-> **Note:** The `.env` file is loaded only when the backend is started manually (`uvicorn ...`). When started via Electron (`npm start`), the token comes from Settings.
+Set the HuggingFace token via **Settings → API Keys** in the UI. It is stored in `settings.json` and sent with each model download request, also to a backend started by hand with `uvicorn`; there is no `.env` file. Downloading the diarization model needs it; transcription itself runs offline.
 
 The UI in `ui/` has its own commands: [Electron UI](../ui/electron/overview.md#running-in-dev-mode).
 

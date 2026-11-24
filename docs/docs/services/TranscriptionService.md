@@ -118,5 +118,5 @@ The exclusive diarization is returned for the voice embeddings: its spans hold o
 
 ## Requirements
 
-- HuggingFace token in `.env` (`HF_TOKEN`) — required for downloading PyAnnote diarization models, and not for a job without diarization
+- HuggingFace token in Settings → API Keys — required for downloading the PyAnnote diarization model, and not for a job without diarization; transcription runs offline
 - Any audio/video file `ffmpeg` can decode — `whisperx.load_audio()` resamples it to 16 kHz mono

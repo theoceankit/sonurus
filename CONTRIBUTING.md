@@ -48,7 +48,8 @@ npm start
 
 This starts the backend as well. A development build keeps its data in `~/.config/sonorus-dev`
 (Linux; Electron's `userData` on other platforms), separate from an installed Sonorus. To run the
-backend alone, for API work (it reads the token from `.env`: `cp .env.example .env`, set `HF_TOKEN`):
+backend alone, for API work (model downloads take the HuggingFace token in the request: the UI sends the
+one from Settings → API Keys):
 
 ```bash
 .venv/bin/uvicorn app.api.main:app --host 127.0.0.1 --port 8000

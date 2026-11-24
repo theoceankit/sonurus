@@ -23,7 +23,6 @@ pandas==3.0.2
 
 fastapi==0.136.1
 uvicorn[standard]==0.46.0
-python-dotenv==1.2.2
 httpx==0.28.1
 
 # Xet fallback of model downloads (app/services/model_service.py). huggingface-hub

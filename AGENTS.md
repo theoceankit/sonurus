@@ -21,8 +21,9 @@ npm ci
 npm --prefix ui ci && npm run build:ui
 ```
 
-Transcribing needs a HuggingFace token with access to the gated PyAnnote models: `npm start` takes it
-from Settings → API Keys, a backend started with uvicorn from `HF_TOKEN` in `.env` (see `.env.example`).
+Downloading the gated PyAnnote diarization model needs a HuggingFace token with access to it, entered in
+Settings → API Keys. The UI sends it with each download request, also to a backend started with uvicorn;
+the backend reads no `.env` and no `HF_TOKEN`. Transcription itself runs offline.
 
 Unit tests need none of the ML libraries or a token — see [Tests](#tests).
 
@@ -106,7 +107,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | Queue and pipeline | `transcription_queue.py`, `transcription_job.py`, `pipeline_process.py` | `docs/docs/services/TranscriptionQueue.md`, `PipelineProcess.md` |
 | Data model and DB schema | `app/models/`, `TranscriptStorageService`, `SpeakerMemoryService`, `JobStore` | `docs/docs/data-models.md` |
 | Lifecycles and invariants | — | `docs/docs/system/state-machine.md`, `docs/docs/system/invariants.md` |
-| Config and environment | `app/config.py`, `.env` | `docs/docs/environment/configuration.md` |
+| Config and environment | `app/config.py` | `docs/docs/environment/configuration.md` |
 | Electron main process | `electron/main.js`, `backend.js`, `backend-identity.js`, `gpu-pack.js`, `preload.js` | `docs/docs/ui/electron/overview.md` |
 | UI | `ui/`, screens in `ui/src/screens/`, what the window loads in `electron/ui-entry.js`, its frame in `electron/window-chrome.js` | `docs/docs/ui/electron/overview.md` |
 | Data: API client, fixtures, generated types | `ui/src/api/`, `ui/src/platform/`, `ui/tools/openapi-types/`, `app/api/openapi_schema.py` | `docs/docs/ui/electron/data.md` |

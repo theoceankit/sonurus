@@ -1944,9 +1944,7 @@ python-dateutil==2.9.0.post0 \
 python-dotenv==1.2.2 \
     --hash=sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a \
     --hash=sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3
-    # via
-    #   -r requirements.packaged.txt
-    #   uvicorn
+    # via uvicorn
 pytorch-lightning==2.6.1 \
     --hash=sha256:1f8118567ec829e3055f16cf1aa320883a86a47c836951bfd9dcfa34ec7ffd59 \
     --hash=sha256:ba08f8901cf226fcca473046ad9346f414e99117762dc869c76e650d5b3d7bdc

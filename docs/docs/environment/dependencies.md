@@ -15,9 +15,9 @@ All models are downloaded via HuggingFace Hub and cached in `~/.cache/huggingfac
 | Model | HuggingFace ID | Size | License | Access |
 |---|---|---|---|---|
 | Whisper large-v3 (CTranslate2) | `Systran/faster-whisper-large-v3` | ~3.1 GB | MIT | Public |
-| Speaker Diarization | `pyannote/speaker-diarization-community-1` | ~34 MB | CC-BY-4.0 | **Gated** — requires HF_TOKEN |
+| Speaker Diarization | `pyannote/speaker-diarization-community-1` | ~34 MB | CC-BY-4.0 | **Gated** — requires a HuggingFace token |
 | Speaker Embedding (speaker memory) | `embedding` subfolder of `pyannote/speaker-diarization-community-1` — WeSpeaker ResNet34-LM | (included above) | CC-BY-4.0 | Comes with diarization |
-| Voice Activity Detection | `pyannote/segmentation` | ~20 MB | MIT | **Gated** — requires HF_TOKEN |
+| Voice Activity Detection | `pyannote/segmentation` | ~20 MB | MIT | **Gated** — requires a HuggingFace token |
 | Alignment EN | `facebook/wav2vec2-base-960h` | ~378 MB | Apache 2.0 | Public |
 | Alignment FR, DE, ES, IT | `facebook/wav2vec2-base-10k-voxpopuli-ft-{fr,de,es,it}` | ~378 MB each | CC-BY-NC-4.0 | Public |
 | Alignment RU | `jonatasgrosman/wav2vec2-large-xlsr-53-russian` | ~1.2 GB | Apache 2.0 | Public |
@@ -31,9 +31,9 @@ All models are downloaded via HuggingFace Hub and cached in `~/.cache/huggingfac
 The gated PyAnnote models require:
 1. A registered account at [huggingface.co](https://huggingface.co)
 2. Accepting the terms of use on each model's page
-3. A valid `HF_TOKEN` in `.env`
+3. The token of that account in **Settings → API Keys**
 
-Without a token, loading will fail with `401 Unauthorized`.
+Without a token, the download fails with `no_token`.
 
 ---
 

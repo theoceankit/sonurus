@@ -21,13 +21,6 @@ LOG_LEVEL=off uvicorn app.api.main:app --port 8000
 LOG_FILE=app.log uvicorn app.api.main:app --port 8000
 ```
 
-Or add to `.env` to persist the setting:
-
-```env
-LOG_LEVEL=off   # silence all app logs
-LOG_LEVEL=debug # verbose app logs
-```
-
 ---
 
 ## Log levels
