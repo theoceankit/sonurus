@@ -1,7 +1,9 @@
 """Transcript DB schema management: creation and versioned migrations."""
 import uuid
 
-SCHEMA_VERSION = 10
+from app.db import search_index
+
+SCHEMA_VERSION = 11
 
 
 def init_db(conn) -> None:
@@ -145,6 +147,13 @@ def _run_migrations(conn, current: int) -> None:
         if "diarized" not in txn_cols:
             conn.execute("ALTER TABLE transcriptions ADD COLUMN diarized INTEGER NOT NULL DEFAULT 1")
         conn.execute("UPDATE _ts_schema_version SET version = 10")
+        current = 10
+    if current < 11:
+        # Full-text search of segments, titles and notes. Filled from the data
+        # already there; rebuild() replaces what a crashed run left half done.
+        search_index.create(conn)
+        search_index.rebuild(conn)
+        conn.execute("UPDATE _ts_schema_version SET version = 11")
 
 
 def _assign_raw_speakers(conn) -> None:
