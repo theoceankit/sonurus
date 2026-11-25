@@ -571,6 +571,52 @@ Deletes one segment, then calls `recompute_or_remove()` for its speaker (same ru
 
 ---
 
+## Search
+
+### `GET /search`
+
+Recordings found by the text of their segments, their title (the audio file's name when they have none) and their note ([SearchService](../services/SearchService.md)). The MCP server's search tool and the app's search use it.
+
+| Parameter | |
+|---|---|
+| `q` | The query, required. See below. |
+| `speaker` | The handle of a named speaker, with or without `@`, in any case: only their segments, and titles and notes only of recordings they speak in. |
+| `from`, `to` | `YYYY-MM-DD`, inclusive, compared with the local date of `created_at` (the time the transcript was saved). |
+| `recording_id` | Only this recording; `offset` then pages through its hits instead of through recordings. |
+| `limit` | Recordings per page, 1–100, default 20. |
+| `offset` | Recordings to skip (hits to skip with `recording_id`), default 0. |
+| `hits_per_recording` | Hits returned per recording, 1–50, default 3. |
+
+**Query.** Words side by side must all be found. `AND`, `OR` and `NOT` in capitals are operators; in lowercase they are words. Parentheses group: `(budget OR estimate) AND november`. `"a phrase"` is found word for word. Every word is found by its beginning (`budget` finds `budgets` and `budgetary`), with no other forms of a word: `бюджета` does not find `бюджет`, search for the shorter stem. Case does not matter and Ё is Е. A match lies within one segment, one title or one block of a note (a paragraph, heading or list item); a phrase split between two segments is not found.
+
+```json
+{
+  "total_hits": 6,
+  "total_recordings": 3,
+  "recordings": [
+    {
+      "recording_id": 12, "title": "Weekly sync", "created_at": "2026-11-12T15:30:00",
+      "duration_sec": 3540.2, "hit_count": 3,
+      "hits": [
+        { "kind": "segment", "start": 10.0, "end": 14.0,
+          "speaker_id": "4f9c0c1e-…", "speaker_name": "Maria", "speaker_handle": "maria", "unassigned": false,
+          "snippet": "We went over the budget and the estimate", "highlights": [[17, 23]] },
+        { "kind": "note", "start": null, "end": null,
+          "speaker_id": null, "speaker_name": null, "speaker_handle": null, "unassigned": false,
+          "snippet": "Agree the budget with Peter", "highlights": [[10, 16]] }
+      ]
+    }
+  ],
+  "speakers": [ { "id": "4f9c0c1e-…", "name": "Maria", "handle": "maria" } ]
+}
+```
+
+- Recordings come newest first; the hits of a recording in its order: the title, the segments by time, then the note's blocks. `hit_count` counts every hit of the recording, `total_hits` and `total_recordings` every hit and recording of the search, not only those on the page.
+- `kind` is `title`, `segment` or `note`. A segment hit has its time and speaker; an unnamed speaker has an id and no name, a segment of no speaker is `unassigned` with no id. A note hit is one block of the note, with a speaker mention read as the speaker's name now and a timecode as `[12:34]`.
+- `snippet` is the text as written; one longer than 30 words is cut to 30 words around the first match, with `…` where it was cut. `highlights` are `[start, end)` positions of the matches in `snippet`.
+- `speakers` lists named speakers (at most 10) with a word of their name, or their handle, starting with a word the query looks for, whether or not anything was found: the app offers them as a filter.
+- `400` with a one-line `detail` saying what to fix for a query that cannot be searched (empty, shorter than two characters, an unclosed quote or parenthesis, an operator without words on both sides, a query of `NOT` only), an unknown handle or a wrong date; `404` for an unknown `recording_id`; `422` for a limit out of range.
+
 ## Speakers
 
 ### `GET /speakers`

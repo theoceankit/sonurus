@@ -121,6 +121,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | Notes: the note of a recording, its editor, saving, expanded view, Copy notes | `ui/src/screens/Editor/EditorNotes.tsx`, `note-autosave.ts`, `useNotesSaver.ts`, `ui/src/components/NoteEditor/`, `NotesPanel/`, `ui/src/platform/before-close.ts`, `electron/window-closing.js`, `electron/links.js` | `docs/docs/ui/electron/notes.md` |
 | Tokens, font, icons, overlays | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/` | `docs/docs/ui/electron/foundations.md` |
 | Development: data, isolated checks, restarts, test pitfalls | `scripts/dev-ui.js`, `ui/vite.config.ts`, `ui/src/test-setup.ts` | `docs/docs/ui/electron/development.md` |
+| Search: the full-text index, the query language, `GET /search` | `app/db/search_index.py`, `app/services/search_query.py`, `search_service.py`, `note_text.py` | `docs/docs/services/SearchService.md` |
 | Live recording | `app/api/routers/audio_capture.py`, `native/`, `ui/src/recording/` | `docs/docs/ui/electron/live-recording.md` |
 | Packaging and releases | `scripts/bundle-backend.js`, `locks/`, `build/` | `docs/docs/distribution/` |
 

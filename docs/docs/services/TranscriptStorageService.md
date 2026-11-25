@@ -10,6 +10,7 @@ Used in two scenarios:
 - **Write** — after the transcription pipeline (`save`)
 - **Read** — when opening past recordings from the sidebar (`load`, `list_all`) and when assigning speakers (`set_segments_speaker`)
 - **Notes** — the note of a recording (`get_note`, `save_note`, `delete_note`)
+- **Search index** — keeps the full-text index of segments, titles and notes in step with every write (see [Search index](#search-index))
 - **Speakers section** — usage statistics, a speaker's transcripts and voice-sample candidates (`speaker_stats`, `transcripts_for_speaker`, `speaker_segments`), detaching a deleted speaker (`unassign_speaker`) and moving a merged one (`move_speaker`)
 
 ---
@@ -74,7 +75,30 @@ CREATE TABLE notes (                                                    -- schem
 
 `speaker_matches` — one row per speaker that `resolve()` recognized from memory when the transcript was made: `score` is the similarity of the match, `confirmed` is `1` once the user confirmed the speaker as a possible match. Speakers assigned by hand have no row, and nothing else writes one, so the similarity is never worked out again later (by then the profile contains this recording).
 
+`search_segments`, `search_titles`, `search_notes` — the full-text search index (schema v11), see [Search index](#search-index).
+
 `notes` — the note of a recording: `content` is the editor's document as JSON (see [Note](../data-models.md#note)), `format` its version. At most one note per transcript. A note has its own `id` and `transcription_id` may be `NULL`, so a note can exist before its transcript does; today every note has a transcript. An empty note has no row.
+
+---
+
+## Search index
+
+Three SQLite FTS5 tables (`app/db/search_index.py`, schema v11), read by [SearchService](SearchService.md):
+
+```sql
+CREATE VIRTUAL TABLE search_segments USING fts5(text, tokenize='unicode61');            -- rowid = segments.id
+CREATE VIRTUAL TABLE search_titles   USING fts5(text, shown UNINDEXED, tokenize='unicode61');  -- rowid = transcriptions.id
+CREATE VIRTUAL TABLE search_notes    USING fts5(text, shown UNINDEXED,
+                                                transcription_id UNINDEXED, block UNINDEXED,
+                                                tokenize='unicode61');                 -- one row per block of a note
+```
+
+`text` is what is searched, with Ё written as Е (`normalize()`), so that one finds the other; `shown` is the text as it is. Both have the same length, so a position found in one holds in the other. The `unicode61` tokenizer ignores case, Cyrillic included.
+
+- **Segments** are kept by triggers on `segments` (`AFTER INSERT`, `AFTER UPDATE OF text`, `AFTER DELETE`), whoever writes them: the pipeline's `save()`, a text edit, a deleted segment or recording. A segment's speaker is not indexed; search reads it from `segments`.
+- **Titles** hold the title a recording shows: its own, or the audio file's name without the extension. Written by `save()` and `update_title()`, removed by `delete()`.
+- **Notes** hold one row per text block (paragraph, heading, the paragraph of a list item or quote), as `app/services/note_text.py` reads the document: a speaker mention is the speaker's display name now (from `speaker_names` in the same database; the mention's `label` without one), a person mention its label, a timecode `[12:34]`. Written by `save_note()`, `rewrite_note_mentions()` and `reindex_notes_mentioning()`, removed by `delete_note()` and `delete()`.
+- `clear()` empties all three. The v11 migration fills them from the data already stored (`rebuild()`, about 2 s for 1000 hours of recordings); a migration that ran again after a crash replaces what it left.
 
 ---
 
@@ -82,7 +106,7 @@ CREATE TABLE notes (                                                    -- schem
 
 ### `save(transcript) → int`
 
-Inserts a row into `transcriptions`, all segments into `segments` (an `unassigned` segment is stored with `speaker_id = NULL`) and `transcript.match_scores` into `speaker_matches`. Sets `transcript.db_id`. Returns the new `id`.
+Inserts a row into `transcriptions`, all segments into `segments` (an `unassigned` segment is stored with `speaker_id = NULL`), `transcript.match_scores` into `speaker_matches` and the title into the search index. Sets `transcript.db_id`. Returns the new `id`.
 
 ```python
 db_id = TranscriptStorageService().save(transcript)
@@ -140,7 +164,7 @@ TranscriptStorageService().set_segments_speaker(42, [(12.4, 17.8), (17.8, 20.1)]
 
 ### `update_title(db_id, title) → bool`
 
-Sets `transcriptions.title`. Returns `False` if no transcript has that id. Feeds `PATCH /transcripts/{id}`.
+Sets `transcriptions.title` and indexes it for search. Returns `False` if no transcript has that id. Feeds `PATCH /transcripts/{id}`.
 
 ---
 
@@ -194,19 +218,25 @@ The note of a transcript as `{"content": dict, "updated_at": str}`, or `None` wh
 
 ### `save_note(db_id, content) → bool`
 
-Stores the editor's document as the transcript's note, replacing the one it had (`updated_at` changes, `created_at` stays). Returns `False` if the transcript does not exist.
+Stores the editor's document as the transcript's note, replacing the one it had (`updated_at` changes, `created_at` stays), and indexes its blocks for search. Returns `False` if the transcript does not exist.
 
 ---
 
 ### `delete_note(db_id)`
 
-Deletes the transcript's note, if it has one.
+Deletes the transcript's note, if it has one, and its blocks in the search index.
+
+---
+
+### `reindex_notes_mentioning(speaker_id)`
+
+Indexes again the notes that mention a speaker, so that a mention is found by the name the speaker has now. Called after a speaker's name changes (`PATCH /speakers/{id}`, `POST /speakers/{id}/rename`) and by `CommitService.merge_speaker()` for the speaker kept, who may take the merged one's name.
 
 ---
 
 ### `delete(db_id)`
 
-Deletes a transcription, all its segments, its `speaker_matches` rows and its note.
+Deletes a transcription, all its segments, its `speaker_matches` rows and its note, and everything of it in the search index.
 
 ---
 
@@ -218,7 +248,7 @@ Number of transcriptions whose `audio_file` equals the given path. `DELETE /tran
 
 ### `clear() → int`
 
-Deletes every transcription, segment, `speaker_matches` row and note in one transaction and returns the number of transcriptions removed. Schema tables are kept. Used only by `POST /data/reset`.
+Deletes every transcription, segment, `speaker_matches` row, note and search index row in one transaction and returns the number of transcriptions removed. Schema tables are kept. Used only by `POST /data/reset`.
 
 ---
 
@@ -260,7 +290,7 @@ Returns the embeddings of the diarization turns a speaker owns, grouped by trans
 
 ### `_init_db()`
 
-Creates tables if they do not exist and runs the versioned migrations in `app/db/schema.py` (tracked in `_ts_schema_version`): v1 base tables + `status`, v2 `segments.embedding`, v3 `transcriptions.title`, v4 indexes, v5 `segments.unassigned`, v6 UUIDs for stored raw diarization labels (`UNKNOWN` rows become unassigned), v7 `transcriptions.opened`, set on every transcript that existed before it so that a library does not show as new all at once, v8 `speaker_matches`, empty for transcripts that existed before it. v10 adds `transcriptions.diarized`.
+Creates tables if they do not exist and runs the versioned migrations in `app/db/schema.py` (tracked in `_ts_schema_version`): v1 base tables + `status`, v2 `segments.embedding`, v3 `transcriptions.title`, v4 indexes, v5 `segments.unassigned`, v6 UUIDs for stored raw diarization labels (`UNKNOWN` rows become unassigned), v7 `transcriptions.opened`, set on every transcript that existed before it so that a library does not show as new all at once, v8 `speaker_matches`, empty for transcripts that existed before it. v10 adds `transcriptions.diarized`, v11 the search index, filled from the data already stored.
 
 ---
 
