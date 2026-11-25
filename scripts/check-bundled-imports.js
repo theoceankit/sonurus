@@ -27,6 +27,8 @@ const BUNDLED_IMPORTS = [
   'app.services.transcription_service',
   'app.services.embedding_service',
   'app.gpu_probe',
+  'app.mcp.server',
+  'mcp.server.mcpserver',
   'whisperx',
   'whisperx.asr',
   'whisperx.alignment',

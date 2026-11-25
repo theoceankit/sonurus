@@ -135,3 +135,13 @@
   border-radius: var(--radius-sm);
   outline: var(--border-width-focus) solid var(--color-focus);
 }
+
+/* An address or a command to copy, wrapped anywhere rather than cut. */
+.connectValue {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text-primary);
+  font: var(--font-body);
+  overflow-wrap: anywhere;
+  user-select: text;
+}

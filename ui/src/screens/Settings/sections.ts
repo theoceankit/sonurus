@@ -10,6 +10,7 @@ export const SECTIONS = [
   { id: 'audio', label: 'Audio devices', icon: 'microphone' },
   { id: 'notifications', label: 'Notifications', icon: 'notification' },
   { id: 'apiKeys', label: 'API Keys', icon: 'api-keys' },
+  { id: 'integrations', label: 'Integrations', icon: 'link' },
   { id: 'export', label: 'Export', icon: 'export' },
   { id: 'data', label: 'Data', icon: 'privacy' },
 ] as const satisfies readonly { id: string; label: string; icon: IconName }[]

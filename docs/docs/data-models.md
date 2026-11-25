@@ -115,6 +115,12 @@ Blocks: `paragraph`, `heading` (levels 1–3), `bulletList`, `orderedList`, `tas
 
 ---
 
+## Backend settings
+
+Settings the backend needs itself, such as the switch of the [MCP server](api/mcp.md), are rows of `app_settings` (`key`, `value`), kept by [AppSettings](services/AppSettings.md) outside the versioned schema. Delete all data clears them.
+
+---
+
 ## Object lifecycle
 
 ```

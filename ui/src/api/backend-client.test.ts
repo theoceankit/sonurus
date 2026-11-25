@@ -67,6 +67,16 @@ describe('speaker handles', () => {
     ])
   })
 
+  test('the MCP server switch: GET and PUT', async () => {
+    const { client, sent } = setup(() => json({ enabled: true }))
+    expect(await client.getMcpEnabled()).toBe(true)
+    expect(await client.setMcpEnabled(true)).toBe(true)
+    expect(sent.map(({ url, method, body }) => [method, url, body])).toEqual([
+      ['GET', 'http://localhost:8000/integrations/mcp', undefined],
+      ['PUT', 'http://localhost:8000/integrations/mcp', { enabled: true }],
+    ])
+  })
+
   test('creates a speaker by name', async () => {
     const speaker = { id: 'n', name: 'Dana', handle: 'dana', handle_manual: false, color_index: 2, photo: null, segments: 0, transcripts: 0, duration_sec: 0, last_seen: '' }
     const { client, sent } = setup(() => json(speaker, 201))

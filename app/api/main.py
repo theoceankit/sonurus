@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.routing import Route
 
 _verbose = os.getenv("VERBOSE", "false").lower() == "true"
 if not _verbose:
@@ -10,11 +11,14 @@ if not _verbose:
     suppress_ml_noise("startup")
 
 from app.logger import get_logger, setup_logging
-from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data, gpu
+from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data, gpu, integrations
 from app.api.refusals import Refusal, refusal_handler
 from app.api.dependencies import (
-    get_live_recording_service, get_memory_service, get_mic_activity_service, get_storage_service, get_transcription_queue,
+    get_app_settings, get_live_recording_service, get_memory_service, get_mic_activity_service, get_storage_service,
+    get_transcription_queue,
 )
+from app.mcp.server import McpEndpoint, build_server
+from app.services.app_settings import MCP_ENABLED
 from app.services.audio_store import remove_orphan_imports, remove_orphan_levels
 from app.services.commit_service import CommitService
 from app.services.speaker_photos import remove_orphan_photos
@@ -47,7 +51,8 @@ async def lifespan(app: FastAPI):
     mic_activity = get_mic_activity_service()
     if config.MIC_WATCH:
         mic_activity.start()
-    yield
+    async with mcp_endpoint.running():
+        yield
     mic_activity.stop()
     # A recording still running when the backend goes down is not saved: its
     # capture processes and temp files are let go.
@@ -77,6 +82,19 @@ app.add_middleware(
 
 app.add_exception_handler(Refusal, refusal_handler)
 
+
+def _resolve(dependency):
+    # The MCP tools take their services as the routes do, overrides included.
+    return app.dependency_overrides.get(dependency, dependency)()
+
+
+# /mcp: not a REST route (not in the OpenAPI schema); see app/mcp/server.py.
+mcp_endpoint = McpEndpoint(
+    build_server(storage=lambda: _resolve(get_storage_service)),
+    enabled=lambda: _resolve(get_app_settings).get_bool(MCP_ENABLED),
+)
+app.router.routes.append(Route("/mcp", endpoint=mcp_endpoint))
+
 app.include_router(transcription.router)
 app.include_router(transcripts.router)
 app.include_router(speakers.router)
@@ -84,6 +102,7 @@ app.include_router(models.router)
 app.include_router(audio_capture.router)
 app.include_router(data.router)
 app.include_router(gpu.router)
+app.include_router(integrations.router)
 
 
 @app.get("/health")

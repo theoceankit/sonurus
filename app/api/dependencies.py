@@ -2,6 +2,7 @@ from functools import lru_cache
 
 import app.config as config
 from app.config import DB_PATH
+from app.services.app_settings import AppSettings
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.transcript_storage_service import TranscriptStorageService
 
@@ -10,6 +11,11 @@ from app.services.transcript_storage_service import TranscriptStorageService
 def get_memory_service() -> SpeakerMemoryService:
     # The API's instance owns the photo files (deletes them with their speaker).
     return SpeakerMemoryService(db_path=DB_PATH, photos_dir=config.SPEAKER_PHOTOS_DIR)
+
+
+@lru_cache(maxsize=1)
+def get_app_settings() -> AppSettings:
+    return AppSettings(db_path=DB_PATH)
 
 
 @lru_cache(maxsize=1)

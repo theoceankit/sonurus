@@ -220,6 +220,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/integrations/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Mcp */
+        get: operations["get_mcp_integrations_mcp_get"];
+        /** Set Mcp */
+        put: operations["set_mcp_integrations_mcp_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/models": {
         parameters: {
             query?: never;
@@ -1107,6 +1125,14 @@ export interface components {
             title: string;
         };
         /**
+         * McpSettings
+         * @description Whether /mcp answers agents; off on a new installation.
+         */
+        McpSettings: {
+            /** Enabled */
+            enabled: boolean;
+        };
+        /**
          * MicAppActiveEvent
          * @description Another app has held a microphone for a while and no recording runs:
          *     a call may have started. Once per hold; app_id is stable across holds,
@@ -1953,6 +1979,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_mcp_integrations_mcp_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpSettings"];
+                };
+            };
+        };
+    };
+    set_mcp_integrations_mcp_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -23,6 +23,7 @@ export const queryKeys = {
   // Under the speakers: a speaker named, renamed or gone changes what is free.
   handleSuggestion: (name: string, exclude?: string) => ['speakers', 'handle-suggestion', name, exclude],
   handleFormat: ['handleFormat'],
+  mcpEnabled: ['mcpEnabled'],
   // Not under the transcript: edits never change the audio.
   waveform: (id: number, { bars, start, end }: WaveformStretch) => ['waveform', id, bars, start, end],
   queue: ['queue'],
@@ -105,6 +106,20 @@ export function useSetHandleFormat() {
       queries.setQueryData(queryKeys.handleFormat, format)
       void queries.invalidateQueries({ queryKey: ['speakers', 'handle-suggestion'] })
     },
+  })
+}
+
+export function useMcpEnabled() {
+  const api = useApi()
+  return useQuery({ queryKey: queryKeys.mcpEnabled, queryFn: () => api.getMcpEnabled() })
+}
+
+export function useSetMcpEnabled() {
+  const api = useApi()
+  const queries = useQueryClient()
+  return useMutation({
+    mutationFn: (enabled: boolean) => api.setMcpEnabled(enabled),
+    onSuccess: enabled => queries.setQueryData(queryKeys.mcpEnabled, enabled),
   })
 }
 

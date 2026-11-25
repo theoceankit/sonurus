@@ -558,6 +558,20 @@
         "title": "LiveRecording",
         "type": "object"
       },
+      "McpSettings": {
+        "description": "Whether /mcp answers agents; off on a new installation.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "McpSettings",
+        "type": "object"
+      },
       "MicAppActiveEvent": {
         "description": "Another app has held a microphone for a while and no recording runs:\na call may have started. Once per hold; app_id is stable across holds,\nname is null where the system does not say which app it is.",
         "properties": {
@@ -2209,6 +2223,66 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/integrations/mcp": {
+      "get": {
+        "operationId": "get_mcp_integrations_mcp_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Mcp",
+        "tags": [
+          "integrations"
+        ]
+      },
+      "put": {
+        "operationId": "set_mcp_integrations_mcp_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Mcp",
+        "tags": [
+          "integrations"
+        ]
       }
     },
     "/models": {

@@ -790,6 +790,15 @@ describe('speaker handles', () => {
     expect(await client.updateSpeaker(mark, { handle: '' })).toMatchObject({ handle: 'mark.ellis', handle_manual: false })
   })
 
+  test('the MCP server is off until switched on; a data reset turns it off', async () => {
+    const client = createFixtureClient()
+    expect(await client.getMcpEnabled()).toBe(false)
+    expect(await client.setMcpEnabled(true)).toBe(true)
+    expect(await client.getMcpEnabled()).toBe(true)
+    await client.resetData()
+    expect(await client.getMcpEnabled()).toBe(false)
+  })
+
   test('the handle format is for speakers named from then on', async () => {
     const client = createFixtureClient()
     expect(await client.getHandleFormat()).toBe('first.last')

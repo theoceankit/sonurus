@@ -79,10 +79,10 @@ test('pruneSitePackages tolerates a tree without torch', () => {
   }
 })
 
-test('import check covers the pipeline and every excluded package', () => {
+test('import check covers the pipeline, the MCP server and every excluded package', () => {
   for (const mod of [
     'app.api.main', 'app.services.service_factory', 'app.services.pipeline_process',
-    'app.services.transcription_service', 'app.services.embedding_service', 'app.gpu_probe',
+    'app.services.transcription_service', 'app.services.embedding_service', 'app.gpu_probe', 'app.mcp.server',
     'whisperx.asr', 'whisperx.alignment', 'whisperx.diarize',
     'pyannote.audio', 'pyannote.audio.pipelines.speaker_diarization',
   ]) assert.ok(imports.BUNDLED_IMPORTS.includes(mod), `${mod} must be imported`)

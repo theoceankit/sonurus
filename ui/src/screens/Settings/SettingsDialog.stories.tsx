@@ -129,6 +129,14 @@ export const GpuDevelopmentBuild: Story = gpuStory({ blocked_reason: 'not_packag
 
 export const ApiKeys: Story = { args: { section: 'apiKeys' }, decorators: [withSettings({ hfToken: 'hf_storybookExampleToken' })] }
 
+export const IntegrationsOff: Story = { args: { section: 'integrations' } }
+export const IntegrationsOn: Story = { args: { section: 'integrations' }, parameters: { api: { overrides: { getMcpEnabled: async () => true } } } }
+// The backend did not take the switch: it goes back, with a toast.
+export const IntegrationsSwitchFails: Story = {
+  args: { section: 'integrations' },
+  parameters: { api: { overrides: { setMcpEnabled: async () => { throw new Error('Backend error') } } } },
+}
+
 // The token shown: the eye button has been clicked, and its eye is open.
 export const ApiKeysTokenShown: Story = {
   args: { section: 'apiKeys' },
