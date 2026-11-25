@@ -4,6 +4,7 @@
 // There are various equivalent ways to declare your Docusaurus config.
 // See: https://docusaurus.io/docs/api/docusaurus-config
 
+import {fileURLToPath} from 'node:url';
 import {themes as prismThemes} from 'prism-react-renderer';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
@@ -24,6 +25,25 @@ const config = {
   },
 
   themes: ['@docusaurus/theme-mermaid'],
+
+  plugins: [
+    // Mermaid's parser pulls in vscode-languageserver-types, whose UMD build
+    // (what the server bundle resolves) calls require dynamically and makes the
+    // build warn. Its ESM build is the same code without that.
+    () => ({
+      name: 'resolve-languageserver-types-esm',
+      configureWebpack: () => ({
+        resolve: {
+          alias: {
+            // The package exports no subpaths, hence the file path.
+            'vscode-languageserver-types$': fileURLToPath(
+              new URL('./node_modules/vscode-languageserver-types/lib/esm/main.js', import.meta.url),
+            ),
+          },
+        },
+      }),
+    }),
+  ],
 
   // The site is not deployed yet. For GitHub Pages, set baseUrl to
   // '/sonurus/' (internal links are baseUrl-relative and keep working).
