@@ -5,7 +5,9 @@
  * its two themes on data-theme, the same attribute Docusaurus sets on <html>.
  *
  * This file maps Infima onto those tokens and styles what Infima leaves to us.
- * Reading text is larger than the app's: --font-body-lg is the body size here.
+ * Text sizes are the docs' own, not the app's: the docs are read as long pages,
+ * for which the app's 13 and 15px are too small. Body text is 17px and the
+ * navigation around it a step smaller; headings scale from the body in rem.
  */
 
 :root {
@@ -15,7 +17,12 @@
   /* Type */
   --ifm-font-family-base: var(--type-family-sans);
   --ifm-font-family-monospace: var(--docs-font-mono);
-  --ifm-font-size-base: var(--type-size-body-lg);
+  --docs-size-nav: 14px;
+  --docs-size-navbar: 14.5px;
+  --docs-size-toc: 13px;
+  --docs-size-small: 12.5px;
+  --docs-size-label: 12px;
+  --ifm-font-size-base: 17px;
   --ifm-line-height-base: 1.6;
   --ifm-font-weight-semibold: var(--type-weight-semibold);
   --ifm-font-weight-bold: var(--type-weight-semibold);
@@ -25,7 +32,7 @@
   --ifm-h2-font-size: 1.5rem;
   --ifm-h3-font-size: 1.2rem;
   --ifm-h4-font-size: 1rem;
-  --ifm-code-font-size: 88%;
+  --ifm-code-font-size: 90%;
 
   /* Shape and spacing */
   --ifm-global-radius: var(--radius-md);
@@ -193,6 +200,7 @@ body {
 
 .navbar__link {
   font: var(--font-body-strong);
+  font-size: var(--docs-size-navbar);
   border-radius: var(--radius-md);
   padding-block: var(--space-1);
   transition: color var(--duration-base) var(--ease-standard),
@@ -214,6 +222,7 @@ body {
   background: var(--color-fill-hover);
   color: var(--color-text-primary);
   font: var(--font-body-strong);
+  font-size: var(--docs-size-nav);
   text-decoration: none;
   transition: background var(--duration-base) var(--ease-standard);
 }
@@ -248,6 +257,7 @@ body {
 
 .menu {
   font: var(--font-body);
+  font-size: var(--docs-size-nav);
   padding: var(--space-3) !important;
 }
 
@@ -313,6 +323,7 @@ kbd {
   background: var(--color-bg-raised);
   box-shadow: none;
   font: var(--font-caption-strong);
+  font-size: 0.8em;
   padding: 0 var(--space-1);
 }
 
@@ -323,6 +334,7 @@ blockquote {
 
 .table-of-contents {
   font: var(--font-body);
+  font-size: var(--docs-size-toc);
 }
 
 /* "On this page" on a narrow screen: a neutral control, not a selection. */
@@ -369,7 +381,6 @@ table {
   border: var(--border-width-default) solid var(--color-border-default);
   border-radius: var(--radius-card);
   overflow: hidden;
-  font: var(--font-body);
 }
 
 /* Wide tables scroll inside the content on a narrow screen, not the page. */
@@ -385,7 +396,7 @@ table thead tr {
 }
 
 table th {
-  font: var(--font-body-strong);
+  font-weight: var(--type-weight-semibold);
   color: var(--color-text-secondary);
   text-align: left;
 }
@@ -415,7 +426,6 @@ table tbody tr:last-child td {
 }
 
 .theme-code-block pre {
-  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -451,7 +461,6 @@ table tbody tr:last-child td {
   --docs-admonition-fg: var(--color-text-secondary);
   border: var(--border-width-default) solid var(--ifm-alert-border-color);
   box-shadow: none;
-  font-size: var(--type-size-body-lg);
 }
 
 .theme-admonition [class*='admonitionHeading'] {
@@ -563,14 +572,17 @@ table tbody tr:last-child td {
 
 .footer__title {
   font: var(--font-body-strong);
+  font-size: var(--docs-size-label);
 }
 
 .footer__link-item {
   font: var(--font-body);
+  font-size: var(--docs-size-nav);
 }
 
 .footer__copyright {
   font: var(--font-caption);
+  font-size: var(--docs-size-small);
   color: var(--color-text-secondary);
 }
 
