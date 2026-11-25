@@ -5,7 +5,7 @@
 // See: https://docusaurus.io/docs/api/docusaurus-config
 
 import {fileURLToPath} from 'node:url';
-import {themes as prismThemes} from 'prism-react-renderer';
+import prismTheme from './src/prism-theme.js';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -55,6 +55,9 @@ const config = {
 
   onBrokenLinks: 'throw',
 
+  // ../ui/public carries the Inter licence, which the bundled font ships with.
+  staticDirectories: ['static', '../ui/public'],
+
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
   // may want to replace "en" with "zh-Hans".
@@ -75,7 +78,12 @@ const config = {
         },
         blog: false,
         theme: {
-          customCss: './src/css/custom.css',
+          // The app's own font and design tokens, then the docs styles on top.
+          customCss: [
+            '../ui/src/styles/fonts.css',
+            '../ui/src/styles/tokens.css',
+            './src/css/custom.css',
+          ],
         },
       }),
     ],
@@ -111,7 +119,7 @@ const config = {
         ],
       },
       footer: {
-        style: 'dark',
+        style: 'light',
         links: [
           {
             title: 'Product',
@@ -140,8 +148,19 @@ const config = {
         copyright: `© ${new Date().getFullYear()} Sonorus · Your audio never leaves your device.`,
       },
       prism: {
-        theme: prismThemes.github,
-        darkTheme: prismThemes.dracula,
+        theme: prismTheme,
+        darkTheme: prismTheme,
+        // Used in the docs but not in Prism's default set.
+        additionalLanguages: ['bash', 'powershell', 'sql'],
+      },
+      mermaid: {
+        theme: {light: 'neutral', dark: 'dark'},
+        // Mermaid sizes boxes to the text, so it has to measure in the page's
+        // font; setting the font in CSS afterwards would cut labels off.
+        options: {
+          fontFamily: "'Inter', system-ui, sans-serif",
+          themeVariables: {fontFamily: "'Inter', system-ui, sans-serif"},
+        },
       },
     }),
 };
