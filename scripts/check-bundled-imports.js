@@ -6,7 +6,8 @@
 // scripts/bundle-backend.js: the bundled interpreter imports the backend and
 // the pipeline libraries, none of the excluded packages is installed, and
 // third-party telemetry is switched off (app/__init__.py), and NLTK's punkt_tab
-// data for alignment loads from python-dist/nltk_data.
+// data for alignment loads from python-dist/nltk_data, and SQLite has FTS5 for
+// the search index.
 // Imports done lazily inside functions (when models load) are not covered;
 // a transcription on a built app covers those.
 //
@@ -28,6 +29,8 @@ const BUNDLED_IMPORTS = [
   'app.services.embedding_service',
   'app.gpu_probe',
   'app.mcp.server',
+  'app.api.routers.search',
+  'app.services.search_service',
   'mcp.server.mcpserver',
   'whisperx',
   'whisperx.asr',
@@ -69,6 +72,8 @@ function checkSource() {
     'from whisperx.utils import PUNKT_LANGUAGES',
     'for lang in sorted(set(PUNKT_LANGUAGES.values())):',
     '    nltk.data.load(f"tokenizers/punkt_tab/{lang}.pickle")',
+    // Recording search: the migration at startup creates FTS5 tables.
+    "import sqlite3; sqlite3.connect(':memory:').execute(\"CREATE VIRTUAL TABLE t USING fts5(text, tokenize='unicode61')\")",
     `print("bundled imports ok (${BUNDLED_IMPORTS.length} modules)")`,
   ].join('\n')
 }
