@@ -463,6 +463,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search */
+        get: operations["search_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/speakers": {
         parameters: {
             query?: never;
@@ -1346,6 +1363,71 @@ export interface components {
         };
         /** RenameRequest */
         RenameRequest: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * SearchHit
+         * @description One match: in the title, a segment or a block (paragraph, list item) of
+         *     the note. start, end and the speaker are those of a segment, else null; a
+         *     segment of no speaker is unassigned. highlights are [start, end) ranges of
+         *     the matches in snippet.
+         */
+        SearchHit: {
+            /** End */
+            end: number | null;
+            /** Highlights */
+            highlights: number[][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "title" | "segment" | "note";
+            /** Snippet */
+            snippet: string;
+            /** Speaker Handle */
+            speaker_handle: string | null;
+            /** Speaker Id */
+            speaker_id: string | null;
+            /** Speaker Name */
+            speaker_name: string | null;
+            /** Start */
+            start: number | null;
+            /** Unassigned */
+            unassigned: boolean;
+        };
+        /** SearchRecording */
+        SearchRecording: {
+            /** Created At */
+            created_at: string;
+            /** Duration Sec */
+            duration_sec: number;
+            /** Hit Count */
+            hit_count: number;
+            /** Hits */
+            hits: components["schemas"]["SearchHit"][];
+            /** Recording Id */
+            recording_id: number;
+            /** Title */
+            title: string;
+        };
+        /** SearchResponse */
+        SearchResponse: {
+            /** Recordings */
+            recordings: components["schemas"]["SearchRecording"][];
+            /** Speakers */
+            speakers: components["schemas"]["SearchSpeaker"][];
+            /** Total Hits */
+            total_hits: number;
+            /** Total Recordings */
+            total_recordings: number;
+        };
+        /** SearchSpeaker */
+        SearchSpeaker: {
+            /** Handle */
+            handle: string | null;
+            /** Id */
+            id: string;
             /** Name */
             name: string;
         };
@@ -2462,6 +2544,63 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QueueSnapshot"];
+                };
+            };
+        };
+    };
+    search_search_get: {
+        parameters: {
+            query: {
+                /** @description Words, AND / OR / NOT in capitals, (groups), "phrases" */
+                q: string;
+                /** @description Handle of a named speaker, with or without @ */
+                speaker?: string | null;
+                /** @description YYYY-MM-DD, local, inclusive */
+                from?: string | null;
+                /** @description YYYY-MM-DD, local, inclusive */
+                to?: string | null;
+                /** @description Only this recording; offset then pages its hits */
+                recording_id?: number | null;
+                limit?: number;
+                offset?: number;
+                hits_per_recording?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
+            };
+            /** @description A query or filter that cannot run */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such recording */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

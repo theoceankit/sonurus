@@ -1093,6 +1093,211 @@
         "title": "RenameRequest",
         "type": "object"
       },
+      "SearchHit": {
+        "description": "One match: in the title, a segment or a block (paragraph, list item) of\nthe note. start, end and the speaker are those of a segment, else null; a\nsegment of no speaker is unassigned. highlights are [start, end) ranges of\nthe matches in snippet.",
+        "properties": {
+          "end": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "highlights": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Highlights",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "title",
+              "segment",
+              "note"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "snippet": {
+            "title": "Snippet",
+            "type": "string"
+          },
+          "speaker_handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Handle"
+          },
+          "speaker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Id"
+          },
+          "speaker_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Name"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "unassigned": {
+            "title": "Unassigned",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "snippet",
+          "highlights",
+          "start",
+          "end",
+          "speaker_id",
+          "speaker_name",
+          "speaker_handle",
+          "unassigned"
+        ],
+        "title": "SearchHit",
+        "type": "object"
+      },
+      "SearchRecording": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "duration_sec": {
+            "title": "Duration Sec",
+            "type": "number"
+          },
+          "hit_count": {
+            "title": "Hit Count",
+            "type": "integer"
+          },
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/SearchHit"
+            },
+            "title": "Hits",
+            "type": "array"
+          },
+          "recording_id": {
+            "title": "Recording Id",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recording_id",
+          "title",
+          "created_at",
+          "duration_sec",
+          "hit_count",
+          "hits"
+        ],
+        "title": "SearchRecording",
+        "type": "object"
+      },
+      "SearchResponse": {
+        "properties": {
+          "recordings": {
+            "items": {
+              "$ref": "#/components/schemas/SearchRecording"
+            },
+            "title": "Recordings",
+            "type": "array"
+          },
+          "speakers": {
+            "items": {
+              "$ref": "#/components/schemas/SearchSpeaker"
+            },
+            "title": "Speakers",
+            "type": "array"
+          },
+          "total_hits": {
+            "title": "Total Hits",
+            "type": "integer"
+          },
+          "total_recordings": {
+            "title": "Total Recordings",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_hits",
+          "total_recordings",
+          "recordings",
+          "speakers"
+        ],
+        "title": "SearchResponse",
+        "type": "object"
+      },
+      "SearchSpeaker": {
+        "properties": {
+          "handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handle"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "handle"
+        ],
+        "title": "SearchSpeaker",
+        "type": "object"
+      },
       "SegmentResponse": {
         "properties": {
           "end": {
@@ -2843,6 +3048,163 @@
         "summary": "Start Queue",
         "tags": [
           "transcription"
+        ]
+      }
+    },
+    "/search": {
+      "get": {
+        "operationId": "search_search_get",
+        "parameters": [
+          {
+            "description": "Words, AND / OR / NOT in capitals, (groups), \"phrases\"",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "description": "Words, AND / OR / NOT in capitals, (groups), \"phrases\"",
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Handle of a named speaker, with or without @",
+            "in": "query",
+            "name": "speaker",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Handle of a named speaker, with or without @",
+              "title": "Speaker"
+            }
+          },
+          {
+            "description": "YYYY-MM-DD, local, inclusive",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM-DD, local, inclusive",
+              "title": "From"
+            }
+          },
+          {
+            "description": "YYYY-MM-DD, local, inclusive",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM-DD, local, inclusive",
+              "title": "To"
+            }
+          },
+          {
+            "description": "Only this recording; offset then pages its hits",
+            "in": "query",
+            "name": "recording_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this recording; offset then pages its hits",
+              "title": "Recording Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hits_per_recording",
+            "required": false,
+            "schema": {
+              "default": 3,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Hits Per Recording",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "A query or filter that cannot run"
+          },
+          "404": {
+            "description": "No such recording"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search",
+        "tags": [
+          "search"
         ]
       }
     },
