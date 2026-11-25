@@ -1,0 +1,63 @@
+{
+  "title": "Call with a client",
+  "diarized": true,
+  "speakers": [
+    {
+      "id": "3f0c8a52-6d1e-4b7a-9c2d-1e5f7a9b0c11",
+      "name": "Anna Petrova",
+      "handle": "anna"
+    },
+    {
+      "id": "c4d5e6f7-0819-4a2b-8c3d-4e5f60718293",
+      "name": null,
+      "handle": null
+    }
+  ],
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.0,
+      "text": "Hello?",
+      "speaker_raw": "SPEAKER_02",
+      "speaker_resolved": null,
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 2.0,
+      "end": 4.0,
+      "text": "Hi, it's Anna.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": "3f0c8a52-6d1e-4b7a-9c2d-1e5f7a9b0c11",
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 4.0,
+      "end": 6.0,
+      "text": "Who else is on the line?",
+      "speaker_raw": "SPEAKER_01",
+      "speaker_resolved": "c4d5e6f7-0819-4a2b-8c3d-4e5f60718293",
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 6.0,
+      "end": 8.0,
+      "text": "Just me.",
+      "speaker_raw": "SPEAKER_02",
+      "speaker_resolved": null,
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 8.0,
+      "end": 10.0,
+      "text": "A voice the base no longer has.",
+      "speaker_raw": "SPEAKER_03",
+      "speaker_resolved": "f1e2d3c4-b5a6-4978-8a6b-5c4d3e2f1a00",
+      "speaker_final": null,
+      "unassigned": false
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+Who said it
+
+Unknown speaker 1 00:00
+Raw label only.
+
+Mark 00:02
+Matched to Mark.
+
+Ivan Sidorov 00:04
+Corrected to Ivan by the user.
+Ivan again, as matched.

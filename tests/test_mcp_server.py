@@ -11,7 +11,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from app.api.dependencies import get_app_settings, get_storage_service
 from app.api.main import app, mcp_endpoint
-from app.mcp.tools import clock, format_recordings
+from app.mcp.tools import clock
 from app.models.segment import Segment
 from app.models.transcript import Transcript
 from app.services.app_settings import MCP_ENABLED
@@ -70,22 +70,6 @@ def test_clock_is_minutes_and_seconds_under_an_hour_and_hours_after():
     assert clock(3599) == "59:59"
     assert clock(3600) == "1:00:00"
     assert clock(4 * 3600 + 5 * 60 + 6) == "4:05:06"
-
-
-def test_recordings_are_listed_one_per_line_with_their_id():
-    rows = [
-        {"id": 7, "title": "Weekly sync", "created_at": "2026-11-20T10:03:00", "duration_sec": 2712.4},
-        {"id": 3, "title": "Interview", "created_at": "2026-11-02T18:00:00", "duration_sec": 3725},
-    ]
-    assert format_recordings(rows) == (
-        "2 recordings, newest first:\n"
-        "- recording_id 7: Weekly sync, 2026-11-20, 45:12\n"
-        "- recording_id 3: Interview, 2026-11-02, 1:02:05"
-    )
-
-
-def test_no_recordings_says_how_to_get_one():
-    assert format_recordings([]) == "No recordings yet. Transcribe or record audio in Sonorus first."
 
 
 # ── The switch ────────────────────────────────────────────────────────────────
@@ -205,8 +189,8 @@ async def test_the_sdk_client_lists_and_calls_the_tools(storage, no_network):
     text = result.content[0].text
     lines = text.splitlines()
     assert lines[0] == "2 recordings, newest first:"
-    assert lines[1].endswith(": Weekly sync, 2026-11-20, 45:12")
-    assert lines[2].endswith(": Interview, 2026-11-02, 1:02:05")
+    assert lines[1].endswith(": Weekly sync, 2026-11-20, 45:12, 1 unknown speaker")
+    assert lines[2].endswith(": Interview, 2026-11-02, 1:02:05, 1 unknown speaker")
     assert no_network == []
 
 

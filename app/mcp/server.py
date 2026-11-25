@@ -10,7 +10,8 @@ from starlette.responses import JSONResponse
 from starlette.types import Receive, Scope, Send
 
 from app.mcp.note_tools import register_note_tools
-from app.mcp.tools import format_recordings
+from app.mcp.read_tools import register_read_tools
+from app.services.search_service import SearchService
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.version import get_version
@@ -30,15 +31,12 @@ SECURITY = TransportSecuritySettings(
 
 
 def build_server(storage: Callable[[], TranscriptStorageService],
-                 memory: Callable[[], SpeakerMemoryService]) -> MCPServer:
-    """The server and its tools; storage and memory give the services each call uses."""
+                 memory: Callable[[], SpeakerMemoryService],
+                 search: Callable[[], SearchService] | None = None) -> MCPServer:
+    """The server and its tools; storage, memory and search give the services
+    each call uses. search: by default one over storage and memory, as GET /search."""
     server = MCPServer("Sonorus", instructions=INSTRUCTIONS, version=get_version())
-
-    @server.tool()
-    def list_recordings() -> str:
-        """List the user's recordings in Sonorus, newest first: recording_id, title, date (YYYY-MM-DD) and length."""
-        return format_recordings(storage().list_all())
-
+    register_read_tools(server, storage, memory, search or (lambda: SearchService(storage(), memory())))
     register_note_tools(server, storage, memory)
     return server
 

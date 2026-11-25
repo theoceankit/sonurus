@@ -1,0 +1,59 @@
+{
+  "title": "Who said it",
+  "diarized": true,
+  "speakers": [
+    {
+      "id": "3f0c8a52-6d1e-4b7a-9c2d-1e5f7a9b0c11",
+      "name": "Anna Petrova",
+      "handle": "anna"
+    },
+    {
+      "id": "8a1d2e3f-4b5c-4d6e-8f70-819a2b3c4d5e",
+      "name": "Mark",
+      "handle": "mark"
+    },
+    {
+      "id": "0a1b2c3d-4e5f-4061-8728-394a5b6c7d8e",
+      "name": "Ivan Sidorov",
+      "handle": "ivan"
+    }
+  ],
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.0,
+      "text": "Raw label only.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": null,
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 2.0,
+      "end": 4.0,
+      "text": "Matched to Mark.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": "8a1d2e3f-4b5c-4d6e-8f70-819a2b3c4d5e",
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 4.0,
+      "end": 6.0,
+      "text": "Corrected to Ivan by the user.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": "8a1d2e3f-4b5c-4d6e-8f70-819a2b3c4d5e",
+      "speaker_final": "0a1b2c3d-4e5f-4061-8728-394a5b6c7d8e",
+      "unassigned": false
+    },
+    {
+      "start": 6.0,
+      "end": 8.0,
+      "text": "Ivan again, as matched.",
+      "speaker_raw": "SPEAKER_01",
+      "speaker_resolved": "0a1b2c3d-4e5f-4061-8728-394a5b6c7d8e",
+      "speaker_final": null,
+      "unassigned": false
+    }
+  ]
+}

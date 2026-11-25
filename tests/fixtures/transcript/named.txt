@@ -1,0 +1,11 @@
+Weekly sync
+
+Anna Petrova 00:00
+Good morning, everyone.
+Let's start with the release.
+
+Mark 00:09
+The build is green.
+
+Anna Petrova 01:15
+Then we ship on Friday.
