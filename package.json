@@ -108,7 +108,7 @@
       "shortcutName": "Sonorus"
     },
     "linux": {
-      "icon": "electron/assets/icon.png",
+      "icon": "build/icons/linux",
       "category": "AudioVideo",
       "target": [
         {

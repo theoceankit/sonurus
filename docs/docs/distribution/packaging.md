@@ -234,7 +234,7 @@ plate size, because the platforms reserve different margins:
 | Master | Plate | Used for |
 |---|---|---|
 | `electron/assets/icon-macos.png` | 824×824, margin 100 (Apple icon grid; the margin holds the shadow) | `build/icons/icon.icns` |
-| `electron/assets/icon.png` | 896×896, margin 64, 8 px above centre (room for the shadow) | `build/icons/icon.ico`, Linux AppImage, window icon (`electron/main.js`) |
+| `electron/assets/icon.png` | 896×896, margin 64, 8 px above centre (room for the shadow) | `build/icons/icon.ico`, `build/icons/linux/`, window icon (`electron/main.js`) |
 
 A macOS icon without the full plate is shrunk by macOS 26 and placed on a grey plate, so the macOS master keeps
 the Apple grid exactly. Windows and Linux have no such grid; with the macOS margins the icon would look smaller
@@ -245,8 +245,12 @@ than its neighbours.
 | `electron/assets/logo.png` | Transparent quill (1024×1024, 700 high) — the source of both masters; the app itself does not load it |
 | `build/icons/icon.icns` | macOS, 16–1024 px (generated) |
 | `build/icons/icon.ico` | Windows, 16–256 px (generated) |
+| `build/icons/linux/NxN.png` | Linux, 16, 24, 32, 48, 64, 128, 256 and 512 px (generated) |
 
-Linux takes `icon.png` as is: electron-builder makes the hicolor size set from it.
+`build.linux.icon` points at the `build/icons/linux/` directory, and electron-builder installs each `NxN.png`
+into `usr/share/icons/hicolor/NxN/apps/` of the AppImage. Given a single PNG, it copies the file as is: the
+1024 px master would land in `hicolor/1024x1024`, a size the hicolor theme does not define, and desktops that
+look the icon up through the theme (GTK, so GNOME) would show none.
 
 The quill is set half-way between the centre of its box and the centre of its ink, as its mass sits up and
 right; on the plates it is 598 px high (macOS) and 651 px (Windows, Linux).
@@ -282,7 +286,7 @@ the installer icons and commit them:
 node scripts/build-icons.js
 ```
 The script uses the `png2icons` npm package. `tests/build/app-icons.test.js` checks the plate geometry of both
-masters, that `icon.icns` and `icon.ico` were built from them, that both menu bar icons are template
+masters, that `icon.icns`, `icon.ico` and the Linux size set were built from them, that both menu bar icons are template
 images of the right size, and the sizes and colours of the Windows and Linux tray icons.
 
 ---

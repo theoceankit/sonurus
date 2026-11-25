@@ -2,6 +2,8 @@
 
 // App icons: two masters drawn in the design file (page "Logo") and the
 // installer icons built from them by scripts/build-icons.js.
+// Linux gets a directory of NxN.png in the hicolor sizes: a single 1024 px PNG lands in
+// hicolor/1024x1024, which the icon theme does not have, so GTK finds no icon.
 //   electron/assets/icon-macos.png — macOS: plate 824 on a 1024 canvas, margin 100
 //   electron/assets/icon.png       — Windows, Linux: plate 896, margin 64, 8 px up
 // The tray icons are the quill drawn apart (build/icons/trayTemplate.svg): a template
@@ -22,6 +24,8 @@ const MAC_MASTER = 'electron/assets/icon-macos.png'
 const WIN_MASTER = 'electron/assets/icon.png'
 const ICNS       = 'build/icons/icon.icns'
 const ICO        = 'build/icons/icon.ico'
+const LINUX_DIR  = 'build/icons/linux'
+const LINUX_SIZES = [16, 24, 32, 48, 64, 128, 256, 512]
 
 // 8-bit RGBA PNG → { width, height, rgba }
 function decodePng(buf) {
@@ -104,7 +108,7 @@ const near = (actual, expected, msg) =>
 test('package.json points every platform at its icon', () => {
   assert.equal(pkg.build.mac.icon, ICNS)
   assert.equal(pkg.build.win.icon, ICO)
-  assert.equal(pkg.build.linux.icon, WIN_MASTER)
+  assert.equal(pkg.build.linux.icon, LINUX_DIR)
 })
 
 test('macOS master: 1024 canvas, plate 824 with margin 100', () => {
@@ -136,6 +140,24 @@ test('icon.ico is built from the Windows, Linux master', () => {
   const box = opaqueBox(img)
   near(box.x, 16, 'plate x'); near(box.y, 14, 'plate y'); near(box.w, 224, 'plate width'); near(box.h, 224, 'plate height')
 })
+
+test('Linux icon set has every hicolor size and nothing else', () => {
+  const dir = path.join(ROOT, LINUX_DIR)
+  assert.ok(fs.existsSync(dir), `no ${LINUX_DIR}: run node scripts/build-icons.js`)
+  const files = fs.readdirSync(dir).sort((a, b) => parseInt(a) - parseInt(b))
+  assert.deepEqual(files, LINUX_SIZES.map(s => `${s}x${s}.png`))
+})
+
+for (const size of LINUX_SIZES) {
+  test(`Linux ${size}x${size}.png is built from the Windows, Linux master`, () => {
+    const img = decodePng(read(`${LINUX_DIR}/${size}x${size}.png`))
+    assert.deepEqual([img.width, img.height], [size, size])
+    if (size < 64) return  // the plate edge is too soft to measure at small sizes
+    const k = size / 1024, box = opaqueBox(img)
+    near(box.x, 64 * k, 'plate x'); near(box.y, 56 * k, 'plate y')
+    near(box.w, 896 * k, 'plate width'); near(box.h, 896 * k, 'plate height')
+  })
+}
 
 // macOS menu bar: a template image, black with the shape in alpha only; the system
 // tints it for a light or dark menu bar. 18 pt, @1x and @2x, the name ends in Template.
