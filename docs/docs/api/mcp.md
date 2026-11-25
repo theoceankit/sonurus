@@ -10,7 +10,7 @@ The backend serves an [MCP](https://modelcontextprotocol.io) endpoint for agents
 |---|---|
 | Address | `http://127.0.0.1:8000/mcp` |
 | Transport | Streamable HTTP, without sessions (`stateless_http`), answers as JSON (`json_response`): no SSE stream, no state between requests |
-| Code | `app/mcp/server.py` (endpoint, server, tools), `app/mcp/tools.py` (what the tools answer), `app/mcp/note_tools.py` and `note_changes.py` (the note), mounted in `app/api/main.py` |
+| Code | `app/mcp/server.py` (endpoint, server), `app/mcp/tools.py` (what every tool shares: times, the limit, refusals), `app/mcp/read_tools.py` and `read_format.py` (recordings, speakers, transcripts, search), `app/mcp/note_tools.py` and `note_changes.py` (the note), mounted in `app/api/main.py` |
 | Library | The official Python SDK, `mcp` (`MCPServer`) |
 
 The endpoint runs inside the backend, so it answers while Sonorus runs, also with its window closed to the tray, and not when Sonorus is quit. There is no process of its own.
@@ -52,13 +52,70 @@ Tools take and give recordings by `recording_id` (the transcript id), times in a
 
 | Tool | Answers |
 |---|---|
-| `list_recordings` | Every recording, newest first, one line each: `- recording_id 7: Weekly sync, 2026-11-20, 45:12`. No recordings: a line saying to transcribe or record audio first. |
+| `list_recordings` | Recordings, newest first, one line each: `- recording_id 42: Weekly sync, 2026-11-20, 1:02:13, @anna @ivan, 2 unknown speakers, has note`. Filters: `speaker` (a handle), `date_from`, `date_to`; pages of `limit` (50, at most 200) from `offset`. |
+| `list_speakers` | The speakers with a name, by name: `- Anna Petrova @anna: 14 recordings, 3:12:40 talk time, last 2026-11-20`, and how many voices without a name are left out. |
+| `get_transcript` | The transcript of a recording as Copy transcript gives it, under a header; too long, contents by time; with `start` and `end`, a part. |
+| `search` | Hits of the search of the backend, by recording, matches in `**bold**`. |
 | `get_note` | The note of a recording: `Note of recording 7 (version 12):`, an empty line, then the note as Markdown. Without a note: `Recording 7 has no note yet (version 0): …`. |
 | `append_note` | Adds Markdown at the end of the note, or makes it the note when there is none. |
 | `replace_note` | Replaces the whole note with Markdown, given the `version` `get_note` read (`0`: no note). |
 | `edit_note` | Replaces one place in the note: `old_text`, found exactly once in the Markdown `get_note` gives, becomes `new_text`. |
 
+A recording is given by `recording_id`, a speaker by `@handle` (with or without `@`, in any case); speaker ids never reach the agent. A time in a recording is taken as `mm:ss`, `h:mm:ss` or seconds (`parse_clock()`). No answer is longer than 40,000 characters (`MAX_CHARS`): Claude Code warns of a tool answer from about 10,000 tokens and cuts it at 25,000. The tools keep within it themselves; `fit()` cuts what is left at a line, saying how many lines it left out.
+
 A refusal is one line, what happened and what to do, as an error result of the tool (`isError`): `Recording 9 not found: use list_recordings to see recording_ids.` The tools return it rather than raise `ToolError`, which the SDK would give with `Error executing tool <name>:` before it.
+
+### Recordings and speakers
+
+`list_recordings` reads `list_all()` and `recording_speakers()` of [TranscriptStorageService](../services/TranscriptStorageService.md): the speakers of a recording are its effective speakers in the order they first speak, unassigned segments and recordings without speakers left out. Those with a name are written by handle; the others, voices with no name and labels of diarization that memory did not match, are counted as unknown speakers. A recording matches `speaker` when that speaker speaks in it, and the dates by the day of `created_at`, which is local time. The handle and the dates are checked as [search](../services/SearchService.md) checks them, with the same messages, except an unknown handle, which points to `list_speakers`. With no match: `No recordings match: widen the dates or leave out the speaker.` A page that is not all of them says which ones it shows, `340 recordings, newest first; 51–100 shown:`, and ends with the `offset` of the next.
+
+`list_speakers` lists the speakers of `GET /speakers` that have a name, with the recordings they speak in, their talk time and the day they last spoke (`speaker_stats()`). One with no recordings yet says so. A speaker without a name has no handle and a label of its own in each recording, so they are only counted, in a closing line.
+
+### The transcript
+
+`get_transcript` builds the turns and text of the Editor on the backend ([Transcript Text](../services/TranscriptText.md)), so the agent reads the labels the user sees: `Unknown speaker 1`, `Unassigned`. Its answer starts with a header, then Copy transcript without its title line:
+
+```
+Weekly sync
+recording_id 42, 2026-11-20 14:05, 1:02:13
+Speakers: Anna Petrova @anna, Ivan Sidorov @ivan, Unknown speaker 1
+
+Anna Petrova 00:12
+Good morning, everyone.
+```
+
+The speakers are in the order they first speak, named ones with their handle; a recording without speakers has no `Speakers:` line and no turn headers.
+
+**Whole or contents.** Without `start` and `end`, a transcript that fits in `MAX_CHARS` with its header comes whole. A longer one comes as contents, in parts of about 5 minutes (`chunks()`): a part ends at the first turn that starts 5 minutes or more after the part's start, so it holds whole turns; a turn longer than 7:30, a monologue or a recording without speakers, is first cut between its segments into pieces of about 5 minutes. Under the header:
+
+```
+Too long to return whole (61,240 chars). Read a part with get_transcript(recording_id=42, start="00:00", end="05:00").
+
+Contents, in parts of about 5 minutes:
+- 00:00–04:50, Anna Petrova, Ivan Sidorov (3,125 chars): "Good morning, everyone. Let's start with…"
+```
+
+A line has the time from the part's first segment to the end of its last, its speakers, the characters of its text and its first words, up to 100 characters.
+
+**A part.** With `start` and/or `end`, the answer is the segments that start from `start` to before `end`, compared in whole seconds (a segment at 05:02.4 is in a part from `05:02`), so that a part read from the time of the contents misses nothing. Without `end` it reads to the end, without `start` from the start; the header has a line `Part 05:00–10:00`. A turn that starts before `start` repeats its speaker at its first segment in the part; labels of speakers without a name are those of the whole recording. A part that does not fit is cut before a turn, or between the segments of a turn if not even that one fits, and its last line says where to go on: `Cut at 34:10: call get_transcript with start=34:10 to read on.` (with the `end` asked, if any). No speech in the part: `No speech starts between 01:40 and 03:20.` An end not after the start and a start at or after the end of the recording are refused: `Recording 42 is 1:02:13 long: give a start before 1:02:13.`
+
+### Search
+
+`search` takes the parameters of [`GET /search`](endpoints.md#get-search), `query`, `speaker`, `date_from`, `date_to`, `recording_id`, `limit` (10 recordings, at most 50) and `offset`, and runs `SearchService.search()` with 3 hits a recording, 20 with `recording_id`, where `offset` pages through the hits of that recording. Its description explains the query language. The answer:
+
+```
+34 hits in 7 recordings, newest first:
+
+recording_id 42: Weekly sync, 2026-11-20 (5 hits)
+  title: **Release** planning
+  12:34 Anna Petrova @anna: …we moved the **release** to Friday…
+  note: …the **release** checklist
+  2 more: call search with recording_id=42.
+
+Speakers whose name or handle matches: Anna Petrova @anna. To search what one said, give speaker="@anna".
+```
+
+A snippet is on one line. A hit of a speaker without a name has the label of its recording: the tool loads the segments of those recordings on the page that have such a hit. More recordings or more hits than shown end with the `offset` to read on. Errors of the query and filters are the messages of `SearchQueryError` and `SearchRefused`.
 
 ### The note
 

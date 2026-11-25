@@ -272,6 +272,18 @@ Gives every segment of `from_id` to `to_id`, in every transcript, and its `speak
 
 ---
 
+### `recording_speakers() → dict[int, list[str]]`
+
+`{recording id: its effective speakers in the order they first speak}` in one query: `speaker_id`, else the raw label of diarization (`COALESCE(speaker_id, speaker_raw)`), so that voices memory did not match count too. Unassigned segments and recordings without speakers (`diarized = 0`) are left out. Feeds the MCP tool `list_recordings`.
+
+---
+
+### `recording_meta(db_id) → dict | None`
+
+`{id, title, created_at, duration_sec}` of one recording, or `None`; the title falls back to the name of the audio file, as in `list_all()`, and the length is the end of the last segment. Feeds the MCP tool `get_transcript`.
+
+---
+
 ### `speaker_stats() → dict[str, dict]`
 
 `{speaker_id: {segments, transcripts, duration_sec, last_seen}}` over all transcripts in one query; unassigned segments are not counted. Feeds `GET /speakers`.

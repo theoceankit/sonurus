@@ -26,6 +26,10 @@ What FTS5 would refuse is refused first, with `SearchQueryError` and a message o
 
 ---
 
+## `filters(speaker, date_from, date_to) → (speaker_id, from, to)`
+
+Checks the filters of a search, and of any list of recordings by them (the MCP tool `list_recordings`): the speaker by handle (`speaker_id()`), the dates as `YYYY-MM-DD`, and from not after to. Raises `SearchRefused` with the messages below. `speaker_id(speaker)` gives the speaker with a handle, a leading `@` and the case aside, or `None`; `handle_of()` writes a handle as given as `@handle`.
+
 ## `search(q, speaker=None, date_from=None, date_to=None, recording_id=None, limit=20, offset=0, hits_per_recording=3) → dict`
 
 Returns the body of `GET /search`. Raises `SearchQueryError` or `SearchRefused` (an unknown handle, a wrong date, `from` after `to`) for `400`, `RecordingNotFound` for `404`.
