@@ -39,49 +39,15 @@ const IconArrow = () => (
 );
 
 /* ============================================================
-   Privacy lock SVG illustration
+   Privacy lock illustration, coloured by index.module.css
    ============================================================ */
 function PrivacyLock() {
   return (
-    <svg viewBox="0 0 240 280" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="bodyGrad" x1="60" y1="120" x2="190" y2="262" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#ffd2a8" />
-          <stop offset="0.36" stopColor="#ff8a5c" />
-          <stop offset="0.7" stopColor="#ec4f73" />
-          <stop offset="1" stopColor="#7d4fc4" />
-        </linearGradient>
-        <radialGradient id="lightTop" cx="0.34" cy="0.2" r="0.8">
-          <stop offset="0" stopColor="#ffffff" stopOpacity="0.32" />
-          <stop offset="0.5" stopColor="#ffffff" stopOpacity="0" />
-        </radialGradient>
-        <radialGradient id="shadeBottom" cx="0.7" cy="1" r="0.7">
-          <stop offset="0" stopColor="#3a0e30" stopOpacity="0.5" />
-          <stop offset="1" stopColor="#3a0e30" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="shackleGrad" x1="80" y1="44" x2="160" y2="140" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#c4c3cf" />
-          <stop offset="0.5" stopColor="#9594a2" />
-          <stop offset="1" stopColor="#6c6b79" />
-        </linearGradient>
-        <linearGradient id="screenGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#1d1118" />
-          <stop offset="1" stopColor="#130b11" />
-        </linearGradient>
-        <linearGradient id="waveGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#ffdcc0" />
-          <stop offset="1" stopColor="#ff916b" />
-        </linearGradient>
-      </defs>
-      <path d="M82 138 V104 A38 38 0 0 1 158 104 V138" stroke="url(#shackleGrad)" strokeWidth="14" strokeLinecap="round" />
-      <path d="M82 138 V104 A38 38 0 0 1 158 104" stroke="rgba(255,255,255,0.45)" strokeWidth="2.5" strokeLinecap="round" transform="translate(-2.5,-2)" />
-      <rect x="54" y="128" width="132" height="138" rx="34" fill="url(#bodyGrad)" />
-      <rect x="54" y="128" width="132" height="138" rx="34" fill="url(#shadeBottom)" />
-      <rect x="54" y="128" width="132" height="138" rx="34" fill="url(#lightTop)" />
-      <rect x="54.7" y="128.7" width="130.6" height="136.6" rx="33.3" stroke="rgba(255,255,255,0.22)" strokeWidth="1.4" />
-      <rect x="78" y="164" width="84" height="70" rx="17" fill="url(#screenGrad)" />
-      <rect x="78.7" y="164.7" width="82.6" height="68.6" rx="16.3" stroke="rgba(255,255,255,0.12)" strokeWidth="1.4" />
-      <g fill="url(#waveGrad)">
+    <svg viewBox="0 0 240 280" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <path className={styles.lockShackle} d="M82 138 V104 A38 38 0 0 1 158 104 V138" strokeWidth="14" strokeLinecap="round" />
+      <rect className={styles.lockBody} x="54" y="128" width="132" height="138" rx="34" />
+      <rect className={styles.lockScreen} x="78" y="164" width="84" height="70" rx="17" />
+      <g className={styles.lockWave}>
         <rect x="90" y="190" width="6.5" height="18" rx="3.25" />
         <rect x="102" y="182" width="6.5" height="34" rx="3.25" />
         <rect x="114" y="175" width="6.5" height="48" rx="3.25" />
@@ -146,7 +112,6 @@ const DOC_CARDS = [
     title: 'Known Issues',
     desc: 'Known limitations of the current version and how to work around them.',
     to: '/known-issues',
-    wide: true,
   },
   {
     icon: (
@@ -226,7 +191,6 @@ export default function Home() {
 
       {/* ========== HERO ========== */}
       <header className={styles.hero}>
-        <div className={styles.heroGlow} />
         <div className={styles.wrap}>
           <div className={`reveal ${styles.heroMark}`}>
             <img src="/img/sonorus-icon.png" alt="Sonorus" />
@@ -240,7 +204,7 @@ export default function Home() {
           </div>
           <h1 className={`reveal ${styles.heroH1}`} data-d="1">
             It understands the{' '}
-            <em className={styles.gradInk}>conversation</em>,<br />
+            <em className={styles.accentInk}>conversation</em>,<br />
             not just the sound.
           </h1>
           <p className={`reveal ${styles.lede}`} data-d="2">
@@ -266,7 +230,7 @@ export default function Home() {
       </header>
 
       {/* ========== PRIVACY ========== */}
-      <section className={`${styles.section} ${styles.sectionSm}`} id="privacy" style={{ paddingTop: '40px' }}>
+      <section className={`${styles.section} ${styles.sectionSm}`} id="privacy">
         <div className={`${styles.wrap} ${styles.split}`}>
           <div className="reveal">
             <span className={styles.eyebrow}>Local processing &amp; security</span>
@@ -290,7 +254,6 @@ export default function Home() {
             </ul>
           </div>
           <div className={`reveal ${styles.privacyScene}`} data-d="2">
-            <div className={styles.psGlow} />
             <div className={styles.psLock}><PrivacyLock /></div>
           </div>
         </div>
@@ -341,15 +304,15 @@ export default function Home() {
               <div className={styles.sfStage}>
                 <div className={`${styles.sfViz} ${styles.vizDiar}`} aria-hidden>
                   <div className={styles.lane}>
-                    <span className={styles.seg} style={{ left:'2%', width:'30%', background:'linear-gradient(135deg,var(--peach),var(--coral))' }} />
-                    <span className={styles.seg} style={{ left:'70%', width:'18%', background:'linear-gradient(135deg,var(--peach),var(--coral))' }} />
+                    <span className={`${styles.seg} ${styles.speaker1}`} style={{ left: '2%', width: '30%' }} />
+                    <span className={`${styles.seg} ${styles.speaker1}`} style={{ left: '70%', width: '18%' }} />
                   </div>
                   <div className={styles.lane}>
-                    <span className={styles.seg} style={{ left:'38%', width:'26%', background:'linear-gradient(135deg,var(--rose),var(--magenta))' }} />
+                    <span className={`${styles.seg} ${styles.speaker2}`} style={{ left: '38%', width: '26%' }} />
                   </div>
                   <div className={styles.lane}>
-                    <span className={styles.seg} style={{ left:'66%', width:'14%', background:'linear-gradient(135deg,#6fd0ff,#4f7bff)' }} />
-                    <span className={styles.seg} style={{ left:'14%', width:'18%', background:'linear-gradient(135deg,#6fd0ff,#4f7bff)' }} />
+                    <span className={`${styles.seg} ${styles.speaker3}`} style={{ left: '66%', width: '14%' }} />
+                    <span className={`${styles.seg} ${styles.speaker3}`} style={{ left: '14%', width: '18%' }} />
                   </div>
                 </div>
                 <span className={styles.sfNo}>03</span>
@@ -396,11 +359,11 @@ export default function Home() {
             </p>
           </div>
           <div className={styles.bento}>
-            {DOC_CARDS.map(({ icon, title, desc, to, wide }, i) => (
+            {DOC_CARDS.map(({ icon, title, desc, to }, i) => (
               <Link
                 key={title}
                 to={to}
-                className={`reveal ${styles.card} ${wide ? styles.wide : ''}`}
+                className={`reveal ${styles.card}`}
                 data-d={String((i % 3) + 1)}
               >
                 <div className={styles.cardIco}>{icon}</div>
