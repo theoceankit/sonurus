@@ -51,8 +51,15 @@ export const LongRecordingHighlighted: Story = {
   args: { ...LongRecording.args, initialHighlight: effectiveSpeaker(longSegments()[0]) },
 }
 
+// The text of a button as it reads: a turn's avatar is hidden, its initials are not part of the name.
+const readText = (node: Element) => {
+  const shown = node.cloneNode(true) as Element
+  shown.querySelectorAll('[aria-hidden="true"]').forEach(hidden => hidden.remove())
+  return shown.textContent!.trim()
+}
+
 const nameButton = (canvas: HTMLElement, name: string) =>
-  waitFor(() => [...canvas.querySelectorAll('[data-transcript-scroll] button')].find(node => node.textContent!.trim() === name))
+  waitFor(() => [...canvas.querySelectorAll('[data-transcript-scroll] button')].find(node => readText(node) === name))
 
 export const ChangeSpeaker: Story = {
   parameters: { api: { board: 'reviewDone' } },
