@@ -29,6 +29,13 @@ def test_the_schema_describes_the_queue_events():
         assert "type" in schemas[name]["required"], name
 
 
+def test_the_schema_describes_the_app_events():
+    schemas = build_schema()["components"]["schemas"]
+    for name in ("NoteChangedEvent", "EventsConnectedEvent"):
+        assert "type" in schemas[name]["required"], name
+    assert "version" in schemas["NoteChangedEvent"]["required"]
+
+
 def test_response_fields_with_a_default_are_required_for_the_client():
     schemas = build_schema()["components"]["schemas"]
     assert "unassigned" in schemas["SegmentResponse"]["required"]

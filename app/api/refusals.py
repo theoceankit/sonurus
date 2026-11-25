@@ -8,10 +8,12 @@ from app.api.schemas import RefusalCode
 
 
 class Refusal(HTTPException):
-    def __init__(self, code: RefusalCode, message: str, status_code: int = 400):
+    def __init__(self, code: RefusalCode, message: str, status_code: int = 400, extra: dict | None = None):
         super().__init__(status_code=status_code, detail=message)
         self.code = code
+        # More of the body, for what the UI does about it.
+        self.extra = extra or {}
 
 
 async def refusal_handler(_: Request, exc: Refusal) -> JSONResponse:
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail, "code": exc.code})
+    return JSONResponse(status_code=exc.status_code, content={**exc.extra, "detail": exc.detail, "code": exc.code})

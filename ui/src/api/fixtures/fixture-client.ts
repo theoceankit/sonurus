@@ -537,7 +537,8 @@ export function createFixtureClient({
     }),
     getNote: id => answer(() => {
       transcript(id)
-      return notes.get(id) ?? { content: null, updated_at: null }
+      const note = notes.get(id)
+      return note ? { ...note, version: 1, writer: null } : { content: null, updated_at: null, version: null, writer: null }
     }),
     saveNote: (id, content) => answer(() => {
       transcript(id)

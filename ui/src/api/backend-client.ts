@@ -90,7 +90,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     markTranscriptUnopened: id => send(http.DELETE('/transcripts/{transcript_id}/opened', transcript(id))),
     deleteTranscript: id => send(http.DELETE('/transcripts/{transcript_id}', transcript(id))),
     getNote: id => send(http.GET('/transcripts/{transcript_id}/note', transcript(id))),
-    saveNote: (id, content) => send(http.PUT('/transcripts/{transcript_id}/note', { ...transcript(id), body: { content } })),
+    saveNote: (id, content) => send(http.PUT('/transcripts/{transcript_id}/note', { ...transcript(id), body: { content } })).then(() => undefined),
     deleteNote: id => send(http.DELETE('/transcripts/{transcript_id}/note', transcript(id))),
     updateSegmentText: (id, start, text) => send(http.PATCH('/transcripts/{transcript_id}/segments/{start}/text', { ...segment(id, start), body: { text } })),
     deleteSegment: (id, start) => send(http.DELETE('/transcripts/{transcript_id}/segments/{start}', segment(id, start))),

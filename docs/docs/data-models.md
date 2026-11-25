@@ -98,6 +98,8 @@ A speaker is not a dataclass: it is a UUID4 with rows in the speaker memory tabl
 
 The note of a recording (meeting minutes), one per transcript at most, stored in the `notes` table (schema v9, see [TranscriptStorageService](services/TranscriptStorageService.md)) apart from the segments and read and written through `GET`/`PUT`/`DELETE /transcripts/{id}/note`. An empty note is not stored. It is deleted with its recording.
 
+Each write gives the note a new `version` (schema v12), from one counter for all notes, and keeps its `writer`: `editor`, `mcp` or `api`, with a `name` where known. A writer that sends the version it started from is refused with `409` when the note has changed since, and every write and delete is announced as `note_changed` over `WS /ws/events`: that is how the editor follows a note an agent wrote ([Notes](ui/electron/notes.md)).
+
 `content` is the editor's document, Tiptap (ProseMirror) JSON, kept as the UI sends it:
 
 ```json
@@ -109,7 +111,7 @@ The note of a recording (meeting minutes), one per transcript at most, stored in
 ]}
 ```
 
-Blocks: `paragraph`, `heading` (levels 1–3), `bulletList`, `orderedList`, `taskList` with `listItem`/`taskItem`, `blockquote`, `hardBreak`; marks `bold`, `italic`, `link` (`href`). The editor's schema also has two inline nodes that point into the app rather than holding text: `timecode` (`seconds`) and `mention` (`kind` `speaker` with the speaker's `id` and the `label` last seen, or `person` with a `label` only), so a speaker is referred to by id and never by name. Markdown is derived from the document, never stored: the document keeps what Markdown cannot, such as the id behind a mention. Copy notes writes it for people; [Note Markdown](services/NoteMarkdown.md) writes it for tools and reads it back into a document, without loss. A speaker merged into another or deleted leaves no mention behind that points at no one: `TranscriptStorageService.rewrite_note_mentions()` gives the mentions to the speaker merged into, or turns each into a `text` node with the name the speaker had (the `label` if they had none) and the marks the mention had. It writes only the notes that mention the speaker and leaves their `updated_at` alone.
+Blocks: `paragraph`, `heading` (levels 1–3), `bulletList`, `orderedList`, `taskList` with `listItem`/`taskItem`, `blockquote`, `hardBreak`; marks `bold`, `italic`, `link` (`href`). The editor's schema also has two inline nodes that point into the app rather than holding text: `timecode` (`seconds`) and `mention` (`kind` `speaker` with the speaker's `id` and the `label` last seen, or `person` with a `label` only), so a speaker is referred to by id and never by name. Markdown is derived from the document, never stored: the document keeps what Markdown cannot, such as the id behind a mention. Copy notes writes it for people; [Note Markdown](services/NoteMarkdown.md) writes it for tools and reads it back into a document, without loss. A speaker merged into another or deleted leaves no mention behind that points at no one: `TranscriptStorageService.rewrite_note_mentions()` gives the mentions to the speaker merged into, or turns each into a `text` node with the name the speaker had (the `label` if they had none) and the marks the mention had. It writes only the notes that mention the speaker and leaves their `updated_at` and `version` alone: an editor open on such a note rewrites its own mentions the same way.
 
 `format` (`1`) is the version of this document shape, for a migration if the editor's nodes change.
 

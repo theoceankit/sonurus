@@ -311,7 +311,9 @@ export function useReadNote() {
 export function useKeepNote() {
   const queries = useQueryClient()
   return useCallback((transcriptId: number, content: NoteDocument) => {
-    queries.setQueryData<Note>(queryKeys.note(transcriptId), before => ({ content, updated_at: before?.updated_at ?? null }))
+    queries.setQueryData<Note>(queryKeys.note(transcriptId), before => ({
+      content, updated_at: before?.updated_at ?? null, version: before?.version ?? null, writer: before?.writer ?? null,
+    }))
   }, [queries])
 }
 

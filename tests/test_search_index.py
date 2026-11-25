@@ -252,10 +252,10 @@ def test_a_database_from_before_search_is_indexed_on_start(db):
     assert _found(db, "отпуск") == {("segment", untitled)}
 
 
-def test_the_schema_version_is_11(db):
+def test_the_search_index_came_with_schema_11(db):
     TranscriptStorageService(db_path=db)
     conn = sqlite3.connect(db)
-    assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == 11
+    assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] >= 11
     conn.close()
 
 

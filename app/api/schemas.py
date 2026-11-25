@@ -50,14 +50,38 @@ class TranscriptResponse(ResponseModel):
 NOTE_MAX_BYTES = 1_000_000
 
 
+NoteWriterKind = Literal["editor", "mcp", "api"]
+
+
+class NoteWriter(BaseModel):
+    """Who wrote a note: the app's editor, an agent through MCP or anything else
+    through the API; name says which one where it is known, such as "Claude Code"."""
+    kind: NoteWriterKind
+    name: str | None = Field(default=None, max_length=200)
+
+
+class NoteWriterResponse(ResponseModel):
+    kind: NoteWriterKind
+    name: str | None
+
+
 class NoteResponse(ResponseModel):
     # The editor's document (Tiptap JSON), or null when the recording has no note.
     content: dict | None
     updated_at: str | None
+    # Changes with every write; a writer sends it back to refuse a stale write.
+    # null without a note.
+    version: int | None
+    # Who wrote it last; null without a note or for a note older than writers.
+    writer: NoteWriterResponse | None
 
 
 class NoteRequest(BaseModel):
     content: dict
+    # The version the change was made from; null: there was no note. Left out,
+    # the note is written whatever it is now.
+    version: int | None = None
+    writer: NoteWriter | None = None
 
     @field_validator('content')
     @classmethod
@@ -67,6 +91,19 @@ class NoteRequest(BaseModel):
         if len(json.dumps(v, ensure_ascii=False).encode('utf-8')) > NOTE_MAX_BYTES:
             raise ValueError(f'the note is over {NOTE_MAX_BYTES} bytes')
         return v
+
+
+class NoteSaved(ResponseModel):
+    version: int
+    updated_at: str
+
+
+class NoteConflictResponse(BaseModel):
+    """409 of a note write from a version the note no longer has."""
+    detail: str
+    code: Literal["note_version_conflict"]
+    # The version the note has now; null when it has none.
+    version: int | None
 
 
 class TranscriptUpdateRequest(BaseModel):
@@ -193,7 +230,7 @@ RefusalCode = Literal[
     "whisper_model_missing", "diarization_model_missing", "alignment_model_missing",
     "audio_not_found", "audio_not_readable", "audio_copy_failed", "job_running",
     "handle_invalid", "handle_taken", "handle_needs_name", "photo_needs_name", "merge_into_self",
-    "transcript_not_diarized",
+    "transcript_not_diarized", "note_version_conflict",
 ]
 
 HandleFormat = Literal["first.last", "f.last", "first.l"]
@@ -333,6 +370,20 @@ class MicWatchResponse(BaseModel):
 
 class HeartbeatEvent(BaseModel):
     type: Literal["heartbeat"]
+
+
+class EventsConnectedEvent(BaseModel):
+    """WS /ws/events: the first message, once the socket hears every event. What
+    changed before it was missed: the UI reads again what it shows."""
+    type: Literal["connected"]
+
+
+class NoteChangedEvent(BaseModel):
+    """WS /ws/events: a note was written or deleted (version null), by anyone."""
+    type: Literal["note_changed"]
+    transcript_id: int
+    version: int | None
+    writer: NoteWriterResponse
 
 
 class JobUpdateRequest(BaseModel):

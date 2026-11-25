@@ -146,6 +146,21 @@
         "title": "DownloadRequest",
         "type": "object"
       },
+      "EventsConnectedEvent": {
+        "description": "WS /ws/events: the first message, once the socket hears every event. What\nchanged before it was missed: the UI reads again what it shows.",
+        "properties": {
+          "type": {
+            "const": "connected",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "EventsConnectedEvent",
+        "type": "object"
+      },
       "GpuDevice": {
         "properties": {
           "compute_capability": {
@@ -642,12 +657,101 @@
         "title": "ModelsFolder",
         "type": "object"
       },
+      "NoteChangedEvent": {
+        "description": "WS /ws/events: a note was written or deleted (version null), by anyone.",
+        "properties": {
+          "transcript_id": {
+            "title": "Transcript Id",
+            "type": "integer"
+          },
+          "type": {
+            "const": "note_changed",
+            "title": "Type",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "writer": {
+            "$ref": "#/components/schemas/NoteWriterResponse"
+          }
+        },
+        "required": [
+          "type",
+          "transcript_id",
+          "version",
+          "writer"
+        ],
+        "title": "NoteChangedEvent",
+        "type": "object"
+      },
+      "NoteConflictResponse": {
+        "description": "409 of a note write from a version the note no longer has.",
+        "properties": {
+          "code": {
+            "const": "note_version_conflict",
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "detail",
+          "code",
+          "version"
+        ],
+        "title": "NoteConflictResponse",
+        "type": "object"
+      },
       "NoteRequest": {
         "properties": {
           "content": {
             "additionalProperties": true,
             "title": "Content",
             "type": "object"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "writer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NoteWriter"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -680,13 +784,115 @@
               }
             ],
             "title": "Updated At"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "writer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NoteWriterResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "content",
-          "updated_at"
+          "updated_at",
+          "version",
+          "writer"
         ],
         "title": "NoteResponse",
+        "type": "object"
+      },
+      "NoteSaved": {
+        "properties": {
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "updated_at"
+        ],
+        "title": "NoteSaved",
+        "type": "object"
+      },
+      "NoteWriter": {
+        "description": "Who wrote a note: the app's editor, an agent through MCP or anything else\nthrough the API; name says which one where it is known, such as \"Claude Code\".",
+        "properties": {
+          "kind": {
+            "enum": [
+              "editor",
+              "mcp",
+              "api"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "NoteWriter",
+        "type": "object"
+      },
+      "NoteWriterResponse": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "editor",
+              "mcp",
+              "api"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "NoteWriterResponse",
         "type": "object"
       },
       "QueueJob": {
@@ -1061,7 +1267,8 @@
               "handle_needs_name",
               "photo_needs_name",
               "merge_into_self",
-              "transcript_not_diarized"
+              "transcript_not_diarized",
+              "note_version_conflict"
             ],
             "title": "Code",
             "type": "string"
@@ -4094,11 +4301,71 @@
               "title": "Transcript Id",
               "type": "integer"
             }
+          },
+          {
+            "description": "The version the deletion was decided on; left out, not checked",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The version the deletion was decided on; left out, not checked",
+              "title": "Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "writer_kind",
+            "required": false,
+            "schema": {
+              "default": "api",
+              "enum": [
+                "editor",
+                "mcp",
+                "api"
+              ],
+              "title": "Writer Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "writer_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Writer Name"
+            }
           }
         ],
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteConflictResponse"
+                }
+              }
+            },
+            "description": "The note is no longer at the version sent"
           },
           "422": {
             "content": {
@@ -4117,7 +4384,7 @@
         ]
       },
       "get": {
-        "description": "The note of the recording; content is null when it has none.",
+        "description": "The note of the recording; content and version are null when it has none.",
         "operationId": "get_note_transcripts__transcript_id__note_get",
         "parameters": [
           {
@@ -4158,7 +4425,7 @@
         ]
       },
       "put": {
-        "description": "Store the note of the recording as the editor's document, replacing the\none it had. An empty note is deleted by the UI rather than saved.",
+        "description": "Store the note of the recording as the editor's document, replacing the\none it had. An empty note is deleted by the UI rather than saved. With\nversion (null: no note), a note that has changed since is not overwritten: 409.",
         "operationId": "save_note_transcripts__transcript_id__note_put",
         "parameters": [
           {
@@ -4182,8 +4449,25 @@
           "required": true
         },
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteSaved"
+                }
+              }
+            },
             "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteConflictResponse"
+                }
+              }
+            },
+            "description": "The note is no longer at the version sent"
           },
           "422": {
             "content": {

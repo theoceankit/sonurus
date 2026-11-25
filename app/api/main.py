@@ -11,7 +11,7 @@ if not _verbose:
     suppress_ml_noise("startup")
 
 from app.logger import get_logger, setup_logging
-from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data, gpu, integrations, search
+from app.api.routers import transcripts, speakers, transcription, models, audio_capture, data, gpu, integrations, search, events
 from app.api.refusals import Refusal, refusal_handler
 from app.api.dependencies import (
     get_app_settings, get_live_recording_service, get_memory_service, get_mic_activity_service, get_storage_service,
@@ -104,6 +104,7 @@ app.include_router(data.router)
 app.include_router(gpu.router)
 app.include_router(integrations.router)
 app.include_router(search.router)
+app.include_router(events.router)
 
 
 @app.get("/health")

@@ -57,8 +57,12 @@ CREATE TABLE notes (                                                    -- schem
     content          TEXT NOT NULL,
     format           INTEGER NOT NULL DEFAULT 1,
     created_at       TEXT NOT NULL,
-    updated_at       TEXT NOT NULL
+    updated_at       TEXT NOT NULL,
+    version          INTEGER NOT NULL DEFAULT 0,                        -- schema v12
+    writer           TEXT                                               -- schema v12, JSON
 )
+
+CREATE TABLE note_version_seq (last INTEGER NOT NULL)                   -- schema v12, one row
 ```
 
 `speaker_id` — current effective speaker ID (`speaker_final or speaker_resolved`), always a UUID4 or `NULL`. Updated when segments get a speaker, via `set_segments_speaker()`.
@@ -212,19 +216,23 @@ Deletes a single segment identified by its time range.
 
 ### `get_note(db_id) → dict | None`
 
-The note of a transcript as `{"content": dict, "updated_at": str}`, or `None` when it has none.
+The note of a transcript as `{"content": dict, "updated_at": str, "version": int, "writer": dict | None}`, or `None` when it has none. `writer` is `{"kind": "editor" | "mcp" | "api", "name": str | None}`, `None` for a note written before schema v12.
 
 ---
 
-### `save_note(db_id, content) → bool`
+### `save_note(db_id, content, *, expected=ANY_VERSION, writer=None) → dict | None`
 
-Stores the editor's document as the transcript's note, replacing the one it had (`updated_at` changes, `created_at` stays), and indexes its blocks for search. Returns `False` if the transcript does not exist.
+Stores the editor's document as the transcript's note, replacing the one it had (`updated_at` changes, `created_at` stays), indexes its blocks for search and returns `{"version", "updated_at"}`; `None` if the transcript does not exist. Every write takes the next number of `note_version_seq`, one counter for all notes, so a version never comes back, also after a note is deleted and written again. `writer` defaults to `{"kind": "api", "name": None}`.
+
+`expected` is the version the writer started from, `None` for no note. It is checked in the same `BEGIN IMMEDIATE` transaction as the write: a note at another version raises `NoteVersionConflict` with `current`, the version it has (`None`: no note), and nothing is written. `ANY_VERSION` writes without a check.
+
+After the commit it publishes `{"type": "note_changed", "transcript_id", "version", "writer"}` on its `AppEvents` (the app's [bus](AppEvents.md) unless one is given to the constructor).
 
 ---
 
-### `delete_note(db_id)`
+### `delete_note(db_id, *, expected=ANY_VERSION, writer=None)`
 
-Deletes the transcript's note, if it has one, and its blocks in the search index.
+Deletes the transcript's note, if it has one, and its blocks in the search index. `expected` as for `save_note()`. A note deleted is announced as `note_changed` with `version` `None`; deleting no note announces nothing.
 
 ---
 

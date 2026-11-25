@@ -9,13 +9,29 @@ from app.logger import get_logger
 from app.db import search_index
 from app.db.schema import init_db
 from app.db.serializers import serialize_embedding, deserialize_embedding
+from app.services.app_events import AppEvents, app_events
 
 log = get_logger("DB")
 
+# expected= of a note write that is not checked against the version there.
+ANY_VERSION = object()
+# Who wrote a note when the writer does not say.
+API_WRITER = {"kind": "api", "name": None}
+
+
+class NoteVersionConflict(Exception):
+    """A note write expected a version the note no longer has. current is the
+    version it has, or None when it has no note."""
+
+    def __init__(self, current: int | None):
+        super().__init__(f"the note is at version {current}")
+        self.current = current
+
 
 class TranscriptStorageService:
-    def __init__(self, db_path="speaker_memory.db"):
+    def __init__(self, db_path="speaker_memory.db", events: AppEvents | None = None):
         self.db_path = db_path
+        self.events = events or app_events
         self._init_db()
 
     def _connect(self):
@@ -143,36 +159,73 @@ class TranscriptStorageService:
             return conn.execute("SELECT 1 FROM transcriptions WHERE id = ?", (db_id,)).fetchone() is not None
 
     def get_note(self, db_id: int) -> dict | None:
-        """The note of a transcript as {content, updated_at}, or None without one."""
+        """The note of a transcript as {content, updated_at, version, writer}, or
+        None without one. writer is None for a note written before writers were kept."""
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT content, updated_at FROM notes WHERE transcription_id = ?", (db_id,)
+                "SELECT content, updated_at, version, writer FROM notes WHERE transcription_id = ?", (db_id,)
             ).fetchone()
         if row is None:
             return None
-        return {"content": json.loads(row[0]), "updated_at": row[1]}
+        return {
+            "content": json.loads(row[0]), "updated_at": row[1], "version": row[2],
+            "writer": json.loads(row[3]) if row[3] else None,
+        }
 
-    def save_note(self, db_id: int, content: dict) -> bool:
-        """Store the note of a transcript, replacing the one it had. Returns False
-        if the transcript does not exist."""
+    @staticmethod
+    def _check_note_version(conn, db_id: int, expected) -> None:
+        if expected is ANY_VERSION:
+            return
+        row = conn.execute("SELECT version FROM notes WHERE transcription_id = ?", (db_id,)).fetchone()
+        current = row[0] if row else None
+        if current != expected:
+            raise NoteVersionConflict(current)
+
+    @staticmethod
+    def _next_note_version(conn) -> int:
+        conn.execute("UPDATE note_version_seq SET last = last + 1")
+        return conn.execute("SELECT last FROM note_version_seq").fetchone()[0]
+
+    def _announce_note(self, db_id: int, version: int | None, writer: dict) -> None:
+        self.events.publish({"type": "note_changed", "transcript_id": db_id, "version": version, "writer": writer})
+
+    def save_note(self, db_id: int, content: dict, *, expected=ANY_VERSION, writer: dict | None = None) -> dict | None:
+        """Store the note of a transcript, replacing the one it had, and announce it.
+        Returns {version, updated_at}, or None if the transcript does not exist.
+        expected: the version the writer started from (None: no note), checked in
+        the same transaction as the write; NoteVersionConflict if it is not the
+        one there. ANY_VERSION writes without a check."""
+        writer = {**API_WRITER, **(writer or {})}
         now = datetime.now().isoformat()
         with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
             if conn.execute("SELECT 1 FROM transcriptions WHERE id = ?", (db_id,)).fetchone() is None:
-                return False
+                return None
+            self._check_note_version(conn, db_id, expected)
+            version = self._next_note_version(conn)
             conn.execute(
-                """INSERT INTO notes (transcription_id, content, created_at, updated_at)
-                   VALUES (?, ?, ?, ?)
+                """INSERT INTO notes (transcription_id, content, created_at, updated_at, version, writer)
+                   VALUES (?, ?, ?, ?, ?, ?)
                    ON CONFLICT(transcription_id) DO UPDATE
-                   SET content = excluded.content, updated_at = excluded.updated_at""",
-                (db_id, json.dumps(content, ensure_ascii=False), now, now),
+                   SET content = excluded.content, updated_at = excluded.updated_at,
+                       version = excluded.version, writer = excluded.writer""",
+                (db_id, json.dumps(content, ensure_ascii=False), now, now, version, json.dumps(writer, ensure_ascii=False)),
             )
             search_index.index_note(conn, db_id, content)
-        return True
+        self._announce_note(db_id, version, writer)
+        return {"version": version, "updated_at": now}
 
-    def delete_note(self, db_id: int) -> None:
+    def delete_note(self, db_id: int, *, expected=ANY_VERSION, writer: dict | None = None) -> None:
+        """The transcript no longer has a note; announced if it had one. expected
+        as for save_note."""
+        writer = {**API_WRITER, **(writer or {})}
         with self._connect() as conn:
-            conn.execute("DELETE FROM notes WHERE transcription_id = ?", (db_id,))
+            conn.execute("BEGIN IMMEDIATE")
+            self._check_note_version(conn, db_id, expected)
+            deleted = conn.execute("DELETE FROM notes WHERE transcription_id = ?", (db_id,)).rowcount
             search_index.index_note(conn, db_id, None)
+        if deleted:
+            self._announce_note(db_id, None, writer)
 
     def rewrite_note_mentions(self, speaker_id: str, into_id: str | None = None, name: str | None = None) -> int:
         """Make the notes follow a speaker who is gone. With into_id (a merge) every
