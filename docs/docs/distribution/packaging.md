@@ -184,11 +184,11 @@ are missing:
 | `triton` (Linux only, ≈ 900 MB) | whisperx | torch only probes for it (`torch.utils._triton`); it is needed for `torch.compile` on a GPU |
 | `torchvision` | whisperx | torchmetrics imports it only if installed |
 | `matplotlib`, `contourpy`, `cycler`, `fonttools`, `kiwisolver` | pyannote-audio | plots in training code; torchmetrics imports it only if installed |
-| `rich`, `markdown-it-py`, `mdurl`, `pygments` | pyannote-audio | console progress bars (`ProgressHook`, training); lightning imports it only if installed |
+| `rich`, `pygments` | pyannote-audio | console progress bars (`ProgressHook`, training); lightning imports it only if installed |
 
 Packages that a library imports without a fallback stay, even when the backend does not use them:
 `optuna` (`pyannote.pipeline`), `opentelemetry-*` (pyannote telemetry), `sympy` and `networkx`; `nltk`
-is used by the whisperx alignment (its `punkt_tab` data is bundled, step 4 above). To exclude another package, add it to the list, regenerate the
+is used by the whisperx alignment (its `punkt_tab` data is bundled, step 4 above). `markdown-it-py` and `mdurl`, which come with `rich`, stay too: the backend reads notes written as Markdown ([Note Markdown](../services/NoteMarkdown.md)). To exclude another package, add it to the list, regenerate the
 locks and check that `scripts/check-bundled-imports.js` passes on a bundle and that a built app
 transcribes.
 

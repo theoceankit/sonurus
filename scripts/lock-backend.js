@@ -62,8 +62,9 @@ const EXCLUDED_PACKAGES = [
   // it only if installed.
   'matplotlib', 'contourpy', 'cycler', 'fonttools', 'kiwisolver',
   // pyannote-audio dependency for console progress bars (ProgressHook, training);
-  // lightning imports it only if installed.
-  'rich', 'markdown-it-py', 'mdurl', 'pygments',
+  // lightning imports it only if installed. Its markdown-it-py and mdurl stay: the
+  // backend reads notes written as Markdown (app/services/note_markdown.py).
+  'rich', 'pygments',
 ]
 
 // Wheel platform tags per build platform.
