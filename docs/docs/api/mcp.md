@@ -4,13 +4,13 @@ sidebar_position: 2
 
 # MCP server
 
-The backend serves an [MCP](https://modelcontextprotocol.io) endpoint for agents on the same computer, such as Claude Code: they read the user's recordings through it. It is off until the user turns it on in Settings → Integrations ([Settings](../ui/electron/settings.md#integrations)).
+The backend serves an [MCP](https://modelcontextprotocol.io) endpoint for agents on the same computer, such as Claude Code: they read the user's recordings through it and write their notes. It is off until the user turns it on in Settings → Integrations ([Settings](../ui/electron/settings.md#integrations)).
 
 | | |
 |---|---|
 | Address | `http://127.0.0.1:8000/mcp` |
 | Transport | Streamable HTTP, without sessions (`stateless_http`), answers as JSON (`json_response`): no SSE stream, no state between requests |
-| Code | `app/mcp/server.py` (endpoint, server, tools), `app/mcp/tools.py` (what the tools answer), mounted in `app/api/main.py` |
+| Code | `app/mcp/server.py` (endpoint, server, tools), `app/mcp/tools.py` (what the tools answer), `app/mcp/note_tools.py` and `note_changes.py` (the note), mounted in `app/api/main.py` |
 | Library | The official Python SDK, `mcp` (`MCPServer`) |
 
 The endpoint runs inside the backend, so it answers while Sonorus runs, also with its window closed to the tray, and not when Sonorus is quit. There is no process of its own.
@@ -53,6 +53,26 @@ Tools take and give recordings by `recording_id` (the transcript id), times in a
 | Tool | Answers |
 |---|---|
 | `list_recordings` | Every recording, newest first, one line each: `- recording_id 7: Weekly sync, 2026-11-20, 45:12`. No recordings: a line saying to transcribe or record audio first. |
+| `get_note` | The note of a recording: `Note of recording 7 (version 12):`, an empty line, then the note as Markdown. Without a note: `Recording 7 has no note yet (version 0): …`. |
+| `append_note` | Adds Markdown at the end of the note, or makes it the note when there is none. |
+| `replace_note` | Replaces the whole note with Markdown, given the `version` `get_note` read (`0`: no note). |
+| `edit_note` | Replaces one place in the note: `old_text`, found exactly once in the Markdown `get_note` gives, becomes `new_text`. |
+
+A refusal is one line, what happened and what to do, as an error result of the tool (`isError`): `Recording 9 not found: use list_recordings to see recording_ids.` The tools return it rather than raise `ToolError`, which the SDK would give with `Error executing tool <name>:` before it.
+
+### The note
+
+The note is written and read as the Markdown of [Note Markdown](../services/NoteMarkdown.md): `[12:34]` is a timecode and `@handle` a speaker of the base, chips in the editor; `@[Name]` someone not in the base, `@[Unknown speaker 2]` a speaker of this recording without a name. Who can be mentioned comes from `note_speakers()` in `app/services/transcript_text.py`: every speaker of the base, and this recording's speakers without a name by the label the editor shows (`unknown_speaker_names()`, a port of `unknownSpeakerNames` in the UI).
+
+A write never refuses Markdown: what the note does not have is made simpler, an unknown handle stays text, and the converter's warnings follow the answer, one line each; the one about handles adds where to find them (`list_speakers`) and `@[Name]`.
+
+- `append_note` puts the new blocks after the note's own, which stay as stored, empty lines at the edges of the new text left out. Empty Markdown is refused.
+- `replace_note` refuses a note that is not at `version`: `The note of recording 7 changed since version 12 (now version 13): read it with get_note and replace again.` So an agent replaces only what it read, and what the user saved meanwhile is kept.
+- `edit_note` matches `old_text` against the Markdown character for character, escapes included, and counts overlapping places. Not found, found more than once, an empty `old_text` and a recording without a note are refused, each with what to do. An empty `new_text` removes the text. The whole note is then written back from its Markdown, in [its normal form](../services/NoteMarkdown.md#without-loss).
+
+Each write reads the note, changes it and stores it with the version it read (`save_note`/`delete_note` with `expected`), as `writer` `{kind: "mcp", name}`, `name` being the client's own (`clientInfo`), when the request carries it. The backend announces it (`note_changed`) and an open editor merges it with what the user is typing ([Notes](../ui/electron/notes.md#changes-from-elsewhere)). A note saved by someone else between the read and the write is read again, up to 3 times (`ATTEMPTS`), then: `The note of recording 7 keeps changing while it is written: try again in a moment.` `replace_note` is not tried again: the version is the agent's.
+
+A write answers one line with the version it made: `Appended to the note of recording 7 (version 13).`, `Replaced …`, `Edited …`. A note that would read back the same is not written: `The note of recording 7 is unchanged (version 12).` A note left empty is deleted, as the editor does: `The note of recording 7 is now empty and was removed.`
 
 ## Network
 
