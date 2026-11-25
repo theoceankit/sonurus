@@ -34,7 +34,7 @@ export interface AlignmentDialogProps {
 
 const TITLES: Record<AlignmentState, (name: string) => string> = {
   offer: () => 'Alignment model required',
-  downloading: name => `Downloading ${name} model…`,
+  downloading: name => `Downloading ${name} model`,
   ready: () => 'Download complete',
   failed: () => 'Download failed',
 }
