@@ -19,6 +19,7 @@ import {
   buildTurns, formatRecordingDate, languageLabel, listBlocks, recordingTitle, speakerMenuRows, talkTimes, titleToSave, transcriptText,
 } from './transcript'
 import type { NoteQuote } from '../../components/NoteEditor/note-content'
+import { copyToClipboard } from './clipboard'
 import type { RecordingToDelete } from './DeleteRecordingDialog'
 import { selectionQuotes } from './quotes'
 import { useKeepRowInPlace } from './useKeepRowInPlace'
@@ -96,15 +97,6 @@ interface TranscriptViewProps {
   onDelete?: (recording: RecordingToDelete) => void
   highlight?: KeyStore<string | null>
   onQuote?: (quotes: NoteQuote[]) => void
-}
-
-async function copyToClipboard(text: string) {
-  try {
-    await window.electronAPI.writeClipboard(text)
-    toast({ message: 'Copied' })
-  } catch {
-    toast({ message: 'Copy failed', type: 'error' })
-  }
 }
 
 function TranscriptView({ transcript, speakers, playback, onShowAllSpeakers, onDelete, highlight: givenHighlight, onQuote }: TranscriptViewProps) {

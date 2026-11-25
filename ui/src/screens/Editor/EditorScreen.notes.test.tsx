@@ -254,14 +254,23 @@ describe('links and copying', () => {
     expect(electron.openLink).toHaveBeenCalledWith('mailto:support@example.com')
   })
 
-  test('Copy notes puts the note on the clipboard as Markdown, without a toast', async () => {
+  test('Copy notes puts the note on the clipboard as Markdown and says so, as Copy transcript', async () => {
     const { electron } = await open()
     await openNotes()
     await userEvent.click(within(inspector()).getByRole('button', { name: 'Copy notes' }))
     await waitFor(() => expect(electron.clipboard()).toMatch(/^# Weekly product sync\n\nFriday's release went out \*\*without crashes\*\*\./))
     expect(electron.clipboard()).toContain('- [x] Draft the release notes\n- [ ] Ask support about the import errors')
     expect(electron.clipboard()).toContain('Questions: [support](mailto:support@example.com)')
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(await screen.findByText('Copied')).toBeTruthy()
+  })
+
+  test('a refused clipboard says Copy failed', async () => {
+    const { electron } = await open()
+    electron.writeClipboard = vi.fn(async () => { throw new Error('denied') })
+    await openNotes()
+    await userEvent.click(within(inspector()).getByRole('button', { name: 'Copy notes' }))
+    expect(await screen.findByText('Copy failed')).toBeTruthy()
+    expect(screen.queryByText('Copied')).toBeNull()
   })
 })
 
