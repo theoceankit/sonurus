@@ -13,7 +13,7 @@ import prismTheme from './src/prism-theme.js';
 const config = {
   title: 'Sonorus',
   tagline: 'Private meeting intelligence, on your device',
-  favicon: 'img/sonorus-icon.png',
+  favicon: 'img/favicon.ico',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -92,7 +92,7 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      image: 'img/sonorus-icon.png',
+      image: 'img/icon.png',
       colorMode: {
         defaultMode: 'dark',
         disableSwitch: false,
@@ -102,7 +102,7 @@ const config = {
         title: 'Sonorus',
         logo: {
           alt: 'Sonorus',
-          src: 'img/sonorus-icon.png',
+          src: 'img/logo.png',
         },
         items: [
           {

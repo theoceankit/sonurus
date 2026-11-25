@@ -112,17 +112,17 @@
   text-align: center;
 }
 
+/* The app's quill on its own, transparent, so it sits on either theme. */
 .heroMark {
-  width: 96px;
   height: 96px;
   margin: 0 auto var(--space-4);
 }
 
 .heroMark img {
-  width: 100%;
+  display: block;
   height: 100%;
-  border-radius: 22px;
-  box-shadow: var(--shadow-md);
+  width: auto;
+  margin: 0 auto;
 }
 
 .heroWordmark {

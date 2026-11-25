@@ -193,7 +193,7 @@ export default function Home() {
       <header className={styles.hero}>
         <div className={styles.wrap}>
           <div className={`reveal ${styles.heroMark}`}>
-            <img src="/img/sonorus-icon.png" alt="Sonorus" />
+            <img src="/img/logo.png" alt="Sonorus" />
           </div>
           <div className={`reveal ${styles.heroWordmark}`} data-d="1">Sonorus</div>
           <div className="reveal" data-d="1">
