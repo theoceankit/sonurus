@@ -4,7 +4,8 @@
 // There are various equivalent ways to declare your Docusaurus config.
 // See: https://docusaurus.io/docs/api/docusaurus-config
 
-import {themes as prismThemes} from 'prism-react-renderer';
+import {fileURLToPath} from 'node:url';
+import prismTheme from './src/prism-theme.js';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -12,7 +13,7 @@ import {themes as prismThemes} from 'prism-react-renderer';
 const config = {
   title: 'Sonorus',
   tagline: 'Private meeting intelligence, on your device',
-  favicon: 'img/sonorus-icon.png',
+  favicon: 'img/favicon.ico',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -25,6 +26,25 @@ const config = {
 
   themes: ['@docusaurus/theme-mermaid'],
 
+  plugins: [
+    // Mermaid's parser pulls in vscode-languageserver-types, whose UMD build
+    // (what the server bundle resolves) calls require dynamically and makes the
+    // build warn. Its ESM build is the same code without that.
+    () => ({
+      name: 'resolve-languageserver-types-esm',
+      configureWebpack: () => ({
+        resolve: {
+          alias: {
+            // The package exports no subpaths, hence the file path.
+            'vscode-languageserver-types$': fileURLToPath(
+              new URL('./node_modules/vscode-languageserver-types/lib/esm/main.js', import.meta.url),
+            ),
+          },
+        },
+      }),
+    }),
+  ],
+
   // The site is not deployed yet. For GitHub Pages, set baseUrl to
   // '/sonurus/' (internal links are baseUrl-relative and keep working).
   url: 'https://theoceankit.github.io',
@@ -34,6 +54,9 @@ const config = {
   projectName: 'sonurus',
 
   onBrokenLinks: 'throw',
+
+  // ../ui/public carries the Inter licence, which the bundled font ships with.
+  staticDirectories: ['static', '../ui/public'],
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -55,7 +78,12 @@ const config = {
         },
         blog: false,
         theme: {
-          customCss: './src/css/custom.css',
+          // The app's own font and design tokens, then the docs styles on top.
+          customCss: [
+            '../ui/src/styles/fonts.css',
+            '../ui/src/styles/tokens.css',
+            './src/css/custom.css',
+          ],
         },
       }),
     ],
@@ -64,7 +92,7 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      image: 'img/sonorus-icon.png',
+      image: 'img/icon.png',
       colorMode: {
         defaultMode: 'dark',
         disableSwitch: false,
@@ -74,7 +102,7 @@ const config = {
         title: 'Sonorus',
         logo: {
           alt: 'Sonorus',
-          src: 'img/sonorus-icon.png',
+          src: 'img/logo.png',
         },
         items: [
           {
@@ -91,7 +119,7 @@ const config = {
         ],
       },
       footer: {
-        style: 'dark',
+        style: 'light',
         links: [
           {
             title: 'Product',
@@ -120,8 +148,19 @@ const config = {
         copyright: `© ${new Date().getFullYear()} Sonorus · Your audio never leaves your device.`,
       },
       prism: {
-        theme: prismThemes.github,
-        darkTheme: prismThemes.dracula,
+        theme: prismTheme,
+        darkTheme: prismTheme,
+        // Used in the docs but not in Prism's default set.
+        additionalLanguages: ['bash', 'powershell', 'sql'],
+      },
+      mermaid: {
+        theme: {light: 'neutral', dark: 'dark'},
+        // Mermaid sizes boxes to the text, so it has to measure in the page's
+        // font; setting the font in CSS afterwards would cut labels off.
+        options: {
+          fontFamily: "'Inter', system-ui, sans-serif",
+          themeVariables: {fontFamily: "'Inter', system-ui, sans-serif"},
+        },
       },
     }),
 };
