@@ -467,6 +467,42 @@ class TranscriptStorageService:
 
         return records
 
+    def recording_speakers(self) -> dict[int, list[str]]:
+        """{recording id: effective speakers of its segments, in the order they
+        first speak}. Unlike list_all()["speakers"], it has the speakers
+        diarization found and memory did not (no speaker_id, a raw label); it
+        leaves out unassigned segments and recordings without speakers."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                """SELECT s.transcription_id, COALESCE(s.speaker_id, s.speaker_raw)
+                   FROM segments s
+                   JOIN transcriptions t ON t.id = s.transcription_id
+                   WHERE s.unassigned = 0 AND t.diarized = 1
+                   ORDER BY s.transcription_id, s.start""",
+            ).fetchall()
+        speakers: dict[int, list[str]] = {}
+        for db_id, spk_id in rows:
+            seen = speakers.setdefault(db_id, [])
+            if spk_id not in seen:
+                seen.append(spk_id)
+        return speakers
+
+    def recording_meta(self, db_id: int) -> dict | None:
+        """{id, title, created_at, duration_sec} of a recording, or None. The
+        title falls back to the audio file's name, as in list_all()."""
+        with self._connect() as conn:
+            row = conn.execute(
+                """SELECT t.id, t.title, t.audio_file, t.created_at,
+                          (SELECT MAX(s.end) FROM segments s WHERE s.transcription_id = t.id)
+                   FROM transcriptions t WHERE t.id = ?""",
+                (db_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        db_id, title, audio_file, created_at, duration = row
+        return {"id": db_id, "title": title or os.path.splitext(os.path.basename(audio_file))[0],
+                "created_at": created_at or "", "duration_sec": duration or 0.0}
+
     def speaker_stats(self) -> dict[str, dict]:
         """Per-speaker usage across all transcripts:
         {speaker_id: {segments, transcripts, duration_sec, last_seen}}.

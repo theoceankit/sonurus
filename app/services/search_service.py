@@ -49,11 +49,7 @@ class SearchService:
         otherwise through the recordings. Raises SearchQueryError or
         SearchRefused for a search that cannot run, RecordingNotFound."""
         parsed = parse_query(q)
-        speaker_id = self._speaker_id(speaker) if speaker else None
-        day_from = _day("from", date_from)
-        day_to = _day("to", date_to)
-        if day_from and day_to and day_from > day_to:
-            raise SearchRefused("The from date comes after the to date: give a from date on or before the to date.")
+        speaker_id, day_from, day_to = self.filters(speaker, date_from, date_to)
 
         conn = sqlite3.connect(self.db_path)
         try:
@@ -88,12 +84,28 @@ class SearchService:
 
     # ── Filters ───────────────────────────────────────────────────────────────
 
-    def _speaker_id(self, speaker: str) -> str:
-        handle = speaker.strip().lstrip("@").lower()
+    def filters(self, speaker: str | None, date_from: str | None, date_to: str | None) -> tuple:
+        """(speaker id, from, to) of a search, or of any list of recordings by
+        the same filters. Raises SearchRefused for an unknown handle, a wrong
+        date or from after to."""
+        speaker_id = None
+        if speaker:
+            speaker_id = self.speaker_id(speaker)
+            if speaker_id is None:
+                raise SearchRefused(f"No speaker has the handle {handle_of(speaker)}: use the handle of a named speaker.")
+        day_from = _day("from", date_from)
+        day_to = _day("to", date_to)
+        if day_from and day_to and day_from > day_to:
+            raise SearchRefused("The from date comes after the to date: give a from date on or before the to date.")
+        return speaker_id, day_from, day_to
+
+    def speaker_id(self, speaker: str) -> str | None:
+        """The speaker with this handle (a leading @ and the case do not matter), or None."""
+        handle = handle_of(speaker)[1:]
         for spk_id, (known, _manual) in self.memory.known_handles.items():
             if known and known.lower() == handle:
                 return spk_id
-        raise SearchRefused(f"No speaker has the handle @{handle}: use the handle of a named speaker.")
+        return None
 
     # ── Queries ───────────────────────────────────────────────────────────────
 
@@ -215,6 +227,11 @@ class SearchService:
                 found.append({"id": spk_id, "name": name, "handle": handle})
         found.sort(key=lambda s: s["name"].lower())
         return found[:MAX_SPEAKERS]
+
+
+def handle_of(speaker: str) -> str:
+    """A handle as given, written as @handle in lowercase."""
+    return "@" + speaker.strip().lstrip("@").lower()
 
 
 def _day(which: str, value: str | None) -> str | None:
