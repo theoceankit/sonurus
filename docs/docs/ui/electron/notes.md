@@ -83,6 +83,10 @@ Closing the window to the tray destroys it and quitting gives the page no unload
 
 Copy notes, next to Expand notes (in the header of the note when it is expanded), puts the note on the clipboard as Markdown (`note-markdown.ts`): headings `#`, lists `-` and `1.`, checkboxes `- [ ]` and `- [x]`, quotes `>`, `**bold**`, `*italic*`, `[text](address)`, a timecode as `[12:34]` (`[1:02:03]` from an hour on), a speaker as "Name (@handle)", a person as "@Name"; empty paragraphs are left out. Text copied from the note with Ctrl+C has a timecode in the same form. It is off while the note is empty. It says nothing when done, as Copy transcript.
 
+## The schema on the backend
+
+The backend reads and writes notes as Markdown too, in a form of its own that reads back without loss ([Note Markdown](../../services/NoteMarkdown.md)), so it has to know the editor's nodes and attributes. The documents in `tests/fixtures/notes/` are what this editor saves: `note-fixtures.test.tsx` loads each into `NoteEditor` and expects the same document back. A change to the nodes, marks or attributes of the note (`NoteEditor.tsx`, `note-extensions.tsx`) fails that test; the fixtures are rewritten from the editor with `NOTE_FIXTURES=write` and `app/services/note_markdown.py` follows in the same change.
+
 ## Deleting
 
 A note goes with its recording: Delete recording and Delete all data remove it on the backend. The delete dialog of a recording with a note says so: "The transcript, its notes and its recording made in Sonorus will be deleted." (`has_note` of `GET /transcripts`).
