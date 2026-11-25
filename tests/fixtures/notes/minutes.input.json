@@ -1,0 +1,388 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Weekly product sync"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "With "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000001",
+            "label": "Anna",
+            "mentionSuggestionChar": "@",
+            "kind": "speaker"
+          }
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000002",
+            "label": "Mark",
+            "mentionSuggestionChar": "@",
+            "kind": "speaker"
+          }
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000003",
+            "label": "Lena",
+            "mentionSuggestionChar": "@",
+            "kind": "speaker"
+          }
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": null,
+            "label": "Sam from support",
+            "mentionSuggestionChar": "@",
+            "kind": "person"
+          }
+        },
+        {
+          "type": "text",
+          "text": ". Friday's release went out without crashes."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Decisions"
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Ship the import fix "
+                },
+                {
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "bold"
+                    }
+                  ],
+                  "text": "before"
+                },
+                {
+                  "type": "text",
+                  "text": " the redesign "
+                },
+                {
+                  "type": "timecode",
+                  "attrs": {
+                    "seconds": 16
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "One button style for the editor and settings, ask "
+                },
+                {
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "link",
+                      "attrs": {
+                        "href": "mailto:design@example.com",
+                        "target": "_blank",
+                        "rel": "noopener noreferrer nofollow",
+                        "class": null,
+                        "title": null
+                      }
+                    }
+                  ],
+                  "text": "the design team"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Retry for failed jobs is "
+                },
+                {
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "italic"
+                    }
+                  ],
+                  "text": "good enough"
+                },
+                {
+                  "type": "text",
+                  "text": " for now"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Action items"
+        }
+      ]
+    },
+    {
+      "type": "taskList",
+      "content": [
+        {
+          "type": "taskItem",
+          "attrs": {
+            "checked": false
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "mention",
+                  "attrs": {
+                    "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000004",
+                    "label": "Oliver",
+                    "mentionSuggestionChar": "@",
+                    "kind": "speaker"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": " checks the numbers by Friday "
+                },
+                {
+                  "type": "timecode",
+                  "attrs": {
+                    "seconds": 31
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "taskItem",
+          "attrs": {
+            "checked": true
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "mention",
+                  "attrs": {
+                    "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000005",
+                    "label": "Sofia",
+                    "mentionSuggestionChar": "@",
+                    "kind": "speaker"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": " picks up the button styles "
+                },
+                {
+                  "type": "timecode",
+                  "attrs": {
+                    "seconds": 44
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "taskItem",
+          "attrs": {
+            "checked": false
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "mention",
+                  "attrs": {
+                    "id": "a0000000-0000-4000-8000-000000000000",
+                    "label": "Pat Old",
+                    "mentionSuggestionChar": "@",
+                    "kind": "speaker"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": " sends the old import logs"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 3
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Import, in order"
+        }
+      ]
+    },
+    {
+      "type": "orderedList",
+      "attrs": {
+        "start": 1,
+        "type": null
+      },
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Copy large files in the background"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Show the copy in the queue"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "blockquote",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "mention",
+              "attrs": {
+                "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000001",
+                "label": "Anna",
+                "mentionSuggestionChar": "@",
+                "kind": "speaker"
+              }
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "timecode",
+              "attrs": {
+                "seconds": 10
+              }
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "What about the import flow? I saw a couple of complaints about large files."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Next sync: "
+        }
+      ]
+    }
+  ]
+}
