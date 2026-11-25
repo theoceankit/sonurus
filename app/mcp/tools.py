@@ -7,9 +7,11 @@ from app.services.transcript_text import clock
 
 __all__ = ["MAX_CHARS", "Refused", "clock", "fit", "parse_clock"]
 
-# The longest answer of a tool. Claude Code warns from about 10,000 tokens and
-# cuts at 25,000: 40,000 characters stay well inside in any language.
-MAX_CHARS = 40_000
+# The longest answer of a tool. Claude Code warns of a tool answer from 10,000
+# tokens and cuts it at 25,000. Measured there, a Russian transcript runs about
+# 2.46 characters a token and an English one 2.94, so 24,000 characters stay
+# under the warning in both (40,000 were 16,100 and 13,600 tokens).
+MAX_CHARS = 24_000
 
 _CLOCK = re.compile(r"^(?:(\d+):)?(\d{1,2}):(\d{2})$")
 _SECONDS = re.compile(r"^\d+(?:\.\d+)?$")

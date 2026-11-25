@@ -8,7 +8,7 @@ from app.mcp.read_format import (
 from app.mcp.tools import MAX_CHARS, Refused, clock, fit, parse_clock
 from app.models.segment import Segment
 from app.services.note_markdown import NoteSpeaker
-from app.services.transcript_text import build_turns
+from app.services.transcript_text import build_turns, transcript_text
 
 SPEAKERS = [NoteSpeaker("anna", "Anna Petrova", "anna"), NoteSpeaker("ivan", "Ivan Sidorov", "ivan")]
 META = {"id": 42, "title": "Weekly sync", "created_at": "2026-11-20T14:05:31.123", "duration_sec": 3733.4}
@@ -48,6 +48,19 @@ def test_a_wrong_time_is_refused_in_one_line(value):
 
 
 # ── Limit ─────────────────────────────────────────────────────────────────────
+
+def test_the_longest_answer_stays_under_the_claude_code_warning_in_russian():
+    # Measured in Claude Code: a Russian transcript runs about 2.46 characters a
+    # token, and Claude Code warns of a tool answer from 10,000 tokens.
+    assert MAX_CHARS == 24_000
+    assert MAX_CHARS / 2.46 < 10_000
+
+
+def test_a_recording_of_30_000_characters_comes_as_contents():
+    turns = _turns(_dialogue(35, words=80))
+    assert 24_000 < len(transcript_text(META["title"], turns)) < 40_000
+    assert "Too long to return whole (" in whole_or_contents(META, turns, diarized=True)
+
 
 def test_fit_keeps_a_short_answer_as_it_is():
     assert fit("a\nb") == "a\nb"
