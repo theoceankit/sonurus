@@ -199,8 +199,8 @@ async def test_the_sdk_client_lists_and_calls_the_tools(storage, no_network):
             tools = (await client.list_tools()).tools
             result = await client.call_tool("list_recordings", {})
 
-    assert [tool.name for tool in tools] == ["list_recordings"]
-    assert tools[0].description
+    listed = next(tool for tool in tools if tool.name == "list_recordings")
+    assert listed.description
     assert not result.is_error
     text = result.content[0].text
     lines = text.splitlines()

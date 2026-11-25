@@ -90,7 +90,7 @@ def _resolve(dependency):
 
 # /mcp: not a REST route (not in the OpenAPI schema); see app/mcp/server.py.
 mcp_endpoint = McpEndpoint(
-    build_server(storage=lambda: _resolve(get_storage_service)),
+    build_server(storage=lambda: _resolve(get_storage_service), memory=lambda: _resolve(get_memory_service)),
     enabled=lambda: _resolve(get_app_settings).get_bool(MCP_ENABLED),
 )
 app.router.routes.append(Route("/mcp", endpoint=mcp_endpoint))
