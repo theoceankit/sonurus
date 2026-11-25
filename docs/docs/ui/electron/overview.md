@@ -34,7 +34,7 @@ Screens get their data through one client, on the backend or on fixtures: see [U
 
 Every component lives in `ui/src/components/<Name>/` and has `<Name>.stories.tsx` with a story for each of its states. Storybook finds these files by itself; a component without one is simply absent from it, so a build test checks that the file exists. Whether the stories cover all states is checked by review.
 
-The stories under `Redesign/Editor` reproduce the Editor design boards at 1200×800 and carry their names, so a story can be compared with its board. A test holds the list of names.
+The states of the Editor, such as a speaker being changed, text being edited or each step of a review, are stories of `Screens/Editor/Transcript` and `Screens/Editor/Inspector` in a 1200×800 frame, on fixtures ([Inspector](inspector.md#stories)).
 
 ---
 

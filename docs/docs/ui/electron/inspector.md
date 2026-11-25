@@ -75,6 +75,6 @@ New speaker takes the name from the search. Its colour starts as the least used 
 
 ## Stories
 
-Screens / Editor / Inspector has a story for each board, with the name of the board, and Whole Review for going through every case on Design review. Only No Name has one speaker to review on Weekly product sync, Possible Matches has the three recognized speakers to confirm as well; the boards of Redesign / Editor / Speakers have them too (fixture board `possibleMatches`). Screens / Editor / Inspector / Room for the rows shows the panel at several heights with 2, 6 and 15 speakers, a long clip and a review over; Fifteen Speakers there is the whole Editor in a frame to resize by its corner.
+Screens / Editor / Inspector has a story for each state of the panel, and Whole Review for going through every case on Design review. Only No Name has one speaker to review on Weekly product sync, Possible Matches has the three recognized speakers to confirm as well (fixture board `possibleMatches`). The steps of that review have a story each, on the same fixture: Review with a row hovered, Possible Match Open with Oliver Grant's card open, Review Closed, Choose Speaker, Choose Speaker No Results and New Speaker; Done shows the toast after an assignment. Screens / Editor / Inspector / Room for the rows shows the panel at several heights with 2, 6 and 15 speakers, a long clip and a review over; Fifteen Speakers there is the whole Editor in a frame to resize by its corner.
 
 A row's buttons on hover are not on the boards: they keep what the old panel could do.
