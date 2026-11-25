@@ -96,7 +96,7 @@ A speaker merged or deleted rewrites the mentions in the notes on the backend wi
 
 ## Copy notes
 
-Copy notes, next to Expand notes (in the header of the note when it is expanded), puts the note on the clipboard as Markdown (`note-markdown.ts`): headings `#`, lists `-` and `1.`, checkboxes `- [ ]` and `- [x]`, quotes `>`, `**bold**`, `*italic*`, `[text](address)`, a timecode as `[12:34]` (`[1:02:03]` from an hour on), a speaker as "Name (@handle)", a person as "@Name"; empty paragraphs are left out. Text copied from the note with Ctrl+C has a timecode in the same form. It is off while the note is empty. It says nothing when done, as Copy transcript.
+Copy notes, next to Expand notes (in the header of the note when it is expanded), puts the note on the clipboard as Markdown (`note-markdown.ts`): headings `#`, lists `-` and `1.`, checkboxes `- [ ]` and `- [x]`, quotes `>`, `**bold**`, `*italic*`, `[text](address)`, a timecode as `[12:34]` (`[1:02:03]` from an hour on), a speaker as "Name (@handle)", a person as "@Name"; empty paragraphs are left out. Text copied from the note with Ctrl+C has a timecode in the same form. It is off while the note is empty. Like Copy transcript, it writes through `electronAPI.writeClipboard` (`copyToClipboard` in `clipboard.ts`): Copied says it worked, Copy failed that the clipboard refused it.
 
 ## The schema on the backend
 

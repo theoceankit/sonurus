@@ -9,6 +9,7 @@ import { Button } from '../../components/Button/Button'
 import type { NoteQuote } from '../../components/NoteEditor/note-content'
 import { Stack } from '../../components/Stack/Stack'
 import { usePlayback, type Playback } from '../../media/playback'
+import { copyToClipboard } from './clipboard'
 import type { NoteAutosave } from './note-autosave'
 import { mentionCandidates, speakerFinder } from './note-speakers'
 import type { MentionCandidate } from '../../components/MentionList/mention-list'
@@ -33,7 +34,7 @@ interface EditorNotesProps {
 // first time a note opens, not with the window.
 const NotesPanel = lazy(() => import('../../components/NotesPanel/NotesPanel').then(module => ({ default: module.NotesPanel })))
 
-const copy = (markdown: string) => { void window.electronAPI?.writeClipboard(markdown) }
+const copy = (markdown: string) => { void copyToClipboard(markdown) }
 const openLink = (href: string) => { void window.electronAPI?.openLink(href) }
 
 // The note of a recording, saved as it is typed. It opens with what the editor had
