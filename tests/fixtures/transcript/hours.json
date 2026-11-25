@@ -1,0 +1,54 @@
+{
+  "title": "Long meeting",
+  "diarized": true,
+  "speakers": [
+    {
+      "id": "3f0c8a52-6d1e-4b7a-9c2d-1e5f7a9b0c11",
+      "name": "Anna Petrova",
+      "handle": "anna"
+    },
+    {
+      "id": "8a1d2e3f-4b5c-4d6e-8f70-819a2b3c4d5e",
+      "name": "Mark",
+      "handle": "mark"
+    }
+  ],
+  "segments": [
+    {
+      "start": 59.9,
+      "end": 61.0,
+      "text": "Just under a minute.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": "3f0c8a52-6d1e-4b7a-9c2d-1e5f7a9b0c11",
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 3599.99,
+      "end": 3601.0,
+      "text": "Just under an hour.",
+      "speaker_raw": "SPEAKER_01",
+      "speaker_resolved": "8a1d2e3f-4b5c-4d6e-8f70-819a2b3c4d5e",
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 3600.0,
+      "end": 3605.0,
+      "text": "Exactly an hour.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": "3f0c8a52-6d1e-4b7a-9c2d-1e5f7a9b0c11",
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 14706.7,
+      "end": 14709,
+      "text": "Four hours in.",
+      "speaker_raw": "SPEAKER_01",
+      "speaker_resolved": "8a1d2e3f-4b5c-4d6e-8f70-819a2b3c4d5e",
+      "speaker_final": null,
+      "unassigned": false
+    }
+  ]
+}

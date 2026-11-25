@@ -1,0 +1,45 @@
+{
+  "title": "Планёрка",
+  "diarized": true,
+  "speakers": [
+    {
+      "id": "0a1b2c3d-4e5f-4061-8728-394a5b6c7d8e",
+      "name": "Илья Ёлкин",
+      "handle": "ilya"
+    },
+    {
+      "id": "c4d5e6f7-0819-4a2b-8c3d-4e5f60718293",
+      "name": null,
+      "handle": null
+    }
+  ],
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 3.0,
+      "text": "Доброе утро. Ёлка «стоит» — где?",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": "0a1b2c3d-4e5f-4061-8728-394a5b6c7d8e",
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 3.0,
+      "end": 6.0,
+      "text": "На складе, как обычно.",
+      "speaker_raw": "SPEAKER_01",
+      "speaker_resolved": "c4d5e6f7-0819-4a2b-8c3d-4e5f60718293",
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 6.0,
+      "end": 9.0,
+      "text": "Хорошо: заберу после обеда.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": "0a1b2c3d-4e5f-4061-8728-394a5b6c7d8e",
+      "speaker_final": null,
+      "unassigned": false
+    }
+  ]
+}

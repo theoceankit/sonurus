@@ -1,0 +1,49 @@
+{
+  "title": "Standup",
+  "diarized": true,
+  "speakers": [
+    {
+      "id": "3f0c8a52-6d1e-4b7a-9c2d-1e5f7a9b0c11",
+      "name": "Anna Petrova",
+      "handle": "anna"
+    }
+  ],
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 3.0,
+      "text": "A sentence whose speaker was deleted.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": "f1e2d3c4-b5a6-4978-8a6b-5c4d3e2f1a00",
+      "speaker_final": null,
+      "unassigned": true
+    },
+    {
+      "start": 3.0,
+      "end": 5.0,
+      "text": "And another one.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": null,
+      "speaker_final": null,
+      "unassigned": true
+    },
+    {
+      "start": 5.0,
+      "end": 7.0,
+      "text": "Anna takes over.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": "3f0c8a52-6d1e-4b7a-9c2d-1e5f7a9b0c11",
+      "speaker_final": null,
+      "unassigned": false
+    },
+    {
+      "start": 7.0,
+      "end": 9.0,
+      "text": "Nobody again.",
+      "speaker_raw": "SPEAKER_00",
+      "speaker_resolved": null,
+      "speaker_final": "3f0c8a52-6d1e-4b7a-9c2d-1e5f7a9b0c11",
+      "unassigned": true
+    }
+  ]
+}
