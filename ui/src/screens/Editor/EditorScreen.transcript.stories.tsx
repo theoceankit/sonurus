@@ -6,7 +6,6 @@ import { EditorScreen } from './EditorScreen'
 import styles from './EditorScreen.stories.module.css'
 import { paragraph, standing, waitFor } from './story-helpers'
 
-// Not boards; those are in EditorBoards.transcript.stories.tsx.
 const meta: Meta<typeof EditorScreen> = {
   title: 'Screens/Editor/Transcript',
   component: EditorScreen,
@@ -51,3 +50,37 @@ export const LongRecordingHighlighted: Story = {
   ...LongRecording,
   args: { ...LongRecording.args, initialHighlight: effectiveSpeaker(longSegments()[0]) },
 }
+
+const nameButton = (canvas: HTMLElement, name: string) =>
+  waitFor(() => [...canvas.querySelectorAll('[data-transcript-scroll] button')].find(node => node.textContent!.trim() === name))
+
+export const ChangeSpeaker: Story = {
+  parameters: { api: { board: 'reviewDone' } },
+  play: async ({ canvasElement }) => { (await nameButton(canvasElement, 'Mark Ellis')).click() },
+}
+
+export const TextSelection: Story = {
+  parameters: { api: { board: 'reviewDone' } },
+  play: async ({ canvasElement }) => {
+    const text = (await paragraph(canvasElement, 'I saw a couple of complaints')).firstChild!
+    const value = text.textContent!
+    const selection = window.getSelection()!
+    selection.setBaseAndExtent(text, value.indexOf('I saw'), text, value.length)
+    document.dispatchEvent(new MouseEvent('mouseup'))
+  },
+}
+
+export const EditingText: Story = {
+  parameters: { api: { board: 'reviewDone' } },
+  play: async ({ canvasElement }) => {
+    const text = await paragraph(canvasElement, 'That was me')
+    text.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+  },
+}
+
+export const Renaming: Story = {
+  parameters: { api: { board: 'reviewDone' } },
+  play: async ({ canvasElement }) => { (await nameButton(canvasElement, 'Weekly product sync')).click() },
+}
+
+export const Unassigned: Story = { parameters: { api: { board: 'unassigned' } } }
