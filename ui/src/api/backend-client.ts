@@ -2,11 +2,14 @@ import createClient from 'openapi-fetch'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from './client'
 import { watchGpuDownload, type GpuRestartAnswer } from './gpu-events'
 import { watchModelDownload } from './model-download-events'
+import { connectAppEvents } from './app-events'
 import { connectQueueEvents } from './queue-events'
 import type { paths } from './schema.gen'
 import type { RefusalCode, Speaker } from './types'
 
 const API_BASE = 'http://localhost:8000'
+// Who the app's own note writes come from.
+const EDITOR = { kind: 'editor' } as const
 
 type BackendClientOptions = {
   baseUrl?: string
@@ -90,8 +93,12 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     markTranscriptUnopened: id => send(http.DELETE('/transcripts/{transcript_id}/opened', transcript(id))),
     deleteTranscript: id => send(http.DELETE('/transcripts/{transcript_id}', transcript(id))),
     getNote: id => send(http.GET('/transcripts/{transcript_id}/note', transcript(id))),
-    saveNote: (id, content) => send(http.PUT('/transcripts/{transcript_id}/note', { ...transcript(id), body: { content } })),
-    deleteNote: id => send(http.DELETE('/transcripts/{transcript_id}/note', transcript(id))),
+    saveNote: (id, content, version) => send(http.PUT('/transcripts/{transcript_id}/note', {
+      ...transcript(id), body: { content, version, writer: EDITOR },
+    })),
+    deleteNote: (id, version) => send(http.DELETE('/transcripts/{transcript_id}/note', {
+      params: { path: { transcript_id: id }, query: { ...(version !== null && { version }), writer_kind: EDITOR.kind } },
+    })),
     updateSegmentText: (id, start, text) => send(http.PATCH('/transcripts/{transcript_id}/segments/{start}/text', { ...segment(id, start), body: { text } })),
     deleteSegment: (id, start) => send(http.DELETE('/transcripts/{transcript_id}/segments/{start}', segment(id, start))),
     assignSpeaker,
@@ -170,6 +177,11 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
       url: `${baseUrl.replace(/^http/, 'ws')}/ws/queue`,
       onEvent: listener,
       onConnection,
+      WebSocketImpl: options.WebSocketImpl,
+    }),
+    subscribeAppEvents: listener => connectAppEvents({
+      url: `${baseUrl.replace(/^http/, 'ws')}/ws/events`,
+      onEvent: listener,
       WebSocketImpl: options.WebSocketImpl,
     }),
   }

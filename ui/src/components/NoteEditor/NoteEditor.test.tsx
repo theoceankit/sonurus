@@ -3,7 +3,8 @@ import type { Editor } from '@tiptap/core'
 import type { JSONContent } from '@tiptap/react'
 import { describe, expect, test, vi } from 'vitest'
 import type { MentionChange } from './note-content'
-import { NoteEditor } from './NoteEditor'
+import type { NoteWriter } from '../../api/types'
+import { NoteEditor, type NoteChangeListener } from './NoteEditor'
 
 function editorWith(content: object | null = null) {
   render(<NoteEditor content={content} findSpeaker={() => null} />)
@@ -145,6 +146,85 @@ describe('mentions of a speaker who is gone, in an open note', () => {
 
   test('the note stops listening once it closes', () => {
     const { view, listening } = open()
+    expect(listening()).toBe(true)
+    view.unmount()
+    expect(listening()).toBe(false)
+  })
+})
+
+describe('the note changed elsewhere', () => {
+  const p = (text: string): JSONContent => ({ type: 'paragraph', content: [{ type: 'text', text }] })
+  const doc = (...content: JSONContent[]): JSONContent => ({ type: 'doc', content })
+
+  function open(content: JSONContent) {
+    let listener: NoteChangeListener | null = null
+    const subscribe = (next: NoteChangeListener) => {
+      listener = next
+      return () => { listener = null }
+    }
+    const onChange = vi.fn()
+    const transactions: { external: unknown; history: unknown }[] = []
+    const view = render(<NoteEditor content={content} findSpeaker={() => null} changesFromElsewhere={subscribe} onChange={onChange} />)
+    const editor = (screen.getByRole('textbox', { name: 'Notes' }) as HTMLElement & { editor: Editor }).editor
+    editor.on('transaction', ({ transaction }) => {
+      if (transaction.docChanged) transactions.push({ external: transaction.getMeta('external'), history: transaction.getMeta('addToHistory') })
+    })
+    const send = (note: JSONContent, writer: NoteWriter | null = null) => act(() => listener?.(note, writer))
+    return { editor, send, onChange, view, transactions, listening: () => listener !== null }
+  }
+
+  test('it shows the new version, as one step marked as from elsewhere, with who wrote it', () => {
+    const { editor, send, onChange, transactions } = open(doc(p('first'), p('second')))
+    send(doc(p('first'), p('second'), p('by the agent')), { kind: 'mcp', name: 'Claude Code' })
+    expect(editor.getText({ blockSeparator: '|' })).toBe('first|second|by the agent')
+    expect(transactions).toEqual([{ external: { writer: { kind: 'mcp', name: 'Claude Code' } }, history: false }])
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  test('the cursor stays where it was in a paragraph the change left alone', () => {
+    const { editor, send } = open(doc(p('first'), p('second')))
+    act(() => { editor.commands.setTextSelection(4) })
+    send(doc(p('first'), p('second, theirs')))
+    expect(editor.state.selection.from).toBe(4)
+    send(doc(p('before'), p('first'), p('second, theirs')))
+    expect(editor.state.doc.textBetween(editor.state.selection.from - 3, editor.state.selection.from)).toBe('fir')
+  })
+
+  test('a cursor before what was added in its paragraph stays', () => {
+    const { editor, send } = open(doc(p('first'), p('second')))
+    act(() => { editor.commands.setTextSelection(10) })
+    send(doc(p('first'), p('second, theirs')))
+    expect(editor.state.selection.from).toBe(10)
+  })
+
+  test('a cursor in text that was replaced goes to the end of the change', () => {
+    const { editor, send } = open(doc(p('first'), p('second')))
+    act(() => { editor.commands.setTextSelection(10) })
+    send(doc(p('first'), p('SECOND theirs')))
+    const at = editor.state.selection.from
+    expect(editor.state.doc.textBetween(at - 6, at)).toBe('theirs')
+  })
+
+  test('Undo takes back what was typed here, never the change from elsewhere', () => {
+    const { editor, send } = open(doc(p('first')))
+    act(() => { editor.commands.setTextSelection(6) })
+    type(editor, ' typed')
+    send(doc(p('first typed'), p('by the agent')))
+    act(() => { editor.commands.undo() })
+    expect(editor.getText({ blockSeparator: '|' })).toBe('first|by the agent')
+    act(() => { editor.commands.undo() })
+    expect(editor.getText({ blockSeparator: '|' })).toBe('first|by the agent')
+  })
+
+  test('the same document changes nothing', () => {
+    const { send, onChange, transactions } = open(doc(p('first')))
+    send(doc(p('first')))
+    expect(transactions).toEqual([])
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  test('the note stops listening once it closes', () => {
+    const { view, listening } = open(doc(p('first')))
     expect(listening()).toBe(true)
     view.unmount()
     expect(listening()).toBe(false)

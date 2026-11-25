@@ -90,7 +90,7 @@ A speaker's `color_index` counts from 0. `speakerColor()` in `ui/src/styles/spea
 The WebSocket is also how the app knows the backend is there. `useBackendConnected()` is false from the moment the connection drops until it opens again, and a first attempt that fails counts as a drop.
 
 - While it is down, `App` shows a toast that stays. What is on the screen stays too, and an action fails with its own toast.
-- When it is back, every query but the notes already loaded is refreshed, as a job may have finished unheard. That also clears the error of a first load, with no click on Retry. A loaded note is left alone: the cache has what was typed while the backend was away, and the backend does not.
+- When it is back, every query but the notes already loaded is refreshed, as a job may have finished unheard. That also clears the error of a first load, with no click on Retry. A loaded note is not loaded again over it: the cache has what was typed while the backend was away, and the backend does not. The note saver reads it and merges instead, when `WS /ws/events` says connected again ([Notes](notes.md#changes-from-elsewhere)).
 - A load of audio that failed is tried again from the same position (`Playback.reload()`). While the backend is down the player does not call the file missing.
 
 Reading a query, screens show an error only when there is no data: a refresh that fails leaves what was loaded.
@@ -111,11 +111,11 @@ Reading a query, screens show an error only when there is no data: a refresh tha
 
 `useDeleteTranscript()` counts a recording already gone as deleted. It takes the recording off the list at once and does not ask for its details again, as the panels still show it until `EditorScreen` closes it. Its note leaves the cache with it.
 
-`useNote(id)` reads the note of a recording once: its key, `queryKeys.note(id)`, is not under the transcripts, so a refresh of the list does not load it again under the text being typed, and it is never stale. `useKeepNote()` puts what the editor has into that cache at once, saved or not; `useWriteNote()` saves a note, or deletes it for `null`, and sets `has_note` of the recording in the list. Saving itself is the screen's ([Notes](notes.md#saving)). Delete all data drops every note of the cache (`queryKeys.notes`).
+`useNote(id)` reads the note of a recording once: its key, `queryKeys.note(id)`, is not under the transcripts, so a refresh of the list does not load it again under the text being typed, and it is never stale. `useKeepNote()` puts what the editor has into that cache at once, saved or not; `useWriteNote()` saves a note from the version it was made from, or deletes it for `null`, resolves with the new version and sets `has_note` of the recording in the list (`setHasNote()`, also for a note changed elsewhere). Saving itself is the screen's ([Notes](notes.md#saving)). Delete all data drops every note of the cache (`queryKeys.notes`).
 
 ## Fixtures
 
-`createFixtureClient(options)` in `ui/src/api/fixtures/fixture-client.ts` implements the same interface on data in memory. Each client has its own copy. Weekly product sync has a note (`fixtures/notes.ts`: headings, a list, checkboxes, a quote and a link), the other recordings none.
+`createFixtureClient(options)` in `ui/src/api/fixtures/fixture-client.ts` implements the same interface on data in memory. Each client has its own copy. Weekly product sync has a note (`fixtures/notes.ts`: headings, a list, checkboxes, a quote and a link), the other recordings none. Notes have versions and refuse a stale write with the backend's 409, every write is announced to `subscribeAppEvents()`, and `writeNoteElsewhere()` writes one as an agent would, heard or, with `unheard`, as while the socket is down.
 
 | Option | Values | |
 |---|---|---|

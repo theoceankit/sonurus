@@ -235,15 +235,17 @@ describe('the note of a recording', () => {
     expect(getNote).toHaveBeenCalledTimes(1)
   })
 
-  test('writing it saves, and null deletes; the list follows', async () => {
+  test('writing it saves from its version, and null deletes; the list follows', async () => {
     const { client, result } = setup()
     await waitFor(() => expect(listed(result.current.list.data)).toBe(true))
-    await act(() => result.current.write(WEEKLY_SYNC_ID, null))
+    await act(async () => { expect(await result.current.write(WEEKLY_SYNC_ID, null, 1)).toBeNull() })
     await waitFor(() => expect(listed(result.current.list.data)).toBe(false))
     expect((await client.getNote(WEEKLY_SYNC_ID)).content).toBeNull()
-    await act(() => result.current.write(WEEKLY_SYNC_ID, doc))
+    let version: number | null = null
+    await act(async () => { version = await result.current.write(WEEKLY_SYNC_ID, doc, null) })
     await waitFor(() => expect(listed(result.current.list.data)).toBe(true))
-    expect((await client.getNote(WEEKLY_SYNC_ID)).content).toEqual(doc)
+    expect(await client.getNote(WEEKLY_SYNC_ID)).toMatchObject({ content: doc, version })
+    await expect(result.current.write(WEEKLY_SYNC_ID, doc, 1)).rejects.toMatchObject({ status: 409 })
   })
 
   test('nothing is asked for without a recording', async () => {
@@ -350,7 +352,7 @@ describe('the speakers section', () => {
 
   test('merging a speaker moves their mentions in notes kept here, and tells the open editors', async () => {
     const client = createFixtureClient()
-    await client.saveNote(WEEKLY_SYNC_ID, mentioning(SPEAKER_IDS.unknown1, 'Speaker 3'))
+    await client.saveNote(WEEKLY_SYNC_ID, mentioning(SPEAKER_IDS.unknown1, 'Speaker 3'), 1)
     const heard = vi.fn()
     const stop = onMentionChange(heard)
     const { result } = renderHook(() => ({ note: useNote(WEEKLY_SYNC_ID), merge: useMergeSpeaker() }), { wrapper: wrapperFor(client) })
@@ -364,7 +366,7 @@ describe('the speakers section', () => {
 
   test('deleting a speaker makes their mentions the name they had, as text', async () => {
     const client = createFixtureClient()
-    await client.saveNote(WEEKLY_SYNC_ID, mentioning(mark, 'Mark'))
+    await client.saveNote(WEEKLY_SYNC_ID, mentioning(mark, 'Mark'), 1)
     const heard = vi.fn()
     const stop = onMentionChange(heard)
     const { result } = renderHook(() => ({ speakers: useSpeakers(), note: useNote(WEEKLY_SYNC_ID), remove: useDeleteSpeaker() }), { wrapper: wrapperFor(client) })

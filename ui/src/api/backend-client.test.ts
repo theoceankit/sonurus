@@ -124,17 +124,29 @@ describe('requests', () => {
     expect(sent).toEqual([{ url: 'http://localhost:8000/transcripts/7/opened', method: 'DELETE' }])
   })
 
-  test('the note: GET, PUT and DELETE', async () => {
+  test('the note: GET, PUT and DELETE, each from its version and as the editor', async () => {
     const doc = { type: 'doc', content: [] }
-    const { client, sent } = setup(request => (request.method === 'GET' ? json({ content: doc, updated_at: 'x' }) : new Response(null, { status: 204 })))
-    expect(await client.getNote(7)).toEqual({ content: doc, updated_at: 'x' })
-    await client.saveNote(7, doc)
-    await client.deleteNote(7)
+    const note = { content: doc, updated_at: 'x', version: 3, writer: { kind: 'editor', name: null } }
+    const { client, sent } = setup(request => (
+      request.method === 'GET' ? json(note)
+        : request.method === 'PUT' ? json({ version: 4, updated_at: 'y' })
+          : new Response(null, { status: 204 })))
+    expect(await client.getNote(7)).toEqual(note)
+    expect(await client.saveNote(7, doc, 3)).toEqual({ version: 4, updated_at: 'y' })
+    await client.saveNote(7, doc, null)
+    await client.deleteNote(7, 4)
     expect(sent.map(({ url, method, body }) => [method, url, body])).toEqual([
       ['GET', 'http://localhost:8000/transcripts/7/note', undefined],
-      ['PUT', 'http://localhost:8000/transcripts/7/note', { content: doc }],
-      ['DELETE', 'http://localhost:8000/transcripts/7/note', undefined],
+      ['PUT', 'http://localhost:8000/transcripts/7/note', { content: doc, version: 3, writer: { kind: 'editor' } }],
+      ['PUT', 'http://localhost:8000/transcripts/7/note', { content: doc, version: null, writer: { kind: 'editor' } }],
+      ['DELETE', 'http://localhost:8000/transcripts/7/note?version=4&writer_kind=editor', undefined],
     ])
+  })
+
+  test('a note saved from a stale version is refused with its code', async () => {
+    const { client } = setup(() => json({ detail: 'The note changed since this version: read it again', code: 'note_version_conflict', version: 5 }, 409))
+    const refused = await client.saveNote(7, { type: 'doc', content: [] }, 3).catch((error: unknown) => error)
+    expect(refused).toMatchObject({ status: 409, code: 'note_version_conflict' })
   })
 
   test('confirming a possible match and its undo', async () => {

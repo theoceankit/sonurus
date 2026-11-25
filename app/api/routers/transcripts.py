@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 
 import app.config as config
 from app.logger import get_logger
-from app.services.transcript_storage_service import TranscriptStorageService
+from app.services.transcript_storage_service import ANY_VERSION, NoteVersionConflict, TranscriptStorageService
 from app.services.speaker_memory_service import PALETTE_SIZE, SpeakerMemoryService
 from app.services.commit_service import CommitService
 from app.api.dependencies import get_memory_service, get_storage_service
@@ -18,7 +18,7 @@ from app.api.schemas import (
     TranscriptListItem, TranscriptResponse, SegmentResponse, TranscriptUpdateRequest,
     SegmentTextRequest, SpeakerCandidate, UnknownSpeakerCandidates, VoiceClip, SpeakerAssignmentRequest,
     SpeakerAssignmentResponse, SpeakerAssignmentUndoRequest, WaveformResponse, RefusalResponse,
-    NoteResponse, NoteRequest,
+    NoteResponse, NoteRequest, NoteSaved, NoteConflictResponse, NoteWriterKind,
 )
 from app.services.audio_store import discard_levels
 from app.services.speaker_candidates import is_possible_match, possible_match_candidates, rank_candidates, voice_centroid
@@ -326,38 +326,61 @@ def mark_transcript_unopened(
         raise HTTPException(status_code=404, detail="Transcript not found")
 
 
+_NOTE_CONFLICT = {409: {"model": NoteConflictResponse, "description": "The note is no longer at the version sent"}}
+
+
+def _note_conflict(conflict: NoteVersionConflict) -> Refusal:
+    return Refusal("note_version_conflict", "The note changed since this version: read it again",
+                   status_code=409, extra={"version": conflict.current})
+
+
 @router.get("/{transcript_id}/note", response_model=NoteResponse)
 def get_note(
     transcript_id: int,
     storage: TranscriptStorageService = Depends(get_storage_service),
 ):
-    """The note of the recording; content is null when it has none."""
+    """The note of the recording; content and version are null when it has none."""
     if not storage.exists(transcript_id):
         raise HTTPException(status_code=404, detail="Transcript not found")
-    return storage.get_note(transcript_id) or NoteResponse(content=None, updated_at=None)
+    return storage.get_note(transcript_id) or NoteResponse(content=None, updated_at=None, version=None, writer=None)
 
 
-@router.put("/{transcript_id}/note", status_code=204)
+@router.put("/{transcript_id}/note", response_model=NoteSaved, responses=_NOTE_CONFLICT)
 def save_note(
     transcript_id: int,
     body: NoteRequest,
     storage: TranscriptStorageService = Depends(get_storage_service),
 ):
     """Store the note of the recording as the editor's document, replacing the
-    one it had. An empty note is deleted by the UI rather than saved."""
-    if not storage.save_note(transcript_id, body.content):
+    one it had. An empty note is deleted by the UI rather than saved. With
+    version (null: no note), a note that has changed since is not overwritten: 409."""
+    expected = body.version if "version" in body.model_fields_set else ANY_VERSION
+    writer = body.writer.model_dump() if body.writer else None
+    try:
+        saved = storage.save_note(transcript_id, body.content, expected=expected, writer=writer)
+    except NoteVersionConflict as conflict:
+        raise _note_conflict(conflict)
+    if saved is None:
         raise HTTPException(status_code=404, detail="Transcript not found")
+    return saved
 
 
-@router.delete("/{transcript_id}/note", status_code=204)
+@router.delete("/{transcript_id}/note", status_code=204, responses=_NOTE_CONFLICT)
 def delete_note(
     transcript_id: int,
+    version: int | None = Query(default=None, description="The version the deletion was decided on; left out, not checked"),
+    writer_kind: NoteWriterKind = Query(default="api"),
+    writer_name: str | None = Query(default=None, max_length=200),
     storage: TranscriptStorageService = Depends(get_storage_service),
 ):
     """The recording no longer has a note. Deleting a note it does not have is fine."""
     if not storage.exists(transcript_id):
         raise HTTPException(status_code=404, detail="Transcript not found")
-    storage.delete_note(transcript_id)
+    try:
+        storage.delete_note(transcript_id, expected=ANY_VERSION if version is None else version,
+                            writer={"kind": writer_kind, "name": writer_name})
+    except NoteVersionConflict as conflict:
+        raise _note_conflict(conflict)
 
 
 @router.delete("/{transcript_id}", status_code=204)

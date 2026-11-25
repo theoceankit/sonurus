@@ -206,6 +206,23 @@ The running job's progress is the snapshot's `step`: `Loading models…`, `Trans
 
 ---
 
+## App events
+
+### `WS /ws/events`
+
+What changed in the app's data, whoever changed it, for the UI to follow ([AppEvents](../services/AppEvents.md)). The first message says the socket hears every event from then on; whatever changed before it was missed, so a client reads again what it shows:
+
+```json
+{ "type": "connected" }
+{ "type": "note_changed", "transcript_id": 42, "version": 18, "writer": { "kind": "mcp", "name": "Claude Code" } }
+{ "type": "note_changed", "transcript_id": 42, "version": null, "writer": { "kind": "editor", "name": null } }   // deleted
+{ "type": "heartbeat" }   // every 10 s while nothing changes — ignore
+```
+
+`note_changed` comes after every write and delete of a note, through any route, the writer's own included: a writer knows its own by the version it got back. Mentions rewritten after a speaker is merged or deleted change no version and send nothing. Closing the socket changes nothing.
+
+---
+
 ## Models
 
 Manages the local model cache. A repo counts as installed when its HuggingFace cache dir has `refs/main`, no `.sonorus-downloading` marker and no `blobs/*.incomplete` files. `huggingface_hub` writes `refs/main` before fetching any file, so the marker (created before a download, removed after it succeeds) is what distinguishes an interrupted download from a complete one.
@@ -493,22 +510,35 @@ Marks the transcript as not opened, as Mark as unread in the recordings list ask
 The note of the recording:
 
 ```json
-{ "content": { "type": "doc", "content": [] }, "updated_at": "2026-11-20T15:02:11.482113" }
+{ "content": { "type": "doc", "content": [] }, "updated_at": "2026-11-20T15:02:11.482113",
+  "version": 17, "writer": { "kind": "editor", "name": null } }
 ```
 
-`content` is the editor's document ([Note](../data-models.md#note)); both fields are `null` when the recording has no note, which is not an error. Returns `404` for an unknown id.
+`content` is the editor's document ([Note](../data-models.md#note)). `version` changes with every write and delete of any note and never comes back (one counter for all notes); a writer sends it back to refuse overwriting a change it has not seen. `writer` is who wrote the note last: `kind` `editor` (the app's editor), `mcp` (an agent through [MCP](mcp.md), `name` the agent where it is known) or `api` (anything else); `null` for a note stored before writers were kept. All four fields are `null` when the recording has no note, which is not an error. Returns `404` for an unknown id.
 
 ### `PUT /transcripts/{id}/note`
 
 ```json
-{ "content": { "type": "doc", "content": [ … ] } }
+{ "content": { "type": "doc", "content": [ … ] }, "version": 17, "writer": { "kind": "editor" } }
 ```
 
-Stores the note, replacing the one the recording had. `content` must be an object of `type` `"doc"` and at most 1 MB as JSON (`422` otherwise); the rest of it is kept as sent. Returns `204`, or `404` for an unknown id. The UI deletes an empty note instead of saving it. Only the note changes: segments, speakers and speaker memory are untouched.
+Stores the note, replacing the one the recording had, and announces it over [`WS /ws/events`](#ws-wsevents). `content` must be an object of `type` `"doc"` and at most 1 MB as JSON (`422` otherwise); the rest of it is kept as sent. Returns `200` with the new version:
+
+```json
+{ "version": 18, "updated_at": "2026-11-20T15:02:12.104733" }
+```
+
+`version` is the version the change was made from, `null` for a note made where there was none. When the note is no longer at it, nothing is written and the answer is `409`, with the version the note has now (`null`: it has none) for the writer to read it again and merge:
+
+```json
+{ "detail": "The note changed since this version: read it again", "code": "note_version_conflict", "version": 19 }
+```
+
+Left out, the note is written whatever it is now. `writer` is optional, `kind` `api` when left out. `404` for an unknown id. The UI always sends the version and deletes an empty note instead of saving it. Only the note changes: segments, speakers and speaker memory are untouched.
 
 ### `DELETE /transcripts/{id}/note`
 
-The recording no longer has a note. No body. Calling it again is fine. Returns `204`, or `404` for an unknown id.
+The recording no longer has a note; announced over `WS /ws/events` if it had one. No body. Query: `version`, checked as for `PUT` (`409` when the note is no longer at it), and `writer_kind`, `writer_name`. Calling it again is fine. Returns `204`, or `404` for an unknown id.
 
 ### `DELETE /transcripts/{id}`
 

@@ -3,7 +3,7 @@ import uuid
 
 from app.db import search_index
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 
 def init_db(conn) -> None:
@@ -154,6 +154,22 @@ def _run_migrations(conn, current: int) -> None:
         search_index.create(conn)
         search_index.rebuild(conn)
         conn.execute("UPDATE _ts_schema_version SET version = 11")
+        current = 11
+    if current < 12:
+        # A version per note write, for writers to refuse a stale one, and who
+        # wrote it. The counter is one for all notes and lives apart from them,
+        # so a note deleted and written again never gets a version seen before.
+        note_cols = {r[1] for r in conn.execute("PRAGMA table_info(notes)").fetchall()}
+        if "version" not in note_cols:
+            conn.execute("ALTER TABLE notes ADD COLUMN version INTEGER NOT NULL DEFAULT 0")
+        if "writer" not in note_cols:
+            conn.execute("ALTER TABLE notes ADD COLUMN writer TEXT")
+        conn.execute("CREATE TABLE IF NOT EXISTS note_version_seq (last INTEGER NOT NULL)")
+        ids = [r[0] for r in conn.execute("SELECT id FROM notes ORDER BY id").fetchall()]
+        conn.executemany("UPDATE notes SET version = ? WHERE id = ?", [(n, i) for n, i in enumerate(ids, 1)])
+        conn.execute("DELETE FROM note_version_seq")
+        conn.execute("INSERT INTO note_version_seq VALUES (?)", (len(ids),))
+        conn.execute("UPDATE _ts_schema_version SET version = 12")
 
 
 def _assign_raw_speakers(conn) -> None:

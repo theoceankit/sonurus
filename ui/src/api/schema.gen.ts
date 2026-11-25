@@ -739,13 +739,14 @@ export interface paths {
         };
         /**
          * Get Note
-         * @description The note of the recording; content is null when it has none.
+         * @description The note of the recording; content and version are null when it has none.
          */
         get: operations["get_note_transcripts__transcript_id__note_get"];
         /**
          * Save Note
          * @description Store the note of the recording as the editor's document, replacing the
-         *     one it had. An empty note is deleted by the UI rather than saved.
+         *     one it had. An empty note is deleted by the UI rather than saved. With
+         *     version (null: no note), a note that has changed since is not overwritten: 409.
          */
         put: operations["save_note_transcripts__transcript_id__note_put"];
         post?: never;
@@ -1004,6 +1005,18 @@ export interface components {
             /** Hf Token */
             hf_token?: string | null;
         };
+        /**
+         * EventsConnectedEvent
+         * @description WS /ws/events: the first message, once the socket hears every event. What
+         *     changed before it was missed: the UI reads again what it shows.
+         */
+        EventsConnectedEvent: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "connected";
+        };
         /** GpuDevice */
         GpuDevice: {
             /** Compute Capability */
@@ -1187,12 +1200,46 @@ export interface components {
             /** Path */
             path: string;
         };
+        /**
+         * NoteChangedEvent
+         * @description WS /ws/events: a note was written or deleted (version null), by anyone.
+         */
+        NoteChangedEvent: {
+            /** Transcript Id */
+            transcript_id: number;
+            /**
+             * Type
+             * @constant
+             */
+            type: "note_changed";
+            /** Version */
+            version: number | null;
+            writer: components["schemas"]["NoteWriterResponse"];
+        };
+        /**
+         * NoteConflictResponse
+         * @description 409 of a note write from a version the note no longer has.
+         */
+        NoteConflictResponse: {
+            /**
+             * Code
+             * @constant
+             */
+            code: "note_version_conflict";
+            /** Detail */
+            detail: string;
+            /** Version */
+            version: number | null;
+        };
         /** NoteRequest */
         NoteRequest: {
             /** Content */
             content: {
                 [key: string]: unknown;
             };
+            /** Version */
+            version?: number | null;
+            writer?: components["schemas"]["NoteWriter"] | null;
         };
         /** NoteResponse */
         NoteResponse: {
@@ -1202,6 +1249,40 @@ export interface components {
             } | null;
             /** Updated At */
             updated_at: string | null;
+            /** Version */
+            version: number | null;
+            writer: components["schemas"]["NoteWriterResponse"] | null;
+        };
+        /** NoteSaved */
+        NoteSaved: {
+            /** Updated At */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /**
+         * NoteWriter
+         * @description Who wrote a note: the app's editor, an agent through MCP or anything else
+         *     through the API; name says which one where it is known, such as "Claude Code".
+         */
+        NoteWriter: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "editor" | "mcp" | "api";
+            /** Name */
+            name?: string | null;
+        };
+        /** NoteWriterResponse */
+        NoteWriterResponse: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "editor" | "mcp" | "api";
+            /** Name */
+            name: string | null;
         };
         /** QueueJob */
         QueueJob: {
@@ -1357,7 +1438,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed" | "job_running" | "handle_invalid" | "handle_taken" | "handle_needs_name" | "photo_needs_name" | "merge_into_self" | "transcript_not_diarized";
+            code: "whisper_model_missing" | "diarization_model_missing" | "alignment_model_missing" | "audio_not_found" | "audio_not_readable" | "audio_copy_failed" | "job_running" | "handle_invalid" | "handle_taken" | "handle_needs_name" | "photo_needs_name" | "merge_into_self" | "transcript_not_diarized" | "note_version_conflict";
             /** Detail */
             detail: string;
         };
@@ -3304,11 +3385,22 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["NoteSaved"];
+                };
+            };
+            /** @description The note is no longer at the version sent */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteConflictResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -3323,7 +3415,12 @@ export interface operations {
     };
     delete_note_transcripts__transcript_id__note_delete: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The version the deletion was decided on; left out, not checked */
+                version?: number | null;
+                writer_kind?: "editor" | "mcp" | "api";
+                writer_name?: string | null;
+            };
             header?: never;
             path: {
                 transcript_id: number;
@@ -3338,6 +3435,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description The note is no longer at the version sent */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteConflictResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
