@@ -1,6 +1,7 @@
 import type { JSONContent } from '@tiptap/react'
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { onNoteFromElsewhere } from '../../api/note-elsewhere'
 import { onMentionChange } from '../../api/note-mentions'
 import { queryKeys, useKeepNote, useNote, useSpeakers, useTranscript } from '../../api/queries'
 import { effectiveSpeaker, type Note, type NoteDocument } from '../../api/types'
@@ -11,6 +12,7 @@ import { usePlayback, type Playback } from '../../media/playback'
 import type { NoteAutosave } from './note-autosave'
 import { mentionCandidates, speakerFinder } from './note-speakers'
 import type { MentionCandidate } from '../../components/MentionList/mention-list'
+import type { NoteChangeListener } from '../../components/NoteEditor/NoteEditor'
 import styles from './EditorNotes.module.css'
 
 interface EditorNotesProps {
@@ -47,6 +49,15 @@ export function EditorNotes({ transcriptId, mode, title, saver, playback, quotes
     return mentionCandidates(speakers ?? [], inRecording)
   }, [speakers, segments])
   const keep = useKeepNote()
+  // What changes are made from: the note as it first loaded, for the saver to merge
+  // a change from elsewhere with them.
+  const loaded = note.data
+  useEffect(() => {
+    if (loaded) saver.loaded(transcriptId, { content: loaded.content, version: loaded.version })
+  }, [saver, transcriptId, loaded])
+  const fromElsewhere = useCallback((listener: NoteChangeListener) => onNoteFromElsewhere(({ transcriptId: id, doc, writer }) => {
+    if (id === transcriptId) listener(doc as JSONContent, writer)
+  }), [transcriptId])
   // The same function for every render, so the editor does not render with the player's time.
   const change = useCallback((doc: JSONContent) => {
     keep(transcriptId, doc as NoteDocument)
@@ -71,6 +82,7 @@ export function EditorNotes({ transcriptId, mode, title, saver, playback, quotes
         title={title}
         findSpeaker={findSpeaker}
         candidates={candidates}
+        changesFromElsewhere={fromElsewhere}
         playback={playback}
         quotes={quotes}
         onQuoted={onQuoted}
@@ -83,13 +95,14 @@ export function EditorNotes({ transcriptId, mode, title, saver, playback, quotes
 
 interface NoteBodyProps extends Omit<EditorNotesProps, 'saver'> {
   findSpeaker: ReturnType<typeof speakerFinder>
+  changesFromElsewhere: (listener: NoteChangeListener) => () => void
   candidates: readonly MentionCandidate[]
   onChange: (doc: JSONContent) => void
 }
 
 // The editor reads the note once, as it opens: what it has after that is its own,
 // and the cache follows it rather than the other way round.
-function NoteBody({ transcriptId, mode, title, findSpeaker, candidates, playback, quotes, onQuoted, onChange, onToggleExpanded }: NoteBodyProps) {
+function NoteBody({ transcriptId, mode, title, findSpeaker, candidates, changesFromElsewhere, playback, quotes, onQuoted, onChange, onToggleExpanded }: NoteBodyProps) {
   const queries = useQueryClient()
   const [content] = useState(() => queries.getQueryData<Note>(queryKeys.note(transcriptId))?.content as JSONContent | null | undefined)
   const time = usePlayback(playback, state => Math.floor(state.currentTime))
@@ -103,6 +116,7 @@ function NoteBody({ transcriptId, mode, title, findSpeaker, candidates, playback
       findSpeaker={findSpeaker}
       candidates={candidates}
       mentionChanges={onMentionChange}
+      changesFromElsewhere={changesFromElsewhere}
       time={time}
       timeDisabled={!ready}
       onSeek={seek}

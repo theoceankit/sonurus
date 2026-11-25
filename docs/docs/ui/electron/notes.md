@@ -7,7 +7,7 @@ sidebar_position: 13
 The note of a recording (meeting minutes): one per recording, in basic Markdown that renders as it is typed, kept on the backend and saved as it is typed. How it is stored is in [Data Models → Note](../../data-models.md#note), its routes in [API endpoints](../../api/endpoints.md#get-transcriptsidnote).
 
 ```
-EditorScreen → useNotesSaver (note-autosave.ts)
+EditorScreen → useNotesSaver (note-autosave.ts, note-merge.ts) ← WS /ws/events
      ├ InspectorPanel → Inspector → Notes tab → EditorNotes → NotesPanel → NoteFormatBar, NoteEditor (Tiptap) → MentionList
      └ centre, expanded → EditorNotes
 ```
@@ -64,20 +64,35 @@ A quote from a recording without speakers opens with the time alone. The speaker
 
 A speaker becomes a chip with the avatar, in two letters, and the name, kept by id (`mention` in `note-extensions.tsx`): a new name, handle or photo shows at once, in every note. A person not in the base is a chip with "@" and the name, kept as text; it is never linked to a speaker, even one of the same name. There is no way to create a speaker from @.
 
-A speaker merged into another or deleted (in the [Speakers window](speakers.md)) is rewritten in every note by the backend: the mentions follow the speaker merged into; a deleted speaker becomes plain text, the name they had. A note open in the editor keeps its own document and would save the old one over the backend's, so it rewrites itself too: `useMergeSpeaker` and `useDeleteSpeaker` rewrite the notes in the cache and tell the open editor (`announceMentionChange()` in `api/note-mentions.ts`, `rewriteMentions()` in `note-content.ts`), which changes its mentions in one step that Undo leaves out, and saves.
+A speaker merged into another or deleted (in the [Speakers window](speakers.md)) is rewritten in every note by the backend: the mentions follow the speaker merged into; a deleted speaker becomes plain text, the name they had. A note open in the editor keeps its own document and would save the old one over the backend's, so it rewrites itself too (the backend's rewrite changes no version, so it is not heard as a change from elsewhere): `useMergeSpeaker` and `useDeleteSpeaker` rewrite the notes in the cache and tell the open editor (`announceMentionChange()` in `api/note-mentions.ts`, `rewriteMentions()` in `note-content.ts`), which changes its mentions in one step that Undo leaves out, and saves.
 
 ## Saving
 
 There is no Save. `useNotesSaver()` in `EditorScreen` holds one saver for the screen (`createNoteAutosave()` in `note-autosave.ts`):
 
-- About a second after typing stops (`NOTE_SAVE_DELAY_MS`), the note is saved with `PUT /transcripts/{id}/note`; an empty one is deleted with `DELETE`.
+- About a second after typing stops (`NOTE_SAVE_DELAY_MS`), the note is saved with `PUT /transcripts/{id}/note`; an empty one is deleted with `DELETE`. A note the same as the one the backend has is not written: the editor does not save back a version that came from elsewhere.
 - At once when the recording shown changes (another one, a job, or none), when the screen goes, and before the window closes or the app quits.
 - One request at a time, with the newest text only: a change made during a save goes after it.
+- Each write sends the version the note was at when the editor took it, and writes as the editor (`writer` `editor`); a note changed since is refused with `409` and merged, below.
 - A save that fails says so once, "Failed to save notes: …", until one succeeds. The text stays in the editor and is tried again with the next change and at each of the moments above. A recording deleted meanwhile is no failure: its note went with it.
 
-Every change is also kept in the query cache of the note at once (`useKeepNote()`), which is never loaded again while the app runs, also when the backend comes back ([Data](data.md#connection-to-the-backend)), so the note moving between the tab and the centre, or the recording opened again, shows what was typed, saved or not.
+Every change is also kept in the query cache of the note at once (`useKeepNote()`), which is never loaded again over it while the app runs, also when the backend comes back ([Data](data.md#connection-to-the-backend)), so the note moving between the tab and the centre, or the recording opened again, shows what was typed, saved or not.
 
 Closing the window to the tray destroys it and quitting gives the page no unload, so before either the main process asks the page to finish (`askWindowToFinish()` in `electron/window-closing.js`, the `window-closing` message) and waits for its answer, up to 1.5 s; the page runs what `onBeforeClose()` registered (`ui/src/platform/before-close.ts`), the saver among them. A reload or a page left in the browser runs them on `pagehide`, without waiting.
+
+## Changes from elsewhere
+
+A note may change while it is open: an agent writes it through [MCP](../../api/mcp.md), or anything else through the API. The backend announces every write over `WS /ws/events` (`note_changed`, [API](../../api/endpoints.md#ws-wsevents)), and the saver, which also listens there, keeps the open note up with it:
+
+- For each note the editor opened, it keeps the version and document the backend had (`loaded()` from `EditorNotes`, then each of its own writes). An event with that version is its own write and is let go.
+- Any other version is read (`GET`) and merged with what the editor has (`mergeNotes()` in `note-merge.ts`), in the saver's line of requests. The merge is taken at the moment the answer comes, so what was typed during the request is in it. A save refused with `409` does the same and saves the result.
+- The merge goes block by block from the version both sides started from, inside lists and quotes: what only one side changed is taken from it, the same change once, a block one side removed and the other changed stays changed. A block both sides changed differently is kept in both versions, theirs first, and the toast "Notes changed elsewhere while you typed: both versions of a paragraph are kept" says so once. A list item in two versions is two items.
+- With nothing typed, the note just takes the new version, without a toast. A note deleted elsewhere empties an editor with nothing typed; what was typed stays and is saved as a new note.
+- The open editor gets the result through `onNoteFromElsewhere()` (`api/note-elsewhere.ts`) and replaces only the stretch that differs (`replaceChanged()` in `NoteEditor.tsx`), in one step Undo leaves out: Ctrl+Z takes back only what was typed here. The cursor outside that stretch stays where it was, one inside it goes to its end. The step is marked `external` with who wrote it (`{ writer }`), for anything that will show changes from elsewhere; nothing does yet.
+- A note the saver does not keep (a recording not opened in the editor) leaves the cache and is read again when it opens. `has_note` of the list follows every event.
+- Each time the socket says `connected`, also after the backend comes back, every note the saver keeps is read again: what changed while away was not heard.
+
+A speaker merged or deleted rewrites the mentions in the notes on the backend without a new version ([Mentions](#mentions)); the saver rewrites them in the versions it keeps too, so they do not count as a change.
 
 ## Copy notes
 

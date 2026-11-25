@@ -98,7 +98,7 @@ A speaker is not a dataclass: it is a UUID4 with rows in the speaker memory tabl
 
 The note of a recording (meeting minutes), one per transcript at most, stored in the `notes` table (schema v9, see [TranscriptStorageService](services/TranscriptStorageService.md)) apart from the segments and read and written through `GET`/`PUT`/`DELETE /transcripts/{id}/note`. An empty note is not stored. It is deleted with its recording.
 
-Each write gives the note a new `version` (schema v12), from one counter for all notes, and keeps its `writer`: `editor`, `mcp` or `api`, with a `name` where known. A writer that sends the version it started from is refused with `409` when the note has changed since, and every write and delete is announced as `note_changed` over `WS /ws/events`: that is how the editor follows a note an agent wrote ([Notes](ui/electron/notes.md)).
+Each write gives the note a new `version` (schema v12), from one counter for all notes, and keeps its `writer`: `editor`, `mcp` or `api`, with a `name` where known. A writer that sends the version it started from is refused with `409` when the note has changed since, and every write and delete is announced as `note_changed` over `WS /ws/events`: that is how the editor follows a note an agent wrote ([Notes → Changes from elsewhere](ui/electron/notes.md#changes-from-elsewhere)).
 
 `content` is the editor's document, Tiptap (ProseMirror) JSON, kept as the UI sends it:
 

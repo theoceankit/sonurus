@@ -9,7 +9,7 @@ import type { MentionCandidate } from '../MentionList/mention-list'
 import { isEmptyNote, type MentionChange, type NoteQuote } from '../NoteEditor/note-content'
 import type { FindSpeaker } from '../NoteEditor/note-extensions'
 import { noteMarkdown } from '../NoteEditor/note-markdown'
-import { NoteEditor, type NoteEditorHandle } from '../NoteEditor/NoteEditor'
+import { NoteEditor, type NoteChangeListener, type NoteEditorHandle } from '../NoteEditor/NoteEditor'
 import { NoteFormatBar } from '../NoteFormatBar/NoteFormatBar'
 import { ScrollBar } from '../ScrollBar/ScrollBar'
 import { ScrollFade, useScrollEdges } from '../ScrollFade/ScrollFade'
@@ -32,6 +32,8 @@ interface NotesPanelProps {
   candidates?: readonly MentionCandidate[]
   // Speakers merged or deleted while the note is open (see NoteEditor).
   mentionChanges?: (listener: (change: MentionChange) => void) => () => void
+  // The note changed elsewhere, merged with what was typed: the editor shows it.
+  changesFromElsewhere?: (listener: NoteChangeListener) => () => void
   findSpeaker: FindSpeaker
   // Where the player stands, to the second: what the time button inserts. Without
   // it there is no time button.
@@ -55,7 +57,7 @@ interface NotesPanelProps {
 // The note of a recording: the format bar with the player's time over the editor, and
 // Copy notes and the way to expand or collapse it, in the row of the tabs when it has one. It saves itself, so there is no Save.
 export function NotesPanel({
-  mode = 'tab', title, content, candidates, mentionChanges, findSpeaker, time, timeDisabled = false, onSeek, onChange, quotes, onQuoted, onCopy, onOpenLink, onToggleExpanded, autoFocus, className, ref,
+  mode = 'tab', title, content, candidates, mentionChanges, changesFromElsewhere, findSpeaker, time, timeDisabled = false, onSeek, onChange, quotes, onQuoted, onCopy, onOpenLink, onToggleExpanded, autoFocus, className, ref,
 }: NotesPanelProps) {
   const editor = useRef<NoteEditorHandle>(null)
   const [tiptap, setTiptap] = useState<Editor | null>(null)
@@ -122,6 +124,7 @@ export function NotesPanel({
               content={content}
               candidates={candidates}
               mentionChanges={mentionChanges}
+              changesFromElsewhere={changesFromElsewhere}
               findSpeaker={findSpeaker}
               onSeek={onSeek}
               onChange={change}

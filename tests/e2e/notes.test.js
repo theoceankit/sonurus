@@ -43,6 +43,43 @@ test('a note survives quitting the app right after typing', async t => {
   await inspector().getByText('Write the notes, then send them', { exact: true }).waitFor()
 })
 
+// A note written elsewhere (an agent through MCP; here a PUT to the backend) shows in
+// the open editor at once, next to what the user is typing, and both are saved.
+test('a note changed elsewhere shows in the open editor without losing the typing', async t => {
+  const app = await startApp()
+  t.after(app.stop)
+  const page = app.page
+  const recording = 'Weekly sync'
+  const { id } = (await api('GET', '/transcripts')).find(item => item.title === recording)
+  const note = () => api('GET', `/transcripts/${id}/note`)
+  const paragraph = text => ({ type: 'paragraph', content: [{ type: 'text', text }] })
+
+  const inspector = () => page.getByRole('region', { name: 'Inspector' })
+  await page.getByRole('main', { name: 'Transcript' }).getByRole('heading', { name: recording }).waitFor()
+  await inspector().getByRole('tab', { name: 'Notes' }).click()
+  const editor = inspector().getByRole('textbox', { name: 'Notes' })
+  await editor.click()
+  await page.keyboard.press('Control+A')
+  await page.keyboard.type('Mine')
+  await assertEventually(async () => JSON.stringify((await note()).content).includes('Mine'), 'the typing is saved')
+
+  const { version } = await note()
+  await api('PUT', `/transcripts/${id}/note`, {
+    content: { type: 'doc', content: [paragraph('Mine'), paragraph('By the agent')] },
+    version,
+    writer: { kind: 'mcp', name: 'Claude Code' },
+  })
+  await inspector().getByText('By the agent', { exact: true }).waitFor()
+
+  await page.keyboard.type(', typed')
+  await assertEventually(async () => {
+    const saved = JSON.stringify((await note()).content)
+    return saved.includes('Mine, typed') && saved.includes('By the agent')
+  }, 'both the typing and the change from elsewhere are saved')
+  assert.equal(await inspector().getByText('Mine, typed', { exact: true }).count(), 1)
+  assert.equal((await note()).writer.kind, 'editor')
+})
+
 // Text selected across two turns goes into the note as a quote for each, with who
 // said it and when; a chip takes the player there, and the time button puts where the
 // player stands into the note.

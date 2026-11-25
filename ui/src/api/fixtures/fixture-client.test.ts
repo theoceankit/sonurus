@@ -182,14 +182,33 @@ describe('changes', () => {
     expect((await client.getNote(DESIGN_REVIEW_ID)).content).toBeNull()
     expect(await hasNote(DESIGN_REVIEW_ID)).toBe(false)
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hi' }] }] }
-    await client.saveNote(DESIGN_REVIEW_ID, doc)
+    await client.saveNote(DESIGN_REVIEW_ID, doc, null)
     expect((await client.getNote(DESIGN_REVIEW_ID)).content).toEqual(doc)
     expect(await hasNote(DESIGN_REVIEW_ID)).toBe(true)
-    await client.deleteNote(DESIGN_REVIEW_ID)
+    await client.deleteNote(DESIGN_REVIEW_ID, null)
     expect((await client.getNote(DESIGN_REVIEW_ID)).content).toBeNull()
     expect(await hasNote(DESIGN_REVIEW_ID)).toBe(false)
     await expect(client.getNote(999)).rejects.toMatchObject({ status: 404 })
-    await expect(client.saveNote(999, doc)).rejects.toMatchObject({ status: 404 })
+    await expect(client.saveNote(999, doc, null)).rejects.toMatchObject({ status: 404 })
+  })
+
+  test('notes have versions, refuse a stale write and announce every change', async () => {
+    const client = createFixtureClient()
+    const events: unknown[] = []
+    const stop = client.subscribeAppEvents(event => events.push(event))
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hi' }] }] }
+    const { version } = await client.saveNote(DESIGN_REVIEW_ID, doc, null)
+    const theirs = client.writeNoteElsewhere(DESIGN_REVIEW_ID, doc)
+    await expect(client.saveNote(DESIGN_REVIEW_ID, doc, version)).rejects.toMatchObject({ status: 409, code: 'note_version_conflict' })
+    expect(await client.getNote(DESIGN_REVIEW_ID)).toMatchObject({ version: theirs, writer: { kind: 'mcp', name: 'Claude Code' } })
+    await client.deleteNote(DESIGN_REVIEW_ID, theirs)
+    await vi.waitFor(() => expect(events).toContainEqual({ type: 'connected' }))
+    expect(events.filter(e => (e as { type: string }).type === 'note_changed')).toEqual([
+      { type: 'note_changed', transcript_id: DESIGN_REVIEW_ID, version, writer: { kind: 'editor', name: null } },
+      { type: 'note_changed', transcript_id: DESIGN_REVIEW_ID, version: theirs, writer: { kind: 'mcp', name: 'Claude Code' } },
+      { type: 'note_changed', transcript_id: DESIGN_REVIEW_ID, version: null, writer: { kind: 'editor', name: null } },
+    ])
+    stop()
   })
 
   test('the weekly sync comes with a note', async () => {

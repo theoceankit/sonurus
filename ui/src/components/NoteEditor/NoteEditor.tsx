@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom'
 import { cx } from '../../styles/cx'
 import { mentionList, type MentionCandidate, type MentionOption } from '../MentionList/mention-list'
 import { MentionList } from '../MentionList/MentionList'
+import type { NoteWriter } from '../../api/types'
 import { quoteBlock, timecode, type MentionChange, type NoteQuote } from './note-content'
 import { KeptSelection, NoteChips, NoteLink, NoteMention, TaskFromListItem, Timecode, type FindSpeaker } from './note-extensions'
 import styles from './NoteEditor.module.css'
@@ -25,6 +26,9 @@ export interface NoteEditorHandle {
   focus: () => void
 }
 
+// The document to show and who wrote the change, null when not known.
+export type NoteChangeListener = (doc: JSONContent, writer: NoteWriter | null) => void
+
 interface NoteEditorProps {
   content?: JSONContent | null
   // Who @ offers; without them @ is plain text.
@@ -32,6 +36,9 @@ interface NoteEditorProps {
   // Speakers merged or deleted while the note is open: its mentions follow, as the
   // backend has done with the notes it keeps. Returns a way to stop listening.
   mentionChanges?: (listener: (change: MentionChange) => void) => () => void
+  // The note changed elsewhere (an agent through MCP), merged with what was typed
+  // here: the editor shows it. Returns a way to stop listening.
+  changesFromElsewhere?: (listener: NoteChangeListener) => () => void
   findSpeaker: FindSpeaker
   onSeek?: (seconds: number) => void
   onChange?: (doc: JSONContent) => void
@@ -77,6 +84,26 @@ function followSpeaker(state: EditorState, change: MentionChange): Transaction |
   return tr.setMeta('addToHistory', false)
 }
 
+// The step from the document the editor has to the one given: only the stretch that
+// differs is replaced, so the cursor outside it stays where it is, and one inside it
+// goes to its end. Undo leaves it out: it undoes only what was typed here. Marked
+// external, with who wrote it, for whatever shows changes from elsewhere.
+function replaceChanged(state: EditorState, json: JSONContent, writer: NoteWriter | null): Transaction | null {
+  const next = state.schema.nodeFromJSON(json)
+  const start = state.doc.content.findDiffStart(next.content)
+  if (start === null) return null
+  let { a: endOld, b: endNew } = state.doc.content.findDiffEnd(next.content)!
+  // The ends can overlap the start where the same content repeats.
+  const overlap = start - Math.min(endOld, endNew)
+  if (overlap > 0) {
+    endOld += overlap
+    endNew += overlap
+  }
+  return state.tr.replace(start, endOld, next.slice(start, endNew))
+    .setMeta('addToHistory', false)
+    .setMeta('external', { writer })
+}
+
 interface Suggesting {
   query: string
   command: (attrs: object) => void
@@ -88,7 +115,7 @@ interface Suggesting {
 // checkboxes, quotes and links, with timecodes and mentions as chips. It renders again
 // only when what it is given changes, not with the player's time over it.
 export const NoteEditor = memo(function NoteEditor({
-  content, candidates, mentionChanges, findSpeaker, onSeek, onChange, onEditor, quotes, onQuoted, onOpenLink, size = 'tab', autoFocus, className, ref,
+  content, candidates, mentionChanges, changesFromElsewhere, findSpeaker, onSeek, onChange, onEditor, quotes, onQuoted, onOpenLink, size = 'tab', autoFocus, className, ref,
 }: NoteEditorProps) {
   const [suggesting, setSuggesting] = useState<Suggesting | null>(null)
   const latest = useRef({ suggesting, candidates, onChange, onOpenLink })
@@ -213,6 +240,22 @@ export const NoteEditor = memo(function NoteEditor({
       if (tr) editor.view.dispatch(tr)
     })
   }, [editor, mentionChanges])
+
+  useEffect(() => {
+    if (!editor || !changesFromElsewhere) return
+    return changesFromElsewhere((doc, writer) => {
+      if (editor.isDestroyed) return
+      let tr: Transaction | null
+      try {
+        tr = replaceChanged(editor.state, doc, writer)
+      } catch (error) {
+        // Not a document of this editor (a writer of the API sent nodes it does not know).
+        console.warn('A note from elsewhere does not fit the editor', error)
+        return
+      }
+      if (tr) editor.view.dispatch(tr)
+    })
+  }, [editor, changesFromElsewhere])
 
   useImperativeHandle(ref, () => ({
     insertTimecode: seconds => {

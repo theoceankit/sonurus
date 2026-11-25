@@ -317,17 +317,25 @@ export function useKeepNote() {
   }, [queries])
 }
 
-// Saves the note, or deletes it when empty, and says so in the list.
+// Saves the note from version (null: there was none), or deletes it when empty, and
+// says so in the list. Resolves with the new version, null when deleted; a 409
+// note_version_conflict when the note has changed since version.
 export function useWriteNote() {
   const api = useApi()
   const queries = useQueryClient()
-  return useCallback(async (transcriptId: number, content: NoteDocument | null) => {
-    if (content) await api.saveNote(transcriptId, content)
-    else await api.deleteNote(transcriptId)
-    queries.setQueryData<TranscriptListItem[]>(queryKeys.transcripts, items => items?.map(item => (
-      item.id === transcriptId ? { ...item, has_note: content !== null } : item
-    )))
+  return useCallback(async (transcriptId: number, content: NoteDocument | null, version: number | null) => {
+    const saved = content ? (await api.saveNote(transcriptId, content, version)).version : null
+    if (!content) await api.deleteNote(transcriptId, version)
+    setHasNote(queries, transcriptId, content !== null)
+    return saved
   }, [api, queries])
+}
+
+// Whether a recording has a note, in the list, as a write here or elsewhere left it.
+export function setHasNote(queries: QueryClient, transcriptId: number, hasNote: boolean) {
+  queries.setQueryData<TranscriptListItem[]>(queryKeys.transcripts, items => items?.map(item => (
+    item.id === transcriptId ? { ...item, has_note: hasNote } : item
+  )))
 }
 
 export function useUpdateSegmentText() {

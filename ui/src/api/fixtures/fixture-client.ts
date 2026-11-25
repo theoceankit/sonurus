@@ -1,6 +1,6 @@
 import type { GpuDownloadEvent } from '../gpu-events'
 import { ApiError, type ApiClient, type SpeakerAssignment, type SpeakerUndo } from '../client'
-import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type LiveRecording, type MicWatch, type RecordingStart, type HandleFormat, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type NoteDocument, type Speaker, type SpeakerCandidates } from '../types'
+import { effectiveSpeaker, UNASSIGNED, type AudioSource, type GpuStatus, type LiveRecording, type MicWatch, type RecordingStart, type HandleFormat, type ModelInfo, type QueueJob, type QueueSnapshot, type QueueUpdate, type Segment, type NoteDocument, type NoteWriter, type AppEvent, type Speaker, type SpeakerCandidates } from '../types'
 import { BOARDS, type FixtureBoard, type FixtureData } from './boards'
 import { FIXTURE_GPU, FIXTURE_NOW, GONE_AUDIO_IDS, queueSnapshot, WEEKLY_SYNC_ID } from './data'
 import { weeklySyncNote } from './notes'
@@ -50,7 +50,14 @@ export type FixtureClient = ApiClient & {
   playEvents(script: EventScript): () => void
   // Loses the connection to the backend or brings it back.
   setConnected(connected: boolean): void
+  // Writes a note as another writer would (an agent through MCP by default), with its
+  // note_changed unless unheard, as while the socket is down. Returns the new version,
+  // null for a deleted note.
+  writeNoteElsewhere(transcriptId: number, content: NoteDocument | null, options?: { writer?: NoteWriter; unheard?: boolean }): number | null
 }
+
+const EDITOR_WRITER: NoteWriter = { kind: 'editor', name: null }
+const AGENT_WRITER: NoteWriter = { kind: 'mcp', name: 'Claude Code' }
 
 // What the backend answers for a job when no models are downloaded.
 export const NO_MODELS = 'Diarization model is not installed. Download it in Settings.'
@@ -123,9 +130,33 @@ export function createFixtureClient({
   const data = structuredClone(scenario === 'empty' ? EMPTY : BOARDS[board])
   let queue: QueueSnapshot = queueSnapshot()
   // Notes by recording: the weekly sync has one, wherever it is.
-  const notes = new Map<number, { content: NoteDocument; updated_at: string }>(
-    data.details.some(t => t.id === WEEKLY_SYNC_ID) ? [[WEEKLY_SYNC_ID, { content: weeklySyncNote(), updated_at: FIXTURE_NOW.toISOString() }]] : [],
+  // Notes by recording: the weekly sync has one, wherever it is. Versions from one
+  // counter for all notes, as the backend's.
+  type StoredNote = { content: NoteDocument; updated_at: string; version: number; writer: NoteWriter }
+  const notes = new Map<number, StoredNote>(
+    data.details.some(t => t.id === WEEKLY_SYNC_ID)
+      ? [[WEEKLY_SYNC_ID, { content: weeklySyncNote(), updated_at: FIXTURE_NOW.toISOString(), version: 1, writer: { kind: 'editor', name: null } }]]
+      : [],
   )
+  let lastNoteVersion = notes.size
+  const appListeners = new Set<(event: AppEvent) => void>()
+  const tellApp = (event: AppEvent) => appListeners.forEach(listener => listener(structuredClone(event)))
+  // As PUT and DELETE of the backend: expected undefined is not checked, null is no note.
+  const writeNote = (id: number, content: NoteDocument | null, expected: number | null | undefined, writer: NoteWriter, heard = true) => {
+    transcript(id)
+    const current = notes.get(id)?.version ?? null
+    if (expected !== undefined && expected !== current) {
+      throw new ApiError(409, 'The note changed since this version: read it again', 'note_version_conflict')
+    }
+    if (content === null) {
+      if (notes.delete(id) && heard) tellApp({ type: 'note_changed', transcript_id: id, version: null, writer })
+      return null
+    }
+    const saved = { version: ++lastNoteVersion, updated_at: FIXTURE_NOW.toISOString() }
+    notes.set(id, { content: structuredClone(content), ...saved, writer })
+    if (heard) tellApp({ type: 'note_changed', transcript_id: id, version: saved.version, writer })
+    return saved
+  }
   const listeners = new Set<(event: QueueUpdate) => void>()
 
   // Every call goes through here, so the scenario covers all of them. Results
@@ -537,17 +568,23 @@ export function createFixtureClient({
     }),
     getNote: id => answer(() => {
       transcript(id)
-      const note = notes.get(id)
-      return note ? { ...note, version: 1, writer: null } : { content: null, updated_at: null, version: null, writer: null }
+      return notes.get(id) ?? { content: null, updated_at: null, version: null, writer: null }
     }),
-    saveNote: (id, content) => answer(() => {
-      transcript(id)
-      notes.set(id, { content: structuredClone(content), updated_at: FIXTURE_NOW.toISOString() })
+    saveNote: (id, content, version) => answer(() => writeNote(id, content, version, EDITOR_WRITER)!),
+    deleteNote: (id, version) => answer(() => {
+      writeNote(id, null, version ?? undefined, EDITOR_WRITER)
     }),
-    deleteNote: id => answer(() => {
-      transcript(id)
-      notes.delete(id)
-    }),
+    subscribeAppEvents: listener => {
+      appListeners.add(listener)
+      // As the backend: connected first, later, never during the subscribe.
+      const hello = scenario === 'default' || scenario === 'empty'
+        ? setTimeout(() => listener({ type: 'connected' }), 0)
+        : undefined
+      return () => {
+        clearTimeout(hello)
+        appListeners.delete(listener)
+      }
+    },
     updateSegmentText: (id, start, text) => answer(() => {
       segmentAt(id, start).text = text
     }),
@@ -801,7 +838,13 @@ export function createFixtureClient({
   return {
     ...client,
     ...overrides,
-    setConnected: connected => connectionListeners.forEach(listener => listener(connected)),
+    writeNoteElsewhere: (id, content, { writer = AGENT_WRITER, unheard = false } = {}) => (
+      writeNote(id, content, undefined, writer, !unheard)?.version ?? null
+    ),
+    setConnected: connected => {
+      connectionListeners.forEach(listener => listener(connected))
+      if (connected) tellApp({ type: 'connected' })
+    },
     playEvents: script => {
       let timer: ReturnType<typeof setTimeout>
       const play = (index: number) => {

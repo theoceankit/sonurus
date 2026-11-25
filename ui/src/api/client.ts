@@ -1,5 +1,5 @@
 import type {
-  AudioSource, DataResetSummary, GpuStatus, HandleFormat, LiveRecording, MicWatch, ModelInfo, ModelsFolder, Note, NoteDocument, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RecordingStart, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerMergeSummary, SpeakerSample, SpeakerTranscript, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem,
+  AudioSource, DataResetSummary, GpuStatus, HandleFormat, LiveRecording, MicWatch, ModelInfo, ModelsFolder, Note, NoteDocument, NoteSaved, AppEvent, QueueJob, QueueJobUpdate, QueueSnapshot, QueueStartMode, QueueUpdate, RecordingStart, RefusalCode, Speaker, SpeakerCandidates, SpeakerDeleteSummary, SpeakerMergeSummary, SpeakerSample, SpeakerTranscript, SpeakerCreate, SpeakerUpdate, Transcript, TranscriptListItem,
 } from './types'
 import type { GpuDownloadEvent, GpuRestartAnswer } from './gpu-events'
 import type { ModelDownloadEvent } from './model-download-events'
@@ -56,9 +56,11 @@ export interface ApiClient {
   deleteTranscript(transcriptId: number): Promise<void>
   // The note of the recording; content is null when it has none.
   getNote(transcriptId: number): Promise<Note>
-  // Replaces the note. An empty note is deleted instead.
-  saveNote(transcriptId: number, content: NoteDocument): Promise<void>
-  deleteNote(transcriptId: number): Promise<void>
+  // Replaces the note, as the editor, from version (null: there was none); a 409
+  // note_version_conflict when the note has changed since. An empty note is deleted instead.
+  saveNote(transcriptId: number, content: NoteDocument, version: number | null): Promise<NoteSaved>
+  // Deletes the note, from version as saveNote; null: not checked.
+  deleteNote(transcriptId: number, version: number | null): Promise<void>
   updateSegmentText(transcriptId: number, segmentStart: number, text: string): Promise<void>
   deleteSegment(transcriptId: number, segmentStart: number): Promise<void>
   assignSpeaker(assignment: SpeakerAssignment): Promise<{ speakerId: string }>
@@ -170,4 +172,7 @@ export interface ApiClient {
   // The listener first gets the current snapshot. onConnection is told when the
   // connection is lost and when it is back. Returns the unsubscribe.
   subscribeQueueEvents(listener: (event: QueueUpdate) => void, onConnection?: (connected: boolean) => void): () => void
+  // WS /ws/events: connected first, and again after each reconnection, then what
+  // changed in the app's data. Returns the unsubscribe.
+  subscribeAppEvents(listener: (event: AppEvent) => void): () => void
 }
