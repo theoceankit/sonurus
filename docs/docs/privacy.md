@@ -58,7 +58,8 @@ own: it listens only on `127.0.0.1`, and refuses pages of other sites and other 
 
 An agent connected to it reads your recordings, transcripts and notes, and may send what it reads to
 its own provider, such as the company that runs its language model, under that provider's terms.
-Turn the server off to stop every agent from reading.
+It can also write the notes of your recordings; it changes nothing else. Turn the server off to stop
+every agent from reading and writing.
 
 ## Electron app
 
