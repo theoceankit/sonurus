@@ -1,0 +1,11 @@
+[
+  "Headings below level 3 became level 3.",
+  "Inline code became plain text.",
+  "Strikethrough was removed.",
+  "Code blocks became plain text.",
+  "Images became links.",
+  "Tables became plain text.",
+  "Horizontal rules were removed.",
+  "HTML was kept as text.",
+  "Unknown handles kept as text: @petya, @vasya."
+]

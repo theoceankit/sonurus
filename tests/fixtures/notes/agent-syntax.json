@@ -1,0 +1,497 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Setext heading"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Second level"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Some "
+        },
+        {
+          "type": "text",
+          "text": "italic",
+          "marks": [
+            {
+              "type": "italic"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "bold",
+          "marks": [
+            {
+              "type": "bold"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " text, continued on a soft line."
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "star item"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "second"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "plus item"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "orderedList",
+      "attrs": {
+        "start": 1,
+        "type": null
+      },
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "paren item"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "next"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Autolink "
+        },
+        {
+          "type": "text",
+          "text": "https://example.com/auto",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://example.com/auto",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "team@example.com",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "mailto:team@example.com",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", bare "
+        },
+        {
+          "type": "text",
+          "text": "https://example.com/path",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://example.com/path",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ". and "
+        },
+        {
+          "type": "text",
+          "text": "www.example.com",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "http://www.example.com",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "A "
+        },
+        {
+          "type": "text",
+          "text": "reference link",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://example.com/ref",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " here."
+        }
+      ]
+    },
+    {
+      "type": "blockquote",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "lazy quote continues here"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Indented four"
+                }
+              ]
+            },
+            {
+              "type": "bulletList",
+              "content": [
+                {
+                  "type": "listItem",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "nested by four"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "taskList",
+      "content": [
+        {
+          "type": "taskItem",
+          "attrs": {
+            "checked": true
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Upper X done"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "taskItem",
+          "attrs": {
+            "checked": false
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "open"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Hard break with spaces"
+        },
+        {
+          "type": "hardBreak"
+        },
+        {
+          "type": "text",
+          "text": "next line"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Mentions: "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000001",
+            "label": "Anna Petrova",
+            "mentionSuggestionChar": "@",
+            "kind": "speaker"
+          }
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000005",
+            "label": "Sofia Ramos",
+            "mentionSuggestionChar": "@",
+            "kind": "speaker"
+          }
+        },
+        {
+          "type": "text",
+          "text": "'s note, mail anna@example.com, "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": null,
+            "label": "Sam from support",
+            "mentionSuggestionChar": "@",
+            "kind": "person"
+          }
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000006",
+            "label": "Unknown speaker 2",
+            "mentionSuggestionChar": "@",
+            "kind": "speaker"
+          }
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": null,
+            "label": "Unknown speaker 9",
+            "mentionSuggestionChar": "@",
+            "kind": "person"
+          }
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Time "
+        },
+        {
+          "type": "timecode",
+          "attrs": {
+            "seconds": 125
+          }
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "timecode",
+          "attrs": {
+            "seconds": 10
+          }
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "12:34",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://example.com/t",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,421 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Plain, "
+        },
+        {
+          "type": "text",
+          "marks": [
+            {
+              "type": "bold"
+            }
+          ],
+          "text": "bold"
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "marks": [
+            {
+              "type": "italic"
+            }
+          ],
+          "text": "italic"
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "marks": [
+            {
+              "type": "bold"
+            },
+            {
+              "type": "italic"
+            }
+          ],
+          "text": "both"
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "marks": [
+            {
+              "type": "bold"
+            }
+          ],
+          "text": "bold "
+        },
+        {
+          "type": "text",
+          "marks": [
+            {
+              "type": "bold"
+            },
+            {
+              "type": "italic"
+            }
+          ],
+          "text": "then italic"
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "A "
+        },
+        {
+          "type": "text",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://example.com/a",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            }
+          ],
+          "text": "link"
+        },
+        {
+          "type": "text",
+          "text": ", a "
+        },
+        {
+          "type": "text",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://example.com/b",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            },
+            {
+              "type": "bold"
+            }
+          ],
+          "text": "bold link"
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://example.com/bare",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            }
+          ],
+          "text": "https://example.com/bare"
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "mailto:team@example.com",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            }
+          ],
+          "text": "mail"
+        },
+        {
+          "type": "text",
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Odd "
+        },
+        {
+          "type": "text",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://example.com/a_(b)",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            }
+          ],
+          "text": "address"
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://example.com/x",
+                "target": "_blank",
+                "rel": "noopener noreferrer nofollow",
+                "class": null,
+                "title": null
+              }
+            }
+          ],
+          "text": "https://example.com/x"
+        },
+        {
+          "type": "text",
+          "text": "/after"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000001",
+            "label": "Anna Petrova",
+            "mentionSuggestionChar": "@",
+            "kind": "speaker"
+          },
+          "marks": [
+            {
+              "type": "bold"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " at "
+        },
+        {
+          "type": "timecode",
+          "attrs": {
+            "seconds": 3723
+          },
+          "marks": [
+            {
+              "type": "italic"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000002",
+            "label": "Mark Ellis",
+            "mentionSuggestionChar": "@",
+            "kind": "speaker"
+          }
+        },
+        {
+          "type": "text",
+          "text": ". "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": null,
+            "label": "Pat [ext]",
+            "mentionSuggestionChar": "@",
+            "kind": "person"
+          }
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "First line"
+        },
+        {
+          "type": "hardBreak"
+        },
+        {
+          "type": "text",
+          "text": "Second line"
+        },
+        {
+          "type": "hardBreak"
+        },
+        {
+          "type": "text",
+          "text": "- not a list"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Typed by hand: [12:34], @anna.petrova, @[Sam], *stars*, _under_ and a\\b."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "# not a heading"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "1. not a list"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "> not a quote"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "- not a list"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "+ not a list"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "---"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Mail anna@example.com, snake_case_name, a < b, <tag>, &amp; `tick` ~~tilde~~ 2 * 3"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "A plain https://example.com/not-a-link and www.example.com too"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "timecode",
+          "attrs": {
+            "seconds": 0
+          }
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "timecode",
+          "attrs": {
+            "seconds": 59
+          }
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "timecode",
+          "attrs": {
+            "seconds": 3600
+          }
+        },
+        {
+          "type": "text",
+          "text": "(right after)"
+        }
+      ]
+    }
+  ]
+}

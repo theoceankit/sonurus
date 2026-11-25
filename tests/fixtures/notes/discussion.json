@@ -1,0 +1,89 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Итоги"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000001",
+            "label": "Anna Petrova",
+            "mentionSuggestionChar": "@",
+            "kind": "speaker"
+          }
+        },
+        {
+          "type": "text",
+          "text": " договорилась с "
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "id": null,
+            "label": "Sam from support",
+            "mentionSuggestionChar": "@",
+            "kind": "person"
+          }
+        },
+        {
+          "type": "text",
+          "text": " про логи."
+        }
+      ]
+    },
+    {
+      "type": "blockquote",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "mention",
+              "attrs": {
+                "id": "3b0f6c8e-1a2d-4c5e-9f00-000000000006",
+                "label": "Unknown speaker 2",
+                "mentionSuggestionChar": "@",
+                "kind": "speaker"
+              }
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "timecode",
+              "attrs": {
+                "seconds": 754
+              }
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Давайте перенесём релиз на пятницу."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph"
+    }
+  ]
+}
