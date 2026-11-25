@@ -184,6 +184,8 @@ class CommitService:
         if self.memory.get_name(into_id) is None and self.memory.get_name(from_id) is not None:
             self.memory.take_identity(from_id, into_id)
         self.memory.remove_speaker(from_id)
+        # Mentions now name into_id, who may also have just taken from_id's name.
+        self.storage.reindex_notes_mentioning(into_id)
         avg, count = self._avg_from_db(into_id)
         if avg is not None:
             self.memory.update_embedding(into_id, avg, count)

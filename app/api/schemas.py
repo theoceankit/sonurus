@@ -463,3 +463,41 @@ class GpuStatus(BaseModel):
     download_size: int | None
     device: str
     torch: str | None
+
+
+class SearchHit(ResponseModel):
+    """One match: in the title, a segment or a block (paragraph, list item) of
+    the note. start, end and the speaker are those of a segment, else null; a
+    segment of no speaker is unassigned. highlights are [start, end) ranges of
+    the matches in snippet."""
+    kind: Literal["title", "segment", "note"]
+    snippet: str
+    highlights: list[list[int]]
+    start: float | None
+    end: float | None
+    speaker_id: str | None
+    speaker_name: str | None
+    speaker_handle: str | None
+    unassigned: bool
+
+
+class SearchRecording(ResponseModel):
+    recording_id: int
+    title: str
+    created_at: str
+    duration_sec: float
+    hit_count: int              # every hit of the recording, not only the ones in hits
+    hits: list[SearchHit]
+
+
+class SearchSpeaker(ResponseModel):
+    id: str
+    name: str
+    handle: str | None
+
+
+class SearchResponse(ResponseModel):
+    total_hits: int
+    total_recordings: int
+    recordings: list[SearchRecording]
+    speakers: list[SearchSpeaker]   # named speakers whose name or handle starts with a word of the query

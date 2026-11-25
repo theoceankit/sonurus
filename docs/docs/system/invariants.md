@@ -132,3 +132,16 @@ During `resolve()`, each known speaker may be matched to at most one new `SPEAKE
 **In code:** `app/services/speaker_memory_service.py` — `resolve()` maintains `assigned_new` and `assigned_known` sets; any candidate where either side is already taken is skipped.
 
 **Target state:** The principle stays. Greedy assignment is correct for the usual 2–5 speakers but is not globally optimal when similarity scores are close and there are many candidates.
+
+---
+
+## I7 — The search index matches the data
+
+After any write, `search_segments`, `search_titles` and `search_notes` hold exactly the segments, titles and note blocks stored, as they read now: no hit for text that is gone, none missing for text that is there.
+
+**Why:** Search answers from the index alone and reads the data only for the hits it returns; a stale row is a hit pointing at text that is not there, a missing one a recording that cannot be found.
+
+**In code:** triggers on `segments` (`app/db/search_index.py`) keep segments, whoever writes them. Titles and notes are written only by `TranscriptStorageService` methods, each of which updates the index in the same transaction (`save`, `update_title`, `save_note`, `delete_note`, `rewrite_note_mentions`, `delete`, `clear`). A note's mention reads as the speaker's current name, so whatever changes a name calls `reindex_notes_mentioning()`: `PATCH /speakers/{id}`, `POST /speakers/{id}/rename` and `CommitService.merge_speaker()`. New code that writes a title or a note, or changes a speaker's name, does the same. `tests/test_search_index.py` covers every path.
+
+**Target state:** The principle stays.
+

@@ -115,6 +115,12 @@ Blocks: `paragraph`, `heading` (levels 1–3), `bulletList`, `orderedList`, `tas
 
 ---
 
+## Search index
+
+What `GET /search` searches: the text of every segment, the title a recording shows and every block of a note (a paragraph, heading or list item, with a speaker mention as the speaker's name now and a timecode as `[12:34]`), in three SQLite FTS5 tables (schema v11) with Ё written as Е. They are derived from the tables above and never edited on their own: triggers on `segments` and `TranscriptStorageService`'s writes keep them in step ([Search index](services/TranscriptStorageService.md#search-index), invariant [I7](system/invariants.md#i7--the-search-index-matches-the-data)).
+
+---
+
 ## Backend settings
 
 Settings the backend needs itself, such as the switch of the [MCP server](api/mcp.md), are rows of `app_settings` (`key`, `value`), kept by [AppSettings](services/AppSettings.md) outside the versioned schema. Delete all data clears them.

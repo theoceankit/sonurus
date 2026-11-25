@@ -6,6 +6,7 @@ from datetime import datetime, date, timedelta
 from app.models.transcript import Transcript
 from app.models.segment import Segment, UNASSIGNED
 from app.logger import get_logger
+from app.db import search_index
 from app.db.schema import init_db
 from app.db.serializers import serialize_embedding, deserialize_embedding
 
@@ -59,6 +60,7 @@ class TranscriptStorageService:
                 "INSERT INTO speaker_matches (transcription_id, speaker_id, score) VALUES (?, ?, ?)",
                 [(db_id, spk_id, float(score)) for spk_id, score in transcript.match_scores.items()],
             )
+            search_index.index_title(conn, db_id, transcript.title, transcript.audio_path)
 
         log.info(f"INSERT transcriptions id={db_id} audio={transcript.audio_path}")
         log.info(f"INSERT segments {len(transcript.segments)} rows for transcription {db_id}")
@@ -83,6 +85,11 @@ class TranscriptStorageService:
             updated = conn.execute(
                 "UPDATE transcriptions SET title = ? WHERE id = ?", (title, db_id)
             ).rowcount
+            if updated:
+                (audio_file,) = conn.execute(
+                    "SELECT audio_file FROM transcriptions WHERE id = ?", (db_id,)
+                ).fetchone()
+                search_index.index_title(conn, db_id, title, audio_file)
         if updated:
             log.info(f"UPDATE transcriptions title for id={db_id}")
         return bool(updated)
@@ -125,6 +132,8 @@ class TranscriptStorageService:
             conn.execute("DELETE FROM speaker_matches WHERE transcription_id = ?", (db_id,))
             conn.execute("DELETE FROM notes WHERE transcription_id = ?", (db_id,))
             conn.execute("DELETE FROM transcriptions WHERE id = ?", (db_id,))
+            conn.execute("DELETE FROM search_titles WHERE rowid = ?", (db_id,))
+            search_index.index_note(conn, db_id, None)
         log.info(f"DELETE transcription id={db_id} and its segments")
 
     # ── Notes ─────────────────────────────────────────────────────────────────
@@ -157,11 +166,13 @@ class TranscriptStorageService:
                    SET content = excluded.content, updated_at = excluded.updated_at""",
                 (db_id, json.dumps(content, ensure_ascii=False), now, now),
             )
+            search_index.index_note(conn, db_id, content)
         return True
 
     def delete_note(self, db_id: int) -> None:
         with self._connect() as conn:
             conn.execute("DELETE FROM notes WHERE transcription_id = ?", (db_id,))
+            search_index.index_note(conn, db_id, None)
 
     def rewrite_note_mentions(self, speaker_id: str, into_id: str | None = None, name: str | None = None) -> int:
         """Make the notes follow a speaker who is gone. With into_id (a merge) every
@@ -170,10 +181,10 @@ class TranscriptStorageService:
         the speaker are not written. Returns the number of notes rewritten."""
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT id, content FROM notes WHERE instr(content, ?) > 0", (speaker_id,)
+                "SELECT id, transcription_id, content FROM notes WHERE instr(content, ?) > 0", (speaker_id,)
             ).fetchall()
             rewritten = 0
-            for note_id, content in rows:
+            for note_id, tid, content in rows:
                 doc = json.loads(content)
                 new_doc, changed = _rewrite_mentions(doc, speaker_id, into_id, name)
                 if not changed:
@@ -182,10 +193,27 @@ class TranscriptStorageService:
                     "UPDATE notes SET content = ? WHERE id = ?",
                     (json.dumps(new_doc, ensure_ascii=False), note_id),
                 )
+                if tid is not None:
+                    search_index.index_note(conn, tid, new_doc)
                 rewritten += 1
         if rewritten:
             log.info(f"UPDATE notes mentions of {speaker_id} → {into_id or 'text'}: {rewritten} notes")
         return rewritten
+
+    def reindex_notes_mentioning(self, speaker_id: str) -> None:
+        """Index again the notes that mention a speaker, after their name changed:
+        a mention is found by the name the speaker has now."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT transcription_id, content FROM notes "
+                "WHERE transcription_id IS NOT NULL AND instr(content, ?) > 0",
+                (speaker_id,),
+            ).fetchall()
+            if not rows:
+                return
+            names = search_index.speaker_names(conn)
+            for tid, content in rows:
+                search_index.index_note(conn, tid, content, names)
 
     def unassign_speaker(self, speaker_id: str) -> dict:
         """Detach every segment of a deleted speaker: speaker_id becomes NULL and
@@ -255,6 +283,7 @@ class TranscriptStorageService:
             conn.execute("DELETE FROM speaker_matches")
             conn.execute("DELETE FROM notes")
             conn.execute("DELETE FROM transcriptions")
+            search_index.clear(conn)
         log.info(f"DELETE all transcriptions ({count}) and their segments")
         return count
 

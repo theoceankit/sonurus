@@ -153,6 +153,7 @@ def update_speaker(
         if body.name is not None:
             memory.set_name(speaker_id, body.name)
             memory.save_names_only()
+            storage.reindex_notes_mentioning(speaker_id)
             # A voice no job recognized has segments but no profile: naming it
             # must make it recognizable, as naming it in the editor does.
             CommitService(memory, storage).commit_speaker(speaker_id)
@@ -170,11 +171,13 @@ def rename_speaker(
     speaker_id: str,
     body: RenameRequest,
     memory: SpeakerMemoryService = Depends(get_memory_service),
+    storage: TranscriptStorageService = Depends(get_storage_service),
 ):
     if speaker_id not in memory.known_speakers:
         raise HTTPException(status_code=404, detail="Speaker not found")
     memory.set_name(speaker_id, body.name)
     memory.save_names_only()
+    storage.reindex_notes_mentioning(speaker_id)
 
 
 @router.delete("/{speaker_id}", response_model=SpeakerDeleteResponse)

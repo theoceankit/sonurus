@@ -243,5 +243,5 @@ def test_transcripts_from_before_the_choice_are_diarized(tmp_path):
         conn.execute("ALTER TABLE transcriptions DROP COLUMN diarized")
         conn.execute("UPDATE _ts_schema_version SET version = 9")
         init_db(conn)
-        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION == 10
+        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION
     assert TranscriptStorageService(db_path=db).load(tid).diarized is True
