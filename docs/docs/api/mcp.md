@@ -61,7 +61,7 @@ Tools take and give recordings by `recording_id` (the transcript id), times in a
 | `replace_note` | Replaces the whole note with Markdown, given the `version` `get_note` read (`0`: no note). |
 | `edit_note` | Replaces one place in the note: `old_text`, found exactly once in the Markdown `get_note` gives, becomes `new_text`. |
 
-A recording is given by `recording_id`, a speaker by `@handle` (with or without `@`, in any case); speaker ids never reach the agent. A time in a recording is taken as `mm:ss`, `h:mm:ss` or seconds (`parse_clock()`). No answer is longer than 40,000 characters (`MAX_CHARS`): Claude Code warns of a tool answer from about 10,000 tokens and cuts it at 25,000. The tools keep within it themselves; `fit()` cuts what is left at a line, saying how many lines it left out.
+A recording is given by `recording_id`, a speaker by `@handle` (with or without `@`, in any case); speaker ids never reach the agent. A time in a recording is taken as `mm:ss`, `h:mm:ss` or seconds (`parse_clock()`). No answer is longer than 24,000 characters (`MAX_CHARS`): Claude Code warns of a tool answer from 10,000 tokens and cuts it at 25,000, and a Russian transcript runs about 2.46 characters a token there (an English one 2.94), so the longest answer stays under the warning in both. The tools keep within it themselves; `fit()` cuts what is left at a line, saying how many lines it left out.
 
 A refusal is one line, what happened and what to do, as an error result of the tool (`isError`): `Recording 9 not found: use list_recordings to see recording_ids.` The tools return it rather than raise `ToolError`, which the SDK would give with `Error executing tool <name>:` before it.
 
