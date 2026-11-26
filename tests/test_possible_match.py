@@ -140,17 +140,17 @@ def test_unassigning_a_speaker_removes_only_their_matches(tmp_path):
     assert list(storage.speaker_matches(db_id)) == [_CAROL]
 
 
-def test_migration_to_v8_adds_an_empty_match_table(tmp_path):
-    from app.db.schema import SCHEMA_VERSION
+def test_a_release_before_matches_gets_an_empty_match_table(tmp_path):
+    from app.db.migrations import LATEST
+    from db_releases import as_release, user_version
     storage = _storage(tmp_path)
     db_id = storage.save(_transcript({_ALICE: 0.64}))
     with sqlite3.connect(storage.db_path) as conn:
         conn.execute("DROP TABLE speaker_matches")
-        conn.execute("UPDATE _ts_schema_version SET version = 7")
+    as_release(storage.db_path, transcripts=7)
     storage = _storage(tmp_path)
     assert storage.speaker_matches(db_id) == {}
-    with sqlite3.connect(storage.db_path) as conn:
-        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION
+    assert user_version(storage.db_path) == LATEST
 
 
 # ── API ───────────────────────────────────────────────────────────────────────

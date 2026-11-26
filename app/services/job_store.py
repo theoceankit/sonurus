@@ -1,7 +1,7 @@
 """SQLite persistence for the transcription queue.
 
 Jobs and queue settings live in the same database file as transcripts
-(DB_PATH) but in their own tables, created here. The queue survives a
+(DB_PATH) but in their own tables (app/db/migrations.py). The queue survives a
 restart; which job is running and whether the queue is paused are not
 stored (see TranscriptionQueue for the state at start-up).
 """
@@ -11,6 +11,8 @@ import sqlite3
 import uuid
 from datetime import datetime
 
+from app.db.migrations import ensure_schema
+
 _FIELDS = ("id", "audio_path", "title", "whisper_model", "language", "diarize", "status",
            "error", "error_code", "error_language", "created_at")
 _EDITABLE = {"title", "whisper_model", "language", "diarize", "status", "error", "error_code", "error_language"}
@@ -19,33 +21,7 @@ _EDITABLE = {"title", "whisper_model", "language", "diarize", "status", "error",
 class JobStore:
     def __init__(self, db_path: str):
         self.db_path = db_path
-        with self._connect() as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS transcription_jobs (
-                    id             TEXT PRIMARY KEY,
-                    position       INTEGER NOT NULL,
-                    audio_path     TEXT NOT NULL,
-                    title          TEXT NOT NULL,
-                    whisper_model  TEXT NOT NULL,
-                    language       TEXT,
-                    status         TEXT NOT NULL DEFAULT 'waiting',
-                    error          TEXT,
-                    error_code     TEXT,
-                    error_language TEXT,
-                    created_at     TEXT NOT NULL,
-                    diarize        INTEGER NOT NULL DEFAULT 1
-                )
-            """)
-            # A queue from before the choice: its jobs find speakers, as they would have.
-            columns = {r[1] for r in conn.execute("PRAGMA table_info(transcription_jobs)")}
-            if "diarize" not in columns:
-                conn.execute("ALTER TABLE transcription_jobs ADD COLUMN diarize INTEGER NOT NULL DEFAULT 1")
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS transcription_queue_settings (
-                    key   TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                )
-            """)
+        ensure_schema(db_path)
 
     def _connect(self):
         conn = sqlite3.connect(self.db_path, timeout=30)

@@ -1,4 +1,5 @@
 import os
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -17,6 +18,7 @@ from app.api.dependencies import (
     get_app_settings, get_live_recording_service, get_memory_service, get_mic_activity_service, get_storage_service,
     get_transcription_queue,
 )
+from app.db.migrations import SchemaRefused, ensure_schema
 from app.mcp.server import McpEndpoint, build_server
 from app.services.app_settings import MCP_ENABLED
 from app.services.audio_store import remove_orphan_imports, remove_orphan_levels
@@ -29,8 +31,26 @@ setup_logging(default_level="info")
 log = get_logger("api")
 
 
+# Electron shows why the backend did not start when stderr has this line
+# (electron/database-refusal.js).
+DB_REFUSED_MARKER = "SONORUS_DB_REFUSED"
+
+
+def open_database() -> None:
+    """The schema first of all (app/db/migrations.py): no service touches a
+    database that is not at it. A refused database stops the start-up."""
+    try:
+        ensure_schema(config.DB_PATH)
+    except SchemaRefused as refused:
+        log.error(f"Database refused: {refused}")
+        sys.stderr.write(f"{DB_REFUSED_MARKER} {refused.kind}\n")
+        sys.stderr.flush()
+        raise
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    open_database()
     storage = get_storage_service()
     memory = get_memory_service()
     queue = get_transcription_queue()

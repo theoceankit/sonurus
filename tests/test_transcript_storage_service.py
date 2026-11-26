@@ -10,6 +10,7 @@ import pytest
 from app.models.segment import Segment
 from app.models.transcript import Transcript
 from app.services.transcript_storage_service import TranscriptStorageService
+from db_releases import as_release
 
 
 def make_service(tmp_path):
@@ -568,17 +569,6 @@ def test_segments_indexed_by_transcription_and_speaker(tmp_path):
     assert ("speaker_id",) in cols
 
 
-def test_indexes_added_to_existing_v3_database(tmp_path):
-    db = str(tmp_path / "old.db")
-    TranscriptStorageService(db_path=db)
-    with sqlite3.connect(db) as conn:  # simulate a DB created before the indexes existed
-        for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='segments' AND sql IS NOT NULL").fetchall():
-            conn.execute(f"DROP INDEX {name}")
-        conn.execute("UPDATE _ts_schema_version SET version = 3")
-    TranscriptStorageService(db_path=db)
-    assert ("speaker_id",) in _index_columns(db)
-
-
 def test_load_without_embeddings_skips_blobs(tmp_path):
     svc = make_service(tmp_path)
     seg = Segment(0.0, 1.0, "x", "SPEAKER_00", speaker_resolved="a", embedding=np.ones(3, dtype=np.float32))
@@ -706,29 +696,6 @@ def test_unassigned_segments_are_not_listed_as_transcript_speakers(tmp_path):
     assert svc.list_all()[0]["speakers"] == ["Bob"]
 
 
-def test_unassigned_column_added_to_existing_v4_database(tmp_path):
-    db = str(tmp_path / "old.db")
-    with sqlite3.connect(db) as conn:  # a v4 database: no unassigned column
-        conn.execute("CREATE TABLE _ts_schema_version (version INTEGER NOT NULL DEFAULT 0)")
-        conn.execute("INSERT INTO _ts_schema_version VALUES (4)")
-        conn.execute("CREATE TABLE transcriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, audio_file TEXT NOT NULL,"
-                     " language TEXT, status TEXT DEFAULT 'draft', created_at TEXT, title TEXT)")
-        conn.execute("CREATE TABLE segments (id INTEGER PRIMARY KEY AUTOINCREMENT, transcription_id INTEGER NOT NULL,"
-                     " speaker_id TEXT, start REAL NOT NULL, end REAL NOT NULL, text TEXT NOT NULL,"
-                     " speaker_raw TEXT, embedding BLOB)")
-        conn.execute("INSERT INTO transcriptions (audio_file) VALUES ('a.wav')")
-        conn.execute("INSERT INTO segments (transcription_id, speaker_id, start, end, text, speaker_raw)"
-                     " VALUES (1, 'Alice', 0, 1, 'x', 'SPEAKER_00')")
-
-    svc = TranscriptStorageService(db_path=db)
-
-    seg = svc.load(1).segments[0]
-    assert seg.unassigned is False and seg.speaker_resolved == "Alice"
-    from app.db.schema import SCHEMA_VERSION
-    with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION
-
-
 # ---------------------------------------------------------------------------
 # Speaker statistics
 # ---------------------------------------------------------------------------
@@ -783,8 +750,9 @@ def test_transcripts_for_unknown_speaker_is_empty(tmp_path):
     assert make_service(tmp_path).transcripts_for_speaker("Nobody") == []
 
 
-def _v5_database(db, rows):
-    """A v5 DB whose segments rows are (transcription_id, speaker_id, speaker_raw, unassigned)."""
+def _release_database(db, rows, transcripts):
+    """A database of a release at transcript schema `transcripts`, whose
+    segments rows are (transcription_id, speaker_id, speaker_raw, unassigned)."""
     TranscriptStorageService(db_path=db)
     with sqlite3.connect(db) as conn:
         conn.execute("INSERT INTO transcriptions (id, audio_file) VALUES (1, 'a.wav'), (2, 'b.wav')")
@@ -792,48 +760,7 @@ def _v5_database(db, rows):
             conn.execute(
                 "INSERT INTO segments (transcription_id, speaker_id, start, end, text, speaker_raw, unassigned)"
                 " VALUES (?, ?, ?, ?, 'x', ?, ?)", (tid, spk, float(i), float(i) + 1, raw, unassigned))
-        conn.execute("UPDATE _ts_schema_version SET version = 5")
-
-
-def test_v6_migration_gives_raw_labels_a_uuid_per_transcript(tmp_path):
-    import uuid
-    db = str(tmp_path / "old.db")
-    _v5_database(db, [
-        (1, None, "SPEAKER_02", 0), (1, None, "SPEAKER_02", 0), (1, None, "SPEAKER_03", 0),
-        (2, None, "SPEAKER_02", 0), (1, "Alice", "SPEAKER_00", 0),
-    ])
-
-    svc = TranscriptStorageService(db_path=db)
-
-    t1, t2 = svc.load(1).segments, svc.load(2).segments
-    a, b, c, alice = (s.speaker_resolved for s in t1)
-    assert uuid.UUID(a).version == 4 and a == b and a != c
-    assert t2[0].speaker_resolved not in (a, c), "same label in another transcript is another speaker"
-    assert alice == "Alice"
-    assert not any(s.unassigned for s in t1 + t2)
-    from app.db.schema import SCHEMA_VERSION
-    with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION
-
-
-def test_v6_migration_unassigns_segments_without_a_diarization_speaker(tmp_path):
-    db = str(tmp_path / "old.db")
-    _v5_database(db, [(1, None, "UNKNOWN", 0), (1, None, "", 0), (1, None, None, 0), (1, None, "SPEAKER_00", 1)])
-
-    segs = TranscriptStorageService(db_path=db).load(1).segments
-
-    assert all(s.unassigned for s in segs)
-    assert all(s.speaker_resolved is None for s in segs)
-
-
-def test_assigning_works_for_a_migrated_raw_speaker(tmp_path):
-    db = str(tmp_path / "old.db")
-    _v5_database(db, [(1, None, "SPEAKER_02", 0), (1, None, "SPEAKER_02", 0)])
-    svc = TranscriptStorageService(db_path=db)
-
-    svc.set_segments_speaker(1, [(s.start, s.end) for s in svc.load(1).segments], "Carol")
-
-    assert [s.speaker_resolved for s in svc.load(1).segments] == ["Carol", "Carol"]
+    as_release(db, transcripts=transcripts)
 
 
 # ---------------------------------------------------------------------------
@@ -918,9 +845,7 @@ def test_mark_opened_unknown_id_is_false(tmp_path):
 
 def test_v7_migration_counts_existing_transcripts_as_opened(tmp_path):
     db = str(tmp_path / "old.db")
-    _v5_database(db, [(1, "Alice", "SPEAKER_00", 0), (2, None, "SPEAKER_01", 0)])
-    with sqlite3.connect(db) as conn:
-        conn.execute("UPDATE _ts_schema_version SET version = 6")
+    _release_database(db, [(1, "Alice", "SPEAKER_00", 0), (2, None, "SPEAKER_01", 0)], transcripts=6)
 
     svc = TranscriptStorageService(db_path=db)
 
@@ -932,10 +857,9 @@ def test_v7_migration_counts_existing_transcripts_as_opened(tmp_path):
 
 def test_v7_migration_reruns_after_the_column_was_added_but_not_committed(tmp_path):
     db = str(tmp_path / "old.db")
-    _v5_database(db, [(1, "Alice", "SPEAKER_00", 0)])
+    _release_database(db, [(1, "Alice", "SPEAKER_00", 0)], transcripts=6)
     with sqlite3.connect(db) as conn:  # a crash after ALTER TABLE, before the version was saved
         assert conn.execute("SELECT opened FROM transcriptions").fetchall() == [(0,), (0,)]
-        conn.execute("UPDATE _ts_schema_version SET version = 6")
 
     svc = TranscriptStorageService(db_path=db)
 

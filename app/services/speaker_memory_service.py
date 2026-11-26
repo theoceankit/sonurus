@@ -1,6 +1,5 @@
 """Speaker identity management — storage, resolution, and in-memory cache."""
 import random
-import re
 import sqlite3
 import threading
 import uuid
@@ -10,6 +9,7 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.config import EMBEDDING_MODEL_ID, SPEAKER_SIMILARITY_THRESHOLD
+from app.db.migrations import ensure_schema
 from app.logger import get_logger
 from app.services.speaker_handle import (
     DEFAULT_FORMAT, HANDLE_FORMATS, base_handle, is_valid_handle, normalize_handle, unique_handle,
@@ -17,11 +17,6 @@ from app.services.speaker_handle import (
 from app.services.speaker_photos import delete_photo, save_photo
 
 PALETTE_SIZE = 5
-
-_UUID_RE = re.compile(
-    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-    re.IGNORECASE
-)
 
 log = get_logger("SpeakerMemoryService")
 
@@ -58,8 +53,6 @@ class HandleTaken(ValueError):
 class SpeakerRepository:
     """SQLite persistence for speaker embeddings and names."""
 
-    _SCHEMA_VERSION = 5
-
     def __init__(self, db_path: str):
         self.db_path = db_path
         self._init_db()
@@ -70,56 +63,10 @@ class SpeakerRepository:
         return conn
 
     def _init_db(self):
+        # The tables are made by the migration chain; what is left here is data.
+        ensure_schema(self.db_path)
         with self._connect() as conn:
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS _meta (
-                    key   TEXT PRIMARY KEY,
-                    value TEXT
-                )
-            """)
-            version_row = conn.execute(
-                "SELECT value FROM _meta WHERE key='schema_version'"
-            ).fetchone()
-            if version_row is None:
-                detected = self._detect_legacy_version(conn)
-                conn.execute(
-                    "INSERT INTO _meta (key, value) VALUES ('schema_version', ?)",
-                    (str(detected),),
-                )
-                current = detected
-            else:
-                current = int(version_row[0])
-            self._run_migrations(conn, current)
-
-            # Data migration: rename human-name IDs to UUID4
-            if not conn.execute(
-                "SELECT value FROM _meta WHERE key='m001_uuid_speakers'"
-            ).fetchone():
-                all_rows = conn.execute(
-                    "SELECT id, embedding, count FROM speaker_embeddings"
-                ).fetchall()
-                for (old_id, _, _) in all_rows:
-                    if (old_id.startswith('spk_') or old_id.startswith('SPEAKER_')
-                            or _UUID_RE.match(old_id)):
-                        continue
-                    new_id = _new_speaker_id()
-                    conn.execute("UPDATE speaker_embeddings SET id = ? WHERE id = ?", (new_id, old_id))
-                    conn.execute(
-                        "INSERT INTO speaker_names (speaker_id, label, name) VALUES (?, ?, ?)",
-                        (new_id, "display", old_id),
-                    )
-                    conn.execute(
-                        "UPDATE segments SET speaker_id = ? WHERE speaker_id = ?",
-                        (new_id, old_id),
-                    )
-                conn.execute(
-                    "INSERT INTO _meta (key, value) VALUES ('m001_uuid_speakers', 'done')"
-                )
-
-            # After m001, which may name legacy speakers.
             self._assign_missing_handles(conn)
-
             self._reset_voices_of_another_model(conn)
 
     @staticmethod
@@ -127,18 +74,13 @@ class SpeakerRepository:
         """Voices of another embedding model cannot be compared with this one's:
         drop every segment embedding and voice profile computed by it. Names,
         handles, colours and the speaker of every segment stay. Not a schema
-        change: the model is a value in _meta, so no schema version is taken."""
+        change: the model is a value in _meta, not a migration step."""
         row = conn.execute("SELECT value FROM _meta WHERE key='embedding_model'").fetchone()
         if row is not None and row[0] == EMBEDDING_MODEL_ID:
             return
-        # Speaker memory may open a database before the transcript schema has
-        # created the segments table or its embedding column.
-        seg_cols = {r[1] for r in conn.execute("PRAGMA table_info(segments)")}
-        segments = 0
-        if "embedding" in seg_cols:
-            segments = conn.execute(
-                "UPDATE segments SET embedding = NULL WHERE embedding IS NOT NULL"
-            ).rowcount
+        segments = conn.execute(
+            "UPDATE segments SET embedding = NULL WHERE embedding IS NOT NULL"
+        ).rowcount
         profiles = conn.execute("DELETE FROM speaker_embeddings").rowcount
         conn.execute(
             "INSERT OR REPLACE INTO _meta (key, value) VALUES ('embedding_model', ?)",
@@ -149,95 +91,6 @@ class SpeakerRepository:
                 f"Embedding model is now {EMBEDDING_MODEL_ID}: dropped {profiles} voice profiles "
                 f"and {segments} segment embeddings of the previous one"
             )
-
-    @staticmethod
-    def _detect_legacy_version(conn) -> int:
-        tables = {
-            r[0] for r in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
-        }
-        if "speaker_embeddings" not in tables and "speakers" not in tables:
-            return 0
-        if "speakers" in tables and "speaker_embeddings" not in tables:
-            return 0
-        emb_cols = {r[1] for r in conn.execute("PRAGMA table_info(speaker_embeddings)").fetchall()}
-        return 1 if "count" in emb_cols else 0
-
-    @staticmethod
-    def _run_migrations(conn, current: int):
-        if current < 1:
-            tables = {
-                r[0] for r in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'"
-                ).fetchall()
-            }
-            if "speakers" in tables and "speaker_embeddings" not in tables:
-                conn.execute("ALTER TABLE speakers RENAME TO speaker_embeddings")
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS speaker_embeddings (
-                    id        TEXT PRIMARY KEY,
-                    embedding BLOB NOT NULL,
-                    count     INTEGER NOT NULL DEFAULT 1
-                )
-            """)
-            emb_cols = {r[1] for r in conn.execute("PRAGMA table_info(speaker_embeddings)").fetchall()}
-            if "count" not in emb_cols:
-                conn.execute(
-                    "ALTER TABLE speaker_embeddings ADD COLUMN count INTEGER NOT NULL DEFAULT 1"
-                )
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS speaker_names (
-                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    speaker_id TEXT NOT NULL REFERENCES speaker_embeddings(id),
-                    label      TEXT NOT NULL,
-                    name       TEXT NOT NULL
-                )
-            """)
-            conn.execute("UPDATE _meta SET value = '1' WHERE key = 'schema_version'")
-        if current < 2:
-            # Drop the FK from speaker_names.speaker_id so names can be written
-            # for speakers that do not yet have an embedding row (e.g., a new
-            # speaker assigned by name before any segment embedding is available).
-            # SQLite cannot ALTER a constraint, so we recreate the table.
-            conn.execute("ALTER TABLE speaker_names RENAME TO speaker_names_v1")
-            conn.execute("""
-                CREATE TABLE speaker_names (
-                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    speaker_id TEXT NOT NULL,
-                    label      TEXT NOT NULL,
-                    name       TEXT NOT NULL
-                )
-            """)
-            conn.execute("INSERT INTO speaker_names SELECT * FROM speaker_names_v1")
-            conn.execute("DROP TABLE speaker_names_v1")
-            conn.execute("UPDATE _meta SET value = '2' WHERE key = 'schema_version'")
-        if current < 3:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS speaker_meta (
-                    speaker_id  TEXT PRIMARY KEY,
-                    color_index INTEGER NOT NULL DEFAULT 0
-                )
-            """)
-            conn.execute("UPDATE _meta SET value = '3' WHERE key = 'schema_version'")
-        if current < 4:
-            # Handles: unique whatever the case, kept by the database itself since
-            # the API and a pipeline job each hold their own SpeakerMemoryService.
-            meta_cols = {r[1] for r in conn.execute("PRAGMA table_info(speaker_meta)").fetchall()}
-            if "handle" not in meta_cols:
-                conn.execute("ALTER TABLE speaker_meta ADD COLUMN handle TEXT")
-            if "handle_manual" not in meta_cols:
-                conn.execute("ALTER TABLE speaker_meta ADD COLUMN handle_manual INTEGER NOT NULL DEFAULT 0")
-            conn.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS speaker_meta_handle ON speaker_meta (handle COLLATE NOCASE)"
-            )
-            conn.execute("UPDATE _meta SET value = '4' WHERE key = 'schema_version'")
-        if current < 5:
-            # The file name of the speaker's photo in the photos dir.
-            meta_cols = {r[1] for r in conn.execute("PRAGMA table_info(speaker_meta)").fetchall()}
-            if "photo" not in meta_cols:
-                conn.execute("ALTER TABLE speaker_meta ADD COLUMN photo TEXT")
-            conn.execute("UPDATE _meta SET value = '5' WHERE key = 'schema_version'")
 
     def load(self) -> tuple[dict, dict]:
         with self._connect() as conn:
