@@ -45,9 +45,9 @@ One daemon thread (`start_worker()` / `stop_worker()`, called by the API lifespa
 
 ---
 
-## Running one job — `make_job_runner(storage, memory_db_path, on_saved)`
+## Running one job — `make_job_runner(storage, memory_db_path, on_saved, device)`
 
-1. `Loading models…`, then the pipeline's analysis (`TranscriptionController.analyse()`) — in a child process in production ([Pipeline Process](PipelineProcess.md)), in-process in tests (`create_controller()`, then `_release_models()`).
+1. `device()` is asked: the API passes `job_device(get_app_settings())` ([AppSettings](AppSettings.md)), so the choice of Settings → GPU acceleration counts from the next job on and never changes a running one. Then `Loading models…`, then the pipeline's analysis (`TranscriptionController.analyse()`) — in a child process in production ([Pipeline Process](PipelineProcess.md)), in-process in tests (`create_controller()`, then `_release_models()`).
 2. If the job was cancelled meanwhile: `PipelineCancelled`, nothing is saved.
 3. `Building transcript…`: speaker memory is read from the database now, not when the job started, and `build_transcript()` resolves the speakers against it. A speaker named, created or recomputed while the job ran is recognized; one removed meanwhile is not matched.
 4. The job's title is set, `Saving to database…`, `storage.save()`.

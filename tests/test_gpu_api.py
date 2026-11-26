@@ -110,6 +110,8 @@ def test_status_keeps_its_exact_keys(setup):
         "download_size": 3_920_000_000,
         "device": "cpu",
         "torch": "2.8.0+cpu",
+        "cuda_available": False,
+        "use_gpu": True,
     }
 
 

@@ -10,6 +10,7 @@ import { toast } from '../../components/Toast/toast-store'
 import { Tooltip } from '../../components/Tooltip/Tooltip'
 import { DEFAULT_SETTINGS, settingsStore } from '../../platform/settings'
 import { useLingering } from '../../presence'
+import { gpuFor } from '../../settings/gpu'
 import { useRecording } from '../../recording/RecordingProvider'
 import { ConfirmDialog, type ConfirmPrompt } from './ConfirmDialog'
 import { dataResetBlockReason, defaultSettingsPatch, formatDataResetSummary } from './data-reset'
@@ -20,7 +21,7 @@ type Step = { prompt: ConfirmPrompt; run: () => Promise<void> }
 const RESET: ConfirmPrompt = {
   title: 'Reset preferences?',
   body: 'Every preference in Settings goes back to its default: automatic language detection, 100% scale and the default model. '
-    + 'The MCP server is turned off. Transcripts, downloaded models, recordings and your HuggingFace token are kept.',
+    + 'The MCP server is turned off and Use GPU is turned back on. Transcripts, downloaded models, recordings and your HuggingFace token are kept.',
   confirmLabel: 'Reset',
 }
 
@@ -28,7 +29,7 @@ const DELETE_ALL: ConfirmPrompt = {
   title: 'Delete all data?',
   body: 'All transcripts and their notes, all speakers and their voice profiles and the recordings made in Sonorus are deleted. '
     + 'This cannot be undone. Audio files you imported stay where they are; downloaded models and preferences are kept, '
-    + 'but the MCP server is turned off.',
+    + 'but the MCP server is turned off and Use GPU is turned back on.',
   confirmLabel: 'Delete everything',
 }
 
@@ -46,13 +47,14 @@ export function DataSection() {
   const reset = async () => {
     await settingsStore().patch(defaultSettingsPatch(DEFAULT_SETTINGS))
     await bridge()?.setZoom(DEFAULT_SETTINGS.scale / 100).catch(() => {})
-    // The backend keeps these: it makes the handles and answers /mcp.
+    // The backend keeps these: it makes the handles, answers /mcp and picks the jobs' device.
     await api.setHandleFormat(DEFAULT_HANDLE_FORMAT)
       .then(format => queries.setQueryData(queryKeys.handleFormat, format))
       .catch(() => {})
     await api.setMcpEnabled(false)
       .then(enabled => queries.setQueryData(queryKeys.mcpEnabled, enabled))
       .catch(() => {})
+    await api.setUseGpu(true).then(() => gpuFor(api).refresh()).catch(() => {})
     toast({ message: 'Preferences reset to defaults.' })
   }
 
@@ -71,6 +73,8 @@ export function DataSection() {
       queries.invalidateQueries({ queryKey: queryKeys.mcpEnabled }),
     ])
     queries.removeQueries({ queryKey: queryKeys.notes })
+    // The backend turns Use GPU back on with its other settings.
+    void gpuFor(api).refresh()
   }
 
   const deleteButton = <Button variant="danger" size="small" disabled={!!blocked} onClick={() => setStep({ prompt: DELETE_ALL, run: deleteAll })}>Delete</Button>

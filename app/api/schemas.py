@@ -512,8 +512,17 @@ class GpuStatus(BaseModel):
     pending: Literal["install", "remove"] | None
     error: str | None
     download_size: int | None
+    # The device of the next transcription job: "cuda" only if PyTorch can
+    # use the GPU (cuda_available) and the user has not turned it off (use_gpu).
     device: str
     torch: str | None
+    cuda_available: bool
+    use_gpu: bool
+
+
+class GpuDeviceChoice(BaseModel):
+    """Whether transcription jobs use the GPU; from the next job on."""
+    use_gpu: bool
 
 
 class SearchHit(ResponseModel):

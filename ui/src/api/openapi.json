@@ -184,6 +184,20 @@
         "title": "GpuDevice",
         "type": "object"
       },
+      "GpuDeviceChoice": {
+        "description": "Whether transcription jobs use the GPU; from the next job on.",
+        "properties": {
+          "use_gpu": {
+            "title": "Use Gpu",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "use_gpu"
+        ],
+        "title": "GpuDeviceChoice",
+        "type": "object"
+      },
       "GpuStatus": {
         "properties": {
           "blocked_reason": {
@@ -203,6 +217,10 @@
               }
             ],
             "title": "Blocked Reason"
+          },
+          "cuda_available": {
+            "title": "Cuda Available",
+            "type": "boolean"
           },
           "device": {
             "title": "Device",
@@ -299,6 +317,10 @@
               }
             ],
             "title": "Torch"
+          },
+          "use_gpu": {
+            "title": "Use Gpu",
+            "type": "boolean"
           }
         },
         "required": [
@@ -311,7 +333,9 @@
           "error",
           "download_size",
           "device",
-          "torch"
+          "torch",
+          "cuda_available",
+          "use_gpu"
         ],
         "title": "GpuStatus",
         "type": "object"
@@ -2518,6 +2542,48 @@
           }
         },
         "summary": "Gpu Status",
+        "tags": [
+          "gpu"
+        ]
+      }
+    },
+    "/gpu/device": {
+      "put": {
+        "description": "Use the GPU or not, from the next transcription job on: the running one\nkeeps its device, and nothing restarts.",
+        "operationId": "set_gpu_device_gpu_device_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GpuDeviceChoice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Gpu Device",
         "tags": [
           "gpu"
         ]

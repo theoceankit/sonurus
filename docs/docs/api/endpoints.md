@@ -339,14 +339,23 @@ The optional CUDA download of the packaged app (Linux, Windows) — see [GPU Pac
   "error": null,
   "download_size": 3920000000,
   "device": "cpu",
-  "torch": "2.8.0+cpu"
+  "torch": "2.8.0+cpu",
+  "cuda_available": false,
+  "use_gpu": true
 }
 ```
 
 - `blocked_reason` — `null`, or why no download is offered: `unsupported_platform` (macOS), `not_packaged` (development), `no_nvidia`, `driver_too_old`, `gpu_too_old`.
 - `gpu` — the first GPU `nvidia-smi` reports, or `null`.
 - `state` — `not_installed`, `downloading`, `pending_restart` (with `pending`: `install` / `remove`), `active`, `error` (with `error`: the self-check's message), `stale` (installed for another PyTorch version).
-- `device` / `torch` — what the running backend uses (`config.DEVICE`, `torch.__version__`).
+- `cuda_available` — the running PyTorch can use the GPU (`config.DEVICE` is `cuda`): the pack is active, or a development `.venv` has CUDA PyTorch.
+- `use_gpu` — the user's choice in Settings → GPU acceleration (`AppSettings`, on by default).
+- `device` — the device of the next transcription job: `cuda` only if `cuda_available` and `use_gpu`, else `cpu`. `state` does not depend on `use_gpu`: a pack whose GPU is turned off stays `active`.
+- `torch` — `torch.__version__` of the running backend.
+
+### `PUT /gpu/device`
+
+Body `{"use_gpu": false}`. Keeps the choice and returns the status of `GET /gpu`. It applies from the next transcription job on: the running one keeps its device, and the backend is not restarted.
 
 ### `POST /gpu/download`
 

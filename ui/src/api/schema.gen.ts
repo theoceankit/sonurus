@@ -131,6 +131,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/gpu/device": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Gpu Device
+         * @description Use the GPU or not, from the next transcription job on: the running one
+         *     keeps its device, and nothing restarts.
+         */
+        put: operations["set_gpu_device_gpu_device_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gpu/download": {
         parameters: {
             query?: never;
@@ -1026,10 +1047,20 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * GpuDeviceChoice
+         * @description Whether transcription jobs use the GPU; from the next job on.
+         */
+        GpuDeviceChoice: {
+            /** Use Gpu */
+            use_gpu: boolean;
+        };
         /** GpuStatus */
         GpuStatus: {
             /** Blocked Reason */
             blocked_reason: ("unsupported_platform" | "not_packaged" | "no_nvidia" | "driver_too_old" | "gpu_too_old") | null;
+            /** Cuda Available */
+            cuda_available: boolean;
             /** Device */
             device: string;
             /** Download Size */
@@ -1050,6 +1081,8 @@ export interface components {
             state: "not_installed" | "downloading" | "pending_restart" | "active" | "error" | "stale";
             /** Torch */
             torch: string | null;
+            /** Use Gpu */
+            use_gpu: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2031,6 +2064,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GpuStatus"];
+                };
+            };
+        };
+    };
+    set_gpu_device_gpu_device_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GpuDeviceChoice"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

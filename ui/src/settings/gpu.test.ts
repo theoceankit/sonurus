@@ -85,11 +85,34 @@ test('removal waiting to restart, and restarting', () => {
 })
 
 test('active: runs on the GPU, can be removed', () => {
-  const v = shown(status({ state: 'active', device: 'cuda', torch: '2.8.0+cu128' }))
+  const v = shown(status({ state: 'active', cuda_available: true, device: 'cuda', torch: '2.8.0+cu128' }))
   expect(v.label).toBe('On')
   expect(v.tone).toBe('success')
   expect(v.device).toBe('GPU')
   expect(v.actions).toEqual([{ id: 'remove', label: 'Remove', primary: false }])
+  expect(v.useGpu).toBe(true)
+})
+
+const ACTIVE = { state: 'active', cuda_available: true, device: 'cuda', torch: '2.8.0+cu128' } as const
+
+test('active with the GPU turned off: Off, runs on the CPU, can still be removed', () => {
+  const v = shown(status({ ...ACTIVE, use_gpu: false, device: 'cpu' }))
+  expect(v.label).toBe('Off')
+  expect(v.tone).toBe('neutral')
+  expect(v.device).toBe('CPU')
+  expect(v.detail).toBe(`Transcription runs on the CPU. Turn on Use GPU to transcribe on ${RTX.name}.`)
+  expect(v.useGpu).toBe(false)
+  expect(v.actions).toEqual([{ id: 'remove', label: 'Remove', primary: false }])
+})
+
+test('the Use GPU switch is shown only while PyTorch can use the GPU', () => {
+  expect(shown(status({ blocked_reason: 'not_packaged', cuda_available: true, device: 'cuda' })).useGpu).toBe(true)
+  expect(shown(status({ blocked_reason: 'not_packaged', cuda_available: false })).useGpu).toBeNull()
+  expect(shown(status()).useGpu).toBeNull()
+  expect(shown(status({ state: 'error', error: 'CUDA is not available to PyTorch' })).useGpu).toBeNull()
+  expect(shown(status({ state: 'stale' })).useGpu).toBeNull()
+  expect(shown(status({ ...ACTIVE, state: 'pending_restart', pending: 'remove' })).useGpu).toBeNull()
+  expect(shown(status(ACTIVE), { restarting: true }).useGpu).toBeNull()
 })
 
 test('error: the reason, download again or remove', () => {
@@ -113,7 +136,7 @@ test('an installed pack can be removed even when the GPU no longer qualifies', (
 
 // ── download and restart ──────────────────────────────────────────────────────
 
-function setup({ statuses = [status()], restarts = [] as (GpuRestartAnswer | 409)[], removeResult = 'restart' as 'restart' | 'removed' } = {}) {
+function setup({ statuses = [status()], restarts = [] as (GpuRestartAnswer | 409)[], removeResult = 'restart' as 'restart' | 'removed', useGpuFails = false } = {}) {
   const requests: string[] = []
   const timers: (() => void)[] = []
   let listener: ((event: GpuDownloadEvent) => void) | null = null
@@ -129,6 +152,11 @@ function setup({ statuses = [status()], restarts = [] as (GpuRestartAnswer | 409
       const next = restarts.shift() ?? { status: 'ready' }
       if (next === 409) throw new ApiError(409, 'Nothing to apply')
       return next
+    },
+    setUseGpu: async (useGpu: boolean) => {
+      requests.push(`PUT /gpu/device ${useGpu}`)
+      if (useGpuFails) throw new ApiError(500, 'disk I/O error')
+      return { ...statuses[0], use_gpu: useGpu, device: useGpu && statuses[0].cuda_available ? 'cuda' : 'cpu' }
     },
   } as unknown as ApiClient
   const gpu = createGpu(api, { restartBackend, setTimer: run => { timers.push(run) } })
@@ -280,4 +308,23 @@ test('a refused removal is said, and the status is read again', async () => {
   await env.gpu.remove()
   expect(lastToast()).toEqual({ message: 'Cancel the download first', type: 'error' })
   expect(env.requests).toContain('GET /gpu')
+})
+
+test('turning the GPU off and on: no restart, the status follows', async () => {
+  const { gpu, requests, restartBackend } = setup({ statuses: [status(ACTIVE)] })
+  await gpu.refresh()
+  await gpu.setUseGpu(false)
+  expect(gpu.state().status).toMatchObject({ use_gpu: false, device: 'cpu', state: 'active' })
+  await gpu.setUseGpu(true)
+  expect(gpu.state().status).toMatchObject({ use_gpu: true, device: 'cuda' })
+  expect(requests).toEqual(['GET /gpu', 'PUT /gpu/device false', 'PUT /gpu/device true'])
+  expect(restartBackend).not.toHaveBeenCalled()
+})
+
+test('a switch the backend refuses goes back and says why', async () => {
+  const { gpu } = setup({ statuses: [status(ACTIVE)], useGpuFails: true })
+  await gpu.refresh()
+  await gpu.setUseGpu(false)
+  expect(gpu.state().status?.use_gpu).toBe(true)
+  expect(lastToast()).toEqual({ message: 'Could not turn off the GPU: disk I/O error', type: 'error' })
 })

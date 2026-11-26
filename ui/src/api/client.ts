@@ -129,6 +129,8 @@ export interface ApiClient {
   removeGpuPack(): Promise<void>
   // A 409 when there is nothing to apply.
   requestGpuRestart(): Promise<GpuRestartAnswer>
+  // Whether transcription jobs use the GPU, from the next job on; answers GET /gpu.
+  setUseGpu(useGpu: boolean): Promise<GpuStatus>
   // Deletes every transcript, speaker and recording made in the app. Refused with a
   // 409 while a transcription or a recording runs.
   resetData(): Promise<DataResetSummary>
