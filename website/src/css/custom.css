@@ -285,16 +285,6 @@ html .theme-back-to-top-button::after {
   transform: rotate(180deg);
 }
 
-html .hash-link::before {
-  content: '';
-  display: inline-block;
-  width: var(--size-icon-sm);
-  height: var(--size-icon-sm);
-  background: currentColor;
-  mask: url('../../../ui/src/assets/icons/anchor.svg') center / var(--size-icon-sm) no-repeat;
-  vertical-align: middle;
-}
-
 html .pagination-nav__link--prev .pagination-nav__label::before,
 html .pagination-nav__link--next .pagination-nav__label::after,
 html .navbar-sidebar__back::before {
