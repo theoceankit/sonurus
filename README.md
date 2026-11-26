@@ -23,7 +23,7 @@ Transcribes audio files using WhisperX, automatically matches speakers against a
 Installers for Linux, macOS (Apple Silicon) and Windows are on the
 [Releases](https://github.com/theoceankit/sonurus/releases) page. They include Python and every
 library the app needs; transcription models are downloaded in **Settings → Models**. Per-platform
-instructions: `docs/docs/build-and-install/`.
+instructions: `docs/build-and-install/`.
 
 ---
 
@@ -120,7 +120,7 @@ VITE_SONORUS_FIXTURES=1 npm run dev:ui  # the same on fixtures, without real dat
 npm --prefix ui run storybook   # component catalog at http://localhost:6006
 ```
 
-Details: [Electron UI](docs/docs/ui/electron/overview.md).
+Details: [Electron UI](docs/ui/electron/overview.md).
 
 To run the backend alone (API work), start it as below. It reads no `.env`: model downloads take the
 HuggingFace token in the request, and the UI sends the one from Settings → API Keys.
@@ -163,10 +163,10 @@ Tests do not require ML models or audio files. See [CONTRIBUTING.md](CONTRIBUTIN
 
 ## Documentation
 
-Full documentation is in `docs/` (Docusaurus). To run locally:
+Full documentation is in `docs/`; the Docusaurus site that renders it is in `website/`. To run locally:
 
 ```bash
-cd docs && npm ci && npm start
+cd website && npm ci && npm start
 ```
 
 ---

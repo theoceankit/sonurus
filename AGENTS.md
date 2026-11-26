@@ -6,11 +6,11 @@ Instructions for AI coding agents working in this repository. Human contributors
 Sonorus is a local desktop app: an Electron window with a React and TypeScript UI (`ui/`) over a FastAPI backend that
 transcribes audio with WhisperX, diarizes with PyAnnote and remembers speakers across recordings in
 SQLite. Everything runs on the user's machine; the app makes no network requests besides the ones
-listed in `docs/docs/privacy.md`.
+listed in `docs/privacy.md`.
 
 ## Setup
 
-Python 3.12, Node.js 22.22.2+, ffmpeg. Full steps: `docs/docs/environment/setup.md` → Developer setup.
+Python 3.12, Node.js 22.22.2+, ffmpeg. Full steps: `docs/environment/setup.md` → Developer setup.
 
 ```bash
 python3.12 -m venv .venv
@@ -46,9 +46,9 @@ npm run gen:api
 # Backend alone. Data dir = $SONORUS_DATA_DIR or the current directory. Never add --reload.
 .venv/bin/uvicorn app.api.main:app --host 127.0.0.1 --port 8000
 
-# Docs site (Docusaurus, served at site root: docs/docs/intro.md → /intro)
-cd docs && npm ci && npx docusaurus start   # dev server on :3000
-cd docs && npx docusaurus build             # fails on broken links; must stay warning-free
+# Docs site: texts in docs/, Docusaurus in website/ (served at site root: docs/intro.md → /intro)
+cd website && npm ci && npx docusaurus start   # dev server on :3000
+cd website && npx docusaurus build             # fails on broken links; must stay warning-free
 
 # Packaged dependencies: edit requirements.packaged.txt, then regenerate and commit the locks (needs uv)
 node scripts/lock-backend.js
@@ -73,9 +73,9 @@ SONORUS_QUALITY=1 .venv/bin/python -m pytest tests/quality -v -s   # real models
   torch, WhisperX, PyAnnote and `huggingface_hub` with `MagicMock` stubs — in the parent process only.
   Worker functions for spawned child processes therefore live in `tests/download_workers.py` and
   `tests/pipeline_workers.py`, which import no app code. Reproduce CI in a venv with just
-  `requirements-test.txt` (`docs/docs/testing/overview.md` → CI environment).
+  `requirements-test.txt` (`docs/testing/overview.md` → CI environment).
 - Every test gets a paused transcription queue on a temporary database; no test may touch real data.
-- Quality tests: `docs/docs/testing/quality.md`.
+- Quality tests: `docs/testing/quality.md`.
 
 ## Verifying UI changes
 
@@ -90,7 +90,7 @@ npx electron . --user-data-dir=<tmp>
 ```
 
 Seed the data before starting, and check every affected row and state, not just the first one.
-Dev server origin, restarts, worktrees, jsdom and Playwright pitfalls: `docs/docs/ui/electron/development.md`.
+Dev server origin, restarts, worktrees, jsdom and Playwright pitfalls: `docs/ui/electron/development.md`.
 
 ## Architecture
 
@@ -102,32 +102,32 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 
 | Area | Where | Docs |
 |---|---|---|
-| REST + WebSocket API | `app/api/main.py`, `app/api/routers/`, `app/api/schemas.py` | `docs/docs/api/endpoints.md` |
-| Services | `app/services/`; all constructed by `service_factory.create_controller()` | `docs/docs/services/` |
-| Queue and pipeline | `transcription_queue.py`, `transcription_job.py`, `pipeline_process.py` | `docs/docs/services/TranscriptionQueue.md`, `PipelineProcess.md` |
-| Data model and DB schema | `app/models/`, `app/db/migrations.py` (every table, one version), `TranscriptStorageService`, `SpeakerMemoryService`, `JobStore` | `docs/docs/data-models.md` |
-| Lifecycles and invariants | — | `docs/docs/system/state-machine.md`, `docs/docs/system/invariants.md` |
-| Config and environment | `app/config.py` | `docs/docs/environment/configuration.md` |
-| Electron main process | `electron/main.js`, `backend.js`, `backend-identity.js`, `gpu-pack.js`, `preload.js` | `docs/docs/ui/electron/overview.md` |
-| UI | `ui/`, screens in `ui/src/screens/`, what the window loads in `electron/ui-entry.js`, its frame in `electron/window-chrome.js` | `docs/docs/ui/electron/overview.md` |
-| Data: API client, fixtures, generated types | `ui/src/api/`, `ui/src/platform/`, `ui/tools/openapi-types/`, `app/api/openapi_schema.py` | `docs/docs/ui/electron/data.md` |
-| Player and playback | `ui/src/media/`, `ui/src/components/Player/`, `ui/src/screens/Editor/EditorPlayer.tsx` | `docs/docs/ui/electron/player.md` |
-| Transcript | `ui/src/screens/Editor/Transcript*.tsx`, `transcript.ts`, `ui/src/media/active-segment.ts`, `ui/src/components/TurnHeader/`, `Paragraph/`, `TranscriptHeader/`, `SpeakerMenu/` | `docs/docs/ui/electron/transcript.md` |
-| Inspector and speaker review | `ui/src/screens/Editor/InspectorPanel.tsx`, `SpeakerDialogs.tsx`, `review-queue.ts`, `inspector.ts`, `speaker-search.ts`, `new-speaker.ts`, `ui/src/media/clip-playback.ts` | `docs/docs/ui/electron/inspector.md` |
-| Home: the recording open at startup, empty state, New recording and Import files dialogs, file drops | `ui/src/screens/Home/`, `ui/src/components/DropZone/` | `docs/docs/ui/electron/home.md` |
-| Transcription: models, the default model, downloads, languages, the queue in the sidebar, the Alignment model and job settings dialogs | `ui/src/transcribe/`, `ui/src/screens/Queue/` | `docs/docs/ui/electron/transcribe.md` |
-| Settings: the Settings dialog, its sections and what they change | `ui/src/screens/Settings/`, `ui/src/platform/settings.ts` | `docs/docs/ui/electron/settings.md` |
-| Speakers: the Speakers window, a speaker's card, voice samples from any recording | `ui/src/screens/Speakers/`, `ui/src/media/sample-playback.ts`, `ui/src/components/AppearanceRow/` | `docs/docs/ui/electron/speakers.md` |
-| Notes: the note of a recording, its editor, saving, expanded view, Copy notes | `ui/src/screens/Editor/EditorNotes.tsx`, `note-autosave.ts`, `useNotesSaver.ts`, `ui/src/components/NoteEditor/`, `NotesPanel/`, `ui/src/platform/before-close.ts`, `electron/window-closing.js`, `electron/links.js` | `docs/docs/ui/electron/notes.md` |
-| Tokens, font, icons, overlays | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/` | `docs/docs/ui/electron/foundations.md` |
-| Development: data, isolated checks, restarts, test pitfalls | `scripts/dev-ui.js`, `ui/vite.config.ts`, `ui/src/test-setup.ts` | `docs/docs/ui/electron/development.md` |
-| Search: the full-text index, the query language, `GET /search` | `app/db/search_index.py`, `app/services/search_query.py`, `search_service.py`, `note_text.py` | `docs/docs/services/SearchService.md` |
-| Live recording | `app/api/routers/audio_capture.py`, `native/`, `ui/src/recording/` | `docs/docs/ui/electron/live-recording.md` |
-| Packaging and releases | `scripts/bundle-backend.js`, `locks/`, `build/` | `docs/docs/distribution/` |
+| REST + WebSocket API | `app/api/main.py`, `app/api/routers/`, `app/api/schemas.py` | `docs/api/endpoints.md` |
+| Services | `app/services/`; all constructed by `service_factory.create_controller()` | `docs/services/` |
+| Queue and pipeline | `transcription_queue.py`, `transcription_job.py`, `pipeline_process.py` | `docs/services/TranscriptionQueue.md`, `PipelineProcess.md` |
+| Data model and DB schema | `app/models/`, `app/db/migrations.py` (every table, one version), `TranscriptStorageService`, `SpeakerMemoryService`, `JobStore` | `docs/data-models.md` |
+| Lifecycles and invariants | — | `docs/system/state-machine.md`, `docs/system/invariants.md` |
+| Config and environment | `app/config.py` | `docs/environment/configuration.md` |
+| Electron main process | `electron/main.js`, `backend.js`, `backend-identity.js`, `gpu-pack.js`, `preload.js` | `docs/ui/electron/overview.md` |
+| UI | `ui/`, screens in `ui/src/screens/`, what the window loads in `electron/ui-entry.js`, its frame in `electron/window-chrome.js` | `docs/ui/electron/overview.md` |
+| Data: API client, fixtures, generated types | `ui/src/api/`, `ui/src/platform/`, `ui/tools/openapi-types/`, `app/api/openapi_schema.py` | `docs/ui/electron/data.md` |
+| Player and playback | `ui/src/media/`, `ui/src/components/Player/`, `ui/src/screens/Editor/EditorPlayer.tsx` | `docs/ui/electron/player.md` |
+| Transcript | `ui/src/screens/Editor/Transcript*.tsx`, `transcript.ts`, `ui/src/media/active-segment.ts`, `ui/src/components/TurnHeader/`, `Paragraph/`, `TranscriptHeader/`, `SpeakerMenu/` | `docs/ui/electron/transcript.md` |
+| Inspector and speaker review | `ui/src/screens/Editor/InspectorPanel.tsx`, `SpeakerDialogs.tsx`, `review-queue.ts`, `inspector.ts`, `speaker-search.ts`, `new-speaker.ts`, `ui/src/media/clip-playback.ts` | `docs/ui/electron/inspector.md` |
+| Home: the recording open at startup, empty state, New recording and Import files dialogs, file drops | `ui/src/screens/Home/`, `ui/src/components/DropZone/` | `docs/ui/electron/home.md` |
+| Transcription: models, the default model, downloads, languages, the queue in the sidebar, the Alignment model and job settings dialogs | `ui/src/transcribe/`, `ui/src/screens/Queue/` | `docs/ui/electron/transcribe.md` |
+| Settings: the Settings dialog, its sections and what they change | `ui/src/screens/Settings/`, `ui/src/platform/settings.ts` | `docs/ui/electron/settings.md` |
+| Speakers: the Speakers window, a speaker's card, voice samples from any recording | `ui/src/screens/Speakers/`, `ui/src/media/sample-playback.ts`, `ui/src/components/AppearanceRow/` | `docs/ui/electron/speakers.md` |
+| Notes: the note of a recording, its editor, saving, expanded view, Copy notes | `ui/src/screens/Editor/EditorNotes.tsx`, `note-autosave.ts`, `useNotesSaver.ts`, `ui/src/components/NoteEditor/`, `NotesPanel/`, `ui/src/platform/before-close.ts`, `electron/window-closing.js`, `electron/links.js` | `docs/ui/electron/notes.md` |
+| Tokens, font, icons, overlays | `ui/src/styles/`, `ui/src/assets/`, `ui/src/components/` | `docs/ui/electron/foundations.md` |
+| Development: data, isolated checks, restarts, test pitfalls | `scripts/dev-ui.js`, `ui/vite.config.ts`, `ui/src/test-setup.ts` | `docs/ui/electron/development.md` |
+| Search: the full-text index, the query language, `GET /search` | `app/db/search_index.py`, `app/services/search_query.py`, `search_service.py`, `note_text.py` | `docs/services/SearchService.md` |
+| Live recording | `app/api/routers/audio_capture.py`, `native/`, `ui/src/recording/` | `docs/ui/electron/live-recording.md` |
+| Packaging and releases | `scripts/bundle-backend.js`, `locks/`, `build/` | `docs/distribution/` |
 
 ## Rules that must hold
 
-Domain rules (details in `docs/docs/system/invariants.md`):
+Domain rules (details in `docs/system/invariants.md`):
 
 1. **`resolve()` is pure.** `SpeakerMemoryService.resolve()` never mutates `known_speakers`; it only
    returns a `{SPEAKER_XX → id}` mapping.
@@ -148,17 +148,17 @@ App rules:
   microphone included; the UI and Electron capture and write no audio.
 - Dev and packaged data stay apart (`electron/backend-identity.js`); never point dev work at
   `~/.config/sonorus`.
-- No new network requests. Anything that contacts a server must be listed in `docs/docs/privacy.md`;
+- No new network requests. Anything that contacts a server must be listed in `docs/privacy.md`;
   third-party telemetry stays forced off (`app/__init__.py`).
 - Icons are files in `ui/src/assets/icons/` used through `Icon`, and values come from
   `ui/src/styles/tokens.css`: no raw colours or spacing and no palette tokens in components, a test enforces it
-  (`docs/docs/ui/electron/foundations.md`). Layout spacing goes through `Stack` and `Inline`.
+  (`docs/ui/electron/foundations.md`). Layout spacing goes through `Stack` and `Inline`.
   Speaker initials are worked out only by `Avatar`; a test enforces it.
 - A control whose feature does not exist yet is marked with `markNotImplemented()`
   (`ui/src/not-implemented.ts`, as props on the control)
   — never hidden and never faked. When the feature lands, remove its id and the call.
 - UI text: no `·` separators, no all-caps labels. Straight quotes. An ellipsis `…` only for something in
-  progress or a name cut to fit, never on a command or a modal's title (`docs/docs/ui/electron/foundations.md`).
+  progress or a name cut to fit, never on a command or a modal's title (`docs/ui/electron/foundations.md`).
 - Screens get data only through `useApi()` and the hooks in `ui/src/api/queries.ts`, never `fetch`. A test fails
   until `npm run gen:api` follows a change to the API.
 - Every component in `ui/src/components/<Name>/` has `<Name>.stories.tsx` with a story for each of its
@@ -172,8 +172,8 @@ App rules:
   `fix(capture): …`, `feat(api): …`, `docs: …`, `refactor(ui): …`, `test: …`. The body says
   why, not what.
 - **Branches:** `type/kebab-case` (`fix/…`, `feat/…`, `docs/…`). Never commit to `main` directly.
-- **Docs:** English. A behavior change updates the matching page in `docs/docs/` in the same
+- **Docs:** English. A behavior change updates the matching page in `docs/` in the same
   change. Docs describe how the system works; planned work, open bugs and ideas do not go in
-  `docs/` — known limitations with workarounds go in `docs/docs/known-issues.md`.
+  `docs/` — known limitations with workarounds go in `docs/known-issues.md`.
 - **Never commit** `.env`, `opencode.json` or other local tool configs, model weights, recordings or
   databases.

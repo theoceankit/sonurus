@@ -1,6 +1,6 @@
 # Sonorus documentation site
 
-Built with [Docusaurus](https://docusaurus.io/). Docs are served from the site root (`routeBasePath: '/'`), so `docs/intro.md` is at `/intro`.
+Built with [Docusaurus](https://docusaurus.io/). The texts are in the repository's `docs/` (`path: '../docs'`), served from the site root (`routeBasePath: '/'`), so `docs/intro.md` is at `/intro`.
 
 ## Installation
 

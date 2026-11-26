@@ -10,13 +10,13 @@ good change looks like and how to get it merged. If you use an AI coding tool, a
 - **Anything larger** (a new feature, a behavior change, a refactor, a new dependency) — open an issue
   first and describe what you want to change and why. Sonorus has a fixed set of domain rules and a
   planned direction; agreeing on the approach first saves you from rewriting a finished change.
-- Check [Known issues](docs/docs/known-issues.md) — your problem may already be described there, with
+- Check [Known issues](docs/known-issues.md) — your problem may already be described there, with
   a workaround.
 
 ## Development setup
 
 You need Python 3.12, Node.js 22.22.2+, ffmpeg and git. The full guide, including GPU setup, is
-[Environment → Setup](docs/docs/environment/setup.md) → Developer setup. In short:
+[Environment → Setup](docs/environment/setup.md) → Developer setup. In short:
 
 ```bash
 python3.12 -m venv .venv
@@ -69,16 +69,16 @@ npm --prefix ui run typecheck
 npm run test:e2e                          # built app end to end (needs ui/dist and a free port 8000)
 ```
 
-UI components take values from the tokens: see `docs/docs/ui/electron/foundations.md`. The end-to-end
+UI components take values from the tokens: see `docs/ui/electron/foundations.md`. The end-to-end
 tests need the full `.venv` and are not run by CI: run them before a pull request that changes the window.
 
 All suites must pass before a pull request is merged. CI runs them without the ML libraries —
 `tests/conftest.py` replaces them with stubs — so a test that passes in your full `.venv` can still
 fail there. Run the suite in a venv with only `requirements-test.txt` before you open the pull
-request. Details: [Testing overview](docs/docs/testing/overview.md).
+request. Details: [Testing overview](docs/testing/overview.md).
 
 Audio quality tests run real models on meeting recordings and are opt-in; you only need them for
-changes to transcription, diarization or speaker matching. See [Quality tests](docs/docs/testing/quality.md).
+changes to transcription, diarization or speaker matching. See [Quality tests](docs/testing/quality.md).
 
 ## Making a change
 
@@ -87,15 +87,15 @@ changes to transcription, diarization or speaker matching. See [Quality tests](d
 2. **Bug fixes start with a test** that fails without the fix. New behavior comes with tests too.
 3. **Respect the domain rules.** Speaker memory is written in exactly one place, speaker ids are never
    display names, a user's correction always beats automatic results. The full list is in
-   [Invariants](docs/docs/system/invariants.md) and [AGENTS.md](AGENTS.md#rules-that-must-hold); a
+   [Invariants](docs/system/invariants.md) and [AGENTS.md](AGENTS.md#rules-that-must-hold); a
    pull request that breaks one will not be merged, even with passing tests.
 4. **Check UI changes in the running app**, on a separate data directory, in every state you touched
    (empty, one item, many items, long names, narrow window). Tests do not cover layout.
-5. **Update the docs** in `docs/docs/` when behavior changes, in the same pull request. Docs are in
+5. **Update the docs** in `docs/` when behavior changes, in the same pull request. Docs are in
    English and describe how the system works now — not plans or ideas. The docs site build must stay
-   warning-free: `cd docs && npm ci && npx docusaurus build`.
+   warning-free: `cd website && npm ci && npx docusaurus build`.
 6. **No new network requests** without discussion. Sonorus is local-first; every request it makes is
-   listed in [Privacy](docs/docs/privacy.md).
+   listed in [Privacy](docs/privacy.md).
 
 There is no linter or formatter. Match the style of the code around your change.
 
@@ -145,8 +145,8 @@ Open an issue with:
 - the Sonorus version (Settings, or the release you installed) and your OS;
 - what you did, what you expected and what happened;
 - the log, if relevant: `sonorus.log` in the app's data folder — the path for your OS is in
-  [Build and install](docs/docs/build-and-install/linux.md) (Linux, macOS and Windows pages). From
-  source, see [Logging](docs/docs/environment/logging.md).
+  [Build and install](docs/build-and-install/linux.md) (Linux, macOS and Windows pages). From
+  source, see [Logging](docs/environment/logging.md).
 
 Recordings and transcripts often contain private conversations. Do not attach them unless you are
 sure they can be public — a short synthetic clip that reproduces the problem is better.

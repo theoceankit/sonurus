@@ -17,7 +17,7 @@ made simpler, never refused, with a warning saying what was. Text that would rea
 as markup is escaped with a backslash.
 
 A note → Markdown → note is the same note in its normal form (normalize(), listed
-in docs/docs/services/NoteMarkdown.md): a speaker's mention with the name they have
+in docs/services/NoteMarkdown.md): a speaker's mention with the name they have
 now, a timecode on a whole second, no spaces at the edges of a mark or a line, and
 what Markdown cannot write otherwise. Fixtures shared with the editor's tests keep
 both sides on one schema: tests/fixtures/notes.

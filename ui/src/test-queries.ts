@@ -5,7 +5,7 @@ import { screen, within } from '@testing-library/react'
 // getByRole costs about a quarter of a second, several times that on a CI
 // runner. These find the parts a screen test opens by their label, which costs
 // next to nothing, so a test can then query by role inside them
-// (docs/docs/ui/electron/development.md, Tests of a whole screen).
+// (docs/ui/electron/development.md, Tests of a whole screen).
 
 // A button of the title bar, such as Settings or Speakers, named by its aria-label.
 export const getTitlebarButton = (label: string) => screen.getByLabelText(label, { selector: 'button' })

@@ -2,7 +2,7 @@
 
 // The docs site draws the app's icons straight from ui/src/assets/icons/ and
 // puts them in place of Docusaurus' own by swizzling theme components into
-// docs/src/theme/. Neither breaks loudly in CI, which builds no docs: a renamed
+// website/src/theme/. Neither breaks loudly in CI, which builds no docs: a renamed
 // icon fails only the docs build, and a theme component Docusaurus renames in an
 // update silently brings its own icon back.
 
@@ -12,10 +12,10 @@ const fs     = require('fs')
 const path   = require('path')
 
 const ROOT  = path.resolve(__dirname, '..', '..')
-const DOCS  = path.join(ROOT, 'docs')
-const THEME = path.join(DOCS, 'src', 'theme')
+const SITE  = path.join(ROOT, 'website')
+const THEME = path.join(SITE, 'src', 'theme')
 const ICONS = path.join(ROOT, 'ui', 'src', 'assets', 'icons')
-const CLASSIC = path.join(DOCS, 'node_modules', '@docusaurus', 'theme-classic', 'lib', 'theme')
+const CLASSIC = path.join(SITE, 'node_modules', '@docusaurus', 'theme-classic', 'lib', 'theme')
 
 const files = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
   const full = path.join(dir, entry.name)
@@ -24,8 +24,8 @@ const files = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry 
 
 const sources = [
   ...files(THEME),
-  ...files(path.join(DOCS, 'src', 'pages')),
-  path.join(DOCS, 'src', 'css', 'custom.css'),
+  ...files(path.join(SITE, 'src', 'pages')),
+  path.join(SITE, 'src', 'css', 'custom.css'),
 ].filter(file => /\.(js|css)$/.test(file))
 
 // Icon file names used by the docs, from imports (…/icons/x.svg) and CSS url()s alike.
@@ -40,7 +40,7 @@ test('every icon the docs site uses is a file of the app set', () => {
   assert.deepEqual(missing, [])
 })
 
-test('every swizzled file replaces a component of the Docusaurus theme', { skip: !fs.existsSync(CLASSIC) && 'docs/node_modules is not installed' }, () => {
+test('every swizzled file replaces a component of the Docusaurus theme', { skip: !fs.existsSync(CLASSIC) && 'website/node_modules is not installed' }, () => {
   const orphans = files(THEME)
     .map(file => path.relative(THEME, file).replace(/\.js$/, ''))
     .filter(component => !fs.existsSync(path.join(CLASSIC, `${component}.js`)))

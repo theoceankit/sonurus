@@ -62,7 +62,7 @@ async function preflight() {
   if (Math.max(...sources.map(file => newestUiSource(file))) > built.mtimeMs) {
     throw new Error('ui/dist is older than its sources in ui/. Run: npm run build:ui')
   }
-  if (!fs.existsSync(PYTHON)) throw new Error(`No Python at ${PYTHON}. See docs/docs/environment/setup.md`)
+  if (!fs.existsSync(PYTHON)) throw new Error(`No Python at ${PYTHON}. See docs/environment/setup.md`)
   // Electron reuses a development backend on the port: the test would run on its data.
   if (await health()) throw new Error(`${BACKEND} already answers. Stop that backend first: the tests start their own.`)
 }

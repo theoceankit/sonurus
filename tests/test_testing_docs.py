@@ -1,11 +1,11 @@
-"""The coverage table in docs/docs/testing/overview.md lists every test file exactly once."""
+"""The coverage table in docs/testing/overview.md lists every test file exactly once."""
 import re
 from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TESTS_DIR = ROOT / "tests"
-OVERVIEW = ROOT / "docs" / "docs" / "testing" / "overview.md"
+OVERVIEW = ROOT / "docs" / "testing" / "overview.md"
 
 ROW_FILE = re.compile(r"^\|\s*`([^`]+)`\s*\|")
 
