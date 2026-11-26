@@ -60,7 +60,7 @@ export function Inspector({ children, review = { mode: 'off' }, onClose, notes, 
           <Inline gap={1} className={styles.buttons}>
             <Inline ref={setActions} gap={1} />
             <Tooltip text="Close inspector" placement="below">
-              <IconButton icon="inspector" size="small" label="Close inspector" className={styles.close} onClick={onClose} />
+              <IconButton icon="inspector" size="small" label="Close inspector" onClick={onClose} />
             </Tooltip>
           </Inline>
         </TooltipGroup>

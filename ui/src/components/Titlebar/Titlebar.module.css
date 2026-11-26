@@ -48,24 +48,8 @@
   padding-right: max(var(--space-5), calc(var(--inset-end) + var(--space-2)));
 }
 
-/* Its line moves towards the frame while the sidebar is open, away from it while closed. */
-.sidebarToggle {
-  composes: panelLine from '../../styles/motion.module.css';
-}
-
-.sidebarToggle[aria-expanded='true'] {
-  --panel-line-shift: var(--panel-line-to-start);
-}
-
-.sidebarToggle[aria-expanded='false'] {
-  --panel-line-shift: var(--panel-line-from-start);
-}
-
-/* Its line moves away from the frame: the inspector will open. The room before it
-   is its own, so that the room can open and close. */
+/* The room before it is its own, so that the room can open and close. */
 .showInspector {
-  composes: panelLine from '../../styles/motion.module.css';
-  --panel-line-shift: var(--panel-line-from-end);
   flex: none;
   margin-left: var(--space-1);
 }

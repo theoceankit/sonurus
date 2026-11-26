@@ -2,8 +2,6 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { expect, test, vi } from 'vitest'
-import inspectorIcon from '../../assets/icons/inspector.svg?raw'
-import toggleIcon from '../../assets/icons/sidebar-toggle.svg?raw'
 import { OverlayProvider } from '../../OverlayProvider'
 import { NOT_IMPLEMENTED_TOAST } from '../../not-implemented'
 import { Titlebar } from './Titlebar'
@@ -17,27 +15,6 @@ test('Toggle sidebar works and says whether the sidebar is open', async () => {
   expect(button.getAttribute('aria-expanded')).toBe('false')
   await userEvent.click(button)
   expect(onToggleSidebar).toHaveBeenCalledOnce()
-})
-
-// The hover of a panel's button moves the icon's second shape (panelLine in
-// motion.module.css), so that shape has to stay the line of the panel's edge.
-test.each([
-  ['sidebar-toggle', toggleIcon, 'M9.75 6L9.75 18'],
-  ['inspector', inspectorIcon, 'M14.25 6L14.25 18'],
-])('the line that moves on hover is the second shape of %s', (_, icon, line) => {
-  const shapes = [...icon.matchAll(/<(path|line|rect)\b[^>]*>/g)].map(m => m[0])
-  expect(shapes).toHaveLength(2)
-  expect(shapes[1]).toContain(`d="${line}"`)
-})
-
-test('after a click Toggle sidebar rests until the pointer leaves', async () => {
-  setup({ sidebarOpen: true })
-  const button = screen.getByRole('button', { name: 'Toggle sidebar' })
-  expect(button.hasAttribute('data-settled')).toBe(false)
-  await userEvent.click(button)
-  expect(button.hasAttribute('data-settled')).toBe(true)
-  await userEvent.unhover(button)
-  expect(button.hasAttribute('data-settled')).toBe(false)
 })
 
 test('the inspector button shows only while the inspector is closed', async () => {
