@@ -77,6 +77,9 @@ const config = {
           routeBasePath: '/',
         },
         blog: false,
+        // Icons come straight from the app's set (src/theme/, AppIcon); SVGO
+        // would rewrite their paths, so they are drawn as the files have them.
+        svgr: {svgrConfig: {svgo: false}},
         theme: {
           // The app's own font and design tokens, then the docs styles on top.
           customCss: [

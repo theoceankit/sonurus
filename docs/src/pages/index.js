@@ -2,39 +2,19 @@ import React, { useEffect } from 'react';
 import Link from '@docusaurus/Link';
 import useBrokenLinks from '@docusaurus/useBrokenLinks';
 import Layout from '@theme/Layout';
+import AppIcon from '@site/src/components/AppIcon';
+import Download from '@site/../ui/src/assets/icons/download.svg';
+import Check from '@site/../ui/src/assets/icons/check.svg';
+import Privacy from '@site/../ui/src/assets/icons/privacy.svg';
+import ArrowRight from '@site/../ui/src/assets/icons/arrow-right.svg';
 import styles from './index.module.css';
 
 /* ============================================================
-   Inline SVGs
+   Inline SVGs: brand logos, which the app's icon set does not draw
    ============================================================ */
-const IconDownload = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-  </svg>
-);
-
 const IconGitHub = () => (
   <svg viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.5v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z" />
-  </svg>
-);
-
-const IconCheck = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 6 9 17l-5-5" />
-  </svg>
-);
-
-const IconLock = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="4" y="10" width="16" height="11" rx="2" />
-    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-  </svg>
-);
-
-const IconArrow = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M5 12h14m-6-6 6 6-6 6" />
   </svg>
 );
 
@@ -213,7 +193,7 @@ export default function Home() {
           </p>
           <div className={`reveal ${styles.heroActions}`} data-d="2">
             <a className={`${styles.btn} ${styles.btnPrimary}`} href="https://github.com/theoceankit/sonurus/releases">
-              <IconDownload />
+              <AppIcon svg={Download} />
               Download for macOS
             </a>
             <a className={`${styles.btn} ${styles.btnGhost}`} href="https://github.com/theoceankit/sonurus">
@@ -222,9 +202,9 @@ export default function Home() {
             </a>
           </div>
           <div className={`reveal ${styles.heroMeta}`} data-d="3">
-            <span><IconCheck /> Free &amp; open source</span>
-            <span><IconCheck /> No account required</span>
-            <span><IconCheck /> Works fully offline</span>
+            <span><AppIcon svg={Check} size={12} /> Free &amp; open source</span>
+            <span><AppIcon svg={Check} size={12} /> No account required</span>
+            <span><AppIcon svg={Check} size={12} /> Works fully offline</span>
           </div>
         </div>
       </header>
@@ -247,7 +227,7 @@ export default function Home() {
                 { title: 'You hold the keys', body: 'Files are stored where you choose, in open formats. Delete a meeting and it’s actually gone.' },
               ].map(({ title, body }) => (
                 <li key={title}>
-                  <span className={styles.ck}><IconCheck /></span>
+                  <span className={styles.ck}><AppIcon svg={Check} size={12} /></span>
                   <div><b>{title}</b><span>{body}</span></div>
                 </li>
               ))}
@@ -340,7 +320,7 @@ export default function Home() {
             </div>
 
             <div className={styles.sfNote}>
-              <IconLock />
+              <AppIcon svg={Privacy} />
               <span><b>Zero network egress.</b> Run the entire pipeline with Wi-Fi switched off — the result is identical.</span>
             </div>
           </div>
@@ -393,7 +373,7 @@ export default function Home() {
                 <h4>{name}</h4>
                 <div className={styles.pfMeta}>{meta}</div>
                 <a className={styles.dl} href={href}>
-                  {label} <IconArrow />
+                  {label} <AppIcon svg={ArrowRight} />
                 </a>
               </div>
             ))}
