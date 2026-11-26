@@ -27,17 +27,17 @@ CREATE TABLE speaker_embeddings (
 
 CREATE TABLE speaker_names (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    speaker_id TEXT NOT NULL,          -- no FK since schema v2: a name may exist before any embedding
+    speaker_id TEXT NOT NULL,          -- no FK: a name may exist before any embedding
     label      TEXT NOT NULL,          -- e.g. "display"
     name       TEXT NOT NULL           -- not unique: two people may share a name
 )
 
 CREATE TABLE speaker_meta (
     speaker_id    TEXT PRIMARY KEY,
-    color_index   INTEGER NOT NULL DEFAULT 0,  -- palette slot 0..4 (schema v3)
-    handle        TEXT,                        -- @ivan.petrov without the @; only for named speakers (schema v4)
-    handle_manual INTEGER NOT NULL DEFAULT 0,  -- 1: set by hand, stays when the name changes (schema v4)
-    photo         TEXT                         -- file name in speaker_photos/; only for named speakers (schema v5)
+    color_index   INTEGER NOT NULL DEFAULT 0,  -- palette slot 0..4
+    handle        TEXT,                        -- @ivan.petrov without the @; only for named speakers
+    handle_manual INTEGER NOT NULL DEFAULT 0,  -- 1: set by hand, stays when the name changes
+    photo         TEXT                         -- file name in speaker_photos/; only for named speakers
 )
 CREATE UNIQUE INDEX speaker_meta_handle ON speaker_meta (handle COLLATE NOCASE)
 
@@ -47,7 +47,6 @@ CREATE TABLE _meta (
 )
 ```
 
-> The table was historically named `speakers` — `_init_db()` automatically renames it to `speaker_embeddings` if the old name is found.
 
 Every row of `speaker_meta` is written as an upsert of its own columns: a colour save never wipes the handle or the photo, nor a handle save the colour. Handles are unique through the index, not through the in-memory state, since the API and a pipeline job each hold their own instance. `_meta` also keeps the handle format (`handle_format`) and how the stored profiles were averaged (`voice_averaging`, read and written by `voice_averaging()` / `set_voice_averaging()`; see [CommitService](CommitService.md) → `recompute_outdated_profiles()`).
 
@@ -71,7 +70,6 @@ known_names = {
 | Format | Source | Description |
 |---|---|---|
 | UUID4 | `resolve()` (new voices), `create_named_speaker()` | All current speaker IDs |
-| `person_N` | Legacy / imported | Old records from previous versions; migrated to UUID4 on startup |
 
 ---
 
@@ -79,7 +77,7 @@ known_names = {
 
 ### `__init__(db_path="speaker_memory.db", threshold=SPEAKER_SIMILARITY_THRESHOLD)`
 
-Initialises the database (creates tables if missing), runs migrations, and loads known speakers.
+Brings the database to the schema ([Database schema](../data-models.md#database-schema)) and loads known speakers.
 
 **Parameters:**
 - `db_path` — path to the SQLite file
@@ -217,7 +215,7 @@ Deletes every speaker — named ones included — from `speaker_embeddings`, `sp
 
 ### `_init_db()`
 
-Creates `speaker_embeddings`, `speaker_names`, and `_meta` tables if missing and runs the schema migrations up to v4 (`speaker_meta.handle`, `handle_manual` and the unique index). Runs migration `m001_uuid_speakers`: converts any legacy human-name speaker ID to a UUID4, stores the original name in `speaker_names`, and updates all `segments.speaker_id` references. Then every named speaker without a handle gets one in the handle format, the one heard first (earliest transcript of their segments) first, so they keep the handle without a number; speakers without segments come last, by id. On an upgrade to v4 that gives every named speaker a handle; afterwards it finds none to do. Last, if `_meta.embedding_model` is not `EMBEDDING_MODEL_ID` (a database of an earlier version, or of another embedding model), it sets every `segments.embedding` to `NULL`, deletes every `speaker_embeddings` row and writes the mark — voices of another model cannot be compared with new ones. Names, `speaker_meta` (colours, handles) and `segments.speaker_id` are kept, so named speakers stay, without a voice profile until new recordings give them one. A new database just gets the mark. This is a data reset, not a schema migration: `schema_version` does not change.
+Brings the database to the schema (`ensure_schema()`, [Database schema](../data-models.md#database-schema)); the tables are made there, not here. Then every named speaker without a handle gets one in the handle format, the one heard first (earliest transcript of their segments) first, so they keep the handle without a number; speakers without segments come last, by id. On a database of a release before handles (0.3.0 and earlier) that gives every named speaker a handle; afterwards it finds none to do. Last, if `_meta.embedding_model` is not `EMBEDDING_MODEL_ID` (a database of an earlier version, or of another embedding model), it sets every `segments.embedding` to `NULL`, deletes every `speaker_embeddings` row and writes the mark — voices of another model cannot be compared with new ones. Names, `speaker_meta` (colours, handles) and `segments.speaker_id` are kept, so named speakers stay, without a voice profile until new recordings give them one. A new database just gets the mark. This is a data reset, not a migration step: the schema version does not change.
 
 ---
 

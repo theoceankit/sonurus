@@ -66,6 +66,9 @@ $SONORUS_DATA_DIR/
     hf/               ← PyAnnote model weights
     alignment/        ← wav2vec2 alignment models
   speaker_memory.db   ← Speaker memory + transcripts
+  speaker_memory.db.before-migration
+                      ← Copy made before a database of 0.3.2 or earlier was first brought
+                        up to the migration chain; never removed by the app
   recordings/         ← Audio referenced by the DB: live recordings (sonorus-rec-*)
                         and copies of imported files (sonorus-import-*)
   speaker_photos/     ← Speaker photos, named in speaker_meta.photo
