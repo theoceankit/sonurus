@@ -236,6 +236,12 @@ html .theme-code-block svg.app-icon[class*='copyButtonSuccessIcon'] {
   color: var(--color-success-fg);
 }
 
+/* The theme pins the copy icon to the top left of a 1.125rem box; the box takes the icon's size. */
+html .theme-code-block [class*='copyButtonIcons'] {
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+}
+
 html svg.app-icon--external {
   margin-left: var(--space-1);
   vertical-align: -1px;
