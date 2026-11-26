@@ -230,15 +230,21 @@ def test_download_diarize_emits_progress_events(tmp_path):
 
     events = []
 
-    def slow_snapshot(*args, **kwargs):
-        time.sleep(0.15)
+    # The poller's first event comes only after it asks for the total size: a
+    # download that ends before that leaves no progress at all, so this one
+    # lasts until the first event, however slow the machine.
+    def snapshot_until_progress(*args, **kwargs):
+        deadline = time.monotonic() + 5
+        while not any(e.get("type") == "progress" for e in events) and time.monotonic() < deadline:
+            time.sleep(0.01)
 
     info_a = MagicMock()
     info_a.siblings = [_make_sibling("pytorch_model.bin", total // 2)]
     info_b = MagicMock()
     info_b.siblings = [_make_sibling("pytorch_model.bin", total // 2)]
 
-    with patch("app.services.model_service.huggingface_hub.snapshot_download", side_effect=complete_snapshot()):
+    with patch("app.services.model_service.huggingface_hub.snapshot_download",
+               side_effect=complete_snapshot(snapshot_until_progress)):
         with patch("app.services.model_service.huggingface_hub.model_info", side_effect=[info_a, info_b]):
             svc.download_model("diarize", on_progress=events.append)
 
