@@ -7,7 +7,7 @@ import { toast } from '../components/Toast/toast-store'
 
 // GPU acceleration: GET /gpu, the CUDA download
 // over WS /ws/gpu/{job}, its removal, and the restart of the backend that applies
-// either. It belongs to the app, not to Settings: a download goes on and the restart
+// either; the Use GPU switch (PUT /gpu/device), which needs no restart. It belongs to the app, not to Settings: a download goes on and the restart
 // still happens after Settings close.
 //
 // Restart: the backend says when it may restart (POST /gpu/restart: ready, or waiting
@@ -36,6 +36,8 @@ export type Gpu = {
   retryRestart(): void
   cancelDownload(): Promise<void>
   remove(): Promise<void>
+  // Use the GPU or the CPU from the next transcription on; no restart.
+  setUseGpu(useGpu: boolean): Promise<void>
   subscribe(listener: () => void): () => void
 }
 
@@ -168,6 +170,19 @@ export function createGpu(api: ApiClient, { restartBackend, pollMs = GPU_RESTART
     await refresh()
   }
 
+  const setUseGpu = async (useGpu: boolean) => {
+    const before = state.status
+    // The switch moves at once; the answer, or a failure, sets it right.
+    if (before) set({ status: { ...before, use_gpu: useGpu } })
+    try {
+      set({ status: await api.setUseGpu(useGpu) })
+    } catch (error) {
+      set({ status: before })
+      toast({ message: `Could not turn ${useGpu ? 'on' : 'off'} the GPU: ${(error as Error).message}`, type: 'error' })
+      await refresh()
+    }
+  }
+
   return {
     state: () => state,
     refresh,
@@ -179,6 +194,7 @@ export function createGpu(api: ApiClient, { restartBackend, pollMs = GPU_RESTART
     },
     cancelDownload,
     remove,
+    setUseGpu,
     subscribe: listener => {
       listeners.add(listener)
       return () => { listeners.delete(listener) }
@@ -217,21 +233,27 @@ export type GpuTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
 export type GpuAction = { id: 'download' | 'cancel' | 'remove' | 'retry'; label: string; primary: boolean }
 export type GpuView =
   | { hidden: true }
-  | { hidden: false; label: string; tone: GpuTone; detail: string; device: 'GPU' | 'CPU'; progress: { pct: number } | null; actions: GpuAction[] }
+  | {
+    hidden: false; label: string; tone: GpuTone; detail: string; device: 'GPU' | 'CPU'; progress: { pct: number } | null; actions: GpuAction[]
+    // The Use GPU switch, or null where there is nothing to switch: shown only while
+    // PyTorch can use the GPU (the pack is on, or a development backend with CUDA).
+    useGpu: boolean | null
+  }
 
 // Hidden on macOS (the backend says unsupported_platform) and until GET /gpu answered.
 export function gpuSectionView(status: GpuStatus | null, ui: Omit<GpuState, 'status'>): GpuView {
   if (!status || status.blocked_reason === 'unsupported_platform') return { hidden: true }
   const gpu = status.gpu
   const size = status.download_size ? ` (${formatGpuSize(status.download_size)})` : ''
-  const out = (label: string, tone: GpuTone, detail: string, actions: GpuAction[] = [], progress: { pct: number } | null = null): GpuView => ({
-    hidden: false, label, tone, detail, progress, actions, device: status.device === 'cuda' ? 'GPU' : 'CPU',
+  const out = (label: string, tone: GpuTone, detail: string, actions: GpuAction[] = [], progress: { pct: number } | null = null, useGpu: boolean | null = null): GpuView => ({
+    hidden: false, label, tone, detail, progress, actions, useGpu, device: status.device === 'cuda' ? 'GPU' : 'CPU',
   })
+  const useGpu = status.cuda_available ? status.use_gpu : null
   const download = (label: string): GpuAction => ({ id: 'download', label: `${label}${size}`, primary: true })
   const remove: GpuAction = { id: 'remove', label: 'Remove', primary: false }
 
   if (status.blocked_reason === 'not_packaged') {
-    return out('Development build', 'neutral', `GPU acceleration is downloaded by the installed app. This backend uses PyTorch ${status.torch}.`)
+    return out('Development build', 'neutral', `GPU acceleration is downloaded by the installed app. This backend uses PyTorch ${status.torch}.`, [], null, useGpu)
   }
   if (ui.download) {
     const cancel: GpuAction[] = [{ id: 'cancel', label: 'Cancel', primary: false }]
@@ -251,7 +273,9 @@ export function gpuSectionView(status: GpuStatus | null, ui: Omit<GpuState, 'sta
       return out(status.pending === 'remove' ? 'Removing' : 'Waiting to apply', 'accent',
         (ui.restart?.reason && WAIT_TEXT[ui.restart.reason]) || 'Restarting the transcription engine…')
     case 'active':
-      return out('On', 'success', `Transcription runs on ${gpu?.name ?? 'the GPU'}.`, [remove])
+      return status.use_gpu
+        ? out('On', 'success', `Transcription runs on ${gpu?.name ?? 'the GPU'}.`, [remove], null, useGpu)
+        : out('Off', 'neutral', `Transcription runs on the CPU. Turn on Use GPU to transcribe on ${gpu?.name ?? 'the GPU'}.`, [remove], null, useGpu)
     case 'error':
       return out('GPU check failed', 'danger', `${status.error}. Transcription runs on the CPU.`,
         canDownload ? [download('Download again'), remove] : [remove])

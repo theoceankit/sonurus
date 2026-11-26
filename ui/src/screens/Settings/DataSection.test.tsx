@@ -41,6 +41,7 @@ test('Reset asks over Settings, then puts every preference back but the token an
   const { bridge, client, setZoom } = await setup()
   await client.setHandleFormat('f.last')
   await client.setMcpEnabled(true)
+  await client.setUseGpu(false)
   await openData()
   await userEvent.click(within(settings()).getByRole('button', { name: 'Reset' }))
   const confirm = await screen.findByRole('alertdialog', { name: 'Reset preferences?' })
@@ -52,6 +53,7 @@ test('Reset asks over Settings, then puts every preference back but the token an
   expect(setZoom).toHaveBeenLastCalledWith(1)
   expect(await client.getHandleFormat()).toBe('first.last')
   expect(await client.getMcpEnabled()).toBe(false)
+  expect((await client.getGpuStatus()).use_gpu).toBe(true)
   expect(settings()).toBeTruthy()
 })
 
@@ -67,6 +69,7 @@ test('Cancel resets nothing', async () => {
 test('Delete all data asks first, deletes, says what went, and the library is empty', async () => {
   const { client } = await setup()
   await client.setMcpEnabled(true)
+  await client.setUseGpu(false)
   await openData()
   await userEvent.click(within(settings()).getByRole('button', { name: 'Delete' }))
   const confirm = await screen.findByRole('alertdialog', { name: 'Delete all data?' })
@@ -76,6 +79,7 @@ test('Delete all data asks first, deletes, says what went, and the library is em
   await userEvent.click(within(confirm).getByRole('button', { name: 'Delete everything' }))
   expect(await screen.findByText(/^Deleted \d+ transcripts?, \d+ speakers? and \d+ files?\.$/)).toBeTruthy()
   expect(await client.getMcpEnabled()).toBe(false)
+  expect((await client.getGpuStatus()).use_gpu).toBe(true)
   await userEvent.click(within(settings()).getByRole('button', { name: 'Close' }))
   await waitFor(() => expect(queryDialog('Settings')).toBeNull())
   expect(await within(screen.getByRole('main', { name: 'Transcript' })).findByText(/To make a new transcription, press/)).toBeTruthy()

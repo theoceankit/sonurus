@@ -439,6 +439,8 @@ export function createFixtureClient({
   let gpu: GpuStatus = { ...FIXTURE_GPU, ...gpuStatus }
   type GpuJob = { id: string; pct: number; timer: ReturnType<typeof setInterval>; listeners: Set<(event: GpuDownloadEvent) => void> }
   let gpuJob: GpuJob | null = null
+  // As the backend: the next job's device follows the choice only where CUDA is there.
+  const setUseGpu = (useGpu: boolean) => gpu = { ...gpu, use_gpu: useGpu, device: useGpu && gpu.cuda_available ? 'cuda' : 'cpu' }
   const endGpuJob = (event: GpuDownloadEvent) => {
     const job = gpuJob
     if (!job) return
@@ -671,9 +673,11 @@ export function createFixtureClient({
       data.speakers = []
       data.candidates = {}
       mcpEnabled = false
+      setUseGpu(true)
       return summary
     }),
     getGpuStatus: () => answer(() => gpu),
+    setUseGpu: useGpu => answer(() => setUseGpu(useGpu)),
     startGpuDownload: () => answer(startGpuJob),
     cancelGpuDownload: jobId => answer(() => {
       if (gpuJob?.id !== jobId) throw new ApiError(404, `No active GPU download '${jobId}'`)
@@ -699,8 +703,8 @@ export function createFixtureClient({
       if (queue.running_job_id) return { status: 'waiting' as const, reason: 'transcription' as const }
       // The restart the app asks for next applies the change.
       gpu = gpu.pending === 'remove'
-        ? { ...gpu, state: 'not_installed', pending: null, device: 'cpu', torch: '2.8.0+cpu' }
-        : { ...gpu, state: 'active', pending: null, device: 'cuda', torch: '2.8.0+cu128' }
+        ? { ...gpu, state: 'not_installed', pending: null, cuda_available: false, device: 'cpu', torch: '2.8.0+cpu' }
+        : { ...gpu, state: 'active', pending: null, cuda_available: true, device: gpu.use_gpu ? 'cuda' : 'cpu', torch: '2.8.0+cu128' }
       return { status: 'ready' as const }
     }),
     deleteModel: modelId => answer(() => {

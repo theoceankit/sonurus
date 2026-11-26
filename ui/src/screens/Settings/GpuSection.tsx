@@ -1,11 +1,15 @@
 import { useEffect } from 'react'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
+import { FieldRow } from '../../components/FieldRow/FieldRow'
 import { Inline } from '../../components/Inline/Inline'
 import { SectionCard } from '../../components/SectionCard/SectionCard'
 import { Stack } from '../../components/Stack/Stack'
+import { Toggle } from '../../components/Toggle/Toggle'
 import { gpuSectionView, useGpu } from '../../settings/gpu'
 import styles from './Settings.module.css'
+
+const USE_GPU = 'Use GPU'
 
 // GPU acceleration: asks GET /gpu when it opens; a download or a restart it starts
 // goes on after Settings close.
@@ -33,6 +37,11 @@ export function GpuSection() {
           <span className={styles.quiet}>Running on {view.device}</span>
         </Inline>
         <p className={styles.gpuDetail}>{view.detail}</p>
+        {view.useGpu !== null && (
+          <FieldRow label={USE_GPU} hint="Applies from the next transcription. One that is running keeps its device.">
+            <Toggle label={USE_GPU} checked={view.useGpu} onChange={next => void gpu.setUseGpu(next)} />
+          </FieldRow>
+        )}
         {view.progress && (
           <Inline gap={2}>
             <div role="progressbar" aria-label="GPU download" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(view.progress.pct)} className={styles.gpuTrack}>

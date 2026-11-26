@@ -154,6 +154,7 @@ export function createBackendClient(options: BackendClientOptions = {}): ApiClie
     watchGpuDownload: (jobId, listener) => watchGpuDownload(`${baseUrl.replace(/^http/, 'ws')}/ws/gpu/${jobId}`, listener, options.WebSocketImpl),
     removeGpuPack: async () => { await send(http.DELETE('/gpu/pack')) },
     requestGpuRestart: async () => (await send(http.POST('/gpu/restart'))) as GpuRestartAnswer,
+    setUseGpu: use_gpu => send(http.PUT('/gpu/device', { body: { use_gpu } })),
     resetData: () => send(http.POST('/data/reset')),
     getQueue: () => send(http.GET('/queue')),
     startQueue: () => send(http.POST('/queue/start')),
