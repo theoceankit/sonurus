@@ -28,7 +28,9 @@ The child only computes and sends its analysis back, pickled: `{"result": aligne
 
 ## `run_pipeline_process(args, on_progress, cancel_event)`
 
-`args`: `audio_path`, `whisper_model`, `language`, `db_path`. Starts a `spawn` child, relays its progress to `on_progress`, and returns the analysis.
+`args`: `audio_path`, `whisper_model`, `language`, `db_path`, `device`. Starts a `spawn` child, relays its progress to `on_progress`, and returns the analysis.
+
+`device` (`cuda` / `cpu`) goes to `create_controller()`. For `cpu` — the user turned the GPU off in Settings — the child sets `CUDA_VISIBLE_DEVICES=""` before it imports PyTorch: it takes no GPU memory, and `app.config` in the child agrees that there is no GPU.
 
 - `cancel_event` is checked every 0.2 s; once set, the child is terminated (killed after 5 s) and `PipelineCancelled` is raised. Pausing the queue, a live recording starting, deleting the running job and backend shutdown set it.
 - If `on_progress` raises, the child is stopped and the exception propagates.

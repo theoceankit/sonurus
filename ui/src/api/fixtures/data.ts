@@ -253,6 +253,8 @@ export const FIXTURE_GPU: GpuStatus = {
   download_size: 3920090829,
   device: 'cpu',
   torch: '2.8.0+cpu',
+  cuda_available: false,
+  use_gpu: true,
 }
 
 export const QUEUE_JOB: QueueJob = {

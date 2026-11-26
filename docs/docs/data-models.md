@@ -125,7 +125,7 @@ What `GET /search` searches: the text of every segment, the title a recording sh
 
 ## Backend settings
 
-Settings the backend needs itself, such as the switch of the [MCP server](api/mcp.md), are rows of `app_settings` (`key`, `value`), kept by [AppSettings](services/AppSettings.md) outside the versioned schema. Delete all data clears them.
+Settings the backend needs itself, such as the switch of the [MCP server](api/mcp.md) and whether jobs use the GPU, are rows of `app_settings` (`key`, `value`), kept by [AppSettings](services/AppSettings.md) outside the versioned schema. Delete all data clears them.
 
 ---
 

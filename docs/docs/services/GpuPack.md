@@ -75,7 +75,7 @@ Versions compare numerically (`615.78.08` > `570`).
 | `stale` | — | `pack.json` names another `torch` than the manifest (the app update changed PyTorch) |
 | `active` | — | The running backend uses the manifest's `torch` on `cuda` |
 
-`status()` adds the GPU, the minimums, `download_size` (`total_size` of the manifest), the running `device` and `torch`; while a download runs `state` is `downloading`.
+`status()` adds the GPU, the minimums, `download_size` (`total_size` of the manifest), the running `device` and `torch`; while a download runs `state` is `downloading`. `device` here is what PyTorch can use (`config.DEVICE`); `GET /gpu` replaces it with the device of the next job and adds `cuda_available` and `use_gpu`: the user may turn the GPU off without a restart, and the pack stays `active` ([endpoints](../api/endpoints.md#put-gpudevice)).
 
 ---
 

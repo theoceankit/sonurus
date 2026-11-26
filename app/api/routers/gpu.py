@@ -11,10 +11,11 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 import app.config as config
-from app.api.dependencies import get_gpu_pack, get_live_recording_service, get_transcription_queue
-from app.api.schemas import GpuStatus
+from app.api.dependencies import get_app_settings, get_gpu_pack, get_live_recording_service, get_transcription_queue
+from app.api.schemas import GpuDeviceChoice, GpuStatus
 from app.api.routers import models
 from app.logger import get_logger
+from app.services.app_settings import USE_GPU, AppSettings, job_device
 from app.services.gpu_pack import GpuPack
 
 log = get_logger("gpu")
@@ -42,13 +43,26 @@ def _downloading() -> bool:
         return _job is not None
 
 
-def _status(pack: GpuPack) -> dict:
-    return pack.status(running_torch=_running_torch(), device=config.DEVICE, downloading=_downloading())
+def _status(pack: GpuPack, settings: AppSettings) -> dict:
+    # The pack's state follows what PyTorch can do (config.DEVICE); a GPU the
+    # user turned off still has its pack active.
+    status = pack.status(running_torch=_running_torch(), device=config.DEVICE, downloading=_downloading())
+    return {**status, "device": job_device(settings), "cuda_available": config.DEVICE == "cuda",
+            "use_gpu": settings.get_bool(USE_GPU)}
 
 
 @router.get("/gpu", response_model=GpuStatus)
-def gpu_status(pack: GpuPack = Depends(get_gpu_pack)):
-    return _status(pack)
+def gpu_status(pack: GpuPack = Depends(get_gpu_pack), settings: AppSettings = Depends(get_app_settings)):
+    return _status(pack, settings)
+
+
+@router.put("/gpu/device", response_model=GpuStatus)
+def set_gpu_device(body: GpuDeviceChoice, pack: GpuPack = Depends(get_gpu_pack),
+                   settings: AppSettings = Depends(get_app_settings)):
+    """Use the GPU or not, from the next transcription job on: the running one
+    keeps its device, and nothing restarts."""
+    settings.set_bool(USE_GPU, body.use_gpu)
+    return _status(pack, settings)
 
 
 @router.post("/gpu/download")

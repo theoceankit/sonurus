@@ -36,10 +36,14 @@ def _release_models(controller) -> None:
     torch.cuda.empty_cache()
 
 
-def make_job_runner(storage: TranscriptStorageService, memory_db_path: str, on_saved):
+def make_job_runner(storage: TranscriptStorageService, memory_db_path: str, on_saved, device=None):
     """Return run_job(job, on_progress, cancel_event) -> transcript id for
     TranscriptionQueue. on_saved() runs after a transcript is saved (the API
-    reloads its cached speaker memory)."""
+    reloads its cached speaker memory). device() is asked when each job
+    starts ("cuda" or "cpu"; the user may change it between jobs, never
+    for a running one); without it, the device PyTorch found."""
+    if device is None:
+        device = lambda: config.DEVICE
 
     def run_job(job: dict, on_progress, cancel_event) -> int:
         # Before any ML import or child process: a job never runs with (and so
@@ -48,11 +52,14 @@ def make_job_runner(storage: TranscriptStorageService, memory_db_path: str, on_s
             ModelService(config.WHISPER_MODELS_DIR, config.HF_MODELS_DIR, config.ALIGNMENT_MODELS_DIR),
             job["whisper_model"], job["language"], job["diarize"],
         )
+        job_device = device()
+        log.info(f"Job {job['id']} runs on {job_device}")
         on_progress("Loading models…")
         if pipeline_process.RUN_PIPELINE_IN_SUBPROCESS:
             analysis = run_pipeline_process(
                 {"audio_path": job["audio_path"], "whisper_model": job["whisper_model"],
-                 "language": job["language"], "diarize": job["diarize"], "db_path": memory_db_path},
+                 "language": job["language"], "diarize": job["diarize"], "db_path": memory_db_path,
+                 "device": job_device},
                 on_progress, cancel_event,
             )
             job_storage = storage
@@ -61,7 +68,8 @@ def make_job_runner(storage: TranscriptStorageService, memory_db_path: str, on_s
                 suppress_ml_noise("thread")
             controller = None
             try:
-                controller, job_storage = create_controller(whisper_model=job["whisper_model"], diarize=job["diarize"])
+                controller, job_storage = create_controller(device=job_device, whisper_model=job["whisper_model"],
+                                                            diarize=job["diarize"])
                 analysis = controller.analyse(job["audio_path"], on_progress=on_progress,
                                               language=job["language"], diarize=job["diarize"])
             finally:

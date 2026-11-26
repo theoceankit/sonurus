@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import app.config as config
 from app.services import pipeline_process
 from app.services.pipeline_process import PipelineCancelled
 from app.services.transcript_storage_service import TranscriptStorageService
@@ -49,7 +50,7 @@ def test_runs_the_pipeline_saves_with_the_job_title_and_commits(tmp_path):
          patch("app.services.transcription_job.CommitService") as commit:
         assert run(JOB, steps.append, threading.Event()) == 42
 
-    create.assert_called_once_with(whisper_model="small", diarize=True)
+    create.assert_called_once_with(device=config.DEVICE, whisper_model="small", diarize=True)
     controller.analyse.assert_called_once()
     assert controller.analyse.call_args.args[0] == JOB["audio_path"]
     assert controller.analyse.call_args.kwargs["language"] == "en"
@@ -151,7 +152,7 @@ def test_subprocess_mode_loads_no_models_here_and_saves_through_storage(tmp_path
 
     create.assert_not_called()
     assert seen == {"audio_path": JOB["audio_path"], "whisper_model": "small", "language": "en",
-                    "diarize": True, "db_path": memory_db}
+                    "diarize": True, "db_path": memory_db, "device": config.DEVICE}
     saved = storage.load(transcript_id)
     assert saved.title == "Weekly sync" and saved.audio_path == JOB["audio_path"]
     assert [s.text for s in saved.segments] == ["hello"]

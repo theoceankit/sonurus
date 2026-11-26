@@ -52,6 +52,11 @@ def _pipeline_worker(args: dict, conn) -> None:
     # a download in the middle of a job (downloads run from Settings). Set
     # before the ML libraries are imported — huggingface_hub reads it then.
     os.environ["HF_HUB_OFFLINE"] = "1"
+    device = args.get("device")
+    if device == "cpu":
+        # The user turned the GPU off: hidden before PyTorch loads, the child
+        # takes no GPU memory, and app.config agrees that this is a CPU job.
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
     try:
         quiet = os.getenv("VERBOSE", "false").lower() != "true"
         if quiet:
@@ -72,7 +77,8 @@ def _pipeline_worker(args: dict, conn) -> None:
             # logger levels on import.
             suppress_ml_noise("thread")
         controller, _ = service_factory.create_controller(
-            db_path=args["db_path"], whisper_model=args["whisper_model"], diarize=args["diarize"])
+            db_path=args["db_path"], whisper_model=args["whisper_model"], diarize=args["diarize"],
+            **({"device": device} if device else {}))
         analysis = controller.analyse(
             args["audio_path"],
             on_progress=lambda step: conn.send(("progress", step)),
