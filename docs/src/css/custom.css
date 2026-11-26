@@ -224,6 +224,18 @@ html svg.app-icon--20 {
   stroke-width: 1.25px;
 }
 
+/*
+ * The code block's copy button swaps its icon for a check: the motion is the
+ * theme's, its colour (a fixed #00d600 there) and easing are the app's.
+ */
+html .theme-code-block svg.app-icon {
+  transition-timing-function: var(--ease-standard);
+}
+
+html .theme-code-block svg.app-icon[class*='copyButtonSuccessIcon'] {
+  color: var(--color-success-fg);
+}
+
 html svg.app-icon--external {
   margin-left: var(--space-1);
   vertical-align: -1px;
