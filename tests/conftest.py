@@ -105,12 +105,23 @@ def _isolated_transcription_queue(tmp_path_factory):
     app.dependency_overrides.pop(get_transcription_queue, None)
 
 
-# The API opens DB_PATH first of all at start-up (app.api.main.open_database):
-# a test that runs the lifespan opens a database of its own instead.
+# Services the app makes itself (the lifespan, which opens DB_PATH first of all
+# in app.api.main.open_database(), a dependency without an override) open
+# DB_PATH, the current directory when no SONORUS_DATA_DIR is set:
+# every test gets a database of its own there, and no service made for one
+# test outlives it.
 @pytest.fixture(autouse=True)
 def _isolated_db_path(tmp_path_factory, monkeypatch):
+    import app.api.dependencies as dependencies
     import app.config as config
+
+    getters = [f for f in vars(dependencies).values() if hasattr(f, "cache_clear")]
+    for getter in getters:
+        getter.cache_clear()
     monkeypatch.setattr(config, "DB_PATH", str(tmp_path_factory.mktemp("db") / "speaker_memory.db"))
+    yield
+    for getter in getters:
+        getter.cache_clear()
 
 
 # The backend's own settings (app_settings) live in DB_PATH too: every test gets
