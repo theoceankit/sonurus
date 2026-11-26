@@ -73,6 +73,9 @@ const config = {
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
         docs: {
+          // The texts live in the repository's docs/, next to the code they
+          // describe; this folder is only the site.
+          path: '../docs',
           sidebarPath: './sidebars.js',
           routeBasePath: '/',
         },

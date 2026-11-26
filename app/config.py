@@ -76,7 +76,7 @@ EMBEDDING_SAMPLE_RATE = 16000
 EMBEDDING_MIN_DURATION = 1.0
 
 # SpeakerMemoryService. Cosine similarity at which a voice is matched to a
-# profile. Chosen on the quality tests (docs/docs/testing/quality.md):
+# profile. Chosen on the quality tests (docs/testing/quality.md):
 # the same person in another recording scores 0.56-0.95 (median 0.85), other
 # people at most 0.49, also across three groups of four in one memory.
 SPEAKER_SIMILARITY_THRESHOLD = 0.6

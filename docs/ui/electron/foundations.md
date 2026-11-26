@@ -73,7 +73,7 @@ The fonts stay separate files (`assetsInlineLimit: 0` in `ui/vite.config.ts`) be
 
 Filled icons (`play`, `pause` and others) have `fill="currentColor"` on the path, logos also `stroke="none"` and `fill-rule="evenodd"`.
 
-The docs site (`docs/`) uses the same files, imported from `ui/src/assets/icons/` at build time. Theme components with an icon are swizzled into `docs/src/theme/` and draw it inline through `docs/src/components/AppIcon.js`, with the stroke widths above; the icons Infima and the theme draw in CSS (sidebar and breadcrumb chevrons, "On this page", back to top, heading anchors, pagination arrows) are the files used as masks in `docs/src/css/custom.css`, at 16 and 20 px only, the sizes at which a mask keeps these widths. Renaming an icon the site uses fails `tests/build/docs-icons.test.js`.
+The docs site (`website/`) uses the same files, imported from `ui/src/assets/icons/` at build time. Theme components with an icon are swizzled into `website/src/theme/` and draw it inline through `website/src/components/AppIcon.js`, with the stroke widths above; the icons Infima and the theme draw in CSS (sidebar and breadcrumb chevrons, "On this page", back to top, heading anchors, pagination arrows) are the files used as masks in `website/src/css/custom.css`, at 16 and 20 px only, the sizes at which a mask keeps these widths. Renaming an icon the site uses fails `tests/build/docs-icons.test.js`.
 
 ## Stack and Inline
 
