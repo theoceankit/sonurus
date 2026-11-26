@@ -1,5 +1,6 @@
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { lastInput } from '../../platform/last-input'
 import { holdWindowDim } from '../../platform/window-dim'
 import { ExitSignal } from '../../presence'
 import { cx } from '../../styles/cx'
@@ -56,16 +57,6 @@ function returnPoint() {
 function openWindowUnder(closing: HTMLElement | null) {
   const open = [...document.querySelectorAll<HTMLElement>('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]')]
   return open.filter(window => window !== closing).at(-1) ?? null
-}
-
-// The input that came last, for the focus a window starts with. Chromium takes focus
-// given by a script for a keyboard one when nothing had focus before, and files dragged
-// over the window are no pointer input to it: the control would show its ring with
-// nothing pressed. Taken on the way down, before the window opens from the same event.
-let lastInput: 'keyboard' | 'pointer' = 'keyboard'
-if (typeof window !== 'undefined') {
-  window.addEventListener('keydown', () => { lastInput = 'keyboard' }, true)
-  for (const type of ['pointerdown', 'dragenter', 'drop']) window.addEventListener(type, () => { lastInput = 'pointer' }, true)
 }
 
 // Radix would start on the first element in the window, which is the close button.
@@ -154,9 +145,12 @@ export function Modal({ size = 'small', type = 'default', open, defaultOpen, onO
         if (preview) return
         // Radix returns focus only to its own Trigger, and a modal here is opened from anywhere.
         returnTo.current = returnPoint()
-        // After a key the browser decides, as for any focus: the ring shows.
+        // After a key the browser decides, as for any focus: the ring shows. Asked for
+        // from outside the page, after a click in it the browser would draw none.
         const start = content.current && startingPoint(content.current, type)
-        if (lastInput === 'pointer') start?.focus({ focusVisible: false })
+        const input = lastInput()
+        if (input === 'pointer') start?.focus({ focusVisible: false })
+        else if (input === 'outside') start?.focus({ focusVisible: true })
         else start?.focus()
       }}
       // A window opened over this one from elsewhere in the page, such as Settings over

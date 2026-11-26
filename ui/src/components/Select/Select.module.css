@@ -18,6 +18,12 @@
   cursor: default;
 }
 
+/* Hovering the field in focus changes nothing, as for a text field, whatever gave
+   the focus: the shared box leaves this one out, as it takes the focus itself. */
+.trigger:focus {
+  --state-hover: transparent;
+}
+
 .trigger:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 var(--border-width-focus) var(--color-focus);

@@ -120,6 +120,11 @@ test('the list is as wide as the field and never taller than the room it has', (
   expect(css).toMatch(/\.list \{[^}]*overflow-y: auto/)
 })
 
+// jsdom does not draw hover: what is checked is the rule that turns it off.
+test('hovering the field in focus changes nothing, as for a text field, whatever gave the focus', () => {
+  expect(css).toMatch(/\.trigger:focus \{[^}]*--state-hover: transparent/)
+})
+
 // jsdom does not work out :focus-visible: what is checked is the rules that draw the ring.
 test('the field rings only for a key or while its list is open, not for any focus', () => {
   render(<Controlled />)
