@@ -5,6 +5,7 @@ const http = require('http')
 const fs   = require('fs')
 const { gpuBackendEnv, gpuSupported, markPackError, prepareGpuStart, runProbe } = require('./gpu-pack')
 const { reuseDecision, servesDataDir } = require('./backend-identity')
+const { databaseRefusal } = require('./database-refusal')
 const { backendOutput, log } = require('./log')
 
 let proc = null
@@ -80,16 +81,22 @@ function identity() {
   return { packaged: app.isPackaged, dataDir, platform: process.platform }
 }
 
-// Not a start-up failure of the backend: another one holds port 8000.
+// Not a start-up failure of the backend: another one holds port 8000, or the
+// backend refused the database (electron/database-refusal.js).
 class BackendRefusedError extends Error {}
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
-async function waitForReady(child, timeoutMs = 60000) {
+// stderr: { text, ended } of the child, filled by spawnBackend.
+async function waitForReady(child, stderr, timeoutMs = 60000) {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     const { dataDir, platform } = identity()
     if (child.exitCode !== null || child.signalCode !== null) {
+      // Its last lines may still be on their way.
+      await Promise.race([stderr.ended, sleep(2000)])
+      const refusal = databaseRefusal(stderr.text, dataDir)
+      if (refusal) throw new BackendRefusedError(refusal)
       throw new Error(`Backend exited during start-up (${child.exitCode ?? child.signalCode})`)
     }
     // Only our own backend counts: another one may have taken the port meanwhile.
@@ -178,7 +185,8 @@ async function startBackend() {
   try {
     await spawnBackend(env)
   } catch (err) {
-    if (!gpu?.usePack) throw err
+    // A refused database is refused with or without the pack.
+    if (err instanceof BackendRefusedError || !gpu?.usePack) throw err
     // The pack broke the start (e.g. a library the check did not load): run
     // on the CPU from now on; Settings shows why.
     log(`[backend] did not start with GPU acceleration: ${err.message}`)
@@ -201,13 +209,17 @@ async function spawnBackend(env) {
   // stderr carries the backend's log, tracebacks and the pipeline's output: to the
   // console and the app log. stdout is uvicorn's line per request: the console only.
   const out = backendOutput()
+  // The start-up output, kept for a refusal (waitForReady); its tail is enough.
+  const stderr = { text: '', ended: new Promise(resolve => child.stderr.once('end', resolve)) }
   child.stdout.on('data', d => process.stdout.write(`[backend] ${d}`))
   child.stderr.setEncoding('utf8')
   child.stderr.on('data', d => { process.stderr.write(`[backend] ${d}`); out.write(d) })
+  child.stderr.on('data', d => { if (stderr.text !== null) stderr.text = (stderr.text + d).slice(-65536) })
   child.stderr.on('end', () => out.end())
   child.on('exit', () => { if (proc === child) proc = null })
 
-  await waitForReady(child)
+  await waitForReady(child, stderr)
+  stderr.text = null
 }
 
 function stopBackend() {
