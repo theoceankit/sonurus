@@ -5,6 +5,7 @@ import { ApiError } from '../../api/client'
 import { createFixtureClient, NO_MODELS } from '../../api/fixtures/fixture-client'
 import { dismissAllToasts } from '../../components/Toast/toast-store'
 import { findDialog, queryDialog } from '../../test-queries'
+import css from './ImportDialog.module.css?raw'
 import {
   chooseFiles, drag, field, importButton, importDialog, importDialogUnder, jobs, listed, openImport, option, recordDialog,
   recordingControl, rename, setup,
@@ -255,6 +256,16 @@ describe('title, model and language', () => {
     expect(importDialog()).toBeTruthy()
     await rename('a.mp3', '   ')
     expect(listed()).toEqual(['a.mp3'])
+  })
+
+  // jsdom lays nothing out, so the rules are compared: the title as a button takes the box of
+  // the field that replaces it, and its keyboard ring is drawn inside, where the field's frame is.
+  test("the title's focus ring keeps the field's distance from the text, which does not move when editing", () => {
+    const rule = (selector: string) => css.match(new RegExp(`\\n\\.${selector} \\{([^}]*)\\}`))![1]
+    const box = (declarations: string) =>
+      ['height', 'margin-inline', 'padding'].map(name => declarations.match(new RegExp(`\\s${name}: ([^;]*);`))?.[1])
+    expect(box(rule('fileName'))).toEqual(box(rule('titleInput')))
+    expect(rule('fileName:focus-visible')).toMatch(/\soutline-offset: calc\(var\(--border-width-focus\) \* -1\);/)
   })
 
   test('files not renamed are each named after their file', async () => {

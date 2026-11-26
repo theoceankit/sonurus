@@ -62,12 +62,16 @@
   color: var(--color-text-secondary);
 }
 
-/* The title, a button that edits it, and the extension after it; the field alone while editing. */
+/* The title, a button that edits it, and the extension after it; the field alone while editing.
+   It takes the field's box, so its ring sits where the field's frame will and its text stays put. */
 .fileName {
   display: flex;
   flex: 1;
+  align-items: center;
   min-width: 0;
-  padding: 0;
+  height: var(--size-control-sm);
+  margin-inline: calc(var(--space-1) * -1);
+  padding: 0 var(--space-1);
   border: none;
   background: none;
   color: inherit;
@@ -79,6 +83,7 @@
 .fileName:focus-visible {
   border-radius: var(--radius-sm);
   outline: var(--border-width-focus) solid var(--color-focus);
+  outline-offset: calc(var(--border-width-focus) * -1);
 }
 
 .fileName:disabled {
