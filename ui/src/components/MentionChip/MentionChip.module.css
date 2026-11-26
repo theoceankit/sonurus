@@ -23,6 +23,17 @@
   box-shadow: inset 0 0 0 var(--border-width-default) var(--color-border-strong);
 }
 
+/* In the place of the avatar and as high as the chip, as the avatar is, so the chip keeps its shape. */
+.unnamed {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-xs);
+  height: var(--size-control-xs);
+  color: var(--color-text-secondary);
+}
+
 .at {
   color: var(--color-text-secondary);
 }

@@ -13,6 +13,7 @@ import type { Playback, PlaybackState } from '../../media/playback'
 import { createMockElectronAPI } from '../../platform/electron-api-mock'
 import { runBeforeClose } from '../../platform/before-close'
 import { announceMentionChange } from '../../api/note-mentions'
+import unknownSpeakerSvg from '../../assets/icons/speaker-unknown.svg?raw'
 import { EditorScreen } from './EditorScreen'
 import * as stories from './EditorScreen.notes.stories'
 
@@ -69,6 +70,8 @@ async function open(id = WEEKLY_SYNC_ID, options: FixtureOptions = {}, { width =
   await within(center()).findByRole('heading', { level: 1 })
   return { client, electron }
 }
+
+const pathsOf = (svg: Element | null) => [...(svg?.querySelectorAll('path') ?? [])].map(path => path.getAttribute('d'))
 
 const center = () => screen.getByRole('main', { name: 'Transcript' })
 const inspector = () => screen.getByRole('region', { name: 'Inspector' })
@@ -461,7 +464,7 @@ describe('Quote', () => {
     expect((editor.getJSON() as JSONContent).content!.map(node => node.type === 'paragraph' ? node.content?.[0]?.text ?? '' : node.type)).toEqual(['First', 'blockquote', '', 'Second'])
   })
 
-  test('a named speaker is a chip, one with no name yet is the label the transcript shows', async () => {
+  test('a named speaker is a chip with the avatar, one with no name yet a chip with a question mark and the label the transcript shows', async () => {
     await open()
     await quote(GOOD, THAT_WAS_ME)
     await editorIn(inspector())
@@ -469,9 +472,10 @@ describe('Quote', () => {
     const mentions = [...inspector().querySelectorAll<HTMLElement>('blockquote [data-mention="speaker"]')]
     expect(mentions).toHaveLength(2)
     expect(mentions[0].textContent).toMatch(/Anna Petrova$/)
-    expect(mentions[0].firstElementChild!.childElementCount).toBe(2)
-    expect(mentions[1].firstElementChild!.childElementCount).toBe(0)
-    expect(mentions[1].textContent).toBe('Unknown speaker 1')
+    expect(mentions[0].querySelector('[data-initials]')).not.toBeNull()
+    expect(mentions[1].textContent!.trim()).toBe('Unknown speaker 1')
+    expect(mentions[1].querySelector('[data-initials]')).toBeNull()
+    expect(pathsOf(mentions[1].querySelector('svg'))).toEqual(pathsOf(new DOMParser().parseFromString(unknownSpeakerSvg, 'image/svg+xml').querySelector('svg')))
   })
 
   test('in a narrow window the right panel comes in place of the sidebar', async () => {

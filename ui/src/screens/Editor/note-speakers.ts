@@ -18,8 +18,9 @@ export const mentionCandidates = (speakers: readonly Speaker[], inRecording: rea
     .map(({ speaker }) => ({ id: speaker.id, name: speaker.name!, handle: speaker.handle, color: speakerColor(speaker.color_index), photo: speaker.photo_url, inRecording: inRecording.includes(speaker.id) }))
 }
 
-// A speaker of a note as they are now, null once deleted or without a name.
+// A speaker of a note as they are now; a voice with no name yet only says so; null once deleted.
 export const speakerFinder = (speakers: readonly Speaker[]): FindSpeaker => id => {
   const speaker = speakers.find(candidate => candidate.id === id)
-  return speaker?.name ? { name: speaker.name, color: speakerColor(speaker.color_index), photo: speaker.photo_url, handle: speaker.handle } : null
+  if (!speaker) return null
+  return speaker.name ? { name: speaker.name, color: speakerColor(speaker.color_index), photo: speaker.photo_url, handle: speaker.handle } : { name: null }
 }

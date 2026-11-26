@@ -11,8 +11,9 @@ import type { SpeakerColor } from '../../styles/speaker-colors'
 import { MentionChip } from '../MentionChip/MentionChip'
 import { TimecodeChip } from '../TimecodeChip/TimecodeChip'
 
-// A speaker as they are now, for a mention to show; null once deleted.
-export type FindSpeaker = (id: string) => { name: string; color: SpeakerColor; photo?: string | null; handle?: string | null } | null
+// A speaker as they are now, for a mention to show: one with a name, a voice with no
+// name yet, or null once deleted.
+export type FindSpeaker = (id: string) => { name: string; color: SpeakerColor; photo?: string | null; handle?: string | null } | { name: null } | null
 
 // What the chips in a note need from the screen. Node views render inside the
 // editor's own React tree, so a context reaches them.
@@ -58,10 +59,13 @@ function MentionView({ node, selected }: ReactNodeViewProps) {
     <NodeViewWrapper as="span" data-mention={kind}>
       {kind === 'person'
         ? <MentionChip target={{ kind: 'person', name: label }} selected={selected} />
-        : speaker
+        : speaker?.name != null
           ? <MentionChip target={{ kind: 'speaker', ...speaker }} selected={selected} />
-          // Deleted: the name it had, as text.
-          : <span>{label}</span>}
+          : speaker
+            // No name yet: the label the transcript showed, until the voice is named.
+            ? <MentionChip target={{ kind: 'unnamed', name: label }} selected={selected} />
+            // Deleted: the name it had, as text.
+            : <span>{label}</span>}
     </NodeViewWrapper>
   )
 }

@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import type { Editor } from '@tiptap/core'
 import type { JSONContent } from '@tiptap/react'
 import { describe, expect, test, vi } from 'vitest'
@@ -228,5 +228,29 @@ describe('the note changed elsewhere', () => {
     expect(listening()).toBe(true)
     view.unmount()
     expect(listening()).toBe(false)
+  })
+})
+
+describe('a mention of a voice with no name', () => {
+  const VOICE = 'd2eb392f-b0df-4b0e-8a2e-03efb14a100e'
+  const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'mention', attrs: { kind: 'speaker', id: VOICE, label: 'Unknown speaker 1' } }] }] }
+  const chip = () => document.querySelector<HTMLElement>('[data-mention="speaker"]')!
+  // Node views come in after the editor mounts.
+  const label = (text: string) => waitFor(() => expect(document.querySelector('[data-mention="speaker"]')?.textContent?.trim()).toBe(text))
+
+  test('is a chip without an avatar until the voice is named, then the speaker with the avatar', async () => {
+    const view = render(<NoteEditor content={doc} findSpeaker={() => ({ name: null })} />)
+    await label('Unknown speaker 1')
+    expect(chip().querySelector('svg')).not.toBeNull()
+    expect(chip().querySelector('[data-initials]')).toBeNull()
+    view.rerender(<NoteEditor content={doc} findSpeaker={() => ({ name: 'Priya Shah', color: 2, handle: 'priya' })} />)
+    await label('PSPriya Shah')
+    expect(chip().querySelector('[data-initials]')).not.toBeNull()
+  })
+
+  test('a speaker no longer in the base is the label, as text', async () => {
+    render(<NoteEditor content={doc} findSpeaker={() => null} />)
+    await label('Unknown speaker 1')
+    expect(chip().querySelector('svg')).toBeNull()
   })
 })
