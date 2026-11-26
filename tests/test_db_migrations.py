@@ -88,6 +88,17 @@ def test_a_new_database_gets_the_latest_schema(fresh):
     assert {"transcriptions", "segments", "speaker_matches", "notes", "note_version_seq", "search_segments",
             "search_titles", "search_notes", "speaker_embeddings", "speaker_names", "speaker_meta", "_meta",
             "transcription_jobs", "transcription_queue_settings", "app_settings"} <= _tables(fresh)
+
+
+def test_a_new_database_keeps_no_comments_in_its_schema(fresh):
+    # SQLite keeps the text that made a table and rewrites it on ALTER TABLE.
+    # SQLite 3.45 (Ubuntu 24.04, the CI runner) breaks a definition with a
+    # "--" comment in it on DROP COLUMN: "incomplete input".
+    conn = _connect(fresh)
+    commented = [name for name, sql in conn.execute(
+        "SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL") if "--" in sql]
+    conn.close()
+    assert commented == []
     assert "_ts_schema_version" not in _tables(fresh)
     with _connect(fresh) as conn:
         assert conn.execute("SELECT COUNT(*) FROM _meta WHERE key = 'schema_version'").fetchone()[0] == 0

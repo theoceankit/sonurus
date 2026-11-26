@@ -163,7 +163,13 @@ def _step_1(conn) -> None:
 
 def _create_schema(conn) -> None:
     """The whole schema of a new database. Columns in the order a database of
-    an earlier release ends up with, so that the two are the same."""
+    an earlier release ends up with, so that the two are the same.
+
+    No "--" comments inside the SQL: SQLite keeps that text and rewrites it on
+    ALTER TABLE, and SQLite 3.45 breaks a commented definition on DROP COLUMN."""
+    # opened: not opened in the app yet. diarized: whether speakers were looked
+    # for, since all-unassigned segments alone do not tell a recording without
+    # diarization from one whose speakers were deleted.
     conn.execute("""
         CREATE TABLE transcriptions (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -172,13 +178,12 @@ def _create_schema(conn) -> None:
             status     TEXT DEFAULT 'draft',
             created_at TEXT,
             title      TEXT,
-            -- Not opened in the app yet.
             opened     INTEGER NOT NULL DEFAULT 0,
-            -- Whether speakers were looked for: all-unassigned segments alone do not
-            -- tell a recording without diarization from one whose speakers were deleted.
             diarized   INTEGER NOT NULL DEFAULT 1
         )
     """)
+    # unassigned: no speaker, shown as Unassigned rather than falling back to
+    # speaker_raw.
     conn.execute("""
         CREATE TABLE segments (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -189,7 +194,6 @@ def _create_schema(conn) -> None:
             text             TEXT NOT NULL,
             speaker_raw      TEXT,
             embedding        BLOB,
-            -- No speaker, shown as Unassigned rather than falling back to speaker_raw.
             unassigned       INTEGER NOT NULL DEFAULT 0
         )
     """)
@@ -199,6 +203,7 @@ def _create_schema(conn) -> None:
     # The note of a recording: the editor's document as JSON, apart from the
     # segments. A note has its own id and transcription_id may be NULL, so a
     # note can exist before its transcript does and be attached to it later.
+    # version: given by every write, for writers to refuse a stale one.
     conn.execute("""
         CREATE TABLE notes (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -207,7 +212,6 @@ def _create_schema(conn) -> None:
             format           INTEGER NOT NULL DEFAULT 1,
             created_at       TEXT NOT NULL,
             updated_at       TEXT NOT NULL,
-            -- Given by every write, for writers to refuse a stale one.
             version          INTEGER NOT NULL DEFAULT 0,
             writer           TEXT
         )
@@ -234,13 +238,13 @@ def _create_schema(conn) -> None:
             name       TEXT NOT NULL
         )
     """)
+    # photo: the file name of the speaker's photo in the photos dir.
     conn.execute("""
         CREATE TABLE speaker_meta (
             speaker_id    TEXT PRIMARY KEY,
             color_index   INTEGER NOT NULL DEFAULT 0,
             handle        TEXT,
             handle_manual INTEGER NOT NULL DEFAULT 0,
-            -- The file name of the speaker's photo in the photos dir.
             photo         TEXT
         )
     """)
