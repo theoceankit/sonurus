@@ -18,6 +18,7 @@ const TARGETS: { label: string; target: MentionChipTarget }[] = [
   { label: 'Speaker', target: ANNA },
   { label: 'Speaker with a photo', target: { kind: 'speaker', name: 'Mark Ellis', color: 1, photo: portrait, handle: 'mark' } },
   { label: 'Not in the base', target: { kind: 'person', name: 'Slack Person' } },
+  { label: 'No name yet', target: { kind: 'unnamed', name: 'Unknown speaker 1' } },
 ]
 
 export const Matrix: Story = {
@@ -32,6 +33,9 @@ export const Matrix: Story = {
 export const Speaker: Story = {}
 export const WithPhoto: Story = { args: { target: TARGETS[1].target } }
 export const NotInTheBase: Story = { args: { target: TARGETS[2].target } }
+// A voice of the base with no name yet, by the label the transcript shows. Named, it
+// becomes a Speaker.
+export const NoNameYet: Story = { args: { target: TARGETS[3].target } }
 // The widest pairs of letters still fit the circle.
 export const WideInitials: Story = { args: { target: { kind: 'speaker', name: 'Walter Wong', color: 2 } } }
 export const LongName: Story = {
@@ -44,7 +48,7 @@ export const InText: Story = {
   render: () => (
     <p style={{ font: 'var(--font-body)', color: 'var(--color-text-primary)', margin: 0, maxWidth: 420 }}>
       <MentionChip target={ANNA} /> takes the import question, <MentionChip target={TARGETS[2].target} /> sends the logs,
-      and Old Speaker, who was deleted, shows as text.
+      <MentionChip target={TARGETS[3].target} /> asked about large files, and Old Speaker, who was deleted, shows as text.
     </p>
   ),
 }

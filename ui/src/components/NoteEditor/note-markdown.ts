@@ -1,8 +1,8 @@
 import type { JSONContent } from '@tiptap/react'
 import { formatClock } from '../../media/timeline'
 
-// A speaker as they are now, or null once deleted.
-export type ResolveSpeaker = (id: string) => { name: string; handle?: string | null } | null
+// A speaker as they are now (no name yet: the label), or null once deleted.
+export type ResolveSpeaker = (id: string) => { name: string | null; handle?: string | null } | null
 
 const marked = (node: JSONContent) => {
   let value = node.text ?? ''
@@ -23,7 +23,7 @@ function inline(nodes: JSONContent[] | undefined, resolve: ResolveSpeaker): stri
       const { kind, id, label } = node.attrs ?? {}
       if (kind !== 'speaker') return `@${label}`
       const speaker = resolve(id)
-      if (!speaker) return label ?? ''
+      if (!speaker?.name) return label ?? ''
       return speaker.handle ? `${speaker.name} (@${speaker.handle})` : speaker.name
     }
     return ''
