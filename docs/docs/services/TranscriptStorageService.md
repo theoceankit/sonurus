@@ -24,8 +24,8 @@ CREATE TABLE transcriptions (
     language   TEXT,
     status     TEXT DEFAULT 'draft',
     created_at TEXT,
-    title      TEXT,                            -- schema v3
-    opened     INTEGER NOT NULL DEFAULT 0       -- schema v7: 1 once the user has opened it
+    title      TEXT,
+    opened     INTEGER NOT NULL DEFAULT 0       -- 1 once the user has opened it
 )
 
 CREATE TABLE segments (
@@ -37,13 +37,13 @@ CREATE TABLE segments (
     text             TEXT NOT NULL,
     speaker_raw      TEXT,
     embedding        BLOB,
-    unassigned       INTEGER NOT NULL DEFAULT 0  -- schema v5
+    unassigned       INTEGER NOT NULL DEFAULT 0
 )
 
-CREATE INDEX idx_segments_transcription ON segments(transcription_id);  -- schema v4
-CREATE INDEX idx_segments_speaker       ON segments(speaker_id);        -- schema v4
+CREATE INDEX idx_segments_transcription ON segments(transcription_id);
+CREATE INDEX idx_segments_speaker       ON segments(speaker_id);
 
-CREATE TABLE speaker_matches (                                          -- schema v8
+CREATE TABLE speaker_matches (
     transcription_id INTEGER NOT NULL,
     speaker_id       TEXT NOT NULL,
     score            REAL NOT NULL,
@@ -51,35 +51,35 @@ CREATE TABLE speaker_matches (                                          -- schem
     PRIMARY KEY (transcription_id, speaker_id)
 )
 
-CREATE TABLE notes (                                                    -- schema v9
+CREATE TABLE notes (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
     transcription_id INTEGER UNIQUE,
     content          TEXT NOT NULL,
     format           INTEGER NOT NULL DEFAULT 1,
     created_at       TEXT NOT NULL,
     updated_at       TEXT NOT NULL,
-    version          INTEGER NOT NULL DEFAULT 0,                        -- schema v12
-    writer           TEXT                                               -- schema v12, JSON
+    version          INTEGER NOT NULL DEFAULT 0,
+    writer           TEXT                                               -- JSON
 )
 
-CREATE TABLE note_version_seq (last INTEGER NOT NULL)                   -- schema v12, one row
+CREATE TABLE note_version_seq (last INTEGER NOT NULL)                   -- one row
 ```
 
 `speaker_id` — current effective speaker ID (`speaker_final or speaker_resolved`), always a UUID4 or `NULL`. Updated when segments get a speaker, via `set_segments_speaker()`.
 
-`speaker_raw` — original diarization ID (`SPEAKER_00` etc.), stored for auditing and never changed. It is never used as a speaker: `TranscriptBuilder` gives unmatched diarization speakers their own UUID, and schema v6 did the same for rows stored earlier (one new UUID per transcript and raw label).
+`speaker_raw` — original diarization ID (`SPEAKER_00` etc.), stored for auditing and never changed. It is never used as a speaker: `TranscriptBuilder` gives unmatched diarization speakers their own UUID (one per transcript and raw label).
 
 `unassigned` — `1` for a segment without a speaker: its speaker was deleted (`unassign_speaker()`), or diarization gave it none (`UNKNOWN`). `speaker_id` is then `NULL`; `load()` returns `Segment.unassigned = True`. Assigning a speaker (`set_segments_speaker()`) clears it.
 
 `status` — transcript status: `'draft'` immediately after the pipeline.
 
-`diarized` — `0` for a recording transcribed without looking for speakers, `1` for all others (schema v10).
+`diarized` — `0` for a recording transcribed without looking for speakers, `1` for all others.
 
 `embedding` — per-segment pyannote embedding blob (float32). Used by `CommitService` after load.
 
 `speaker_matches` — one row per speaker that `resolve()` recognized from memory when the transcript was made: `score` is the similarity of the match, `confirmed` is `1` once the user confirmed the speaker as a possible match. Speakers assigned by hand have no row, and nothing else writes one, so the similarity is never worked out again later (by then the profile contains this recording).
 
-`search_segments`, `search_titles`, `search_notes` — the full-text search index (schema v11), see [Search index](#search-index).
+`search_segments`, `search_titles`, `search_notes` — the full-text search index, see [Search index](#search-index).
 
 `notes` — the note of a recording: `content` is the editor's document as JSON (see [Note](../data-models.md#note)), `format` its version. At most one note per transcript. A note has its own `id` and `transcription_id` may be `NULL`, so a note can exist before its transcript does; today every note has a transcript. An empty note has no row.
 
@@ -87,7 +87,7 @@ CREATE TABLE note_version_seq (last INTEGER NOT NULL)                   -- schem
 
 ## Search index
 
-Three SQLite FTS5 tables (`app/db/search_index.py`, schema v11), read by [SearchService](SearchService.md):
+Three SQLite FTS5 tables (`app/db/search_index.py`), read by [SearchService](SearchService.md):
 
 ```sql
 CREATE VIRTUAL TABLE search_segments USING fts5(text, tokenize='unicode61');            -- rowid = segments.id
@@ -102,7 +102,7 @@ CREATE VIRTUAL TABLE search_notes    USING fts5(text, shown UNINDEXED,
 - **Segments** are kept by triggers on `segments` (`AFTER INSERT`, `AFTER UPDATE OF text`, `AFTER DELETE`), whoever writes them: the pipeline's `save()`, a text edit, a deleted segment or recording. A segment's speaker is not indexed; search reads it from `segments`.
 - **Titles** hold the title a recording shows: its own, or the audio file's name without the extension. Written by `save()` and `update_title()`, removed by `delete()`.
 - **Notes** hold one row per text block (paragraph, heading, the paragraph of a list item or quote), as `app/services/note_text.py` reads the document: a speaker mention is the speaker's display name now (from `speaker_names` in the same database; the mention's `label` without one), a person mention its label, a timecode `[12:34]`. Written by `save_note()`, `rewrite_note_mentions()` and `reindex_notes_mentioning()`, removed by `delete_note()` and `delete()`.
-- `clear()` empties all three. The v11 migration fills them from the data already stored (`rebuild()`, about 2 s for 1000 hours of recordings); a migration that ran again after a crash replaces what it left.
+- `clear()` empties all three. A database of a release before the index (0.3.2 and earlier) gets them filled from the data already stored when it is brought up (`rebuild()`, about 2 s for 1000 hours of recordings); a step that ran again after a crash replaces what it left.
 
 ---
 
@@ -310,7 +310,7 @@ Returns the embeddings of the diarization turns a speaker owns, grouped by trans
 
 ### `_init_db()`
 
-Creates tables if they do not exist and runs the versioned migrations in `app/db/schema.py` (tracked in `_ts_schema_version`): v1 base tables + `status`, v2 `segments.embedding`, v3 `transcriptions.title`, v4 indexes, v5 `segments.unassigned`, v6 UUIDs for stored raw diarization labels (`UNKNOWN` rows become unassigned), v7 `transcriptions.opened`, set on every transcript that existed before it so that a library does not show as new all at once, v8 `speaker_matches`, empty for transcripts that existed before it. v10 adds `transcriptions.diarized`, v11 the search index, filled from the data already stored.
+Brings the database to the schema (`ensure_schema()`, [Database schema](../data-models.md#database-schema)); the service makes no table itself. A database of a release before the single chain gets what its release lacked: `transcriptions.opened`, set on every transcript that existed before it so that a library does not show as new all at once; `speaker_matches`, empty for transcripts that existed before it; `notes`; `transcriptions.diarized`; the search index, filled from the data already stored; note versions, numbered by note id.
 
 ---
 

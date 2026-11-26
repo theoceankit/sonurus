@@ -115,4 +115,4 @@ WhisperX produces fine-grained segments; diarization produces coarser spans. A "
 - A `SPEAKER_XX` missing from `speaker_map` gets a **new UUID** — one per label within the transcript. It is an unnamed speaker without a voice profile: it shows up in the Speakers section and can be named, reassigned or deleted, but is not recognized in later recordings.
 - A segment without any diarization speaker (`UNKNOWN`: no turn overlaps it and none is within 1 s, see [Sentences between turns](#sentences-between-turns)) gets `speaker_resolved = None` and `unassigned = True` — it waits for the user to assign someone.
 
-So `speaker_raw` is never the effective speaker of a stored segment. Transcript schema v6 applied the same rule to rows saved earlier.
+So `speaker_raw` is never the effective speaker of a stored segment.

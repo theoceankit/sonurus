@@ -170,65 +170,6 @@ def test_save_accepts_non_float32_array(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Migration / back-compat
-# ---------------------------------------------------------------------------
-
-def test_migration_adds_embedding_column_to_legacy_db(tmp_path):
-    """
-    A legacy segments table without an embedding column is upgraded
-    transparently on TranscriptStorageService construction. No exception is
-    raised, the column is present afterwards, and load() returns embedding=None
-    for the pre-existing row.
-    """
-    db_path = str(tmp_path / "legacy.db")
-
-    # Create old-style schema (no embedding column) and insert one row manually
-    with sqlite3.connect(db_path) as conn:
-        conn.execute("""
-            CREATE TABLE transcriptions (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                audio_file TEXT NOT NULL,
-                language   TEXT,
-                status     TEXT DEFAULT 'draft',
-                created_at TEXT
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE segments (
-                id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                transcription_id INTEGER NOT NULL,
-                speaker_id       TEXT,
-                start            REAL NOT NULL,
-                end              REAL NOT NULL,
-                text             TEXT NOT NULL,
-                speaker_raw      TEXT
-            )
-        """)
-        conn.execute(
-            "INSERT INTO transcriptions (audio_file, language, created_at) VALUES (?, ?, ?)",
-            ("files/old.wav", "en", "2024-01-01T00:00:00"),
-        )
-        conn.execute(
-            "INSERT INTO segments (transcription_id, speaker_id, start, end, text, speaker_raw)"
-            " VALUES (1, 'Alice', 0.0, 2.0, 'Legacy text', 'SPEAKER_00')",
-        )
-
-    # Constructing the service must not raise even with an old schema
-    svc = TranscriptStorageService(db_path=db_path)
-
-    # The embedding column must now exist
-    with sqlite3.connect(db_path) as conn:
-        cols = {row[1] for row in conn.execute("PRAGMA table_info(segments)").fetchall()}
-    assert "embedding" in cols, "Migration must add the embedding column"
-
-    # Loading the legacy row must not fail; embedding should be None
-    loaded = svc.load(1)
-    assert loaded.segments[0].embedding is None, (
-        "Legacy rows without embedding must load as None"
-    )
-
-
-# ---------------------------------------------------------------------------
 # Update methods must preserve embeddings
 # ---------------------------------------------------------------------------
 

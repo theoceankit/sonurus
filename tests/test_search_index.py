@@ -12,6 +12,7 @@ from app.services.commit_service import CommitService
 from app.services.search_query import parse_query
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.transcript_storage_service import TranscriptStorageService
+from db_releases import as_release
 
 ANNA = "4f9c0c1e-2a1b-4c7e-9f00-6d1a2b3c4d5e"
 
@@ -235,9 +236,9 @@ def test_a_database_from_before_search_is_indexed_on_start(db):
         conn.execute(f"DROP TABLE {table}")
     for (trigger,) in conn.execute("SELECT name FROM sqlite_master WHERE type = 'trigger'").fetchall():
         conn.execute(f"DROP TRIGGER {trigger}")
-    conn.execute("UPDATE _ts_schema_version SET version = 10")
     conn.commit()
     conn.close()
+    as_release(db, transcripts=10)
 
     TranscriptStorageService(db_path=db)
     assert _found(db, "бюджет") == {("segment", tid), ("title", tid)}
@@ -252,13 +253,6 @@ def test_a_database_from_before_search_is_indexed_on_start(db):
     assert _found(db, "отпуск") == {("segment", untitled)}
 
 
-def test_the_search_index_came_with_schema_11(db):
-    TranscriptStorageService(db_path=db)
-    conn = sqlite3.connect(db)
-    assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] >= 11
-    conn.close()
-
-
 def test_a_migration_run_again_after_a_crash_indexes_everything_once(db):
     """A crash after the index was filled but before the version was written:
     the next start fills it again, with no row twice, and an empty note is fine."""
@@ -269,9 +263,9 @@ def test_a_migration_run_again_after_a_crash_indexes_everything_once(db):
         "INSERT INTO notes (transcription_id, content, created_at, updated_at) VALUES (?, ?, '', '')",
         (tid, json.dumps({"type": "doc"})),
     )
-    conn.execute("UPDATE _ts_schema_version SET version = 10")
     conn.commit()
     conn.close()
+    as_release(db, transcripts=10)
     TranscriptStorageService(db_path=db)
     conn = sqlite3.connect(db)
     counts = [conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]

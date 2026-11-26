@@ -5,6 +5,7 @@ import sqlite3
 import threading
 
 import app.config as config
+from app.db.migrations import ensure_schema
 
 # Whether /mcp answers agents (app/mcp/). Off on a new installation.
 MCP_ENABLED = "mcp_enabled"
@@ -27,13 +28,8 @@ class AppSettings:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self._lock = threading.Lock()
+        ensure_schema(db_path)
         with self._connect() as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS app_settings (
-                    key   TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                )
-            """)
             self._values = dict(conn.execute("SELECT key, value FROM app_settings").fetchall())
 
     def _connect(self):

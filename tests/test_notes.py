@@ -12,6 +12,8 @@ from app.models.segment import Segment
 from app.models.transcript import Transcript
 from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.transcript_storage_service import TranscriptStorageService
+from app.db.migrations import LATEST
+from db_releases import as_release, user_version
 
 DOC = {"type": "doc", "content": [
     {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "Weekly sync"}]},
@@ -109,18 +111,17 @@ def test_notes_table_leaves_room_for_a_note_before_its_transcript(storage, tmp_p
         conn.execute("INSERT INTO notes (transcription_id, content, created_at, updated_at) VALUES (NULL, '{}', 'x', 'x')")
 
 
-def test_v8_database_migrates_to_notes(tmp_path):
+def test_a_release_before_notes_gets_them(tmp_path):
     db = str(tmp_path / "old.db")
     TranscriptStorageService(db_path=db).save(_transcript())
     with sqlite3.connect(db) as conn:
         conn.execute("DROP TABLE notes")
-        conn.execute("UPDATE _ts_schema_version SET version = 8")
+        conn.execute("DROP TABLE note_version_seq")
+    as_release(db, transcripts=8)
 
     svc = TranscriptStorageService(db_path=db)
 
-    from app.db.schema import SCHEMA_VERSION
-    with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION
+    assert user_version(db) == LATEST
     assert svc.list_all()[0]["has_note"] is False
     assert svc.save_note(1, DOC)["version"] == 1
 
@@ -304,7 +305,7 @@ def test_rewriting_mentions_keeps_the_version(storage):
     assert storage.save_note(db_id, OTHER, expected=v1)
 
 
-def test_v11_database_migrates_to_note_versions(tmp_path):
+def test_a_release_before_note_versions_gets_them(tmp_path):
     db = str(tmp_path / "old.db")
     svc = TranscriptStorageService(db_path=db)
     a, b = svc.save(_transcript()), svc.save(_transcript())
@@ -314,13 +315,11 @@ def test_v11_database_migrates_to_note_versions(tmp_path):
         conn.execute("DROP TABLE note_version_seq")
         conn.execute("ALTER TABLE notes DROP COLUMN version")
         conn.execute("ALTER TABLE notes DROP COLUMN writer")
-        conn.execute("UPDATE _ts_schema_version SET version = 11")
+    as_release(db, transcripts=11)
 
     svc = TranscriptStorageService(db_path=db)
 
-    from app.db.schema import SCHEMA_VERSION
-    with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION == 12
+    assert user_version(db) == LATEST
     versions = {svc.get_note(a)["version"], svc.get_note(b)["version"]}
     assert versions == {1, 2}
     assert svc.get_note(a)["writer"] is None

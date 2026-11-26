@@ -105,7 +105,7 @@ POST /queue/jobs → copy imported audio into recordings/ → queue worker → c
 | REST + WebSocket API | `app/api/main.py`, `app/api/routers/`, `app/api/schemas.py` | `docs/docs/api/endpoints.md` |
 | Services | `app/services/`; all constructed by `service_factory.create_controller()` | `docs/docs/services/` |
 | Queue and pipeline | `transcription_queue.py`, `transcription_job.py`, `pipeline_process.py` | `docs/docs/services/TranscriptionQueue.md`, `PipelineProcess.md` |
-| Data model and DB schema | `app/models/`, `TranscriptStorageService`, `SpeakerMemoryService`, `JobStore` | `docs/docs/data-models.md` |
+| Data model and DB schema | `app/models/`, `app/db/migrations.py` (every table, one version), `TranscriptStorageService`, `SpeakerMemoryService`, `JobStore` | `docs/docs/data-models.md` |
 | Lifecycles and invariants | — | `docs/docs/system/state-machine.md`, `docs/docs/system/invariants.md` |
 | Config and environment | `app/config.py` | `docs/docs/environment/configuration.md` |
 | Electron main process | `electron/main.js`, `backend.js`, `backend-identity.js`, `gpu-pack.js`, `preload.js` | `docs/docs/ui/electron/overview.md` |

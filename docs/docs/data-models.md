@@ -60,7 +60,7 @@ class Segment:
 
 ### Transcript without diarization
 
-`Transcript.diarized` (`transcriptions.diarized`, schema v10, `1` for every older transcript) is `false` when the job did not look for speakers. Its segments are stored unassigned, with no speaker and no embedding, so it never reaches speaker memory. The flag is what tells it from a recording whose speakers were all deleted.
+`Transcript.diarized` (`transcriptions.diarized`, `1` for every transcript from before the flag) is `false` when the job did not look for speakers. Its segments are stored unassigned, with no speaker and no embedding, so it never reaches speaker memory. The flag is what tells it from a recording whose speakers were all deleted.
 
 ### Speaker ID priority
 
@@ -82,7 +82,7 @@ May be `None` for very short segments that had no overlapping diarization span, 
 
 ## Speaker
 
-A speaker is not a dataclass: it is a UUID4 with rows in the speaker memory tables (schema v5, see [SpeakerMemoryService](services/SpeakerMemoryService.md)), read through `SpeakerMemoryService` and listed by `GET /speakers`.
+A speaker is not a dataclass: it is a UUID4 with rows in the speaker memory tables (see [SpeakerMemoryService](services/SpeakerMemoryService.md)), read through `SpeakerMemoryService` and listed by `GET /speakers`.
 
 | Data | Where | Who has it |
 |---|---|---|
@@ -96,9 +96,9 @@ A speaker is not a dataclass: it is a UUID4 with rows in the speaker memory tabl
 
 ## Note
 
-The note of a recording (meeting minutes), one per transcript at most, stored in the `notes` table (schema v9, see [TranscriptStorageService](services/TranscriptStorageService.md)) apart from the segments and read and written through `GET`/`PUT`/`DELETE /transcripts/{id}/note`. An empty note is not stored. It is deleted with its recording.
+The note of a recording (meeting minutes), one per transcript at most, stored in the `notes` table (see [TranscriptStorageService](services/TranscriptStorageService.md)) apart from the segments and read and written through `GET`/`PUT`/`DELETE /transcripts/{id}/note`. An empty note is not stored. It is deleted with its recording.
 
-Each write gives the note a new `version` (schema v12), from one counter for all notes, and keeps its `writer`: `editor`, `mcp` or `api`, with a `name` where known. A writer that sends the version it started from is refused with `409` when the note has changed since, and every write and delete is announced as `note_changed` over `WS /ws/events`: that is how the editor follows a note an agent wrote ([Notes → Changes from elsewhere](ui/electron/notes.md#changes-from-elsewhere)).
+Each write gives the note a new `version`, from one counter for all notes, and keeps its `writer`: `editor`, `mcp` or `api`, with a `name` where known. A writer that sends the version it started from is refused with `409` when the note has changed since, and every write and delete is announced as `note_changed` over `WS /ws/events`: that is how the editor follows a note an agent wrote ([Notes → Changes from elsewhere](ui/electron/notes.md#changes-from-elsewhere)).
 
 `content` is the editor's document, Tiptap (ProseMirror) JSON, kept as the UI sends it:
 
@@ -119,13 +119,27 @@ Blocks: `paragraph`, `heading` (levels 1–3), `bulletList`, `orderedList`, `tas
 
 ## Search index
 
-What `GET /search` searches: the text of every segment, the title a recording shows and every block of a note (a paragraph, heading or list item, with a speaker mention as the speaker's name now and a timecode as `[12:34]`), in three SQLite FTS5 tables (schema v11) with Ё written as Е. They are derived from the tables above and never edited on their own: triggers on `segments` and `TranscriptStorageService`'s writes keep them in step ([Search index](services/TranscriptStorageService.md#search-index), invariant [I7](system/invariants.md#i7--the-search-index-matches-the-data)).
+What `GET /search` searches: the text of every segment, the title a recording shows and every block of a note (a paragraph, heading or list item, with a speaker mention as the speaker's name now and a timecode as `[12:34]`), in three SQLite FTS5 tables with Ё written as Е. They are derived from the tables above and never edited on their own: triggers on `segments` and `TranscriptStorageService`'s writes keep them in step ([Search index](services/TranscriptStorageService.md#search-index), invariant [I7](system/invariants.md#i7--the-search-index-matches-the-data)).
 
 ---
 
 ## Backend settings
 
-Settings the backend needs itself, such as the switch of the [MCP server](api/mcp.md) and whether jobs use the GPU, are rows of `app_settings` (`key`, `value`), kept by [AppSettings](services/AppSettings.md) outside the versioned schema. Delete all data clears them.
+Settings the backend needs itself, such as the switch of the [MCP server](api/mcp.md) and whether jobs use the GPU, are rows of `app_settings` (`key`, `value`), kept by [AppSettings](services/AppSettings.md). Delete all data clears them.
+
+---
+
+## Database schema
+
+Everything above lives in one SQLite file, `$SONORUS_DATA_DIR/speaker_memory.db`: transcripts, segments, notes, the search index, speaker memory, the transcription queue and the backend's settings. One chain of numbered steps in `app/db/migrations.py` makes and changes every table of it; no service creates or alters a table.
+
+- **Version.** `PRAGMA user_version` is the number of the last step applied (`migrations.LATEST`). `ensure_schema(db_path)` applies the missing steps in order. The API calls it first of all at start-up (`open_database()` in `app/api/main.py`), and every service that opens the database calls it too, so a job's process or a test never works on a database at another version.
+- **One step, one transaction.** Each step runs in a transaction of its own (`BEGIN IMMEDIATE`) together with the new version number. A step cut short (a crash, a full disk) is rolled back whole, CREATE and ALTER TABLE included, and runs again at the next start. A second process opening the database meanwhile waits and then finds the step done.
+- **Adding a step.** A function of the connection under the next number in `STEPS`, and `LATEST` raised to it. A released step is never edited. `tests/test_db_migrations.py` brings the database of every release up and compares it with a new one; a release that changes the schema adds its snapshot to `tests/fixtures/db/` (`tests/fixtures/db/make_snapshots.py`).
+- **Step 1.** A new database gets the whole schema at once. A database of 0.2.0 to 0.3.2 had two counters of its own instead, `_ts_schema_version` (transcript tables, 6 to 12) and `_meta.schema_version` (speaker tables, 3 to 5), and the queue and settings tables had none. Step 1 takes what those releases had not done yet, then drops both counters. Before it changes such a database it copies it to `speaker_memory.db.before-migration` next to it (the SQLite backup API, so the write-ahead log is in the copy). The copy is made once and never overwritten or removed by the app; Delete all data leaves it too. If the copy cannot be made, nothing is changed and the backend does not start.
+- **Refused databases.** The backend does not start on a database it cannot bring up, and leaves the file as it was: one of a newer version of Sonorus (`user_version` above `LATEST`), or one older than 0.2.0 or with counters that do not fit together. It writes `SONORUS_DB_REFUSED newer` or `SONORUS_DB_REFUSED unsupported` to stderr, and the app says why in its start-up dialog instead of a generic backend error ([Electron](ui/electron/overview.md)).
+
+`_meta` keeps values that are not the schema: `embedding_model` (the model that computed the voices; another one resets them, see [SpeakerMemoryService](services/SpeakerMemoryService.md)) and `handle_format`.
 
 ---
 

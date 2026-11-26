@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from app.services.speaker_memory_service import (
-    HandleNeedsName, HandleTaken, InvalidHandle, SpeakerMemoryService, SpeakerRepository,
+    HandleNeedsName, HandleTaken, InvalidHandle, SpeakerMemoryService,
 )
 
 
@@ -245,21 +245,19 @@ def test_clear_frees_every_handle_and_keeps_the_format(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Migration v3 → v4: every named speaker gets a handle, by first appearance
+# A release before handles (speaker schema 3): every named speaker gets a
+# handle, by first appearance
 # ---------------------------------------------------------------------------
 
 def _make_v3_db(db_path: str) -> None:
+    from app.services.transcript_storage_service import TranscriptStorageService
+    from db_releases import as_release
+    TranscriptStorageService(db_path=db_path)
     with sqlite3.connect(db_path) as conn:
-        conn.executescript("""
-            CREATE TABLE _meta (key TEXT PRIMARY KEY, value TEXT);
-            INSERT INTO _meta VALUES ('schema_version', '3'), ('m001_uuid_speakers', 'done'),
-                                     ('embedding_model', 'wespeaker-resnet34-lm');
-            CREATE TABLE speaker_embeddings (id TEXT PRIMARY KEY, embedding BLOB NOT NULL, count INTEGER NOT NULL DEFAULT 1);
-            CREATE TABLE speaker_names (id INTEGER PRIMARY KEY AUTOINCREMENT, speaker_id TEXT NOT NULL, label TEXT NOT NULL, name TEXT NOT NULL);
-            CREATE TABLE speaker_meta (speaker_id TEXT PRIMARY KEY, color_index INTEGER NOT NULL DEFAULT 0);
-            CREATE TABLE transcriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, audio_file TEXT, created_at TEXT);
-            CREATE TABLE segments (id INTEGER PRIMARY KEY AUTOINCREMENT, transcription_id INTEGER, speaker_id TEXT, start REAL, end REAL, text TEXT);
-        """)
+        conn.execute("DROP INDEX speaker_meta_handle")
+        conn.execute("ALTER TABLE speaker_meta DROP COLUMN handle")
+        conn.execute("ALTER TABLE speaker_meta DROP COLUMN handle_manual")
+        conn.execute("ALTER TABLE speaker_meta DROP COLUMN photo")
         emb = np.array([1.0, 0.0, 0.0], dtype=np.float32).tobytes()
         # "later" is listed first and has the smaller id: order must come from the recordings.
         for spk, name, color in [("aaaa-later", "Иван Иванов", 2), ("bbbb-earlier", "Ivan Ivanov", 4),
@@ -273,6 +271,7 @@ def _make_v3_db(db_path: str) -> None:
         conn.execute("INSERT INTO segments (transcription_id, speaker_id, start, end, text) VALUES (2, 'aaaa-later', 0, 1, 'hi')")
         conn.execute("INSERT INTO segments (transcription_id, speaker_id, start, end, text) VALUES (1, 'bbbb-earlier', 0, 1, 'hi')")
         conn.execute("INSERT INTO segments (transcription_id, speaker_id, start, end, text) VALUES (2, 'bbbb-earlier', 1, 2, 'hi')")
+    as_release(db_path, speakers=3)
 
 
 def test_migration_gives_named_speakers_handles_by_first_appearance(tmp_path):
@@ -287,8 +286,9 @@ def test_migration_gives_named_speakers_handles_by_first_appearance(tmp_path):
     # Colours are kept.
     assert memory.get_color_index("aaaa-later") == 2
     assert memory.get_color_index("bbbb-earlier") == 4
-    with sqlite3.connect(db_path) as conn:
-        assert conn.execute("SELECT value FROM _meta WHERE key='schema_version'").fetchone()[0] == str(SpeakerRepository._SCHEMA_VERSION)
+    from app.db.migrations import LATEST
+    from db_releases import user_version
+    assert user_version(db_path) == LATEST
 
 
 def test_migration_runs_once_and_keeps_handles_on_the_next_start(tmp_path):
@@ -298,20 +298,3 @@ def test_migration_runs_once_and_keeps_handles_on_the_next_start(tmp_path):
     again = SpeakerMemoryService(db_path=db_path)
     assert again.get_handle("aaaa-later") == "vanya"
     assert again.get_handle("bbbb-earlier") == "ivan.ivanov"
-
-
-def test_legacy_named_speaker_gets_a_handle(tmp_path):
-    """m001 names legacy speakers after the schema migrations; they get handles too."""
-    db_path = str(tmp_path / "memory.db")
-    with sqlite3.connect(db_path) as conn:
-        conn.executescript("""
-            CREATE TABLE speaker_embeddings (id TEXT PRIMARY KEY, embedding BLOB, count INTEGER NOT NULL DEFAULT 1);
-            CREATE TABLE speaker_names (id INTEGER PRIMARY KEY AUTOINCREMENT, speaker_id TEXT NOT NULL REFERENCES speaker_embeddings(id), label TEXT NOT NULL, name TEXT NOT NULL);
-            CREATE TABLE segments (id INTEGER PRIMARY KEY AUTOINCREMENT, transcription_id INTEGER, speaker_id TEXT);
-        """)
-        conn.execute("INSERT INTO speaker_embeddings VALUES ('Smith', ?, 1)",
-                     (np.array([1.0, 0.0, 0.0], dtype=np.float32).tobytes(),))
-    memory = SpeakerMemoryService(db_path=db_path)
-    [spk] = memory.speaker_ids()
-    assert memory.get_name(spk) == "Smith"
-    assert memory.get_handle(spk) == "smith"

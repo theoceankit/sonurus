@@ -105,6 +105,14 @@ def _isolated_transcription_queue(tmp_path_factory):
     app.dependency_overrides.pop(get_transcription_queue, None)
 
 
+# The API opens DB_PATH first of all at start-up (app.api.main.open_database):
+# a test that runs the lifespan opens a database of its own instead.
+@pytest.fixture(autouse=True)
+def _isolated_db_path(tmp_path_factory, monkeypatch):
+    import app.config as config
+    monkeypatch.setattr(config, "DB_PATH", str(tmp_path_factory.mktemp("db") / "speaker_memory.db"))
+
+
 # The backend's own settings (app_settings) live in DB_PATH too: every test gets
 # them on a database of its own.
 @pytest.fixture(autouse=True)

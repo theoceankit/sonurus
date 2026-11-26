@@ -13,7 +13,7 @@ import app.config as config
 from app.api.dependencies import get_memory_service, get_storage_service, get_transcription_queue
 from app.api.main import app
 from app.controllers.transcription_controller import TranscriptionController, build_transcript
-from app.db.schema import SCHEMA_VERSION, init_db
+from app.db.migrations import LATEST
 from app.models.segment import Segment
 from app.models.transcript import Transcript
 from app.services import service_factory
@@ -26,6 +26,7 @@ from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.transcript_storage_service import TranscriptStorageService
 from app.services.transcription_job import make_job_runner
 from app.services.transcription_queue import TranscriptionQueue
+from db_releases import as_release, user_version
 from queue_helpers import Runner
 
 RESULT = {"language": "en", "segments": [
@@ -122,13 +123,12 @@ def test_the_mode_survives_a_new_store(tmp_path):
 
 def test_jobs_from_before_the_choice_find_speakers(tmp_path):
     db = str(tmp_path / "jobs.db")
+    JobStore(db)
     with sqlite3.connect(db) as conn:
-        conn.execute("""CREATE TABLE transcription_jobs (
-            id TEXT PRIMARY KEY, position INTEGER NOT NULL, audio_path TEXT NOT NULL, title TEXT NOT NULL,
-            whisper_model TEXT NOT NULL, language TEXT, status TEXT NOT NULL DEFAULT 'waiting',
-            error TEXT, error_code TEXT, error_language TEXT, created_at TEXT NOT NULL)""")
+        conn.execute("ALTER TABLE transcription_jobs DROP COLUMN diarize")
         conn.execute("INSERT INTO transcription_jobs (id, position, audio_path, title, whisper_model, created_at) "
                      "VALUES ('old', 0, '/a.wav', 'a', 'small', '2026-01-01')")
+    as_release(db, transcripts=10)
     assert JobStore(db).get("old")["diarize"] is True
 
 
@@ -241,7 +241,6 @@ def test_transcripts_from_before_the_choice_are_diarized(tmp_path):
                                   segments=[Segment(0.0, 1.0, "Hi", "SPEAKER_00")]))
     with sqlite3.connect(db) as conn:
         conn.execute("ALTER TABLE transcriptions DROP COLUMN diarized")
-        conn.execute("UPDATE _ts_schema_version SET version = 9")
-        init_db(conn)
-        assert conn.execute("SELECT version FROM _ts_schema_version").fetchone()[0] == SCHEMA_VERSION
+    as_release(db, transcripts=9)
     assert TranscriptStorageService(db_path=db).load(tid).diarized is True
+    assert user_version(db) == LATEST

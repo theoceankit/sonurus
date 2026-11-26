@@ -12,8 +12,11 @@ import numpy as np
 from app.config import EMBEDDING_MODEL_ID
 from app.models.segment import Segment
 from app.models.transcript import Transcript
-from app.services.speaker_memory_service import SpeakerMemoryService, SpeakerRepository
+from app.db.migrations import LATEST
+from app.services.speaker_memory_service import SpeakerMemoryService
 from app.services.transcript_storage_service import TranscriptStorageService
+
+from db_releases import user_version
 
 OLD_DIM, NEW_DIM = 512, 256
 
@@ -75,7 +78,7 @@ def test_schema_version_is_unchanged(tmp_path):
     # The reset is no migration: the schema is what the code says, whatever the model.
     db, _, _ = _old_model_db(tmp_path)
     SpeakerMemoryService(db_path=db)
-    assert _meta(db, "schema_version") == str(SpeakerRepository._SCHEMA_VERSION)
+    assert user_version(db) == LATEST
 
 
 def test_new_voices_survive_a_restart(tmp_path):
@@ -102,19 +105,6 @@ def test_a_new_database_gets_the_mark(tmp_path):
     assert _meta(db, "embedding_model") == EMBEDDING_MODEL_ID
 
 
-def test_a_database_without_segments_table_opens(tmp_path):
-    """Speaker memory may be opened before the transcript tables exist."""
-    db = str(tmp_path / "memory.db")
-    with sqlite3.connect(db) as conn:
-        conn.execute("CREATE TABLE speakers (id TEXT PRIMARY KEY, embedding BLOB NOT NULL)")
-        conn.execute("INSERT INTO speakers VALUES ('spk_1', ?)", (_vec(OLD_DIM, 1).tobytes(),))
-
-    memory = SpeakerMemoryService(db_path=db)
-
-    assert memory.known_speakers == {}
-    assert _meta(db, "embedding_model") == EMBEDDING_MODEL_ID
-
-
 def test_a_database_of_another_model_is_reset_too(tmp_path):
     """The mark names the model: any other value means other voices."""
     db, spk, _ = _old_model_db(tmp_path)
@@ -124,13 +114,3 @@ def test_a_database_of_another_model_is_reset_too(tmp_path):
     assert SpeakerMemoryService(db_path=db).known_speakers == {}
 
 
-def test_a_database_whose_segments_have_no_embedding_column_opens(tmp_path):
-    """Older transcript schemas had no segments.embedding yet."""
-    db = str(tmp_path / "memory.db")
-    with sqlite3.connect(db) as conn:
-        conn.execute("CREATE TABLE speakers (id TEXT PRIMARY KEY, embedding BLOB NOT NULL)")
-        conn.execute("CREATE TABLE segments (id INTEGER PRIMARY KEY, transcription_id INTEGER, speaker_id TEXT)")
-        conn.execute("INSERT INTO speakers VALUES ('spk_1', ?)", (_vec(OLD_DIM, 1).tobytes(),))
-
-    assert SpeakerMemoryService(db_path=db).known_speakers == {}
-    assert _meta(db, "embedding_model") == EMBEDDING_MODEL_ID

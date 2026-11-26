@@ -739,7 +739,7 @@ A handle is the speaker's unique id for people, as in `@ivan.petrov`, next to a 
 - **From the name**: the first word is the first name and the last word the last name; the words between are left out, and a single word is the handle by itself. Cyrillic goes by the Russian passport scheme (ж → zh, х → kh, ц → ts, ч → ch, ш → sh, щ → shch, ю → yu, я → ya, й → i; ь and ъ are dropped), other Latin letters lose their accents, and anything else is dropped. A name with no Latin letter left gives `speaker`.
 - **Handle format**: `first.last` (`ivan.petrov`, the default), `f.last` (`i.petrov`) or `first.l` (`ivan.p`). It applies to handles made from now on: changing it changes no handle already given.
 - **Taken**: a handle made from a name that another speaker has gets the smallest free number from 2 on its end: `ivan.petrov2`, `ivan.petrov3`. A number freed by a deleted speaker is used again.
-- **Who gets one**: a speaker gets a handle with a name, and keeps it until they are deleted or the data is reset. A schema v4 upgrade gives every named speaker one, the one heard first (the earliest transcript) without a number.
+- **Who gets one**: a speaker gets a handle with a name, and keeps it until they are deleted or the data is reset. A database of a release before handles gives every named speaker one when it is brought up, the one heard first (the earliest transcript) without a number.
 
 #### `GET /speakers/handle-suggestion?name=…&exclude=…`
 
@@ -829,7 +829,7 @@ Deletes all user data and returns the backend to an empty library:
 - every job in the transcription queue;
 - the backend's own settings (`app_settings`, [AppSettings](../services/AppSettings.md)): the [MCP server](mcp.md) is off again.
 
-The API memory singleton is emptied too, including its pending dirty sets, so a later `save()` cannot write old speakers back. Schema/version tables (`_meta`, `_ts_schema_version`), downloaded models and `settings.json` are kept. The user's original imported files outside the data directory are never deleted; symlinks inside the cleared directories are removed as links without touching their targets.
+The API memory singleton is emptied too, including its pending dirty sets, so a later `save()` cannot write old speakers back. The schema and its version, `_meta`, the copy made before the first migration (`speaker_memory.db.before-migration`), downloaded models and `settings.json` are kept. The user's original imported files outside the data directory are never deleted; symlinks inside the cleared directories are removed as links without touching their targets.
 
 ```json
 { "transcripts": 2, "speakers": 3, "files": 5 }

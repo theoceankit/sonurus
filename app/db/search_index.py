@@ -14,7 +14,6 @@ positions found in one hold in the other.
 
 import json
 import os
-import sqlite3
 import time
 
 from app.logger import get_logger
@@ -102,12 +101,8 @@ def index_note(conn, tid: int, content: str | dict | None, names: dict[str, str]
 
 
 def speaker_names(conn) -> dict[str, str]:
-    """{speaker id: display name} as stored by SpeakerMemoryService in the same
-    database; empty when it keeps its names elsewhere."""
-    try:
-        rows = conn.execute("SELECT speaker_id, name FROM speaker_names WHERE label = 'display'").fetchall()
-    except sqlite3.OperationalError:
-        return {}
+    """{speaker id: display name} as stored by SpeakerMemoryService in the same database."""
+    rows = conn.execute("SELECT speaker_id, name FROM speaker_names WHERE label = 'display'").fetchall()
     return dict(rows)
 
 

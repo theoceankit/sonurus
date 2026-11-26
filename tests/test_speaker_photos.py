@@ -137,26 +137,23 @@ def test_orphan_sweep_keeps_referenced_photos(memory, photos):
     assert stray not in _files(photos)
 
 
-def test_migration_from_v4_adds_the_photo_column(tmp_path):
+def test_a_release_before_photos_gets_the_photo_column(tmp_path):
+    from app.db.migrations import LATEST
+    from db_releases import as_release, user_version
     db = tmp_path / "old.db"
+    SpeakerMemoryService(db_path=str(db), photos_dir=tmp_path / "p")
     with sqlite3.connect(db) as conn:
-        conn.executescript("""
-            CREATE TABLE _meta (key TEXT PRIMARY KEY, value TEXT);
-            INSERT INTO _meta VALUES ('schema_version', '4'), ('m001_uuid_speakers', 'done');
-            CREATE TABLE speaker_embeddings (id TEXT PRIMARY KEY, embedding BLOB NOT NULL, count INTEGER NOT NULL DEFAULT 1);
-            CREATE TABLE speaker_names (id INTEGER PRIMARY KEY AUTOINCREMENT, speaker_id TEXT NOT NULL, label TEXT NOT NULL, name TEXT NOT NULL);
-            CREATE TABLE speaker_meta (speaker_id TEXT PRIMARY KEY, color_index INTEGER NOT NULL DEFAULT 0,
-                                       handle TEXT, handle_manual INTEGER NOT NULL DEFAULT 0);
-            INSERT INTO speaker_names (speaker_id, label, name) VALUES ('s1', 'display', 'Anna');
-            INSERT INTO speaker_meta VALUES ('s1', 2, 'anna', 1);
-        """)
+        conn.execute("ALTER TABLE speaker_meta DROP COLUMN photo")
+        conn.execute("INSERT INTO speaker_names (speaker_id, label, name) VALUES ('s1', 'display', 'Anna')")
+        conn.execute("INSERT INTO speaker_meta VALUES ('s1', 2, 'anna', 1)")
+    as_release(db, speakers=4)
     memory = SpeakerMemoryService(db_path=str(db), photos_dir=tmp_path / "p")
     assert memory.get_color_index("s1") == 2
     assert memory.get_handle("s1") == "anna"
     assert memory.get_photo("s1") is None
     memory.set_photo("s1", JPEG, "image/jpeg")
+    assert user_version(db) == LATEST
     with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT value FROM _meta WHERE key='schema_version'").fetchone()[0] == "5"
         assert conn.execute("SELECT color_index, handle, handle_manual FROM speaker_meta").fetchone() == (2, "anna", 1)
 
 

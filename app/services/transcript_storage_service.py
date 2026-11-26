@@ -7,7 +7,7 @@ from app.models.transcript import Transcript
 from app.models.segment import Segment, UNASSIGNED
 from app.logger import get_logger
 from app.db import search_index
-from app.db.schema import init_db
+from app.db.migrations import ensure_schema
 from app.db.serializers import serialize_embedding, deserialize_embedding
 from app.services.app_events import AppEvents, app_events
 
@@ -40,9 +40,7 @@ class TranscriptStorageService:
         return conn
 
     def _init_db(self):
-        with self._connect() as conn:
-            conn.execute("PRAGMA journal_mode=WAL")
-            init_db(conn)
+        ensure_schema(self.db_path)
 
     # ── Write ─────────────────────────────────────────────────────────────────
 
