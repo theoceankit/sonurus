@@ -195,7 +195,6 @@ One standard for everything that moves, seen in Storybook under Foundations/Moti
 | Element | Opens | Closes | How |
 |---|---|---|---|
 | Hover | 100 | 100 | colour only |
-| The button of a side panel under the pointer: Toggle sidebar, Show inspector, Close inspector | 100 | 100 | besides the colour, the line of its icon, the panel's edge, moves the way the panel will go: 1 px towards the frame when the panel will close, 2 px away from it when it will open; whole pixels, so the line stays sharp (`panelLine` in `motion.module.css`). Only under the pointer, not on keyboard focus. After a click on Toggle sidebar the line rests until the pointer leaves, rather than show the way back at once. Still with reduced motion |
 | A highlighted speaker: turns, rows, talk time | 100 | 100 | colour only, as hover, after `--delay-hover` under the pointer; the waveform changes at once |
 | Tooltip | 100 | 100 | fade and 2 px; the next within 300 ms and one from the keyboard come at once |
 | Tooltip of a group, to the next control | 100 | — | the block stays, its arrow moves to the next control and its width to the new text; the text changes at once |

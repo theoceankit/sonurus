@@ -35,26 +35,6 @@ const Tool = ({ label, ...props }: IconButtonProps) => (
   </Tooltip>
 )
 
-// After a click the sidebar has done what the icon showed, so the icon rests until
-// the pointer leaves rather than at once show the way back (data-settled).
-function SidebarToggle({ open, onToggle }: { open: boolean; onToggle?: () => void }) {
-  const [settled, setSettled] = useState(false)
-  return (
-    <Tool
-      icon="sidebar-toggle"
-      label="Toggle sidebar"
-      aria-expanded={open}
-      className={styles.sidebarToggle}
-      data-settled={settled || undefined}
-      onPointerLeave={() => setSettled(false)}
-      onClick={() => {
-        setSettled(true)
-        onToggle?.()
-      }}
-    />
-  )
-}
-
 // Shows only while the inspector is closed. When it opens the button goes back the
 // way it came: it stays until its animations have finished.
 function ShowInspector({ shown, onOpen }: { shown: boolean; onOpen?: () => void }) {
@@ -97,7 +77,7 @@ export function Titlebar({ sidebarOpen = true, onToggleSidebar, canGoBack = fals
       <div className={styles.brand}>
         <TooltipGroup>
           <span className={styles.nav}>
-            <SidebarToggle open={sidebarOpen} onToggle={onToggleSidebar} />
+            <Tool icon="sidebar-toggle" label="Toggle sidebar" aria-expanded={sidebarOpen} onClick={onToggleSidebar} />
             <Tool icon="arrow-left" label="Back" aria-disabled={!canGoBack || undefined} onClick={canGoBack ? onBack : undefined} />
             <Tool icon="arrow-right" label="Forward" aria-disabled={!canGoForward || undefined} onClick={canGoForward ? onForward : undefined} />
           </span>

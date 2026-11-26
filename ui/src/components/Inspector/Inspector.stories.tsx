@@ -37,8 +37,6 @@ export const ReviewOn: Story = { args: { review: { mode: 'on', counter: '1 of 4'
 export const ReviewCollapsed: Story = { args: { review: { mode: 'collapsed', left: 4 } } }
 export const ReviewOff: Story = {}
 export const Empty: Story = { args: { children: undefined } }
-// The pointer on Close inspector: the line of its icon moves towards the frame.
-export const CloseHover: Story = { parameters: { pseudo: { hover: ['button[aria-label="Close inspector"]'] } } }
 
 // The Notes tab, with what the screen puts in it.
 export const NotesTab: Story = { args: { notes: <p>The note of the recording</p>, tab: 'notes' } }
