@@ -383,7 +383,8 @@ describe('review', () => {
     await counter('1 of 4')
     await userEvent.click(within(card()).getByRole('button', { name: 'Close review' }))
     expect(await screen.findByText('4 left')).toBeTruthy()
-    expect(screen.queryByRole('region', { name: /^Who is/ })).toBeNull()
+    // The card stays on its way out, as long as a panel moves.
+    await waitFor(() => expect(screen.queryByRole('region', { name: /^Who is/ })).toBeNull())
     await userEvent.click(button('Resume'))
     expect(await counter('2 of 4')).toBeTruthy()
   })
